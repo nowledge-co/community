@@ -1,0 +1,26 @@
+{
+  "name": "nowledge-community",
+  "owner": {
+    "name": "Nowledge Labs",
+    "url": "https://www.nowledge-labs.ai/"
+  },
+  "metadata": {
+    "description": "Official Nowledge Community plugin marketplace for Claude Code",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "nowledge-mem",
+      "description": "Personal memory and context management system",
+      "version": "0.4.1",
+      "author": {
+        "name": "Nowledge Labs",
+        "url": "https://www.nowledge-labs.ai/",
+        "email": "hello@nowledge-labs.ai"
+      },
+      "homepage": "https://mem.nowledge.co/",
+      "tags": ["ai-powered", "knowledge-management", "context-management", "memory-management"],
+      "source": "./nowledge-mem-claude-code-plugin"
+    }
+  ]
+}
