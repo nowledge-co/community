@@ -64,8 +64,8 @@ An **open-source unified protocol** enabling AI agents to access and interact wi
   claude plugin install nowledge-mem@nowledge-community
   ```
 
-- 🐛 **[Report Bug](../../issues/new?template=bug_report.md)** | Found an issue? Let us know
-- 💡 **[Request Feature](../../issues/new?template=feature_request.md)** | Share your ideas
+- 🐛 **[Report Bug](https://github.com/nowledge-co/community/issues/new?template=bug_report.md)** | Found an issue? Let us know
+- 💡 **[Request Feature](https://github.com/nowledge-co/community/issues/new?template=feature_request.md)** | Share your ideas
 - 💌 **[Send Feedback](mailto:hello@nowledge-labs.ai)** | We'd love to hear from you
 
 ### Open Knowledge Layer Community
