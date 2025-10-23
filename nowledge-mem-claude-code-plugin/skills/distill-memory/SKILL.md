@@ -58,5 +58,5 @@ description: Recognize breakthrough moments, blocking resolutions, and design de
 If the MCP is not installed, you can install it with the following command:
 
 ```bash
-claude mcp add --transport http nowledge-mem http://localhost:14242/mcp
+claude mcp add --transport http nowledge-mem http://localhost:14242/mcp --scope user
 ```
