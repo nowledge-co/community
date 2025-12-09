@@ -1,6 +1,5 @@
 {
   "name": "nowledge-mem",
-  "displayName": "Nowledge Mem",
   "description": "Memory and Thread Management for AI Agents",
   "version": "0.4.1",
   "author": {
@@ -9,22 +8,7 @@
     "url": "https://nowledge-labs.ai"
   },
   "homepage": "https://mem.nowledge.co/",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nowledge-co/community.git"
-  },
-  "bugs": {
-    "url": "https://github.com/nowledge-co/community/issues"
-  },
-  "mcpServers": {
-    "nowledge-mem": {
-      "url": "http://localhost:14242/mcp",
-      "type": "streamableHttp",
-      "headers": {
-        "APP": "claude-code"
-      }
-    }
-  },
+  "repository": "https://github.com/nowledge-co/community.git",
   "license": "MIT",
   "keywords": [
     "memory",
@@ -37,15 +21,13 @@
     "ai-assistant",
     "knowledge-management"
   ],
-  "categories": [
-    "productivity",
-    "ai-assistant",
-    "knowledge-management"
-  ],
-  "engines": {
-    "claude-code": ">=1.0.0"
-  },
-  "icon": "icon.png",
-  "readme": "README.md"
+  "mcpServers": {
+    "nowledge-mem": {
+      "type": "http",
+      "url": "http://localhost:14242/mcp",
+      "headers": {
+        "APP": "claude-code"
+      }
+    }
+  }
 }
-
