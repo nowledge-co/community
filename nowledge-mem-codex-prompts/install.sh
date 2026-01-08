@@ -137,8 +137,8 @@ else
         echo "   --------------------------------------------------------"
         
         # Offer to install uv automatically
-        if [ -t 0 ]; then
-            # Interactive mode
+        if [ -t 1 ]; then
+            # Interactive mode - check stdout (works when script is piped)
             read -p "   Install uv now? (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then

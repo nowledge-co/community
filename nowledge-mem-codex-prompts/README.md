@@ -48,7 +48,7 @@ uvx nmem --version
 **Benefits:**
 - No manual installation or updates needed
 - Isolated from system Python
-- Always uses the latest version
+- Cached for fast startup (use `uvx --refresh nmem` to update)
 - Works on macOS, Linux, and Windows
 
 **Option 2: pip/pipx (Traditional Installation)**

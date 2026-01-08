@@ -71,7 +71,7 @@ uvx nmem --version
 **Benefits:**
 - No manual installation or updates needed
 - Isolated from system Python
-- Always uses the latest version
+- Cached for fast startup (use `uvx --refresh nmem` to update)
 - Works on macOS, Linux, and Windows
 
 **Option 2: pip/pipx (Traditional Installation)**
@@ -239,6 +239,40 @@ This plugin includes three Agent Skills that extend Claude's capabilities:
 4. Confirms memory creation
 
 **Focuses on quality over quantity** - typically 1-3 memories per session.
+
+## Slash Commands
+
+The plugin provides three CLI-based slash commands (no MCP required):
+
+### /nowledge-mem:save
+
+Save the current session to Nowledge Mem:
+
+```
+/save
+```
+
+This runs `nmem t save --from claude-code` to save the current session.
+
+### /nowledge-mem:sum
+
+Distill insights from the conversation into memories:
+
+```
+/sum
+```
+
+Claude will analyze the conversation and create structured memory entries using `nmem m add`.
+
+### /nowledge-mem:search
+
+Search your knowledge base:
+
+```
+/search <query>
+```
+
+This runs `nmem --json m search "<query>"` and returns relevant results.
 
 ## Available CLI Commands
 

@@ -52,11 +52,31 @@ nmem m add "React hooks cleanup must return function. Caused memory leaks in eve
   --title "React Hooks Cleanup Pattern" \
   --importance 0.9
 
-# Design decision
-nmem m add "PostgreSQL over MongoDB: ACID guarantees needed for financial transactions. MongoDB considered but lacked multi-document ACID support." \
-  --title "Database Choice: PostgreSQL for Transactions" \
-  --importance 0.8
+# Decision with context
+nmem m add "Chose PostgreSQL over MongoDB for ACID compliance and complex queries" \
+  --title "Database: PostgreSQL" \
+  --importance 0.9 \
+  --labels decision,architecture
 ```
+
+**Linking to Source Thread:**
+
+When distilling from a conversation, link the memory to its source thread:
+
+```bash
+# Get current session ID from context or save it first
+SESSION_ID=$(nmem --json t save --from claude-code | jq -r '.results[0].thread_id')
+
+# Create memory with source thread reference
+nmem m add "Key insight from architecture discussion..." \
+  --title "API Design Decision" \
+  --importance 0.8 \
+  --source-thread "$SESSION_ID"
+```
+
+This creates a bidirectional link - you can:
+- See source thread when viewing the memory
+- Find all memories distilled from a specific thread
 
 ## Suggestion
 
