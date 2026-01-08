@@ -30,7 +30,7 @@ Analyze our current conversation and create structured memory entries for import
 Use the `nmem` CLI to create memories for each important piece of information:
 
 ```bash
-nmem m add "Detailed summary with key information, formatted clearly" \
+nmem m add "Bullet list or short paragraph capturing the key insight" \
   --title "Brief, searchable title" \
   --importance 0.8
 ```

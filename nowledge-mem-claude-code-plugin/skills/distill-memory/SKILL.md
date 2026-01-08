@@ -34,8 +34,8 @@ Use `nmem` CLI to create memories:
 
 ```bash
 nmem m add "Insight + context for future use" \
-  --title "Searchable title (50-60 chars)" \
-  --importance 0.8
+  -t "Searchable title (50-60 chars)" \
+  -i 0.8
 ```
 
 **Content:** Outcome/insight focus, include "why", enough context
@@ -49,34 +49,14 @@ nmem m add "Insight + context for future use" \
 ```bash
 # High-value insight
 nmem m add "React hooks cleanup must return function. Caused memory leaks in event listeners." \
-  --title "React Hooks Cleanup Pattern" \
-  --importance 0.9
+  -t "React Hooks Cleanup Pattern" \
+  -i 0.9
 
 # Decision with context
 nmem m add "Chose PostgreSQL over MongoDB for ACID compliance and complex queries" \
-  --title "Database: PostgreSQL" \
-  --importance 0.9 \
-  --labels decision,architecture
+  -t "Database: PostgreSQL" \
+  -i 0.9
 ```
-
-**Linking to Source Thread:**
-
-When distilling from a conversation, link the memory to its source thread:
-
-```bash
-# Get current session ID from context or save it first
-SESSION_ID=$(nmem --json t save --from claude-code | jq -r '.results[0].thread_id')
-
-# Create memory with source thread reference
-nmem m add "Key insight from architecture discussion..." \
-  --title "API Design Decision" \
-  --importance 0.8 \
-  --source-thread "$SESSION_ID"
-```
-
-This creates a bidirectional link - you can:
-- See source thread when viewing the memory
-- Find all memories distilled from a specific thread
 
 ## Suggestion
 
