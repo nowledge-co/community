@@ -27,15 +27,26 @@ Analyze our current conversation and create structured memory entries for import
 
 **Memory Creation**:
 
-Use the `nowledge_mem` MCP server to call `memory_create` for each important piece of information:
+Use the `nmem` CLI to create memories for each important piece of information:
 
+```bash
+nmem m add "Detailed summary with key information, formatted clearly" \
+  --title "Brief, searchable title" \
+  --importance 0.8
 ```
-memory_create(
-  title="Brief, searchable title",
-  content="Detailed summary with key information, formatted clearly",
-  importance=0.8,
-  labels=["relevant", "category", "tags"]
-)
+
+**Example:**
+
+```bash
+nmem m add "Implemented JWT-based authentication with refresh tokens. Access tokens expire in 15min, refresh tokens in 7 days. Tokens stored in httpOnly cookies for security." \
+  --title "JWT Authentication Implementation" \
+  --importance 0.9
+```
+
+**For programmatic use**, add `--json` flag to verify creation:
+
+```bash
+nmem --json m add "Content here" --title "Title" --importance 0.8
 ```
 
 **Guidelines:**

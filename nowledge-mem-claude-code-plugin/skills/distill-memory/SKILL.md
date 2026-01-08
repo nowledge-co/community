@@ -30,20 +30,53 @@ description: Recognize breakthrough moments, blocking resolutions, and design de
 
 ## Tool Usage
 
-```json
-{
-  "content": "Insight + context for future use",
-  "title": "Searchable (50-60 chars)",
-  "importance": 0.8,
-  "labels": "tech,domain,topic"
-}
+Use `nmem` CLI to create memories:
+
+```bash
+nmem m add "Insight + context for future use" \
+  --title "Searchable title (50-60 chars)" \
+  --importance 0.8
 ```
 
 **Content:** Outcome/insight focus, include "why", enough context
 
 **Importance:** 0.8-1.0 major | 0.5-0.7 useful | 0.3-0.4 minor
 
-**Labels:** 2-4 max, check existing first, lowercase-hyphenated
+**Note:** For programmatic use, add `--json` flag to get JSON response
+
+**Examples:**
+
+```bash
+# High-value insight
+nmem m add "React hooks cleanup must return function. Caused memory leaks in event listeners." \
+  --title "React Hooks Cleanup Pattern" \
+  --importance 0.9
+
+# Decision with context
+nmem m add "Chose PostgreSQL over MongoDB for ACID compliance and complex queries" \
+  --title "Database: PostgreSQL" \
+  --importance 0.9 \
+  --labels decision,architecture
+```
+
+**Linking to Source Thread:**
+
+When distilling from a conversation, link the memory to its source thread:
+
+```bash
+# Get current session ID from context or save it first
+SESSION_ID=$(nmem --json t save --from claude-code | jq -r '.results[0].thread_id')
+
+# Create memory with source thread reference
+nmem m add "Key insight from architecture discussion..." \
+  --title "API Design Decision" \
+  --importance 0.8 \
+  --source-thread "$SESSION_ID"
+```
+
+This creates a bidirectional link - you can:
+- See source thread when viewing the memory
+- Find all memories distilled from a specific thread
 
 ## Suggestion
 
@@ -55,8 +88,19 @@ description: Recognize breakthrough moments, blocking resolutions, and design de
 
 ## Troubleshooting
 
-If the MCP is not installed, you can install it with the following command:
+If `nmem` is not available:
 
+**Option 1 (Recommended): Use uvx**
 ```bash
-claude mcp add --transport http nowledge-mem http://localhost:14242/mcp --scope user
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Run nmem (no installation needed)
+uvx nmem --version
+```
+
+**Option 2: Install with pip**
+```bash
+pip install nmem
+nmem --version
 ```
