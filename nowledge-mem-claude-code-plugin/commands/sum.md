@@ -8,7 +8,7 @@ Analyze our conversation and create structured memory entries using the nmem CLI
 
 ## Memory Categories
 
-Use these as labels when creating memories:
+Use these categories to guide content structure:
 
 - **insight**: Key learnings, realizations, "aha" moments
 - **decision**: Choices made with rationale and trade-offs
@@ -25,9 +25,8 @@ Use these as labels when creating memories:
 
 ```bash
 nmem m add "Content with full context" \
-  --title "Searchable title (max 60 chars)" \
-  --importance 0.8 \
-  --labels category,topic
+  -t "Searchable title (max 60 chars)" \
+  -i 0.8
 ```
 
 ## Importance Scale
@@ -47,7 +46,6 @@ nmem m add "Content with full context" \
 
 ```bash
 nmem m add "React useEffect cleanup functions must return a function, not call it directly. Incorrect: useEffect(() => cleanup()). Correct: useEffect(() => cleanup). This caused memory leaks in our dashboard component." \
-  --title "React useEffect Cleanup Pattern" \
-  --importance 0.9 \
-  --labels insight,react,debugging
+  -t "React useEffect Cleanup Pattern" \
+  -i 0.9
 ```

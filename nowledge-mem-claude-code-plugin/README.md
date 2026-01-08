@@ -126,6 +126,20 @@ claude plugin list
 
 You should see `nowledge-mem` in the list.
 
+### Update Plugin
+
+To update to the latest version:
+
+```bash
+# Update marketplace index
+claude plugin marketplace update
+
+# Update the plugin
+claude plugin update nowledge-mem@nowledge-community
+
+# Restart Claude Code to apply changes
+```
+
 ## Quick Start
 
 ### 1. Verify Connection

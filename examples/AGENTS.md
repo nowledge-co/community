@@ -4,7 +4,7 @@ Add this section to your project's `AGENTS.md` file to enable AI agents to auton
 
 ### Memory Operations
 
-**Memory Categories** - Use these as labels when creating memories:
+**Memory Categories** - Use these to guide content structure:
 
 - **insight**: Key learnings, realizations, "aha" moments
 - **decision**: Choices made with rationale and trade-offs  
@@ -17,15 +17,13 @@ Add this section to your project's `AGENTS.md` file to enable AI agents to auton
 ```bash
 # Basic memory
 nmem m add "Content with context" \
-  --title "Searchable title (max 60 chars)" \
-  --importance 0.8
+  -t "Searchable title (max 60 chars)" \
+  -i 0.8
 
-# With labels and source thread
+# With title and importance
 nmem m add "Decided to use PostgreSQL for ACID compliance" \
-  --title "Database Selection" \
-  --importance 0.9 \
-  --labels decision,architecture \
-  --source-thread "claude-code-abc123"
+  -t "Database Selection" \
+  -i 0.9
 ```
 
 **Importance Scale:**
@@ -83,9 +81,8 @@ You are a knowledge management specialist who captures valuable information.
 **Example:**
 ```bash
 nmem m add "Root cause: API rate limiting missing exponential backoff" \
-  --title "API Rate Limiting Fix" \
-  --importance 0.7 \
-  --labels insight,debugging,api
+  -t "API Rate Limiting Fix" \
+  -i 0.7
 ```
 
 Act proactively but judiciously.
