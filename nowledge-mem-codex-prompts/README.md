@@ -28,27 +28,58 @@ Analyze your conversation and create structured memory entries with key insights
 
 ## Prerequisites
 
-1. **MCP Server**: Configure `nowledge_mem` in your Codex settings
+1. **nmem CLI**: Use `uvx nmem` (recommended) or install with `pip install nmem`
 2. **jq**: Install with `brew install jq` (macOS) or `sudo apt install jq` (Debian/Ubuntu)
 
-### MCP Configuration
+### nmem CLI Setup
 
-Add this to your `~/.codex/config.toml`:
+**Option 1: uvx (Recommended - No Installation Required)**
 
-```toml
-[mcp_servers.nowledge-mem]
-url = "http://localhost:14242/mcp"
+Use `uvx` to run `nmem` without installing it:
 
-[mcp_servers.nowledge-mem.http_headers]
-APP = "Codex"
+```bash
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Run nmem directly (downloads automatically on first use)
+uvx nmem --version
 ```
 
-**Note**: No restart needed after adding the configuration.
+**Benefits:**
+- No manual installation or updates needed
+- Isolated from system Python
+- Always uses the latest version
+- Works on macOS, Linux, and Windows
+
+**Option 2: pip/pipx (Traditional Installation)**
+
+```bash
+# Using pip
+pip install nmem
+
+# Or using pipx for isolated installation
+pipx install nmem
+```
+
+Verify installation:
+
+```bash
+nmem --version
+# or
+uvx nmem --version
+```
+
+**Note**: 
+- On Windows/Linux with Nowledge Mem Desktop app installed, `nmem` is bundled
+- On macOS or when using Mem as a remote server, use `uvx` or install manually
+- The CLI connects to your Nowledge Mem instance at `http://localhost:14242` by default
 
 ## Troubleshooting
 
+- **"Command not found: uvx"** → Install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **"Command not found: nmem"** → Use `uvx nmem` or install with `pip install nmem`
 - **"Command not found: jq"** → Install jq using your package manager
-- **"MCP server not found"** → Check your Codex MCP configuration  
+- **"Cannot connect to server"** → Ensure Nowledge Mem is running at `http://localhost:14242`
 - **Sessions not listing** → Ensure you're in the correct project directory
 
 ## Manual Install

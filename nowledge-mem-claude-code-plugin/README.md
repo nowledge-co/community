@@ -54,24 +54,63 @@ Beyond conversations:
 
 ## Installation
 
-### Nowledge Mem MCP Server Installation
+### Prerequisites
+
+**nmem CLI** - Choose one of the following options:
+
+**Option 1: uvx (Recommended - No Installation Required)**
 
 ```bash
-claude mcp add --transport http nowledge-mem http://localhost:14242/mcp
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Run nmem directly (downloads automatically on first use)
+uvx nmem --version
 ```
 
-### Option 1: Install from Marketplace (Recommended)
+**Benefits:**
+- No manual installation or updates needed
+- Isolated from system Python
+- Always uses the latest version
+- Works on macOS, Linux, and Windows
+
+**Option 2: pip/pipx (Traditional Installation)**
+
+```bash
+# Using pip
+pip install nmem
+
+# Or using pipx for isolated installation
+pipx install nmem
+```
+
+Verify installation:
+
+```bash
+nmem --version
+# or
+uvx nmem --version
+```
+
+**Note**: 
+- On Windows/Linux with Nowledge Mem Desktop app installed, `nmem` is bundled
+- On macOS or when using Mem as a remote server, use `uvx` or install manually
+- Ensure the Nowledge Mem server is running at `http://localhost:14242`
+
+### Plugin Installation
+
+#### Option 1: Install from Marketplace (Recommended)
 
 ```bash
 claude plugin install nowledge-mem
 ```
 
-### Option 2: Install from Directory
+#### Option 2: Install from Directory
 
 ```bash
-# Clone the plugin
-git clone https://github.com/nowledge-labs/nowledge-mem.git
-cd nowledge-mem/claude-code-plugin
+# Clone the repository
+git clone https://github.com/nowledge-co/community.git
+cd community/nowledge-mem-claude-code-plugin
 
 # Install locally
 claude plugin install .
@@ -91,13 +130,13 @@ You should see `nowledge-mem` in the list.
 
 ### 1. Verify Connection
 
-Start Claude Code and ask:
+Verify that `nmem` can connect to your Nowledge Mem server:
 
-```text
-List available memory labels
+```bash
+nmem status
 ```
 
-If the backend is connected, you'll see a list of labels (may be empty if this is your first time).
+You should see server status information. If this works, the plugin will be able to use `nmem` commands.
 
 ### 2. Search Your Knowledge Base
 
@@ -113,7 +152,7 @@ Or reference previous conversations:
 What was that database optimization we discussed?
 ```
 
-Claude will automatically search your knowledge base using the **Search Knowledge Base** skill.
+Claude will automatically search your knowledge base using the **Search Memory** skill, which uses `nmem --json m search` under the hood.
 
 ### 3. Save a Session
 
@@ -123,13 +162,7 @@ After completing valuable work, save it:
 Save this session - implemented user authentication with JWT
 ```
 
-Or use the guided prompt:
-
-```text
-/save
-```
-
-Claude will use the **Persist Coding Session** skill to store your conversation.
+Claude will use the **Save Thread** skill to store your conversation using `nmem t save --from claude-code`.
 
 ### 4. Build Your Knowledge Base
 
@@ -143,9 +176,9 @@ Or during conversations, Claude can suggest saving important information.
 
 ## Skills Reference
 
-This plugin includes two Agent Skills that extend Claude's capabilities:
+This plugin includes three Agent Skills that extend Claude's capabilities:
 
-### Search Knowledge Base
+### Search Memory
 
 **Automatically activates when you:**
 
@@ -165,70 +198,120 @@ This plugin includes two Agent Skills that extend Claude's capabilities:
 
 1. Claude detects semantic triggers in your message
 2. Formulates an optimal search query
-3. Calls `memory_search` MCP tool
+3. Runs `nmem --json m search "<query>"` with appropriate filters
 4. Synthesizes relevant results into response
 
-### Persist Coding Session
+### Save Thread
 
 **Activates when you explicitly request:**
 
 - "Save this session"
 - "Remember this conversation"
-- Use `/save` prompt
+- "Checkpoint this"
 
 **How it works:**
 
-1. Claude asks for a brief summary (1-2 sentences)
-2. Detects your current project path
-3. Calls `thread_persist` MCP tool
-4. Confirms successful save with details
+1. Claude generates a brief summary of the conversation
+2. Runs `nmem t save --from claude-code -s "<summary>"`
+3. Auto-detects and imports the current session from `~/.claude/projects/`
+4. Confirms successful save with thread ID and message count
+
+**Features:**
+- Idempotent: Re-running appends only new messages
+- Auto-generated thread ID: `claude-code-{session_id}`
+- Can save current session or all sessions for a project
 
 **Never activates automatically** - always requires explicit user request.
 
-## Available MCP Tools
+### Distill Memory
 
-The plugin exposes these MCP tools (you can call them directly or let skills handle them):
+**Activates when:**
 
-### Core Search & Retrieval
+- Breakthrough moments occur (debugging resolved, root cause found)
+- Important decisions are made with clear rationale
+- Valuable lessons or patterns are recognized
 
-**`memory_search`**
+**How it works:**
 
+1. Claude detects high-value moments in the conversation
+2. Suggests distilling the insight into a memory
+3. If approved, runs `nmem m add "<content>" --title "<title>" --importance <score>`
+4. Confirms memory creation
+
+**Focuses on quality over quantity** - typically 1-3 memories per session.
+
+## Available CLI Commands
+
+The plugin uses these `nmem` CLI commands (skills handle them automatically):
+
+### Memory Operations
+
+**Search Memories**
+```bash
+nmem --json m search "<query>" [--importance MIN] [-l LABEL] [-t TIME] [-n LIMIT]
+```
 - Search memories using semantic + full-text search
-- Parameters: `query`, `limit`, `mode` (normal/deep), `confidence_threshold`, `filter_labels`
-- Returns: Ranked results with confidence scores
+- Returns: JSON with ranked results and confidence scores
 
-**`list_memory_labels`**
-
-- Get all available labels with usage counts
-- Helps with label filtering in searches
-
-### Memory Management
-
-**`memory_add`**
-
+**Add Memory**
+```bash
+nmem m add "<content>" --title "<title>" --importance <0.0-1.0>
+```
 - Add new memory to knowledge base
-- Parameters: `content`, `title`, `importance`, `labels`, `source`
 - Automatic entity extraction and relationship building
 
-**`memory_update`**
-
+**Update Memory**
+```bash
+nmem m update <id> --content "<content>" --title "<title>" --importance <score>
+```
 - Update existing memory content or metadata
-- Parameters: `memory_id`, `content`, `title`, `importance`, `labels`
-- Use after `memory_search` to get memory IDs
 
-### Session Persistence
+**List Memories**
+```bash
+nmem --json m [-n LIMIT] [--importance MIN]
+```
+- List recent memories with optional filters
 
-**`thread_persist`**
+### Thread Operations
 
-- Save Claude Code sessions to knowledge base
-- Parameters: `client` (claude-code), `project_path`, `persist_mode`, `summary`
-- Automatic deduplication and session detection
+**Save Session**
+```bash
+# Save current Claude Code session
+nmem t save --from claude-code
 
-## Available MCP Prompts
+# Save with custom summary
+nmem t save --from claude-code -s "Implemented authentication feature"
 
-**`/sum`** - Analyze current conversation and create structured memories
+# Save all sessions for current project
+nmem t save --from claude-code -m all
 
-**`/save`** - Guided workflow for saving coding sessions
+# Save for specific project
+nmem t save --from claude-code -p /path/to/project
+```
+- Auto-detects sessions from `~/.claude/projects/`
+- Idempotent: Re-running appends only new messages
+- Thread ID: `claude-code-{session_id}`
+
+**Create Thread (Manual)**
+```bash
+nmem t create -t "<title>" -m '<json_messages>'
+# Or from file
+nmem t create -t "<title>" -f conversation.md
+```
+- Manual thread creation from JSON or markdown
+- Use when not importing from Claude Code/Codex
+
+**Search Threads**
+```bash
+nmem --json t search "<query>" [-n LIMIT]
+```
+- Search threads by title and content
+
+**Show Thread**
+```bash
+nmem --json t show <id> [-m MAX_MESSAGES]
+```
+- Display thread details with messages
 
 ## Usage Examples
 

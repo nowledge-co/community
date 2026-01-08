@@ -2,9 +2,24 @@
 description: Save current Codex session to Nowledge knowledge base
 ---
 
-Please run this command to list my Codex sessions for this directory:
+Use the `nmem t save` command to automatically save the current Codex session:
+
+## Basic Usage
 
 ```bash
+# Save current session
+nmem t save --from codex
+
+# Save with summary
+nmem t save --from codex -s "Brief summary of what we accomplished"
+```
+
+## Advanced Options
+
+If you need to save a specific session or all sessions:
+
+```bash
+# List available sessions for current directory
 find ~/.codex/sessions -name "rollout-*.jsonl" -exec sh -c '
   cwd=$(pwd)
   meta=$(head -n1 "$1" | jq -r "select(.payload.cwd == \"$cwd\") | .payload")
@@ -15,23 +30,33 @@ find ~/.codex/sessions -name "rollout-*.jsonl" -exec sh -c '
     echo "$id | $ts | ${preview:-<no preview>}"
   fi
 ' _ {} \; | sort -r
+
+# Save specific session by ID
+nmem t save --from codex --session-id <session-id> -s "Summary"
+
+# Save all sessions for current project
+nmem t save --from codex -m all
 ```
 
-Show me the results and let me pick which session ID to use. Once I choose:
+## Workflow
 
 1. **Analyze our conversation** and create a concise 1-2 sentence summary of what we accomplished
-2. **Call the MCP tool** `thread_persist` with these parameters:
-   - `client`: "codex"
-   - `project_path`: (use the current working directory)
-   - `session_id`: (the session ID I selected)
-   - `summary`: (the summary you generated)
 
-Example call:
+2. **Save the session** using the command:
+   ```bash
+   nmem t save --from codex -s "Your summary here"
+   ```
+
+3. **Confirm the save** - The command will show:
+   - Thread ID (e.g., `codex-abc123`)
+   - Number of messages saved
+   - Whether it was created or appended
+
+## Example
+
+```bash
+# After completing work on authentication
+nmem t save --from codex -s "Implemented JWT authentication with refresh tokens"
 ```
-thread_persist(
-  client="codex",
-  project_path="/Users/username/project/foo",
-  session_id="019a0fc1-c03f-7ac1-bc4d-7116cdfc6464",
-  summary="Implemented responsive Tailwind CSS layouts and fixed navigation bug"
-)
-```
+
+**Note:** The command is idempotent - re-running it will only append new messages, preventing duplicates.

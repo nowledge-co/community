@@ -88,11 +88,88 @@ else
 fi
 
 echo ""
-echo "📚 Available commands in Codex:"
-echo "   /prompts:save_session  - Save current session to Nowledge"
-echo "   /prompts:distill       - Create memory entries from conversation"
+
+# Function to install uv if not present
+install_uv() {
+    echo "📦 Installing uv (Python package manager)..."
+    if curl -LsSf https://astral.sh/uv/install.sh | sh; then
+        echo "✅ uv installed successfully"
+        # Add to PATH for current session
+        export PATH="$HOME/.cargo/bin:$PATH"
+        return 0
+    else
+        echo "❌ Failed to install uv"
+        return 1
+    fi
+}
+
+# Check nmem CLI availability
+echo "🔍 Checking nmem CLI availability..."
 echo ""
-echo "💡 Tip: Make sure the nowledge_mem MCP server is configured in Codex"
+
+# First check if nmem is directly available (bundled or installed)
+if command -v nmem &> /dev/null; then
+    NMEM_VERSION=$(nmem --version 2>&1 | head -n1)
+    echo "✅ nmem CLI is installed: $NMEM_VERSION"
+else
+    # nmem not found - suggest installation options
+    echo "⚠️  nmem CLI not found."
+    echo ""
+    echo "📋 Installation options:"
+    echo ""
+    
+    # Check if uv is available for uvx option
+    if command -v uv &> /dev/null; then
+        echo "   Option 1 (Recommended): Use uvx (no installation needed)"
+        echo "   --------------------------------------------------------"
+        echo "   uvx nmem --version"
+        echo ""
+        echo "   Option 2: Install nmem with pip"
+        echo "   --------------------------------"
+        echo "   pip install nmem"
+        echo ""
+        echo "   Option 3: Install nmem with pipx (isolated)"
+        echo "   -------------------------------------------"
+        echo "   pipx install nmem"
+    else
+        # uv not available either - offer to install it
+        echo "   Option 1 (Recommended): Use uvx (no installation needed)"
+        echo "   --------------------------------------------------------"
+        
+        # Offer to install uv automatically
+        if [ -t 0 ]; then
+            # Interactive mode
+            read -p "   Install uv now? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                if install_uv; then
+                    echo "   Now you can run: uvx nmem --version"
+                fi
+            else
+                echo "   To install uv later, run:"
+                echo "   curl -LsSf https://astral.sh/uv/install.sh | sh"
+                echo ""
+                echo "   Then use: uvx nmem <command>"
+            fi
+        else
+            # Non-interactive mode (piped install)
+            echo "   Install uv with:"
+            echo "   curl -LsSf https://astral.sh/uv/install.sh | sh"
+            echo ""
+            echo "   Then use: uvx nmem <command>"
+        fi
+        
+        echo ""
+        echo "   Option 2: Install nmem with pip"
+        echo "   --------------------------------"
+        echo "   pip install nmem"
+        echo ""
+        echo "   Option 3: Install nmem with pipx (isolated)"
+        echo "   -------------------------------------------"
+        echo "   pipx install nmem"
+    fi
+fi
+
 echo ""
 
 # List all prompts
