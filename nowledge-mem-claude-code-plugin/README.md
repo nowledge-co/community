@@ -65,23 +65,23 @@ Beyond conversations:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Run nmem directly (downloads automatically on first use)
-uvx nmem --version
+uvx --from nmem-cli nmem --version
 ```
 
 **Benefits:**
 - No manual installation or updates needed
 - Isolated from system Python
-- Cached for fast startup (use `uvx --refresh nmem` to update)
+- Cached for fast startup (use `uvx --refresh --from nmem-cli nmem` to update)
 - Works on macOS, Linux, and Windows
 
 **Option 2: pip/pipx (Traditional Installation)**
 
 ```bash
 # Using pip
-pip install nmem
+pip install nmem-cli
 
 # Or using pipx for isolated installation
-pipx install nmem
+pipx install nmem-cli
 ```
 
 Verify installation:
@@ -89,7 +89,7 @@ Verify installation:
 ```bash
 nmem --version
 # or
-uvx nmem --version
+uvx --from nmem-cli nmem --version
 ```
 
 **Note**: 

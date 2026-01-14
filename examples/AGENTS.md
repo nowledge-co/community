@@ -114,10 +114,10 @@ This automatically saves sessions on exit - idempotent and safe to run multiple 
 ```bash
 # Option 1 (Recommended): Use uvx (no installation needed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uvx nmem --version
+uvx --from nmem-cli nmem --version
 
 # Option 2: Install with pip
-pip install nmem
+pip install nmem-cli
 ```
 
 **Note**: On Windows/Linux with Nowledge Mem Desktop app, `nmem` is bundled. On macOS or remote servers, use `uvx` or install manually.

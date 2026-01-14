@@ -65,11 +65,11 @@ If `nmem` is not available:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Run nmem (no installation needed)
-uvx nmem t save --from claude-code
+uvx --from nmem-cli nmem t save --from claude-code
 ```
 
 **Option 2: Install with pip**
 ```bash
-pip install nmem
+pip install nmem-cli
 nmem t save --from claude-code
 ```

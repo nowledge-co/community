@@ -28,7 +28,7 @@ Analyze your conversation and create structured memory entries with key insights
 
 ## Prerequisites
 
-1. **nmem CLI**: Use `uvx nmem` (recommended) or install with `pip install nmem`
+1. **nmem CLI**: Use `uvx --from nmem-cli nmem` (recommended) or install with `pip install nmem-cli`
 2. **jq**: Install with `brew install jq` (macOS) or `sudo apt install jq` (Debian/Ubuntu)
 
 ### nmem CLI Setup
@@ -42,23 +42,23 @@ Use `uvx` to run `nmem` without installing it:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Run nmem directly (downloads automatically on first use)
-uvx nmem --version
+uvx --from nmem-cli nmem --version
 ```
 
 **Benefits:**
 - No manual installation or updates needed
 - Isolated from system Python
-- Cached for fast startup (use `uvx --refresh nmem` to update)
+- Cached for fast startup (use `uvx --refresh --from nmem-cli nmem` to update)
 - Works on macOS, Linux, and Windows
 
 **Option 2: pip/pipx (Traditional Installation)**
 
 ```bash
 # Using pip
-pip install nmem
+pip install nmem-cli
 
 # Or using pipx for isolated installation
-pipx install nmem
+pipx install nmem-cli
 ```
 
 Verify installation:
@@ -66,7 +66,7 @@ Verify installation:
 ```bash
 nmem --version
 # or
-uvx nmem --version
+uvx --from nmem-cli nmem --version
 ```
 
 **Note**: 
@@ -77,7 +77,7 @@ uvx nmem --version
 ## Troubleshooting
 
 - **"Command not found: uvx"** → Install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **"Command not found: nmem"** → Use `uvx nmem` or install with `pip install nmem`
+- **"Command not found: nmem"** → Use `uvx --from nmem-cli nmem` or install with `pip install nmem-cli`
 - **"Command not found: jq"** → Install jq using your package manager
 - **"Cannot connect to server"** → Ensure Nowledge Mem is running at `http://localhost:14242`
 - **Sessions not listing** → Ensure you're in the correct project directory
