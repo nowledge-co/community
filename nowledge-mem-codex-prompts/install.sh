@@ -122,15 +122,15 @@ else
     if command -v uv &> /dev/null; then
         echo "   Option 1 (Recommended): Use uvx (no installation needed)"
         echo "   --------------------------------------------------------"
-        echo "   uvx nmem --version"
+        echo "   uvx --from nmem-cli nmem --version"
         echo ""
-        echo "   Option 2: Install nmem with pip"
+        echo "   Option 2: Install nmem-cli with pip"
         echo "   --------------------------------"
-        echo "   pip install nmem"
+        echo "   pip install nmem-cli"
         echo ""
-        echo "   Option 3: Install nmem with pipx (isolated)"
+        echo "   Option 3: Install nmem-cli with pipx (isolated)"
         echo "   -------------------------------------------"
-        echo "   pipx install nmem"
+        echo "   pipx install nmem-cli"
     else
         # uv not available either - offer to install it
         echo "   Option 1 (Recommended): Use uvx (no installation needed)"
@@ -143,30 +143,30 @@ else
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 if install_uv; then
-                    echo "   Now you can run: uvx nmem --version"
+                    echo "   Now you can run: uvx --from nmem-cli nmem --version"
                 fi
             else
                 echo "   To install uv later, run:"
                 echo "   curl -LsSf https://astral.sh/uv/install.sh | sh"
                 echo ""
-                echo "   Then use: uvx nmem <command>"
+                echo "   Then use: uvx --from nmem-cli nmem <command>"
             fi
         else
             # Non-interactive mode (piped install)
             echo "   Install uv with:"
             echo "   curl -LsSf https://astral.sh/uv/install.sh | sh"
             echo ""
-            echo "   Then use: uvx nmem <command>"
+            echo "   Then use: uvx --from nmem-cli nmem <command>"
         fi
         
         echo ""
-        echo "   Option 2: Install nmem with pip"
+        echo "   Option 2: Install nmem-cli with pip"
         echo "   --------------------------------"
-        echo "   pip install nmem"
+        echo "   pip install nmem-cli"
         echo ""
-        echo "   Option 3: Install nmem with pipx (isolated)"
+        echo "   Option 3: Install nmem-cli with pipx (isolated)"
         echo "   -------------------------------------------"
-        echo "   pipx install nmem"
+        echo "   pipx install nmem-cli"
     fi
 fi
 
