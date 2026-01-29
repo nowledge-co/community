@@ -84,7 +84,7 @@ An **open-source unified protocol** enabling AI agents to access and interact wi
 - 🛠️ **npx Skills** | Install to any supported agent (Claude Code, Cursor, OpenCode, Codex, etc.):
 
   ```bash
-  npx add-skill nowledge-co/community/nowledge-mem-npx-skills
+  npx skills add nowledge-co/community/nowledge-mem-npx-skills
   ```
 
 - 🐛 **[Report Bug](https://github.com/nowledge-co/community/issues/new?template=bug_report.md)** | Found an issue? Let us know

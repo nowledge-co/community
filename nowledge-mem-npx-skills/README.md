@@ -1,8 +1,8 @@
 # Nowledge Mem Skills for AI Coding Agents
 
-> Install Nowledge Mem skills on any supported AI coding agent using `npx add-skill`.
+> Install Nowledge Mem skills on any supported AI coding agent using `npx skills add`.
 
-[![npx add-skill](https://img.shields.io/badge/npx-add--skill-blue)](https://github.com/vercel-labs/add-skill)
+[![npx skills](https://img.shields.io/badge/npx-skills-blue)](https://github.com/vercel-labs/add-skill)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Supported-green)](https://claude.ai/code)
 [![Cursor](https://img.shields.io/badge/Cursor-Supported-green)](https://cursor.sh)
 
@@ -19,25 +19,25 @@ These skills extend your AI coding agent with persistent memory capabilities pow
 ### Quick Install (All Skills)
 
 ```bash
-npx add-skill nowledge-co/community/nowledge-mem-npx-skills
+npx skills add nowledge-co/community/nowledge-mem-npx-skills
 ```
 
 ### Install Specific Skills
 
 ```bash
 # List available skills
-npx add-skill nowledge-co/community/nowledge-mem-npx-skills --list
+npx skills add nowledge-co/community/nowledge-mem-npx-skills --list
 
 # Install specific skill
-npx add-skill nowledge-co/community/nowledge-mem-npx-skills --skill search-memory
+npx skills add nowledge-co/community/nowledge-mem-npx-skills --skill search-memory
 
 # Install to specific agent
-npx add-skill nowledge-co/community/nowledge-mem-npx-skills -a claude-code
+npx skills add nowledge-co/community/nowledge-mem-npx-skills -a claude-code
 ```
 
 ### Supported Agents
 
-The `add-skill` CLI automatically detects and installs to:
+The `skills` CLI automatically detects and installs to:
 
 - Claude Code
 - Cursor
