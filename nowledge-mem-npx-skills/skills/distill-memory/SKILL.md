@@ -1,5 +1,5 @@
 ---
-name: nowledge-mem-distill
+name: distill-memory
 description: Recognize breakthrough moments, blocking resolutions, and design decisions worth preserving. Detect high-value insights that save future time. Suggest distillation at valuable moments, not routine work.
 ---
 

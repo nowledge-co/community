@@ -1,5 +1,5 @@
 ---
-name: nowledge-mem-save
+name: save-thread
 description: Save complete conversation as checkpoint. Only when user explicitly requests ("save session", "checkpoint this"). Use nmem t save to automatically import coding sessions.
 ---
 

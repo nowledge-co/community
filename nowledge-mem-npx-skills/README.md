@@ -83,7 +83,7 @@ nmem status
 
 ## Skills
 
-### Search Memory (`nowledge-mem-search`)
+### Search Memory (`search-memory`)
 
 Automatically searches your knowledge base when past insights would improve the response.
 
@@ -100,7 +100,7 @@ Agent: [Automatically searches knowledge base]
 Found it! We solved this 2 weeks ago. The issue was token expiration...
 ```
 
-### Save Thread (`nowledge-mem-save`)
+### Save Thread (`save-thread`)
 
 Saves complete conversations as checkpoints for future reference.
 
@@ -119,7 +119,7 @@ Messages: 23
 Thread ID: claude-code-abc123
 ```
 
-### Distill Memory (`nowledge-mem-distill`)
+### Distill Memory (`distill-memory`)
 
 Recognizes breakthrough moments and captures them as searchable memories.
 

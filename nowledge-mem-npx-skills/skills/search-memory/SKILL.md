@@ -1,5 +1,5 @@
 ---
-name: nowledge-mem-search
+name: search-memory
 description: Search your personal knowledge base when past insights would improve response. Recognize when stored breakthroughs, decisions, or solutions are relevant. Search proactively based on context, not just explicit requests.
 ---
 
