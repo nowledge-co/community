@@ -5,6 +5,22 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-02-14
+
+### Added
+
+- **read-working-memory** skill — loads daily Working Memory briefing (`~/ai-now/memory.md`) at session start for cross-tool continuity
+- **Lifecycle hooks** (`hooks/hooks.json`):
+  - `SessionStart` (startup) — injects Working Memory context on new sessions
+  - `SessionStart` (compact) — re-injects Working Memory after context compaction
+  - `PreCompact` — checkpoints conversation thread before compaction
+  - `SessionEnd` — auto-saves conversation thread on session end
+- Four skills total: search-memory, read-working-memory, distill-memory, save-thread
+
+### Changed
+
+- Version bump to 0.6.0 to align with Nowledge Mem v0.6 release
+
 ## [0.4.1] - 2025-10-23
 
 ### Added

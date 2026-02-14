@@ -87,6 +87,12 @@ An **open-source unified protocol** enabling AI agents to access and interact wi
   npx skills add nowledge-co/community/nowledge-mem-npx-skills
   ```
 
+- 🐾 **OpenClaw Plugin** | Install for [OpenClaw](https://openclaw.ai) agents:
+
+  ```bash
+  openclaw plugin add @nowledge/openclaw-nowledge-mem
+  ```
+
 - 🐛 **[Report Bug](https://github.com/nowledge-co/community/issues/new?template=bug_report.md)** | Found an issue? Let us know
 - 💡 **[Request Feature](https://github.com/nowledge-co/community/issues/new?template=feature_request.md)** | Share your ideas
 - 💌 **[Send Feedback](mailto:hello@nowledge-labs.ai)** | We'd love to hear from you

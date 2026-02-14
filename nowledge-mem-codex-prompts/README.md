@@ -18,6 +18,10 @@ curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge
 
 ## Available Commands
 
+### `/prompts:read_working_memory`
+
+Load your daily Working Memory briefing — focus areas, priorities, flags, and recent activity. Run at session start for context.
+
 ### `/prompts:save_session`
 
 Save your current Codex session to Nowledge. Lists available sessions and lets you choose which one to save.
@@ -87,6 +91,7 @@ uvx --from nmem-cli nmem --version
 ```bash
 mkdir -p ~/.codex/prompts
 cd ~/.codex/prompts
+curl -O https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/read_working_memory.md
 curl -O https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/save_session.md
 curl -O https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/distill.md
 ```

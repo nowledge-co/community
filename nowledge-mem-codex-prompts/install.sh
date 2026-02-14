@@ -71,7 +71,7 @@ install_prompt() {
 
 # Install prompts with error handling
 failed=0
-for prompt in "save_session.md" "distill.md"; do
+for prompt in "read_working_memory.md" "save_session.md" "distill.md"; do
     if ! install_prompt "$prompt"; then
         failed=1
     fi

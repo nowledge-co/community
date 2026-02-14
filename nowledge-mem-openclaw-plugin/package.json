@@ -1,0 +1,32 @@
+{
+  "name": "@nowledge/openclaw-nowledge-mem",
+  "version": "0.1.0",
+  "description": "Nowledge Mem memory plugin for OpenClaw — local-first personal knowledge base",
+  "author": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai",
+    "url": "https://nowledge-labs.ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nowledge-co/community.git",
+    "directory": "nowledge-mem-openclaw-plugin"
+  },
+  "openclaw": {
+    "extension": "./src/index.ts"
+  },
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.1.29"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "typescript": "^5.7.0"
+  }
+}

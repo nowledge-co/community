@@ -190,7 +190,19 @@ Or during conversations, Claude can suggest saving important information.
 
 ## Skills Reference
 
-This plugin includes three Agent Skills that extend Claude's capabilities:
+This plugin includes four Agent Skills and lifecycle hooks that extend Claude's capabilities:
+
+### Read Working Memory
+
+**Automatically activates at session start.**
+
+Loads your daily Working Memory briefing from `~/ai-now/memory.md`. This gives Claude your current context — active focus areas, priorities, unresolved flags, and recent knowledge changes — without you asking.
+
+**How it works:**
+
+1. Claude reads `~/ai-now/memory.md` at the start of each session
+2. References relevant context naturally during the conversation
+3. Skips if already loaded or if the file doesn't exist
 
 ### Search Memory
 
@@ -253,6 +265,21 @@ This plugin includes three Agent Skills that extend Claude's capabilities:
 4. Confirms memory creation
 
 **Focuses on quality over quantity** - typically 1-3 memories per session.
+
+## Lifecycle Hooks
+
+The plugin includes hooks that automate knowledge management at key points in Claude Code's lifecycle. These are configured in `hooks/hooks.json` and activate automatically when the plugin is installed.
+
+| Hook | Event | What it does |
+|------|-------|-------------|
+| **Context injection** | `SessionStart` (startup) | Reads `~/ai-now/memory.md` and injects your Working Memory into the session |
+| **Context recovery** | `SessionStart` (compact) | Re-injects Working Memory after context compaction, so Claude doesn't lose your priorities |
+| **Thread checkpoint** | `PreCompact` | Saves your conversation thread before compaction, so nothing is lost |
+| **Auto-save** | `SessionEnd` | Saves your conversation thread when the session ends |
+
+All hooks are best-effort — they fail silently if `nmem` is not available or the server is offline.
+
+**Customizing hooks:** Edit `.claude/settings.json` to override or disable individual hooks. See the [Claude Code Hooks Guide](https://code.claude.com/docs/en/hooks-guide) for details.
 
 ## Slash Commands
 
