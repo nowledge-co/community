@@ -5,16 +5,46 @@ import {
   searchMemories,
   listMemories,
   type SearchResult,
-  type Memory,
+  type SearchMemory,
+  type ListMemory,
 } from "./api";
 
-function importanceColor(importance: number): Color {
-  if (importance >= 0.8) return Color.Red;
-  if (importance >= 0.5) return Color.Orange;
-  return Color.Green;
+function scoreColor(score: number): Color {
+  if (score >= 0.8) return Color.Green;
+  if (score >= 0.5) return Color.Orange;
+  return Color.SecondaryText;
 }
 
-function MemoryDetail({ memory, score }: { memory: Memory; score?: number }) {
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const trimmed = text.substring(0, max);
+  const lastSpace = trimmed.lastIndexOf(" ");
+  return (
+    (lastSpace > max * 0.6 ? trimmed.substring(0, lastSpace) : trimmed) + "..."
+  );
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// --- Search result detail ---
+
+function SearchMemoryDetail({
+  memory,
+  score,
+}: {
+  memory: SearchMemory;
+  score?: number;
+}) {
   const md = [
     `# ${memory.title || "Untitled"}`,
     "",
@@ -22,12 +52,10 @@ function MemoryDetail({ memory, score }: { memory: Memory; score?: number }) {
     "",
     "---",
     "",
-    `**ID:** \`${memory.id}\``,
-    `**Importance:** ${memory.importance}`,
+    score !== undefined ? `**Relevance:** ${(score * 100).toFixed(0)}%` : "",
     memory.labels?.length ? `**Labels:** ${memory.labels.join(", ")}` : "",
     memory.unit_type ? `**Type:** ${memory.unit_type}` : "",
-    score !== undefined ? `**Relevance:** ${(score * 100).toFixed(0)}%` : "",
-    `**Created:** ${new Date(memory.created_at).toLocaleDateString()}`,
+    memory.created_at ? `**Created:** ${formatDate(memory.created_at)}` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -49,6 +77,7 @@ function MemoryDetail({ memory, score }: { memory: Memory; score?: number }) {
           <Action.Open
             title="Open in Nowledge Mem"
             target={`nowledgemem://memory/${memory.id}`}
+            icon={Icon.AppWindow}
             shortcut={{ modifiers: ["cmd"], key: "o" }}
           />
         </ActionPanel>
@@ -57,28 +86,48 @@ function MemoryDetail({ memory, score }: { memory: Memory; score?: number }) {
   );
 }
 
-function memoryActions(memory: Memory, score?: number) {
+// --- Recent memory detail ---
+
+function ListMemoryDetail({ memory }: { memory: ListMemory }) {
+  const md = [
+    `# ${memory.title || "Untitled"}`,
+    "",
+    memory.content,
+    "",
+    "---",
+    "",
+    memory.time ? `**Saved:** ${memory.time}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   return (
-    <ActionPanel>
-      <Action.Push
-        title="View Memory"
-        icon={Icon.Eye}
-        target={<MemoryDetail memory={memory} score={score} />}
-      />
-      <Action.CopyToClipboard title="Copy Content" content={memory.content} />
-      <Action.CopyToClipboard
-        title="Copy Title"
-        content={memory.title || ""}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-      />
-      <Action.Open
-        title="Open in Nowledge Mem"
-        target={`nowledgemem://memory/${memory.id}`}
-        shortcut={{ modifiers: ["cmd"], key: "o" }}
-      />
-    </ActionPanel>
+    <Detail
+      markdown={md}
+      actions={
+        <ActionPanel>
+          <Action.CopyToClipboard
+            title="Copy Content"
+            content={memory.content}
+          />
+          <Action.CopyToClipboard
+            title="Copy Title"
+            content={memory.title || ""}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
+          <Action.Open
+            title="Open in Nowledge Mem"
+            target={`nowledgemem://memory/${memory.id}`}
+            icon={Icon.AppWindow}
+            shortcut={{ modifiers: ["cmd"], key: "o" }}
+          />
+        </ActionPanel>
+      }
+    />
   );
 }
+
+// --- Main command ---
 
 export default function SearchMemories() {
   const [searchText, setSearchText] = useState("");
@@ -99,6 +148,7 @@ export default function SearchMemories() {
 
   const isLoading = searchText ? searchLoading : recentLoading;
 
+  // --- Search results view ---
   if (searchText && searchResults) {
     return (
       <List
@@ -114,18 +164,52 @@ export default function SearchMemories() {
           {searchResults.map((result: SearchResult) => (
             <List.Item
               key={result.memory.id}
+              icon={Icon.Dot}
               title={result.memory.title || "Untitled"}
-              subtitle={result.memory.content.substring(0, 80)}
+              subtitle={truncate(result.memory.content, 60)}
               accessories={[
+                ...(result.memory.labels?.length
+                  ? [{ tag: result.memory.labels[0] }]
+                  : []),
                 {
                   tag: {
                     value: `${(result.similarity_score * 100).toFixed(0)}%`,
-                    color: importanceColor(result.similarity_score),
+                    color: scoreColor(result.similarity_score),
                   },
                 },
-                { date: new Date(result.memory.created_at) },
+                ...(result.memory.created_at
+                  ? [{ text: formatDate(result.memory.created_at) }]
+                  : []),
               ]}
-              actions={memoryActions(result.memory, result.similarity_score)}
+              actions={
+                <ActionPanel>
+                  <Action.Push
+                    title="View Memory"
+                    icon={Icon.Eye}
+                    target={
+                      <SearchMemoryDetail
+                        memory={result.memory}
+                        score={result.similarity_score}
+                      />
+                    }
+                  />
+                  <Action.CopyToClipboard
+                    title="Copy Content"
+                    content={result.memory.content}
+                  />
+                  <Action.CopyToClipboard
+                    title="Copy Title"
+                    content={result.memory.title || ""}
+                    shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+                  />
+                  <Action.Open
+                    title="Open in Nowledge Mem"
+                    target={`nowledgemem://memory/${result.memory.id}`}
+                    icon={Icon.AppWindow}
+                    shortcut={{ modifiers: ["cmd"], key: "o" }}
+                  />
+                </ActionPanel>
+              }
             />
           ))}
         </List.Section>
@@ -133,6 +217,7 @@ export default function SearchMemories() {
     );
   }
 
+  // --- Recent memories view ---
   return (
     <List
       isLoading={isLoading}
@@ -144,22 +229,40 @@ export default function SearchMemories() {
         title="Recent Memories"
         subtitle={`${recentMemories?.length ?? 0} memories`}
       >
-        {(recentMemories ?? []).map((memory: Memory) => (
+        {(recentMemories ?? []).map((memory: ListMemory) => (
           <List.Item
             key={memory.id}
+            icon={Icon.Dot}
             title={memory.title || "Untitled"}
-            subtitle={memory.content.substring(0, 80)}
+            subtitle={truncate(memory.content, 60)}
             accessories={[
-              ...(memory.labels?.length ? [{ tag: memory.labels[0] }] : []),
-              {
-                tag: {
-                  value: String(memory.importance),
-                  color: importanceColor(memory.importance),
-                },
-              },
-              { date: new Date(memory.created_at) },
+              ...(memory.is_favorite ? [{ icon: Icon.Star }] : []),
+              { text: memory.time },
             ]}
-            actions={memoryActions(memory)}
+            actions={
+              <ActionPanel>
+                <Action.Push
+                  title="View Memory"
+                  icon={Icon.Eye}
+                  target={<ListMemoryDetail memory={memory} />}
+                />
+                <Action.CopyToClipboard
+                  title="Copy Content"
+                  content={memory.content}
+                />
+                <Action.CopyToClipboard
+                  title="Copy Title"
+                  content={memory.title || ""}
+                  shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+                />
+                <Action.Open
+                  title="Open in Nowledge Mem"
+                  target={`nowledgemem://memory/${memory.id}`}
+                  icon={Icon.AppWindow}
+                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                />
+              </ActionPanel>
+            }
           />
         ))}
       </List.Section>
