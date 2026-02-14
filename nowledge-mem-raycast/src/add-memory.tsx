@@ -1,15 +1,31 @@
-import { ActionPanel, Action, Form, showToast, Toast, popToRoot } from "@raycast/api";
+import {
+  ActionPanel,
+  Action,
+  Form,
+  showToast,
+  Toast,
+  popToRoot,
+} from "@raycast/api";
 import { createMemory } from "./api";
 
 export default function AddMemory() {
-  async function handleSubmit(values: { content: string; title: string; importance: string }) {
+  async function handleSubmit(values: {
+    content: string;
+    title: string;
+    importance: string;
+  }) {
     if (!values.content.trim()) {
-      await showToast({ style: Toast.Style.Failure, title: "Content is required" });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Content is required",
+      });
       return;
     }
 
     try {
-      const importance = values.importance ? parseFloat(values.importance) : 0.5;
+      const importance = values.importance
+        ? parseFloat(values.importance)
+        : 0.5;
       const memory = await createMemory({
         content: values.content,
         title: values.title || undefined,
@@ -39,8 +55,17 @@ export default function AddMemory() {
         </ActionPanel>
       }
     >
-      <Form.TextArea id="content" title="Content" placeholder="What do you want to remember?" autoFocus />
-      <Form.TextField id="title" title="Title" placeholder="Short, searchable title (optional)" />
+      <Form.TextArea
+        id="content"
+        title="Content"
+        placeholder="What do you want to remember?"
+        autoFocus
+      />
+      <Form.TextField
+        id="title"
+        title="Title"
+        placeholder="Short, searchable title (optional)"
+      />
       <Form.Dropdown id="importance" title="Importance" defaultValue="0.5">
         <Form.Dropdown.Item value="0.9" title="Critical (0.9)" />
         <Form.Dropdown.Item value="0.7" title="Important (0.7)" />

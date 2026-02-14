@@ -6,7 +6,7 @@ interface Preferences {
 
 function getBaseUrl(): string {
   const { serverUrl } = getPreferenceValues<Preferences>();
-  return serverUrl || "http://localhost:14242";
+  return serverUrl || "http://127.0.0.1:14242";
 }
 
 export interface Memory {
@@ -25,7 +25,10 @@ export interface SearchResult {
   relevance_reason?: string;
 }
 
-export async function searchMemories(query: string, limit = 10): Promise<SearchResult[]> {
+export async function searchMemories(
+  query: string,
+  limit = 10,
+): Promise<SearchResult[]> {
   const url = `${getBaseUrl()}/memories/search`;
   const res = await fetch(url, {
     method: "POST",
@@ -74,25 +77,15 @@ export async function createMemory(req: CreateMemoryRequest): Promise<Memory> {
   return (await res.json()) as Memory;
 }
 
-function getWorkingMemoryPath(): string {
-  const os = require("os");
-  const path = require("path");
-  return path.join(os.homedir(), "ai-now", "memory.md");
-}
-
 export async function readWorkingMemory(): Promise<string> {
-  const fs = await import("fs");
-  const filePath = getWorkingMemoryPath();
+  const { readFileSync } = await import("fs");
+  const { homedir } = await import("os");
+  const { join } = await import("path");
+  const filePath = join(homedir(), "ai-now", "memory.md");
 
   try {
-    return fs.readFileSync(filePath, "utf-8");
+    return readFileSync(filePath, "utf-8");
   } catch {
     return "";
   }
-}
-
-export async function writeWorkingMemory(content: string): Promise<void> {
-  const fs = await import("fs");
-  const filePath = getWorkingMemoryPath();
-  fs.writeFileSync(filePath, content, "utf-8");
 }

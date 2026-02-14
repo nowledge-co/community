@@ -1,7 +1,12 @@
 import { ActionPanel, Action, List, Icon, Color, Detail } from "@raycast/api";
 import { useState } from "react";
 import { useCachedPromise } from "@raycast/utils";
-import { searchMemories, listMemories, type SearchResult, type Memory } from "./api";
+import {
+  searchMemories,
+  listMemories,
+  type SearchResult,
+  type Memory,
+} from "./api";
 
 function importanceColor(importance: number): Color {
   if (importance >= 0.8) return Color.Red;
@@ -32,7 +37,10 @@ function MemoryDetail({ memory, score }: { memory: Memory; score?: number }) {
       markdown={md}
       actions={
         <ActionPanel>
-          <Action.CopyToClipboard title="Copy Content" content={memory.content} />
+          <Action.CopyToClipboard
+            title="Copy Content"
+            content={memory.content}
+          />
           <Action.CopyToClipboard
             title="Copy Title"
             content={memory.title || ""}
@@ -75,10 +83,7 @@ function memoryActions(memory: Memory, score?: number) {
 export default function SearchMemories() {
   const [searchText, setSearchText] = useState("");
 
-  const {
-    isLoading: searchLoading,
-    data: searchResults,
-  } = useCachedPromise(
+  const { isLoading: searchLoading, data: searchResults } = useCachedPromise(
     async (query: string) => {
       if (!query) return null;
       return searchMemories(query, 15);
@@ -87,10 +92,7 @@ export default function SearchMemories() {
     { keepPreviousData: true },
   );
 
-  const {
-    isLoading: recentLoading,
-    data: recentMemories,
-  } = useCachedPromise(
+  const { isLoading: recentLoading, data: recentMemories } = useCachedPromise(
     async () => listMemories(15),
     [],
   );
@@ -105,7 +107,10 @@ export default function SearchMemories() {
         searchBarPlaceholder="Search your knowledge base..."
         throttle
       >
-        <List.Section title="Results" subtitle={`${searchResults.length} memories`}>
+        <List.Section
+          title="Results"
+          subtitle={`${searchResults.length} memories`}
+        >
           {searchResults.map((result: SearchResult) => (
             <List.Item
               key={result.memory.id}
@@ -135,16 +140,17 @@ export default function SearchMemories() {
       searchBarPlaceholder="Search your knowledge base..."
       throttle
     >
-      <List.Section title="Recent Memories" subtitle={`${recentMemories?.length ?? 0} memories`}>
+      <List.Section
+        title="Recent Memories"
+        subtitle={`${recentMemories?.length ?? 0} memories`}
+      >
         {(recentMemories ?? []).map((memory: Memory) => (
           <List.Item
             key={memory.id}
             title={memory.title || "Untitled"}
             subtitle={memory.content.substring(0, 80)}
             accessories={[
-              ...(memory.labels?.length
-                ? [{ tag: memory.labels[0] }]
-                : []),
+              ...(memory.labels?.length ? [{ tag: memory.labels[0] }] : []),
               {
                 tag: {
                   value: String(memory.importance),

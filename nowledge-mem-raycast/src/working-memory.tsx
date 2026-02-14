@@ -1,7 +1,10 @@
 import { Detail, ActionPanel, Action, Icon } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { readWorkingMemory } from "./api";
-import EditWorkingMemory from "./edit-working-memory";
+import { homedir } from "os";
+import { join } from "path";
+
+const WM_PATH = join(homedir(), "ai-now", "memory.md");
 
 export default function WorkingMemory() {
   const { isLoading, data: content } = useCachedPromise(readWorkingMemory);
@@ -13,7 +16,7 @@ export default function WorkingMemory() {
         markdown={
           isLoading
             ? "Loading Working Memory..."
-            : "# Working Memory not available\n\nEnsure Nowledge Mem is running with Background Intelligence enabled.\n\nThe daily briefing is generated each morning and saved to `~/ai-now/memory.md`."
+            : "# Working Memory Not Available\n\nEnsure Nowledge Mem is running with Background Intelligence enabled.\n\nThe daily briefing is generated each morning and saved to `~/ai-now/memory.md`."
         }
       />
     );
@@ -25,16 +28,19 @@ export default function WorkingMemory() {
       markdown={content}
       actions={
         <ActionPanel>
-          <Action.Push
-            title="Edit Working Memory"
-            icon={Icon.Pencil}
-            target={<EditWorkingMemory />}
-          />
-          <Action.CopyToClipboard title="Copy Working Memory" content={content} />
           <Action.Open
-            title="Open in Editor"
-            target={`${process.env.HOME}/ai-now/memory.md`}
-            icon={Icon.Document}
+            title="Edit in Default Editor"
+            target={WM_PATH}
+            icon={Icon.Pencil}
+          />
+          <Action.CopyToClipboard
+            title="Copy Working Memory"
+            content={content}
+          />
+          <Action.Open
+            title="Open in Nowledge Mem"
+            target="nowledgemem://working-memory"
+            icon={Icon.AppWindow}
             shortcut={{ modifiers: ["cmd"], key: "o" }}
           />
         </ActionPanel>
