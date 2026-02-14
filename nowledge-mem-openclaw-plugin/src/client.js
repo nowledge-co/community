@@ -1,36 +1,18 @@
 import { execSync } from "node:child_process"
-import type { OpenClawLogger } from "../types/openclaw"
-
-export interface SearchResult {
-  id: string
-  title: string
-  content: string
-  score: number
-  labels: string[]
-  importance: number
-}
-
-export interface WorkingMemory {
-  content: string
-  available: boolean
-}
 
 /**
- * Nowledge Mem client — wraps the nmem CLI for local-first operations.
+ * Nowledge Mem client. Wraps the nmem CLI for local-first operations.
  * Falls back to uvx if plain nmem is not on PATH.
  */
 export class NowledgeMemClient {
-  private logger: OpenClawLogger
-  private nmemCmd: string | null = null
-
-  constructor(logger: OpenClawLogger) {
+  constructor(logger) {
     this.logger = logger
+    this.nmemCmd = null
   }
 
-  private resolveCommand(): string {
+  resolveCommand() {
     if (this.nmemCmd) return this.nmemCmd
 
-    // Try plain nmem first, then uvx fallback
     for (const cmd of ["nmem", "uvx --from nmem-cli nmem"]) {
       try {
         execSync(`${cmd} --version`, { stdio: "pipe", timeout: 10_000 })
@@ -47,7 +29,7 @@ export class NowledgeMemClient {
     )
   }
 
-  private exec(args: string): string {
+  exec(args) {
     const cmd = this.resolveCommand()
     try {
       return execSync(`${cmd} ${args}`, {
@@ -62,11 +44,11 @@ export class NowledgeMemClient {
     }
   }
 
-  async search(query: string, limit = 5): Promise<SearchResult[]> {
+  async search(query, limit = 5) {
     const raw = this.exec(`--json m search "${query.replace(/"/g, '\\"')}" -n ${limit}`)
     const data = JSON.parse(raw)
     const memories = data.memories ?? data.results ?? []
-    return memories.map((m: Record<string, unknown>) => ({
+    return memories.map((m) => ({
       id: String(m.id ?? ""),
       title: String(m.title ?? ""),
       content: String(m.content ?? ""),
@@ -76,11 +58,7 @@ export class NowledgeMemClient {
     }))
   }
 
-  async addMemory(
-    content: string,
-    title?: string,
-    importance?: number
-  ): Promise<string> {
+  async addMemory(content, title, importance) {
     let args = `m add "${content.replace(/"/g, '\\"')}"`
     if (title) args += ` -t "${title.replace(/"/g, '\\"')}"`
     if (importance !== undefined) args += ` -i ${importance}`
@@ -89,7 +67,7 @@ export class NowledgeMemClient {
     return String(data.id ?? "created")
   }
 
-  async readWorkingMemory(): Promise<WorkingMemory> {
+  async readWorkingMemory() {
     try {
       const content = execSync("cat ~/ai-now/memory.md 2>/dev/null", {
         encoding: "utf-8",
@@ -101,13 +79,13 @@ export class NowledgeMemClient {
     }
   }
 
-  async saveThread(summary?: string): Promise<string> {
+  async saveThread(summary) {
     let args = "t save --from openclaw --truncate"
     if (summary) args += ` -s "${summary.replace(/"/g, '\\"')}"`
     return this.exec(args)
   }
 
-  async checkHealth(): Promise<boolean> {
+  async checkHealth() {
     try {
       this.exec("status")
       return true

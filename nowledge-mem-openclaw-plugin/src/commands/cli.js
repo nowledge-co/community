@@ -1,13 +1,5 @@
-import type { NowledgeMemClient } from "../client"
-import type { OpenClawLogger } from "../../types/openclaw"
-
-export function createCliRegistrar(
-  client: NowledgeMemClient,
-  logger: OpenClawLogger
-  // biome-ignore lint/suspicious/noExplicitAny: openclaw CLI program type
-): (ctx: { program: any }) => void {
-  // biome-ignore lint/suspicious/noExplicitAny: openclaw CLI program type
-  return ({ program }: { program: any }) => {
+export function createCliRegistrar(client, logger) {
+  return ({ program }) => {
     const cmd = program
       .command("nowledge-mem")
       .description("Nowledge Mem knowledge base commands")
@@ -16,7 +8,7 @@ export function createCliRegistrar(
       .command("search")
       .argument("<query>", "Search query")
       .option("--limit <n>", "Max results", "5")
-      .action(async (query: string, opts: { limit: string }) => {
+      .action(async (query, opts) => {
         const limit = Number.parseInt(opts.limit, 10) || 5
         try {
           const results = await client.search(query, limit)

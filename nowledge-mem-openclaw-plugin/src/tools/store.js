@@ -1,10 +1,4 @@
-import type { NowledgeMemClient } from "../client"
-import type { OpenClawLogger, ToolDefinition, ToolResult } from "../../types/openclaw"
-
-export function createStoreTool(
-  client: NowledgeMemClient,
-  logger: OpenClawLogger
-): ToolDefinition {
+export function createStoreTool(client, logger) {
   return {
     name: "nowledge_mem_store",
     description:
@@ -14,7 +8,7 @@ export function createStoreTool(
       properties: {
         text: {
           type: "string",
-          description: "Memory content — atomic and actionable",
+          description: "Memory content, atomic and actionable",
         },
         title: {
           type: "string",
@@ -28,7 +22,7 @@ export function createStoreTool(
       },
       required: ["text"],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params) {
       const text = String(params.text ?? "")
       const title = params.title ? String(params.title) : undefined
       const importance = params.importance

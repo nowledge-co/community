@@ -12,9 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **read-working-memory** skill — loads daily Working Memory briefing (`~/ai-now/memory.md`) at session start for cross-tool continuity
 - **Lifecycle hooks** (`hooks/hooks.json`):
   - `SessionStart` (startup) — injects Working Memory context on new sessions
-  - `SessionStart` (compact) — re-injects Working Memory after context compaction
-  - `PreCompact` — checkpoints conversation thread before compaction
-  - `SessionEnd` — auto-saves conversation thread on session end
+  - `SessionStart` (compact) — re-injects Working Memory after compaction and prompts agent to checkpoint progress via `nmem m add`
 - Four skills total: search-memory, read-working-memory, distill-memory, save-thread
 
 ### Changed

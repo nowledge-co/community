@@ -1,10 +1,4 @@
-import type { NowledgeMemClient } from "../client"
-import type { OpenClawLogger, ToolDefinition, ToolResult } from "../../types/openclaw"
-
-export function createSearchTool(
-  client: NowledgeMemClient,
-  logger: OpenClawLogger
-): ToolDefinition {
+export function createSearchTool(client, logger) {
   return {
     name: "nowledge_mem_search",
     description:
@@ -23,7 +17,7 @@ export function createSearchTool(
       },
       required: ["query"],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params) {
       const query = String(params.query ?? "")
       const limit = Number(params.limit ?? 5)
 

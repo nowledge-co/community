@@ -14,27 +14,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "cat ~/ai-now/memory.md 2>/dev/null || echo 'Working Memory not available. Ensure Nowledge Mem is running with Background Intelligence enabled.'"
-        }
-      ]
-    }
-  ],
-  "PreCompact": [
-    {
-      "hooks": [
-        {
-          "type": "command",
-          "command": "nmem t save --from claude-code --truncate 2>/dev/null || uvx --from nmem-cli nmem t save --from claude-code --truncate 2>/dev/null || true"
-        }
-      ]
-    }
-  ],
-  "SessionEnd": [
-    {
-      "hooks": [
-        {
-          "type": "command",
-          "command": "nmem t save --from claude-code --truncate 2>/dev/null || uvx --from nmem-cli nmem t save --from claude-code --truncate 2>/dev/null || true"
+          "command": "{ cat ~/ai-now/memory.md 2>/dev/null; printf '\\n---\\nContext was compacted. Please checkpoint any important decisions or findings from this session before continuing:\\n  nmem m add \"<your insight>\" --title \"<short title>\"\\n'; } 2>/dev/null || true"
         }
       ]
     }

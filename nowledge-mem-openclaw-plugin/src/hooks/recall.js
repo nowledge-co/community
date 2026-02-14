@@ -1,24 +1,15 @@
-import type { NowledgeMemClient } from "../client"
-import type { NowledgeMemConfig } from "../config"
-import type { OpenClawLogger } from "../../types/openclaw"
-
 /**
  * Builds the before_agent_start hook handler.
- * Loads Working Memory briefing and optionally searches for
- * memories relevant to the current prompt.
+ * Loads Working Memory briefing and searches for memories relevant to the prompt.
  */
-export function buildRecallHandler(
-  client: NowledgeMemClient,
-  cfg: NowledgeMemConfig,
-  logger: OpenClawLogger
-) {
-  return async (event: Record<string, unknown>) => {
-    const prompt = event.prompt as string | undefined
+export function buildRecallHandler(client, cfg, logger) {
+  return async (event) => {
+    const prompt = event.prompt
     if (!prompt || prompt.length < 5) return
 
-    const sections: string[] = []
+    const sections = []
 
-    // 1. Working Memory — daily briefing
+    // 1. Working Memory
     try {
       const wm = await client.readWorkingMemory()
       if (wm.available) {
@@ -50,7 +41,7 @@ export function buildRecallHandler(
       "",
       ...sections,
       "",
-      "Use these memories naturally — don't force them into every response.",
+      "Use these memories naturally. Don't force them into every response.",
       "</nowledge-mem-context>",
     ].join("\n")
 

@@ -268,16 +268,14 @@ Loads your daily Working Memory briefing from `~/ai-now/memory.md`. This gives C
 
 ## Lifecycle Hooks
 
-The plugin includes hooks that automate knowledge management at key points in Claude Code's lifecycle. These are configured in `hooks/hooks.json` and activate automatically when the plugin is installed.
+The plugin includes hooks that keep Claude aware of your knowledge context. Configured in `hooks/hooks.json`, they activate automatically when the plugin is installed.
 
 | Hook | Event | What it does |
 |------|-------|-------------|
 | **Context injection** | `SessionStart` (startup) | Reads `~/ai-now/memory.md` and injects your Working Memory into the session |
-| **Context recovery** | `SessionStart` (compact) | Re-injects Working Memory after context compaction, so Claude doesn't lose your priorities |
-| **Thread checkpoint** | `PreCompact` | Saves your conversation thread before compaction, so nothing is lost |
-| **Auto-save** | `SessionEnd` | Saves your conversation thread when the session ends |
+| **Context recovery + checkpoint** | `SessionStart` (compact) | Re-injects Working Memory after context compaction and prompts Claude to save important findings via `nmem m add` |
 
-All hooks are best-effort — they fail silently if `nmem` is not available or the server is offline.
+Both hooks are best-effort and fail silently if the Working Memory file doesn't exist.
 
 **Customizing hooks:** Edit `.claude/settings.json` to override or disable individual hooks. See the [Claude Code Hooks Guide](https://code.claude.com/docs/en/hooks-guide) for details.
 

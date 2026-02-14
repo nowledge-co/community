@@ -1,31 +1,30 @@
-import type { OpenClawPluginApi } from "../types/openclaw"
-import { NowledgeMemClient } from "./client"
-import { parseConfig } from "./config"
-import { createSearchTool } from "./tools/search"
-import { createStoreTool } from "./tools/store"
-import { createWorkingMemoryTool } from "./tools/working-memory"
-import { buildRecallHandler } from "./hooks/recall"
-import { buildCaptureHandler } from "./hooks/capture"
-import { createRememberCommand, createRecallCommand } from "./commands/slash"
-import { createCliRegistrar } from "./commands/cli"
+import { NowledgeMemClient } from "./client.js"
+import { parseConfig } from "./config.js"
+import { createSearchTool } from "./tools/search.js"
+import { createStoreTool } from "./tools/store.js"
+import { createWorkingMemoryTool } from "./tools/working-memory.js"
+import { buildRecallHandler } from "./hooks/recall.js"
+import { buildCaptureHandler } from "./hooks/capture.js"
+import { createRememberCommand, createRecallCommand } from "./commands/slash.js"
+import { createCliRegistrar } from "./commands/cli.js"
 
 export default {
   id: "nowledge-mem",
   name: "Nowledge Mem",
   description: "Local-first personal memory for AI agents, powered by nmem CLI",
-  kind: "memory" as const,
+  kind: "memory",
 
-  register(api: OpenClawPluginApi) {
+  register(api) {
     const cfg = parseConfig(api.pluginConfig)
     const logger = api.logger
     const client = new NowledgeMemClient(logger)
 
-    // Tools — always registered
+    // Tools
     api.registerTool(createSearchTool(client, logger))
     api.registerTool(createStoreTool(client, logger))
     api.registerTool(createWorkingMemoryTool(client, logger))
 
-    // Hooks — conditional on config
+    // Hooks
     if (cfg.autoRecall) {
       api.on("before_agent_start", buildRecallHandler(client, cfg, logger))
     }
@@ -34,7 +33,7 @@ export default {
       api.on("agent_end", buildCaptureHandler(client, cfg, logger))
     }
 
-    // Slash commands — always registered
+    // Slash commands
     api.registerCommand(createRememberCommand(client, logger))
     api.registerCommand(createRecallCommand(client, logger))
 

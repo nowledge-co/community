@@ -1,10 +1,3 @@
-export interface NowledgeMemConfig {
-  autoRecall: boolean
-  autoCapture: boolean
-  serverUrl: string
-  maxRecallResults: number
-}
-
 const ALLOWED_KEYS = new Set([
   "autoRecall",
   "autoCapture",
@@ -12,11 +5,8 @@ const ALLOWED_KEYS = new Set([
   "maxRecallResults",
 ])
 
-export function parseConfig(raw: unknown): NowledgeMemConfig {
-  const obj = (raw && typeof raw === "object" ? raw : {}) as Record<
-    string,
-    unknown
-  >
+export function parseConfig(raw) {
+  const obj = raw && typeof raw === "object" ? raw : {}
 
   for (const key of Object.keys(obj)) {
     if (!ALLOWED_KEYS.has(key)) {

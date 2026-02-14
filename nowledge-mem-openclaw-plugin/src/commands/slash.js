@@ -1,15 +1,9 @@
-import type { NowledgeMemClient } from "../client"
-import type { OpenClawLogger, CommandDefinition } from "../../types/openclaw"
-
-export function createRememberCommand(
-  client: NowledgeMemClient,
-  logger: OpenClawLogger
-): CommandDefinition {
+export function createRememberCommand(client, logger) {
   return {
     name: "remember",
     description: "Save something to your knowledge base",
     acceptsArgs: true,
-    async handler(ctx: { args?: string }) {
+    async handler(ctx) {
       const text = ctx.args?.trim()
       if (!text) {
         return { text: "Usage: /remember <text to remember>" }
@@ -29,15 +23,12 @@ export function createRememberCommand(
   }
 }
 
-export function createRecallCommand(
-  client: NowledgeMemClient,
-  logger: OpenClawLogger
-): CommandDefinition {
+export function createRecallCommand(client, logger) {
   return {
     name: "recall",
     description: "Search your knowledge base",
     acceptsArgs: true,
-    async handler(ctx: { args?: string }) {
+    async handler(ctx) {
       const query = ctx.args?.trim()
       if (!query) {
         return { text: "Usage: /recall <search query>" }

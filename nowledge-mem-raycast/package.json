@@ -1,0 +1,59 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "nowledge-mem",
+  "title": "Nowledge Mem",
+  "description": "Search and browse your personal knowledge base. Find memories, insights, and decisions instantly.",
+  "icon": "icon.png",
+  "author": "nowledge",
+  "categories": ["Productivity"],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "search-memories",
+      "title": "Search Memories",
+      "description": "Search your Nowledge Mem knowledge base",
+      "mode": "view",
+      "keywords": ["memory", "knowledge", "recall", "nowledge"]
+    },
+    {
+      "name": "add-memory",
+      "title": "Add Memory",
+      "description": "Save a quick memory to your knowledge base",
+      "mode": "view",
+      "keywords": ["remember", "save", "note"]
+    },
+    {
+      "name": "working-memory",
+      "title": "Working Memory",
+      "description": "View today's Working Memory briefing",
+      "mode": "view",
+      "keywords": ["briefing", "today", "focus"]
+    }
+  ],
+  "preferences": [
+    {
+      "name": "serverUrl",
+      "title": "Server URL",
+      "description": "Nowledge Mem server URL",
+      "type": "textfield",
+      "required": false,
+      "default": "http://localhost:14242"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.94.0",
+    "@raycast/utils": "^2.2.2",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "typescript": "^5.7.0",
+    "eslint": "^8.57.0"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix"
+  }
+}

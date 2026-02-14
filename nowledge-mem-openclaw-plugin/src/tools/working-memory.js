@@ -1,10 +1,4 @@
-import type { NowledgeMemClient } from "../client"
-import type { OpenClawLogger, ToolDefinition, ToolResult } from "../../types/openclaw"
-
-export function createWorkingMemoryTool(
-  client: NowledgeMemClient,
-  logger: OpenClawLogger
-): ToolDefinition {
+export function createWorkingMemoryTool(client, logger) {
   return {
     name: "nowledge_mem_working_memory",
     description:
@@ -13,7 +7,7 @@ export function createWorkingMemoryTool(
       type: "object",
       properties: {},
     },
-    async execute(): Promise<ToolResult> {
+    async execute() {
       try {
         const wm = await client.readWorkingMemory()
 

@@ -16,3 +16,4 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 - **Slash commands**: `/remember`, `/recall`
 - **CLI**: `openclaw nowledge-mem search`, `openclaw nowledge-mem status`
 - **nmem CLI integration**: local-first, no API key required
+- **Plain JavaScript** (ES modules): no build step, no TypeScript dependency
