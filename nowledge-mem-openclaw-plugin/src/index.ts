@@ -12,7 +12,7 @@ import { createCliRegistrar } from "./commands/cli"
 export default {
   id: "nowledge-mem",
   name: "Nowledge Mem",
-  description: "Local-first personal memory for AI agents — powered by nmem CLI",
+  description: "Local-first personal memory for AI agents, powered by nmem CLI",
   kind: "memory" as const,
 
   register(api: OpenClawPluginApi) {

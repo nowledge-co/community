@@ -2,7 +2,7 @@
 
 Local-first personal memory for [OpenClaw](https://openclaw.ai) agents, powered by [Nowledge Mem](https://mem.nowledge.co).
 
-Gives your OpenClaw agents persistent memory — save insights, recall relevant knowledge, and start every session with your daily Working Memory briefing. All data stays on your machine.
+Gives your OpenClaw agents persistent memory. Save insights, recall relevant knowledge, and start every session with your daily Working Memory briefing. All data stays on your machine.
 
 ## Requirements
 
@@ -53,7 +53,7 @@ Importance: 0.7
 
 ### nowledge_mem_working_memory
 
-Read your daily Working Memory briefing — focus areas, unresolved flags, and recent activity. Called automatically at session start when `autoRecall` is enabled.
+Read your daily Working Memory briefing: focus areas, unresolved flags, and recent activity. Called automatically at session start when `autoRecall` is enabled.
 
 ## Hooks
 
@@ -61,8 +61,8 @@ Read your daily Working Memory briefing — focus areas, unresolved flags, and r
 
 When `autoRecall` is enabled (default), the plugin injects context before each agent turn:
 
-1. **Working Memory** — your daily briefing with priorities and flags
-2. **Relevant memories** — semantic search based on the current prompt
+1. **Working Memory**: your daily briefing with priorities and flags
+2. **Relevant memories**: semantic search based on the current prompt
 
 ### Auto-Capture (agent_end)
 
@@ -96,7 +96,7 @@ openclaw nowledge-mem status
 
 ## How It Works
 
-This plugin uses the `nmem` CLI to communicate with your local Nowledge Mem instance. No cloud API, no API keys — your knowledge stays on your machine.
+This plugin uses the `nmem` CLI to communicate with your local Nowledge Mem instance. No cloud API, no API keys. Your knowledge stays on your machine.
 
 The plugin falls back to `uvx --from nmem-cli nmem` if `nmem` is not directly on your PATH.
 
