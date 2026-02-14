@@ -81,6 +81,12 @@ An **open-source unified protocol** enabling AI agents to access and interact wi
   claude plugin install nowledge-mem@nowledge-community
   ```
 
+- 🛠️ **npx Skills** | Install to any supported agent (Claude Code, Cursor, OpenCode, Codex, etc.):
+
+  ```bash
+  npx skills add nowledge-co/community/nowledge-mem-npx-skills
+  ```
+
 - 🐛 **[Report Bug](https://github.com/nowledge-co/community/issues/new?template=bug_report.md)** | Found an issue? Let us know
 - 💡 **[Request Feature](https://github.com/nowledge-co/community/issues/new?template=feature_request.md)** | Share your ideas
 - 💌 **[Send Feedback](mailto:hello@nowledge-labs.ai)** | We'd love to hear from you
