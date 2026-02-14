@@ -2,6 +2,12 @@
 
 All notable changes to the Nowledge Mem npx Skills will be documented in this file.
 
+## [0.2.0] - 2026-02-14
+
+### Added
+
+- **read-working-memory** skill - Load daily Working Memory briefing at session start for cross-tool continuity
+
 ## [0.1.0] - 2026-01-24
 
 ### Added

@@ -11,6 +11,7 @@
 These skills extend your AI coding agent with persistent memory capabilities powered by [Nowledge Mem](https://mem.nowledge.co):
 
 - **Search Memory** - Automatically surface relevant context from your knowledge base
+- **Read Working Memory** - Load your daily briefing at session start for cross-tool continuity
 - **Save Thread** - Persist complete coding sessions for future reference
 - **Distill Memory** - Capture breakthrough moments as searchable insights
 
@@ -117,6 +118,23 @@ Agent: ✓ Thread saved
 Summary: Implemented JWT authentication
 Messages: 23
 Thread ID: claude-code-abc123
+```
+
+### Read Working Memory (`read-working-memory`)
+
+Loads your daily Working Memory briefing at session start so the agent knows your current context.
+
+**Activates at:**
+- The start of a new session
+- When you ask about current priorities or recent work
+
+**Example:**
+```
+[Agent reads ~/ai-now/memory.md at session start]
+
+Agent: I see you're focused on the auth migration and have an
+unresolved flag about the session handling approach. Want me to
+pick up where you left off?
 ```
 
 ### Distill Memory (`distill-memory`)
