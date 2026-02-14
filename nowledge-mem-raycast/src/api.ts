@@ -74,15 +74,25 @@ export async function createMemory(req: CreateMemoryRequest): Promise<Memory> {
   return (await res.json()) as Memory;
 }
 
+function getWorkingMemoryPath(): string {
+  const os = require("os");
+  const path = require("path");
+  return path.join(os.homedir(), "ai-now", "memory.md");
+}
+
 export async function readWorkingMemory(): Promise<string> {
   const fs = await import("fs");
-  const os = await import("os");
-  const path = await import("path");
-  const filePath = path.join(os.homedir(), "ai-now", "memory.md");
+  const filePath = getWorkingMemoryPath();
 
   try {
     return fs.readFileSync(filePath, "utf-8");
   } catch {
     return "";
   }
+}
+
+export async function writeWorkingMemory(content: string): Promise<void> {
+  const fs = await import("fs");
+  const filePath = getWorkingMemoryPath();
+  fs.writeFileSync(filePath, content, "utf-8");
 }

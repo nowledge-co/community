@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0] - 2026-02-14
+
+### Added
+
+- **Edit Working Memory**: inline edit form for `~/ai-now/memory.md`, saves directly
+- **Copy actions everywhere**: Copy Content and Copy Title available on all memory items (list + detail)
+- **Open in Editor**: open Working Memory in your default text editor
+
+### Changed
+
+- Store-ready: added keywords, publish script, LICENSE, assets/metadata structure
+
 ## [0.1.0] - 2026-02-14
 
 ### Added
