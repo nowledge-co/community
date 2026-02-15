@@ -92,7 +92,7 @@ export async function createMemory(
   return (await res.json()) as SearchMemory;
 }
 
-export function readWorkingMemory(): string {
+export async function readWorkingMemory(): Promise<string> {
   const filePath = join(homedir(), "ai-now", "memory.md");
   try {
     return readFileSync(filePath, "utf-8");
