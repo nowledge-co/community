@@ -2,12 +2,12 @@
 
 Local-first personal memory for [Alma](https://alma.now), powered by [Nowledge Mem](https://mem.nowledge.co).
 
-This plugin gives Alma persistent memory tools:
+This plugin gives Alma chat-native persistent memory:
 
-- Search your memory graph during chats
-- Save decisions and insights as memories
-- Load Working Memory context at session start
-- Save thread snapshots back to Nowledge Mem
+- Search your memory graph during chats with tools
+- Save decisions and insights as long-term memories
+- Inject Working Memory + relevant recall context before first send
+- Save thread snapshots back to Nowledge Mem on quit (optional)
 
 All operations run locally via `nmem` CLI (or `uvx --from nmem-cli nmem` fallback).
 
@@ -39,19 +39,38 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
 
 | Tool | Description |
 | --- | --- |
-| `nowledge_mem_search` | Semantic search across memories |
-| `nowledge_mem_store` | Save memory with optional title and importance |
+| `nowledge_mem_query` | One-shot query across memories with thread fallback |
+| `nowledge_mem_search` | Semantic search across memories (label/time/importance/mode filters) |
+| `nowledge_mem_store` | Save memory with title/importance/labels/source |
+| `nowledge_mem_show` | Show full details for one memory |
+| `nowledge_mem_update` | Update memory content/title/importance |
+| `nowledge_mem_delete` | Delete memory |
 | `nowledge_mem_working_memory` | Read daily Working Memory (`~/ai-now/memory.md`) |
+| `nowledge_mem_thread_search` | Search conversation threads |
+| `nowledge_mem_thread_show` | Show one thread with messages |
+| `nowledge_mem_thread_create` | Create thread from content/messages |
+| `nowledge_mem_thread_delete` | Delete thread (optional cascade) |
 
-## Commands
+## Response Contract
 
-| Command | Description |
-| --- | --- |
-| `Nowledge Mem: Check Status` | Verify connection to local `nmem` |
-| `Nowledge Mem: Search Memory` | Prompt for query and search |
-| `Nowledge Mem: Save Memory` | Prompt and save one memory |
-| `Nowledge Mem: Read Working Memory` | Check Working Memory availability |
-| `Nowledge Mem: Save Current Thread` | Save active Alma thread |
+- Search tools (`nowledge_mem_search`, `nowledge_mem_thread_search`) return:
+  - `{ ok, type, query, total, items, raw }`
+- Query tool (`nowledge_mem_query`) returns:
+  - `{ ok, query, source, sourceReason, total, items, raw }`
+- Singleton tools (`show`, `store`, `update`, `thread_show`, `thread_create`) return:
+  - `{ ok, item, ... }`
+- Delete tools return:
+  - `{ ok, id, force, [cascade], notFound, item? }`
+- Failure shape is normalized:
+  - `{ ok: false, error: { code, operation, message } }`
+
+## UX Model
+
+No modal input commands are used. The plugin is designed to stay inside normal chat flow via tool calls and hooks.
+
+## Optional Skill Prompt
+
+For stronger on-demand tool usage, load `alma-skill-nowledge-mem.md` into an Alma skill and enable it for chats that should prioritize external memory operations.
 
 ## Hooks
 

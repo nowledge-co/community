@@ -1,6 +1,6 @@
 {
 	"name": "@nowledge/alma-nowledge-mem",
-	"version": "0.1.3",
+	"version": "0.2.2",
 	"type": "module",
 	"description": "Nowledge Mem plugin for Alma, local-first personal knowledge base",
 	"author": {

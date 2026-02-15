@@ -1,7 +1,7 @@
 {
   "id": "nowledge-mem",
   "name": "Nowledge Mem",
-  "version": "0.1.3",
+  "version": "0.2.2",
   "description": "Local-first personal memory for Alma, powered by nmem CLI",
   "author": {
     "name": "Nowledge Labs",
@@ -13,7 +13,6 @@
   },
   "type": "tool",
   "permissions": [
-    "notifications",
     "tools:register",
     "chat:read",
     "chat:write",
@@ -23,28 +22,6 @@
     "onStartup"
   ],
   "contributes": {
-    "commands": [
-      {
-        "id": "nowledge-mem.status",
-        "title": "Nowledge Mem: Check Status"
-      },
-      {
-        "id": "nowledge-mem.search",
-        "title": "Nowledge Mem: Search Memory"
-      },
-      {
-        "id": "nowledge-mem.remember",
-        "title": "Nowledge Mem: Save Memory"
-      },
-      {
-        "id": "nowledge-mem.read-working-memory",
-        "title": "Nowledge Mem: Read Working Memory"
-      },
-      {
-        "id": "nowledge-mem.save-thread",
-        "title": "Nowledge Mem: Save Current Thread"
-      }
-    ],
     "tools": [
       {
         "id": "nowledge_mem_search",
@@ -52,14 +29,54 @@
         "description": "Search your personal knowledge base by semantic relevance."
       },
       {
+        "id": "nowledge_mem_query",
+        "name": "Query Memory",
+        "description": "One-shot query across memories with thread fallback."
+      },
+      {
         "id": "nowledge_mem_store",
         "name": "Store Memory",
         "description": "Store an insight, decision, or finding in your personal knowledge base."
       },
       {
+        "id": "nowledge_mem_show",
+        "name": "Show Memory",
+        "description": "Show full details for a single memory by id."
+      },
+      {
+        "id": "nowledge_mem_update",
+        "name": "Update Memory",
+        "description": "Update an existing memory by id."
+      },
+      {
+        "id": "nowledge_mem_delete",
+        "name": "Delete Memory",
+        "description": "Delete a memory by id."
+      },
+      {
         "id": "nowledge_mem_working_memory",
         "name": "Read Working Memory",
         "description": "Read your daily Working Memory briefing from ~/ai-now/memory.md."
+      },
+      {
+        "id": "nowledge_mem_thread_search",
+        "name": "Search Threads",
+        "description": "Search conversation threads."
+      },
+      {
+        "id": "nowledge_mem_thread_show",
+        "name": "Show Thread",
+        "description": "Show one thread and its messages."
+      },
+      {
+        "id": "nowledge_mem_thread_create",
+        "name": "Create Thread",
+        "description": "Create a thread from content/messages."
+      },
+      {
+        "id": "nowledge_mem_thread_delete",
+        "name": "Delete Thread",
+        "description": "Delete one thread (optional cascade)."
       }
     ],
     "configuration": {
