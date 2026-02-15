@@ -30,7 +30,7 @@ Mem persists entire conversation threads across all your AI tools while also dis
 ##### Capture Knowledge
 
 - **🤖 MCP Integration** | Works with [Claude Code](https://github.com/nowledge-co/community/tree/main/nowledge-mem-claude-code-plugin), [Claude Desktop](https://github.com/nowledge-co/claude-dxt), [Cursor](https://mem.nowledge.co/docs/integrations), Github Copilot, Gemini CLI, Qwen Code & more, [ref config](./mcp.json)
-- **🌐 Browser Extension** | One-click imports from ChatGPT, Claude, Gemini, Perplexity (Chrome, Firefox, Edge)
+- **🌐 Browser Extension** | One-click imports from ChatGPT, Claude, Gemini, Perplexity (Chrome, Edge)
 - **📂 Thread Import** | Upload conversation files from Cursor, ChatWise, Markdown exports or Claude Code/Codex command
 
 > [!NOTE]
