@@ -2,6 +2,14 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.1.1] - 2026-02-15
+
+### Changed
+
+- Removed unused `serverUrl` configuration from schema/docs (plugin is local `nmem` CLI based)
+- Improved recall hook prompt to present injected context as central external memory
+- Added UI hint details for `maxRecallResults`
+
 ## [0.1.0] - 2026-02-14
 
 ### Added

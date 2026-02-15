@@ -1,50 +1,45 @@
 {
-  "id": "nowledge-mem",
-  "kind": "memory",
-  "uiHints": {
-    "label": "Nowledge Mem",
-    "helpUrl": "https://mem.nowledge.co/docs/integrations",
-    "fields": {
-      "autoRecall": {
-        "label": "Auto-recall at session start",
-        "help": "Load Working Memory briefing when a new session begins"
-      },
-      "autoCapture": {
-        "label": "Auto-capture on session end",
-        "help": "Automatically save conversation insights when the session ends"
-      },
-      "serverUrl": {
-        "label": "Server URL",
-        "help": "Nowledge Mem server endpoint (default: http://localhost:14242)"
-      }
-    }
-  },
-  "configSchema": {
-    "type": "object",
-    "properties": {
-      "autoRecall": {
-        "type": "boolean",
-        "default": true,
-        "description": "Load Working Memory briefing at session start"
-      },
-      "autoCapture": {
-        "type": "boolean",
-        "default": false,
-        "description": "Auto-capture insights on session end"
-      },
-      "serverUrl": {
-        "type": "string",
-        "default": "http://localhost:14242",
-        "description": "Nowledge Mem server URL"
-      },
-      "maxRecallResults": {
-        "type": "number",
-        "default": 5,
-        "minimum": 1,
-        "maximum": 20,
-        "description": "Maximum memories to recall at session start"
-      }
-    },
-    "additionalProperties": false
-  }
+	"id": "nowledge-mem",
+	"kind": "memory",
+	"uiHints": {
+		"label": "Nowledge Mem",
+		"helpUrl": "https://mem.nowledge.co/docs/integrations",
+		"fields": {
+			"autoRecall": {
+				"label": "Auto-recall at session start",
+				"help": "Load Working Memory briefing when a new session begins"
+			},
+			"autoCapture": {
+				"label": "Auto-capture on session end",
+				"help": "Automatically save conversation insights when the session ends"
+			},
+			"maxRecallResults": {
+				"label": "Max recall results",
+				"help": "Maximum memories to inject for each recall cycle"
+			}
+		}
+	},
+	"configSchema": {
+		"type": "object",
+		"properties": {
+			"autoRecall": {
+				"type": "boolean",
+				"default": true,
+				"description": "Load Working Memory briefing at session start"
+			},
+			"autoCapture": {
+				"type": "boolean",
+				"default": false,
+				"description": "Auto-capture insights on session end"
+			},
+			"maxRecallResults": {
+				"type": "number",
+				"default": 5,
+				"minimum": 1,
+				"maximum": 20,
+				"description": "Maximum memories to recall at session start"
+			}
+		},
+		"additionalProperties": false
+	}
 }

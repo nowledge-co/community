@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- Add central-memory bridge mode via `chat.message.willSend` context injection
+- Add chat/settings permissions and plugin configuration metadata
+- Improve prompt steering to prioritize Nowledge Mem as external memory system
+
 ## 0.1.1
 
 - Fix Alma `manifest.json` validation issues for local plugin install

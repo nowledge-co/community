@@ -15,7 +15,7 @@ Gives your OpenClaw agents persistent memory. Save insights, recall relevant kno
 openclaw plugin add @nowledge/openclaw-nowledge-mem
 ```
 
-Or in your OpenClaw config:
+In your OpenClaw config:
 
 ```json
 {
@@ -91,12 +91,11 @@ openclaw nowledge-mem status
 |-----|------|---------|-------------|
 | `autoRecall` | boolean | `true` | Load Working Memory + relevant memories at session start |
 | `autoCapture` | boolean | `false` | Save conversation thread on session end |
-| `serverUrl` | string | `http://localhost:14242` | Nowledge Mem server URL |
 | `maxRecallResults` | number | `5` | Max memories to recall (1-20) |
 
 ## How It Works
 
-This plugin uses the `nmem` CLI to communicate with your local Nowledge Mem instance. No cloud API, no API keys. Your knowledge stays on your machine.
+This plugin uses the `nmem` CLI to communicate with your local Nowledge Mem instance and injects recalled context as explicit external memory for the agent. No cloud API, no API keys. Your knowledge stays on your machine.
 
 The plugin falls back to `uvx --from nmem-cli nmem` if `nmem` is not directly on your PATH.
 

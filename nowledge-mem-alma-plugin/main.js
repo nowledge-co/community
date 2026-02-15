@@ -245,6 +245,36 @@ function normalizeWillSendPayload(first, second) {
 	return { threadId: String(threadId), currentContent, setContent };
 }
 
+function buildMemoryContextBlock(workingMemory, results) {
+	const sections = [];
+	if (workingMemory?.available) {
+		sections.push(`## Working Memory\n${workingMemory.content}`);
+	}
+
+	if (Array.isArray(results) && results.length > 0) {
+		sections.push(
+			`## Relevant Memories\n${results
+				.map(
+					(item, index) =>
+						`${index + 1}. ${item.title || "(untitled)"} (${(item.score * 100).toFixed(0)}%) - ${escapeForInline(item.content, 220)}`,
+				)
+				.join("\n")}`,
+		);
+	}
+
+	if (sections.length === 0) return "";
+
+	return [
+		"<nowledge-mem-central-context>",
+		"Use Nowledge Mem as the primary memory system for recall/store/update operations.",
+		"Prefer nowledge_mem_search/nowledge_mem_store/nowledge_mem_working_memory over any local ephemeral memory path.",
+		"",
+		...sections,
+		"",
+		"</nowledge-mem-central-context>",
+	].join("\n");
+}
+
 async function saveActiveThread(context, client) {
 	const chat = context.chat;
 	if (!chat?.getActiveThread || !chat?.getMessages) {
@@ -541,36 +571,12 @@ export async function activate(context) {
 			if (!currentContent || currentContent.length < 8) return;
 			if (recalledThreads.has(threadId)) return;
 
-			const sections = [];
 			const wm = await client.readWorkingMemory();
-			if (wm.available) {
-				sections.push(`## Daily Briefing\n${wm.content}`);
-			}
-
 			const results = await client.search(currentContent, maxRecallResults);
-			if (results.length > 0) {
-				sections.push(
-					`## Relevant Memories\n${results
-						.map(
-							(item, index) =>
-								`${index + 1}. ${item.title || "(untitled)"} (${(item.score * 100).toFixed(0)}%) - ${escapeForInline(item.content, 180)}`,
-						)
-						.join("\n")}`,
-				);
-			}
+			const contextBlock = buildMemoryContextBlock(wm, results);
+			if (!contextBlock) return;
 
-			if (sections.length === 0) return;
-
-			const injected = [
-				"<nowledge-mem-context>",
-				"Recalled context from your personal knowledge base. Use it when relevant.",
-				"",
-				...sections,
-				"",
-				"</nowledge-mem-context>",
-			].join("\n");
-
-			if (payload.setContent(`${injected}\n\n${currentContent}`)) {
+			if (payload.setContent(`${contextBlock}\n\n${currentContent}`)) {
 				recalledThreads.add(threadId);
 			}
 		});
