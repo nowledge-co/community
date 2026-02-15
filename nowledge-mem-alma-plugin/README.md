@@ -92,14 +92,43 @@ For stronger on-demand tool usage, load `alma-skill-nowledge-mem.md` into an Alm
 
 ## Hooks
 
-- **Auto-recall** (`chat.message.willSend`): injects Working Memory + relevant memories on first outgoing message of each thread.
+- **Auto-recall** (`chat.message.willSend`): injects Working Memory + relevant memories according to `recallPolicy`.
+- Auto-recall is preloaded context, not equivalent to a successful plugin tool call in that turn.
+- The injected block instructs the model to explicitly disclose when it answered from injected context only.
 - **Auto-capture** (`app.willQuit`): saves active thread before Alma exits.
+
+No plugin commands/slash actions are registered. The plugin runs through tools + hooks only.
+
+## Configuration Policy Matrix
+
+- `recallPolicy=off`: disable recall injection.
+- `recallPolicy=balanced_thread_once` (default): inject once per thread.
+- `recallPolicy=balanced_every_message`: inject before each outgoing message.
+- `recallPolicy=strict_tools`: disable recall injection and rely on real `nowledge_mem_*` tools.
+- `maxRecallResults`: applies in balanced modes.
+- `autoCapture=true`: save current active thread on Alma quit.
+
+Backward compatibility:
+
+- Legacy keys (`autoRecall`, `autoRecallMode`, `recallFrequency`) are still read at runtime if `recallPolicy` is not set.
+
+Example profiles:
+
+- Conservative, tool-first:
+  - `recallPolicy=strict_tools`
+  - `autoCapture=true`
+- Fast recall for brainstorming:
+  - `recallPolicy=balanced_thread_once`
+  - `maxRecallResults=8`
+- CLI-assisted fallback (when chat tool list hides plugin tools):
+  - `recallPolicy=balanced_thread_once`
+  - Let model use Bash + `nmem --help` / `nmem --json ...` patterns from injected playbook
 
 ## Runtime Defaults
 
 The plugin currently uses these defaults:
 
-- Auto-recall: `true`
+- Recall policy: `balanced_thread_once`
 - Auto-capture on app quit: `false`
 - Max recalled memories per injection: `5`
 

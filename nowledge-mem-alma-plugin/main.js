@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 
+let quitCaptureAttempted = false;
+
 function clamp(value, min, max) {
 	return Math.min(max, Math.max(min, value));
 }
@@ -328,7 +330,56 @@ function normalizeSearchResponse(payload, query, type) {
 	};
 }
 
-function buildMemoryContextBlock(workingMemory, results) {
+function resolveRecallPolicy(settingsApi, logger) {
+	const allowed = new Set([
+		"off",
+		"balanced_thread_once",
+		"balanced_every_message",
+		"strict_tools",
+	]);
+	const rawPolicy = getSetting(settingsApi, "nowledgeMem.recallPolicy", undefined);
+	if (typeof rawPolicy === "string" && rawPolicy.trim()) {
+		const normalized = rawPolicy.trim();
+		if (allowed.has(normalized)) return normalized;
+		logger.warn?.(
+			`nowledge-mem: unknown nowledgeMem.recallPolicy="${normalized}", fallback to balanced_thread_once`,
+		);
+		return "balanced_thread_once";
+	}
+
+	// Legacy compatibility mapping (hidden from current manifest).
+	const autoRecall = Boolean(
+		getSetting(settingsApi, "nowledgeMem.autoRecall", true),
+	);
+	if (!autoRecall) return "off";
+	const autoRecallMode = String(
+		getSetting(settingsApi, "nowledgeMem.autoRecallMode", "balanced"),
+	).trim();
+	if (autoRecallMode === "strict-tools") return "strict_tools";
+	const recallFrequency = String(
+		getSetting(settingsApi, "nowledgeMem.recallFrequency", "thread_once"),
+	).trim();
+	return recallFrequency === "every_message"
+		? "balanced_every_message"
+		: "balanced_thread_once";
+}
+
+function buildCliPlaybookBlock() {
+	return [
+		"## nmem CLI Playbook (fallback when plugin tools are unavailable)",
+		"- Check CLI: `nmem --version`",
+		"- Help: `nmem --help`, `nmem m --help`, `nmem t --help`",
+		"- Search memories: `nmem --json m search \"<query>\" -n 5`",
+		"- Show memory: `nmem --json m show <memory_id>`",
+		"- Add memory: `nmem --json m add \"<content>\" -t \"<title>\" -l tag1 -l tag2`",
+		"- Update memory: `nmem --json m update <memory_id> -c \"<new_content>\"`",
+		"- Search threads: `nmem --json t search \"<query>\" -n 5`",
+		"- Show thread: `nmem --json t show <thread_id> -m 30 --content-limit 1200`",
+	];
+}
+
+function buildMemoryContextBlock(workingMemory, results, options = {}) {
+	const includeCliPlaybook = options.includeCliPlaybook === true;
 	const sections = [];
 	if (workingMemory?.available) {
 		sections.push(`## Working Memory\n${workingMemory.content}`);
@@ -347,48 +398,84 @@ function buildMemoryContextBlock(workingMemory, results) {
 
 	if (sections.length === 0) return "";
 
+	const generatedAt = new Date().toISOString();
+	const memoryCount = Array.isArray(results) ? results.length : 0;
+
 	return [
 		"<nowledge-mem-central-context>",
+		`meta: mode=injected_context generated_at=${generatedAt} memory_count=${memoryCount}`,
+		"This block is preloaded by plugin hook and is NOT equivalent to live tool execution output.",
+		"If you answer using this block only, explicitly disclose that no tool call executed in this turn.",
 		"Use Nowledge Mem as the primary memory system for recall/store/update operations.",
-		"For any request about past context/decisions/history/memory, call a Nowledge Mem tool BEFORE answering.",
+		"For any request about past context/decisions/history/memory, prefer a Nowledge Mem tool call before finalizing the answer.",
 		"Preferred order: nowledge-mem.nowledge_mem_query -> nowledge-mem.nowledge_mem_search -> nowledge-mem.nowledge_mem_thread_search.",
 		"If tool call format needs short ids, use nowledge_mem_query / nowledge_mem_search / nowledge_mem_thread_search.",
 		"Do not claim memory tools are unavailable unless tool execution actually fails in this turn.",
+		"Do not present injected context as fresh retrieval. If no tool was executed, label it as recalled context/hint.",
 		"Prefer nowledge_mem_search/nowledge_mem_store/nowledge_mem_update/nowledge_mem_delete/nowledge_mem_working_memory over local ephemeral memory paths.",
 		"",
 		...sections,
+		...(includeCliPlaybook ? ["", ...buildCliPlaybookBlock()] : []),
 		"",
 		"</nowledge-mem-central-context>",
 	].join("\n");
 }
 
+function normalizeThreadMessages(messages) {
+	return messages
+		.map((message) => {
+			const role =
+				typeof message?.role === "string" &&
+				["user", "assistant", "system"].includes(message.role)
+					? message.role
+					: "user";
+			const content = extractText(message?.content);
+			if (!content) return null;
+			return { role, content };
+		})
+		.filter(Boolean);
+}
+
 async function saveActiveThread(context, client) {
 	const chat = context.chat;
 	if (!chat?.getActiveThread || !chat?.getMessages) {
-		await client.saveThread("Manual Alma save");
-		return "Saved thread snapshot (fallback mode).";
+		return "Skipped auto-capture: chat API unavailable.";
 	}
 
 	const activeThread = await chat.getActiveThread();
 	if (!activeThread?.id) {
-		await client.saveThread("Manual Alma save");
-		return "Saved thread snapshot.";
+		return "Skipped auto-capture: no active thread.";
 	}
 
 	const messages = await chat.getMessages(activeThread.id);
 	if (!Array.isArray(messages) || messages.length === 0) {
-		await client.saveThread("Manual Alma save");
-		return "Saved thread snapshot.";
+		return "Skipped auto-capture: no messages.";
 	}
 
-	const summary = messages
-		.map(stringifyMessage)
-		.filter(Boolean)
+	const normalizedMessages = normalizeThreadMessages(messages);
+	if (!normalizedMessages.length) {
+		return "Skipped auto-capture: messages had no textual content.";
+	}
+
+	const title = escapeForInline(
+		typeof activeThread.title === "string" && activeThread.title.trim()
+			? activeThread.title
+			: `Alma Thread ${new Date().toISOString().slice(0, 10)}`,
+		120,
+	);
+	const summary = normalizedMessages
 		.slice(-8)
+		.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
 		.join("\n");
 
-	await client.saveThread(escapeForInline(summary, 300));
-	return `Saved active thread (${messages.length} messages).`;
+	const created = await client.createThread(
+		title,
+		escapeForInline(summary, 1200),
+		normalizedMessages,
+		"alma",
+	);
+	const threadId = created?.id || created?.thread_id || "unknown";
+	return `Saved active thread (${normalizedMessages.length} messages, id=${threadId}).`;
 }
 
 export async function activate(context) {
@@ -396,9 +483,7 @@ export async function activate(context) {
 	const client = new NowledgeMemClient(logger);
 	const recalledThreads = new Set();
 
-	const autoRecall = Boolean(
-		getSetting(context.settings, "nowledgeMem.autoRecall", true),
-	);
+	const recallPolicy = resolveRecallPolicy(context.settings, logger);
 	const autoCapture = Boolean(
 		getSetting(context.settings, "nowledgeMem.autoCapture", false),
 	);
@@ -443,6 +528,22 @@ export async function activate(context) {
 		}
 		return false;
 	};
+
+	const recallInjectionEnabled =
+		recallPolicy === "balanced_thread_once" ||
+		recallPolicy === "balanced_every_message";
+	const recallFrequency =
+		recallPolicy === "balanced_every_message" ? "every_message" : "thread_once";
+	const injectCliPlaybook = recallInjectionEnabled;
+
+	if (recallPolicy === "strict_tools") {
+		logger.info?.(
+			"nowledge-mem: recallPolicy=strict_tools, hook injection disabled intentionally (tool-first policy).",
+		);
+	}
+	if (recallPolicy === "off") {
+		logger.info?.("nowledge-mem: recallPolicy=off, hook injection disabled.");
+	}
 
 	registerTool("nowledge_mem_search", {
 		description:
@@ -941,26 +1042,35 @@ export async function activate(context) {
 		},
 	});
 
-	if (autoRecall) {
+	if (recallInjectionEnabled) {
 		registerEvent("chat.message.willSend", async (first, second) => {
 			const payload = normalizeWillSendPayload(first, second);
 			const { threadId, currentContent } = payload;
-			if (!currentContent || currentContent.length < 8) return;
-			if (recalledThreads.has(threadId)) return;
+			if (!currentContent || !currentContent.trim()) return;
 
-			const wm = await client.readWorkingMemory();
-			const results = await client.search(currentContent, maxRecallResults);
-			const contextBlock = buildMemoryContextBlock(wm, results);
-			if (!contextBlock) return;
+			const allowAutoRecall =
+				currentContent.length >= 8 &&
+				!(recallFrequency === "thread_once" && recalledThreads.has(threadId));
 
-			if (payload.setContent(`${contextBlock}\n\n${currentContent}`)) {
-				recalledThreads.add(threadId);
+			if (allowAutoRecall) {
+				const wm = await client.readWorkingMemory();
+				const results = await client.search(currentContent, maxRecallResults);
+				const contextBlock = buildMemoryContextBlock(wm, results, {
+					includeCliPlaybook: injectCliPlaybook,
+				});
+				if (!contextBlock) return;
+				if (payload.setContent(`${contextBlock}\n\n${currentContent}`)) {
+					if (allowAutoRecall && recallFrequency === "thread_once") {
+						recalledThreads.add(threadId);
+					}
+				}
 			}
 		});
 	}
 
 	if (autoCapture) {
-		registerEvent("app.willQuit", async (_input, output) => {
+		const handleAutoCapture = async (_input, output) => {
+			quitCaptureAttempted = true;
 			try {
 				const message = await saveActiveThread(context, client);
 				logger.info?.(`nowledge-mem: auto-capture on quit (${message})`);
@@ -972,14 +1082,37 @@ export async function activate(context) {
 			if (output && typeof output === "object") {
 				output.cancel = false;
 			}
-		});
+		};
+		// Alma event naming can vary across versions.
+		registerEvent("app.willQuit", handleAutoCapture);
+		registerEvent("app.will-quit", handleAutoCapture);
+		registerEvent("app.beforeQuit", handleAutoCapture);
+		registerEvent("app.before-quit", handleAutoCapture);
 	}
 
 	logger.info?.(
-		`nowledge-mem activated for Alma (autoRecall=${autoRecall}, autoCapture=${autoCapture}, maxRecallResults=${maxRecallResults})`,
+		`nowledge-mem activated for Alma (recallPolicy=${recallPolicy}, recallInjectionEnabled=${recallInjectionEnabled}, recallFrequency=${recallFrequency}, injectCliPlaybook=${injectCliPlaybook}, autoCapture=${autoCapture}, maxRecallResults=${maxRecallResults})`,
 	);
 }
 
 export async function deactivate(context) {
-	context?.logger?.info?.("nowledge-mem deactivated");
+	const logger = context?.logger ?? console;
+	const autoCapture = Boolean(
+		getSetting(context?.settings, "nowledgeMem.autoCapture", false),
+	);
+	if (!autoCapture || quitCaptureAttempted) {
+		logger.info?.("nowledge-mem deactivated");
+		return;
+	}
+	try {
+		quitCaptureAttempted = true;
+		const client = new NowledgeMemClient(logger);
+		const message = await saveActiveThread(context, client);
+		logger.info?.(`nowledge-mem: auto-capture on deactivate (${message})`);
+	} catch (err) {
+		logger.error?.(
+			`nowledge-mem auto-capture on deactivate failed: ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
+	logger.info?.("nowledge-mem deactivated");
 }
