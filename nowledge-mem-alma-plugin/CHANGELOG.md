@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Remove runtime `zod` dependency to fix Alma "Cannot find package 'zod'" plugin load error
+- Replace tool schemas with plain JSON-schema objects and keep strict runtime input validation
+
 ## 0.1.2
 
 - Add central-memory bridge mode via `chat.message.willSend` context injection

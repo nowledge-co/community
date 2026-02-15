@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { z } from "zod";
 
 function clamp(value, min, max) {
 	return Math.min(max, Math.max(min, value));
@@ -245,6 +244,10 @@ function normalizeWillSendPayload(first, second) {
 	return { threadId: String(threadId), currentContent, setContent };
 }
 
+function toolValidationError(message) {
+	return new Error(`Invalid tool input: ${message}`);
+}
+
 function buildMemoryContextBlock(workingMemory, results) {
 	const sections = [];
 	if (workingMemory?.available) {
@@ -384,17 +387,30 @@ export async function activate(context) {
 	registerTool("nowledge_mem_search", {
 		description:
 			"Search your personal knowledge base. Returns memories ranked by relevance with confidence scores.",
-		inputSchema: z.object({
-			query: z.string().min(1, "query is required"),
-			limit: z.number().int().min(1).max(20).default(5),
-		}),
-		parameters: z.object({
-			query: z.string().min(1, "query is required"),
-			limit: z.number().int().min(1).max(20).default(5),
-		}),
+		inputSchema: {
+			type: "object",
+			properties: {
+				query: { type: "string", minLength: 1 },
+				limit: { type: "number", minimum: 1, maximum: 20, default: 5 },
+			},
+			required: ["query"],
+		},
+		parameters: {
+			type: "object",
+			properties: {
+				query: { type: "string", minLength: 1 },
+				limit: { type: "number", minimum: 1, maximum: 20, default: 5 },
+			},
+			required: ["query"],
+		},
 		async execute(input) {
-			const query = input.query;
-			const limit = input.limit ?? 5;
+			if (!input || typeof input !== "object") {
+				throw toolValidationError("input object is required");
+			}
+			const query = String(input.query ?? "").trim();
+			if (!query) throw toolValidationError("query is required");
+			const rawLimit = Number(input.limit ?? 5);
+			const limit = clamp(Number.isFinite(rawLimit) ? rawLimit : 5, 1, 20);
 			const results = await client.search(query, limit);
 			if (results.length === 0) {
 				return { query, results: [], message: "No matching memories found." };
@@ -417,25 +433,47 @@ export async function activate(context) {
 	registerTool("nowledge_mem_store", {
 		description:
 			"Save an insight, decision, or important finding to your personal knowledge base.",
-		inputSchema: z.object({
-			text: z.string().min(1, "text is required"),
-			title: z.string().max(120).optional(),
-			importance: z.number().min(0.1).max(1.0).optional(),
-		}),
-		parameters: z.object({
-			text: z.string().min(1, "text is required"),
-			title: z.string().max(120).optional(),
-			importance: z.number().min(0.1).max(1.0).optional(),
-		}),
+		inputSchema: {
+			type: "object",
+			properties: {
+				text: { type: "string", minLength: 1 },
+				title: { type: "string", maxLength: 120 },
+				importance: { type: "number", minimum: 0.1, maximum: 1.0 },
+			},
+			required: ["text"],
+		},
+		parameters: {
+			type: "object",
+			properties: {
+				text: { type: "string", minLength: 1 },
+				title: { type: "string", maxLength: 120 },
+				importance: { type: "number", minimum: 0.1, maximum: 1.0 },
+			},
+			required: ["text"],
+		},
 		async execute(input) {
+			if (!input || typeof input !== "object") {
+				throw toolValidationError("input object is required");
+			}
+			const text = String(input.text ?? "").trim();
+			if (!text) throw toolValidationError("text is required");
+			const title =
+				typeof input.title === "string" && input.title.trim()
+					? input.title.trim().slice(0, 120)
+					: undefined;
+			const importance =
+				typeof input.importance === "number" &&
+				Number.isFinite(input.importance)
+					? clamp(input.importance, 0.1, 1.0)
+					: undefined;
 			const id = await client.addMemory(
-				input.text,
-				input.title,
-				input.importance,
+				text,
+				title,
+				importance,
 			);
 			return {
 				id,
-				message: `Memory saved${input.title ? `: ${input.title}` : ""}`,
+				message: `Memory saved${title ? `: ${title}` : ""}`,
 			};
 		},
 	});
@@ -443,8 +481,8 @@ export async function activate(context) {
 	registerTool("nowledge_mem_working_memory", {
 		description:
 			"Read your daily Working Memory briefing from ~/ai-now/memory.md.",
-		inputSchema: z.object({}),
-		parameters: z.object({}),
+		inputSchema: { type: "object", properties: {} },
+		parameters: { type: "object", properties: {} },
 		async execute() {
 			const wm = await client.readWorkingMemory();
 			if (!wm.available) {
