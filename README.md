@@ -93,6 +93,12 @@ An **open-source unified protocol** enabling AI agents to access and interact wi
   openclaw plugin add @nowledge/openclaw-nowledge-mem
   ```
 
+- 🧠 **Alma Plugin** | Install local plugin for [Alma](https://alma.now):
+
+  ```bash
+  cd nowledge-mem-alma-plugin && npm install
+  ```
+
 - 🔍 **Raycast Extension** | Search memories from [Raycast](https://raycast.com):
 
   ```bash

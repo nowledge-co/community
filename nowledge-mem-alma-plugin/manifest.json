@@ -1,0 +1,74 @@
+{
+	"id": "nowledge-mem",
+	"name": "Nowledge Mem",
+	"version": "0.1.0",
+	"description": "Local-first personal memory for Alma, powered by nmem CLI",
+	"author": "Nowledge Labs",
+	"main": "main.js",
+	"engines": {
+		"alma": "^0.1.0"
+	},
+	"type": "tool",
+	"permissions": ["notifications"],
+	"activationEvents": ["onStartup"],
+	"contributes": {
+		"commands": [
+			{
+				"id": "nowledgeMem.status",
+				"title": "Nowledge Mem: Check Status"
+			},
+			{
+				"id": "nowledgeMem.search",
+				"title": "Nowledge Mem: Search Memory"
+			},
+			{
+				"id": "nowledgeMem.remember",
+				"title": "Nowledge Mem: Save Memory"
+			},
+			{
+				"id": "nowledgeMem.readWorkingMemory",
+				"title": "Nowledge Mem: Read Working Memory"
+			},
+			{
+				"id": "nowledgeMem.saveThread",
+				"title": "Nowledge Mem: Save Current Thread"
+			}
+		],
+		"tools": [
+			{
+				"id": "nowledge_mem_search",
+				"description": "Search your personal knowledge base by semantic relevance."
+			},
+			{
+				"id": "nowledge_mem_store",
+				"description": "Store an insight, decision, or finding in your personal knowledge base."
+			},
+			{
+				"id": "nowledge_mem_working_memory",
+				"description": "Read your daily Working Memory briefing from ~/ai-now/memory.md."
+			}
+		],
+		"configuration": {
+			"title": "Nowledge Mem",
+			"properties": {
+				"nowledgeMem.autoRecall": {
+					"type": "boolean",
+					"default": true,
+					"description": "Inject Working Memory and relevant memories on the first outgoing message per thread."
+				},
+				"nowledgeMem.autoCapture": {
+					"type": "boolean",
+					"default": false,
+					"description": "Save active thread to Nowledge Mem when Alma quits."
+				},
+				"nowledgeMem.maxRecallResults": {
+					"type": "number",
+					"default": 5,
+					"minimum": 1,
+					"maximum": 20,
+					"description": "Maximum memories to include during auto-recall."
+				}
+			}
+		}
+	}
+}
