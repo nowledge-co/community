@@ -26,7 +26,13 @@ cd community/nowledge-mem-alma-plugin
 npm install
 ```
 
-2. Install as a local Alma plugin (via Alma plugin manager / local plugin path).
+2. Install as a local Alma plugin:
+
+```bash
+mkdir -p ~/.config/alma/plugins/nowledge-mem
+cp -R . ~/.config/alma/plugins/nowledge-mem
+```
+
 3. Restart Alma.
 
 ## Tools
@@ -52,13 +58,13 @@ npm install
 - **Auto-recall** (`chat.message.willSend`): injects Working Memory + relevant memories on first outgoing message of each thread.
 - **Auto-capture** (`app.willQuit`): saves active thread before Alma exits.
 
-## Configuration
+## Runtime Defaults
 
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `nowledgeMem.autoRecall` | boolean | `true` | Inject context at first message in each thread |
-| `nowledgeMem.autoCapture` | boolean | `false` | Save active thread when Alma quits |
-| `nowledgeMem.maxRecallResults` | number | `5` | Max recalled memories (1-20) |
+The plugin currently uses these defaults:
+
+- Auto-recall: `true`
+- Auto-capture on app quit: `false`
+- Max recalled memories per injection: `5`
 
 ## License
 

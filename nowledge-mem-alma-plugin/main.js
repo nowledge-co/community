@@ -428,7 +428,7 @@ export async function activate(context) {
 	});
 
 	registerCommand(
-		"nowledgeMem.status",
+		"status",
 		"Nowledge Mem: Check Status",
 		async () => {
 			try {
@@ -446,7 +446,7 @@ export async function activate(context) {
 	);
 
 	registerCommand(
-		"nowledgeMem.readWorkingMemory",
+		"read-working-memory",
 		"Nowledge Mem: Read Working Memory",
 		async () => {
 			const wm = await client.readWorkingMemory();
@@ -469,7 +469,7 @@ export async function activate(context) {
 	);
 
 	registerCommand(
-		"nowledgeMem.search",
+		"search",
 		"Nowledge Mem: Search Memory",
 		async () => {
 			const query = (
@@ -495,7 +495,7 @@ export async function activate(context) {
 	);
 
 	registerCommand(
-		"nowledgeMem.remember",
+		"remember",
 		"Nowledge Mem: Save Memory",
 		async () => {
 			const text = (
@@ -517,7 +517,7 @@ export async function activate(context) {
 	);
 
 	registerCommand(
-		"nowledgeMem.saveThread",
+		"save-thread",
 		"Nowledge Mem: Save Current Thread",
 		async () => {
 			try {
