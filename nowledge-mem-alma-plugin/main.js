@@ -287,8 +287,8 @@ function normalizeWillSendPayload(first, second) {
 	return { threadId: String(threadId), currentContent, setContent };
 }
 
-function toolValidationError(message) {
-	return new Error(`Invalid tool input: ${message}`);
+function validationErrorResult(operation, message) {
+	return { ok: false, error: { code: "validation_error", operation, message } };
 }
 
 function cliErrorResult(err, operation) {
@@ -299,6 +299,13 @@ function cliErrorResult(err, operation) {
 	if (normalized.includes("permission")) code = "permission_denied";
 	if (normalized.includes("invalid json")) code = "invalid_json";
 	if (normalized.includes("nmem cli not found")) code = "nmem_not_found";
+	if (
+		normalized.includes("model") ||
+		normalized.includes("embedding") ||
+		normalized.includes("download")
+	) {
+		code = "model_unavailable";
+	}
 	return { ok: false, error: { code, operation, message } };
 }
 
@@ -466,10 +473,10 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			if (!input || typeof input !== "object") {
-				throw toolValidationError("input object is required");
+				return validationErrorResult("memory_search", "input object is required");
 			}
 			const query = String(input.query ?? "").trim();
-			if (!query) throw toolValidationError("query is required");
+			if (!query) return validationErrorResult("memory_search", "query is required");
 			const rawLimit = Number(input.limit ?? 5);
 			const limit = clamp(Number.isFinite(rawLimit) ? rawLimit : 5, 1, 20);
 			try {
@@ -509,7 +516,7 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			const query = String(input?.query ?? "").trim();
-			if (!query) throw toolValidationError("query is required");
+			if (!query) return validationErrorResult("memory_query", "query is required");
 			const limit = clamp(Number(input?.limit ?? 8) || 8, 1, 20);
 
 			try {
@@ -571,10 +578,10 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			if (!input || typeof input !== "object") {
-				throw toolValidationError("input object is required");
+				return validationErrorResult("memory_store", "input object is required");
 			}
 			const text = String(input.text ?? "").trim();
-			if (!text) throw toolValidationError("text is required");
+			if (!text) return validationErrorResult("memory_store", "text is required");
 			const title =
 				typeof input.title === "string" && input.title.trim()
 					? input.title.trim().slice(0, 120)
@@ -630,7 +637,7 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			const id = String(input?.id ?? "").trim();
-			if (!id) throw toolValidationError("id is required");
+			if (!id) return validationErrorResult("memory_show", "id is required");
 			const contentLimit = clamp(Number(input?.contentLimit ?? 1200) || 1200, 100, 10000);
 			try {
 				const result = await client.showMemory(id, contentLimit);
@@ -672,7 +679,7 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			const id = String(input?.id ?? "").trim();
-			if (!id) throw toolValidationError("id is required");
+			if (!id) return validationErrorResult("memory_update", "id is required");
 			const changedFields = [];
 			if (typeof input?.text === "string" && input.text.trim()) changedFields.push("text");
 			if (typeof input?.title === "string" && input.title.trim()) changedFields.push("title");
@@ -680,7 +687,10 @@ export async function activate(context) {
 				changedFields.push("importance");
 			}
 			if (changedFields.length === 0) {
-				throw toolValidationError("at least one of text/title/importance is required");
+				return validationErrorResult(
+					"memory_update",
+					"at least one of text/title/importance is required",
+				);
 			}
 			try {
 				const result = await client.updateMemory(id, input?.text, input?.title, input?.importance);
@@ -711,7 +721,7 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			const id = String(input?.id ?? "").trim();
-			if (!id) throw toolValidationError("id is required");
+			if (!id) return validationErrorResult("memory_delete", "id is required");
 			const force = input?.force === true;
 			try {
 				const result = await client.deleteMemory(id, force);
@@ -770,7 +780,7 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			const query = String(input?.query ?? "").trim();
-			if (!query) throw toolValidationError("query is required");
+			if (!query) return validationErrorResult("thread_search", "query is required");
 			try {
 				const data = await client.searchThreads(query, input?.limit ?? 5);
 				return normalizeSearchResponse(data, query, "thread");
@@ -802,7 +812,7 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			const id = String(input?.id ?? "").trim();
-			if (!id) throw toolValidationError("id is required");
+			if (!id) return validationErrorResult("thread_show", "id is required");
 			try {
 				const messages = clamp(Number(input?.messages ?? 30) || 30, 1, 200);
 				const contentLimit = clamp(Number(input?.contentLimit ?? 1200) || 1200, 100, 20000);
@@ -870,11 +880,11 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			const title = String(input?.title ?? "").trim();
-			if (!title) throw toolValidationError("title is required");
+			if (!title) return validationErrorResult("thread_create", "title is required");
 			const content = typeof input?.content === "string" ? input.content.trim() : "";
 			const messages = Array.isArray(input?.messages) ? input.messages : [];
 			if (!content && messages.length === 0) {
-				throw toolValidationError("content or messages is required");
+				return validationErrorResult("thread_create", "content or messages is required");
 			}
 			try {
 				const source = input?.source ?? "alma";
@@ -917,7 +927,7 @@ export async function activate(context) {
 		},
 		async execute(input) {
 			const id = String(input?.id ?? "").trim();
-			if (!id) throw toolValidationError("id is required");
+			if (!id) return validationErrorResult("thread_delete", "id is required");
 			const force = input?.force === true;
 			const cascade = input?.cascade === true;
 			try {

@@ -63,6 +63,24 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
   - `{ ok, id, force, [cascade], notFound, item? }`
 - Failure shape is normalized:
   - `{ ok: false, error: { code, operation, message } }`
+  - codes: `validation_error`, `nmem_not_found`, `model_unavailable`, `not_found`, `permission_denied`, `invalid_json`, `cli_error`
+
+## Quick Examples
+
+- `nowledge_mem_query` input:
+  - `{ "query": "python migration", "limit": 8 }`
+- `nowledge_mem_query` output:
+  - `{ "ok": true, "source": "memory", "sourceReason": "memory_hits", "total": 3, "items": [...] }`
+
+- `nowledge_mem_store` input:
+  - `{ "text": "Use pyproject scripts for release", "title": "Release workflow", "labels": ["devops","python"] }`
+- `nowledge_mem_store` output:
+  - `{ "ok": true, "item": { "id": "...", "title": "Release workflow", "labels": ["devops","python"] } }`
+
+- `nowledge_mem_delete` input (safe default):
+  - `{ "id": "mem_xxx" }`
+- `nowledge_mem_delete` output:
+  - `{ "ok": true, "id": "mem_xxx", "force": false, "notFound": false }`
 
 ## UX Model
 

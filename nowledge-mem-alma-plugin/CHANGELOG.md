@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+- Standardize validation failures as structured errors (`validation_error`) instead of thrown exceptions
+- Expand CLI error classification with `model_unavailable`
+- Add explicit error-code documentation and quick input/output examples in README
+
 ## 0.2.2
 
 - Normalize tool outputs to stable shapes (`ok/query/total/items` or `ok/item`)
