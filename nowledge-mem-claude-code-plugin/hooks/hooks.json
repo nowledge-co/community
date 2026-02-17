@@ -1,0 +1,22 @@
+{
+  "SessionStart": [
+    {
+      "matcher": "startup",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "cat ~/ai-now/memory.md 2>/dev/null || true"
+        }
+      ]
+    },
+    {
+      "matcher": "compact",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "{ cat ~/ai-now/memory.md 2>/dev/null; printf '\\n---\\nContext was compacted. Please checkpoint any important decisions or findings from this session before continuing:\\n  nmem m add \"<your insight>\" --title \"<short title>\"\\n'; } 2>/dev/null || true"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+	"id": "nowledge-mem",
+	"kind": "memory",
+	"uiHints": {
+		"autoRecall": {
+			"label": "Auto-recall at session start",
+			"help": "Load Working Memory briefing when a new session begins"
+		},
+		"autoCapture": {
+			"label": "Auto-capture at session end",
+			"help": "Store high-value notes and append session transcripts on agent_end/after_compaction/before_reset"
+		},
+		"maxRecallResults": {
+			"label": "Max recall results",
+			"help": "Maximum memories to inject for each recall cycle"
+		}
+	},
+	"configSchema": {
+		"type": "object",
+		"properties": {
+			"autoRecall": {
+				"type": "boolean",
+				"default": true,
+				"description": "Load Working Memory briefing at session start"
+			},
+			"autoCapture": {
+				"type": "boolean",
+				"default": false,
+				"description": "Enable memory note capture and append-first thread sync across session lifecycle hooks"
+			},
+			"maxRecallResults": {
+				"type": "integer",
+				"default": 5,
+				"minimum": 1,
+				"maximum": 20,
+				"description": "Maximum memories to recall at session start"
+			}
+		},
+		"additionalProperties": false
+	}
+}

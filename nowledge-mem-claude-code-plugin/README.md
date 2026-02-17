@@ -190,7 +190,19 @@ Or during conversations, Claude can suggest saving important information.
 
 ## Skills Reference
 
-This plugin includes three Agent Skills that extend Claude's capabilities:
+This plugin includes four Agent Skills and lifecycle hooks that extend Claude's capabilities:
+
+### Read Working Memory
+
+**Automatically activates at session start.**
+
+Loads your daily Working Memory briefing from `~/ai-now/memory.md`. This gives Claude your current context — active focus areas, priorities, unresolved flags, and recent knowledge changes — without you asking.
+
+**How it works:**
+
+1. Claude reads `~/ai-now/memory.md` at the start of each session
+2. References relevant context naturally during the conversation
+3. Skips if already loaded or if the file doesn't exist
 
 ### Search Memory
 
@@ -253,6 +265,19 @@ This plugin includes three Agent Skills that extend Claude's capabilities:
 4. Confirms memory creation
 
 **Focuses on quality over quantity** - typically 1-3 memories per session.
+
+## Lifecycle Hooks
+
+The plugin includes hooks that keep Claude aware of your knowledge context. Configured in `hooks/hooks.json`, they activate automatically when the plugin is installed.
+
+| Hook | Event | What it does |
+|------|-------|-------------|
+| **Context injection** | `SessionStart` (startup) | Reads `~/ai-now/memory.md` and injects your Working Memory into the session |
+| **Context recovery + checkpoint** | `SessionStart` (compact) | Re-injects Working Memory after context compaction and prompts Claude to save important findings via `nmem m add` |
+
+Both hooks are best-effort and fail silently if the Working Memory file doesn't exist.
+
+**Customizing hooks:** Edit `.claude/settings.json` to override or disable individual hooks. See the [Claude Code Hooks Guide](https://code.claude.com/docs/en/hooks-guide) for details.
 
 ## Slash Commands
 

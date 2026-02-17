@@ -1,0 +1,25 @@
+{
+	"name": "@nowledge/alma-nowledge-mem",
+	"version": "0.2.13",
+	"type": "module",
+	"description": "Nowledge Mem plugin for Alma, local-first personal knowledge base",
+	"author": {
+		"name": "Nowledge Labs",
+		"email": "hello@nowledge-labs.ai",
+		"url": "https://nowledge-labs.ai"
+	},
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/nowledge-co/community.git",
+		"directory": "nowledge-mem-alma-plugin"
+	},
+	"main": "main.js",
+	"scripts": {
+		"lint": "biome check .",
+		"format": "biome format --write ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4"
+	}
+}

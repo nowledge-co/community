@@ -1,7 +1,7 @@
 {
   "name": "nowledge-mem",
   "description": "Memory and Thread Management for AI Agents using nmem CLI",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",

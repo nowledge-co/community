@@ -1,0 +1,106 @@
+{
+  "id": "nowledge-mem",
+  "name": "Nowledge Mem",
+  "version": "0.2.13",
+  "description": "Local-first personal memory for Alma, powered by nmem CLI",
+  "author": {
+    "name": "Nowledge Labs",
+    "url": "https://github.com/nowledge-co"
+  },
+  "main": "main.js",
+  "engines": {
+    "alma": "^0.1.0"
+  },
+  "type": "tool",
+  "permissions": [
+    "tools:register",
+    "chat:read",
+    "chat:write",
+    "settings:read"
+  ],
+  "activationEvents": [
+    "onStartup"
+  ],
+  "contributes": {
+    "tools": [
+      {
+        "id": "nowledge_mem_search",
+        "name": "Search Memory",
+        "description": "Search your personal knowledge base by semantic relevance."
+      },
+      {
+        "id": "nowledge_mem_query",
+        "name": "Query Memory",
+        "description": "One-shot query across memories with thread fallback."
+      },
+      {
+        "id": "nowledge_mem_store",
+        "name": "Store Memory",
+        "description": "Store an insight, decision, or finding in your personal knowledge base."
+      },
+      {
+        "id": "nowledge_mem_show",
+        "name": "Show Memory",
+        "description": "Show full details for a single memory by id."
+      },
+      {
+        "id": "nowledge_mem_update",
+        "name": "Update Memory",
+        "description": "Update an existing memory by id."
+      },
+      {
+        "id": "nowledge_mem_delete",
+        "name": "Delete Memory",
+        "description": "Delete a memory by id."
+      },
+      {
+        "id": "nowledge_mem_working_memory",
+        "name": "Read Working Memory",
+        "description": "Read your daily Working Memory briefing from ~/ai-now/memory.md."
+      },
+      {
+        "id": "nowledge_mem_thread_search",
+        "name": "Search Threads",
+        "description": "Search conversation threads."
+      },
+      {
+        "id": "nowledge_mem_thread_show",
+        "name": "Show Thread",
+        "description": "Show one thread and its messages."
+      },
+      {
+        "id": "nowledge_mem_thread_create",
+        "name": "Create Thread",
+        "description": "Create a thread from content/messages."
+      },
+      {
+        "id": "nowledge_mem_thread_delete",
+        "name": "Delete Thread",
+        "description": "Delete one thread (optional cascade)."
+      }
+    ],
+    "configuration": {
+      "title": "Nowledge Mem",
+      "properties": {
+        "nowledgeMem.recallPolicy": {
+          "type": "string",
+          "enum": ["off", "balanced_thread_once", "balanced_every_message", "strict_tools"],
+          "default": "balanced_thread_once",
+          "description": "Recall strategy: off, balanced once per thread, balanced every message, or strict tool-first mode (no recall injection)."
+        },
+        "nowledgeMem.autoCapture": {
+          "type": "boolean",
+          "default": false,
+          "description": "Persist active Alma thread to Nowledge Mem on app quit."
+        },
+        "nowledgeMem.maxRecallResults": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Upper bound for memories injected in balanced modes."
+        }
+      }
+    }
+  }
+}

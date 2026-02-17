@@ -30,7 +30,7 @@ Mem persists entire conversation threads across all your AI tools while also dis
 ##### Capture Knowledge
 
 - **🤖 MCP Integration** | Works with [Claude Code](https://github.com/nowledge-co/community/tree/main/nowledge-mem-claude-code-plugin), [Claude Desktop](https://github.com/nowledge-co/claude-dxt), [Cursor](https://mem.nowledge.co/docs/integrations), Github Copilot, Gemini CLI, Qwen Code & more, [ref config](./mcp.json)
-- **🌐 Browser Extension** | One-click imports from ChatGPT, Claude, Gemini, Perplexity (Chrome, Firefox, Edge)
+- **🌐 Browser Extension** | One-click imports from ChatGPT, Claude, Gemini, Perplexity (Chrome, Edge)
 - **📂 Thread Import** | Upload conversation files from Cursor, ChatWise, Markdown exports or Claude Code/Codex command
 
 > [!NOTE]
@@ -85,6 +85,24 @@ An **open-source unified protocol** enabling AI agents to access and interact wi
 
   ```bash
   npx skills add nowledge-co/community/nowledge-mem-npx-skills
+  ```
+
+- 🐾 **OpenClaw Plugin** | Install for [OpenClaw](https://openclaw.ai) agents:
+
+  ```bash
+  openclaw plugin add @nowledge/openclaw-nowledge-mem
+  ```
+
+- 🧠 **Alma Plugin** | Install local plugin for [Alma](https://alma.now):
+
+  ```bash
+  cd nowledge-mem-alma-plugin && npm install
+  ```
+
+- 🔍 **Raycast Extension** | Search memories from [Raycast](https://raycast.com):
+
+  ```bash
+  cd nowledge-mem-raycast && npm install && npm run dev
   ```
 
 - 🐛 **[Report Bug](https://github.com/nowledge-co/community/issues/new?template=bug_report.md)** | Found an issue? Let us know
