@@ -1,14 +1,27 @@
 import { spawnSync } from "node:child_process";
 
 /**
- * Nowledge Mem client. Wraps the nmem CLI for local-first operations.
- * Falls back to uvx if plain nmem is not on PATH.
+ * Nowledge Mem client. Wraps the nmem CLI for local-first and remote operations.
+ *
+ * All operations go through the CLI first. This means:
+ * - Local mode: CLI uses http://127.0.0.1:14242 automatically
+ * - Remote mode: CLI uses NMEM_API_URL + NMEM_API_KEY environment variables
+ *   (see: https://docs.nowledge.co/docs/remote-access)
+ *
+ * Falls back to direct API calls when a CLI command is too new for the installed
+ * version. The fallback path respects the same NMEM_API_URL / NMEM_API_KEY env vars.
+ *
+ * To use with a remote server:
+ *   export NMEM_API_URL=https://your-server
+ *   export NMEM_API_KEY=your-key
  */
 export class NowledgeMemClient {
 	constructor(logger) {
 		this.logger = logger;
 		this.nmemCmd = null;
 	}
+
+	// ── API helpers (fallback path and direct operations) ─────────────────────
 
 	getApiBaseUrl() {
 		const raw = process.env.NMEM_API_URL?.trim();
@@ -61,6 +74,8 @@ export class NowledgeMemClient {
 			clearTimeout(timer);
 		}
 	}
+
+	// ── CLI helpers ────────────────────────────────────────────────────────────
 
 	resolveCommand() {
 		if (this.nmemCmd) return this.nmemCmd;
@@ -119,9 +134,15 @@ export class NowledgeMemClient {
 		return JSON.parse(raw);
 	}
 
+	// ── Search ────────────────────────────────────────────────────────────────
+
+	/**
+	 * Search memories via CLI. Returns rich metadata: relevance_reason,
+	 * importance, labels, and temporal fields (added in CLI v0.4+).
+	 */
 	async search(query, limit = 5) {
 		const normalizedLimit = Math.min(
-			20,
+			100,
 			Math.max(1, Math.trunc(Number(limit) || 5)),
 		);
 		const data = this.execJson([
@@ -133,39 +154,28 @@ export class NowledgeMemClient {
 			String(normalizedLimit),
 		]);
 		const memories = data.memories ?? data.results ?? [];
-		return memories.map((m) => ({
-			id: String(m.id ?? ""),
-			title: String(m.title ?? ""),
-			content: String(m.content ?? ""),
-			score: Number(m.score ?? 0),
-			labels: Array.isArray(m.labels) ? m.labels : [],
-			importance: Number(m.importance ?? m.rating ?? 0.5),
-		}));
+		return memories.map((m) => this._normalizeMemory(m));
 	}
 
 	/**
-	 * Rich search — uses the API directly to get full metadata including
-	 * relevance_reason, importance, and temporal fields. Use this when
-	 * you need the scoring breakdown ("Text Match 79% + Semantic 48%").
+	 * searchRich — same as search(). The CLI now returns all rich fields
+	 * (relevance_reason, importance, labels, temporal) natively.
 	 */
 	async searchRich(query, limit = 5) {
-		const { memories } = await this.searchTemporal(query, { limit });
-		return memories;
+		return this.search(query, limit);
 	}
 
 	/**
-	 * Bi-temporal search — uses the API directly so that date filters
-	 * work regardless of installed nmem CLI version.
+	 * Bi-temporal search — filters by when the fact happened (event_date_*)
+	 * or when it was saved (recorded_date_*).
 	 *
-	 * Two time dimensions:
-	 *   event_date_from/to  — when the fact/event HAPPENED (YYYY, YYYY-MM, YYYY-MM-DD)
-	 *   recorded_date_from/to — when it was SAVED to Nowledge Mem (YYYY-MM-DD)
+	 * Uses CLI with --event-from/--event-to/--recorded-from/--recorded-to.
+	 * Falls back to API if CLI is older than the bi-temporal update.
 	 */
 	async searchTemporal(
 		query,
 		{
 			limit = 10,
-			mode = "fast",
 			eventDateFrom,
 			eventDateTo,
 			recordedDateFrom,
@@ -176,32 +186,164 @@ export class NowledgeMemClient {
 			100,
 			Math.max(1, Math.trunc(Number(limit) || 10)),
 		);
-		const qs = new URLSearchParams({ limit: String(normalizedLimit), mode });
-		if (query) qs.set("q", String(query));
-		if (eventDateFrom) qs.set("event_date_from", String(eventDateFrom));
-		if (eventDateTo) qs.set("event_date_to", String(eventDateTo));
-		if (recordedDateFrom)
-			qs.set("recorded_date_from", String(recordedDateFrom));
-		if (recordedDateTo) qs.set("recorded_date_to", String(recordedDateTo));
 
-		const data = await this.apiJson("GET", `/memories/search?${qs.toString()}`);
-		const memories = data.memories ?? [];
-		return {
-			memories: memories.map((m) => ({
+		// Build CLI args
+		const args = [
+			"--json",
+			"m",
+			"search",
+			String(query || ""),
+			"-n",
+			String(normalizedLimit),
+		];
+		if (eventDateFrom) args.push("--event-from", String(eventDateFrom));
+		if (eventDateTo) args.push("--event-to", String(eventDateTo));
+		if (recordedDateFrom) args.push("--recorded-from", String(recordedDateFrom));
+		if (recordedDateTo) args.push("--recorded-to", String(recordedDateTo));
+
+		let data;
+		try {
+			data = this.execJson(args);
+		} catch (err) {
+			// Graceful fallback: CLI doesn't know --event-from yet → use API directly
+			const message = err instanceof Error ? err.message : String(err);
+			const needsFallback =
+				message.includes("unrecognized arguments") ||
+				message.includes("invalid choice");
+			if (!needsFallback) throw err;
+
+			this.logger.warn("searchTemporal: CLI too old, falling back to API");
+			const qs = new URLSearchParams({ limit: String(normalizedLimit) });
+			if (query) qs.set("q", String(query));
+			if (eventDateFrom) qs.set("event_date_from", String(eventDateFrom));
+			if (eventDateTo) qs.set("event_date_to", String(eventDateTo));
+			if (recordedDateFrom) qs.set("recorded_date_from", String(recordedDateFrom));
+			if (recordedDateTo) qs.set("recorded_date_to", String(recordedDateTo));
+			const apiData = await this.apiJson("GET", `/memories/search?${qs.toString()}`);
+			// Normalize from API response format
+			const apiMems = (apiData.memories ?? []).map((m) => ({
 				id: String(m.id ?? ""),
 				title: String(m.title ?? ""),
 				content: String(m.content ?? ""),
 				score: Number(m.confidence ?? m.metadata?.similarity_score ?? 0),
-				labels: Array.isArray(m.labels) ? m.labels : [],
-				importance: Number(m.metadata?.importance ?? m.importance ?? 0.5),
-				relevanceReason: m.metadata?.relevance_reason ?? null,
-				eventStart: m.metadata?.event_start ?? m.event_start ?? null,
-				eventEnd: m.metadata?.event_end ?? m.event_end ?? null,
-				temporalContext: m.metadata?.temporal_context ?? m.temporal_context ?? null,
-			})),
-			searchMetadata: data.search_metadata ?? {},
+				importance: Number(m.metadata?.importance ?? 0.5),
+				relevance_reason: m.metadata?.relevance_reason ?? null,
+				labels: m.label_ids ?? [],
+				event_start: m.metadata?.event_start ?? null,
+				event_end: m.metadata?.event_end ?? null,
+				temporal_context: m.metadata?.temporal_context ?? null,
+			}));
+			return { memories: apiMems.map((m) => this._normalizeMemory(m)), searchMetadata: apiData.search_metadata ?? {} };
+		}
+
+		const memories = data.memories ?? data.results ?? [];
+		return {
+			memories: memories.map((m) => this._normalizeMemory(m)),
+			searchMetadata: {},
 		};
 	}
+
+	/**
+	 * Normalize a memory object from either CLI or API response format.
+	 * Output shape is canonical across all search paths.
+	 */
+	_normalizeMemory(m) {
+		return {
+			id: String(m.id ?? ""),
+			title: String(m.title ?? ""),
+			content: String(m.content ?? ""),
+			score: Number(m.score ?? m.confidence ?? 0),
+			importance: Number(m.importance ?? 0.5),
+			relevanceReason: m.relevance_reason ?? null,
+			labels: Array.isArray(m.labels) ? m.labels : (m.label_ids ?? []),
+			eventStart: m.event_start ?? null,
+			eventEnd: m.event_end ?? null,
+			temporalContext: m.temporal_context ?? null,
+		};
+	}
+
+	// ── Graph ─────────────────────────────────────────────────────────────────
+
+	/**
+	 * Expand the knowledge graph around a memory.
+	 * Uses `nmem g expand <id>` (CLI v0.4+), falls back to API.
+	 */
+	async graphExpand(memoryId, { depth = 1, limit = 20 } = {}) {
+		const args = [
+			"--json",
+			"g",
+			"expand",
+			String(memoryId),
+			"--depth",
+			String(depth),
+			"-n",
+			String(limit),
+		];
+
+		try {
+			return this.execJson(args);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			const needsFallback =
+				message.includes("unrecognized arguments") ||
+				message.includes("invalid choice") ||
+				message.includes("argument command: invalid choice");
+			if (!needsFallback) throw err;
+
+			this.logger.warn("graphExpand: CLI too old, falling back to API");
+			return this.apiJson(
+				"GET",
+				`/graph/expand/${encodeURIComponent(memoryId)}?depth=${depth}&limit=${limit}`,
+			);
+		}
+	}
+
+	// ── Feed ──────────────────────────────────────────────────────────────────
+
+	/**
+	 * Fetch recent activity from the feed.
+	 * Uses `nmem f` (CLI v0.4+), falls back to API.
+	 */
+	async feedEvents({
+		lastNDays = 7,
+		eventType,
+		tier1Only = true,
+		limit = 100,
+	} = {}) {
+		const args = [
+			"--json",
+			"f",
+			"--days",
+			String(lastNDays),
+			"-n",
+			String(limit),
+		];
+		if (eventType) args.push("--type", String(eventType));
+		if (!tier1Only) args.push("--all");
+
+		try {
+			const data = this.execJson(args);
+			return Array.isArray(data) ? data : (data.events ?? []);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			const needsFallback =
+				message.includes("unrecognized arguments") ||
+				message.includes("invalid choice") ||
+				message.includes("argument command: invalid choice");
+			if (!needsFallback) throw err;
+
+			this.logger.warn("feedEvents: CLI too old, falling back to API");
+			const qs = new URLSearchParams({
+				last_n_days: String(lastNDays),
+				limit: String(limit),
+			});
+			if (eventType) qs.set("event_type", eventType);
+			const data = await this.apiJson("GET", `/agent/feed/events?${qs.toString()}`);
+			return Array.isArray(data) ? data : (data.events ?? []);
+		}
+	}
+
+	// ── Memory CRUD ───────────────────────────────────────────────────────────
 
 	async addMemory(content, title, importance) {
 		const args = ["--json", "m", "add", String(content)];

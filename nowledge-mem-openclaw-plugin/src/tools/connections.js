@@ -170,10 +170,10 @@ export function createConnectionsTool(client, logger) {
 
 			// 1. Graph neighbors (connected memories, sources, entities) — with edge types joined
 			try {
-				const neighborsData = await client.apiJson(
-					"GET",
-					`/graph/expand/${encodeURIComponent(targetId)}?depth=1&limit=20`,
-				);
+				const neighborsData = await client.graphExpand(targetId, {
+					depth: 1,
+					limit: 20,
+				});
 
 				const neighbors = neighborsData.neighbors || [];
 				const edges = neighborsData.edges || [];
@@ -272,7 +272,7 @@ export function createConnectionsTool(client, logger) {
 				logger.warn(`connections: graph expand failed: ${msg}`);
 			}
 
-			// 2. EVOLVES chain (full version history)
+			// 2. EVOLVES chain (full version history) — direct API (no CLI command yet)
 			try {
 				const chainData = await client.apiJson(
 					"GET",

@@ -2,6 +2,25 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.2.4] - 2026-02-18
+
+### Changed — CLI-first architecture
+
+All operations now go through the `nmem` CLI instead of direct API calls.
+This is a structural alignment that makes every feature work in remote mode
+(`NMEM_API_URL` + `NMEM_API_KEY`) without any plugin changes.
+
+- `client.graphExpand()` — uses `nmem g expand <id>`; falls back to API on older CLI
+- `client.feedEvents()` — uses `nmem f`; falls back to API on older CLI
+- `client.search()` — CLI now returns `relevance_reason`, `importance`, `labels`,
+  temporal fields natively; `searchRich()` is now an alias for `search()`
+- `client.searchTemporal()` — uses `nmem m search --event-from/--recorded-from`
+  CLI args; falls back to API if CLI is pre-bi-temporal-update
+- `client._normalizeMemory()` — canonical memory shape shared across all search paths
+- Removed `client.apiJson()` usage in `connections.js` and `timeline.js`
+- `connections.js`: `client.apiJson()` retained only for the `/agent/evolves` chain
+  (no CLI command for this yet — tracked as future improvement)
+
 ## [0.2.3] - 2026-02-18
 
 ### Changed — Graph Transparency & Scoring Visibility

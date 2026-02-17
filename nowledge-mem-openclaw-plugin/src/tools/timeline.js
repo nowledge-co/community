@@ -97,22 +97,12 @@ export function createTimelineTool(client, logger) {
 			const tier1Only = safeParams.tier1_only !== false; // default true
 
 			try {
-				const qs = new URLSearchParams({
-					last_n_days: String(lastNDays),
-					limit: "100",
+				const events = await client.feedEvents({
+					lastNDays,
+					eventType,
+					tier1Only,
+					limit: 100,
 				});
-				if (eventType) qs.set("event_type", eventType);
-
-				const data = await client.apiJson(
-					"GET",
-					`/agent/feed/events?${qs.toString()}`,
-				);
-
-				const events = Array.isArray(data.events)
-					? data.events
-					: Array.isArray(data)
-						? data
-						: [];
 
 				if (events.length === 0) {
 					const rangeLabel =
@@ -129,11 +119,7 @@ export function createTimelineTool(client, logger) {
 					};
 				}
 
-				// Filter to tier-1 unless caller explicitly wants everything
-				const filtered =
-					tier1Only && !eventType
-						? events.filter((e) => TIER1_TYPES.has(e.event_type))
-						: events;
+				const filtered = events;
 
 				// Group by date (YYYY-MM-DD from created_at)
 				const byDay = new Map();
