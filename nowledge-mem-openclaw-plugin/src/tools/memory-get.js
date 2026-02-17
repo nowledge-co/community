@@ -61,7 +61,11 @@ export function createMemoryGetTool(client, logger) {
 					content: [
 						{
 							type: "text",
-							text: JSON.stringify({ path: "", text: "", error: "path is required" }),
+							text: JSON.stringify({
+								path: "",
+								text: "",
+								error: "path is required",
+							}),
 						},
 					],
 				};
@@ -85,7 +89,11 @@ export function createMemoryGetTool(client, logger) {
 							],
 						};
 					}
-					const snippet = sliceLines(wm.content, safeParams.from, safeParams.lines);
+					const snippet = sliceLines(
+						wm.content,
+						safeParams.from,
+						safeParams.lines,
+					);
 					return {
 						content: [
 							{
@@ -121,7 +129,11 @@ export function createMemoryGetTool(client, logger) {
 				}
 
 				const memory = await client.getMemory(memoryId);
-				const snippet = sliceLines(memory.content ?? "", safeParams.from, safeParams.lines);
+				const snippet = sliceLines(
+					memory.content ?? "",
+					safeParams.from,
+					safeParams.lines,
+				);
 
 				return {
 					content: [

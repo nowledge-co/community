@@ -1,53 +1,64 @@
 # CLAUDE.md - Nowledge Mem OpenClaw Plugin
 
-This file is a continuation guide for future sessions working on
-`community/nowledge-mem-openclaw-plugin`.
+Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 
 ## Scope
 
-- Plugin target: OpenClaw plugin runtime
+- Plugin target: OpenClaw plugin runtime (memory slot provider)
 - Runtime: JS modules under `src/`, no TS build pipeline
 - Memory backend: local `nmem` CLI (fallback `uvx --from nmem-cli nmem`)
+- Graph API: local Nowledge Mem API (default `http://127.0.0.1:14242`)
 
-## Current Status
+## Design Philosophy
 
-- Core integration works for local-first memory operations.
-- Config schema intentionally does **not** include `serverUrl` anymore.
-- Recall hook injects memory context as central external memory guidance.
-- Auto-capture persists memory notes on `agent_end` and keeps per-session thread continuity via append-first capture (`agent_end`, `after_compaction`, `before_reset`).
+This plugin reflects Nowledge Mem's genuine strengths from the v0.6 architecture:
+
+1. **Knowledge graph** — EVOLVES chains, entity relationships, memory connections
+2. **Source provenance** — Library ingests docs/URLs, SOURCED_FROM edges trace knowledge origin
+3. **Structured types** — 8 unit types (fact, preference, decision, etc.)
+4. **Working Memory** — daily evolving briefing, not static profile
+5. **Cross-AI continuity** — "Your AI tools forget. We remember. Everywhere."
+6. **Hybrid search** — BM25 + semantic, not vector-only
 
 ## Files That Matter
 
 - `src/index.js`: plugin registration (tools/hooks/commands/cli)
-- `src/client.js`: nmem command resolution + CLI wrappers
-- `src/config.js`: strict config parsing (`autoRecall`, `autoCapture`, `maxRecallResults`)
-- `src/hooks/recall.js`: `before_agent_start` context injection
-- `src/hooks/capture.js`: append-first thread capture + high-signal memory note capture
-- `src/tools/*.js`: exposed tool handlers
-- `openclaw.plugin.json`: plugin metadata + config schema + UI hints
-- `README.md`, `CHANGELOG.md`: docs
+- `src/client.js`: nmem CLI resolution + API wrappers
+- `src/config.js`: strict config parsing
+- `src/hooks/recall.js`: before_agent_start context injection
+- `src/hooks/capture.js`: append-first thread capture + quality-gated memory notes
+- `src/tools/memory-search.js`: OpenClaw compat `memory_search`
+- `src/tools/memory-get.js`: OpenClaw compat `memory_get`
+- `src/tools/save.js`: structured knowledge capture with unit_type
+- `src/tools/context.js`: Working Memory daily briefing
+- `src/tools/connections.js`: knowledge graph exploration
+- `src/tools/forget.js`: memory deletion
+- `openclaw.plugin.json`: manifest + config schema + UI hints
 
-## Tool/Hook Surface
+## Tool Surface (6 tools)
 
-Tools currently implemented:
+OpenClaw memory-slot compat:
+- `memory_search` — required for system prompt "Memory Recall" section
+- `memory_get` — required for memory slot contract
 
-- `memory_search` (OpenClaw memory-compatible alias)
-- `memory_get` (OpenClaw memory-compatible alias)
-- `nowledge_mem_search`
-- `nowledge_mem_store`
-- `nowledge_mem_working_memory`
+Nowledge Mem native (differentiators):
+- `nowledge_mem_save` — structured capture with unit_type
+- `nowledge_mem_context` — Working Memory daily briefing
+- `nowledge_mem_connections` — knowledge graph exploration + source provenance (graph API)
+- `nowledge_mem_forget` — delete memory (user agency)
 
-Hooks:
+## Hook Surface
 
-- `before_agent_start` (auto recall when enabled)
-- `agent_end` (memory note + incremental thread capture)
-- `after_compaction` (incremental thread capture)
-- `before_reset` (final append before session reset)
+- `before_agent_start` — auto recall (Working Memory + search)
+- `agent_end` — quality-gated memory note + thread append
+- `after_compaction` — thread append
+- `before_reset` — thread append
 
-Commands:
+## Slash Commands
 
-- Slash commands in `src/commands/slash.js` (`/remember`, `/recall`)
-- CLI registration in `src/commands/cli.js`
+- `/remember` — quick save
+- `/recall` — quick search
+- `/forget` — quick delete
 
 ## Config Keys (authoritative)
 
@@ -55,45 +66,44 @@ Commands:
 - `autoCapture` (boolean, default `false`)
 - `maxRecallResults` (number, clamp 1-20, default `5`)
 
-`serverUrl` was removed; plugin is CLI-driven.
+## Capture Quality Gate
+
+Multi-layer filter (in `hooks/capture.js`):
+1. Skip slash commands and short content
+2. Skip questions (trailing `?`, interrogative starters)
+3. Skip prompt-injection payloads
+4. Skip injected context and system-generated XML
+5. Require memory-trigger pattern (preference, decision, fact, entity)
 
 ## Local Smoke Commands
 
 ```bash
 node --check src/index.js
 node --check src/client.js
-node -e "JSON.parse(require('fs').readFileSync('openclaw.plugin.json','utf8'));console.log('plugin json ok')"
-nmem --version || uvx --from nmem-cli nmem --version
-nmem --json m search "openclaw" -n 3
+node --check src/tools/connections.js
+node --check src/tools/save.js
+nmem --version
+nmem --json m search "test" -n 3
 ```
-
-If linting is needed:
-
-```bash
-npm install
-npm run lint
-```
-
-Note: repo formatting baseline may fail lint outside touched files.
-
-## Known Constraints
-
-- Current OpenClaw plugin surface is lighter than Alma plugin (fewer CRUD tools).
-- Rich response normalization/error taxonomy is less mature than Alma `v0.2.x`.
-- Tool-calling quality still depends on model behavior; recall hook helps but is not absolute.
-- For best append behavior, use nmem CLI with `t append` support. Plugin has API fallbacks for mixed versions.
-
-## Recommended Next Improvements
-
-1. Parity upgrade with Alma:
-   - add `show/update/delete` for memories
-   - add thread tools (`thread_search/show/create/delete`)
-2. Normalize response contracts and structured error codes.
-3. Add safer delete semantics (`force` false by default + idempotent notFound handling).
-4. Add docs section with explicit tool input/output examples.
 
 ## Non-Goals / Avoid
 
-- Do not reintroduce unused `serverUrl`.
-- Do not add remote/cloud dependencies for core memory path.
-- Do not silently accept unknown config keys (keep strict parser).
+- Do not add `nowledge_mem_search` — `memory_search` covers search. One tool.
+- Do not add `containerTag`-style label wrappers — our labels are implicit graph properties.
+- Do not reintroduce `serverUrl` config — plugin uses CLI + local API.
+- Do not add cloud dependencies for core path.
+- Do not accept unknown config keys (strict parser).
+
+## Known Gaps (from live testing)
+
+1. **Temporal navigation** — users want "what was I working on last Tuesday?". Currently, include date context in `memory_search` query as a workaround. A proper `/agent/feed/events` date-range query tool would solve this fully.
+2. **Cross-memory synthesis** — solved by `nowledge_mem_connections` but users don't always know to use it. Tool description and recall hook guidance updated to make this explicit.
+3. **Source provenance** — available via `nowledge_mem_connections` SOURCED_FROM edges. Also addressed by description update.
+
+## Recommended Next Improvements
+
+1. Add `nmem graph neighbors` CLI command to avoid API-only dependency in `connections`.
+2. Add a `nowledge_mem_timeline` tool wrapping `/agent/feed/events?date_from=...&date_to=...` for temporal queries.
+3. Add `show/update` tools for individual memories (read + edit flow).
+4. Add interactive `setup` CLI wizard for first-time configuration.
+5. Add `wipe` CLI command with confirmation.

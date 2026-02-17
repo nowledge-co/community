@@ -13,7 +13,9 @@ export function createMemorySearchTool(client, logger) {
 	return {
 		name: "memory_search",
 		description:
-			"Search Nowledge Mem memories for prior work, decisions, preferences, and facts. Returns compact snippets with source paths for follow-up memory_get.",
+			"Search the user's knowledge graph for prior work, decisions, preferences, and facts. " +
+			"Supports natural language queries including temporal context (e.g. 'Python setup this month', 'database decision last week'). " +
+			"Returns snippets with memoryIds — pass a memoryId to nowledge_mem_connections for cross-topic synthesis and source provenance.",
 		parameters: {
 			type: "object",
 			properties: {

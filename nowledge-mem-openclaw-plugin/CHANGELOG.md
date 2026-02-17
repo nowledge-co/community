@@ -2,6 +2,35 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.2.0] - 2026-02-18
+
+### Changed — Tool Set Redesign
+
+Redesigned from first principles around Nowledge Mem's v0.6 architecture.
+This version reflects our genuine strengths: knowledge graph, structured types,
+Working Memory, and cross-AI continuity.
+
+### Added
+
+- `nowledge_mem_save` tool: structured knowledge capture with `unit_type` parameter (fact, preference, decision, plan, procedure, learning, context, event) — replaces generic `nowledge_mem_store`
+- `nowledge_mem_context` tool: read today's Working Memory daily briefing — replaces `nowledge_mem_working_memory` with clearer naming
+- `nowledge_mem_connections` tool: explore knowledge graph around a topic — returns connected memories, EVOLVES chains, related entities, and Source document provenance (SOURCED_FROM edges from Library). This is our graph-native differentiator.
+- `nowledge_mem_forget` tool: delete memories by ID or search query with confirmation flow
+- `/forget` slash command: quick memory deletion from chat
+- Capture quality gate: prompt injection detection, question filtering, memory-trigger pattern matching
+- Recall context now includes tool guidance for Nowledge Mem native tools
+
+### Removed
+
+- `nowledge_mem_search` tool: redundant with `memory_search`. One search tool, done right.
+- `nowledge_mem_store` tool: replaced by `nowledge_mem_save` with richer `unit_type` model
+- `nowledge_mem_working_memory` tool: replaced by `nowledge_mem_context`
+
+### Fixed
+
+- Capture hook no longer saves questions or prompt-injection payloads as memory notes
+- Recall context properly escapes memory content for prompt safety
+
 ## [0.1.5] - 2026-02-17
 
 ### Fixed

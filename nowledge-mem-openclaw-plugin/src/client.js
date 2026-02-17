@@ -188,7 +188,9 @@ export class NowledgeMemClient {
 			if (!needsApiFallback) {
 				throw err;
 			}
-			this.logger.warn("createThread: CLI missing --id support, falling back to API");
+			this.logger.warn(
+				"createThread: CLI missing --id support, falling back to API",
+			);
 			data = await this.apiJson("POST", "/threads", {
 				thread_id: String(threadId),
 				title: normalizedTitle,
@@ -237,11 +239,14 @@ export class NowledgeMemClient {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			const needsApiFallback =
-				message.includes("invalid choice") || message.includes("unrecognized arguments");
+				message.includes("invalid choice") ||
+				message.includes("unrecognized arguments");
 			if (!needsApiFallback) {
 				throw err;
 			}
-			this.logger.warn("appendThread: CLI missing append support, falling back to API");
+			this.logger.warn(
+				"appendThread: CLI missing append support, falling back to API",
+			);
 			const data = await this.apiJson(
 				"POST",
 				`/threads/${encodeURIComponent(normalizedThreadId)}/append`,
@@ -269,7 +274,9 @@ export class NowledgeMemClient {
 	}
 
 	isThreadNotFoundError(err) {
-		const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+		const message = (
+			err instanceof Error ? err.message : String(err)
+		).toLowerCase();
 		return (
 			message.includes("thread not found") ||
 			message.includes("404") ||
