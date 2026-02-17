@@ -10,48 +10,90 @@
  * - Memory nodes (knowledge units with 8 types)
  * - Entity nodes (people, technologies, projects)
  * - Source nodes (documents, URLs — the Library)
- * - EVOLVES edges (how understanding grows over time)
- * - SOURCED_FROM edges (which document/URL a memory came from)
+ * - EVOLVES edges (how understanding grows over time: replaces, enriches, confirms, challenges)
+ * - CRYSTALLIZED_FROM edges (crystal ← source memories it synthesized)
+ * - SOURCED_FROM edges (memory ← document it was extracted from)
  * - MENTIONS edges (which entities a memory references)
+ *
+ * Each connection is shown WITH its relationship type and strength.
  *
  * Uses the local API directly (graph CLI isn't available yet).
  */
 
-function formatConnection(node) {
-	const title =
-		node.title || node.original_name || node.name || node.label || "(untitled)";
-	const type = node.node_type || node.type || "memory";
-	const snippet = node.content
-		? node.content.slice(0, 120)
-		: node.summary || node.description || "";
-	return {
-		title,
-		type,
-		snippet,
-		id: node.id || "",
-		source_type: node.source_type,
-		original_name: node.original_name,
-	};
+const EDGE_TYPE_LABELS = {
+	CRYSTALLIZED_FROM: "crystallized from",
+	EVOLVES: "knowledge evolution",
+	SOURCED_FROM: "sourced from document",
+	MENTIONS: "mentions entity",
+	RELATED: "related",
+};
+
+const EVOLVES_RELATION_LABELS = {
+	replaces: "supersedes — newer understanding replaces older",
+	enriches: "enriches — adds depth to earlier knowledge",
+	confirms: "confirms — corroborated from another source",
+	challenges: "challenges — contradicts or questions",
+};
+
+function getNodeTitle(node) {
+	return (
+		node.label ||
+		node.metadata?.title ||
+		node.title ||
+		node.original_name ||
+		node.name ||
+		"(untitled)"
+	);
 }
 
-function formatEdge(edge) {
-	const edgeType = edge.edge_type || edge.type || "RELATED";
-	const relation = edge.content_relation || "";
-	const isProgression =
-		edge.is_progression !== undefined ? edge.is_progression : null;
-	return { edgeType, relation, isProgression };
+function getNodeSnippet(node) {
+	const content =
+		node.metadata?.content || node.content || node.summary || node.description || "";
+	return content.slice(0, 150);
 }
 
-function formatEvolvesStep(step) {
-	const title = step.title || "(untitled)";
-	const relation = step.relation || step.content_relation || "";
-	return {
-		id: step.id || "",
-		title,
-		relation,
-		version: step.version || 1,
-		isLatest: step.is_latest !== false,
-	};
+function getNodeType(node) {
+	return node.node_type || node.type || "memory";
+}
+
+/**
+ * Build a map from node id → node for efficient edge→node joining
+ */
+function buildNodeMap(nodes) {
+	const map = new Map();
+	for (const n of nodes) {
+		map.set(n.id, n);
+	}
+	return map;
+}
+
+/**
+ * Group edges by type, pairing each with the connected node.
+ * Returns { edgeType → [{ node, edge }] }
+ */
+function groupConnectionsByEdgeType(edges, nodeMap, centerId) {
+	const groups = new Map();
+
+	for (const edge of edges) {
+		const neighborId =
+			edge.source === centerId ? edge.target : edge.source;
+		const node = nodeMap.get(neighborId);
+		if (!node) continue;
+
+		const edgeType = edge.edge_type || edge.type || "RELATED";
+		if (!groups.has(edgeType)) groups.set(edgeType, []);
+
+		groups.get(edgeType).push({
+			node,
+			edge,
+			neighborId,
+			relation: edge.metadata?.relation_type || edge.content_relation || null,
+			weight: edge.weight ?? edge.relevance_score ?? 0.5,
+			label: edge.label || EDGE_TYPE_LABELS[edgeType] || edgeType,
+		});
+	}
+
+	return groups;
 }
 
 export function createConnectionsTool(client, logger) {
@@ -59,10 +101,12 @@ export function createConnectionsTool(client, logger) {
 		name: "nowledge_mem_connections",
 		description:
 			"Explore the knowledge graph around a memory or topic. Use this for:\n" +
-			"(1) Cross-topic synthesis — 'How does my UV setup relate to my Docker notes?' or 'What connects my Python and system config memories?'\n" +
+			"(1) Cross-topic synthesis — 'How does my UV setup relate to my Docker notes?'\n" +
 			"(2) Source provenance — which document (PDF, DOCX) or URL this knowledge was extracted from\n" +
 			"(3) Knowledge evolution — how understanding grew or changed over time (EVOLVES chains)\n" +
-			"(4) Entity discovery — people, projects, and tools clustered around this topic\n" +
+			"(4) Crystal breakdown — which source memories a crystal was synthesized from\n" +
+			"(5) Entity discovery — people, projects, and tools clustered around this topic\n" +
+			"Each connection shows its relationship type and strength.\n" +
 			"Tip: call memory_search first to get a memoryId, then pass it here for deep exploration.",
 		parameters: {
 			type: "object",
@@ -124,130 +168,155 @@ export function createConnectionsTool(client, logger) {
 
 			const sections = [];
 
-			// 1. Graph neighbors (connected memories + entities)
+			// 1. Graph neighbors (connected memories, sources, entities) — with edge types joined
 			try {
 				const neighborsData = await client.apiJson(
 					"GET",
-					`/graph/expand/${encodeURIComponent(targetId)}?depth=1&limit=15`,
+					`/graph/expand/${encodeURIComponent(targetId)}?depth=1&limit=20`,
 				);
 
-				const neighbors = (neighborsData.neighbors || []).map(formatConnection);
-				const edges = (neighborsData.edges || []).map(formatEdge);
+				const neighbors = neighborsData.neighbors || [];
+				const edges = neighborsData.edges || [];
+				const nodeMap = buildNodeMap(neighbors);
+				const grouped = groupConnectionsByEdgeType(edges, nodeMap, targetId);
 
-				if (neighbors.length > 0) {
-					const memoryNeighbors = neighbors.filter(
-						(n) => n.type === "Memory" || n.type === "memory",
+				// --- CRYSTALLIZED_FROM: crystal's source memories ---
+				const crystalConns = grouped.get("CRYSTALLIZED_FROM") || [];
+				if (crystalConns.length > 0) {
+					const lines = crystalConns.map(({ node, weight }) => {
+						const title = getNodeTitle(node);
+						const snippet = getNodeSnippet(node);
+						const strength = weight ? ` [${(weight * 100).toFixed(0)}%]` : "";
+						return `  - ${title}${strength}${snippet ? `: ${snippet}` : ""}\n    → id: ${node.id}`;
+					});
+					sections.push(
+						`Synthesized from ${crystalConns.length} source memor${crystalConns.length === 1 ? "y" : "ies"}:\n${lines.join("\n")}`,
 					);
-					const sourceNeighbors = neighbors.filter(
-						(n) => n.type === "Source" || n.type === "source",
+				}
+
+				// --- EVOLVES: knowledge evolution edges ---
+				const evolvesConns = grouped.get("EVOLVES") || [];
+				if (evolvesConns.length > 0) {
+					const lines = evolvesConns.map(({ node, relation }) => {
+						const title = getNodeTitle(node);
+						const relLabel =
+							EVOLVES_RELATION_LABELS[relation] ||
+							relation ||
+							"related knowledge";
+						return `  - ${relLabel}\n    "${title}"\n    → id: ${node.id}`;
+					});
+					sections.push(`Knowledge evolution:\n${lines.join("\n")}`);
+				}
+
+				// --- SOURCED_FROM: document provenance ---
+				const sourceConns = grouped.get("SOURCED_FROM") || [];
+				if (sourceConns.length > 0) {
+					const lines = sourceConns.map(({ node }) => {
+						const name = getNodeTitle(node);
+						const sourceType =
+							node.metadata?.source_type || node.source_type || "document";
+						return `  - ${name} (${sourceType}) → id: ${node.id}`;
+					});
+					sections.push(
+						`Sourced from document${sourceConns.length > 1 ? "s" : ""}:\n${lines.join("\n")}`,
 					);
-					const entityNeighbors = neighbors.filter(
-						(n) =>
-							n.type !== "Memory" &&
-							n.type !== "memory" &&
-							n.type !== "Source" &&
-							n.type !== "source",
+				}
+
+				// --- MENTIONS: entity connections ---
+				const mentionConns = grouped.get("MENTIONS") || [];
+				if (mentionConns.length > 0) {
+					const lines = mentionConns.map(({ node }) => {
+						const name = getNodeTitle(node);
+						const type = getNodeType(node);
+						return `  - ${name} (${type})`;
+					});
+					sections.push(`Entities mentioned:\n${lines.join("\n")}`);
+				}
+
+				// --- Other memory connections (RELATED, etc.) ---
+				for (const [edgeType, conns] of grouped.entries()) {
+					if (
+						["CRYSTALLIZED_FROM", "EVOLVES", "SOURCED_FROM", "MENTIONS"].includes(
+							edgeType,
+						)
+					)
+						continue;
+
+					const memConns = conns.filter(
+						({ node }) =>
+							getNodeType(node) === "memory" || getNodeType(node) === "Memory",
 					);
+					if (memConns.length === 0) continue;
 
-					if (memoryNeighbors.length > 0) {
-						const lines = memoryNeighbors.map(
-							(n) => `- ${n.title}: ${n.snippet}`,
-						);
-						sections.push(`Connected memories:\n${lines.join("\n")}`);
-					}
-
-					if (sourceNeighbors.length > 0) {
-						const lines = sourceNeighbors.map((n) => {
-							const sourceType = n.source_type || n.sourceType || "document";
-							const name = n.original_name || n.originalName || n.title;
-							return `- ${name} (${sourceType})${n.snippet ? `: ${n.snippet}` : ""}`;
-						});
-						sections.push(
-							`Source documents (provenance):\n${lines.join("\n")}`,
-						);
-					}
-
-					if (entityNeighbors.length > 0) {
-						const lines = entityNeighbors.map(
-							(n) => `- ${n.title} (${n.type})`,
-						);
-						sections.push(`Related entities:\n${lines.join("\n")}`);
-					}
-
-					// Surface EVOLVES edges specifically
-					const evolvesEdges = edges.filter((e) => e.edgeType === "EVOLVES");
-					if (evolvesEdges.length > 0) {
-						const relationDescriptions = {
-							replaces: "superseded by newer understanding",
-							enriches: "expanded with additional detail",
-							confirms: "corroborated from another source",
-							challenges: "contradicted or questioned",
-						};
-						const lines = evolvesEdges.map((e) => {
-							const desc = relationDescriptions[e.relation] || e.relation;
-							return `- ${desc}${e.isProgression ? " (version chain)" : ""}`;
-						});
-						sections.push(`Knowledge evolution:\n${lines.join("\n")}`);
-					}
-
-					// Surface SOURCED_FROM edges (document provenance)
-					const sourcedFromEdges = edges.filter(
-						(e) => e.edgeType === "SOURCED_FROM",
+					const lines = memConns.map(({ node, weight }) => {
+						const title = getNodeTitle(node);
+						const snippet = getNodeSnippet(node);
+						const strength = weight ? ` [${(weight * 100).toFixed(0)}%]` : "";
+						return `  - ${title}${strength}: ${snippet}\n    → id: ${node.id}`;
+					});
+					const label =
+						EDGE_TYPE_LABELS[edgeType] ||
+						edgeType.toLowerCase().replace(/_/g, " ");
+					sections.push(
+						`Connected via "${label}" (${memConns.length}):\n${lines.join("\n")}`,
 					);
-					if (sourcedFromEdges.length > 0) {
-						sections.push(
-							`This knowledge was extracted from ${sourcedFromEdges.length} source document(s) in the Library.`,
-						);
-					}
+				}
+
+				if (neighbors.length === 0) {
+					sections.push(
+						"No direct connections yet — connections form as the Knowledge Agent processes related memories.",
+					);
 				}
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				logger.warn(`connections: graph expand failed: ${msg}`);
 			}
 
-			// 2. EVOLVES chain (temporal evolution of understanding)
+			// 2. EVOLVES chain (full version history)
 			try {
 				const chainData = await client.apiJson(
 					"GET",
 					`/agent/evolves?memory_id=${encodeURIComponent(targetId)}&limit=10`,
 				);
 
-				// The /agent/evolves endpoint returns edges, not a chain.
-				// Try the MCP-style chain if available via a different path.
 				if (Array.isArray(chainData) && chainData.length > 0) {
-					const steps = chainData.map(formatEvolvesStep);
-					if (steps.length > 0) {
-						const lines = steps.map(
-							(s) =>
-								`${s.isLatest ? "→ " : "  "}${s.title}${s.relation ? ` (${s.relation})` : ""}`,
-						);
-						sections.push(`Version history:\n${lines.join("\n")}`);
-					}
+					const steps = chainData.map((s) => {
+						const title = s.title || s.label || "(untitled)";
+						const relation = s.relation || s.content_relation || "";
+						const relLabel =
+							EVOLVES_RELATION_LABELS[relation] || relation || "";
+						const isLatest = s.is_latest !== false;
+						return `  ${isLatest ? "→ [latest]" : "  "} ${title}${relLabel ? ` — ${relLabel}` : ""}`;
+					});
+					sections.push(`Full version history:\n${steps.join("\n")}`);
 				}
 			} catch {
-				// EVOLVES chain may not exist for this memory — that's fine
+				// No EVOLVES chain for this memory — normal
 			}
 
-			if (sections.length === 0) {
+			if (sections.length === 0 || (sections.length === 1 && sections[0].includes("No direct connections"))) {
 				return {
 					content: [
 						{
 							type: "text",
-							text: `Memory ${targetId} has no graph connections yet. Connections form as more related knowledge is captured.`,
+							text: `Memory ${targetId} has no graph connections yet. Connections form as the Knowledge Agent processes related knowledge.`,
 						},
 					],
 				};
 			}
 
 			const result = [
-				`Connections for memory ${targetId}:`,
+				`Graph connections for: ${targetId}`,
 				"",
 				...sections,
 			].join("\n\n");
 
 			return {
 				content: [{ type: "text", text: result }],
-				details: { memoryId: targetId, sectionCount: sections.length },
+				details: {
+					memoryId: targetId,
+					sectionCount: sections.length,
+				},
 			};
 		},
 	};

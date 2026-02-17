@@ -100,7 +100,7 @@ export function createMemorySearchTool(client, logger) {
 				let rawResults;
 
 				if (hasTemporalFilter) {
-					// Use API-based temporal search path
+					// Bi-temporal path: filter by event or record time
 					const { memories } = await client.searchTemporal(query, {
 						limit: maxResults,
 						eventDateFrom,
@@ -110,7 +110,8 @@ export function createMemorySearchTool(client, logger) {
 					});
 					rawResults = memories;
 				} else {
-					rawResults = await client.search(query, maxResults);
+					// Always use the rich API path to get relevance_reason + full metadata
+					rawResults = await client.searchRich(query, maxResults);
 				}
 
 				const filtered = hasMinScore
@@ -130,7 +131,13 @@ export function createMemorySearchTool(client, logger) {
 						snippet,
 						memoryId: entry.id,
 					};
-					// Include temporal metadata when available (bi-temporal search)
+					// Scoring transparency: show which signals fired
+					if (entry.relevanceReason)
+						result.matchedVia = entry.relevanceReason;
+					// Importance context
+					if (entry.importance !== undefined && entry.importance !== null)
+						result.importance = Number(entry.importance);
+					// Temporal metadata
 					if (entry.eventStart) result.eventStart = entry.eventStart;
 					if (entry.eventEnd) result.eventEnd = entry.eventEnd;
 					if (entry.temporalContext)
@@ -146,7 +153,7 @@ export function createMemorySearchTool(client, logger) {
 								{
 									results,
 									provider: "nmem",
-									mode: "semantic",
+									mode: "multi-signal",
 								},
 								null,
 								2,

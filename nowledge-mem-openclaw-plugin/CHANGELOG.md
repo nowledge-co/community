@@ -2,6 +2,27 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.2.3] - 2026-02-18
+
+### Changed — Graph Transparency & Scoring Visibility
+
+- `nowledge_mem_connections`: completely rewritten output format
+  - Edges are now JOIN-ed to their target nodes — each connection shows its relationship type and strength
+  - Sections organized by edge type: "Synthesized from N source memories" (CRYSTALLIZED_FROM), "Knowledge evolution" (EVOLVES), "Sourced from document" (SOURCED_FROM), "Entities mentioned" (MENTIONS)
+  - EVOLVES sub-relations are labeled: supersedes, enriches, confirms, challenges
+  - Each connected memory includes its `id` for direct follow-up with `memory_get` or `nowledge_mem_connections`
+- `memory_search`: now always uses API path (`searchRich`) — returns `matchedVia` with scoring breakdown
+  - e.g. `"matchedVia": "Text Match (100%) + Semantic Match (69%) | decay[imp:high]"`
+  - Also returns `importance` per result
+  - Response `mode` field updated to `"multi-signal"` to reflect actual behavior
+- `nowledge_mem_timeline`: timeline entries now include `(id: <memoryId>)` hint for events with linked memories — enables immediate chaining to `nowledge_mem_connections`
+- `nowledge_mem_timeline`: `event_type` filter values documented in tool description for model discoverability
+- Auto-recall hook: uses `searchRich` instead of CLI search — shows scoring breakdown in recalled context
+
+### Added
+
+- `client.searchRich()` — convenience wrapper for `searchTemporal` without temporal filters; always returns `relevanceReason`
+
 ## [0.2.2] - 2026-02-18
 
 ### Added

@@ -47,20 +47,22 @@ export function buildRecallHandler(client, cfg, logger) {
 			logger.error(`recall: working memory read failed: ${err}`);
 		}
 
-		// 2. Relevant memories — enriched with type and labels
-		try {
-			const results = await client.search(prompt, cfg.maxRecallResults);
-			if (results.length > 0) {
-				const lines = results.map((r) => {
-					const title = r.title || "(untitled)";
-					const score = `${(r.score * 100).toFixed(0)}%`;
-					const labels =
-						Array.isArray(r.labels) && r.labels.length > 0
-							? ` [${r.labels.join(", ")}]`
-							: "";
-					const snippet = escapeForPrompt(r.content.slice(0, 250));
-					return `${title} (${score})${labels}: ${snippet}`;
-				});
+	// 2. Relevant memories — enriched with scoring signals and labels
+	try {
+		const results = await client.searchRich(prompt, cfg.maxRecallResults);
+		if (results.length > 0) {
+			const lines = results.map((r) => {
+				const title = r.title || "(untitled)";
+				const score = `${(r.score * 100).toFixed(0)}%`;
+				const labels =
+					Array.isArray(r.labels) && r.labels.length > 0
+						? ` [${r.labels.join(", ")}]`
+						: "";
+				// Show the scoring breakdown so the agent understands match quality
+				const matchHint = r.relevanceReason ? ` — ${r.relevanceReason}` : "";
+				const snippet = escapeForPrompt(r.content.slice(0, 250));
+				return `${title} (${score}${matchHint})${labels}: ${snippet}`;
+			});
 				sections.push(
 					[
 						"<recalled-knowledge>",

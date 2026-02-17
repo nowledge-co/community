@@ -144,6 +144,16 @@ export class NowledgeMemClient {
 	}
 
 	/**
+	 * Rich search — uses the API directly to get full metadata including
+	 * relevance_reason, importance, and temporal fields. Use this when
+	 * you need the scoring breakdown ("Text Match 79% + Semantic 48%").
+	 */
+	async searchRich(query, limit = 5) {
+		const { memories } = await this.searchTemporal(query, { limit });
+		return memories;
+	}
+
+	/**
 	 * Bi-temporal search — uses the API directly so that date filters
 	 * work regardless of installed nmem CLI version.
 	 *
@@ -181,12 +191,13 @@ export class NowledgeMemClient {
 				id: String(m.id ?? ""),
 				title: String(m.title ?? ""),
 				content: String(m.content ?? ""),
-				score: Number(m.confidence ?? m.similarity_score ?? 0),
+				score: Number(m.confidence ?? m.metadata?.similarity_score ?? 0),
 				labels: Array.isArray(m.labels) ? m.labels : [],
-				importance: Number(m.importance ?? 0.5),
-				eventStart: m.event_start ?? null,
-				eventEnd: m.event_end ?? null,
-				temporalContext: m.temporal_context ?? null,
+				importance: Number(m.metadata?.importance ?? m.importance ?? 0.5),
+				relevanceReason: m.metadata?.relevance_reason ?? null,
+				eventStart: m.metadata?.event_start ?? m.event_start ?? null,
+				eventEnd: m.metadata?.event_end ?? m.event_end ?? null,
+				temporalContext: m.metadata?.temporal_context ?? m.temporal_context ?? null,
 			})),
 			searchMetadata: data.search_metadata ?? {},
 		};

@@ -59,8 +59,11 @@ export function createTimelineTool(client, logger) {
 			"Browse the user's recent knowledge activity — what they saved, read, worked on, or learned. " +
 			"Use for temporal questions like 'what was I doing last week?', 'what did I work on yesterday?', " +
 			"'show me recent insights', or 'what documents did I add this month?'. " +
-			"Returns a day-by-day feed grouped chronologically. " +
-			"Pair with memory_search for specific content and nowledge_mem_connections for graph exploration.",
+			"Returns a day-by-day feed grouped chronologically. Results include memoryIds so you can " +
+			"pass them directly to memory_get or nowledge_mem_connections for deeper exploration. " +
+			"Use event_type to filter: memory_created (saved knowledge), crystal_created (synthesized insights), " +
+			"insight_generated (agent observations), source_ingested (Library documents), " +
+			"source_extracted (knowledge from docs), daily_briefing (morning briefings), url_captured.",
 		parameters: {
 			type: "object",
 			properties: {
@@ -153,7 +156,17 @@ export function createTimelineTool(client, logger) {
 							const label = labelForType(e.event_type);
 							const title =
 								e.title || e.description || e.content?.slice(0, 80) || "";
-							return `  - [${label}] ${title}`;
+							// Surface memoryId for events that create/relate to memories
+							// so the agent can follow up with memory_get or nowledge_mem_connections
+							const memoryIds = [
+								...(e.related_memory_ids ?? []),
+								...(e.memory_id ? [e.memory_id] : []),
+							];
+							const idHint =
+								memoryIds.length > 0
+									? ` (id: ${memoryIds[0]}${memoryIds.length > 1 ? ` +${memoryIds.length - 1}` : ""})`
+									: "";
+							return `  - [${label}] ${title}${idHint}`;
 						})
 						.join("\n");
 					return `**${date}**\n${items}`;
