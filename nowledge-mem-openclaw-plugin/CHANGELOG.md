@@ -2,6 +2,20 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.1.5] - 2026-02-17
+
+### Fixed
+
+- Aligned plugin ids with OpenClaw installer id derivation so `openclaw plugins install --link` and npm installs work without config validation failures:
+  - package id (`@nowledge/openclaw-nowledge-mem`) -> plugin id (`openclaw-nowledge-mem`)
+  - manifest/export ids now match installer-derived id
+
+### Changed
+
+- Updated docs/examples to use:
+  - `plugins.slots.memory = "openclaw-nowledge-mem"`
+  - `plugins.entries.openclaw-nowledge-mem`
+
 ## [0.1.4] - 2026-02-17
 
 ### Added

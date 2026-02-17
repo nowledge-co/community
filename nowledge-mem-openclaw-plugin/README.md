@@ -15,16 +15,18 @@ Gives your OpenClaw agents persistent memory. Save insights, recall relevant kno
 openclaw plugins install @nowledge/openclaw-nowledge-mem
 ```
 
+Plugin id in OpenClaw config: `openclaw-nowledge-mem`
+
 In your OpenClaw config:
 
 ```json
 {
   "plugins": {
     "slots": {
-      "memory": "nowledge-mem"
+      "memory": "openclaw-nowledge-mem"
     },
     "entries": {
-      "nowledge-mem": {
+      "openclaw-nowledge-mem": {
         "enabled": true,
         "config": {
           "autoRecall": true,

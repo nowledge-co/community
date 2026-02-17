@@ -17,7 +17,7 @@ import { createStoreTool } from "./tools/store.js";
 import { createWorkingMemoryTool } from "./tools/working-memory.js";
 
 export default {
-	id: "nowledge-mem",
+	id: "openclaw-nowledge-mem",
 	name: "Nowledge Mem",
 	description: "Local-first personal memory for AI agents, powered by nmem CLI",
 	kind: "memory",
