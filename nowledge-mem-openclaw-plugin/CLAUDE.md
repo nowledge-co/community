@@ -14,7 +14,7 @@ This file is a continuation guide for future sessions working on
 - Core integration works for local-first memory operations.
 - Config schema intentionally does **not** include `serverUrl` anymore.
 - Recall hook injects memory context as central external memory guidance.
-- Auto-capture does not persist OpenClaw sessions/threads; when enabled, it logs warning and skips.
+- Auto-capture persists memory notes on `agent_end` and saves thread snapshots on `before_reset`.
 
 ## Files That Matter
 
@@ -22,7 +22,7 @@ This file is a continuation guide for future sessions working on
 - `src/client.js`: nmem command resolution + CLI wrappers
 - `src/config.js`: strict config parsing (`autoRecall`, `autoCapture`, `maxRecallResults`)
 - `src/hooks/recall.js`: `before_agent_start` context injection
-- `src/hooks/capture.js`: `agent_end` capture behavior
+- `src/hooks/capture.js`: `agent_end` memory capture + `before_reset` thread snapshot
 - `src/tools/*.js`: exposed tool handlers
 - `openclaw.plugin.json`: plugin metadata + config schema + UI hints
 - `README.md`, `CHANGELOG.md`: docs
@@ -38,7 +38,8 @@ Tools currently implemented:
 Hooks:
 
 - `before_agent_start` (auto recall when enabled)
-- `agent_end` (auto capture when enabled)
+- `agent_end` (auto memory capture when enabled)
+- `before_reset` (thread snapshot capture when enabled)
 
 Commands:
 
@@ -77,7 +78,7 @@ Note: repo formatting baseline may fail lint outside touched files.
 - Current OpenClaw plugin surface is lighter than Alma plugin (fewer CRUD tools).
 - Rich response normalization/error taxonomy is less mature than Alma `v0.2.x`.
 - Tool-calling quality still depends on model behavior; recall hook helps but is not absolute.
-- `nmem-cli` does not currently provide an OpenClaw-specific thread append/save path.
+- `nmem-cli` does not currently provide an OpenClaw-specific thread append path; plugin uses `t create` snapshots instead.
 
 ## Recommended Next Improvements
 

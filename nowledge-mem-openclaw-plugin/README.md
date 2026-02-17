@@ -69,10 +69,14 @@ When `autoRecall` is enabled (default), the plugin injects context before each a
 1. **Working Memory**: your daily briefing with priorities and flags
 2. **Relevant memories**: semantic search based on the current prompt
 
-### Auto-Capture (agent_end)
+### Auto-Capture (`agent_end` + `before_reset`)
 
-`nmem-cli` currently does not support an OpenClaw-native thread append/save flow.  
-When `autoCapture` is enabled, the plugin logs a warning and skips capture.
+When `autoCapture` is enabled, the plugin captures in two places:
+
+1. `agent_end`: stores the latest high-signal user input as a memory note
+2. `before_reset`: snapshots recent user/assistant messages to a new nmem thread before `/new` or `/reset` clears the session
+
+This uses `nmem m add` + `nmem t create` (no append dependency).
 
 ## Slash Commands
 
@@ -96,7 +100,7 @@ openclaw nowledge-mem status
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `autoRecall` | boolean | `true` | Load Working Memory + relevant memories at session start |
-| `autoCapture` | boolean | `false` | Reserved (logs warning; capture skipped) |
+| `autoCapture` | boolean | `false` | Capture durable notes on `agent_end` and save thread snapshot on `before_reset` |
 | `maxRecallResults` | integer | `5` | Max memories to recall (1-20) |
 
 ## How It Works

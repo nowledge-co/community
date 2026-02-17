@@ -2,6 +2,15 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.1.3] - 2026-02-17
+
+### Changed
+
+- Replaced `autoCapture` no-op with real capture pipeline:
+  - `agent_end`: stores high-signal user memory via `nmem m add`
+  - `before_reset`: snapshots recent session messages via `nmem t create`
+- Added resilient session snapshot fallback by reading `before_reset.sessionFile` JSONL when hook payload messages are not present
+
 ## [0.1.2] - 2026-02-17
 
 ### Fixed

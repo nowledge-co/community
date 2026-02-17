@@ -8,7 +8,7 @@
 		},
 		"autoCapture": {
 			"label": "Auto-capture at session end",
-			"help": "Reserved; thread/message persistence is currently not supported by nmem-cli for OpenClaw"
+			"help": "Store high-value memory notes after successful runs and snapshot the session before /new or /reset"
 		},
 		"maxRecallResults": {
 			"label": "Max recall results",
@@ -26,7 +26,7 @@
 			"autoCapture": {
 				"type": "boolean",
 				"default": false,
-				"description": "Reserved; currently logs warning and skips capture for OpenClaw"
+				"description": "Enable agent_end memory capture and before_reset thread snapshot capture"
 			},
 			"maxRecallResults": {
 				"type": "integer",

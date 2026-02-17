@@ -5,7 +5,10 @@ import {
 	createRememberCommand,
 } from "./commands/slash.js";
 import { parseConfig } from "./config.js";
-import { buildCaptureHandler } from "./hooks/capture.js";
+import {
+	buildAgentEndCaptureHandler,
+	buildBeforeResetCaptureHandler,
+} from "./hooks/capture.js";
 import { buildRecallHandler } from "./hooks/recall.js";
 import { createSearchTool } from "./tools/search.js";
 import { createStoreTool } from "./tools/store.js";
@@ -33,9 +36,10 @@ export default {
 		}
 
 		if (cfg.autoCapture) {
-			api.on("agent_end", buildCaptureHandler(client, cfg, logger));
-			logger.warn(
-				"nowledge-mem: autoCapture is enabled but OpenClaw thread/message persistence is not supported by nmem-cli; capture will be skipped.",
+			api.on("agent_end", buildAgentEndCaptureHandler(client, cfg, logger));
+			api.on(
+				"before_reset",
+				buildBeforeResetCaptureHandler(client, cfg, logger),
 			);
 		}
 

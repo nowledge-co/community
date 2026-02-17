@@ -101,6 +101,32 @@ export class NowledgeMemClient {
 		return String(data.id ?? data.memory?.id ?? data.memory_id ?? "created");
 	}
 
+	async createThread({ title, messages, source = "openclaw" }) {
+		const normalizedTitle = String(title || "").trim();
+		if (!normalizedTitle) {
+			throw new Error("createThread requires a non-empty title");
+		}
+		if (!Array.isArray(messages) || messages.length === 0) {
+			throw new Error("createThread requires at least one message");
+		}
+
+		const data = this.execJson([
+			"--json",
+			"t",
+			"create",
+			"-t",
+			normalizedTitle,
+			"-m",
+			JSON.stringify(messages),
+			"-s",
+			String(source),
+		]);
+
+		return String(
+			data.id ?? data.thread?.thread_id ?? data.thread_id ?? "created",
+		);
+	}
+
 	async readWorkingMemory() {
 		try {
 			const data = this.execJson(["--json", "wm", "read"], 15_000);
