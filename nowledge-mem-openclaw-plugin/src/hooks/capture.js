@@ -1,6 +1,6 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-const MAX_THREAD_MESSAGES = 24;
 const MAX_MESSAGE_CHARS = 800;
 
 function truncate(text, max = MAX_MESSAGE_CHARS) {
@@ -37,7 +37,33 @@ function normalizeRoleMessage(raw) {
 	const text = extractText(msg.content);
 	if (!text) return null;
 	if (role === "user" && text.startsWith("/")) return null;
-	return { role, content: truncate(text) };
+
+	let timestamp;
+	if (typeof msg.timestamp === "string" || typeof msg.timestamp === "number") {
+		timestamp = msg.timestamp;
+	}
+
+	const externalHint = [
+		msg.external_id,
+		msg.externalId,
+		msg.message_id,
+		msg.messageId,
+		msg.id,
+		raw.external_id,
+		raw.externalId,
+		raw.message_id,
+		raw.messageId,
+		raw.id,
+	]
+		.find((v) => typeof v === "string" && v.trim().length > 0)
+		?.trim();
+
+	return {
+		role,
+		content: truncate(text),
+		timestamp,
+		externalHint,
+	};
 }
 
 function fingerprint(text) {
@@ -57,10 +83,52 @@ function shouldCaptureAsMemory(text) {
 }
 
 function buildThreadTitle(ctx, reason) {
-	const stamp = new Date().toISOString().replace("T", " ").replace("Z", " UTC");
 	const session = ctx?.sessionKey || ctx?.sessionId || "session";
 	const reasonSuffix = reason ? ` (${reason})` : "";
-	return `OpenClaw ${session}${reasonSuffix} ${stamp}`;
+	return `OpenClaw ${session}${reasonSuffix}`;
+}
+
+function sanitizeIdPart(input, max = 48) {
+	const normalized = String(input || "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	if (!normalized) return "session";
+	return normalized.slice(0, max);
+}
+
+function buildStableThreadId(event, ctx) {
+	const base =
+		String(ctx?.sessionId || "").trim() ||
+		String(ctx?.sessionKey || "").trim() ||
+		String(event?.sessionFile || "").trim() ||
+		"session";
+	const slug = sanitizeIdPart(base);
+	const digest = createHash("sha1").update(base).digest("hex").slice(0, 10);
+	return `openclaw-${slug}-${digest}`;
+}
+
+function buildExternalId({ normalized, index, threadId, sessionKey }) {
+	if (normalized.externalHint) {
+		return `oc:${sanitizeIdPart(normalized.externalHint, 96)}`;
+	}
+	const seed = `${threadId}|${sessionKey}|${index}|${normalized.role}|${normalized.content}`;
+	const digest = createHash("sha1").update(seed).digest("hex");
+	return `oc-msg:${digest}`;
+}
+
+function buildAppendIdempotencyKey(threadId, reason, messages) {
+	const seed = {
+		threadId: String(threadId || ""),
+		reason: String(reason || "event"),
+		count: Array.isArray(messages) ? messages.length : 0,
+		externalIds: Array.isArray(messages)
+			? messages
+					.map((m) => m?.metadata?.external_id)
+					.filter((v) => typeof v === "string" && v.length > 0)
+			: [],
+	};
+	return `oc-batch:${createHash("sha1").update(JSON.stringify(seed)).digest("hex")}`;
 }
 
 async function loadMessagesFromSessionFile(sessionFile) {
@@ -97,6 +165,70 @@ async function resolveHookMessages(event) {
 	return loadMessagesFromSessionFile(sessionFile);
 }
 
+async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
+	const rawMessages = await resolveHookMessages(event);
+	if (!Array.isArray(rawMessages) || rawMessages.length === 0) return;
+
+	const threadId = buildStableThreadId(event, ctx);
+	const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "session");
+	const sessionId = String(ctx?.sessionId || "").trim();
+	const title = buildThreadTitle(ctx, reason);
+	const normalized = rawMessages.map(normalizeRoleMessage).filter(Boolean);
+	if (normalized.length === 0) return;
+
+	const messages = normalized.map((message, index) => ({
+		role: message.role,
+		content: message.content,
+		timestamp: message.timestamp,
+		metadata: {
+			external_id: buildExternalId({
+				normalized: message,
+				index,
+				threadId,
+				sessionKey,
+			}),
+			source: "openclaw",
+			session_key: sessionKey,
+			session_id: sessionId || undefined,
+		},
+	}));
+	const idempotencyKey = buildAppendIdempotencyKey(threadId, reason, messages);
+
+	try {
+		const appended = await client.appendThread({
+			threadId,
+			messages,
+			deduplicate: true,
+			idempotencyKey,
+		});
+		logger.info(
+			`capture: appended ${appended.messagesAdded} messages to ${threadId} (${reason || "event"})`,
+		);
+		return;
+	} catch (err) {
+		if (!client.isThreadNotFoundError(err)) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.warn(`capture: thread append failed for ${threadId}: ${message}`);
+			return;
+		}
+	}
+
+	try {
+		const createdId = await client.createThread({
+			threadId,
+			title,
+			messages,
+			source: "openclaw",
+		});
+		logger.info(
+			`capture: created thread ${createdId} with ${messages.length} messages (${reason || "event"})`,
+		);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		logger.warn(`capture: thread create failed for ${threadId}: ${message}`);
+	}
+}
+
 /**
  * Capture a high-value user message after a successful run.
  */
@@ -124,34 +256,23 @@ export function buildAgentEndCaptureHandler(client, _cfg, logger) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.warn(`capture: memory store failed: ${message}`);
 		}
+
+		await appendOrCreateThread({
+			client,
+			logger,
+			event,
+			ctx,
+			reason: "agent_end",
+		});
 	};
 }
 
 /**
- * Capture a thread snapshot before /new or /reset clears the session.
+ * Capture thread messages before reset or after compaction.
  */
 export function buildBeforeResetCaptureHandler(client, _cfg, logger) {
 	return async (event, ctx) => {
-		const rawMessages = await resolveHookMessages(event);
-		if (!Array.isArray(rawMessages) || rawMessages.length === 0) return;
-
-		const normalized = rawMessages.map(normalizeRoleMessage).filter(Boolean);
-		if (normalized.length === 0) return;
-
-		const messages = normalized.slice(-MAX_THREAD_MESSAGES);
 		const reason = typeof event?.reason === "string" ? event.reason : undefined;
-		const title = buildThreadTitle(ctx, reason);
-
-		try {
-			const threadId = await client.createThread({
-				title,
-				messages,
-				source: "openclaw",
-			});
-			logger.info(`capture: saved thread snapshot ${threadId}`);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			logger.warn(`capture: thread snapshot failed: ${message}`);
-		}
+		await appendOrCreateThread({ client, logger, event, ctx, reason });
 	};
 }

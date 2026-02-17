@@ -10,6 +10,58 @@ export class NowledgeMemClient {
 		this.nmemCmd = null;
 	}
 
+	getApiBaseUrl() {
+		const raw = process.env.NMEM_API_URL?.trim();
+		return raw && raw.length > 0 ? raw : "http://127.0.0.1:14242";
+	}
+
+	getApiHeaders() {
+		const headers = { "content-type": "application/json" };
+		const apiKey = process.env.NMEM_API_KEY?.trim();
+		if (apiKey) {
+			headers.authorization = `Bearer ${apiKey}`;
+			headers["x-nmem-api-key"] = apiKey;
+		}
+		return headers;
+	}
+
+	async apiJson(method, path, body, timeout = 30_000) {
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), timeout);
+		const url = `${this.getApiBaseUrl()}${path}`;
+		try {
+			const response = await fetch(url, {
+				method,
+				headers: this.getApiHeaders(),
+				body: body === undefined ? undefined : JSON.stringify(body),
+				signal: controller.signal,
+			});
+
+			const text = await response.text();
+			let data = {};
+			try {
+				data = text ? JSON.parse(text) : {};
+			} catch {
+				data = { raw: text };
+			}
+
+			if (!response.ok) {
+				const detail =
+					typeof data?.detail === "string"
+						? data.detail
+						: typeof data?.message === "string"
+							? data.message
+							: typeof data?.raw === "string"
+								? data.raw
+								: `HTTP ${response.status}`;
+				throw new Error(detail);
+			}
+			return data;
+		} finally {
+			clearTimeout(timer);
+		}
+	}
+
 	resolveCommand() {
 		if (this.nmemCmd) return this.nmemCmd;
 
@@ -101,7 +153,7 @@ export class NowledgeMemClient {
 		return String(data.id ?? data.memory?.id ?? data.memory_id ?? "created");
 	}
 
-	async createThread({ title, messages, source = "openclaw" }) {
+	async createThread({ threadId, title, messages, source = "openclaw" }) {
 		const normalizedTitle = String(title || "").trim();
 		if (!normalizedTitle) {
 			throw new Error("createThread requires a non-empty title");
@@ -110,20 +162,118 @@ export class NowledgeMemClient {
 			throw new Error("createThread requires at least one message");
 		}
 
-		const data = this.execJson([
-			"--json",
-			"t",
-			"create",
-			"-t",
-			normalizedTitle,
-			"-m",
-			JSON.stringify(messages),
-			"-s",
-			String(source),
-		]);
+		let data;
+		try {
+			const args = [
+				"--json",
+				"t",
+				"create",
+				"-t",
+				normalizedTitle,
+				"-m",
+				JSON.stringify(messages),
+				"-s",
+				String(source),
+			];
+			if (threadId) {
+				args.push("--id", String(threadId));
+			}
+			data = this.execJson(args);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			const needsApiFallback =
+				Boolean(threadId) &&
+				(message.includes("unrecognized arguments: --id") ||
+					message.includes("invalid choice"));
+			if (!needsApiFallback) {
+				throw err;
+			}
+			this.logger.warn("createThread: CLI missing --id support, falling back to API");
+			data = await this.apiJson("POST", "/threads", {
+				thread_id: String(threadId),
+				title: normalizedTitle,
+				source: String(source),
+				messages,
+			});
+		}
 
 		return String(
 			data.id ?? data.thread?.thread_id ?? data.thread_id ?? "created",
+		);
+	}
+
+	async appendThread({
+		threadId,
+		messages,
+		deduplicate = true,
+		idempotencyKey,
+	}) {
+		const normalizedThreadId = String(threadId || "").trim();
+		if (!normalizedThreadId) {
+			throw new Error("appendThread requires threadId");
+		}
+		if (!Array.isArray(messages) || messages.length === 0) {
+			return { messagesAdded: 0, totalMessages: 0 };
+		}
+
+		try {
+			const args = [
+				"--json",
+				"t",
+				"append",
+				normalizedThreadId,
+				"-m",
+				JSON.stringify(messages),
+				...(deduplicate ? [] : ["--no-deduplicate"]),
+			];
+			if (idempotencyKey) {
+				args.push("--idempotency-key", String(idempotencyKey));
+			}
+			const data = this.execJson(args);
+			return {
+				messagesAdded: Number(data.messages_added ?? 0),
+				totalMessages: Number(data.total_messages ?? 0),
+			};
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			const needsApiFallback =
+				message.includes("invalid choice") || message.includes("unrecognized arguments");
+			if (!needsApiFallback) {
+				throw err;
+			}
+			this.logger.warn("appendThread: CLI missing append support, falling back to API");
+			const data = await this.apiJson(
+				"POST",
+				`/threads/${encodeURIComponent(normalizedThreadId)}/append`,
+				{
+					messages,
+					deduplicate,
+					...(idempotencyKey
+						? { idempotency_key: String(idempotencyKey) }
+						: {}),
+				},
+			);
+			return {
+				messagesAdded: Number(data.messages_added ?? 0),
+				totalMessages: Number(data.total_messages ?? 0),
+			};
+		}
+	}
+
+	async getMemory(memoryId) {
+		const id = String(memoryId || "").trim();
+		if (!id) {
+			throw new Error("getMemory requires memoryId");
+		}
+		return this.execJson(["--json", "m", "show", id]);
+	}
+
+	isThreadNotFoundError(err) {
+		const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+		return (
+			message.includes("thread not found") ||
+			message.includes("404") ||
+			message.includes("not found")
 		);
 	}
 

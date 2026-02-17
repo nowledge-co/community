@@ -8,7 +8,7 @@
 		},
 		"autoCapture": {
 			"label": "Auto-capture at session end",
-			"help": "Store high-value memory notes after successful runs and snapshot the session before /new or /reset"
+			"help": "Store high-value notes and append session transcripts on agent_end/after_compaction/before_reset"
 		},
 		"maxRecallResults": {
 			"label": "Max recall results",
@@ -26,7 +26,7 @@
 			"autoCapture": {
 				"type": "boolean",
 				"default": false,
-				"description": "Enable agent_end memory capture and before_reset thread snapshot capture"
+				"description": "Enable memory note capture and append-first thread sync across session lifecycle hooks"
 			},
 			"maxRecallResults": {
 				"type": "integer",

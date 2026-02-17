@@ -2,6 +2,24 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.1.4] - 2026-02-17
+
+### Added
+
+- OpenClaw memory-compatible tool aliases:
+  - `memory_search` (structured recall output with source paths)
+  - `memory_get` (fetch by `nowledgemem://memory/<id>` or raw memory ID)
+- `after_compaction` capture hook to preserve thread continuity across compaction cycles
+
+### Changed
+
+- Auto-capture is now append-first with deterministic thread IDs:
+  - Attempts `append` with deduplication
+  - Falls back to `create` on first write
+- Added CLI/API fallback in client for mixed nmem versions (append/create with explicit thread IDs)
+- Added retry-safe append `idempotency_key` propagation for transcript batches
+- Updated docs to require `plugins.slots.memory = "nowledge-mem"` for full memory-slot replacement behavior
+
 ## [0.1.3] - 2026-02-17
 
 ### Changed

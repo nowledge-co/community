@@ -11,6 +11,8 @@ import {
 } from "./hooks/capture.js";
 import { buildRecallHandler } from "./hooks/recall.js";
 import { createSearchTool } from "./tools/search.js";
+import { createMemorySearchTool } from "./tools/memory-search.js";
+import { createMemoryGetTool } from "./tools/memory-get.js";
 import { createStoreTool } from "./tools/store.js";
 import { createWorkingMemoryTool } from "./tools/working-memory.js";
 
@@ -26,6 +28,8 @@ export default {
 		const client = new NowledgeMemClient(logger);
 
 		// Tools
+		api.registerTool(createMemorySearchTool(client, logger));
+		api.registerTool(createMemoryGetTool(client, logger));
 		api.registerTool(createSearchTool(client, logger));
 		api.registerTool(createStoreTool(client, logger));
 		api.registerTool(createWorkingMemoryTool(client, logger));
@@ -36,10 +40,18 @@ export default {
 		}
 
 		if (cfg.autoCapture) {
+			const threadCaptureHandler = buildBeforeResetCaptureHandler(
+				client,
+				cfg,
+				logger,
+			);
 			api.on("agent_end", buildAgentEndCaptureHandler(client, cfg, logger));
+			api.on("after_compaction", (event, ctx) =>
+				threadCaptureHandler({ ...event, reason: "compaction" }, ctx),
+			);
 			api.on(
 				"before_reset",
-				buildBeforeResetCaptureHandler(client, cfg, logger),
+				threadCaptureHandler,
 			);
 		}
 

@@ -20,6 +20,9 @@ In your OpenClaw config:
 ```json
 {
   "plugins": {
+    "slots": {
+      "memory": "nowledge-mem"
+    },
     "entries": {
       "nowledge-mem": {
         "enabled": true,
@@ -34,6 +37,14 @@ In your OpenClaw config:
 ```
 
 ## Tools
+
+### memory_search (OpenClaw memory-compatible)
+
+Compatibility recall tool for OpenClaw’s memory lifecycle. Returns structured snippets with source paths (`nowledgemem://memory/<id>`).
+
+### memory_get (OpenClaw memory-compatible)
+
+Reads a specific memory returned by `memory_search` (or raw memory ID) with optional line slicing.
 
 ### nowledge_mem_search
 
@@ -71,12 +82,13 @@ When `autoRecall` is enabled (default), the plugin injects context before each a
 
 ### Auto-Capture (`agent_end` + `before_reset`)
 
-When `autoCapture` is enabled, the plugin captures in two places:
+When `autoCapture` is enabled, the plugin captures in three places:
 
-1. `agent_end`: stores the latest high-signal user input as a memory note
-2. `before_reset`: snapshots recent user/assistant messages to a new nmem thread before `/new` or `/reset` clears the session
+1. `agent_end`: stores the latest high-signal user input as a memory note and appends the run transcript to a deterministic nmem thread
+2. `after_compaction`: appends transcript chunks so compaction cycles do not lose thread continuity
+3. `before_reset`: final append pass before `/new` or `/reset` clears the OpenClaw session
 
-This uses `nmem m add` + `nmem t create` (no append dependency).
+This uses append-first semantics (`nmem t append` / API fallback) with deterministic thread IDs and deduplication.
 
 ## Slash Commands
 
@@ -100,7 +112,7 @@ openclaw nowledge-mem status
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `autoRecall` | boolean | `true` | Load Working Memory + relevant memories at session start |
-| `autoCapture` | boolean | `false` | Capture durable notes on `agent_end` and save thread snapshot on `before_reset` |
+| `autoCapture` | boolean | `false` | Capture durable notes on `agent_end` and append-first transcript sync on `agent_end`/`after_compaction`/`before_reset` |
 | `maxRecallResults` | integer | `5` | Max memories to recall (1-20) |
 
 ## How It Works
