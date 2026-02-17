@@ -2,6 +2,16 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.2.5] - 2026-02-18
+
+### Added — Remote mode configuration
+
+- `apiUrl` config option: set to your remote server URL to use Nowledge Mem across devices or in a team. Leave empty for local mode (default: `http://127.0.0.1:14242`).
+- `apiKey` config option: API key for remote access. Marked `"secret": true` in uiHints so OpenClaw can mask it in the UI. **Never logged, never passed as a CLI argument** — injected as `NMEM_API_KEY` env var into child processes only.
+- `NowledgeMemClient` now accepts `{ apiUrl, apiKey }` credentials at construction time. Both config values and `NMEM_API_URL` / `NMEM_API_KEY` env vars are supported; plugin config wins over env vars.
+- Initialization log now shows `mode=remote → https://...` vs `mode=local` (key never appears in logs).
+- `_spawnEnv()` helper: builds per-spawn env with credentials injected; `_apiUrlArgs()` adds `--api-url` flag only when not local.
+
 ## [0.2.4] - 2026-02-18
 
 ### Changed — CLI-first architecture

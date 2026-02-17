@@ -5,35 +5,42 @@ import { spawnSync } from "node:child_process";
  *
  * All operations go through the CLI first. This means:
  * - Local mode: CLI uses http://127.0.0.1:14242 automatically
- * - Remote mode: CLI uses NMEM_API_URL + NMEM_API_KEY environment variables
+ * - Remote mode: configure via apiUrl + apiKey (plugin config or env vars)
  *   (see: https://docs.nowledge.co/docs/remote-access)
  *
  * Falls back to direct API calls when a CLI command is too new for the installed
- * version. The fallback path respects the same NMEM_API_URL / NMEM_API_KEY env vars.
+ * version. The fallback path uses the same apiUrl / apiKey.
  *
- * To use with a remote server:
- *   export NMEM_API_URL=https://your-server
- *   export NMEM_API_KEY=your-key
+ * Credential rules:
+ * - apiUrl: passed to CLI via --api-url flag (not a secret)
+ * - apiKey: injected into the child process env as NMEM_API_KEY ONLY
+ *   (never passed as a CLI arg to avoid exposure in `ps aux`)
+ *   (never logged, even at debug level)
  */
 export class NowledgeMemClient {
-	constructor(logger) {
+	/**
+	 * @param {object} logger
+	 * @param {{ apiUrl?: string; apiKey?: string }} [credentials]
+	 */
+	constructor(logger, credentials = {}) {
 		this.logger = logger;
 		this.nmemCmd = null;
+		// Resolved once from config + env (config wins over env, both win over default)
+		this._apiUrl = (credentials.apiUrl || "").trim() || "http://127.0.0.1:14242";
+		this._apiKey = (credentials.apiKey || "").trim();
 	}
 
 	// ── API helpers (fallback path and direct operations) ─────────────────────
 
 	getApiBaseUrl() {
-		const raw = process.env.NMEM_API_URL?.trim();
-		return raw && raw.length > 0 ? raw : "http://127.0.0.1:14242";
+		return this._apiUrl;
 	}
 
 	getApiHeaders() {
 		const headers = { "content-type": "application/json" };
-		const apiKey = process.env.NMEM_API_KEY?.trim();
-		if (apiKey) {
-			headers.authorization = `Bearer ${apiKey}`;
-			headers["x-nmem-api-key"] = apiKey;
+		if (this._apiKey) {
+			headers.authorization = `Bearer ${this._apiKey}`;
+			headers["x-nmem-api-key"] = this._apiKey;
 		}
 		return headers;
 	}
@@ -101,14 +108,41 @@ export class NowledgeMemClient {
 		);
 	}
 
+	/**
+	 * Build the env for child process spawns.
+	 * apiKey is injected here — NEVER via CLI args.
+	 */
+	_spawnEnv() {
+		const env = { ...process.env };
+		// Explicit config wins over any existing env var
+		if (this._apiUrl !== "http://127.0.0.1:14242") {
+			env.NMEM_API_URL = this._apiUrl;
+		}
+		if (this._apiKey) {
+			env.NMEM_API_KEY = this._apiKey;
+		}
+		return env;
+	}
+
+	/**
+	 * Build base CLI args. --api-url is safe to pass as a flag (not a secret).
+	 * The key is NEVER added here — it goes in env only.
+	 */
+	_apiUrlArgs() {
+		return this._apiUrl !== "http://127.0.0.1:14242"
+			? ["--api-url", this._apiUrl]
+			: [];
+	}
+
 	exec(args, timeout = 30_000) {
 		const cmd = this.resolveCommand();
 		const [bin, ...baseArgs] = cmd;
 		try {
-			const result = spawnSync(bin, [...baseArgs, ...args], {
+			const result = spawnSync(bin, [...baseArgs, ...this._apiUrlArgs(), ...args], {
 				stdio: ["ignore", "pipe", "pipe"],
 				timeout,
 				encoding: "utf-8",
+				env: this._spawnEnv(),
 			});
 			if (result.error) {
 				throw result.error;

@@ -29,7 +29,10 @@ export default {
 	register(api) {
 		const cfg = parseConfig(api.pluginConfig);
 		const logger = api.logger;
-		const client = new NowledgeMemClient(logger);
+		const client = new NowledgeMemClient(logger, {
+			apiUrl: cfg.apiUrl,
+			apiKey: cfg.apiKey,
+		});
 
 		// OpenClaw memory-slot compatibility (required for system prompt activation)
 		api.registerTool(createMemorySearchTool(client, logger));
@@ -70,8 +73,9 @@ export default {
 			commands: ["nowledge-mem"],
 		});
 
+		const remoteMode = cfg.apiUrl && cfg.apiUrl !== "http://127.0.0.1:14242";
 		logger.info(
-			`nowledge-mem: initialized (recall=${cfg.autoRecall}, capture=${cfg.autoCapture})`,
+			`nowledge-mem: initialized (recall=${cfg.autoRecall}, capture=${cfg.autoCapture}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
 		);
 	},
 };
