@@ -14,6 +14,7 @@ This file is a continuation guide for future sessions working on
 - Core integration works for local-first memory operations.
 - Config schema intentionally does **not** include `serverUrl` anymore.
 - Recall hook injects memory context as central external memory guidance.
+- Auto-capture does not persist OpenClaw sessions/threads; when enabled, it logs warning and skips.
 
 ## Files That Matter
 
@@ -76,6 +77,7 @@ Note: repo formatting baseline may fail lint outside touched files.
 - Current OpenClaw plugin surface is lighter than Alma plugin (fewer CRUD tools).
 - Rich response normalization/error taxonomy is less mature than Alma `v0.2.x`.
 - Tool-calling quality still depends on model behavior; recall hook helps but is not absolute.
+- `nmem-cli` does not currently provide an OpenClaw-specific thread append/save path.
 
 ## Recommended Next Improvements
 

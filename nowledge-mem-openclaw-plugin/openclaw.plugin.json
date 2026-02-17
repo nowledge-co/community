@@ -2,21 +2,17 @@
 	"id": "nowledge-mem",
 	"kind": "memory",
 	"uiHints": {
-		"label": "Nowledge Mem",
-		"helpUrl": "https://mem.nowledge.co/docs/integrations",
-		"fields": {
-			"autoRecall": {
-				"label": "Auto-recall at session start",
-				"help": "Load Working Memory briefing when a new session begins"
-			},
-			"autoCapture": {
-				"label": "Auto-capture on session end",
-				"help": "Automatically save conversation insights when the session ends"
-			},
-			"maxRecallResults": {
-				"label": "Max recall results",
-				"help": "Maximum memories to inject for each recall cycle"
-			}
+		"autoRecall": {
+			"label": "Auto-recall at session start",
+			"help": "Load Working Memory briefing when a new session begins"
+		},
+		"autoCapture": {
+			"label": "Auto-capture at session end",
+			"help": "Reserved; thread/message persistence is currently not supported by nmem-cli for OpenClaw"
+		},
+		"maxRecallResults": {
+			"label": "Max recall results",
+			"help": "Maximum memories to inject for each recall cycle"
 		}
 	},
 	"configSchema": {
@@ -30,10 +26,10 @@
 			"autoCapture": {
 				"type": "boolean",
 				"default": false,
-				"description": "Auto-capture insights on session end"
+				"description": "Reserved; currently logs warning and skips capture for OpenClaw"
 			},
 			"maxRecallResults": {
-				"type": "number",
+				"type": "integer",
 				"default": 5,
 				"minimum": 1,
 				"maximum": 20,

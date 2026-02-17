@@ -12,7 +12,7 @@ Gives your OpenClaw agents persistent memory. Save insights, recall relevant kno
 ## Installation
 
 ```bash
-openclaw plugin add @nowledge/openclaw-nowledge-mem
+openclaw plugins install @nowledge/openclaw-nowledge-mem
 ```
 
 In your OpenClaw config:
@@ -20,9 +20,14 @@ In your OpenClaw config:
 ```json
 {
   "plugins": {
-    "nowledge-mem": {
-      "autoRecall": true,
-      "autoCapture": false
+    "entries": {
+      "nowledge-mem": {
+        "enabled": true,
+        "config": {
+          "autoRecall": true,
+          "autoCapture": false
+        }
+      }
     }
   }
 }
@@ -66,7 +71,8 @@ When `autoRecall` is enabled (default), the plugin injects context before each a
 
 ### Auto-Capture (agent_end)
 
-When `autoCapture` is enabled, the plugin saves a conversation thread snapshot when the session ends. Nowledge Mem's Background Intelligence handles distillation into discrete memories.
+`nmem-cli` currently does not support an OpenClaw-native thread append/save flow.  
+When `autoCapture` is enabled, the plugin logs a warning and skips capture.
 
 ## Slash Commands
 
@@ -90,8 +96,8 @@ openclaw nowledge-mem status
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `autoRecall` | boolean | `true` | Load Working Memory + relevant memories at session start |
-| `autoCapture` | boolean | `false` | Save conversation thread on session end |
-| `maxRecallResults` | number | `5` | Max memories to recall (1-20) |
+| `autoCapture` | boolean | `false` | Reserved (logs warning; capture skipped) |
+| `maxRecallResults` | integer | `5` | Max memories to recall (1-20) |
 
 ## How It Works
 
