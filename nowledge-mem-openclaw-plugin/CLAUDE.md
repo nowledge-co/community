@@ -35,16 +35,17 @@ This plugin reflects Nowledge Mem's genuine strengths from the v0.6 architecture
 - `src/tools/forget.js`: memory deletion
 - `openclaw.plugin.json`: manifest + config schema + UI hints
 
-## Tool Surface (6 tools)
+## Tool Surface (7 tools)
 
 OpenClaw memory-slot compat:
-- `memory_search` — required for system prompt "Memory Recall" section
+- `memory_search` — multi-signal search: embedding + BM25 + labels + graph + decay
 - `memory_get` — required for memory slot contract
 
 Nowledge Mem native (differentiators):
 - `nowledge_mem_save` — structured capture with unit_type
-- `nowledge_mem_context` — Working Memory daily briefing
+- `nowledge_mem_context` — Working Memory daily briefing (read-only from plugin side)
 - `nowledge_mem_connections` — knowledge graph exploration + source provenance (graph API)
+- `nowledge_mem_timeline` — temporal feed browser (wraps GET /agent/feed/events, last_n_days param)
 - `nowledge_mem_forget` — delete memory (user agency)
 
 ## Hook Surface
@@ -94,16 +95,35 @@ nmem --json m search "test" -n 3
 - Do not add cloud dependencies for core path.
 - Do not accept unknown config keys (strict parser).
 
+## API Reference (for tool implementors)
+
+- **Feed events**: `GET /agent/feed/events?last_n_days=N&limit=100&event_type=...`
+  - `last_n_days` (int, 1-365, default 365): window from today back
+  - `event_type` (string, optional): filter to one type
+  - Returns: `{ events: [...] }` with `event_type`, `title`, `description`, `created_at`
+  - Storage: time-partitioned JSONL at `builtin_agents/events/YYYY/MM/YYYY-MM-DD.jsonl`
+
+- **Working Memory**: `GET /agent/working-memory?date=YYYY-MM-DD` (read, date optional for archive)
+  - `PUT /agent/working-memory` body `{ content: string }` — **full overwrite only**, no line-based edit
+  - CLI: `nmem wm read`, `nmem wm edit -m "..."`, `nmem wm history`
+  - Plugin exposes read-only (`nowledge_mem_context`). Write is Knowledge Agent's domain.
+
+- **Graph expand**: `GET /graph/expand/{node_id}?depth=1&limit=15`
+  - Returns: `{ neighbors: [...], edges: [...] }`
+  - Node types in response: Memory, Source, Entity
+
 ## Known Gaps (from live testing)
 
-1. **Temporal navigation** — users want "what was I working on last Tuesday?". Currently, include date context in `memory_search` query as a workaround. A proper `/agent/feed/events` date-range query tool would solve this fully.
-2. **Cross-memory synthesis** — solved by `nowledge_mem_connections` but users don't always know to use it. Tool description and recall hook guidance updated to make this explicit.
-3. **Source provenance** — available via `nowledge_mem_connections` SOURCED_FROM edges. Also addressed by description update.
+1. **Temporal navigation** — SOLVED by `nowledge_mem_timeline` (wraps `/agent/feed/events`).
+   Remaining gap: no `date_from`/`date_to` params on the API, only `last_n_days`. Exact date queries ("last Tuesday") require client-side filtering.
+2. **Cross-memory synthesis** — SOLVED via `nowledge_mem_connections`. Tool descriptions updated.
+3. **Source provenance** — SOLVED via `nowledge_mem_connections` SOURCED_FROM edges.
+4. **WM line-based edit** — NOT available. API is full-overwrite only. Backend change needed for section-level replace. Noted for future backend work.
 
 ## Recommended Next Improvements
 
-1. Add `nmem graph neighbors` CLI command to avoid API-only dependency in `connections`.
-2. Add a `nowledge_mem_timeline` tool wrapping `/agent/feed/events?date_from=...&date_to=...` for temporal queries.
-3. Add `show/update` tools for individual memories (read + edit flow).
-4. Add interactive `setup` CLI wizard for first-time configuration.
-5. Add `wipe` CLI command with confirmation.
+1. Add `date_from`/`date_to` query params to backend `/agent/feed/events` for exact date filtering.
+2. Add line-based WM section edit endpoint to backend (replace specific `## Section` content).
+3. Add `nmem graph neighbors` CLI command to avoid API-only dependency in `connections`.
+4. Add `show/update` tools for individual memories (read + edit flow).
+5. Add interactive `setup` CLI wizard for first-time configuration.

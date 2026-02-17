@@ -2,6 +2,14 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.2.1] - 2026-02-18
+
+### Added
+
+- `nowledge_mem_timeline` tool: temporal feed browser wrapping `/agent/feed/events`. Answers "what was I working on last week?" with a day-grouped activity timeline. Supports `last_n_days`, `event_type`, and `tier1_only` filters.
+- `memory_search` description now surfaces the full scoring pipeline (embedding + BM25 + labels + graph + decay)
+- Recall hook updated: explicit tool routing for temporal queries (`nowledge_mem_timeline`) vs topic queries (`memory_search`/`nowledge_mem_connections`)
+
 ## [0.2.0] - 2026-02-18
 
 ### Changed — Tool Set Redesign

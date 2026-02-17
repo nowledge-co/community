@@ -1,0 +1,189 @@
+/**
+ * nowledge_mem_timeline — browse recent activity from the feed.
+ *
+ * Wraps GET /agent/feed/events with human-readable grouping by day.
+ * Answers questions like:
+ * - "What was I working on last week?"
+ * - "What happened yesterday?"
+ * - "Show me insights from the past 3 days"
+ * - "What memories did I save this month?"
+ *
+ * The feed records every meaningful event: memories saved, documents
+ * ingested, insights generated, daily briefings, crystals created.
+ * This gives a chronological picture of what the user has been doing.
+ */
+
+const EVENT_TYPE_LABELS = {
+	memory_created: "Memory saved",
+	insight_generated: "Insight",
+	pattern_detected: "Pattern",
+	agent_observation: "Observation",
+	daily_briefing: "Daily briefing",
+	crystal_created: "Crystal",
+	flag_contradiction: "Flag: contradiction",
+	flag_stale: "Flag: stale",
+	flag_merge_candidate: "Flag: duplicate",
+	flag_review: "Flag: review",
+	source_ingested: "Document ingested",
+	source_extracted: "Knowledge extracted from document",
+	working_memory_updated: "Working Memory updated",
+	evolves_detected: "Knowledge evolution detected",
+	kg_extraction: "Entity extraction",
+	url_captured: "URL captured",
+};
+
+function labelForType(eventType) {
+	return EVENT_TYPE_LABELS[eventType] || eventType;
+}
+
+// Tier-1 events are high-signal user-facing ones
+const TIER1_TYPES = new Set([
+	"memory_created",
+	"insight_generated",
+	"pattern_detected",
+	"agent_observation",
+	"daily_briefing",
+	"crystal_created",
+	"flag_contradiction",
+	"flag_stale",
+	"flag_merge_candidate",
+	"source_ingested",
+	"source_extracted",
+	"url_captured",
+]);
+
+export function createTimelineTool(client, logger) {
+	return {
+		name: "nowledge_mem_timeline",
+		description:
+			"Browse the user's recent knowledge activity — what they saved, read, worked on, or learned. " +
+			"Use for temporal questions like 'what was I doing last week?', 'what did I work on yesterday?', " +
+			"'show me recent insights', or 'what documents did I add this month?'. " +
+			"Returns a day-by-day feed grouped chronologically. " +
+			"Pair with memory_search for specific content and nowledge_mem_connections for graph exploration.",
+		parameters: {
+			type: "object",
+			properties: {
+				last_n_days: {
+					type: "integer",
+					description:
+						"How many days back to look. 1=today only, 7=this week, 30=this month. Default: 7.",
+				},
+				event_type: {
+					type: "string",
+					description:
+						"Filter to a specific event type: memory_created, insight_generated, source_ingested, " +
+						"source_extracted, daily_briefing, crystal_created, url_captured",
+				},
+				tier1_only: {
+					type: "boolean",
+					description:
+						"Only show high-signal events (memories, insights, documents). Default: true.",
+				},
+			},
+		},
+		async execute(_toolCallId, params) {
+			const safeParams = params && typeof params === "object" ? params : {};
+			const lastNDays = Math.min(
+				365,
+				Math.max(1, Math.trunc(Number(safeParams.last_n_days ?? 7) || 7)),
+			);
+			const eventType = safeParams.event_type
+				? String(safeParams.event_type).trim()
+				: undefined;
+			const tier1Only = safeParams.tier1_only !== false; // default true
+
+			try {
+				const qs = new URLSearchParams({
+					last_n_days: String(lastNDays),
+					limit: "100",
+				});
+				if (eventType) qs.set("event_type", eventType);
+
+				const data = await client.apiJson(
+					"GET",
+					`/agent/feed/events?${qs.toString()}`,
+				);
+
+				const events = Array.isArray(data.events)
+					? data.events
+					: Array.isArray(data)
+						? data
+						: [];
+
+				if (events.length === 0) {
+					const rangeLabel =
+						lastNDays === 1
+							? "today"
+							: `the last ${lastNDays} day${lastNDays > 1 ? "s" : ""}`;
+					return {
+						content: [
+							{
+								type: "text",
+								text: `No activity found for ${rangeLabel}. Nowledge Mem may not be running or no events have been recorded yet.`,
+							},
+						],
+					};
+				}
+
+				// Filter to tier-1 unless caller explicitly wants everything
+				const filtered =
+					tier1Only && !eventType
+						? events.filter((e) => TIER1_TYPES.has(e.event_type))
+						: events;
+
+				// Group by date (YYYY-MM-DD from created_at)
+				const byDay = new Map();
+				for (const event of filtered) {
+					const raw = event.created_at || event.timestamp || "";
+					const date = raw.slice(0, 10) || "unknown";
+					if (!byDay.has(date)) byDay.set(date, []);
+					byDay.get(date).push(event);
+				}
+
+				// Sort days newest first
+				const sortedDays = [...byDay.entries()].sort(([a], [b]) =>
+					b.localeCompare(a),
+				);
+
+				const lines = sortedDays.map(([date, evts]) => {
+					const items = evts
+						.slice(0, 20) // cap per day
+						.map((e) => {
+							const label = labelForType(e.event_type);
+							const title =
+								e.title || e.description || e.content?.slice(0, 80) || "";
+							return `  - [${label}] ${title}`;
+						})
+						.join("\n");
+					return `**${date}**\n${items}`;
+				});
+
+				const header =
+					lastNDays === 1
+						? "Today's activity:"
+						: `Activity over the last ${lastNDays} days:`;
+
+				return {
+					content: [
+						{
+							type: "text",
+							text: [header, "", ...lines].join("\n"),
+						},
+					],
+					details: {
+						lastNDays,
+						eventCount: filtered.length,
+						dayCount: sortedDays.length,
+					},
+				};
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				logger.error(`timeline failed: ${msg}`);
+				return {
+					content: [{ type: "text", text: `Failed to get timeline: ${msg}` }],
+				};
+			}
+		},
+	};
+}

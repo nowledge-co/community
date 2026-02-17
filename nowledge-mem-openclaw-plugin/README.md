@@ -42,7 +42,7 @@ In your OpenClaw config:
 
 These satisfy the OpenClaw memory slot contract and activate the "Memory Recall" section in OpenClaw's system prompt.
 
-**memory_search** — Semantic + BM25 recall with structured source paths (`nowledgemem://memory/<id>`).
+**memory_search** — Multi-signal recall using embedding, BM25, label match, graph signals, and recency decay. Returns structured source paths (`nowledgemem://memory/<id>`) for follow-up with `memory_get` or `nowledge_mem_connections`.
 
 **memory_get** — Read a specific memory by ID or path. Supports `MEMORY.md` alias for Working Memory.
 
@@ -78,6 +78,18 @@ memoryId: "mem_abc"
   - Task Management API (Project)
   Knowledge evolution:
   - superseded by newer understanding (version chain)
+```
+
+**nowledge_mem_timeline** — Browse your knowledge history chronologically. Use for questions like "what was I working on last week?" or "what happened yesterday?". Groups activity by day: memories saved, documents ingested, insights generated, and more.
+
+```
+last_n_days: 7
+→ 2026-02-18:
+  - [Memory saved] UV guide — Python toolchain setup
+  - [Knowledge extracted from document] api-spec.pdf
+2026-02-17:
+  - [Daily briefing] Focus: NebulaGraph, AI biotech...
+  - [Insight] Connection between Redis caching and...
 ```
 
 **nowledge_mem_forget** — Delete a memory by ID or search query. Supports user confirmation when multiple matches are found.
@@ -133,7 +145,7 @@ openclaw nowledge-mem status
 - **Working Memory**: an AI-generated daily briefing that evolves — not a static user profile.
 - **Cross-AI continuity**: knowledge captured in any tool (Cursor, Claude, ChatGPT) flows to OpenClaw and back.
 - **Typed memories**: 8 knowledge types mapped to graph node properties — structured understanding, not text blobs.
-- **Hybrid search**: BM25 lexical + semantic vector search — catches exact terms pure vector search misses.
+- **Multi-signal search**: not just semantic similarity — combines embedding, BM25 keyword, label match, graph & community signals, and recency/importance decay. See [Search & Relevance](https://mem.nowledge.co/docs/search-relevance).
 
 ## License
 

@@ -17,6 +17,7 @@ import { createForgetTool } from "./tools/forget.js";
 import { createMemoryGetTool } from "./tools/memory-get.js";
 import { createMemorySearchTool } from "./tools/memory-search.js";
 import { createSaveTool } from "./tools/save.js";
+import { createTimelineTool } from "./tools/timeline.js";
 
 export default {
 	id: "openclaw-nowledge-mem",
@@ -38,6 +39,7 @@ export default {
 		api.registerTool(createSaveTool(client, logger));
 		api.registerTool(createContextTool(client, logger));
 		api.registerTool(createConnectionsTool(client, logger));
+		api.registerTool(createTimelineTool(client, logger));
 		api.registerTool(createForgetTool(client, logger));
 
 		// Hooks

@@ -13,9 +13,13 @@ export function createMemorySearchTool(client, logger) {
 	return {
 		name: "memory_search",
 		description:
-			"Search the user's knowledge graph for prior work, decisions, preferences, and facts. " +
-			"Supports natural language queries including temporal context (e.g. 'Python setup this month', 'database decision last week'). " +
-			"Returns snippets with memoryIds — pass a memoryId to nowledge_mem_connections for cross-topic synthesis and source provenance.",
+			"Search the user's knowledge graph using a multi-signal scoring pipeline: " +
+			"semantic (embedding), BM25 keyword, label match, graph & community signals, and recency/importance decay — " +
+			"not just simple vector similarity. " +
+			"Finds prior work, decisions, preferences, and facts. " +
+			"Returns snippets with memoryIds. " +
+			"Pass a memoryId to nowledge_mem_connections for cross-topic synthesis or source provenance. " +
+			"For time-based questions ('what was I doing last week?') use nowledge_mem_timeline instead.",
 		parameters: {
 			type: "object",
 			properties: {
