@@ -44,7 +44,7 @@ export function createRecallCommand(client, logger) {
 					(r, i) =>
 						`${i + 1}. ${r.title || "(untitled)"} (${(r.score * 100).toFixed(0)}%)\n   ${r.content.slice(0, 150)}`,
 				);
-				logger.debug(`/recall: found ${results.length} results`);
+				logger.debug?.(`/recall: found ${results.length} results`);
 				return {
 					text: `Found ${results.length} memories:\n\n${lines.join("\n\n")}`,
 				};

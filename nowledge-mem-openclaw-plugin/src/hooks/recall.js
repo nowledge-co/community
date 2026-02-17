@@ -71,7 +71,7 @@ export function buildRecallHandler(client, cfg, logger) {
 			"</nowledge-mem-central-context>",
 		].join("\n");
 
-		logger.debug(`recall: injecting ${context.length} chars`);
+		logger.debug?.(`recall: injecting ${context.length} chars`);
 		return { prependContext: context };
 	};
 }
