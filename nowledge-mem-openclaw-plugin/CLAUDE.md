@@ -103,6 +103,13 @@ nmem --json m search "test" -n 3
   - Returns: `{ events: [...] }` with `event_type`, `title`, `description`, `created_at`
   - Storage: time-partitioned JSONL at `builtin_agents/events/YYYY/MM/YYYY-MM-DD.jsonl`
 
+- **Search (bi-temporal)**: `GET /memories/search?q=...&event_date_from=YYYY&event_date_to=YYYY-MM-DD&recorded_date_from=YYYY-MM-DD&recorded_date_to=YYYY-MM-DD`
+  - `event_date_from/to`: when the fact/event happened (YYYY, YYYY-MM, YYYY-MM-DD)
+  - `recorded_date_from/to`: when the memory was saved to Nowledge Mem
+  - Plugin: `memory_search` passes these via `client.searchTemporal()` (API-direct, not CLI)
+  - CLI: `nmem m search "q" --event-from YYYY --event-to YYYY-MM-DD --recorded-from YYYY-MM-DD --recorded-to YYYY-MM-DD`
+    (needs CLI rebuild to take effect)
+
 - **Working Memory**: `GET /agent/working-memory?date=YYYY-MM-DD` (read, date optional for archive)
   - `PUT /agent/working-memory` body `{ content: string }` — **full overwrite only**, no line-based edit
   - CLI: `nmem wm read`, `nmem wm edit -m "..."`, `nmem wm history`

@@ -143,6 +143,55 @@ export class NowledgeMemClient {
 		}));
 	}
 
+	/**
+	 * Bi-temporal search — uses the API directly so that date filters
+	 * work regardless of installed nmem CLI version.
+	 *
+	 * Two time dimensions:
+	 *   event_date_from/to  — when the fact/event HAPPENED (YYYY, YYYY-MM, YYYY-MM-DD)
+	 *   recorded_date_from/to — when it was SAVED to Nowledge Mem (YYYY-MM-DD)
+	 */
+	async searchTemporal(
+		query,
+		{
+			limit = 10,
+			mode = "fast",
+			eventDateFrom,
+			eventDateTo,
+			recordedDateFrom,
+			recordedDateTo,
+		} = {},
+	) {
+		const normalizedLimit = Math.min(
+			100,
+			Math.max(1, Math.trunc(Number(limit) || 10)),
+		);
+		const qs = new URLSearchParams({ limit: String(normalizedLimit), mode });
+		if (query) qs.set("q", String(query));
+		if (eventDateFrom) qs.set("event_date_from", String(eventDateFrom));
+		if (eventDateTo) qs.set("event_date_to", String(eventDateTo));
+		if (recordedDateFrom)
+			qs.set("recorded_date_from", String(recordedDateFrom));
+		if (recordedDateTo) qs.set("recorded_date_to", String(recordedDateTo));
+
+		const data = await this.apiJson("GET", `/memories/search?${qs.toString()}`);
+		const memories = data.memories ?? [];
+		return {
+			memories: memories.map((m) => ({
+				id: String(m.id ?? ""),
+				title: String(m.title ?? ""),
+				content: String(m.content ?? ""),
+				score: Number(m.confidence ?? m.similarity_score ?? 0),
+				labels: Array.isArray(m.labels) ? m.labels : [],
+				importance: Number(m.importance ?? 0.5),
+				eventStart: m.event_start ?? null,
+				eventEnd: m.event_end ?? null,
+				temporalContext: m.temporal_context ?? null,
+			})),
+			searchMetadata: data.search_metadata ?? {},
+		};
+	}
+
 	async addMemory(content, title, importance) {
 		const args = ["--json", "m", "add", String(content)];
 		if (title) args.push("-t", String(title));

@@ -2,6 +2,17 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.2.2] - 2026-02-18
+
+### Added
+
+- `memory_search` now supports bi-temporal filtering:
+  - `event_date_from` / `event_date_to` — when the fact/event happened (YYYY, YYYY-MM, YYYY-MM-DD)
+  - `recorded_date_from` / `recorded_date_to` — when the memory was saved to Nowledge Mem
+  - Uses API-direct path (`client.searchTemporal`) so it works regardless of installed CLI version
+  - Results include `eventStart`, `eventEnd`, `temporalContext` when available
+- `client.searchTemporal()` — new method wrapping `/memories/search` bi-temporal API directly
+
 ## [0.2.1] - 2026-02-18
 
 ### Added
