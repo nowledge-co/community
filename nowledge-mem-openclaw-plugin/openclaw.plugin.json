@@ -1,18 +1,28 @@
 {
-	"id": "nowledge-mem",
+	"id": "openclaw-nowledge-mem",
+	"version": "0.2.7",
 	"kind": "memory",
 	"uiHints": {
 		"autoRecall": {
 			"label": "Auto-recall at session start",
-			"help": "Load Working Memory briefing when a new session begins"
+			"help": "Inject Working Memory briefing and relevant memories when a new session begins"
 		},
 		"autoCapture": {
 			"label": "Auto-capture at session end",
-			"help": "Store high-value notes and append session transcripts on agent_end/after_compaction/before_reset"
+			"help": "Store high-value notes on agent_end / after_compaction / before_reset"
 		},
 		"maxRecallResults": {
 			"label": "Max recall results",
-			"help": "Maximum memories to inject for each recall cycle"
+			"help": "How many memories to inject for each recall cycle (1–20)"
+		},
+		"apiUrl": {
+			"label": "Server URL (remote mode)",
+			"help": "Leave empty for local mode (default: http://127.0.0.1:14242). Set to your remote server URL for cross-device or team access. See: https://docs.nowledge.co/docs/remote-access"
+		},
+		"apiKey": {
+			"label": "API key (remote mode)",
+			"help": "Required when connecting to a remote server. Never logged or passed as a CLI argument — injected as NMEM_API_KEY env var only.",
+			"secret": true
 		}
 	},
 	"configSchema": {
@@ -21,12 +31,12 @@
 			"autoRecall": {
 				"type": "boolean",
 				"default": true,
-				"description": "Load Working Memory briefing at session start"
+				"description": "Inject Working Memory and recalled memories at session start"
 			},
 			"autoCapture": {
 				"type": "boolean",
 				"default": false,
-				"description": "Enable memory note capture and append-first thread sync across session lifecycle hooks"
+				"description": "Enable memory note capture across session lifecycle hooks"
 			},
 			"maxRecallResults": {
 				"type": "integer",
@@ -34,6 +44,16 @@
 				"minimum": 1,
 				"maximum": 20,
 				"description": "Maximum memories to recall at session start"
+			},
+			"apiUrl": {
+				"type": "string",
+				"default": "",
+				"description": "Remote server URL. Empty = local (http://127.0.0.1:14242). Example: https://nowledge.example.com"
+			},
+			"apiKey": {
+				"type": "string",
+				"default": "",
+				"description": "API key for remote access. Stored in plugin config, injected as NMEM_API_KEY env var — never logged."
 			}
 		},
 		"additionalProperties": false

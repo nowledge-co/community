@@ -1,4 +1,10 @@
-const ALLOWED_KEYS = new Set(["autoRecall", "autoCapture", "maxRecallResults"]);
+const ALLOWED_KEYS = new Set([
+	"autoRecall",
+	"autoCapture",
+	"maxRecallResults",
+	"apiUrl",
+	"apiKey",
+]);
 
 export function parseConfig(raw) {
 	const obj = raw && typeof raw === "object" ? raw : {};
@@ -9,6 +15,20 @@ export function parseConfig(raw) {
 		}
 	}
 
+	// apiUrl: config wins, then env var, then local default
+	const apiUrl =
+		(typeof obj.apiUrl === "string" && obj.apiUrl.trim()) ||
+		(typeof process.env.NMEM_API_URL === "string" &&
+			process.env.NMEM_API_URL.trim()) ||
+		"";
+
+	// apiKey: config wins, then env var — never logged, never in CLI args
+	const apiKey =
+		(typeof obj.apiKey === "string" && obj.apiKey.trim()) ||
+		(typeof process.env.NMEM_API_KEY === "string" &&
+			process.env.NMEM_API_KEY.trim()) ||
+		"";
+
 	return {
 		autoRecall: typeof obj.autoRecall === "boolean" ? obj.autoRecall : true,
 		autoCapture: typeof obj.autoCapture === "boolean" ? obj.autoCapture : false,
@@ -17,5 +37,7 @@ export function parseConfig(raw) {
 			Number.isFinite(obj.maxRecallResults)
 				? Math.min(20, Math.max(1, Math.trunc(obj.maxRecallResults)))
 				: 5,
+		apiUrl,
+		apiKey,
 	};
 }

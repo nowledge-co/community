@@ -13,7 +13,15 @@ export function createMemorySearchTool(client, logger) {
 	return {
 		name: "memory_search",
 		description:
-			"Search Nowledge Mem memories for prior work, decisions, preferences, and facts. Returns compact snippets with source paths for follow-up memory_get.",
+			"Search the user's knowledge graph using a multi-signal scoring pipeline: " +
+			"semantic (embedding), BM25 keyword, label match, graph & community signals, and recency/importance decay — " +
+			"not just simple vector similarity. " +
+			"Finds prior work, decisions, preferences, and facts. " +
+			"Returns snippets with memoryIds. " +
+			"Pass a memoryId to nowledge_mem_connections for cross-topic synthesis or source provenance. " +
+			"Supports bi-temporal filtering: event_date_from/to (when the fact HAPPENED) and " +
+			"recorded_date_from/to (when it was SAVED). Format: YYYY, YYYY-MM, or YYYY-MM-DD. " +
+			"For browsing recent activity by day use nowledge_mem_timeline instead.",
 		parameters: {
 			type: "object",
 			properties: {
@@ -28,6 +36,25 @@ export function createMemorySearchTool(client, logger) {
 				minScore: {
 					type: "number",
 					description: "Optional score threshold in [0, 1]",
+				},
+				event_date_from: {
+					type: "string",
+					description:
+						"Filter by when the fact/event HAPPENED — e.g. '2024', '2024-Q1', '2024-03', '2024-03-15'",
+				},
+				event_date_to: {
+					type: "string",
+					description:
+						"Upper bound for event date (YYYY, YYYY-MM, or YYYY-MM-DD)",
+				},
+				recorded_date_from: {
+					type: "string",
+					description:
+						"Filter by when this memory was SAVED to Nowledge Mem (YYYY-MM-DD)",
+				},
+				recorded_date_to: {
+					type: "string",
+					description: "Upper bound for record date (YYYY-MM-DD)",
 				},
 			},
 			required: ["query"],
@@ -47,6 +74,22 @@ export function createMemorySearchTool(client, logger) {
 			const minScore = Number(safeParams.minScore);
 			const hasMinScore = Number.isFinite(minScore);
 
+			const eventDateFrom = safeParams.event_date_from
+				? String(safeParams.event_date_from).trim()
+				: undefined;
+			const eventDateTo = safeParams.event_date_to
+				? String(safeParams.event_date_to).trim()
+				: undefined;
+			const recordedDateFrom = safeParams.recorded_date_from
+				? String(safeParams.recorded_date_from).trim()
+				: undefined;
+			const recordedDateTo = safeParams.recorded_date_to
+				? String(safeParams.recorded_date_to).trim()
+				: undefined;
+
+			const hasTemporalFilter =
+				eventDateFrom || eventDateTo || recordedDateFrom || recordedDateTo;
+
 			if (!query) {
 				return {
 					content: [{ type: "text", text: JSON.stringify({ results: [] }) }],
@@ -54,7 +97,23 @@ export function createMemorySearchTool(client, logger) {
 			}
 
 			try {
-				const rawResults = await client.search(query, maxResults);
+				let rawResults;
+
+				if (hasTemporalFilter) {
+					// Bi-temporal path: filter by event or record time
+					const { memories } = await client.searchTemporal(query, {
+						limit: maxResults,
+						eventDateFrom,
+						eventDateTo,
+						recordedDateFrom,
+						recordedDateTo,
+					});
+					rawResults = memories;
+				} else {
+					// Always use the rich API path to get relevance_reason + full metadata
+					rawResults = await client.searchRich(query, maxResults);
+				}
+
 				const filtered = hasMinScore
 					? rawResults.filter((entry) => Number(entry.score ?? 0) >= minScore)
 					: rawResults;
@@ -63,7 +122,7 @@ export function createMemorySearchTool(client, logger) {
 					const path = toMemoryPath(entry.id);
 					const snippet = truncateSnippet(entry.content);
 					const lineCount = Math.max(1, snippet.split(/\r?\n/u).length);
-					return {
+					const result = {
 						path,
 						startLine: 1,
 						endLine: lineCount,
@@ -72,6 +131,18 @@ export function createMemorySearchTool(client, logger) {
 						snippet,
 						memoryId: entry.id,
 					};
+					// Scoring transparency: show which signals fired
+					if (entry.relevanceReason)
+						result.matchedVia = entry.relevanceReason;
+					// Importance context
+					if (entry.importance !== undefined && entry.importance !== null)
+						result.importance = Number(entry.importance);
+					// Temporal metadata
+					if (entry.eventStart) result.eventStart = entry.eventStart;
+					if (entry.eventEnd) result.eventEnd = entry.eventEnd;
+					if (entry.temporalContext)
+						result.temporalContext = entry.temporalContext;
+					return result;
 				});
 
 				return {
@@ -82,7 +153,7 @@ export function createMemorySearchTool(client, logger) {
 								{
 									results,
 									provider: "nmem",
-									mode: "semantic",
+									mode: "multi-signal",
 								},
 								null,
 								2,

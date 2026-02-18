@@ -74,12 +74,58 @@ function fingerprint(text) {
 		.slice(0, 180);
 }
 
+const PROMPT_INJECTION_PATTERNS = [
+	/ignore (all|any|previous|above|prior) instructions/i,
+	/do not follow (the )?(system|developer)/i,
+	/system prompt/i,
+	/developer message/i,
+	/<\s*(system|assistant|developer|tool|function)\b/i,
+	/\b(run|execute|call|invoke)\b.{0,40}\b(tool|command)\b/i,
+];
+
+const MEMORY_TRIGGER_PATTERNS = [
+	/\bi (like|prefer|hate|love|want|need|use|chose|decided)\b/i,
+	/\bwe (decided|agreed|chose|will use|are using|should)\b/i,
+	/\b(always|never|important|remember)\b/i,
+	/\b(my|our) (\w+ )?is\b/i,
+	/[\w.-]+@[\w.-]+\.\w+/,
+	/\+\d{10,}/,
+];
+
+function looksLikeQuestion(text) {
+	const trimmed = text.trim();
+	if (trimmed.endsWith("?")) return true;
+	if (
+		/^(what|how|why|when|where|which|who|can|could|would|should|do|does|did|is|are|was|were)\b/i.test(
+			trimmed,
+		)
+	) {
+		return true;
+	}
+	return false;
+}
+
+function looksLikePromptInjection(text) {
+	const normalized = text.replace(/\s+/g, " ").trim();
+	if (!normalized) return false;
+	return PROMPT_INJECTION_PATTERNS.some((p) => p.test(normalized));
+}
+
+function hasMemoryTrigger(text) {
+	return MEMORY_TRIGGER_PATTERNS.some((p) => p.test(text));
+}
+
 function shouldCaptureAsMemory(text) {
 	const normalized = String(text || "").trim();
 	if (!normalized) return false;
 	if (normalized.startsWith("/")) return false;
 	if (normalized.length < 24) return false;
-	return normalized.split(/\s+/).length >= 5;
+	if (normalized.split(/\s+/).length < 5) return false;
+	if (looksLikeQuestion(normalized)) return false;
+	if (looksLikePromptInjection(normalized)) return false;
+	if (normalized.includes("<relevant-memories>")) return false;
+	if (normalized.startsWith("<") && normalized.includes("</")) return false;
+	return hasMemoryTrigger(normalized);
 }
 
 function buildThreadTitle(ctx, reason) {
@@ -230,14 +276,35 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
 }
 
 /**
- * Capture a high-value user message after a successful run.
+ * Capture thread + optional memory note after a successful agent run.
+ *
+ * Thread capture and memory note capture are intentionally independent:
+ * - Thread append: always attempted when event.success is true and messages exist.
+ *   appendOrCreateThread self-guards on empty messages.
+ * - Memory note: only when the last user message matches a trigger pattern.
+ *   This is an additional signal, not the gating condition for thread capture.
+ *
+ * Previous bug: both were gated behind shouldCaptureAsMemory, so sessions
+ * ending with a question or a command were silently dropped from threads.
  */
 export function buildAgentEndCaptureHandler(client, _cfg, logger) {
 	const seenBySession = new Map();
 
 	return async (event, ctx) => {
-		if (!event?.success || !Array.isArray(event?.messages)) return;
+		if (!event?.success) return;
 
+		// 1. Always thread-append this session (idempotent, self-guards on empty messages).
+		await appendOrCreateThread({
+			client,
+			logger,
+			event,
+			ctx,
+			reason: "agent_end",
+		});
+
+		// 2. Optionally save a memory note if the last user message is worth capturing.
+		//    This is a separate, weaker signal — do not let it gate the thread append above.
+		if (!Array.isArray(event?.messages)) return;
 		const normalized = event.messages.map(normalizeRoleMessage).filter(Boolean);
 		const lastUser = [...normalized].reverse().find((m) => m.role === "user");
 		if (!lastUser || !shouldCaptureAsMemory(lastUser.content)) return;
@@ -256,14 +323,6 @@ export function buildAgentEndCaptureHandler(client, _cfg, logger) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.warn(`capture: memory store failed: ${message}`);
 		}
-
-		await appendOrCreateThread({
-			client,
-			logger,
-			event,
-			ctx,
-			reason: "agent_end",
-		});
 	};
 }
 
