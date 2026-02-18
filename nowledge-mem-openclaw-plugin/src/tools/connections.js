@@ -272,23 +272,24 @@ export function createConnectionsTool(client, logger) {
 				logger.warn(`connections: graph expand failed: ${msg}`);
 			}
 
-			// 2. EVOLVES chain (full version history) — direct API (no CLI command yet)
+			// 2. EVOLVES chain (full version history) — CLI v0.4.1+ / API fallback
 			try {
-				const chainData = await client.apiJson(
-					"GET",
-					`/agent/evolves?memory_id=${encodeURIComponent(targetId)}&limit=10`,
-				);
+				const evolveData = await client.graphEvolves(targetId, { limit: 10 });
+				const edges = evolveData?.edges ?? [];
 
-				if (Array.isArray(chainData) && chainData.length > 0) {
-					const steps = chainData.map((s) => {
-						const title = s.title || s.label || "(untitled)";
-						const relation = s.relation || s.content_relation || "";
-						const relLabel =
-							EVOLVES_RELATION_LABELS[relation] || relation || "";
-						const isLatest = s.is_latest !== false;
-						return `  ${isLatest ? "→ [latest]" : "  "} ${title}${relLabel ? ` — ${relLabel}` : ""}`;
+				if (edges.length > 0) {
+					const lines = edges.map((edge) => {
+						const relation = edge.content_relation || "";
+						const relLabel = EVOLVES_RELATION_LABELS[relation] || relation || "";
+						// Show the "other" node relative to our target
+						const isOlderNode = edge.older_id === targetId;
+						const otherTitle = isOlderNode
+							? (edge.newer_title || "(untitled)")
+							: (edge.older_title || "(untitled)");
+						const direction = isOlderNode ? "→" : "←";
+						return `  ${direction} ${otherTitle}${relLabel ? ` — ${relLabel}` : ""}`;
 					});
-					sections.push(`Full version history:\n${steps.join("\n")}`);
+					sections.push(`Knowledge evolution:\n${lines.join("\n")}`);
 				}
 			} catch {
 				// No EVOLVES chain for this memory — normal

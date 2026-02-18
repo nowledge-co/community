@@ -1,6 +1,6 @@
 {
 	"id": "openclaw-nowledge-mem",
-	"version": "0.2.5",
+	"version": "0.2.7",
 	"kind": "memory",
 	"uiHints": {
 		"autoRecall": {

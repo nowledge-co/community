@@ -2,6 +2,35 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.2.7] - 2026-02-18
+
+### Added — Gap closures: date range, EVOLVES CLI, WM section edit
+
+**Feed date range filtering**
+
+- `nowledge_mem_timeline` now accepts `date_from` and `date_to` (YYYY-MM-DD) for exact temporal queries ("what was I doing last Tuesday?").
+- `client.feedEvents()` passes `--from`/`--to` to `nmem f`; falls back to API `?date_from=&date_to=` params.
+- Backend `GET /agent/feed/events` now accepts `date_from` / `date_to` query params alongside `last_n_days`.
+- CLI: `nmem f --from 2026-02-17 --to 2026-02-17`
+
+**EVOLVES version chain via CLI**
+
+- `nmem g evolves <id>` — new CLI command showing the full EVOLVES chain for a memory (replaces/enriches/confirms/challenges relations).
+- `client.graphEvolves()` — new client method using `nmem g evolves`; falls back to `GET /agent/evolves?memory_id=<id>`.
+- `connections.js` now uses `client.graphEvolves()` instead of a raw API call. "Knowledge evolution" section now correctly shows direction (→ newer / ← older) relative to the queried memory.
+- Backend `GET /agent/evolves` now accepts `memory_id` query param to filter edges for a specific memory.
+
+**Working Memory section-level edit**
+
+- `nmem wm patch --heading "## Notes" --content/--append` — new CLI subcommand. Does client-side read-modify-write: reads WM, patches just the target section, writes the full doc back.
+- `client.patchWorkingMemory(heading, { content, append })` — new client method.
+- `nowledge_mem_context` now supports optional `patch_section` + `patch_content`/`patch_append` parameters. An agent can now update one section of Working Memory without destroying the rest.
+- Includes a JS `patchWmSection()` helper in `client.js` for the API fallback path (for CLI versions that predate `wm patch`).
+
+## [0.2.6] - 2026-02-18
+
+### Added — Rich save: labels, event_start, temporal_context, unit_type fixed
+
 ## [0.2.5] - 2026-02-18
 
 ### Added — Remote mode configuration

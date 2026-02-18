@@ -17,7 +17,7 @@ Reflects Nowledge Mem's genuine v0.6 strengths:
 1. **Knowledge graph** — EVOLVES chains, entity relationships, typed memory connections
 2. **Source provenance** — Library ingests docs/URLs; `SOURCED_FROM` edges trace knowledge origin
 3. **Structured types** — 8 unit types: `fact | preference | decision | plan | procedure | learning | context | event`
-4. **Working Memory** — daily evolving briefing (read-only from plugin; updated by Knowledge Agent)
+4. **Working Memory** — daily evolving briefing; agents can patch sections without overwriting the whole document
 5. **Cross-AI continuity** — "Your AI tools forget. We remember. Everywhere."
 6. **Hybrid search** — BM25 + semantic + graph + decay, not vector-only
 7. **Transparent scoring** — `relevance_reason` in every search result
@@ -51,9 +51,9 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 
 ### Nowledge Mem Native (differentiators)
 - `nowledge_mem_save` — structured capture: `unit_type`, `labels[]`, `event_start`, `event_end`, `temporal_context`, `importance`. All fields wired to CLI and API.
-- `nowledge_mem_context` — Working Memory daily briefing. Read-only from plugin; write is Knowledge Agent domain.
+- `nowledge_mem_context` — Working Memory daily briefing. Read-only by default; supports section-level patch via `patch_section` + `patch_content`/`patch_append` params (uses `nmem wm patch` client-side read-modify-write).
 - `nowledge_mem_connections` — graph exploration. Edges JOIN-ed to nodes by type: CRYSTALLIZED_FROM (crystal → source memories), EVOLVES (with sub-relations: supersedes/enriches/confirms/challenges), SOURCED_FROM (document provenance), MENTIONS (entities). Each connection shows strength % and memoryId.
-- `nowledge_mem_timeline` — activity feed via `nmem f`. Groups by day. `event_type` filter (memory_created, crystal_created, source_ingested, etc.). Entries include `(id: <memoryId>)` for chaining to connections.
+- `nowledge_mem_timeline` — activity feed via `nmem f`. Groups by day. `event_type` filter. Exact date range via `date_from`/`date_to` (YYYY-MM-DD). Entries include `(id: <memoryId>)` for chaining to connections.
 - `nowledge_mem_forget` — delete by ID or fuzzy query.
 
 ## Hook Surface
@@ -93,8 +93,10 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 | `nmem --json m search <q> --event-from/--event-to/--recorded-from/--recorded-to` | `client.searchTemporal()` | Bi-temporal |
 | `nmem --json m add <content> [--unit-type] [-l] [--event-start] [--when]` | `client.execJson()` in save.js | Full rich save |
 | `nmem --json g expand <id>` | `client.graphExpand()` | Graph neighbors + edges |
-| `nmem --json f [--days] [--type] [--all]` | `client.feedEvents()` | Activity feed |
-| `nmem --json wm read` | `client.readWorkingMemory()` | Working Memory |
+| `nmem --json g evolves <id>` | `client.graphEvolves()` | EVOLVES version chain |
+| `nmem --json f [--days] [--type] [--all] [--from DATE] [--to DATE]` | `client.feedEvents()` | Activity feed + date range |
+| `nmem --json wm read` | `client.readWorkingMemory()` | Working Memory read |
+| `nmem --json wm patch --heading "## S" --content/--append` | `client.patchWorkingMemory()` | Section-level WM update |
 | `nmem --json m delete <id>` | `client.execJson()` in forget.js | Delete |
 
 All commands have API fallback for older CLI versions.
@@ -110,8 +112,11 @@ nmem --version
 nmem --json m search "test" -n 3
 nmem --json m add "test memory" --unit-type learning -l test
 nmem g expand <id-from-above>
+nmem g evolves <id-from-above>
 nmem f --days 1
 nmem f --type crystal_created
+nmem f --from 2026-02-17 --to 2026-02-17
+nmem wm patch --heading "## Notes" --append "New note from agent"
 
 # Remote mode
 NMEM_API_URL=https://your-server NMEM_API_KEY=key nmem status
@@ -119,14 +124,15 @@ NMEM_API_URL=https://your-server NMEM_API_KEY=key nmem status
 
 ## Known Gaps / Accepted Limitations
 
-1. **Feed API has no `date_from`/`date_to`** — only `last_n_days`. Exact date queries ("last Tuesday") require client-side filtering. Tracked for backend.
-2. **Working Memory edit is full-overwrite only** — no section-level replace via API. Knowledge Agent domain.
-3. **EVOLVES chain** in `connections.js` still calls `/agent/evolves` directly (no `nmem g evolves` command yet).
-4. **`unit_type` requires rebuilt backend** — `MemoryCreateRequest` now includes `unit_type` (fixed in this branch). Restart backend after rebuild.
+1. **Feed API `date_from`/`date_to`** — supported. Backend filters events by YYYY-MM-DD range. CLI: `nmem f --from/--to`. Plugin: `nowledge_mem_timeline` accepts `date_from`/`date_to`.
+2. **Working Memory section edit** — supported. `nmem wm patch --heading "## X" --content/--append` does client-side read-modify-write. Plugin: `nowledge_mem_context` accepts `patch_section` + `patch_content`/`patch_append`.
+3. **EVOLVES chain CLI** — supported. `nmem g evolves <id>` calls `/agent/evolves?memory_id=<id>`. Plugin: `nowledge_mem_connections` uses `client.graphEvolves()`.
+4. **`unit_type` requires rebuilt backend** — `MemoryCreateRequest` includes `unit_type` (fixed). Restart backend after rebuild.
+5. **Working Memory full-overwrite only via API** — the API (`PUT /agent/working-memory`) still takes full content. The section-level patch is implemented purely client-side. This is acceptable; the Knowledge Agent regenerates WM each morning anyway.
 
 ## Non-Goals
 
 - Do NOT add `nowledge_mem_search` — `memory_search` covers it.
-- Do NOT expose WM write — it's Knowledge Agent domain.
+- Do NOT expose full WM overwrite from agents — section-level patch is the right granularity.
 - Do NOT add cloud dependencies to the core path.
 - Do NOT accept unknown config keys (strict parser in `config.js`).

@@ -63,14 +63,25 @@ export function createTimelineTool(client, logger) {
 			"pass them directly to memory_get or nowledge_mem_connections for deeper exploration. " +
 			"Use event_type to filter: memory_created (saved knowledge), crystal_created (synthesized insights), " +
 			"insight_generated (agent observations), source_ingested (Library documents), " +
-			"source_extracted (knowledge from docs), daily_briefing (morning briefings), url_captured.",
+			"source_extracted (knowledge from docs), daily_briefing (morning briefings), url_captured. " +
+			"For exact date queries ('what was I doing last Tuesday?') use date_from + date_to (YYYY-MM-DD).",
 		parameters: {
 			type: "object",
 			properties: {
 				last_n_days: {
 					type: "integer",
 					description:
-						"How many days back to look. 1=today only, 7=this week, 30=this month. Default: 7.",
+						"How many days back to look. 1=today, 7=this week, 30=this month. Default: 7. Ignored when date_from is set.",
+				},
+				date_from: {
+					type: "string",
+					description:
+						"Exact start date YYYY-MM-DD. Use with date_to for a precise range ('last Tuesday' → compute the date).",
+				},
+				date_to: {
+					type: "string",
+					description:
+						"Exact end date YYYY-MM-DD (inclusive). Defaults to today when date_from is set.",
 				},
 				event_type: {
 					type: "string",
@@ -91,6 +102,12 @@ export function createTimelineTool(client, logger) {
 				365,
 				Math.max(1, Math.trunc(Number(safeParams.last_n_days ?? 7) || 7)),
 			);
+			const dateFrom = safeParams.date_from
+				? String(safeParams.date_from).trim()
+				: undefined;
+			const dateTo = safeParams.date_to
+				? String(safeParams.date_to).trim()
+				: undefined;
 			const eventType = safeParams.event_type
 				? String(safeParams.event_type).trim()
 				: undefined;
@@ -102,6 +119,8 @@ export function createTimelineTool(client, logger) {
 					eventType,
 					tier1Only,
 					limit: 100,
+					dateFrom,
+					dateTo,
 				});
 
 				if (events.length === 0) {
@@ -158,8 +177,9 @@ export function createTimelineTool(client, logger) {
 					return `**${date}**\n${items}`;
 				});
 
-				const header =
-					lastNDays === 1
+				const header = dateFrom
+					? `Activity ${dateFrom}${dateTo && dateTo !== dateFrom ? ` → ${dateTo}` : ""}:`
+					: lastNDays === 1
 						? "Today's activity:"
 						: `Activity over the last ${lastNDays} days:`;
 

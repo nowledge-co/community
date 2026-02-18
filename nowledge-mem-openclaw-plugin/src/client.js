@@ -1,6 +1,61 @@
 import { spawnSync } from "node:child_process";
 
 /**
+ * Patch a single markdown section in a Working Memory document.
+ * Returns the updated document string, or null if heading not found.
+ *
+ * @param {string} currentContent  Full WM markdown content
+ * @param {string} heading         Partial or full heading to match (case-insensitive)
+ * @param {{ content?: string; append?: string }} options
+ */
+function patchWmSection(currentContent, heading, { content, append } = {}) {
+	const lines = currentContent.split("\n");
+	const headingLc = heading.trim().toLowerCase();
+
+	// Infer section level from the heading prefix (## = 2, ### = 3, etc.)
+	const levelMatch = headingLc.match(/^(#{1,6})\s/);
+	const targetLevel = levelMatch ? levelMatch[1].length : 2;
+
+	// Find the start of the section
+	let startIdx = -1;
+	for (let i = 0; i < lines.length; i++) {
+		if (lines[i].trim().toLowerCase().includes(headingLc)) {
+			startIdx = i;
+			break;
+		}
+	}
+	if (startIdx === -1) return null;
+
+	// Find end of section (next heading at same or higher level)
+	let endIdx = lines.length;
+	for (let i = startIdx + 1; i < lines.length; i++) {
+		const m = lines[i].match(/^(#{1,6})\s/);
+		if (m && m[1].length <= targetLevel) {
+			endIdx = i;
+			break;
+		}
+	}
+
+	const headingLine = lines[startIdx];
+	const bodyLines = lines.slice(startIdx + 1, endIdx);
+
+	let newBody;
+	if (append !== undefined) {
+		const existing = bodyLines.join("\n").trimEnd();
+		newBody = `${existing}\n${append.trim()}`;
+	} else {
+		newBody = (content ?? "").trimEnd();
+	}
+
+	const newSection = [headingLine, newBody].filter(Boolean).join("\n");
+	return [
+		...lines.slice(0, startIdx),
+		newSection,
+		...lines.slice(endIdx),
+	].join("\n");
+}
+
+/**
  * Nowledge Mem client. Wraps the nmem CLI for local-first and remote operations.
  *
  * All operations go through the CLI first. This means:
@@ -332,17 +387,51 @@ export class NowledgeMemClient {
 		}
 	}
 
+	/**
+	 * Get the EVOLVES version chain for a memory.
+	 * Uses `nmem g evolves <id>` (CLI v0.4.1+), falls back to API.
+	 *
+	 * Returns edges where the memory appears as older or newer node,
+	 * with relation type: replaces | enriches | confirms | challenges.
+	 */
+	async graphEvolves(memoryId, { limit = 20 } = {}) {
+		const args = ["--json", "g", "evolves", String(memoryId), "-n", String(limit)];
+		try {
+			return this.execJson(args);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			const needsFallback =
+				message.includes("unrecognized arguments") ||
+				message.includes("invalid choice") ||
+				message.includes("argument command: invalid choice");
+			if (!needsFallback) throw err;
+
+			this.logger.warn("graphEvolves: CLI too old, falling back to API");
+			const qs = new URLSearchParams({
+				memory_id: String(memoryId),
+				limit: String(limit),
+			});
+			return this.apiJson("GET", `/agent/evolves?${qs.toString()}`);
+		}
+	}
+
 	// ── Feed ──────────────────────────────────────────────────────────────────
 
 	/**
 	 * Fetch recent activity from the feed.
 	 * Uses `nmem f` (CLI v0.4+), falls back to API.
+	 *
+	 * Date filtering (exact range):
+	 *   dateFrom / dateTo: YYYY-MM-DD — when events were recorded.
+	 *   Answers "what was I working on last Tuesday?" precisely.
 	 */
 	async feedEvents({
 		lastNDays = 7,
 		eventType,
 		tier1Only = true,
 		limit = 100,
+		dateFrom,
+		dateTo,
 	} = {}) {
 		const args = [
 			"--json",
@@ -354,6 +443,8 @@ export class NowledgeMemClient {
 		];
 		if (eventType) args.push("--type", String(eventType));
 		if (!tier1Only) args.push("--all");
+		if (dateFrom) args.push("--from", String(dateFrom));
+		if (dateTo) args.push("--to", String(dateTo));
 
 		try {
 			const data = this.execJson(args);
@@ -372,6 +463,8 @@ export class NowledgeMemClient {
 				limit: String(limit),
 			});
 			if (eventType) qs.set("event_type", eventType);
+			if (dateFrom) qs.set("date_from", String(dateFrom));
+			if (dateTo) qs.set("date_to", String(dateTo));
 			const data = await this.apiJson("GET", `/agent/feed/events?${qs.toString()}`);
 			return Array.isArray(data) ? data : (data.events ?? []);
 		}
@@ -528,6 +621,44 @@ export class NowledgeMemClient {
 			return { content, available: exists && content.length > 0 };
 		} catch {
 			return { content: "", available: false };
+		}
+	}
+
+	/**
+	 * Patch a single section of Working Memory without touching the rest.
+	 * Uses `nmem wm patch` (CLI v0.4.1+) — client-side read-modify-write.
+	 *
+	 * @param {string} heading  Section heading to target (e.g. "## Focus Areas")
+	 * @param {object} options
+	 * @param {string} [options.content]  Replace the section body
+	 * @param {string} [options.append]   Append text to the section body
+	 */
+	async patchWorkingMemory(heading, { content, append } = {}) {
+		const args = ["--json", "wm", "patch", "--heading", String(heading)];
+		if (content !== undefined) args.push("--content", String(content));
+		if (append !== undefined) args.push("--append", String(append));
+
+		try {
+			return this.execJson(args, 20_000);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			const notSupported =
+				message.includes("unrecognized arguments") ||
+				message.includes("invalid choice");
+			if (!notSupported) throw err;
+
+			// Fallback: full-document write (read → patch inline → write)
+			this.logger.warn("patchWorkingMemory: CLI too old, falling back to full replace");
+			const current = await this.readWorkingMemory();
+			if (!current.available) throw new Error("Working Memory not available");
+
+			const updated = patchWmSection(current.content, heading, {
+				content,
+				append,
+			});
+			if (updated === null) throw new Error(`Section not found: ${heading}`);
+
+			return this.apiJson("PUT", "/agent/working-memory", { content: updated });
 		}
 	}
 
