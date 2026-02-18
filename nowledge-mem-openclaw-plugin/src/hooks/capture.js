@@ -276,14 +276,35 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
 }
 
 /**
- * Capture a high-value user message after a successful run.
+ * Capture thread + optional memory note after a successful agent run.
+ *
+ * Thread capture and memory note capture are intentionally independent:
+ * - Thread append: always attempted when event.success is true and messages exist.
+ *   appendOrCreateThread self-guards on empty messages.
+ * - Memory note: only when the last user message matches a trigger pattern.
+ *   This is an additional signal, not the gating condition for thread capture.
+ *
+ * Previous bug: both were gated behind shouldCaptureAsMemory, so sessions
+ * ending with a question or a command were silently dropped from threads.
  */
 export function buildAgentEndCaptureHandler(client, _cfg, logger) {
 	const seenBySession = new Map();
 
 	return async (event, ctx) => {
-		if (!event?.success || !Array.isArray(event?.messages)) return;
+		if (!event?.success) return;
 
+		// 1. Always thread-append this session (idempotent, self-guards on empty messages).
+		await appendOrCreateThread({
+			client,
+			logger,
+			event,
+			ctx,
+			reason: "agent_end",
+		});
+
+		// 2. Optionally save a memory note if the last user message is worth capturing.
+		//    This is a separate, weaker signal — do not let it gate the thread append above.
+		if (!Array.isArray(event?.messages)) return;
 		const normalized = event.messages.map(normalizeRoleMessage).filter(Boolean);
 		const lastUser = [...normalized].reverse().find((m) => m.role === "user");
 		if (!lastUser || !shouldCaptureAsMemory(lastUser.content)) return;
@@ -302,14 +323,6 @@ export function buildAgentEndCaptureHandler(client, _cfg, logger) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.warn(`capture: memory store failed: ${message}`);
 		}
-
-		await appendOrCreateThread({
-			client,
-			logger,
-			event,
-			ctx,
-			reason: "agent_end",
-		});
 	};
 }
 
