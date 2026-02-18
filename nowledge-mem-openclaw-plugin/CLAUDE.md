@@ -1,57 +1,65 @@
-# CLAUDE.md - Nowledge Mem OpenClaw Plugin
+# CLAUDE.md — Nowledge Mem OpenClaw Plugin
 
 Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 
 ## Scope
 
 - Plugin target: OpenClaw plugin runtime (memory slot provider)
-- Runtime: JS modules under `src/`, no TS build pipeline
-- Memory backend: local `nmem` CLI (fallback `uvx --from nmem-cli nmem`)
-- Graph API: local Nowledge Mem API (default `http://127.0.0.1:14242`)
+- Runtime: JS ESM modules under `src/`, no TS build pipeline
+- Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
+- Architecture: **CLI-first** — all operations go through the nmem CLI, not direct API calls
+- Remote mode: set `NMEM_API_URL` + `NMEM_API_KEY` env vars or plugin config `apiUrl` + `apiKey`
 
 ## Design Philosophy
 
-This plugin reflects Nowledge Mem's genuine strengths from the v0.6 architecture:
+Reflects Nowledge Mem's genuine v0.6 strengths:
 
-1. **Knowledge graph** — EVOLVES chains, entity relationships, memory connections
-2. **Source provenance** — Library ingests docs/URLs, SOURCED_FROM edges trace knowledge origin
-3. **Structured types** — 8 unit types (fact, preference, decision, etc.)
-4. **Working Memory** — daily evolving briefing, not static profile
+1. **Knowledge graph** — EVOLVES chains, entity relationships, typed memory connections
+2. **Source provenance** — Library ingests docs/URLs; `SOURCED_FROM` edges trace knowledge origin
+3. **Structured types** — 8 unit types: `fact | preference | decision | plan | procedure | learning | context | event`
+4. **Working Memory** — daily evolving briefing (read-only from plugin; updated by Knowledge Agent)
 5. **Cross-AI continuity** — "Your AI tools forget. We remember. Everywhere."
-6. **Hybrid search** — BM25 + semantic, not vector-only
+6. **Hybrid search** — BM25 + semantic + graph + decay, not vector-only
+7. **Transparent scoring** — `relevance_reason` in every search result
 
 ## Files That Matter
 
-- `src/index.js`: plugin registration (tools/hooks/commands/cli)
-- `src/client.js`: nmem CLI resolution + API wrappers
-- `src/config.js`: strict config parsing
-- `src/hooks/recall.js`: before_agent_start context injection
-- `src/hooks/capture.js`: append-first thread capture + quality-gated memory notes
-- `src/tools/memory-search.js`: OpenClaw compat `memory_search`
-- `src/tools/memory-get.js`: OpenClaw compat `memory_get`
-- `src/tools/save.js`: structured knowledge capture with unit_type
-- `src/tools/context.js`: Working Memory daily briefing
-- `src/tools/connections.js`: knowledge graph exploration
-- `src/tools/forget.js`: memory deletion
-- `openclaw.plugin.json`: manifest + config schema + UI hints
+```
+src/
+  index.js          — plugin registration (tools, hooks, commands, CLI)
+  client.js         — CLI wrapper with API fallback; credential handling
+  config.js         — strict config parsing (apiUrl, apiKey, autoRecall, etc.)
+  hooks/
+    recall.js       — before_agent_start: inject Working Memory + recalled memories
+    capture.js      — quality-gated memory note + thread append
+  tools/
+    memory-search.js    — OpenClaw compat; multi-signal; bi-temporal; relevance_reason
+    memory-get.js       — OpenClaw compat; supports MEMORY.md alias
+    save.js             — structured capture: unit_type, labels, temporal, importance
+    context.js          — Working Memory daily briefing (read-only)
+    connections.js      — graph exploration: edge types, relationship strength, provenance
+    timeline.js         — activity feed: daily grouping, event_type filter, memoryId hints
+    forget.js           — memory deletion by ID or search
+openclaw.plugin.json — manifest + config schema (version, uiHints, configSchema)
+```
 
 ## Tool Surface (7 tools)
 
-OpenClaw memory-slot compat:
-- `memory_search` — multi-signal search: embedding + BM25 + labels + graph + decay
-- `memory_get` — required for memory slot contract
+### OpenClaw Memory Slot (required for system prompt activation)
+- `memory_search` — multi-signal: BM25 + embedding + label + graph + decay. Returns `matchedVia` ("Text Match 100% + Semantic 69%"), `importance`, bi-temporal filters (`event_date_from/to`, `recorded_date_from/to`). Mode: `"multi-signal"`.
+- `memory_get` — retrieve by `nowledgemem://memory/<id>` path or bare ID. `MEMORY.md` → Working Memory.
 
-Nowledge Mem native (differentiators):
-- `nowledge_mem_save` — structured capture with unit_type
-- `nowledge_mem_context` — Working Memory daily briefing (read-only from plugin side)
-- `nowledge_mem_connections` — knowledge graph exploration + source provenance (graph API)
-- `nowledge_mem_timeline` — temporal feed browser (wraps GET /agent/feed/events, last_n_days param)
-- `nowledge_mem_forget` — delete memory (user agency)
+### Nowledge Mem Native (differentiators)
+- `nowledge_mem_save` — structured capture: `unit_type`, `labels[]`, `event_start`, `event_end`, `temporal_context`, `importance`. All fields wired to CLI and API.
+- `nowledge_mem_context` — Working Memory daily briefing. Read-only from plugin; write is Knowledge Agent domain.
+- `nowledge_mem_connections` — graph exploration. Edges JOIN-ed to nodes by type: CRYSTALLIZED_FROM (crystal → source memories), EVOLVES (with sub-relations: supersedes/enriches/confirms/challenges), SOURCED_FROM (document provenance), MENTIONS (entities). Each connection shows strength % and memoryId.
+- `nowledge_mem_timeline` — activity feed via `nmem f`. Groups by day. `event_type` filter (memory_created, crystal_created, source_ingested, etc.). Entries include `(id: <memoryId>)` for chaining to connections.
+- `nowledge_mem_forget` — delete by ID or fuzzy query.
 
 ## Hook Surface
 
-- `before_agent_start` — auto recall (Working Memory + search)
-- `agent_end` — quality-gated memory note + thread append
+- `before_agent_start` — auto-recall: Working Memory + `searchRich()` with `relevanceReason` in context
+- `agent_end` — quality-gated memory note + thread append (requires `autoCapture: true`)
 - `after_compaction` — thread append
 - `before_reset` — thread append
 
@@ -61,76 +69,64 @@ Nowledge Mem native (differentiators):
 - `/recall` — quick search
 - `/forget` — quick delete
 
-## Config Keys (authoritative)
+## Config Keys
 
-- `autoRecall` (boolean, default `true`)
-- `autoCapture` (boolean, default `false`)
-- `maxRecallResults` (number, clamp 1-20, default `5`)
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `autoRecall` | boolean | `true` | Inject context at session start |
+| `autoCapture` | boolean | `false` | Capture notes/threads at session end |
+| `maxRecallResults` | integer 1–20 | `5` | How many memories to recall |
+| `apiUrl` | string | `""` | Remote server URL. Empty = local (127.0.0.1:14242) |
+| `apiKey` | string | `""` | API key. Injected as `NMEM_API_KEY` env var only. Never logged. |
 
-## Capture Quality Gate
+### Credential Handling Rules
+- `apiKey` → ONLY via child process env (`NMEM_API_KEY`). Never CLI arg, never logged.
+- `apiUrl` → passed as `--api-url` flag to CLI (not a secret).
+- Config values win over environment variables.
+- `_spawnEnv()` builds per-spawn env; `_apiUrlArgs()` adds `--api-url` when non-default.
 
-Multi-layer filter (in `hooks/capture.js`):
-1. Skip slash commands and short content
-2. Skip questions (trailing `?`, interrogative starters)
-3. Skip prompt-injection payloads
-4. Skip injected context and system-generated XML
-5. Require memory-trigger pattern (preference, decision, fact, entity)
+## CLI Surface (nmem commands used by plugin)
 
-## Local Smoke Commands
+| Command | Plugin method | Notes |
+|---------|--------------|-------|
+| `nmem --json m search <q>` | `client.search()` | Rich: relevance_reason, importance, labels, temporal |
+| `nmem --json m search <q> --event-from/--event-to/--recorded-from/--recorded-to` | `client.searchTemporal()` | Bi-temporal |
+| `nmem --json m add <content> [--unit-type] [-l] [--event-start] [--when]` | `client.execJson()` in save.js | Full rich save |
+| `nmem --json g expand <id>` | `client.graphExpand()` | Graph neighbors + edges |
+| `nmem --json f [--days] [--type] [--all]` | `client.feedEvents()` | Activity feed |
+| `nmem --json wm read` | `client.readWorkingMemory()` | Working Memory |
+| `nmem --json m delete <id>` | `client.execJson()` in forget.js | Delete |
+
+All commands have API fallback for older CLI versions.
+
+## Smoke Test
 
 ```bash
-node --check src/index.js
-node --check src/client.js
-node --check src/tools/connections.js
-node --check src/tools/save.js
+# Lint
+npx biome check src/
+
+# CLI
 nmem --version
 nmem --json m search "test" -n 3
+nmem --json m add "test memory" --unit-type learning -l test
+nmem g expand <id-from-above>
+nmem f --days 1
+nmem f --type crystal_created
+
+# Remote mode
+NMEM_API_URL=https://your-server NMEM_API_KEY=key nmem status
 ```
 
-## Non-Goals / Avoid
+## Known Gaps / Accepted Limitations
 
-- Do not add `nowledge_mem_search` — `memory_search` covers search. One tool.
-- Do not add `containerTag`-style label wrappers — our labels are implicit graph properties.
-- Do not reintroduce `serverUrl` config — plugin uses CLI + local API.
-- Do not add cloud dependencies for core path.
-- Do not accept unknown config keys (strict parser).
+1. **Feed API has no `date_from`/`date_to`** — only `last_n_days`. Exact date queries ("last Tuesday") require client-side filtering. Tracked for backend.
+2. **Working Memory edit is full-overwrite only** — no section-level replace via API. Knowledge Agent domain.
+3. **EVOLVES chain** in `connections.js` still calls `/agent/evolves` directly (no `nmem g evolves` command yet).
+4. **`unit_type` requires rebuilt backend** — `MemoryCreateRequest` now includes `unit_type` (fixed in this branch). Restart backend after rebuild.
 
-## API Reference (for tool implementors)
+## Non-Goals
 
-- **Feed events**: `GET /agent/feed/events?last_n_days=N&limit=100&event_type=...`
-  - `last_n_days` (int, 1-365, default 365): window from today back
-  - `event_type` (string, optional): filter to one type
-  - Returns: `{ events: [...] }` with `event_type`, `title`, `description`, `created_at`
-  - Storage: time-partitioned JSONL at `builtin_agents/events/YYYY/MM/YYYY-MM-DD.jsonl`
-
-- **Search (bi-temporal)**: `GET /memories/search?q=...&event_date_from=YYYY&event_date_to=YYYY-MM-DD&recorded_date_from=YYYY-MM-DD&recorded_date_to=YYYY-MM-DD`
-  - `event_date_from/to`: when the fact/event happened (YYYY, YYYY-MM, YYYY-MM-DD)
-  - `recorded_date_from/to`: when the memory was saved to Nowledge Mem
-  - Plugin: `memory_search` passes these via `client.searchTemporal()` (API-direct, not CLI)
-  - CLI: `nmem m search "q" --event-from YYYY --event-to YYYY-MM-DD --recorded-from YYYY-MM-DD --recorded-to YYYY-MM-DD`
-    (needs CLI rebuild to take effect)
-
-- **Working Memory**: `GET /agent/working-memory?date=YYYY-MM-DD` (read, date optional for archive)
-  - `PUT /agent/working-memory` body `{ content: string }` — **full overwrite only**, no line-based edit
-  - CLI: `nmem wm read`, `nmem wm edit -m "..."`, `nmem wm history`
-  - Plugin exposes read-only (`nowledge_mem_context`). Write is Knowledge Agent's domain.
-
-- **Graph expand**: `GET /graph/expand/{node_id}?depth=1&limit=15`
-  - Returns: `{ neighbors: [...], edges: [...] }`
-  - Node types in response: Memory, Source, Entity
-
-## Known Gaps (from live testing)
-
-1. **Temporal navigation** — SOLVED by `nowledge_mem_timeline` (wraps `/agent/feed/events`).
-   Remaining gap: no `date_from`/`date_to` params on the API, only `last_n_days`. Exact date queries ("last Tuesday") require client-side filtering.
-2. **Cross-memory synthesis** — SOLVED via `nowledge_mem_connections`. Tool descriptions updated.
-3. **Source provenance** — SOLVED via `nowledge_mem_connections` SOURCED_FROM edges.
-4. **WM line-based edit** — NOT available. API is full-overwrite only. Backend change needed for section-level replace. Noted for future backend work.
-
-## Recommended Next Improvements
-
-1. Add `date_from`/`date_to` query params to backend `/agent/feed/events` for exact date filtering.
-2. Add line-based WM section edit endpoint to backend (replace specific `## Section` content).
-3. Add `nmem graph neighbors` CLI command to avoid API-only dependency in `connections`.
-4. Add `show/update` tools for individual memories (read + edit flow).
-5. Add interactive `setup` CLI wizard for first-time configuration.
+- Do NOT add `nowledge_mem_search` — `memory_search` covers it.
+- Do NOT expose WM write — it's Knowledge Agent domain.
+- Do NOT add cloud dependencies to the core path.
+- Do NOT accept unknown config keys (strict parser in `config.js`).
