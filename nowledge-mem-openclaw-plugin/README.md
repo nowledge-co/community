@@ -125,23 +125,33 @@ last_n_days: 7
 
 ## Hooks
 
-### Auto-Recall (before_agent_start)
+These run automatically at OpenClaw lifecycle events — no agent decision-making involved. The LLM never calls a hidden "save" tool; the plugin's code fires at the right moments.
 
-When `autoRecall` is enabled (default), the plugin injects context before each agent turn:
+### Auto-Recall (`autoRecall`, default: true)
 
-1. **Working Memory**: today's focus areas, priorities, unresolved flags
-2. **Relevant memories**: semantic search results with types and labels
-3. **Tool guidance**: so the agent knows which Nowledge Mem tools are available
+Before each agent turn, the plugin:
 
-### Auto-Capture (agent_end + compaction + reset)
+1. Reads **Working Memory** (today's AI-generated briefing — focus areas, flags, recent activity)
+2. Searches your knowledge graph for **relevant memories** matching the current prompt
+3. Prepends both as context to the system prompt, along with **tool guidance** for Nowledge Mem tools
 
-When `autoCapture` is enabled:
+The agent receives richer context automatically. No tool call is made; no agent action is required.
 
-1. `agent_end`: stores high-signal user input as structured memory (with trigger-pattern quality gate)
-2. `after_compaction`: appends transcript to deterministic nmem thread
-3. `before_reset`: final thread append before session clear
+### Auto-Capture (`autoCapture`, default: false)
 
-Capture uses a multi-layer quality gate: skips questions, prompt injections, system-generated content. Only captures declarative knowledge with trigger patterns (preferences, decisions, facts, entities).
+At three lifecycle points — `agent_end`, `after_compaction`, `before_reset` — the plugin does two independent things:
+
+**1. Thread transcript (always)**
+The full conversation is appended to a persistent thread in Nowledge Mem, keyed by a stable session ID. This happens unconditionally on every successful session end, regardless of what was said. The thread is searchable via `nowledge_mem_timeline` and `nmem t` commands.
+
+**2. Memory note (conditional)**
+If the last user message matches a memory-trigger pattern (decision, preference, fact, entity — e.g. "I prefer TypeScript", "we chose Postgres"), a separate structured memory is also created. Questions, slash commands, and injected-context blocks are skipped. The memory note is independent of the thread — both can happen, either, or neither.
+
+**Compaction captures**: when OpenClaw compresses a long conversation to fit the model's context window, the plugin fires `after_compaction` and appends the pre-compaction transcript to the thread. Messages that get compressed away are not lost.
+
+**Deduplication**: thread appends are idempotent by `external_id`. If the same hook fires twice (e.g. both `agent_end` and `before_reset`), messages are deduplicated — no duplicates in Nowledge Mem.
+
+**Quality gates** (memory note only): skips messages shorter than 24 characters, fewer than 5 words, questions, slash commands, prompt-injection patterns, and LLM-generated context blocks.
 
 ## Slash Commands
 
