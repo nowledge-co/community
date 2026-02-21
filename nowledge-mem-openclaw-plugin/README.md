@@ -39,7 +39,7 @@ Start Nowledge Mem desktop app or run `nmem serve`, then configure:
 
 ### Remote mode
 
-Connect to a Nowledge Mem server running elsewhere — on a VPS, a home server, or shared team instance. See [remote access guide](https://docs.nowledge.co/docs/remote-access) for server setup.
+Connect to a Nowledge Mem server running elsewhere — on a VPS, a home server, or shared team instance. See [remote access guide](https://mem.nowledge.co/docs/remote-access) for server setup.
 
 ```json
 {
