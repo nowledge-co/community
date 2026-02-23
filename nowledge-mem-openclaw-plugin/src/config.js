@@ -1,3 +1,14 @@
+export const API_DEFAULT_URL = "http://127.0.0.1:14242";
+
+/**
+ * Check whether an API URL points to the local default server.
+ * Useful for mode detection (local vs remote) in UI, CORS, diagnostics.
+ */
+export function isDefaultApiUrl(url) {
+	const trimmed = (url || "").trim().replace(/\/+$/, "");
+	return !trimmed || trimmed === API_DEFAULT_URL;
+}
+
 const ALLOWED_KEYS = new Set([
 	"autoRecall",
 	"autoCapture",

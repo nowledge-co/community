@@ -5,7 +5,7 @@ import {
 	createRecallCommand,
 	createRememberCommand,
 } from "./commands/slash.js";
-import { parseConfig } from "./config.js";
+import { isDefaultApiUrl, parseConfig } from "./config.js";
 import {
 	buildAgentEndCaptureHandler,
 	buildBeforeResetCaptureHandler,
@@ -73,7 +73,7 @@ export default {
 			commands: ["nowledge-mem"],
 		});
 
-		const remoteMode = cfg.apiUrl && cfg.apiUrl !== "http://127.0.0.1:14242";
+		const remoteMode = !isDefaultApiUrl(cfg.apiUrl);
 		logger.info(
 			`nowledge-mem: initialized (recall=${cfg.autoRecall}, capture=${cfg.autoCapture}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
 		);

@@ -241,7 +241,7 @@ function buildConversationText(normalized) {
  * The before_reset / after_compaction handlers only capture threads — no
  * triage or distillation, since those are mid-session checkpoints.
  */
-export function buildAgentEndCaptureHandler(client, _cfg, logger) {
+export function buildAgentEndCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
 		if (!event?.success) return;
 
@@ -255,6 +255,10 @@ export function buildAgentEndCaptureHandler(client, _cfg, logger) {
 		});
 
 		// 2. Triage + distill: language-agnostic LLM-based capture.
+		//    Defensive guard — registration in index.js already gates on autoCapture,
+		//    but check here too so the handler is safe if called directly.
+		if (!cfg.autoCapture) return;
+
 		//    Skip short conversations — not worth the triage cost.
 		if (
 			!result ||
