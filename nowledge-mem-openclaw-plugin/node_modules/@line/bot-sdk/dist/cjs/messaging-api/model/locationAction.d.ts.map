@@ -1,1 +1,0 @@
-{"version":3,"file":"locationAction.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/locationAction.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,UAAU,EAAE,MAAM,aAAa,CAAC;AAEzC,MAAM,MAAM,cAAc,GAAG,UAAU,GAAG;IACxC,IAAI,EAAE,UAAU,CAAC;CAClB,CAAC"}

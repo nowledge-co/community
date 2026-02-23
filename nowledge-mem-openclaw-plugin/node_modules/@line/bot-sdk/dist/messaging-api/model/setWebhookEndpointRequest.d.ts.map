@@ -1,1 +1,0 @@
-{"version":3,"file":"setWebhookEndpointRequest.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/setWebhookEndpointRequest.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,MAAM,MAAM,yBAAyB,GAAG;IACtC;;;;OAIG;IACH,QAAQ,EAAE,MAAM,CAAM;CACvB,CAAC"}

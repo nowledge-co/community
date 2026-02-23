@@ -1,1 +1,0 @@
-{"version":3,"file":"messageQuotaResponse.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/messageQuotaResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,SAAS,EAAE,MAAM,gBAAgB,CAAC;AAE3C,MAAM,MAAM,oBAAoB,GAAG;IACjC;;;OAGG;IACH,IAAI,EAAE,SAAS,CAAM;IACrB;;;;OAIG;IACH,KAAK,CAAC,EAAE,MAAM,CAAM;CACrB,CAAC;AAEF,yBAAiB,oBAAoB,CAAC,GAAE"}

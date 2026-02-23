@@ -1,1 +1,0 @@
-{"version":3,"file":"openid.d.ts","sourceRoot":"","sources":["../../../src/types/request/openid.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,YAAY,CAAC;AAEnD,OAAO,KAAK,EAAE,gBAAgB,EAAE,iBAAiB,EAAE,MAAM,UAAU,CAAC;AAGpE,MAAM,WAAW,2BAA4B,SAAQ,gBAAgB,EAAE,iBAAiB;CAAG;AAE3F,MAAM,MAAM,8BAA8B,GAAG,gBAAgB,CAAC,MAAM,CAAC,CAAC"}

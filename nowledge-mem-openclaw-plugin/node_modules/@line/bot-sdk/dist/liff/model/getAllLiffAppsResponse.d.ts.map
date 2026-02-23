@@ -1,1 +1,0 @@
-{"version":3,"file":"getAllLiffAppsResponse.d.ts","sourceRoot":"","sources":["../../../lib/liff/model/getAllLiffAppsResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,OAAO,EAAE,MAAM,cAAc,CAAC;AAEvC,MAAM,MAAM,sBAAsB,GAAG;IACnC;OACG;IACH,IAAI,CAAC,EAAE,KAAK,CAAC,OAAO,CAAC,CAAM;CAC5B,CAAC"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"uRIImagemapAction.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/uRIImagemapAction.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAKH,OAAO,EAAE,kBAAkB,EAAE,MAAM,aAAa,CAAC;AAEjD,MAAM,MAAM,iBAAiB,GAAG,kBAAkB,GAAG;IACnD,IAAI,EAAE,KAAK,CAAC;IACZ;OACG;IACH,OAAO,EAAE,MAAM,CAAM;IACrB;OACG;IACH,KAAK,CAAC,EAAE,MAAM,CAAM;CACrB,CAAC"}

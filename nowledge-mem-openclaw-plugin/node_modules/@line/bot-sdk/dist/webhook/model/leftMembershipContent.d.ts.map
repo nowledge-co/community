@@ -1,1 +1,0 @@
-{"version":3,"file":"leftMembershipContent.d.ts","sourceRoot":"","sources":["../../../lib/webhook/model/leftMembershipContent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,qBAAqB,EAAE,MAAM,aAAa,CAAC;AAEpD,MAAM,MAAM,qBAAqB,GAAG,qBAAqB,GAAG;IAC1D,IAAI,EAAE,MAAM,CAAC;IACb;;OAEG;IACH,YAAY,EAAE,MAAM,CAAM;CAC3B,CAAC"}

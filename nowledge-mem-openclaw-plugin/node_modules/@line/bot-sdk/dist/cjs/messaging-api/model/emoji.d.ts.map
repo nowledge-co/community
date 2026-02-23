@@ -1,1 +1,0 @@
-{"version":3,"file":"emoji.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/emoji.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,MAAM,MAAM,KAAK,GAAG;IAClB;OACG;IACH,KAAK,CAAC,EAAE,MAAM,CAAM;IACpB;OACG;IACH,SAAS,CAAC,EAAE,MAAM,CAAM;IACxB;OACG;IACH,OAAO,CAAC,EAAE,MAAM,CAAM;CACvB,CAAC"}

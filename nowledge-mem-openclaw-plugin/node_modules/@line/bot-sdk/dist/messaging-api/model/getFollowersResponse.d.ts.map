@@ -1,1 +1,0 @@
-{"version":3,"file":"getFollowersResponse.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/getFollowersResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,MAAM,MAAM,oBAAoB,GAAG;IACjC;;;;OAIG;IACH,OAAO,EAAE,KAAK,CAAC,MAAM,CAAC,CAAM;IAC5B;;;;OAIG;IACH,IAAI,CAAC,EAAE,MAAM,CAAM;CACpB,CAAC"}

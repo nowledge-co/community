@@ -1,1 +1,0 @@
-{"version":3,"file":"imageCarouselColumn.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/imageCarouselColumn.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,MAAM,EAAE,MAAM,aAAa,CAAC;AAErC,MAAM,MAAM,mBAAmB,GAAG;IAChC;OACG;IACH,QAAQ,EAAE,MAAM,CAAM;IACtB;OACG;IACH,MAAM,EAAE,MAAM,CAAM;CACrB,CAAC"}

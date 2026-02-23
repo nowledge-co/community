@@ -1,1 +1,0 @@
-{"version":3,"file":"flexContainer.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/flexContainer.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,UAAU,EAAE,MAAM,aAAa,CAAC;AACzC,OAAO,EAAE,YAAY,EAAE,MAAM,aAAa,CAAC;AAE3C,MAAM,MAAM,aAAa,GACrB,UAAU,GACV,YAAY,CAAC;AAEjB,MAAM,MAAM,iBAAiB,GAAG;IAC9B;OACG;IACH,IAAI,EAAE,MAAM,CAAM;CACnB,CAAC"}

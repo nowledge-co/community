@@ -1,1 +1,0 @@
-{"version":3,"file":"joinedMembershipContent.d.ts","sourceRoot":"","sources":["../../../../lib/webhook/model/joinedMembershipContent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,qBAAqB,EAAE,MAAM,aAAa,CAAC;AAEpD,MAAM,MAAM,uBAAuB,GAAG,qBAAqB,GAAG;IAC5D,IAAI,EAAE,QAAQ,CAAC;IACf;;OAEG;IACH,YAAY,EAAE,MAAM,CAAM;CAC3B,CAAC"}

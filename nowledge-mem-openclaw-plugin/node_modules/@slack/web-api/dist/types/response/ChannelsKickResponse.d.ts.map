@@ -1,1 +1,0 @@
-{"version":3,"file":"ChannelsKickResponse.d.ts","sourceRoot":"","sources":["../../../src/types/response/ChannelsKickResponse.ts"],"names":[],"mappings":"AASA,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,iBAAiB,CAAC;AACxD,MAAM,MAAM,oBAAoB,GAAG,gBAAgB,GAAG;IACpD,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,MAAM,CAAC,EAAE,MAAM,CAAC;IAChB,EAAE,CAAC,EAAE,OAAO,CAAC;IACb,QAAQ,CAAC,EAAE,MAAM,CAAC;CACnB,CAAC"}

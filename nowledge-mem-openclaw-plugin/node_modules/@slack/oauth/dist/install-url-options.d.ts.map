@@ -1,1 +1,0 @@
-{"version":3,"file":"install-url-options.d.ts","sourceRoot":"","sources":["../src/install-url-options.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,iBAAiB;IAChC,MAAM,EAAE,MAAM,GAAG,MAAM,EAAE,CAAC;IAC1B,MAAM,CAAC,EAAE,MAAM,CAAC;IAChB,WAAW,CAAC,EAAE,MAAM,CAAC;IACrB,UAAU,CAAC,EAAE,MAAM,GAAG,MAAM,EAAE,CAAC;IAC/B,QAAQ,CAAC,EAAE,MAAM,CAAC;CACnB"}

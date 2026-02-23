@@ -1,1 +1,0 @@
-{"version":3,"file":"mentionTarget.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/mentionTarget.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,gBAAgB,EAAE,MAAM,aAAa,CAAC;AAC/C,OAAO,EAAE,iBAAiB,EAAE,MAAM,aAAa,CAAC;AAEhD,MAAM,MAAM,aAAa,GACrB,gBAAgB,GAChB,iBAAiB,CAAC;AAEtB,MAAM,MAAM,iBAAiB,GAAG;IAC9B;;OAEG;IACH,IAAI,EAAE,MAAM,CAAM;CACnB,CAAC"}

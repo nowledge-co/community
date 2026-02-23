@@ -1,1 +1,0 @@
-{"version":3,"file":"couponFreeRewardResponse.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/couponFreeRewardResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,wBAAwB,EAAE,MAAM,aAAa,CAAC;AAEvD,MAAM,MAAM,wBAAwB,GAAG,wBAAwB,GAAG;IAChE,IAAI,EAAE,MAAM,CAAC;CACd,CAAC"}

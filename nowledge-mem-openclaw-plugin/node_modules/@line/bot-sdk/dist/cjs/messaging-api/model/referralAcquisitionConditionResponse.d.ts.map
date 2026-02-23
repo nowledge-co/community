@@ -1,1 +1,0 @@
-{"version":3,"file":"referralAcquisitionConditionResponse.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/referralAcquisitionConditionResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,gCAAgC,EAAE,MAAM,aAAa,CAAC;AAE/D,MAAM,MAAM,oCAAoC,GAC9C,gCAAgC,GAAG;IACjC,IAAI,EAAE,UAAU,CAAC;CAClB,CAAC"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"flexSeparator.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/flexSeparator.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,iBAAiB,EAAE,MAAM,aAAa,CAAC;AAEhD,MAAM,MAAM,aAAa,GAAG,iBAAiB,GAAG;IAC9C,IAAI,EAAE,WAAW,CAAC;IAClB;OACG;IACH,MAAM,CAAC,EAAE,MAAM,CAAM;IACrB;OACG;IACH,KAAK,CAAC,EAAE,MAAM,CAAM;CACrB,CAAC"}

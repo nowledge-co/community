@@ -1,1 +1,0 @@
-{"version":3,"file":"mention.d.ts","sourceRoot":"","sources":["../../../../lib/webhook/model/mention.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,SAAS,EAAE,MAAM,gBAAgB,CAAC;AAE3C,MAAM,MAAM,OAAO,GAAG;IACpB;;OAEG;IACH,UAAU,EAAE,KAAK,CAAC,SAAS,CAAC,CAAM;CACnC,CAAC"}

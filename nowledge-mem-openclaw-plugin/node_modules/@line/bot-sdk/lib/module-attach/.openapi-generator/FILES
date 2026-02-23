@@ -1,7 +1,0 @@
-.openapi-generator-ignore
-api.ts
-api/apis.ts
-api/lineModuleAttachClient.ts
-model/attachModuleResponse.ts
-model/models.ts
-tests/api/LineModuleAttachClientTest.spec.ts

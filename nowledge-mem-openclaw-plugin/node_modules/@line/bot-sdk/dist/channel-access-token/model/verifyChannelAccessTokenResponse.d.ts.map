@@ -1,1 +1,0 @@
-{"version":3,"file":"verifyChannelAccessTokenResponse.d.ts","sourceRoot":"","sources":["../../../lib/channel-access-token/model/verifyChannelAccessTokenResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH;;GAEG;AACH,MAAM,MAAM,gCAAgC,GAAG;IAC7C;;OAEG;IACH,SAAS,EAAE,MAAM,CAAM;IACvB;;OAEG;IACH,UAAU,EAAE,MAAM,CAAM;IACxB;;OAEG;IACH,KAAK,CAAC,EAAE,MAAM,CAAM;CACrB,CAAC"}

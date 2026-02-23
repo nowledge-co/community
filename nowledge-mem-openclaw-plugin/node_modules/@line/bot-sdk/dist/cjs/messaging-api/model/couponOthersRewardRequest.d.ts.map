@@ -1,1 +1,0 @@
-{"version":3,"file":"couponOthersRewardRequest.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/couponOthersRewardRequest.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,uBAAuB,EAAE,MAAM,aAAa,CAAC;AAEtD,MAAM,MAAM,yBAAyB,GAAG,uBAAuB,GAAG;IAChE,IAAI,EAAE,QAAQ,CAAC;CAChB,CAAC"}

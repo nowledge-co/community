@@ -1,1 +1,0 @@
-{"version":3,"file":"getAggregationUnitNameListResponse.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/getAggregationUnitNameListResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,MAAM,MAAM,kCAAkC,GAAG;IAC/C;;;;OAIG;IACH,sBAAsB,EAAE,KAAK,CAAC,MAAM,CAAC,CAAM;IAC3C;;;;OAIG;IACH,IAAI,CAAC,EAAE,MAAM,CAAM;CACpB,CAAC"}

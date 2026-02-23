@@ -1,1 +1,0 @@
-{"version":3,"file":"linkContent.d.ts","sourceRoot":"","sources":["../../../../lib/webhook/model/linkContent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH;;GAEG;AACH,MAAM,MAAM,WAAW,GAAG;IACxB;;OAEG;IACH,MAAM,EAAE,WAAW,CAAC,UAAU,CAAM;IACpC;;OAEG;IACH,KAAK,EAAE,MAAM,CAAM;CACpB,CAAC;AAEF,yBAAiB,WAAW,CAAC;IAC3B,KAAY,UAAU,GAAG,IAAI,GAAG,QAAQ,CAAC;CAC1C"}

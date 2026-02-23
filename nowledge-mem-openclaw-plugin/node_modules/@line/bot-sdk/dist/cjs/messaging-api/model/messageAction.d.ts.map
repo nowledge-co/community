@@ -1,1 +1,0 @@
-{"version":3,"file":"messageAction.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/messageAction.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,UAAU,EAAE,MAAM,aAAa,CAAC;AAEzC,MAAM,MAAM,aAAa,GAAG,UAAU,GAAG;IACvC,IAAI,EAAE,SAAS,CAAC;IAChB;OACG;IACH,IAAI,CAAC,EAAE,MAAM,CAAM;CACpB,CAAC"}

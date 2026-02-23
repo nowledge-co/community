@@ -1,1 +1,0 @@
-{"version":3,"file":"ParamsIncomingMessage.d.ts","sourceRoot":"","sources":["../../src/receivers/ParamsIncomingMessage.ts"],"names":[],"mappings":";AAAA,OAAO,KAAK,EAAE,eAAe,EAAE,MAAM,WAAW,CAAC;AACjD,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,2BAA2B,CAAC;AAElE,MAAM,WAAW,qBAAsB,SAAQ,eAAe;IAC5D;;;;;;OAMG;IACH,MAAM,CAAC,EAAE,gBAAgB,CAAC;CAC3B"}

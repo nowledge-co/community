@@ -1,1 +1,0 @@
-{"version":3,"file":"validate-signature.d.ts","sourceRoot":"","sources":["../lib/validate-signature.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,MAAM,EAAE,MAAM,aAAa,CAAC;AAcrC,MAAM,CAAC,OAAO,UAAU,iBAAiB,CACvC,IAAI,EAAE,MAAM,GAAG,MAAM,EACrB,aAAa,EAAE,MAAM,EACrB,SAAS,EAAE,MAAM,GAChB,OAAO,CAKT"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"errorResponse.d.ts","sourceRoot":"","sources":["../../../lib/channel-access-token/model/errorResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH;;GAEG;AACH,MAAM,MAAM,aAAa,GAAG;IAC1B;;OAEG;IACH,KAAK,CAAC,EAAE,MAAM,CAAM;IACpB;;OAEG;IACH,iBAAiB,CAAC,EAAE,MAAM,CAAM;CACjC,CAAC"}

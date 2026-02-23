@@ -1,1 +1,0 @@
-{"version":3,"file":"richMenuBatchUnlinkAllOperation.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/richMenuBatchUnlinkAllOperation.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH;;GAEG;AACH,OAAO,EAAE,0BAA0B,EAAE,MAAM,aAAa,CAAC;AAEzD,MAAM,MAAM,+BAA+B,GAAG,0BAA0B,GAAG;IACzE,IAAI,EAAE,WAAW,CAAC;CACnB,CAAC"}

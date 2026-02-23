@@ -1,1 +1,0 @@
-{"version":3,"file":"redeliveryRecipient.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/redeliveryRecipient.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,aAAa,EAAE,MAAM,aAAa,CAAC;AAE5C,MAAM,MAAM,mBAAmB,GAAG,aAAa,GAAG;IAChD,IAAI,EAAE,YAAY,CAAC;IACnB;OACG;IACH,SAAS,CAAC,EAAE,MAAM,CAAM;CACzB,CAAC"}

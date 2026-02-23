@@ -1,1 +1,0 @@
-{"version":3,"file":"couponOthersRewardResponse.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/couponOthersRewardResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,wBAAwB,EAAE,MAAM,aAAa,CAAC;AAEvD,MAAM,MAAM,0BAA0B,GAAG,wBAAwB,GAAG;IAClE,IAAI,EAAE,QAAQ,CAAC;CAChB,CAAC"}

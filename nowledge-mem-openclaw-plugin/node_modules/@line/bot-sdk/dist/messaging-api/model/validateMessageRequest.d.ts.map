@@ -1,1 +1,0 @@
-{"version":3,"file":"validateMessageRequest.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/validateMessageRequest.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,OAAO,EAAE,MAAM,cAAc,CAAC;AAEvC,MAAM,MAAM,sBAAsB,GAAG;IACnC;;OAEG;IACH,QAAQ,EAAE,KAAK,CAAC,OAAO,CAAC,CAAM;CAC/B,CAAC"}

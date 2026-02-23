@@ -1,1 +1,0 @@
-{"version":3,"file":"audienceRecipient.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/audienceRecipient.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,aAAa,EAAE,MAAM,aAAa,CAAC;AAE5C,MAAM,MAAM,iBAAiB,GAAG,aAAa,GAAG;IAC9C,IAAI,EAAE,UAAU,CAAC;IACjB;OACG;IACH,eAAe,CAAC,EAAE,MAAM,CAAM;CAC/B,CAAC"}

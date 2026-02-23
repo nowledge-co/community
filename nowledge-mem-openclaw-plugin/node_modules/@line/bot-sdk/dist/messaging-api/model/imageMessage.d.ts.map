@@ -1,1 +1,0 @@
-{"version":3,"file":"imageMessage.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/imageMessage.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAMH,OAAO,EAAE,WAAW,EAAE,MAAM,aAAa,CAAC;AAE1C,MAAM,MAAM,YAAY,GAAG,WAAW,GAAG;IACvC,IAAI,EAAE,OAAO,CAAC;IACd;;;OAGG;IACH,kBAAkB,EAAE,MAAM,CAAM;IAChC;;;OAGG;IACH,eAAe,EAAE,MAAM,CAAM;CAC9B,CAAC"}
