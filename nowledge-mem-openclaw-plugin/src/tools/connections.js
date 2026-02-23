@@ -293,8 +293,12 @@ export function createConnectionsTool(client, logger) {
 						const otherTitle = isOlderNode
 							? edge.newer_title || "(untitled)"
 							: edge.older_title || "(untitled)";
+						const otherId = isOlderNode
+							? edge.newer_id
+							: edge.older_id;
 						const direction = isOlderNode ? "→" : "←";
-						return `  ${direction} ${otherTitle}${relLabel ? ` — ${relLabel}` : ""}`;
+						const idLine = otherId ? `\n    → id: ${otherId}` : "";
+						return `  ${direction} ${otherTitle}${relLabel ? ` — ${relLabel}` : ""}${idLine}`;
 					});
 					sections.push(`Knowledge evolution:\n${lines.join("\n")}`);
 				}

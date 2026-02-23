@@ -230,12 +230,16 @@ function buildConversationText(normalized) {
 /**
  * Capture thread + LLM-based distillation after a successful agent run.
  *
- * Two independent operations:
+ * Two independent operations (agent_end only):
  * 1. Thread append: always attempted (unconditional, idempotent).
  * 2. Triage + distill: only if enough messages AND cheap LLM triage
  *    determines the conversation has save-worthy content. This replaces
  *    the old English-only regex heuristic with language-agnostic LLM
  *    classification.
+ *
+ * Note: LLM distillation (step 2) runs exclusively in this agent_end handler.
+ * The before_reset / after_compaction handlers only capture threads — no
+ * triage or distillation, since those are mid-session checkpoints.
  */
 export function buildAgentEndCaptureHandler(client, _cfg, logger) {
 	return async (event, ctx) => {
