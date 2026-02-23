@@ -13,14 +13,13 @@ export function createMemorySearchTool(client, logger) {
 	return {
 		name: "memory_search",
 		description:
-			"Search the user's knowledge graph using a multi-signal scoring pipeline: " +
-			"semantic (embedding), BM25 keyword, label match, graph & community signals, and recency/importance decay — " +
-			"not just simple vector similarity. " +
-			"Finds prior work, decisions, preferences, and facts. " +
-			"Returns snippets with memoryIds. " +
-			"Pass a memoryId to nowledge_mem_connections for cross-topic synthesis or source provenance. " +
-			"Supports bi-temporal filtering: event_date_from/to (when the fact HAPPENED) and " +
-			"recorded_date_from/to (when it was SAVED). Format: YYYY, YYYY-MM, or YYYY-MM-DD. " +
+			"Search the user's knowledge graph for prior decisions, preferences, facts, and past work. " +
+			"WHEN TO USE: Call this proactively when the user mentions past work, references previous decisions, " +
+			"asks about something they might have discussed before, or when prior context would improve your response. " +
+			"Don't wait to be asked — if the conversation topic might have relevant history, search for it. " +
+			"Uses multi-signal scoring: semantic, BM25 keyword, label, graph & community signals, recency/importance decay. " +
+			"Returns snippets with memoryIds — pass a memoryId to nowledge_mem_connections for cross-topic synthesis or source provenance. " +
+			"Supports bi-temporal filtering: event_date_from/to (when the fact HAPPENED), recorded_date_from/to (when it was SAVED). " +
 			"For browsing recent activity by day use nowledge_mem_timeline instead.",
 		parameters: {
 			type: "object",

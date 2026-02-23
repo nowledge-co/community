@@ -30,7 +30,7 @@ export function parseConfig(raw) {
 		"";
 
 	return {
-		autoRecall: typeof obj.autoRecall === "boolean" ? obj.autoRecall : true,
+		autoRecall: typeof obj.autoRecall === "boolean" ? obj.autoRecall : false,
 		autoCapture: typeof obj.autoCapture === "boolean" ? obj.autoCapture : false,
 		maxRecallResults:
 			typeof obj.maxRecallResults === "number" &&

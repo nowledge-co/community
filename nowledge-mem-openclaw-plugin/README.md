@@ -25,17 +25,14 @@ Start Nowledge Mem desktop app or run `nmem serve`, then configure:
     "slots": { "memory": "openclaw-nowledge-mem" },
     "entries": {
       "openclaw-nowledge-mem": {
-        "enabled": true,
-        "config": {
-          "autoRecall": true,
-          "autoCapture": false,
-          "maxRecallResults": 5
-        }
+        "enabled": true
       }
     }
   }
 }
 ```
+
+That's it. The agent gets 7 tools and calls them on demand. No extra tokens wasted.
 
 ### Remote mode
 
@@ -49,8 +46,6 @@ Connect to a Nowledge Mem server running elsewhere — on a VPS, a home server, 
       "openclaw-nowledge-mem": {
         "enabled": true,
         "config": {
-          "autoRecall": true,
-          "autoCapture": false,
           "apiUrl": "https://nowledge.example.com",
           "apiKey": "your-api-key-here"
         }
@@ -123,35 +118,27 @@ last_n_days: 7
 
 **nowledge_mem_forget** — Delete a memory by ID or search query. Supports user confirmation when multiple matches are found.
 
-## Hooks
+## Operating Modes
 
-These run automatically at OpenClaw lifecycle events — no agent decision-making involved. The LLM never calls a hidden "save" tool; the plugin's code fires at the right moments.
+The plugin supports three modes. The default (tool-only) gives the agent full access to all tools with zero token overhead.
 
-### Auto-Recall (`autoRecall`, default: true)
+| Mode | Config | Behavior |
+|------|--------|----------|
+| **Tool-only** (default) | `autoRecall: false, autoCapture: false` | Agent calls tools on demand. Zero overhead. |
+| **Auto-recall** | `autoRecall: true` | Working Memory + relevant memories injected before every turn. |
+| **Auto-capture** | `autoCapture: true` | Thread capture + LLM distillation at session end. |
 
-Before each agent turn, the plugin:
+### Auto-Recall (`autoRecall`, default: false)
 
-1. Reads **Working Memory** (today's AI-generated briefing — focus areas, flags, recent activity)
-2. Searches your knowledge graph for **relevant memories** matching the current prompt
-3. Prepends both as context to the system prompt, along with **tool guidance** for Nowledge Mem tools
-
-The agent receives richer context automatically. No tool call is made; no agent action is required.
+When enabled, the plugin injects Working Memory and relevant search results before each turn. Useful for short sessions where the agent might not proactively search.
 
 ### Auto-Capture (`autoCapture`, default: false)
 
-At three lifecycle points — `agent_end`, `after_compaction`, `before_reset` — the plugin does two independent things:
+When enabled, two things happen at `agent_end`, `after_compaction`, and `before_reset`:
 
-**1. Thread transcript (always)**
-The full conversation is appended to a persistent thread in Nowledge Mem, keyed by a stable session ID. This happens unconditionally on every successful session end, regardless of what was said. The thread is searchable via `nowledge_mem_timeline` and `nmem t` commands.
+**1. Thread capture (always).** The full conversation is appended to a persistent thread. Unconditional, idempotent by message ID.
 
-**2. Memory note (conditional)**
-If the last user message matches a memory-trigger pattern (decision, preference, fact, entity — e.g. "I prefer TypeScript", "we chose Postgres"), a separate structured memory is also created. Questions, slash commands, and injected-context blocks are skipped. The memory note is independent of the thread — both can happen, either, or neither.
-
-**Compaction captures**: when OpenClaw compresses a long conversation to fit the model's context window, the plugin fires `after_compaction` and appends the pre-compaction transcript to the thread. Messages that get compressed away are not lost.
-
-**Deduplication**: thread appends are idempotent by `external_id`. If the same hook fires twice (e.g. both `agent_end` and `before_reset`), messages are deduplicated — no duplicates in Nowledge Mem.
-
-**Quality gates** (memory note only): skips messages shorter than 24 characters, fewer than 5 words, questions, slash commands, prompt-injection patterns, and LLM-generated context blocks.
+**2. LLM distillation (when worthwhile).** A lightweight LLM triage determines if the conversation has save-worthy content. If yes, a full distillation pass creates structured memories with types, labels, and temporal data. Language-agnostic — works in any language.
 
 ## Slash Commands
 
@@ -172,9 +159,9 @@ openclaw nowledge-mem status
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `autoRecall` | boolean | `true` | Inject Working Memory + relevant memories at session start |
-| `autoCapture` | boolean | `false` | Capture knowledge notes and thread transcripts across lifecycle hooks |
-| `maxRecallResults` | integer | `5` | Max memories to recall (1-20) |
+| `autoRecall` | boolean | `false` | Inject Working Memory + relevant memories before every turn |
+| `autoCapture` | boolean | `false` | Thread capture + LLM distillation at session end |
+| `maxRecallResults` | integer | `5` | Max memories to recall per turn (only used when autoRecall is enabled) |
 
 ## What Makes This Different
 

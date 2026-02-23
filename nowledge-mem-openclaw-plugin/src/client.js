@@ -662,6 +662,43 @@ export class NowledgeMemClient {
 		}
 	}
 
+	// ── Distillation ─────────────────────────────────────────────────────────
+
+	/**
+	 * Lightweight triage: determine if a conversation has save-worthy content.
+	 * Uses a cheap LLM call (~50 output tokens) on the backend.
+	 *
+	 * @param {string} content  Conversation text to triage
+	 * @returns {{ should_distill: boolean, reason: string }}
+	 */
+	async triageConversation(content) {
+		return this.apiJson("POST", "/memories/distill/triage", {
+			thread_content: String(content || ""),
+		});
+	}
+
+	/**
+	 * Distill memories from a conversation thread.
+	 * Calls the full distillation endpoint which uses LLM to extract
+	 * structured memories (with unit_type, temporal data, labels).
+	 *
+	 * @param {{ threadId: string, title?: string, content: string }} params
+	 */
+	async distillThread({ threadId, title, content }) {
+		return this.apiJson(
+			"POST",
+			"/memories/distill",
+			{
+				thread_id: String(threadId || ""),
+				thread_title: title || "",
+				thread_content: String(content || ""),
+				distillation_type: "simple_llm",
+				extraction_level: "swift",
+			},
+			60_000, // 60s timeout for LLM distillation
+		);
+	}
+
 	async checkHealth() {
 		try {
 			this.exec(["status"]);
