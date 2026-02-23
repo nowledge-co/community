@@ -1,0 +1,1 @@
+{"version":3,"file":"appTypeTile.d.ts","sourceRoot":"","sources":["../../../lib/insight/model/appTypeTile.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,MAAM,MAAM,WAAW,GAAG;IACxB;;OAEG;IACH,OAAO,CAAC,EAAE,WAAW,CAAC,WAAW,CAAM;IACvC;;OAEG;IACH,UAAU,CAAC,EAAE,MAAM,CAAM;CAC1B,CAAC;AAEF,yBAAiB,WAAW,CAAC;IAC3B,KAAY,WAAW,GAAG,KAAK,GAAG,SAAS,GAAG,QAAQ,CAAC;CACxD"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"richMenuSwitchAction.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/richMenuSwitchAction.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,UAAU,EAAE,MAAM,aAAa,CAAC;AAEzC,MAAM,MAAM,oBAAoB,GAAG,UAAU,GAAG;IAC9C,IAAI,EAAE,gBAAgB,CAAC;IACvB;OACG;IACH,IAAI,CAAC,EAAE,MAAM,CAAM;IACnB;OACG;IACH,eAAe,CAAC,EAAE,MAAM,CAAM;CAC/B,CAAC"}

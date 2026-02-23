@@ -1,0 +1,1 @@
+{"version":3,"file":"callbackRequest.d.ts","sourceRoot":"","sources":["../../../../lib/webhook/model/callbackRequest.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,KAAK,EAAE,MAAM,YAAY,CAAC;AAEnC;;GAEG;AACH,MAAM,MAAM,eAAe,GAAG;IAC5B;;;;OAIG;IACH,WAAW,EAAE,MAAM,CAAM;IACzB;;;;OAIG;IACH,MAAM,EAAE,KAAK,CAAC,KAAK,CAAC,CAAM;CAC3B,CAAC"}

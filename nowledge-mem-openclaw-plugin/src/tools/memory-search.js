@@ -131,8 +131,7 @@ export function createMemorySearchTool(client, logger) {
 						memoryId: entry.id,
 					};
 					// Scoring transparency: show which signals fired
-					if (entry.relevanceReason)
-						result.matchedVia = entry.relevanceReason;
+					if (entry.relevanceReason) result.matchedVia = entry.relevanceReason;
 					// Importance context
 					if (entry.importance !== undefined && entry.importance !== null)
 						result.importance = Number(entry.importance);

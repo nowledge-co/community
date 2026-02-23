@@ -1,0 +1,1 @@
+{"version":3,"file":"GuildMediaChannel.d.ts","sourceRoot":"","sources":["../../../src/structures/GuildMediaChannel.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,oBAAoB,EAAE,WAAW,EAAE,MAAM,uBAAuB,CAAA;AAC9E,OAAO,EAAE,sBAAsB,EAAE,MAAM,wCAAwC,CAAA;AAE/E;;GAEG;AACH,qBAAa,iBAAkB,SAAQ,sBAAsB,CAAC,WAAW,CAAC,UAAU,CAAC;IAC5E,OAAO,EAAE,oBAAoB,GAAG,IAAI,CAAA;CAC5C"}

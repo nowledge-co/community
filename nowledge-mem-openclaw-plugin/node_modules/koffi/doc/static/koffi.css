@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: MIT */
+/* SPDX-FileCopyrightText: 2025 Niels Martignène <niels.martignene@protonmail.com> */
+
+@import url('../../../lib/web/flat/flat.css');
+@import url('../../../vendor/highlight.js/styles/base16/tomorrow.css');
+
+html {
+    --top_color: #ec7400;
+    --button_color: #ec7400;
+    --anchor_color: #ec7400;
+}

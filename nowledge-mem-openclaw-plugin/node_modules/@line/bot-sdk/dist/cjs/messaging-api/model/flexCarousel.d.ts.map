@@ -1,0 +1,1 @@
+{"version":3,"file":"flexCarousel.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/flexCarousel.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,UAAU,EAAE,MAAM,iBAAiB,CAAC;AAG7C,OAAO,EAAE,iBAAiB,EAAE,MAAM,aAAa,CAAC;AAEhD,MAAM,MAAM,YAAY,GAAG,iBAAiB,GAAG;IAC7C,IAAI,EAAE,UAAU,CAAC;IACjB;OACG;IACH,QAAQ,EAAE,KAAK,CAAC,UAAU,CAAC,CAAM;CAClC,CAAC"}

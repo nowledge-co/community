@@ -1,0 +1,1 @@
+{"version":3,"file":"quickReplyItem.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/quickReplyItem.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,MAAM,EAAE,MAAM,aAAa,CAAC;AAErC,MAAM,MAAM,cAAc,GAAG;IAC3B;;;;OAIG;IACH,QAAQ,CAAC,EAAE,MAAM,CAAM;IACvB;;;OAGG;IACH,MAAM,CAAC,EAAE,MAAM,CAAM;IACrB;;;;OAIG;IACH,IAAI,CAAC,EAAE,MAAM,CAAiB;CAC/B,CAAC"}

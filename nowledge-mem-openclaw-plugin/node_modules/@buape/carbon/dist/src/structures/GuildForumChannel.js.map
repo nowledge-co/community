@@ -1,0 +1,1 @@
+{"version":3,"file":"GuildForumChannel.js","sourceRoot":"","sources":["../../../src/structures/GuildForumChannel.ts"],"names":[],"mappings":"AAKA,OAAO,EAAE,sBAAsB,EAAE,MAAM,wCAAwC,CAAA;AAG/E;;GAEG;AACH,MAAM,OAAO,iBAEX,SAAQ,sBAAyD;IAGlE;;OAEG;IACH,IAAI,kBAAkB;QACrB,IAAI,CAAC,IAAI,CAAC,OAAO;YAAE,OAAO,SAAkB,CAAA;QAC5C,OAAO,IAAI,CAAC,OAAO,CAAC,oBAA6B,CAAA;IAClD,CAAC;CACD"}

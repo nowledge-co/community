@@ -1,0 +1,36 @@
+/**
+ * Reusable shapes for argument values
+ * @deprecated Dialogs are a deprecated surface in Slack. For more details on how to upgrade, check out our {@link https://docs.slack.dev/block-kit/upgrading-outmoded-dialogs-to-modals Upgrading outmoded dialogs to modals guide}. This will be removed in the next major version.
+ */
+export interface Dialog {
+    title: string;
+    callback_id: string;
+    elements: {
+        type: 'text' | 'textarea' | 'select';
+        name: string;
+        label: string;
+        optional?: boolean;
+        placeholder?: string;
+        value?: string;
+        max_length?: number;
+        min_length?: number;
+        hint?: string;
+        subtype?: 'email' | 'number' | 'tel' | 'url';
+        data_source?: 'users' | 'channels' | 'conversations' | 'external';
+        selected_options?: SelectOption[];
+        options?: SelectOption[];
+        option_groups?: {
+            label: string;
+            options: SelectOption[];
+        }[];
+        min_query_length?: number;
+    }[];
+    submit_label?: string;
+    notify_on_cancel?: boolean;
+    state?: string;
+}
+export interface SelectOption {
+    label: string;
+    value: string;
+}
+//# sourceMappingURL=dialog.d.ts.map

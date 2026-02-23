@@ -1,0 +1,60 @@
+{
+  "name": "sleep-promise",
+  "author": "Jan Brummelte <sleep-promise@jan-brummelte.de> (https://jan-brummelte.de)",
+  "version": "9.1.0",
+  "description": "Resolves a promise after a specified delay",
+  "main": "build/cjs.js",
+  "module": "build/esm.mjs",
+  "types": "build/cjs.d.ts",
+  "scripts": {
+    "test": "npm run test:code && npm run test:eslint && npm run test:typescript",
+    "test:code": "jest",
+    "test:eslint": "eslint .",
+    "test:typescript": "tsc",
+    "build": "npm run build:clean && npm run build:bundle && npm run build:types",
+    "build:clean": "rimraf build",
+    "build:bundle": "rollup --config",
+    "build:types": "copyfiles -u 1 types/* build",
+    "prepublishOnly": "yarn build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brummelte/sleep-promise"
+  },
+  "keywords": [
+    "sleep",
+    "promise",
+    "delay"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/brummelte/sleep-promise/issues"
+  },
+  "homepage": "https://github.com/brummelte/sleep-promise",
+  "devDependencies": {
+    "@babel/cli": "^7.12.10",
+    "@babel/core": "^7.12.10",
+    "@babel/plugin-transform-runtime": "^7.12.10",
+    "@babel/preset-env": "^7.12.11",
+    "@brummelte/eslint-config": "^8.3.12",
+    "@semantic-release/changelog": "^5.0.1",
+    "@semantic-release/commit-analyzer": "^8.0.1",
+    "@semantic-release/git": "^9.0.0",
+    "@semantic-release/github": "^7.2.0",
+    "@semantic-release/npm": "^7.0.9",
+    "@semantic-release/release-notes-generator": "^9.0.1",
+    "babel-jest": "^26.6.3",
+    "copyfiles": "^2.4.1",
+    "coveralls": "^3.1.0",
+    "eslint": "^7.17.0",
+    "jest": "^26.6.3",
+    "jest-junit": "^12.0.0",
+    "rimraf": "^3.0.2",
+    "rollup": "^2.36.0",
+    "rollup-plugin-babel": "^4.4.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-terser": "^7.0.2",
+    "semantic-release": "^17.3.1",
+    "typescript": "^4.1.3"
+  }
+}

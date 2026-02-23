@@ -1,0 +1,1 @@
+{"version":3,"file":"getBuildDefaults.js","sourceRoot":"","sources":["../../src/utils/getBuildDefaults.ts"],"names":[],"mappings":"AAAA,OAAO,EAAC,yBAAyB,EAAE,yBAAyB,EAAE,sBAAsB,EAAC,MAAM,cAAc,CAAC;AAE1G,MAAM,CAAC,KAAK,UAAU,gBAAgB;IAClC,OAAO;QACH,IAAI,EAAE,yBAAyB;QAC/B,OAAO,EAAE,sBAAsB;QAC/B,UAAU,EAAE,yBAAyB;KACxC,CAAC;AACN,CAAC"}

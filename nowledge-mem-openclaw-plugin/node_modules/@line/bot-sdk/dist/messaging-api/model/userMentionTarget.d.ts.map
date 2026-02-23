@@ -1,0 +1,1 @@
+{"version":3,"file":"userMentionTarget.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/userMentionTarget.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,iBAAiB,EAAE,MAAM,aAAa,CAAC;AAEhD,MAAM,MAAM,iBAAiB,GAAG,iBAAiB,GAAG;IAClD,IAAI,EAAE,MAAM,CAAC;IACb;;;OAGG;IACH,MAAM,EAAE,MAAM,CAAM;CACrB,CAAC"}

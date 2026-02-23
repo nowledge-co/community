@@ -1,0 +1,1 @@
+{"version":3,"file":"genderTile.d.ts","sourceRoot":"","sources":["../../../../lib/insight/model/genderTile.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,MAAM,MAAM,UAAU,GAAG;IACvB;;OAEG;IACH,MAAM,CAAC,EAAE,UAAU,CAAC,UAAU,CAAM;IACpC;;OAEG;IACH,UAAU,CAAC,EAAE,MAAM,CAAM;CAC1B,CAAC;AAEF,yBAAiB,UAAU,CAAC;IAC1B,KAAY,UAAU,GAAG,MAAM,GAAG,QAAQ,GAAG,SAAS,CAAC;CACxD"}

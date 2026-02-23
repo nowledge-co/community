@@ -1,0 +1,1 @@
+{"version":3,"file":"getGgufMetadataArchitectureData.js","sourceRoot":"","sources":["../../../src/gguf/utils/getGgufMetadataArchitectureData.ts"],"names":[],"mappings":"AAGA,MAAM,UAAU,+BAA+B,CAAuC,YAA6B;IAK/G,OAAO,YAAY,CAAC,YAAY,CAAC,OAAO,EAAE,YAAY,CAAC,IAAI,EAAS,CAAC;AACzE,CAAC"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"writer-error.js","sourceRoot":"","sources":["../../../../../../src/download/download-engine/streams/download-engine-write-stream/errors/writer-error.ts"],"names":[],"mappings":"AAAA,OAAO,UAAU,MAAM,sCAAsC,CAAC;AAE9D,MAAM,CAAC,OAAO,OAAO,WAAY,SAAQ,UAAU;IAC/C,YAAY,OAAO,GAAG,cAAc;QAChC,KAAK,CAAC,OAAO,CAAC,CAAC;IACnB,CAAC;CACJ"}

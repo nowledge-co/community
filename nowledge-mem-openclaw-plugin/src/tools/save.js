@@ -61,7 +61,7 @@ export function createSaveTool(client, logger) {
 					type: "array",
 					items: { type: "string" },
 					description:
-						"Topic or project labels for this memory (e.g. [\"python\", \"infra\"]). Used in search filtering.",
+						'Topic or project labels for this memory (e.g. ["python", "infra"]). Used in search filtering.',
 				},
 				event_start: {
 					type: "string",
@@ -86,7 +86,9 @@ export function createSaveTool(client, logger) {
 		async execute(_toolCallId, params) {
 			const safeParams = params && typeof params === "object" ? params : {};
 			const text = String(safeParams.text ?? "").trim();
-			const title = safeParams.title ? String(safeParams.title).trim() : undefined;
+			const title = safeParams.title
+				? String(safeParams.title).trim()
+				: undefined;
 			const unitType =
 				typeof safeParams.unit_type === "string" &&
 				VALID_UNIT_TYPES.has(safeParams.unit_type)

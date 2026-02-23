@@ -1,0 +1,1 @@
+{"version":3,"file":"messageImagemapAction.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/messageImagemapAction.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAKH,OAAO,EAAE,kBAAkB,EAAE,MAAM,aAAa,CAAC;AAEjD,MAAM,MAAM,qBAAqB,GAAG,kBAAkB,GAAG;IACvD,IAAI,EAAE,SAAS,CAAC;IAChB;OACG;IACH,IAAI,EAAE,MAAM,CAAM;IAClB;OACG;IACH,KAAK,CAAC,EAAE,MAAM,CAAM;CACrB,CAAC"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"richMenuArea.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/richMenuArea.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,MAAM,EAAE,MAAM,aAAa,CAAC;AACrC,OAAO,EAAE,cAAc,EAAE,MAAM,qBAAqB,CAAC;AAErD;;GAEG;AACH,MAAM,MAAM,YAAY,GAAG;IACzB;OACG;IACH,MAAM,CAAC,EAAE,cAAc,CAAM;IAC7B;OACG;IACH,MAAM,CAAC,EAAE,MAAM,CAAM;CACtB,CAAC"}

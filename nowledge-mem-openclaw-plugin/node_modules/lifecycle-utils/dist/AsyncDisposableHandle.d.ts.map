@@ -1,0 +1,1 @@
+{"version":3,"file":"AsyncDisposableHandle.d.ts","sourceRoot":"","sources":["../src/AsyncDisposableHandle.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AACH,qBAAa,qBAAqB;gBAIX,SAAS,EAAE,MAAM,OAAO,CAAC,IAAI,CAAC;IAOjD,IAAW,QAAQ,YAElB;IAEY,CAAC,MAAM,CAAC,YAAY,CAAC;IAIrB,OAAO;CAWvB"}

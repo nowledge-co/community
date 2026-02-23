@@ -1,0 +1,1 @@
+{"version":3,"file":"clipboardAction.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/clipboardAction.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,UAAU,EAAE,MAAM,aAAa,CAAC;AAEzC,MAAM,MAAM,eAAe,GAAG,UAAU,GAAG;IACzC,IAAI,EAAE,WAAW,CAAC;IAClB;;;;OAIG;IACH,aAAa,EAAE,MAAM,CAAM;CAC5B,CAAC"}

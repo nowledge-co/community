@@ -1,0 +1,45 @@
+{
+  "name": "@grammyjs/transformer-throttler",
+  "version": "1.2.1",
+  "description": "Throttling transformer for Grammy",
+  "author": "KnightNiwrem",
+  "license": "MIT",
+  "main": "dist/mod.js",
+  "types": "dist/mod.d.ts",
+  "engines": {
+    "node": "^12.20.0 || >=14.13.1"
+  },
+  "homepage": "https://github.com/grammyjs/transformer-throttler",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grammyjs/transformer-throttler.git"
+  },
+  "bugs": {
+    "url": "https://github.com/grammyjs/transformer-throttler/issues"
+  },
+  "scripts": {
+    "build": "deno2node tsconfig.json"
+  },
+  "dependencies": {
+    "bottleneck": "^2.0.0"
+  },
+  "devDependencies": {
+    "@tsconfig/node12": "^1.0.7",
+    "@types/debug": "^4.1.5",
+    "@types/node-fetch": "^2.5.10",
+    "deno2node": "^1.0.0",
+    "grammy": "^1.0.0"
+  },
+  "peerDependencies": {
+    "grammy": "^1.0.0"
+  },
+  "files": [
+    "dist/"
+  ],
+  "keywords": [
+    "bot",
+    "grammy",
+    "throttler",
+    "transformer"
+  ]
+}

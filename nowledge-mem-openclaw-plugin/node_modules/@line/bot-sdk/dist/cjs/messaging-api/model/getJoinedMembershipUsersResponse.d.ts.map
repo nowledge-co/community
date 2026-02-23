@@ -1,0 +1,1 @@
+{"version":3,"file":"getJoinedMembershipUsersResponse.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/getJoinedMembershipUsersResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH;;GAEG;AACH,MAAM,MAAM,gCAAgC,GAAG;IAC7C;;;;OAIG;IACH,OAAO,EAAE,KAAK,CAAC,MAAM,CAAC,CAAM;IAC5B;;;;OAIG;IACH,IAAI,CAAC,EAAE,MAAM,CAAM;CACpB,CAAC"}

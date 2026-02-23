@@ -1,0 +1,1 @@
+{"version":3,"file":"cashBackFixedPriceInfoRequest.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/cashBackFixedPriceInfoRequest.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,4BAA4B,EAAE,MAAM,aAAa,CAAC;AAE3D,MAAM,MAAM,6BAA6B,GAAG,4BAA4B,GAAG;IACzE,IAAI,EAAE,OAAO,CAAC;IACd;OACG;IACH,WAAW,CAAC,EAAE,MAAM,CAAM;CAC3B,CAAC"}

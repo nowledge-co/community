@@ -1,0 +1,1 @@
+{"buildOptions":{"customCmakeOptions":{},"progressLogs":true,"platform":"mac","platformInfo":{"name":"macOS","version":"25.0.0"},"arch":"arm64","gpu":"metal","llamaCpp":{"repo":"ggml-org/llama.cpp","release":"b7836"}}}

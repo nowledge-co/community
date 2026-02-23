@@ -1,0 +1,1 @@
+{"version":3,"file":"cashBackPercentagePriceInfoResponse.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/cashBackPercentagePriceInfoResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,6BAA6B,EAAE,MAAM,aAAa,CAAC;AAE5D,MAAM,MAAM,mCAAmC,GAC7C,6BAA6B,GAAG;IAC9B,IAAI,EAAE,YAAY,CAAC;IACnB;OACG;IACH,UAAU,CAAC,EAAE,MAAM,CAAM;CAC1B,CAAC"}

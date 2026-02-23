@@ -1,0 +1,1 @@
+{"version":3,"file":"richMenuBatchRequest.d.ts","sourceRoot":"","sources":["../../../../lib/messaging-api/model/richMenuBatchRequest.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,sBAAsB,EAAE,MAAM,6BAA6B,CAAC;AAErE,MAAM,MAAM,oBAAoB,GAAG;IACjC;;OAEG;IACH,UAAU,EAAE,KAAK,CAAC,sBAAsB,CAAC,CAAM;IAC/C;;OAEG;IACH,gBAAgB,CAAC,EAAE,MAAM,CAAM;CAChC,CAAC"}

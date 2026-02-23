@@ -1,0 +1,61 @@
+{
+  "name": "osc-progress",
+  "version": "0.3.0",
+  "description": "Tiny TypeScript helper for OSC 9;4 terminal progress sequences.",
+  "license": "MIT",
+  "author": "Peter Steinberger",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steipete/osc-progress.git"
+  },
+  "homepage": "https://github.com/steipete/osc-progress#readme",
+  "bugs": {
+    "url": "https://github.com/steipete/osc-progress/issues"
+  },
+  "keywords": [
+    "osc",
+    "terminal",
+    "progress",
+    "cli",
+    "ghostty",
+    "wezterm",
+    "windows-terminal"
+  ],
+  "type": "module",
+  "main": "./dist/esm/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.10",
+    "@types/node": "^25.0.3",
+    "@vitest/coverage-v8": "^4.0.16",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "pnpm build && vitest run",
+    "test:coverage": "pnpm build && vitest run --coverage",
+    "check": "pnpm lint && pnpm test:coverage"
+  }
+}

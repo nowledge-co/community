@@ -1,0 +1,1 @@
+{"version":3,"file":"botResumedEvent.d.ts","sourceRoot":"","sources":["../../../../lib/webhook/model/botResumedEvent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAOH;;GAEG;AACH,OAAO,EAAE,SAAS,EAAE,MAAM,aAAa,CAAC;AAExC,MAAM,MAAM,eAAe,GAAG,SAAS,GAAG;IACxC,IAAI,EAAE,YAAY,CAAC;CACpB,CAAC;AAEF,yBAAiB,eAAe,CAAC,GAAE"}

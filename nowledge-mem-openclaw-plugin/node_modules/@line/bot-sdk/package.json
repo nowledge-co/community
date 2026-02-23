@@ -1,0 +1,93 @@
+{
+  "name": "@line/bot-sdk",
+  "version": "10.6.0",
+  "description": "Node.js SDK for LINE Messaging API",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/cjs/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      },
+      "default": "./dist/cjs/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "lib",
+    "!lib/**/tests",
+    "!dist/*/tests",
+    "!dist/cjs/*/tests"
+  ],
+  "scripts": {
+    "pretest": "npm run format && npm run build",
+    "test": "vitest run",
+    "covtest": "vitest run --coverage",
+    "prettier": "prettier \"{lib,test}/**/*.ts\"",
+    "format": "npm run prettier -- --write",
+    "format:check": "npm run prettier -- -l",
+    "clean": "rm -rf dist/*",
+    "copy-rollup": "node ./scripts/workaround-for-rollup.mjs",
+    "prebuild": "npm run format:check && npm run clean && npm run copy-rollup",
+    "build": "tsc -p . && tsc -p ./tsconfig.cjs.json && echo \"{\\\"type\\\": \\\"commonjs\\\"}\" > dist/cjs/package.json",
+    "docs": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "apidocs": "typedoc --excludePrivate --plugin typedoc-plugin-markdown --out docs/apidocs lib/index.ts",
+    "release": "npm run build && npm publish --provenance --access public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:line/line-bot-sdk-nodejs.git"
+  },
+  "keywords": [
+    "node",
+    "line",
+    "sdk"
+  ],
+  "homepage": "https://github.com/line/line-bot-sdk-nodejs",
+  "bugs": "https://github.com/line/line-bot-sdk-nodejs/issues",
+  "dependencies": {
+    "@types/node": "^24.0.0"
+  },
+  "optionalDependencies": {
+    "axios": "^1.7.4"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/finalhandler": "1.2.4",
+    "@vitest/coverage-v8": "^3.0.0",
+    "express": "5.2.1",
+    "finalhandler": "2.1.1",
+    "husky": "9.1.7",
+    "msw": "2.12.7",
+    "prettier": "3.7.4",
+    "typedoc": "^0.28.14",
+    "typedoc-plugin-markdown": "^4.3.0",
+    "typescript": "^5.5.4",
+    "vitepress": "^1.0.1",
+    "vitest": "^3.0.0"
+  },
+  "overrides": {
+    "esbuild": "^0.27.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run format:check",
+      "pre-push": "npm run format:check && npm run build && npm run test"
+    }
+  },
+  "license": "Apache-2.0"
+}

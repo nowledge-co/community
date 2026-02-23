@@ -1,0 +1,22 @@
+import type { RequestClient } from "@buape/carbon";
+import type { ChunkMode } from "../../auto-reply/chunk.js";
+import type { ReplyPayload } from "../../auto-reply/types.js";
+import type { MarkdownTableMode, ReplyToMode } from "../../config/types.base.js";
+import type { RuntimeEnv } from "../../runtime.js";
+import type { ThreadBindingManager } from "./thread-bindings.js";
+export declare function deliverDiscordReply(params: {
+    replies: ReplyPayload[];
+    target: string;
+    token: string;
+    accountId?: string;
+    rest?: RequestClient;
+    runtime: RuntimeEnv;
+    textLimit: number;
+    maxLinesPerMessage?: number;
+    replyToId?: string;
+    replyToMode?: ReplyToMode;
+    tableMode?: MarkdownTableMode;
+    chunkMode?: ChunkMode;
+    sessionKey?: string;
+    threadBindings?: ThreadBindingManager;
+}): Promise<void>;

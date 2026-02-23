@@ -1,0 +1,1 @@
+{"version":3,"file":"deactivatedEvent.d.ts","sourceRoot":"","sources":["../../../lib/webhook/model/deactivatedEvent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAOH;;GAEG;AACH,OAAO,EAAE,SAAS,EAAE,MAAM,aAAa,CAAC;AAExC,MAAM,MAAM,gBAAgB,GAAG,SAAS,GAAG;IACzC,IAAI,EAAE,aAAa,CAAC;CACrB,CAAC;AAEF,yBAAiB,gBAAgB,CAAC,GAAE"}

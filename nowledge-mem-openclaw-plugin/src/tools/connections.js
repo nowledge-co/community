@@ -48,7 +48,11 @@ function getNodeTitle(node) {
 
 function getNodeSnippet(node) {
 	const content =
-		node.metadata?.content || node.content || node.summary || node.description || "";
+		node.metadata?.content ||
+		node.content ||
+		node.summary ||
+		node.description ||
+		"";
 	return content.slice(0, 150);
 }
 
@@ -75,8 +79,7 @@ function groupConnectionsByEdgeType(edges, nodeMap, centerId) {
 	const groups = new Map();
 
 	for (const edge of edges) {
-		const neighborId =
-			edge.source === centerId ? edge.target : edge.source;
+		const neighborId = edge.source === centerId ? edge.target : edge.source;
 		const node = nodeMap.get(neighborId);
 		if (!node) continue;
 
@@ -236,9 +239,12 @@ export function createConnectionsTool(client, logger) {
 				// --- Other memory connections (RELATED, etc.) ---
 				for (const [edgeType, conns] of grouped.entries()) {
 					if (
-						["CRYSTALLIZED_FROM", "EVOLVES", "SOURCED_FROM", "MENTIONS"].includes(
-							edgeType,
-						)
+						[
+							"CRYSTALLIZED_FROM",
+							"EVOLVES",
+							"SOURCED_FROM",
+							"MENTIONS",
+						].includes(edgeType)
 					)
 						continue;
 
@@ -280,12 +286,13 @@ export function createConnectionsTool(client, logger) {
 				if (edges.length > 0) {
 					const lines = edges.map((edge) => {
 						const relation = edge.content_relation || "";
-						const relLabel = EVOLVES_RELATION_LABELS[relation] || relation || "";
+						const relLabel =
+							EVOLVES_RELATION_LABELS[relation] || relation || "";
 						// Show the "other" node relative to our target
 						const isOlderNode = edge.older_id === targetId;
 						const otherTitle = isOlderNode
-							? (edge.newer_title || "(untitled)")
-							: (edge.older_title || "(untitled)");
+							? edge.newer_title || "(untitled)"
+							: edge.older_title || "(untitled)";
 						const direction = isOlderNode ? "→" : "←";
 						return `  ${direction} ${otherTitle}${relLabel ? ` — ${relLabel}` : ""}`;
 					});
@@ -295,7 +302,10 @@ export function createConnectionsTool(client, logger) {
 				// No EVOLVES chain for this memory — normal
 			}
 
-			if (sections.length === 0 || (sections.length === 1 && sections[0].includes("No direct connections"))) {
+			if (
+				sections.length === 0 ||
+				(sections.length === 1 && sections[0].includes("No direct connections"))
+			) {
 				return {
 					content: [
 						{

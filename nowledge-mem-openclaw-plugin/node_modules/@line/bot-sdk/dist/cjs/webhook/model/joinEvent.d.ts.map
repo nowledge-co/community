@@ -1,0 +1,1 @@
+{"version":3,"file":"joinEvent.d.ts","sourceRoot":"","sources":["../../../../lib/webhook/model/joinEvent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAOH;;GAEG;AACH,OAAO,EAAE,SAAS,EAAE,MAAM,aAAa,CAAC;AAExC,MAAM,MAAM,SAAS,GAAG,SAAS,GAAG;IAClC,IAAI,EAAE,MAAM,CAAC;IACb;;OAEG;IACH,UAAU,EAAE,MAAM,CAAM;CACzB,CAAC;AAEF,yBAAiB,SAAS,CAAC,GAAE"}

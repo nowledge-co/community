@@ -1,0 +1,1 @@
+{"version":3,"file":"groupSource.d.ts","sourceRoot":"","sources":["../../../../lib/webhook/model/groupSource.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH,OAAO,EAAE,UAAU,EAAE,MAAM,aAAa,CAAC;AAEzC,MAAM,MAAM,WAAW,GAAG,UAAU,GAAG;IACrC,IAAI,EAAE,OAAO,CAAC;IACd;;OAEG;IACH,OAAO,EAAE,MAAM,CAAM;IACrB;;OAEG;IACH,MAAM,CAAC,EAAE,MAAM,CAAM;CACtB,CAAC"}

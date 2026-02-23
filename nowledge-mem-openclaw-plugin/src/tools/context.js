@@ -50,19 +50,23 @@ export function createContextTool(client, logger) {
 
 			// — PATCH MODE —
 			if (patchSection) {
-				const patchContent = safeParams.patch_content !== undefined
-					? String(safeParams.patch_content)
-					: undefined;
-				const patchAppend = safeParams.patch_append !== undefined
-					? String(safeParams.patch_append)
-					: undefined;
+				const patchContent =
+					safeParams.patch_content !== undefined
+						? String(safeParams.patch_content)
+						: undefined;
+				const patchAppend =
+					safeParams.patch_append !== undefined
+						? String(safeParams.patch_append)
+						: undefined;
 
 				if (patchContent === undefined && patchAppend === undefined) {
 					return {
-						content: [{
-							type: "text",
-							text: "patch_section requires either patch_content (replace) or patch_append (append). Please provide one.",
-						}],
+						content: [
+							{
+								type: "text",
+								text: "patch_section requires either patch_content (replace) or patch_append (append). Please provide one.",
+							},
+						],
 					};
 				}
 
@@ -73,19 +77,23 @@ export function createContextTool(client, logger) {
 					});
 					const action = patchAppend !== undefined ? "Appended to" : "Replaced";
 					return {
-						content: [{
-							type: "text",
-							text: `Working Memory updated. ${action} section: "${patchSection}".`,
-						}],
+						content: [
+							{
+								type: "text",
+								text: `Working Memory updated. ${action} section: "${patchSection}".`,
+							},
+						],
 					};
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
 					logger.error(`context patch failed: ${msg}`);
 					return {
-						content: [{
-							type: "text",
-							text: `Failed to patch Working Memory: ${msg}`,
-						}],
+						content: [
+							{
+								type: "text",
+								text: `Failed to patch Working Memory: ${msg}`,
+							},
+						],
 					};
 				}
 			}

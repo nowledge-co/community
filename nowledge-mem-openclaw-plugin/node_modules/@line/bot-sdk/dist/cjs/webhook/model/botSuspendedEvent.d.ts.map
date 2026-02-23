@@ -1,0 +1,1 @@
+{"version":3,"file":"botSuspendedEvent.d.ts","sourceRoot":"","sources":["../../../../lib/webhook/model/botSuspendedEvent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAOH;;GAEG;AACH,OAAO,EAAE,SAAS,EAAE,MAAM,aAAa,CAAC;AAExC,MAAM,MAAM,iBAAiB,GAAG,SAAS,GAAG;IAC1C,IAAI,EAAE,cAAc,CAAC;CACtB,CAAC;AAEF,yBAAiB,iBAAiB,CAAC,GAAE"}

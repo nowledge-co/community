@@ -1,0 +1,48 @@
+{
+    "name": "@grammyjs/runner",
+    "description": "Scale grammY bots that use long polling",
+    "version": "2.0.3",
+    "author": "KnorpelSenf",
+    "license": "MIT",
+    "engines": {
+        "node": ">=12.20.0 || >=14.13.1"
+    },
+    "homepage": "https://grammy.dev/plugins/runner.html",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/grammyjs/runner"
+    },
+    "bugs": {
+        "url": "https://github.com/grammyjs/runner/issues"
+    },
+    "scripts": {
+        "prepare": "npm run build",
+        "build": "deno2node tsconfig.json"
+    },
+    "dependencies": {
+        "abort-controller": "^3.0.0"
+    },
+    "peerDependencies": {
+        "grammy": "^1.13.1"
+    },
+    "devDependencies": {
+        "@types/node": "^12.20.55",
+        "deno2node": "^1.7.1"
+    },
+    "files": [
+        "out/"
+    ],
+    "main": "./out/mod.js",
+    "type": "commonjs",
+    "exports": {
+        ".": "./out/mod.js"
+    },
+    "keywords": [
+        "grammy",
+        "telegram",
+        "bot",
+        "api",
+        "long",
+        "polling"
+    ]
+}

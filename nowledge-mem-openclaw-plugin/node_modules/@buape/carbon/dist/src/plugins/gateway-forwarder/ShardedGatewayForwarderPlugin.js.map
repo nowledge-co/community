@@ -1,0 +1,1 @@
+{"version":3,"file":"ShardedGatewayForwarderPlugin.js","sourceRoot":"","sources":["../../../../src/plugins/gateway-forwarder/ShardedGatewayForwarderPlugin.ts"],"names":[],"mappings":"AAAA,OAAO,EACN,cAAc,EAEd,MAAM,+BAA+B,CAAA;AAEtC,OAAO,EAAE,sBAAsB,EAAE,MAAM,6BAA6B,CAAA;AAKpE,MAAM,OAAO,6BAA8B,SAAQ,cAAc;IAC9C,EAAE,GAAG,2BAAyC,CAAA;IAEhE,mBAAmB,GAAG,sBAAsB,CAAA;CAC5C"}

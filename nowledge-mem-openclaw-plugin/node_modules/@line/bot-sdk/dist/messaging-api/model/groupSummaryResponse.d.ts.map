@@ -1,0 +1,1 @@
+{"version":3,"file":"groupSummaryResponse.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/groupSummaryResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,MAAM,MAAM,oBAAoB,GAAG;IACjC;;;;OAIG;IACH,OAAO,EAAE,MAAM,CAAM;IACrB;;;;OAIG;IACH,SAAS,EAAE,MAAM,CAAM;IACvB;;;;OAIG;IACH,UAAU,CAAC,EAAE,MAAM,CAAM;CAC1B,CAAC"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"path-not-a-file-error.js","sourceRoot":"","sources":["../../../../../../src/download/download-engine/streams/download-engine-fetch-stream/errors/path-not-a-file-error.ts"],"names":[],"mappings":"AAAA,OAAO,gBAAgB,MAAM,yBAAyB,CAAC;AAEvD,MAAM,CAAC,OAAO,OAAO,iBAAkB,SAAQ,gBAAgB;IAC3D,YAAY,IAAY;QACpB,KAAK,CAAC,uBAAuB,IAAI,EAAE,CAAC,CAAC;IACzC,CAAC;CACJ"}

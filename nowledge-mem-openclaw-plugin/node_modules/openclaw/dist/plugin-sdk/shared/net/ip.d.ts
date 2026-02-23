@@ -1,0 +1,16 @@
+import ipaddr from "ipaddr.js";
+export type ParsedIpAddress = ipaddr.IPv4 | ipaddr.IPv6;
+export declare function isIpv4Address(address: ParsedIpAddress): address is ipaddr.IPv4;
+export declare function isIpv6Address(address: ParsedIpAddress): address is ipaddr.IPv6;
+export declare function parseCanonicalIpAddress(raw: string | undefined): ParsedIpAddress | undefined;
+export declare function parseLooseIpAddress(raw: string | undefined): ParsedIpAddress | undefined;
+export declare function normalizeIpAddress(raw: string | undefined): string | undefined;
+export declare function isCanonicalDottedDecimalIPv4(raw: string | undefined): boolean;
+export declare function isLegacyIpv4Literal(raw: string | undefined): boolean;
+export declare function isLoopbackIpAddress(raw: string | undefined): boolean;
+export declare function isPrivateOrLoopbackIpAddress(raw: string | undefined): boolean;
+export declare function isRfc1918Ipv4Address(raw: string | undefined): boolean;
+export declare function isCarrierGradeNatIpv4Address(raw: string | undefined): boolean;
+export declare function isBlockedSpecialUseIpv4Address(address: ipaddr.IPv4): boolean;
+export declare function extractEmbeddedIpv4FromIpv6(address: ipaddr.IPv6): ipaddr.IPv4 | undefined;
+export declare function isIpInCidr(ip: string, cidr: string): boolean;

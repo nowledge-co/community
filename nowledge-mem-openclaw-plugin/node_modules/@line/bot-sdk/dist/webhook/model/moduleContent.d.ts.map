@@ -1,0 +1,1 @@
+{"version":3,"file":"moduleContent.d.ts","sourceRoot":"","sources":["../../../lib/webhook/model/moduleContent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,qBAAqB,EAAE,MAAM,aAAa,CAAC;AACpD,OAAO,EAAE,qBAAqB,EAAE,MAAM,aAAa,CAAC;AAEpD,MAAM,MAAM,aAAa,GACrB,qBAAqB,GACrB,qBAAqB,CAAC;AAE1B,MAAM,MAAM,iBAAiB,GAAG;IAC9B;;OAEG;IACH,IAAI,EAAE,MAAM,CAAM;CACnB,CAAC"}

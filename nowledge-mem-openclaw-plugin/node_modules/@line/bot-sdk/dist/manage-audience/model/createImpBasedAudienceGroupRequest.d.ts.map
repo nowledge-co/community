@@ -1,0 +1,1 @@
+{"version":3,"file":"createImpBasedAudienceGroupRequest.d.ts","sourceRoot":"","sources":["../../../lib/manage-audience/model/createImpBasedAudienceGroupRequest.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH;;GAEG;AACH,MAAM,MAAM,kCAAkC,GAAG;IAC/C;;;;OAIG;IACH,WAAW,CAAC,EAAE,MAAM,CAAM;IAC1B;;;;OAIG;IACH,SAAS,CAAC,EAAE,MAAM,CAAM;CACzB,CAAC"}

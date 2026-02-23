@@ -1,0 +1,23 @@
+import { CommandModule } from "yargs";
+import { BuildGpu } from "../../../../bindings/types.js";
+type InspectMeasureCommand = {
+    modelPath?: string;
+    header?: string[];
+    gpu?: BuildGpu | "auto";
+    minLayers: number;
+    maxLayers?: number;
+    minContextSize: number;
+    maxContextSize?: number;
+    flashAttention?: boolean;
+    swaFullCache?: boolean;
+    batchSize?: number;
+    measures: number;
+    memory: "vram" | "ram" | "all";
+    noMmap: boolean;
+    noDirectIo: boolean;
+    printHeaderBeforeEachLayer?: boolean;
+    evaluateText?: string;
+    repeatEvaluateText?: number;
+};
+export declare const InspectMeasureCommand: CommandModule<object, InspectMeasureCommand>;
+export {};

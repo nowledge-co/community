@@ -1,0 +1,1 @@
+{"version":3,"file":"InvalidGgufMagicError.js","sourceRoot":"","sources":["../../../src/gguf/errors/InvalidGgufMagicError.ts"],"names":[],"mappings":"AAAA,MAAM,OAAO,qBAAsB,SAAQ,KAAK;IAC5C,YAAmB,iBAAyB,EAAE,eAAuB;QACjE,KAAK,CAAC,iCAAiC,iBAAiB,cAAc,eAAe,IAAI,CAAC,CAAC;IAC/F,CAAC;CACJ"}

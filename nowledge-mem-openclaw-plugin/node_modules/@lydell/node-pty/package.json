@@ -1,0 +1,32 @@
+{
+  "name": "@lydell/node-pty",
+  "description": "Smaller distribution of node-pty.",
+  "author": "Simon Lydell",
+  "version": "1.2.0-beta.3",
+  "license": "MIT",
+  "type": "commonjs",
+  "exports": "./index.js",
+  "types": "./node-pty.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/lydell/node-pty.git"
+  },
+  "keywords": [
+    "pty",
+    "tty",
+    "terminal",
+    "pseudoterminal",
+    "forkpty",
+    "openpty",
+    "prebuild",
+    "prebuilt"
+  ],
+  "optionalDependencies": {
+    "@lydell/node-pty-darwin-arm64": "1.2.0-beta.3",
+    "@lydell/node-pty-darwin-x64": "1.2.0-beta.3",
+    "@lydell/node-pty-linux-arm64": "1.2.0-beta.3",
+    "@lydell/node-pty-linux-x64": "1.2.0-beta.3",
+    "@lydell/node-pty-win32-arm64": "1.2.0-beta.3",
+    "@lydell/node-pty-win32-x64": "1.2.0-beta.3"
+  }
+}

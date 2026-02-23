@@ -1,0 +1,71 @@
+{
+  "name": "tslog",
+  "version": "4.10.2",
+  "description": "Extensible TypeScript Logger for Node.js and Browser.",
+  "keywords": [
+    "logger",
+    "typescript",
+    "log level",
+    "json",
+    "stacktrace",
+    "Error.stack",
+    "call location",
+    "debug",
+    "pretty",
+    "log",
+    "log4j",
+    "log4js",
+    "log4ts",
+    "print",
+    "logging",
+    "stack",
+    "trace",
+    "pretty print",
+    "prettify",
+    "format",
+    "human",
+    "callsites",
+    "callsite",
+    "show error",
+    "handling exceptions",
+    "pretty log",
+    "pretty json",
+    "pretty-error",
+    "sourcemap"
+  ],
+  "homepage": "https://tslog.js.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fullstack-build/tslog.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fullstack-build/tslog/issues"
+  },
+  "author": "Eugene <opensource@terehov.de> (https://fullstack.build)",
+  "license": "MIT",
+  "funding": "https://github.com/fullstack-build/tslog?sponsor=1",
+  "sideEffects": false,
+  "type": "module",
+  "engines": {
+    "node": ">=16"
+  },
+  "main": "./cjs/index.js",
+  "module": "./esm/index.js",
+  "types": "./types/index.d.ts",
+  "browser": {
+    "tslog": "./browser/index.js",
+    "util": false
+  },
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "require": "./cjs/index.js",
+      "import": "./esm/index.js",
+      "default": "./esm/index.js"
+    }
+  },
+  "react-native": "./cjs/index.js",
+  "publishConfig": {
+    "access": "public"
+  }
+}

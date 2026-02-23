@@ -1,0 +1,75 @@
+{
+  "name": "lifecycle-utils",
+  "version": "2.1.0",
+  "description": "A set of general utilities for the lifecycle of a JS/TS project/library",
+  "main": "dist/index.js",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "node": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prepare": "node -e \"process.env.CI !== 'true' && console.log(require('husky').default())\"",
+    "prebuild": "rimraf ./dist ./tsconfig.tsbuildinfo",
+    "build": "tsc --build tsconfig.json --force",
+    "prewatch": "rimraf ./dist ./tsconfig.tsbuildinfo",
+    "watch": "tsc --build tsconfig.json --watch --force",
+    "test": "npm run test:typescript && npm run lint:eslint && npm run test:vitest",
+    "test:vitest": "vitest run ./test",
+    "test:vitest:interactive": "vitest watch ./test",
+    "test:typescript": "tsc --build tsconfig.json --dry --force",
+    "lint": "npm run lint:eslint",
+    "lint:eslint": "eslint --ext .js --ext .ts .",
+    "format": "npm run lint:eslint -- --fix",
+    "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",
+    "docs:build": "typedoc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/giladgd/lifecycle-utils.git"
+  },
+  "keywords": [
+    "utils",
+    "lifecycle",
+    "typescript"
+  ],
+  "author": "Gilad S.",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/giladgd/lifecycle-utils/issues"
+  },
+  "homepage": "https://giladgd.github.io/lifecycle-utils/",
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@semantic-release/exec": "^7.1.0",
+    "@stylistic/eslint-plugin": "^4.4.1",
+    "@types/node": "^20.8.4",
+    "@vitest/coverage-v8": "^3.2.2",
+    "eslint": "^9.26.0",
+    "eslint-import-resolver-typescript": "^4.3.4",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsdoc": "^50.6.11",
+    "eslint-plugin-n": "^17.17.0",
+    "husky": "^9.1.7",
+    "rimraf": "^6.0.1",
+    "semantic-release": "^24.2.5",
+    "tslib": "^2.8.1",
+    "typedoc": "^0.28.5",
+    "typedoc-plugin-mdn-links": "^5.0.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.32.0",
+    "vitest": "^3.2.2"
+  }
+}

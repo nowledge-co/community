@@ -1,0 +1,1 @@
+{"version":3,"file":"types.js","sourceRoot":"","sources":["../../../../src/plugins/gateway/types.ts"],"names":[],"mappings":"AAAA,OAAO,EAEN,iBAAiB,IAAI,wBAAwB,EAC7C,cAAc,IAAI,qBAAqB,EACvC,iBAAiB,EAEjB,MAAM,uBAAuB,CAAA;AA0D9B,MAAM,CAAC,MAAM,cAAc,GAAG,qBAAqB,CAAA;AACnD,MAAM,CAAC,MAAM,iBAAiB,GAAG,wBAAwB,CAAA;AAyEzD,MAAM,CAAC,MAAM,cAAc,GAAG,iBAAiB,CAAA"}

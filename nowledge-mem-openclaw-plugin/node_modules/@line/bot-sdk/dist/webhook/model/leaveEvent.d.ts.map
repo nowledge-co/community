@@ -1,0 +1,1 @@
+{"version":3,"file":"leaveEvent.d.ts","sourceRoot":"","sources":["../../../lib/webhook/model/leaveEvent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAOH;;GAEG;AACH,OAAO,EAAE,SAAS,EAAE,MAAM,aAAa,CAAC;AAExC,MAAM,MAAM,UAAU,GAAG,SAAS,GAAG;IACnC,IAAI,EAAE,OAAO,CAAC;CACf,CAAC;AAEF,yBAAiB,UAAU,CAAC,GAAE"}

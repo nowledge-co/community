@@ -1,0 +1,1 @@
+{"version":3,"file":"subscription.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/subscription.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,wBAAwB,EAAE,MAAM,+BAA+B,CAAC;AACzE,OAAO,EAAE,wBAAwB,EAAE,MAAM,+BAA+B,CAAC;AAEzE;;GAEG;AACH,MAAM,MAAM,YAAY,GAAG;IACzB;OACG;IACH,UAAU,EAAE,wBAAwB,CAAM;IAC1C;OACG;IACH,IAAI,EAAE,wBAAwB,CAAM;CACrC,CAAC"}

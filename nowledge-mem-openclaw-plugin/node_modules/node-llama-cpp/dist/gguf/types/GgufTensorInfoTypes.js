@@ -1,0 +1,44 @@
+export var GgmlType;
+(function (GgmlType) {
+    GgmlType[GgmlType["F32"] = 0] = "F32";
+    GgmlType[GgmlType["F16"] = 1] = "F16";
+    GgmlType[GgmlType["Q4_0"] = 2] = "Q4_0";
+    GgmlType[GgmlType["Q4_1"] = 3] = "Q4_1";
+    GgmlType[GgmlType["Q4_2"] = 4] = "Q4_2";
+    GgmlType[GgmlType["Q4_3"] = 5] = "Q4_3";
+    GgmlType[GgmlType["Q5_0"] = 6] = "Q5_0";
+    GgmlType[GgmlType["Q5_1"] = 7] = "Q5_1";
+    GgmlType[GgmlType["Q8_0"] = 8] = "Q8_0";
+    GgmlType[GgmlType["Q8_1"] = 9] = "Q8_1";
+    GgmlType[GgmlType["Q2_K"] = 10] = "Q2_K";
+    GgmlType[GgmlType["Q3_K"] = 11] = "Q3_K";
+    GgmlType[GgmlType["Q4_K"] = 12] = "Q4_K";
+    GgmlType[GgmlType["Q5_K"] = 13] = "Q5_K";
+    GgmlType[GgmlType["Q6_K"] = 14] = "Q6_K";
+    GgmlType[GgmlType["Q8_K"] = 15] = "Q8_K";
+    GgmlType[GgmlType["IQ2_XXS"] = 16] = "IQ2_XXS";
+    GgmlType[GgmlType["IQ2_XS"] = 17] = "IQ2_XS";
+    GgmlType[GgmlType["IQ3_XXS"] = 18] = "IQ3_XXS";
+    GgmlType[GgmlType["IQ1_S"] = 19] = "IQ1_S";
+    GgmlType[GgmlType["IQ4_NL"] = 20] = "IQ4_NL";
+    GgmlType[GgmlType["IQ3_S"] = 21] = "IQ3_S";
+    GgmlType[GgmlType["IQ2_S"] = 22] = "IQ2_S";
+    GgmlType[GgmlType["IQ4_XS"] = 23] = "IQ4_XS";
+    GgmlType[GgmlType["I8"] = 24] = "I8";
+    GgmlType[GgmlType["I16"] = 25] = "I16";
+    GgmlType[GgmlType["I32"] = 26] = "I32";
+    GgmlType[GgmlType["I64"] = 27] = "I64";
+    GgmlType[GgmlType["F64"] = 28] = "F64";
+    GgmlType[GgmlType["IQ1_M"] = 29] = "IQ1_M";
+    GgmlType[GgmlType["BF16"] = 30] = "BF16";
+    GgmlType[GgmlType["Q4_0_4_4"] = 31] = "Q4_0_4_4";
+    GgmlType[GgmlType["Q4_0_4_8"] = 32] = "Q4_0_4_8";
+    GgmlType[GgmlType["Q4_0_8_8"] = 33] = "Q4_0_8_8";
+    GgmlType[GgmlType["TQ1_0"] = 34] = "TQ1_0";
+    GgmlType[GgmlType["TQ2_0"] = 35] = "TQ2_0";
+    GgmlType[GgmlType["IQ4_NL_4_4"] = 36] = "IQ4_NL_4_4";
+    GgmlType[GgmlType["IQ4_NL_4_8"] = 37] = "IQ4_NL_4_8";
+    GgmlType[GgmlType["IQ4_NL_8_8"] = 38] = "IQ4_NL_8_8";
+    GgmlType[GgmlType["MXFP4"] = 39] = "MXFP4"; // MXFP4 (1 block)
+})(GgmlType || (GgmlType = {}));
+//# sourceMappingURL=GgufTensorInfoTypes.js.map

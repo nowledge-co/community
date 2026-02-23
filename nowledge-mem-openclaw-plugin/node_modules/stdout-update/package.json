@@ -1,0 +1,71 @@
+{
+  "name": "stdout-update",
+  "version": "4.0.1",
+  "description": "Updates the previous output in the terminal. Useful for correct rendering progress bars, animations, etc.",
+  "license": "MIT",
+  "homepage": "https://github.com/keindev/stdout-update#readme",
+  "author": "Daniil Ryazanov <kein@tagproject.ru>",
+  "keywords": [
+    "cli",
+    "console",
+    "indicator",
+    "log",
+    "logger",
+    "logging",
+    "output",
+    "overwrite",
+    "progress",
+    "refresh",
+    "shell",
+    "stdout",
+    "term",
+    "terminal",
+    "update"
+  ],
+  "bugs": "https://github.com/keindev/stdout-update/issues",
+  "types": "./lib/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": "./lib/index.js",
+    "./lib/types": "./lib/types.js",
+    "./lib/Hook": "./lib/Hook.js",
+    "./lib/Terminal": "./lib/Terminal.js",
+    "./lib/Wrapper": "./lib/Wrapper.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/keindev/stdout-update.git"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "build": "run-s build:*",
+    "build:ts": "rimraf lib && tsc --extendedDiagnostics",
+    "generate": "run-s generate:*",
+    "generate:changelog": "changelog generate --bump",
+    "generate:ghinfo": "ghinfo generate -d media -t utils",
+    "lint": "run-s lint:*",
+    "lint:eslint": "rimraf coverage && eslint src --ext .ts",
+    "lint:spell": "cspell -c .vscode/cspell.json --no-summary \"**/*.{js,ts,tsx,md,yml,json}\"",
+    "prepare": "run-s prepare:*",
+    "prepare:config": "ts-package-shared-config",
+    "prepare:docs": "docs-shared-config",
+    "prepare:husky": "husky install",
+    "prepare:vscode": "vscode-shared-config",
+    "release": "run-s prepare lint test build generate",
+    "test": "run-s test:*",
+    "test:jest": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "dependencies": {
+    "ansi-escapes": "^6.2.0",
+    "ansi-styles": "^6.2.1",
+    "string-width": "^7.1.0",
+    "strip-ansi": "^7.1.0"
+  },
+  "devDependencies": {
+    "@tagproject/ts-package-shared-config": "^11.0.4",
+    "@types/ansi-styles": "^4.2.0",
+    "ts-node": "^10.9.2"
+  }
+}

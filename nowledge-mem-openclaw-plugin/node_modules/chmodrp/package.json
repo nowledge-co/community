@@ -1,0 +1,46 @@
+{
+  "name": "chmodrp",
+  "version": "1.0.2",
+  "description": "`chmod -R` with the Promise API",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leonzalion/chmodrp.git"
+  },
+  "homepage": "https://github.com/leonzalion/chmodrp#readme",
+  "author": {
+    "name": "Leon Si",
+    "email": "contact@leonzalion.com",
+    "url": "https://leonzalion.com"
+  },
+  "type": "module",
+  "exports": {
+    "import": "./index.js",
+    "require": "./index.cjs"
+  },
+  "devDependencies": {
+    "desm": "^1.2.0",
+    "execa": "^6.1.0",
+    "lion-system": "^1.3.27",
+    "vitest": "^0.12.3"
+  },
+  "publishConfig": {
+    "directory": "dist"
+  },
+  "keywords": [
+    "chmod",
+    "chmodr",
+    "recursive",
+    "promise",
+    "fs"
+  ],
+  "scripts": {
+    "release": "lionp",
+    "build": "node-ts ./scripts/build.ts",
+    "start": "node-ts ./src/index.ts",
+    "test": "vitest run",
+    "lint": "eslint --cache --fix .",
+    "prettier": "prettier --write .",
+    "typecheck": "tsc --noEmit"
+  }
+}

@@ -1,0 +1,20 @@
+import type { OpenClawConfig } from "../../config/config.js";
+import { type SessionEntry } from "../../config/sessions.js";
+import type { TemplateContext } from "../templating.js";
+import type { VerboseLevel } from "../thinking.js";
+import type { GetReplyOptions } from "../types.js";
+import type { FollowupRun } from "./queue.js";
+export declare function runMemoryFlushIfNeeded(params: {
+    cfg: OpenClawConfig;
+    followupRun: FollowupRun;
+    sessionCtx: TemplateContext;
+    opts?: GetReplyOptions;
+    defaultModel: string;
+    agentCfgContextTokens?: number;
+    resolvedVerboseLevel: VerboseLevel;
+    sessionEntry?: SessionEntry;
+    sessionStore?: Record<string, SessionEntry>;
+    sessionKey?: string;
+    storePath?: string;
+    isHeartbeat: boolean;
+}): Promise<SessionEntry | undefined>;

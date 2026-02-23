@@ -1,0 +1,1 @@
+{"version":3,"file":"roomUserProfileResponse.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/roomUserProfileResponse.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,MAAM,MAAM,uBAAuB,GAAG;IACpC;;;;OAIG;IACH,WAAW,EAAE,MAAM,CAAM;IACzB;;;;OAIG;IACH,MAAM,EAAE,MAAM,CAAM;IACpB;;;;OAIG;IACH,UAAU,CAAC,EAAE,MAAM,CAAM;CAC1B,CAAC"}

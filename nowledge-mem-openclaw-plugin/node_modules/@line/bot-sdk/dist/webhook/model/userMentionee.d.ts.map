@@ -1,0 +1,1 @@
+{"version":3,"file":"userMentionee.d.ts","sourceRoot":"","sources":["../../../lib/webhook/model/userMentionee.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAIH;;GAEG;AACH,OAAO,EAAE,aAAa,EAAE,MAAM,aAAa,CAAC;AAE5C,MAAM,MAAM,aAAa,GAAG,aAAa,GAAG;IAC1C,IAAI,EAAE,MAAM,CAAC;IACb;;OAEG;IACH,MAAM,CAAC,EAAE,MAAM,CAAM;IACrB;;OAEG;IACH,MAAM,CAAC,EAAE,OAAO,CAAM;CACvB,CAAC"}

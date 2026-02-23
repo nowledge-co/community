@@ -1,0 +1,70 @@
+{
+  "name": "env-var",
+  "version": "7.5.0",
+  "description": "Verification, sanitization, and type coercion for environment variables in Node.js",
+  "main": "env-var.js",
+  "typings": "env-var.d.ts",
+  "scripts": {
+    "coverage": "nyc mocha test/*.js && nyc report --reporter=lcov",
+    "check-coverage": "nyc check-coverage --statements 100 --branches 100 --functions 100 --lines 100",
+    "unit": "mocha test/*.js",
+    "lint": "standard example/*.js *.js \"lib/**/*.js\" test/*.js --fix",
+    "test": "npm run unit && npm run coverage && npm run check-coverage && npm run lint && npm run ts-verify",
+    "ts-verify": "tsc && mocha test/types/*.js"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint && npm run unit"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/evanshortiss/env-var.git"
+  },
+  "keywords": [
+    "dotenv",
+    "env",
+    "process.env",
+    "process",
+    "var",
+    "environment",
+    "variables",
+    "variable",
+    "loader",
+    "env-var",
+    "envvar",
+    "config",
+    "configuration",
+    "typescript",
+    "ts"
+  ],
+  "author": "Evan Shortiss",
+  "license": "MIT",
+  "files": [
+    "lib/",
+    "env-var.js",
+    "env-var.d.ts"
+  ],
+  "bugs": {
+    "url": "https://github.com/evanshortiss/env-var/issues"
+  },
+  "homepage": "https://github.com/evanshortiss/env-var",
+  "devDependencies": {
+    "@types/chai": "~4.2.10",
+    "@types/mocha": "~7.0.1",
+    "@types/node": "~13.13.0",
+    "bluebird": "~3.7.0",
+    "chai": "~4.2.0",
+    "conditional-type-checks": "1.0.5",
+    "coveralls": "~3.1.0",
+    "husky": "~4.2.2",
+    "mocha": "~8.2.0",
+    "mocha-lcov-reporter": "~1.3.0",
+    "nyc": "~15.1.0",
+    "standard": "~14.3.4",
+    "typescript": "~3.9.0"
+  },
+  "engines": {
+    "node": ">=10"
+  }
+}

@@ -1,0 +1,1 @@
+{"version":3,"file":"unfollowEvent.d.ts","sourceRoot":"","sources":["../../../lib/webhook/model/unfollowEvent.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAOH;;GAEG;AACH,OAAO,EAAE,SAAS,EAAE,MAAM,aAAa,CAAC;AAExC,MAAM,MAAM,aAAa,GAAG,SAAS,GAAG;IACtC,IAAI,EAAE,UAAU,CAAC;CAClB,CAAC;AAEF,yBAAiB,aAAa,CAAC,GAAE"}

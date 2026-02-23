@@ -1,0 +1,1 @@
+{"version":3,"file":"grid-migration.d.ts","sourceRoot":"","sources":["../../src/events/grid-migration.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,0BAA0B;IACzC,IAAI,EAAE,yBAAyB,CAAC;IAChC,aAAa,EAAE,MAAM,CAAC;CACvB;AAED,MAAM,WAAW,yBAAyB;IACxC,IAAI,EAAE,wBAAwB,CAAC;IAC/B,aAAa,EAAE,MAAM,CAAC;CACvB"}

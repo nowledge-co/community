@@ -1,0 +1,1 @@
+{"version":3,"file":"markMessagesAsReadRequest.d.ts","sourceRoot":"","sources":["../../../lib/messaging-api/model/markMessagesAsReadRequest.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;GAUG;AAEH,OAAO,EAAE,aAAa,EAAE,MAAM,oBAAoB,CAAC;AAEnD,MAAM,MAAM,yBAAyB,GAAG;IACtC;;;OAGG;IACH,IAAI,EAAE,aAAa,CAAM;CAC1B,CAAC"}

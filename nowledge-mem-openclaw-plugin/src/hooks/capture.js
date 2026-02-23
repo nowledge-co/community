@@ -252,7 +252,11 @@ export function buildAgentEndCaptureHandler(client, _cfg, logger) {
 
 		// 2. Triage + distill: language-agnostic LLM-based capture.
 		//    Skip short conversations — not worth the triage cost.
-		if (!result || !result.normalized || result.normalized.length < MIN_MESSAGES_FOR_DISTILL) {
+		if (
+			!result ||
+			!result.normalized ||
+			result.normalized.length < MIN_MESSAGES_FOR_DISTILL
+		) {
 			return;
 		}
 
@@ -280,7 +284,9 @@ export function buildAgentEndCaptureHandler(client, _cfg, logger) {
 				distillResult?.memories_created ??
 				distillResult?.created_memories?.length ??
 				0;
-			logger.info(`capture: distilled ${count} memories from ${result.threadId}`);
+			logger.info(
+				`capture: distilled ${count} memories from ${result.threadId}`,
+			);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.warn(`capture: triage/distill failed: ${message}`);

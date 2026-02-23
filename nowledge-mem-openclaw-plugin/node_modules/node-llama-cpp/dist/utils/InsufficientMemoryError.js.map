@@ -1,0 +1,1 @@
+{"version":3,"file":"InsufficientMemoryError.js","sourceRoot":"","sources":["../../src/utils/InsufficientMemoryError.ts"],"names":[],"mappings":"AAAA,MAAM,OAAO,uBAAwB,SAAQ,KAAK;IAC9C,YAAmB,UAAkB,qBAAqB;QACtD,KAAK,CAAC,OAAO,CAAC,CAAC;IACnB,CAAC;CACJ"}

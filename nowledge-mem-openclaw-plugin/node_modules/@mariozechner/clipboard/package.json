@@ -1,0 +1,56 @@
+{
+  "name": "@mariozechner/clipboard",
+  "version": "0.3.2",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "name": "clipboard",
+    "triples": {
+      "additional": [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "aarch64-pc-windows-msvc",
+        "universal-apple-darwin",
+        "riscv64gc-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/badlogic/clipboard.git"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.0",
+    "ava": "^6.0.1"
+  },
+  "ava": {
+    "timeout": "3m"
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "test": "ava",
+    "universal": "napi universal",
+    "version": "napi version"
+  },
+  "optionalDependencies": {
+    "@mariozechner/clipboard-win32-x64-msvc": "0.3.2",
+    "@mariozechner/clipboard-darwin-x64": "0.3.2",
+    "@mariozechner/clipboard-linux-x64-gnu": "0.3.2",
+    "@mariozechner/clipboard-darwin-arm64": "0.3.2",
+    "@mariozechner/clipboard-linux-arm64-gnu": "0.3.2",
+    "@mariozechner/clipboard-linux-arm64-musl": "0.3.2",
+    "@mariozechner/clipboard-win32-arm64-msvc": "0.3.2",
+    "@mariozechner/clipboard-darwin-universal": "0.3.2",
+    "@mariozechner/clipboard-linux-riscv64-gnu": "0.3.2",
+    "@mariozechner/clipboard-linux-x64-musl": "0.3.2"
+  }
+}

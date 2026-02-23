@@ -1,0 +1,1 @@
+{"version":3,"file":"projectTemplates.js","sourceRoot":"","sources":["../../src/cli/projectTemplates.ts"],"names":[],"mappings":"AAMA,MAAM,CAAC,MAAM,gBAAgB,GAA4B,CAAC;QACtD,KAAK,EAAE,mBAAmB;QAC1B,IAAI,EAAE,iBAAiB;QACvB,WAAW,EAAE,gMAAgM;KAChN,EAAE;QACC,KAAK,EAAE,+BAA+B;QACtC,IAAI,EAAE,2BAA2B;QACjC,WAAW,EAAE,gNAAgN;KAChO,CAAC,CAAC"}

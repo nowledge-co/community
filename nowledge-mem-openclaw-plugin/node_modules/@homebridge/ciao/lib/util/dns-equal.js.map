@@ -1,0 +1,1 @@
+{"version":3,"file":"dns-equal.js","sourceRoot":"","sources":["../../src/util/dns-equal.ts"],"names":[],"mappings":";AAAA,iDAAiD;;AAIjD,oCAEC;AAJD,MAAM,YAAY,GAAG,QAAQ,CAAC;AAE9B,SAAgB,YAAY,CAAC,KAAa;IACxC,OAAO,KAAK,CAAC,OAAO,CAAC,YAAY,EAAE,CAAC,CAAC,EAAE,CAAC,CAAC,CAAC,WAAW,EAAE,CAAC,CAAC;AAC3D,CAAC"}

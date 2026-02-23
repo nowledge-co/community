@@ -1,0 +1,1 @@
+{"version":3,"file":"GbnfNull.js","sourceRoot":"","sources":["../../../../src/utils/gbnfJson/terminals/GbnfNull.ts"],"names":[],"mappings":"AAAA,OAAO,EAAC,YAAY,EAAC,MAAM,oBAAoB,CAAC;AAChD,OAAO,EAAC,iBAAiB,EAAC,MAAM,iBAAiB,CAAC;AAGlD,MAAM,OAAO,QAAS,SAAQ,YAAY;IAC/B,UAAU;QACb,OAAO,QAAQ,CAAC;IACpB,CAAC;IAEkB,WAAW;QAC1B,OAAO,iBAAiB,CAAC,IAAI,CAAC;IAClC,CAAC;CACJ"}

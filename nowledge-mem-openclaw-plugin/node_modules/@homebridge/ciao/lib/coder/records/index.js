@@ -1,0 +1,20 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const ResourceRecord_1 = require("../ResourceRecord");
+const AAAARecord_1 = require("./AAAARecord");
+const ARecord_1 = require("./ARecord");
+const CNAMERecord_1 = require("./CNAMERecord");
+const NSECRecord_1 = require("./NSECRecord");
+const OPTRecord_1 = require("./OPTRecord");
+const PTRRecord_1 = require("./PTRRecord");
+const SRVRecord_1 = require("./SRVRecord");
+const TXTRecord_1 = require("./TXTRecord");
+ResourceRecord_1.ResourceRecord.typeToRecordDecoder.set(28 /* RType.AAAA */, AAAARecord_1.AAAARecord.decodeData);
+ResourceRecord_1.ResourceRecord.typeToRecordDecoder.set(1 /* RType.A */, ARecord_1.ARecord.decodeData);
+ResourceRecord_1.ResourceRecord.typeToRecordDecoder.set(5 /* RType.CNAME */, CNAMERecord_1.CNAMERecord.decodeData);
+ResourceRecord_1.ResourceRecord.typeToRecordDecoder.set(47 /* RType.NSEC */, NSECRecord_1.NSECRecord.decodeData);
+ResourceRecord_1.ResourceRecord.typeToRecordDecoder.set(12 /* RType.PTR */, PTRRecord_1.PTRRecord.decodeData);
+ResourceRecord_1.ResourceRecord.typeToRecordDecoder.set(33 /* RType.SRV */, SRVRecord_1.SRVRecord.decodeData);
+ResourceRecord_1.ResourceRecord.typeToRecordDecoder.set(41 /* RType.OPT */, OPTRecord_1.OPTRecord.decodeData);
+ResourceRecord_1.ResourceRecord.typeToRecordDecoder.set(16 /* RType.TXT */, TXTRecord_1.TXTRecord.decodeData);
+//# sourceMappingURL=index.js.map
