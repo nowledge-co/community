@@ -16,10 +16,10 @@ function patchWmSection(currentContent, heading, { content, append } = {}) {
 	const levelMatch = headingLc.match(/^(#{1,6})\s/);
 	const targetLevel = levelMatch ? levelMatch[1].length : 2;
 
-	// Find the start of the section
+	// Find the start of the section (exact heading match, not substring)
 	let startIdx = -1;
 	for (let i = 0; i < lines.length; i++) {
-		if (lines[i].trim().toLowerCase().includes(headingLc)) {
+		if (lines[i].trim().toLowerCase() === headingLc) {
 			startIdx = i;
 			break;
 		}
