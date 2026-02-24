@@ -20,12 +20,14 @@ const ALLOWED_KEYS = new Set([
 export function parseConfig(raw) {
 	const obj = raw && typeof raw === "object" ? raw : {};
 
-	// Warn on unknown keys but don't crash — OpenClaw may add new fields
-	// that we don't consume yet, and throwing would break the plugin.
+	// Strict: reject unknown keys so users catch typos immediately.
+	// If OpenClaw adds new platform-level keys that should pass through,
+	// add them to ALLOWED_KEYS rather than silently accepting anything.
 	const unknownKeys = Object.keys(obj).filter((k) => !ALLOWED_KEYS.has(k));
-	if (unknownKeys.length > 0 && typeof console !== "undefined") {
-		console.warn(
-			`nowledge-mem: ignoring unknown config keys: ${unknownKeys.join(", ")}`,
+	if (unknownKeys.length > 0) {
+		throw new Error(
+			`nowledge-mem: unknown config key${unknownKeys.length > 1 ? "s" : ""}: ${unknownKeys.join(", ")}. ` +
+				`Allowed keys: ${[...ALLOWED_KEYS].join(", ")}`,
 		);
 	}
 
