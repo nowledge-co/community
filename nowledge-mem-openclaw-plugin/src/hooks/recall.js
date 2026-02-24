@@ -14,9 +14,9 @@ function escapeForPrompt(text) {
 }
 
 /**
- * Builds the before_prompt_build hook handler.
+ * Builds the before_agent_start hook handler.
  *
- * Injects two layers of context:
+ * Injects two layers of context at session start:
  * 1. Working Memory — today's focus, priorities, unresolved flags
  * 2. Relevant memories — with types, labels, and source provenance
  *

@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 const MAX_MESSAGE_CHARS = 800;
+const MAX_DISTILL_MESSAGE_CHARS = 2000;
+const MAX_CONVERSATION_CHARS = 30_000;
 const MIN_MESSAGES_FOR_DISTILL = 4;
 
 function truncate(text, max = MAX_MESSAGE_CHARS) {
@@ -220,11 +222,23 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
 /**
  * Build a plain-text conversation string from normalized messages.
  * Used as input for triage and distillation.
+ *
+ * Per-message content is capped at MAX_DISTILL_MESSAGE_CHARS and the
+ * total output at MAX_CONVERSATION_CHARS to keep LLM API payloads
+ * bounded — long coding sessions with large code blocks can produce
+ * arbitrarily large fullContent.
  */
 function buildConversationText(normalized) {
-	return normalized
-		.map((m) => `${m.role}: ${m.fullContent || m.content}`)
-		.join("\n\n");
+	const parts = [];
+	let total = 0;
+	for (const m of normalized) {
+		const text = truncate(m.fullContent || m.content, MAX_DISTILL_MESSAGE_CHARS);
+		const line = `${m.role}: ${text}`;
+		if (total + line.length > MAX_CONVERSATION_CHARS) break;
+		parts.push(line);
+		total += line.length + 2; // account for "\n\n" separator
+	}
+	return parts.join("\n\n");
 }
 
 /**

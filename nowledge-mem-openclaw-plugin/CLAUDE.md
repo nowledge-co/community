@@ -30,7 +30,7 @@ src/
   client.js         — CLI wrapper with API fallback; credential handling
   config.js         — strict config parsing (apiUrl, apiKey, autoRecall, etc.)
   hooks/
-    recall.js       — before_prompt_build: inject Working Memory + recalled memories
+    recall.js       — before_agent_start: inject Working Memory + recalled memories
     capture.js      — quality-gated memory note + thread append
   tools/
     memory-search.js    — OpenClaw compat; multi-signal; bi-temporal; relevance_reason
@@ -58,7 +58,7 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 
 ## Hook Surface
 
-- `before_prompt_build` — auto-recall: Working Memory + `searchRich()` with `relevanceReason` in context
+- `before_agent_start` — auto-recall: Working Memory + `searchRich()` with `relevanceReason` in context
 - `agent_end` — quality-gated memory note + thread append (requires `autoCapture: true`)
 - `after_compaction` — thread append
 - `before_reset` — thread append

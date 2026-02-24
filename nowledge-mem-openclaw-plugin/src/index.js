@@ -47,7 +47,7 @@ export default {
 
 		// Hooks
 		if (cfg.autoRecall) {
-			api.on("before_prompt_build", buildRecallHandler(client, cfg, logger));
+			api.on("before_agent_start", buildRecallHandler(client, cfg, logger));
 		}
 
 		if (cfg.autoCapture) {
