@@ -2,6 +2,50 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.3.0] - 2026-02-23
+
+### Changed — Architecture overhaul: tool-first, LLM-based capture
+
+**Breaking: `autoRecall` now defaults to `false`**
+
+The agent has full access to all 7 tools regardless of this setting. Tool-only mode (both `autoRecall` and `autoCapture` off) is now the recommended default. The agent calls `memory_search`, `nowledge_mem_save`, etc. on demand — no tokens wasted on irrelevant context injection.
+
+Users who explicitly set `autoRecall: true` are unaffected.
+
+**Removed: English-only heuristic capture**
+
+The entire rule-based capture pipeline has been removed:
+- `shouldCaptureAsMemory()` — English-only regex patterns (`/\bi (like|prefer|hate)\b/i`)
+- `MEMORY_TRIGGER_PATTERNS`, `PROMPT_INJECTION_PATTERNS`
+- `looksLikeQuestion()`, `hasMemoryTrigger()`, `looksLikePromptInjection()`
+- `fingerprint()`, per-session dedup map
+
+These were fundamentally broken for non-English users (~95% of the world) and violated the "never settle for heuristic shortcuts" principle.
+
+**Added: Two-step LLM capture pipeline**
+
+Replaced heuristics with a proper LLM-based pipeline:
+
+1. **Thread capture** (unconditional, unchanged) — full conversation appended to persistent thread
+2. **Triage** (cheap, fast) — lightweight LLM call (~50 output tokens) determines if conversation contains save-worthy content. Language-agnostic. New backend endpoint: `POST /memories/distill/triage`
+3. **Distillation** (only when worthwhile) — full LLM extraction via existing `POST /memories/distill`, creating structured memories with proper unit_type, labels, and temporal data
+
+Cost: negligible for conversations without save-worthy content (triage only). Moderate for rich conversations (triage + distill). Works in any language.
+
+**Enhanced: `memory_search` tool description**
+
+More directive description for tool-only mode: tells the agent when to proactively search (past work references, previous decisions, prior context that would help).
+
+**Migrated: `before_prompt_build` hook**
+
+Auto-recall hook migrated from legacy `before_agent_start` to modern `before_prompt_build` API. Trimmed verbose tool guidance — the agent already sees tool descriptions in its tool list.
+
+### Added
+
+- `client.triageConversation(content)` — calls `POST /memories/distill/triage`
+- `client.distillThread({ threadId, title, content })` — calls `POST /memories/distill`
+- Backend `POST /memories/distill/triage` endpoint with lightweight LLM triage prompt
+
 ## [0.2.7] - 2026-02-18
 
 ### Added — Gap closures: date range, EVOLVES CLI, WM section edit

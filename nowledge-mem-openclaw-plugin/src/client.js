@@ -16,10 +16,10 @@ function patchWmSection(currentContent, heading, { content, append } = {}) {
 	const levelMatch = headingLc.match(/^(#{1,6})\s/);
 	const targetLevel = levelMatch ? levelMatch[1].length : 2;
 
-	// Find the start of the section
+	// Find the start of the section (exact heading match, not substring)
 	let startIdx = -1;
 	for (let i = 0; i < lines.length; i++) {
-		if (lines[i].trim().toLowerCase().includes(headingLc)) {
+		if (lines[i].trim().toLowerCase() === headingLc) {
 			startIdx = i;
 			break;
 		}
@@ -48,11 +48,9 @@ function patchWmSection(currentContent, heading, { content, append } = {}) {
 	}
 
 	const newSection = [headingLine, newBody].filter(Boolean).join("\n");
-	return [
-		...lines.slice(0, startIdx),
-		newSection,
-		...lines.slice(endIdx),
-	].join("\n");
+	return [...lines.slice(0, startIdx), newSection, ...lines.slice(endIdx)].join(
+		"\n",
+	);
 }
 
 /**
@@ -81,7 +79,8 @@ export class NowledgeMemClient {
 		this.logger = logger;
 		this.nmemCmd = null;
 		// Resolved once from config + env (config wins over env, both win over default)
-		this._apiUrl = (credentials.apiUrl || "").trim() || "http://127.0.0.1:14242";
+		this._apiUrl =
+			(credentials.apiUrl || "").trim() || "http://127.0.0.1:14242";
 		this._apiKey = (credentials.apiKey || "").trim();
 	}
 
@@ -193,12 +192,16 @@ export class NowledgeMemClient {
 		const cmd = this.resolveCommand();
 		const [bin, ...baseArgs] = cmd;
 		try {
-			const result = spawnSync(bin, [...baseArgs, ...this._apiUrlArgs(), ...args], {
-				stdio: ["ignore", "pipe", "pipe"],
-				timeout,
-				encoding: "utf-8",
-				env: this._spawnEnv(),
-			});
+			const result = spawnSync(
+				bin,
+				[...baseArgs, ...this._apiUrlArgs(), ...args],
+				{
+					stdio: ["ignore", "pipe", "pipe"],
+					timeout,
+					encoding: "utf-8",
+					env: this._spawnEnv(),
+				},
+			);
 			if (result.error) {
 				throw result.error;
 			}
@@ -287,7 +290,8 @@ export class NowledgeMemClient {
 		];
 		if (eventDateFrom) args.push("--event-from", String(eventDateFrom));
 		if (eventDateTo) args.push("--event-to", String(eventDateTo));
-		if (recordedDateFrom) args.push("--recorded-from", String(recordedDateFrom));
+		if (recordedDateFrom)
+			args.push("--recorded-from", String(recordedDateFrom));
 		if (recordedDateTo) args.push("--recorded-to", String(recordedDateTo));
 
 		let data;
@@ -306,9 +310,13 @@ export class NowledgeMemClient {
 			if (query) qs.set("q", String(query));
 			if (eventDateFrom) qs.set("event_date_from", String(eventDateFrom));
 			if (eventDateTo) qs.set("event_date_to", String(eventDateTo));
-			if (recordedDateFrom) qs.set("recorded_date_from", String(recordedDateFrom));
+			if (recordedDateFrom)
+				qs.set("recorded_date_from", String(recordedDateFrom));
 			if (recordedDateTo) qs.set("recorded_date_to", String(recordedDateTo));
-			const apiData = await this.apiJson("GET", `/memories/search?${qs.toString()}`);
+			const apiData = await this.apiJson(
+				"GET",
+				`/memories/search?${qs.toString()}`,
+			);
 			// Normalize from API response format
 			const apiMems = (apiData.memories ?? []).map((m) => ({
 				id: String(m.id ?? ""),
@@ -322,7 +330,10 @@ export class NowledgeMemClient {
 				event_end: m.metadata?.event_end ?? null,
 				temporal_context: m.metadata?.temporal_context ?? null,
 			}));
-			return { memories: apiMems.map((m) => this._normalizeMemory(m)), searchMetadata: apiData.search_metadata ?? {} };
+			return {
+				memories: apiMems.map((m) => this._normalizeMemory(m)),
+				searchMetadata: apiData.search_metadata ?? {},
+			};
 		}
 
 		const memories = data.memories ?? data.results ?? [];
@@ -395,7 +406,14 @@ export class NowledgeMemClient {
 	 * with relation type: replaces | enriches | confirms | challenges.
 	 */
 	async graphEvolves(memoryId, { limit = 20 } = {}) {
-		const args = ["--json", "g", "evolves", String(memoryId), "-n", String(limit)];
+		const args = [
+			"--json",
+			"g",
+			"evolves",
+			String(memoryId),
+			"-n",
+			String(limit),
+		];
 		try {
 			return this.execJson(args);
 		} catch (err) {
@@ -465,7 +483,10 @@ export class NowledgeMemClient {
 			if (eventType) qs.set("event_type", eventType);
 			if (dateFrom) qs.set("date_from", String(dateFrom));
 			if (dateTo) qs.set("date_to", String(dateTo));
-			const data = await this.apiJson("GET", `/agent/feed/events?${qs.toString()}`);
+			const data = await this.apiJson(
+				"GET",
+				`/agent/feed/events?${qs.toString()}`,
+			);
 			return Array.isArray(data) ? data : (data.events ?? []);
 		}
 	}
@@ -648,7 +669,9 @@ export class NowledgeMemClient {
 			if (!notSupported) throw err;
 
 			// Fallback: full-document write (read → patch inline → write)
-			this.logger.warn("patchWorkingMemory: CLI too old, falling back to full replace");
+			this.logger.warn(
+				"patchWorkingMemory: CLI too old, falling back to full replace",
+			);
 			const current = await this.readWorkingMemory();
 			if (!current.available) throw new Error("Working Memory not available");
 
@@ -660,6 +683,43 @@ export class NowledgeMemClient {
 
 			return this.apiJson("PUT", "/agent/working-memory", { content: updated });
 		}
+	}
+
+	// ── Distillation ─────────────────────────────────────────────────────────
+
+	/**
+	 * Lightweight triage: determine if a conversation has save-worthy content.
+	 * Uses a cheap LLM call (~50 output tokens) on the backend.
+	 *
+	 * @param {string} content  Conversation text to triage
+	 * @returns {{ should_distill: boolean, reason: string }}
+	 */
+	async triageConversation(content) {
+		return this.apiJson("POST", "/memories/distill/triage", {
+			thread_content: String(content || ""),
+		});
+	}
+
+	/**
+	 * Distill memories from a conversation thread.
+	 * Calls the full distillation endpoint which uses LLM to extract
+	 * structured memories (with unit_type, temporal data, labels).
+	 *
+	 * @param {{ threadId: string, title?: string, content: string }} params
+	 */
+	async distillThread({ threadId, title, content }) {
+		return this.apiJson(
+			"POST",
+			"/memories/distill",
+			{
+				thread_id: String(threadId || ""),
+				thread_title: title || "",
+				thread_content: String(content || ""),
+				distillation_type: "simple_llm",
+				extraction_level: "swift",
+			},
+			60_000, // 60s timeout for LLM distillation
+		);
 	}
 
 	async checkHealth() {

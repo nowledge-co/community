@@ -1,3 +1,14 @@
+export const API_DEFAULT_URL = "http://127.0.0.1:14242";
+
+/**
+ * Check whether an API URL points to the local default server.
+ * Useful for mode detection (local vs remote) in UI, CORS, diagnostics.
+ */
+export function isDefaultApiUrl(url) {
+	const trimmed = (url || "").trim().replace(/\/+$/, "");
+	return !trimmed || trimmed === API_DEFAULT_URL;
+}
+
 const ALLOWED_KEYS = new Set([
 	"autoRecall",
 	"autoCapture",
@@ -9,10 +20,15 @@ const ALLOWED_KEYS = new Set([
 export function parseConfig(raw) {
 	const obj = raw && typeof raw === "object" ? raw : {};
 
-	for (const key of Object.keys(obj)) {
-		if (!ALLOWED_KEYS.has(key)) {
-			throw new Error(`Unknown config key: "${key}"`);
-		}
+	// Strict: reject unknown keys so users catch typos immediately.
+	// If OpenClaw adds new platform-level keys that should pass through,
+	// add them to ALLOWED_KEYS rather than silently accepting anything.
+	const unknownKeys = Object.keys(obj).filter((k) => !ALLOWED_KEYS.has(k));
+	if (unknownKeys.length > 0) {
+		throw new Error(
+			`nowledge-mem: unknown config key${unknownKeys.length > 1 ? "s" : ""}: ${unknownKeys.join(", ")}. ` +
+				`Allowed keys: ${[...ALLOWED_KEYS].join(", ")}`,
+		);
 	}
 
 	// apiUrl: config wins, then env var, then local default
@@ -30,7 +46,7 @@ export function parseConfig(raw) {
 		"";
 
 	return {
-		autoRecall: typeof obj.autoRecall === "boolean" ? obj.autoRecall : true,
+		autoRecall: typeof obj.autoRecall === "boolean" ? obj.autoRecall : false,
 		autoCapture: typeof obj.autoCapture === "boolean" ? obj.autoCapture : false,
 		maxRecallResults:
 			typeof obj.maxRecallResults === "number" &&

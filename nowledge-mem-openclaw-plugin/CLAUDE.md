@@ -73,7 +73,7 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `autoRecall` | boolean | `true` | Inject context at session start |
+| `autoRecall` | boolean | `false` | Inject context at session start |
 | `autoCapture` | boolean | `false` | Capture notes/threads at session end |
 | `maxRecallResults` | integer 1–20 | `5` | How many memories to recall |
 | `apiUrl` | string | `""` | Remote server URL. Empty = local (127.0.0.1:14242) |
