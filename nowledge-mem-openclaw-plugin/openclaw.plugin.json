@@ -4,8 +4,8 @@
 	"kind": "memory",
 	"uiHints": {
 		"autoRecall": {
-			"label": "Auto-recall before every turn",
-			"help": "Inject Working Memory and relevant memories before every turn. Off by default \u2014 the agent can call memory_search on demand instead."
+			"label": "Auto-recall at session start",
+			"help": "Inject Working Memory and relevant memories at session start. Off by default \u2014 the agent can call memory_search on demand instead."
 		},
 		"autoCapture": {
 			"label": "Auto-capture at session end",
@@ -31,7 +31,7 @@
 			"autoRecall": {
 				"type": "boolean",
 				"default": false,
-				"description": "Inject Working Memory and recalled memories before every turn. Off by default \u2014 the agent queries memory on demand via tools."
+				"description": "Inject Working Memory and recalled memories at session start. Off by default \u2014 the agent queries memory on demand via tools."
 			},
 			"autoCapture": {
 				"type": "boolean",
@@ -43,7 +43,7 @@
 				"default": 5,
 				"minimum": 1,
 				"maximum": 20,
-				"description": "Maximum memories to recall per turn (only used when autoRecall is enabled)"
+				"description": "Maximum memories to recall at session start (only used when autoRecall is enabled)"
 			},
 			"apiUrl": {
 				"type": "string",
