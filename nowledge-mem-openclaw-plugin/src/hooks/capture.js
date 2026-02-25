@@ -6,9 +6,22 @@ const MAX_DISTILL_MESSAGE_CHARS = 2000;
 const MAX_CONVERSATION_CHARS = 30_000;
 const MIN_MESSAGES_FOR_DISTILL = 4;
 
-// Per-thread capture cooldown: prevents burst captures from heartbeat/compaction.
-// Maps threadId -> timestamp (ms) of last successful capture.
+// Per-thread triage cooldown: prevents burst triage/distillation from heartbeat.
+// Maps threadId -> timestamp (ms) of last successful triage.
+// Evicted opportunistically when new entries are set (see _setLastCapture).
 const _lastCaptureAt = new Map();
+const _MAX_COOLDOWN_ENTRIES = 200;
+
+function _setLastCapture(threadId, now) {
+	_lastCaptureAt.set(threadId, now);
+	// Opportunistic eviction: sweep stale entries when map grows large
+	if (_lastCaptureAt.size > _MAX_COOLDOWN_ENTRIES) {
+		const cutoff = now - 86_400_000; // 24h — generous TTL
+		for (const [key, ts] of _lastCaptureAt) {
+			if (ts < cutoff) _lastCaptureAt.delete(key);
+		}
+	}
+}
 
 function truncate(text, max = MAX_MESSAGE_CHARS) {
 	const str = String(text || "").trim();
@@ -316,7 +329,7 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		//    the expensive LLM call. If triage was skipped by filters above,
 		//    the cooldown stays unset so the next call can retry.
 		if (cooldownMs > 0 && result.threadId) {
-			_lastCaptureAt.set(result.threadId, Date.now());
+			_setLastCapture(result.threadId, Date.now());
 		}
 
 		try {
