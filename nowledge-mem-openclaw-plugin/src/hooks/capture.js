@@ -299,7 +299,6 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 				);
 				return;
 			}
-			_lastCaptureAt.set(result.threadId, Date.now());
 		}
 
 		//    Skip short conversations — not worth the triage cost.
@@ -312,6 +311,13 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 
 		const conversationText = buildConversationText(result.normalized);
 		if (conversationText.length < 100) return;
+
+		//    Record cooldown AFTER all eligibility checks pass, right before
+		//    the expensive LLM call. If triage was skipped by filters above,
+		//    the cooldown stays unset so the next call can retry.
+		if (cooldownMs > 0 && result.threadId) {
+			_lastCaptureAt.set(result.threadId, Date.now());
+		}
 
 		try {
 			const triage = await client.triageConversation(conversationText);
