@@ -6,6 +6,23 @@ const MAX_DISTILL_MESSAGE_CHARS = 2000;
 const MAX_CONVERSATION_CHARS = 30_000;
 const MIN_MESSAGES_FOR_DISTILL = 4;
 
+// Per-thread triage cooldown: prevents burst triage/distillation from heartbeat.
+// Maps threadId -> timestamp (ms) of last successful triage.
+// Evicted opportunistically when new entries are set (see _setLastCapture).
+const _lastCaptureAt = new Map();
+const _MAX_COOLDOWN_ENTRIES = 200;
+
+function _setLastCapture(threadId, now) {
+	_lastCaptureAt.set(threadId, now);
+	// Opportunistic eviction: sweep stale entries when map grows large
+	if (_lastCaptureAt.size > _MAX_COOLDOWN_ENTRIES) {
+		const cutoff = now - 86_400_000; // 24h — generous TTL
+		for (const [key, ts] of _lastCaptureAt) {
+			if (ts < cutoff) _lastCaptureAt.delete(key);
+		}
+	}
+}
+
 function truncate(text, max = MAX_MESSAGE_CHARS) {
 	const str = String(text || "").trim();
 	if (!str) return "";
@@ -189,10 +206,11 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
 			deduplicate: true,
 			idempotencyKey,
 		});
+		const added = appended.messagesAdded ?? 0;
 		logger.info(
-			`capture: appended ${appended.messagesAdded} messages to ${threadId} (${reason || "event"})`,
+			`capture: appended ${added} messages to ${threadId} (${reason || "event"})`,
 		);
-		return { threadId, normalized };
+		return { threadId, normalized, messagesAdded: added };
 	} catch (err) {
 		if (!client.isThreadNotFoundError(err)) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -211,7 +229,7 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
 		logger.info(
 			`capture: created thread ${createdId} with ${messages.length} messages (${reason || "event"})`,
 		);
-		return { threadId, normalized };
+		return { threadId, normalized, messagesAdded: messages.length };
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.warn(`capture: thread create failed for ${threadId}: ${message}`);
@@ -256,10 +274,14 @@ function buildConversationText(normalized) {
  * triage or distillation, since those are mid-session checkpoints.
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
+	const cooldownMs = (cfg.captureMinInterval ?? 300) * 1000;
+
 	return async (event, ctx) => {
 		if (!event?.success) return;
 
 		// 1. Always thread-append (idempotent, self-guards on empty messages).
+		//    Never skip this — messages must always be persisted regardless of
+		//    cooldown state, since appendOrCreateThread is deduped and cheap.
 		const result = await appendOrCreateThread({
 			client,
 			logger,
@@ -273,9 +295,27 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		//    but check here too so the handler is safe if called directly.
 		if (!cfg.autoCapture) return;
 
+		//    Skip when no new messages were added (e.g. heartbeat re-sync).
+		if (!result || result.messagesAdded === 0) {
+			logger.debug?.("capture: no new messages since last sync, skipping triage");
+			return;
+		}
+
+		//    Triage cooldown: skip expensive LLM triage/distillation if this
+		//    thread was already triaged recently. Thread append above still ran,
+		//    so no messages are lost — only the LLM cost is avoided.
+		if (cooldownMs > 0 && result.threadId) {
+			const lastCapture = _lastCaptureAt.get(result.threadId) || 0;
+			if (Date.now() - lastCapture < cooldownMs) {
+				logger.debug?.(
+					`capture: triage cooldown active for ${result.threadId}, skipping`,
+				);
+				return;
+			}
+		}
+
 		//    Skip short conversations — not worth the triage cost.
 		if (
-			!result ||
 			!result.normalized ||
 			result.normalized.length < MIN_MESSAGES_FOR_DISTILL
 		) {
@@ -284,6 +324,13 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 
 		const conversationText = buildConversationText(result.normalized);
 		if (conversationText.length < 100) return;
+
+		//    Record cooldown AFTER all eligibility checks pass, right before
+		//    the expensive LLM call. If triage was skipped by filters above,
+		//    the cooldown stays unset so the next call can retry.
+		if (cooldownMs > 0 && result.threadId) {
+			_setLastCapture(result.threadId, Date.now());
+		}
 
 		try {
 			const triage = await client.triageConversation(conversationText);

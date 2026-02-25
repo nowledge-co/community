@@ -1,6 +1,6 @@
 {
 	"id": "openclaw-nowledge-mem",
-	"version": "0.3.0",
+	"version": "0.6.2",
 	"kind": "memory",
 	"uiHints": {
 		"autoRecall": {
@@ -10,6 +10,10 @@
 		"autoCapture": {
 			"label": "Auto-capture at session end",
 			"help": "Capture conversation threads and distill key memories via LLM at session end"
+		},
+		"captureMinInterval": {
+			"label": "Minimum capture interval (seconds)",
+			"help": "Minimum seconds between auto-captures for the same thread. Prevents heartbeat-driven burst captures. Set to 0 for no limit."
 		},
 		"maxRecallResults": {
 			"label": "Max recall results",
@@ -37,6 +41,13 @@
 				"type": "boolean",
 				"default": false,
 				"description": "Capture conversation threads and distill key memories via LLM at session end"
+			},
+			"captureMinInterval": {
+				"type": "integer",
+				"default": 300,
+				"minimum": 0,
+				"maximum": 86400,
+				"description": "Minimum seconds between auto-captures for the same thread (0 = no limit). Prevents heartbeat-driven burst captures."
 			},
 			"maxRecallResults": {
 				"type": "integer",
