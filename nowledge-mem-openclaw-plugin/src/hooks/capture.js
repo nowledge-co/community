@@ -261,25 +261,14 @@ function buildConversationText(normalized) {
  * triage or distillation, since those are mid-session checkpoints.
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
-	const cooldownMs = (cfg.captureMinInterval || 300) * 1000;
+	const cooldownMs = (cfg.captureMinInterval ?? 300) * 1000;
 
 	return async (event, ctx) => {
 		if (!event?.success) return;
 
-		// Capture cooldown: skip if this thread was captured recently.
-		// Prevents heartbeat-driven burst captures from burning tokens.
-		if (cooldownMs > 0) {
-			const threadId = buildStableThreadId(event, ctx);
-			const lastCapture = _lastCaptureAt.get(threadId) || 0;
-			if (Date.now() - lastCapture < cooldownMs) {
-				logger.debug?.(
-					`capture: cooldown active for ${threadId}, skipping`,
-				);
-				return;
-			}
-		}
-
 		// 1. Always thread-append (idempotent, self-guards on empty messages).
+		//    Never skip this — messages must always be persisted regardless of
+		//    cooldown state, since appendOrCreateThread is deduped and cheap.
 		const result = await appendOrCreateThread({
 			client,
 			logger,
@@ -287,11 +276,6 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 			ctx,
 			reason: "agent_end",
 		});
-
-		// Record capture time for cooldown tracking.
-		if (result?.threadId) {
-			_lastCaptureAt.set(result.threadId, Date.now());
-		}
 
 		// 2. Triage + distill: language-agnostic LLM-based capture.
 		//    Defensive guard — registration in index.js already gates on autoCapture,
@@ -302,6 +286,20 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		if (!result || result.messagesAdded === 0) {
 			logger.debug?.("capture: no new messages since last sync, skipping triage");
 			return;
+		}
+
+		//    Triage cooldown: skip expensive LLM triage/distillation if this
+		//    thread was already triaged recently. Thread append above still ran,
+		//    so no messages are lost — only the LLM cost is avoided.
+		if (cooldownMs > 0 && result.threadId) {
+			const lastCapture = _lastCaptureAt.get(result.threadId) || 0;
+			if (Date.now() - lastCapture < cooldownMs) {
+				logger.debug?.(
+					`capture: triage cooldown active for ${result.threadId}, skipping`,
+				);
+				return;
+			}
+			_lastCaptureAt.set(result.threadId, Date.now());
 		}
 
 		//    Skip short conversations — not worth the triage cost.

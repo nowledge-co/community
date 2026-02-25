@@ -52,7 +52,7 @@ export function parseConfig(raw) {
 		captureMinInterval:
 			typeof obj.captureMinInterval === "number" &&
 			Number.isFinite(obj.captureMinInterval)
-				? Math.max(0, Math.trunc(obj.captureMinInterval))
+				? Math.min(86400, Math.max(0, Math.trunc(obj.captureMinInterval)))
 				: 300,
 		maxRecallResults:
 			typeof obj.maxRecallResults === "number" &&
