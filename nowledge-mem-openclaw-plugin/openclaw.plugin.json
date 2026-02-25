@@ -11,6 +11,10 @@
 			"label": "Auto-capture at session end",
 			"help": "Capture conversation threads and distill key memories via LLM at session end"
 		},
+		"captureMinInterval": {
+			"label": "Minimum capture interval (seconds)",
+			"help": "Minimum seconds between auto-captures for the same thread. Prevents heartbeat-driven burst captures. Set to 0 for no limit."
+		},
 		"maxRecallResults": {
 			"label": "Max recall results",
 			"help": "How many memories to inject for each recall cycle (1\u201320)"
@@ -37,6 +41,13 @@
 				"type": "boolean",
 				"default": false,
 				"description": "Capture conversation threads and distill key memories via LLM at session end"
+			},
+			"captureMinInterval": {
+				"type": "integer",
+				"default": 300,
+				"minimum": 0,
+				"maximum": 86400,
+				"description": "Minimum seconds between auto-captures for the same thread (0 = no limit). Prevents heartbeat-driven burst captures."
 			},
 			"maxRecallResults": {
 				"type": "integer",

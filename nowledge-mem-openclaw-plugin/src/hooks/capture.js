@@ -6,6 +6,10 @@ const MAX_DISTILL_MESSAGE_CHARS = 2000;
 const MAX_CONVERSATION_CHARS = 30_000;
 const MIN_MESSAGES_FOR_DISTILL = 4;
 
+// Per-thread capture cooldown: prevents burst captures from heartbeat/compaction.
+// Maps threadId -> timestamp (ms) of last successful capture.
+const _lastCaptureAt = new Map();
+
 function truncate(text, max = MAX_MESSAGE_CHARS) {
 	const str = String(text || "").trim();
 	if (!str) return "";
@@ -189,10 +193,11 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
 			deduplicate: true,
 			idempotencyKey,
 		});
+		const added = appended.messagesAdded ?? 0;
 		logger.info(
-			`capture: appended ${appended.messagesAdded} messages to ${threadId} (${reason || "event"})`,
+			`capture: appended ${added} messages to ${threadId} (${reason || "event"})`,
 		);
-		return { threadId, normalized };
+		return { threadId, normalized, messagesAdded: added };
 	} catch (err) {
 		if (!client.isThreadNotFoundError(err)) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -211,7 +216,7 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
 		logger.info(
 			`capture: created thread ${createdId} with ${messages.length} messages (${reason || "event"})`,
 		);
-		return { threadId, normalized };
+		return { threadId, normalized, messagesAdded: messages.length };
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.warn(`capture: thread create failed for ${threadId}: ${message}`);
@@ -256,8 +261,23 @@ function buildConversationText(normalized) {
  * triage or distillation, since those are mid-session checkpoints.
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
+	const cooldownMs = (cfg.captureMinInterval || 300) * 1000;
+
 	return async (event, ctx) => {
 		if (!event?.success) return;
+
+		// Capture cooldown: skip if this thread was captured recently.
+		// Prevents heartbeat-driven burst captures from burning tokens.
+		if (cooldownMs > 0) {
+			const threadId = buildStableThreadId(event, ctx);
+			const lastCapture = _lastCaptureAt.get(threadId) || 0;
+			if (Date.now() - lastCapture < cooldownMs) {
+				logger.debug?.(
+					`capture: cooldown active for ${threadId}, skipping`,
+				);
+				return;
+			}
+		}
 
 		// 1. Always thread-append (idempotent, self-guards on empty messages).
 		const result = await appendOrCreateThread({
@@ -268,14 +288,24 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 			reason: "agent_end",
 		});
 
+		// Record capture time for cooldown tracking.
+		if (result?.threadId) {
+			_lastCaptureAt.set(result.threadId, Date.now());
+		}
+
 		// 2. Triage + distill: language-agnostic LLM-based capture.
 		//    Defensive guard — registration in index.js already gates on autoCapture,
 		//    but check here too so the handler is safe if called directly.
 		if (!cfg.autoCapture) return;
 
+		//    Skip when no new messages were added (e.g. heartbeat re-sync).
+		if (!result || result.messagesAdded === 0) {
+			logger.debug?.("capture: no new messages since last sync, skipping triage");
+			return;
+		}
+
 		//    Skip short conversations — not worth the triage cost.
 		if (
-			!result ||
 			!result.normalized ||
 			result.normalized.length < MIN_MESSAGES_FOR_DISTILL
 		) {

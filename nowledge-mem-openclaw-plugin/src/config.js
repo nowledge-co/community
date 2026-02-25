@@ -12,6 +12,7 @@ export function isDefaultApiUrl(url) {
 const ALLOWED_KEYS = new Set([
 	"autoRecall",
 	"autoCapture",
+	"captureMinInterval",
 	"maxRecallResults",
 	"apiUrl",
 	"apiKey",
@@ -48,6 +49,11 @@ export function parseConfig(raw) {
 	return {
 		autoRecall: typeof obj.autoRecall === "boolean" ? obj.autoRecall : false,
 		autoCapture: typeof obj.autoCapture === "boolean" ? obj.autoCapture : false,
+		captureMinInterval:
+			typeof obj.captureMinInterval === "number" &&
+			Number.isFinite(obj.captureMinInterval)
+				? Math.max(0, Math.trunc(obj.captureMinInterval))
+				: 300,
 		maxRecallResults:
 			typeof obj.maxRecallResults === "number" &&
 			Number.isFinite(obj.maxRecallResults)
