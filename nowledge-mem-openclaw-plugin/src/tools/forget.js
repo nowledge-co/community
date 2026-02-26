@@ -87,8 +87,8 @@ export function createForgetTool(client, logger) {
 					};
 				}
 
-				// Single high-confidence match — delete directly
-				if (results.length === 1 || results[0].score >= 0.85) {
+				// High-confidence match — delete directly
+				if (results[0].score >= 0.85) {
 					const target = results[0];
 					try {
 						client.exec(["--json", "m", "delete", "-f", target.id]);

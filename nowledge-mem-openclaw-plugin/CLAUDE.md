@@ -32,12 +32,12 @@ src/
   hooks/
     behavioral.js   — always-on behavioral guidance (~50 tokens/turn)
     recall.js       — before_prompt_build: inject Working Memory + recalled memories
-    capture.js      — quality-gated memory note + thread append
+    capture.js      — thread capture + LLM triage/distillation at session lifecycle events
   tools/
     memory-search.js    — OpenClaw compat; multi-signal; bi-temporal; relevance_reason; sourceThreadId
     memory-get.js       — OpenClaw compat; supports MEMORY.md alias; sourceThreadId
-    save.js             — structured capture: unit_type, labels, temporal, importance
-    context.js          — Working Memory daily briefing (read-only)
+    save.js             — structured capture: unit_type, labels, temporal, importance; pre-save dedup check
+    context.js          — Working Memory daily briefing (read + section-level patch)
     connections.js      — graph exploration: edge types, relationship strength, provenance
     timeline.js         — activity feed: daily grouping, event_type filter, memoryId hints
     forget.js           — memory deletion by ID or search
@@ -65,7 +65,7 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 
 ## Hook Surface
 
-- `before_prompt_build` (always-on) — behavioral guidance: brief note telling agent to save/search proactively
+- `before_prompt_build` (always-on) — behavioral guidance: brief note telling agent to save/search proactively. Adjusts when sessionContext is on to avoid redundant searches.
 - `before_prompt_build` (sessionContext) — session context: Working Memory + `searchRich()` with `relevanceReason` in context
 - `agent_end` — thread capture + LLM triage/distillation (requires `sessionDigest: true`)
 - `after_compaction` — thread append

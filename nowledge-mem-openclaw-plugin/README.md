@@ -331,8 +331,10 @@ openclaw nowledge-mem status
 |-----|------|---------|-------------|
 | `sessionContext` | boolean | `false` | Inject Working Memory + relevant memories at prompt time |
 | `sessionDigest` | boolean | `true` | Thread capture + LLM distillation at session end |
-| `maxContextResults` | integer | `5` | Max memories to inject at prompt time (only used when sessionContext is enabled) |
-| `digestMinInterval` | integer | `300` | Minimum seconds between session digests for the same thread |
+| `maxContextResults` | integer | `5` | Max memories to inject at prompt time (1–20, only used when sessionContext is enabled) |
+| `digestMinInterval` | integer | `300` | Minimum seconds between session digests for the same thread (0–86400) |
+| `apiUrl` | string | `""` | Remote server URL. Empty = local (`http://127.0.0.1:14242`) |
+| `apiKey` | string | `""` | API key for remote access. Injected as `NMEM_API_KEY` env var — never logged |
 
 ## What Makes This Different
 

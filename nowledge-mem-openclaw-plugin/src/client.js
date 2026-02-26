@@ -792,6 +792,7 @@ export class NowledgeMemClient {
 			"--limit",
 			String(normalizedLimit),
 		];
+		if (source) args.push("--source", String(source));
 
 		try {
 			const data = this.execJson(args);
