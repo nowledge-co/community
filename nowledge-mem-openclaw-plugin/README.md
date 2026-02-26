@@ -32,7 +32,7 @@ Start Nowledge Mem desktop app or run `nmem serve`, then configure:
 }
 ```
 
-That's it. The agent gets 7 tools and calls them on demand. No extra tokens wasted.
+That's it. The agent gets 9 tools and calls them on demand. No extra tokens wasted.
 
 ### Remote mode
 
@@ -63,9 +63,9 @@ The `apiKey` is injected as `NMEM_API_KEY` into the nmem CLI process — never p
 
 These satisfy the OpenClaw memory slot contract and activate the "Memory Recall" section in OpenClaw's system prompt.
 
-**memory_search** — Multi-signal recall using embedding, BM25, label match, graph signals, and recency decay. Returns structured source paths (`nowledgemem://memory/<id>`) for follow-up with `memory_get` or `nowledge_mem_connections`. Also returns relevant past conversation snippets (`relatedThreads`) when available.
+**memory_search** — Multi-signal recall using embedding, BM25, label match, graph signals, and recency decay. Returns structured source paths (`nowledgemem://memory/<id>`) for follow-up with `memory_get` or `nowledge_mem_connections`. Also returns relevant past conversation snippets (`relatedThreads`) and `sourceThreadId` (link to the conversation the memory was distilled from) when available.
 
-**memory_get** — Read a specific memory by ID or path. Supports `MEMORY.md` alias for Working Memory.
+**memory_get** — Read a specific memory by ID or path. Supports `MEMORY.md` alias for Working Memory. Returns `sourceThreadId` when the memory was distilled from a conversation.
 
 ### Nowledge Mem Native
 
@@ -117,6 +117,21 @@ last_n_days: 7
 ```
 
 **nowledge_mem_forget** — Delete a memory by ID or search query. Supports user confirmation when multiple matches are found.
+
+### Thread Tools
+
+**nowledge_mem_thread_search** — Search past conversations by keyword. Returns matched threads with message snippets and relevance scores. Use when the user asks about a past discussion or wants to find a conversation from a specific time.
+
+**nowledge_mem_thread_fetch** — Fetch full messages from a conversation thread with pagination. Pass a `sourceThreadId` from memory results or a `threadId` from thread search. Supports `offset` and `limit` for progressive retrieval of long conversations.
+
+```
+threadId: "openclaw-db-arch-a1b2c3"
+offset: 0, limit: 50
+-> Thread: "Database architecture discussion" (128 messages)
+  [user] We need to decide on the database for task events...
+  [assistant] Based on the requirements, PostgreSQL with JSONB...
+  ... (126 more messages, use offset=50 for next page)
+```
 
 ## Operating Modes
 

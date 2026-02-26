@@ -34,21 +34,23 @@ src/
     recall.js       — before_prompt_build: inject Working Memory + recalled memories
     capture.js      — quality-gated memory note + thread append
   tools/
-    memory-search.js    — OpenClaw compat; multi-signal; bi-temporal; relevance_reason
-    memory-get.js       — OpenClaw compat; supports MEMORY.md alias
+    memory-search.js    — OpenClaw compat; multi-signal; bi-temporal; relevance_reason; sourceThreadId
+    memory-get.js       — OpenClaw compat; supports MEMORY.md alias; sourceThreadId
     save.js             — structured capture: unit_type, labels, temporal, importance
     context.js          — Working Memory daily briefing (read-only)
     connections.js      — graph exploration: edge types, relationship strength, provenance
     timeline.js         — activity feed: daily grouping, event_type filter, memoryId hints
     forget.js           — memory deletion by ID or search
+    thread-search.js    — search past conversations by keyword
+    thread-fetch.js     — fetch full messages from a thread with pagination
 openclaw.plugin.json — manifest + config schema (version, uiHints, configSchema)
 ```
 
-## Tool Surface (7 tools)
+## Tool Surface (9 tools)
 
 ### OpenClaw Memory Slot (required for system prompt activation)
-- `memory_search` — multi-signal: BM25 + embedding + label + graph + decay. Returns `matchedVia` ("Text Match 100% + Semantic 69%"), `importance`, bi-temporal filters (`event_date_from/to`, `recorded_date_from/to`). Also returns `relatedThreads` (past conversation snippets matching the query). Mode: `"multi-signal"`.
-- `memory_get` — retrieve by `nowledgemem://memory/<id>` path or bare ID. `MEMORY.md` → Working Memory.
+- `memory_search` — multi-signal: BM25 + embedding + label + graph + decay. Returns `matchedVia` ("Text Match 100% + Semantic 69%"), `importance`, bi-temporal filters (`event_date_from/to`, `recorded_date_from/to`). Also returns `relatedThreads` (past conversation snippets matching the query) and `sourceThreadId` (link to source conversation). Mode: `"multi-signal"`.
+- `memory_get` — retrieve by `nowledgemem://memory/<id>` path or bare ID. `MEMORY.md` → Working Memory. Returns `sourceThreadId` when available.
 
 ### Nowledge Mem Native (differentiators)
 - `nowledge_mem_save` — structured capture: `unit_type`, `labels[]`, `event_start`, `event_end`, `temporal_context`, `importance`. All fields wired to CLI and API.
@@ -56,6 +58,10 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 - `nowledge_mem_connections` — graph exploration. Edges JOIN-ed to nodes by type: CRYSTALLIZED_FROM (crystal → source memories), EVOLVES (with sub-relations: supersedes/enriches/confirms/challenges), SOURCED_FROM (document provenance), MENTIONS (entities). Each connection shows strength % and memoryId.
 - `nowledge_mem_timeline` — activity feed via `nmem f`. Groups by day. `event_type` filter. Exact date range via `date_from`/`date_to` (YYYY-MM-DD). Entries include `(id: <memoryId>)` for chaining to connections.
 - `nowledge_mem_forget` — delete by ID or fuzzy query.
+
+### Thread Tools (progressive conversation retrieval)
+- `nowledge_mem_thread_search` — search past conversations by keyword. Returns threads with matched message snippets, relevance scores, and message counts. Supports `source` filter.
+- `nowledge_mem_thread_fetch` — fetch full messages from a specific thread. Supports pagination via `offset` + `limit` for progressive retrieval of long conversations.
 
 ## Hook Surface
 
@@ -101,7 +107,9 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 | `nmem --json wm read` | `client.readWorkingMemory()` | Working Memory read |
 | `nmem --json wm patch --heading "## S" --content/--append` | `client.patchWorkingMemory()` | Section-level WM update |
 | `nmem --json m delete <id>` | `client.execJson()` in forget.js | Delete |
-| `GET /threads/search?query=&limit=` | `client.searchThreads()` | Thread search (API-only, no CLI) |
+| `GET /threads/search?query=&limit=` | `client.searchThreads()` | Thread search enrichment (best-effort, API-only) |
+| `nmem --json t search <q> --limit N` | `client.searchThreadsFull()` | Full thread search (CLI-first, API fallback) |
+| `nmem --json t show <id> --limit N --offset O` | `client.fetchThread()` | Fetch thread messages with pagination |
 
 All commands have API fallback for older CLI versions.
 

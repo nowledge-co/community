@@ -141,6 +141,9 @@ export function createMemorySearchTool(client, logger) {
 					if (entry.eventEnd) result.eventEnd = entry.eventEnd;
 					if (entry.temporalContext)
 						result.temporalContext = entry.temporalContext;
+					// Thread provenance: link to the source conversation
+					if (entry.sourceThreadId)
+						result.sourceThreadId = entry.sourceThreadId;
 					return result;
 				});
 

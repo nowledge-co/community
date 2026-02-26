@@ -15,6 +15,7 @@ const GUIDANCE = [
 	"something learned, a plan formed, a useful discovery — save it with nowledge_mem_save. Don't wait to be asked.",
 	"When prior context would improve your response, search with memory_search.",
 	"memory_search also returns relevant past conversation snippets alongside memories.",
+	"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_fetch.",
 	"</nowledge-mem-guidance>",
 ].join("\n");
 

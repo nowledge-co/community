@@ -359,6 +359,13 @@ export class NowledgeMemClient {
 			eventStart: m.event_start ?? null,
 			eventEnd: m.event_end ?? null,
 			temporalContext: m.temporal_context ?? null,
+			// Thread provenance: links memory to the conversation it was distilled from.
+			// CLI returns `source_thread`, API metadata returns `source_thread_id`.
+			sourceThreadId:
+				m.source_thread ??
+				m.source_thread_id ??
+				m.metadata?.source_thread_id ??
+				null,
 		};
 	}
 
@@ -757,6 +764,142 @@ export class NowledgeMemClient {
 				`searchThreads failed: ${err instanceof Error ? err.message : String(err)}`,
 			);
 			return { threads: [], totalFound: 0 };
+		}
+	}
+
+	/**
+	 * Full-featured thread search — used by nowledge_mem_thread_search tool.
+	 * Unlike searchThreads() (best-effort, swallows errors), this throws on failure
+	 * and supports additional parameters.
+	 *
+	 * Uses CLI: `nmem --json t search "<query>" --limit N`
+	 * Falls back to API: GET /threads/search
+	 *
+	 * @param {string} query  Search keywords
+	 * @param {{ limit?: number; source?: string }} [options]
+	 * @returns {Promise<{ threads: Array, totalFound: number }>}
+	 */
+	async searchThreadsFull(query, { limit = 10, source } = {}) {
+		const normalizedLimit = Math.min(
+			50,
+			Math.max(1, Math.trunc(Number(limit) || 10)),
+		);
+		const args = [
+			"--json",
+			"t",
+			"search",
+			String(query || ""),
+			"--limit",
+			String(normalizedLimit),
+		];
+
+		try {
+			const data = this.execJson(args);
+			return {
+				threads: data.threads ?? [],
+				totalFound: Number(data.total_found ?? data.total ?? 0),
+			};
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			const needsFallback =
+				message.includes("unrecognized arguments") ||
+				message.includes("invalid choice") ||
+				message.includes("argument command: invalid choice");
+			if (!needsFallback) throw err;
+
+			this.logger.warn("searchThreadsFull: CLI too old, falling back to API");
+			const qs = new URLSearchParams({
+				query: String(query || ""),
+				mode: "full",
+				limit: String(normalizedLimit),
+			});
+			if (source) qs.set("source", String(source));
+			const data = await this.apiJson(
+				"GET",
+				`/threads/search?${qs.toString()}`,
+			);
+			return {
+				threads: data.threads ?? [],
+				totalFound: Number(data.total_found ?? 0),
+			};
+		}
+	}
+
+	/**
+	 * Fetch full messages from a specific thread.
+	 * Supports pagination for progressive retrieval of long conversations.
+	 *
+	 * Uses CLI: `nmem --json t show <id> --limit N --offset O`
+	 * Falls back to API: GET /threads/{id}
+	 *
+	 * @param {string} threadId  Thread ID
+	 * @param {{ offset?: number; limit?: number }} [options]
+	 */
+	async fetchThread(threadId, { offset = 0, limit = 50 } = {}) {
+		const id = String(threadId || "").trim();
+		if (!id) throw new Error("fetchThread requires threadId");
+
+		const normalizedLimit = Math.min(
+			200,
+			Math.max(1, Math.trunc(Number(limit) || 50)),
+		);
+		const normalizedOffset = Math.max(0, Math.trunc(Number(offset) || 0));
+
+		const args = [
+			"--json",
+			"t",
+			"show",
+			id,
+			"--limit",
+			String(normalizedLimit),
+		];
+		if (normalizedOffset > 0) {
+			args.push("--offset", String(normalizedOffset));
+		}
+
+		try {
+			const data = this.execJson(args);
+			return {
+				threadId: data.thread_id ?? data.id ?? id,
+				title: data.title ?? "(untitled)",
+				source: data.source ?? "unknown",
+				messageCount: Number(data.message_count ?? data.total_messages ?? 0),
+				messages: (data.messages ?? []).map((msg) => ({
+					role: String(msg.role ?? "unknown"),
+					content: String(msg.content ?? ""),
+					timestamp: msg.timestamp ?? msg.created_at ?? null,
+				})),
+			};
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			const needsFallback =
+				message.includes("unrecognized arguments") ||
+				message.includes("invalid choice") ||
+				message.includes("argument command: invalid choice");
+			if (!needsFallback) throw err;
+
+			this.logger.warn("fetchThread: CLI too old, falling back to API");
+			const qs = new URLSearchParams({
+				limit: String(normalizedLimit),
+			});
+			if (normalizedOffset > 0) {
+				qs.set("offset", String(normalizedOffset));
+			}
+			const data = await this.apiJson(
+				"GET",
+				`/threads/${encodeURIComponent(id)}?${qs.toString()}`,
+			);
+			return {
+				threadId: data.thread_id ?? data.id ?? id,
+				title: data.title ?? "(untitled)",
+				source: data.source ?? "unknown",
+				messageCount: Number(data.message_count ?? data.total_messages ?? 0),
+				messages: (data.messages ?? []).map((msg) => ({
+					role: String(msg.role ?? "unknown"),
+					content: String(msg.content ?? ""),
+					timestamp: msg.timestamp ?? msg.created_at ?? null,
+				})),
+			};
 		}
 	}
 

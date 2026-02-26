@@ -18,6 +18,8 @@ import { createForgetTool } from "./tools/forget.js";
 import { createMemoryGetTool } from "./tools/memory-get.js";
 import { createMemorySearchTool } from "./tools/memory-search.js";
 import { createSaveTool } from "./tools/save.js";
+import { createThreadFetchTool } from "./tools/thread-fetch.js";
+import { createThreadSearchTool } from "./tools/thread-search.js";
 import { createTimelineTool } from "./tools/timeline.js";
 
 export default {
@@ -45,6 +47,10 @@ export default {
 		api.registerTool(createConnectionsTool(client, logger));
 		api.registerTool(createTimelineTool(client, logger));
 		api.registerTool(createForgetTool(client, logger));
+
+		// Thread tools (progressive conversation retrieval)
+		api.registerTool(createThreadSearchTool(client, logger));
+		api.registerTool(createThreadFetchTool(client, logger));
 
 		// Always-on: behavioral guidance so the agent proactively saves and searches.
 		// Fires every turn via before_prompt_build — ~50 tokens, negligible cost.

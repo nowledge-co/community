@@ -1,6 +1,6 @@
 {
 	"id": "openclaw-nowledge-mem",
-	"version": "0.6.4",
+	"version": "0.6.5",
 	"kind": "memory",
 	"uiHints": {
 		"sessionContext": {

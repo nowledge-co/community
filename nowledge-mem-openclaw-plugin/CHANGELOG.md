@@ -2,6 +2,28 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.5] - 2026-02-26
+
+### Added — Thread tools + sourceThreadId linkage
+
+**Two new tools for conversation retrieval.** The plugin now provides 9 tools total.
+
+- `nowledge_mem_thread_search` — Search past conversations by keyword. Returns matched threads with message snippets and relevance scores. Use when the user asks about a past discussion or wants to find a specific conversation.
+- `nowledge_mem_thread_fetch` — Fetch full messages from a specific thread with pagination support. Use to progressively retrieve long conversations. Accepts `offset` and `limit` for paginated retrieval.
+
+**Memories now link back to their source conversations.**
+
+Every memory distilled from a conversation now includes `sourceThreadId` in search results (`memory_search`) and individual lookups (`memory_get`). This enables the progressive retrieval workflow: search memories, see which thread they came from, fetch the full conversation for context.
+
+**New client methods:**
+
+- `client.searchThreadsFull(query, { limit, source })` — Full-featured thread search (throws on error, supports source filter). CLI-first with API fallback.
+- `client.fetchThread(threadId, { offset, limit })` — Fetch messages from a thread with pagination. CLI-first with API fallback.
+
+**Behavioral guidance updated.**
+
+The always-on hook now tells the agent about `nowledge_mem_thread_fetch` for following up on `sourceThreadId` links.
+
 ## [0.6.4] - 2026-02-26
 
 ### Changed — Thread search enrichment + sessionDigest default on
