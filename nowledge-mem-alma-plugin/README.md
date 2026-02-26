@@ -136,6 +136,19 @@ Example profiles:
   - `recallPolicy=balanced_thread_once`
   - Let model use Bash + `nmem --help` / `nmem --json ...` patterns from injected playbook
 
+## Access Anywhere (Remote Access)
+
+Connect to a remote Mem instance instead of `localhost`:
+
+- **`nowledgeMem.apiUrl`**: Remote Mem API URL (e.g. `https://mem.example.com`). Leave empty for local.
+- **`nowledgeMem.apiKey`**: Mem API key (`nmem_...`). Passed via environment variable only, never as a CLI argument or in logs.
+
+Alternatively, set `NMEM_API_URL` and `NMEM_API_KEY` as environment variables before starting Alma.
+
+Startup log shows `mode=remote` or `mode=local` to confirm which mode is active.
+
+See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access) for full setup instructions.
+
 ## Runtime Defaults
 
 The plugin currently uses these defaults:

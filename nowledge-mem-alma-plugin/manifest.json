@@ -1,7 +1,7 @@
 {
   "id": "nowledge-mem",
   "name": "Nowledge Mem",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Local-first personal memory for Alma, powered by Nowledge Mem CLI",
   "author": {
     "name": "Nowledge Labs",
@@ -99,6 +99,16 @@
           "minimum": 1,
           "maximum": 20,
           "description": "Upper bound for memories injected in balanced modes."
+        },
+        "nowledgeMem.apiUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Remote Mem API URL for Access Anywhere (e.g. https://mem.example.com). Leave empty for local."
+        },
+        "nowledgeMem.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Mem API key for remote access (nmem_...). Passed via env var only, never logged."
         }
       }
     }

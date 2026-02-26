@@ -59,9 +59,15 @@ function stringifyMessage(message) {
 }
 
 class NowledgeMemClient {
-	constructor(logger) {
+	/**
+	 * @param {object} logger
+	 * @param {{ apiUrl?: string; apiKey?: string }} [credentials]
+	 */
+	constructor(logger, credentials = {}) {
 		this.logger = logger;
 		this.command = null;
+		this._apiUrl = (credentials.apiUrl || "").trim() || "http://127.0.0.1:14242";
+		this._apiKey = (credentials.apiKey || "").trim();
 	}
 
 	resolveCommand() {
@@ -95,12 +101,36 @@ class NowledgeMemClient {
 		);
 	}
 
+	/**
+	 * Build env for child process. API key is injected here — NEVER via CLI args.
+	 */
+	_spawnEnv() {
+		const env = { ...process.env };
+		if (this._apiUrl !== "http://127.0.0.1:14242") {
+			env.NMEM_API_URL = this._apiUrl;
+		}
+		if (this._apiKey) {
+			env.NMEM_API_KEY = this._apiKey;
+		}
+		return env;
+	}
+
+	/**
+	 * Build base CLI args for remote access. --api-url is safe (not a secret).
+	 */
+	_apiUrlArgs() {
+		return this._apiUrl !== "http://127.0.0.1:14242"
+			? ["--api-url", this._apiUrl]
+			: [];
+	}
+
 	run(args, expectJson = false) {
 		const { cmd, prefix } = this.resolveCommand();
-		const finalArgs = [...prefix, ...args];
+		const finalArgs = [...prefix, ...this._apiUrlArgs(), ...args];
 		const result = spawnSync(cmd, finalArgs, {
 			encoding: "utf-8",
 			timeout: 30_000,
+			env: this._spawnEnv(),
 		});
 
 		if (result.status !== 0) {
@@ -485,7 +515,10 @@ async function saveActiveThread(context, client) {
 
 export async function activate(context) {
 	const logger = context.logger ?? console;
-	const client = new NowledgeMemClient(logger);
+
+	const apiUrl = getSetting(context.settings, "nowledgeMem.apiUrl", "") || "";
+	const apiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
+	const client = new NowledgeMemClient(logger, { apiUrl, apiKey });
 	const recalledThreads = new Set();
 
 	const recallPolicy = resolveRecallPolicy(context.settings, logger);
@@ -1222,8 +1255,9 @@ export async function activate(context) {
 		registerEvent("app.before-quit", handleAutoCapture);
 	}
 
+	const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
 	logger.info?.(
-		`nowledge-mem activated for Alma (recallPolicy=${recallPolicy}, recallInjectionEnabled=${recallInjectionEnabled}, recallFrequency=${recallFrequency}, injectCliPlaybook=${injectCliPlaybook}, autoCapture=${autoCapture}, maxRecallResults=${maxRecallResults})`,
+		`nowledge-mem activated for Alma (recallPolicy=${recallPolicy}, recallInjectionEnabled=${recallInjectionEnabled}, recallFrequency=${recallFrequency}, injectCliPlaybook=${injectCliPlaybook}, autoCapture=${autoCapture}, maxRecallResults=${maxRecallResults}, mode=${remoteMode ? `remote → ${apiUrl}` : "local"})`,
 	);
 }
 

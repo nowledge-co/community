@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1
+
+### Access Anywhere (remote access)
+- Add `apiUrl` and `apiKey` settings for connecting to a remote Mem instance
+- API key is injected via environment variable only (never as CLI arg, never logged)
+- URL is passed via `--api-url` CLI flag (safe, not a secret)
+- Startup log now shows `mode=remote` or `mode=local`
+
 ## 0.6.0
 
 ### Thread provenance (sourceThreadId linkage)
