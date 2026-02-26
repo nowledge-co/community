@@ -516,16 +516,16 @@ async function saveActiveThread(context, client) {
 export async function activate(context) {
 	const logger = context.logger ?? console;
 
-	const apiUrl = getSetting(context.settings, "nowledgeMem.apiUrl", "") || "";
-	const apiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
-	const client = new NowledgeMemClient(logger, { apiUrl, apiKey });
+	let apiUrl = getSetting(context.settings, "nowledgeMem.apiUrl", "") || "";
+	let apiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
+	let client = new NowledgeMemClient(logger, { apiUrl, apiKey });
 	const recalledThreads = new Set();
 
-	const recallPolicy = resolveRecallPolicy(context.settings, logger);
-	const autoCapture = Boolean(
+	let recallPolicy = resolveRecallPolicy(context.settings, logger);
+	let autoCapture = Boolean(
 		getSetting(context.settings, "nowledgeMem.autoCapture", false),
 	);
-	const maxRecallResults = clamp(
+	let maxRecallResults = clamp(
 		Number(getSetting(context.settings, "nowledgeMem.maxRecallResults", 5)) ||
 			5,
 		1,
@@ -533,6 +533,33 @@ export async function activate(context) {
 	);
 
 	const disposables = [];
+
+	// React to settings changes — recreate client with fresh credentials
+	if (context.settings?.onDidChange) {
+		try {
+			const settingsDisposable = context.settings.onDidChange(() => {
+				const newApiUrl = getSetting(context.settings, "nowledgeMem.apiUrl", "") || "";
+				const newApiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
+				if (newApiUrl !== apiUrl || newApiKey !== apiKey) {
+					apiUrl = newApiUrl;
+					apiKey = newApiKey;
+					client = new NowledgeMemClient(logger, { apiUrl, apiKey });
+					const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
+					logger.info?.(
+						`nowledge-mem: credentials updated, mode=${remoteMode ? `remote → ${apiUrl}` : "local"}`,
+					);
+				}
+				recallPolicy = resolveRecallPolicy(context.settings, logger);
+				autoCapture = Boolean(getSetting(context.settings, "nowledgeMem.autoCapture", false));
+				maxRecallResults = clamp(
+					Number(getSetting(context.settings, "nowledgeMem.maxRecallResults", 5)) || 5, 1, 20,
+				);
+			});
+			if (settingsDisposable?.dispose) disposables.push(settingsDisposable);
+		} catch {
+			logger.warn?.("nowledge-mem: settings.onDidChange not available, settings changes require plugin reload");
+		}
+	}
 
 	const registerTool = (name, tool) => {
 		if (!context.tools?.register) return;

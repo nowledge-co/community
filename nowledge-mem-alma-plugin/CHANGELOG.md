@@ -7,6 +7,11 @@
 - Returns: connection mode (local/remote), API URL, API key configured (boolean), CLI availability, server connectivity, and current settings
 - Useful for verifying Access Anywhere remote configuration is working correctly
 
+### Live settings reload
+- Settings changes (apiUrl, apiKey, recallPolicy, autoCapture, maxRecallResults) now take effect immediately via `settings.onDidChange()`
+- No longer requires plugin reload or Alma restart after changing Access Anywhere credentials
+- Client is recreated with fresh credentials when apiUrl/apiKey change
+
 ### Plugin lifecycle compliance
 - `activate()` now returns `{ dispose }` per Alma `PluginActivation` contract
 - Tool and event registrations collect `Disposable` handles for proper cleanup
