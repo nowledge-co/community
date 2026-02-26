@@ -2,6 +2,29 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.4.0] - 2026-02-26
+
+### Changed — Rename config + always-on behavioral guidance
+
+**Renamed config options** (old names still work as silent aliases):
+
+| Old name | New name |
+|----------|----------|
+| `autoRecall` | `sessionContext` |
+| `autoCapture` | `sessionDigest` |
+| `captureMinInterval` | `digestMinInterval` |
+| `maxRecallResults` | `maxContextResults` |
+
+Existing configs with old names continue to work — aliases are resolved transparently in `parseConfig()`. New names take precedence if both are present.
+
+**Added: Always-on behavioral hook**
+
+The agent now receives brief behavioral guidance (~50 tokens) on every turn via `before_prompt_build`, telling it to proactively save and search. This fires in ALL modes, including tool-only (default). Previously, without `sessionContext` enabled, the agent had no system-level instruction to use memory tools — most LLMs ignored the "call proactively" hints in tool descriptions. This is the single most impactful change for memory adoption.
+
+**Migrated: `before_prompt_build` for session context**
+
+Session context injection (formerly "autoRecall") now uses the modern `before_prompt_build` hook instead of legacy `before_agent_start`. Both the behavioral hook and session context coexist — OpenClaw concatenates multiple `prependContext` values with `\n\n`.
+
 ## [0.3.0] - 2026-02-23
 
 ### Changed — Architecture overhaul: tool-first, LLM-based capture

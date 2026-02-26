@@ -44,7 +44,7 @@ export function buildRecallHandler(client, cfg, logger) {
 
 		// 2. Relevant memories — enriched with scoring signals and labels
 		try {
-			const results = await client.searchRich(prompt, cfg.maxRecallResults);
+			const results = await client.searchRich(prompt, cfg.maxContextResults);
 			if (results.length > 0) {
 				const lines = results.map((r) => {
 					const title = r.title || "(untitled)";

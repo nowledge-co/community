@@ -1,23 +1,23 @@
 {
 	"id": "openclaw-nowledge-mem",
-	"version": "0.6.2",
+	"version": "0.6.3",
 	"kind": "memory",
 	"uiHints": {
-		"autoRecall": {
-			"label": "Auto-recall at session start",
-			"help": "Inject Working Memory and relevant memories at session start. Off by default \u2014 the agent can call memory_search on demand instead."
+		"sessionContext": {
+			"label": "Session context injection",
+			"help": "Inject Working Memory and relevant memories at prompt time. Off by default \u2014 the agent can call memory_search on demand instead."
 		},
-		"autoCapture": {
-			"label": "Auto-capture at session end",
+		"sessionDigest": {
+			"label": "Session digest at end",
 			"help": "Capture conversation threads and distill key memories via LLM at session end"
 		},
-		"captureMinInterval": {
-			"label": "Minimum capture interval (seconds)",
-			"help": "Minimum seconds between auto-captures for the same thread. Prevents heartbeat-driven burst captures. Set to 0 for no limit."
+		"digestMinInterval": {
+			"label": "Minimum digest interval (seconds)",
+			"help": "Minimum seconds between session digests for the same thread. Prevents heartbeat-driven burst captures. Set to 0 for no limit."
 		},
-		"maxRecallResults": {
-			"label": "Max recall results",
-			"help": "How many memories to inject for each recall cycle (1\u201320)"
+		"maxContextResults": {
+			"label": "Max context results",
+			"help": "How many memories to inject for each context cycle (1\u201320)"
 		},
 		"apiUrl": {
 			"label": "Server URL (remote mode)",
@@ -32,29 +32,29 @@
 	"configSchema": {
 		"type": "object",
 		"properties": {
-			"autoRecall": {
+			"sessionContext": {
 				"type": "boolean",
 				"default": false,
-				"description": "Inject Working Memory and recalled memories at session start. Off by default \u2014 the agent queries memory on demand via tools."
+				"description": "Inject Working Memory and recalled memories at prompt time. Off by default \u2014 the agent queries memory on demand via tools."
 			},
-			"autoCapture": {
+			"sessionDigest": {
 				"type": "boolean",
 				"default": false,
 				"description": "Capture conversation threads and distill key memories via LLM at session end"
 			},
-			"captureMinInterval": {
+			"digestMinInterval": {
 				"type": "integer",
 				"default": 300,
 				"minimum": 0,
 				"maximum": 86400,
-				"description": "Minimum seconds between auto-captures for the same thread (0 = no limit). Prevents heartbeat-driven burst captures."
+				"description": "Minimum seconds between session digests for the same thread (0 = no limit). Prevents heartbeat-driven burst captures."
 			},
-			"maxRecallResults": {
+			"maxContextResults": {
 				"type": "integer",
 				"default": 5,
 				"minimum": 1,
 				"maximum": 20,
-				"description": "Maximum memories to recall at session start (only used when autoRecall is enabled)"
+				"description": "Maximum memories to inject at prompt time (only used when sessionContext is enabled)"
 			},
 			"apiUrl": {
 				"type": "string",

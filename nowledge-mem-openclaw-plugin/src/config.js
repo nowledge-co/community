@@ -9,22 +9,44 @@ export function isDefaultApiUrl(url) {
 	return !trimmed || trimmed === API_DEFAULT_URL;
 }
 
+// Canonical config keys (new names).
 const ALLOWED_KEYS = new Set([
-	"autoRecall",
-	"autoCapture",
-	"captureMinInterval",
-	"maxRecallResults",
+	"sessionContext",
+	"sessionDigest",
+	"digestMinInterval",
+	"maxContextResults",
 	"apiUrl",
 	"apiKey",
 ]);
 
+// Backward-compatible aliases (old names → new names).
+// Accepted silently so existing users' configs keep working.
+const ALIAS_KEYS = {
+	autoRecall: "sessionContext",
+	autoCapture: "sessionDigest",
+	captureMinInterval: "digestMinInterval",
+	maxRecallResults: "maxContextResults",
+};
+
 export function parseConfig(raw) {
 	const obj = raw && typeof raw === "object" ? raw : {};
 
+	// Resolve aliases: copy old-name values to new-name slots
+	// (new name takes precedence if both are present).
+	const resolved = { ...obj };
+	for (const [oldKey, newKey] of Object.entries(ALIAS_KEYS)) {
+		if (oldKey in resolved) {
+			if (!(newKey in resolved)) {
+				resolved[newKey] = resolved[oldKey];
+			}
+			delete resolved[oldKey];
+		}
+	}
+
 	// Strict: reject unknown keys so users catch typos immediately.
-	// If OpenClaw adds new platform-level keys that should pass through,
-	// add them to ALLOWED_KEYS rather than silently accepting anything.
-	const unknownKeys = Object.keys(obj).filter((k) => !ALLOWED_KEYS.has(k));
+	const unknownKeys = Object.keys(resolved).filter(
+		(k) => !ALLOWED_KEYS.has(k),
+	);
 	if (unknownKeys.length > 0) {
 		throw new Error(
 			`nowledge-mem: unknown config key${unknownKeys.length > 1 ? "s" : ""}: ${unknownKeys.join(", ")}. ` +
@@ -34,30 +56,39 @@ export function parseConfig(raw) {
 
 	// apiUrl: config wins, then env var, then local default
 	const apiUrl =
-		(typeof obj.apiUrl === "string" && obj.apiUrl.trim()) ||
+		(typeof resolved.apiUrl === "string" && resolved.apiUrl.trim()) ||
 		(typeof process.env.NMEM_API_URL === "string" &&
 			process.env.NMEM_API_URL.trim()) ||
 		"";
 
 	// apiKey: config wins, then env var — never logged, never in CLI args
 	const apiKey =
-		(typeof obj.apiKey === "string" && obj.apiKey.trim()) ||
+		(typeof resolved.apiKey === "string" && resolved.apiKey.trim()) ||
 		(typeof process.env.NMEM_API_KEY === "string" &&
 			process.env.NMEM_API_KEY.trim()) ||
 		"";
 
 	return {
-		autoRecall: typeof obj.autoRecall === "boolean" ? obj.autoRecall : false,
-		autoCapture: typeof obj.autoCapture === "boolean" ? obj.autoCapture : false,
-		captureMinInterval:
-			typeof obj.captureMinInterval === "number" &&
-			Number.isFinite(obj.captureMinInterval)
-				? Math.min(86400, Math.max(0, Math.trunc(obj.captureMinInterval)))
+		sessionContext:
+			typeof resolved.sessionContext === "boolean"
+				? resolved.sessionContext
+				: false,
+		sessionDigest:
+			typeof resolved.sessionDigest === "boolean"
+				? resolved.sessionDigest
+				: false,
+		digestMinInterval:
+			typeof resolved.digestMinInterval === "number" &&
+			Number.isFinite(resolved.digestMinInterval)
+				? Math.min(
+						86400,
+						Math.max(0, Math.trunc(resolved.digestMinInterval)),
+					)
 				: 300,
-		maxRecallResults:
-			typeof obj.maxRecallResults === "number" &&
-			Number.isFinite(obj.maxRecallResults)
-				? Math.min(20, Math.max(1, Math.trunc(obj.maxRecallResults)))
+		maxContextResults:
+			typeof resolved.maxContextResults === "number" &&
+			Number.isFinite(resolved.maxContextResults)
+				? Math.min(20, Math.max(1, Math.trunc(resolved.maxContextResults)))
 				: 5,
 		apiUrl,
 		apiKey,
