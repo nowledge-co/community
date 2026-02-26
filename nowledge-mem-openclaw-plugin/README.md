@@ -57,6 +57,129 @@ Connect to a Nowledge Mem server running elsewhere — on a VPS, a home server, 
 
 The `apiKey` is injected as `NMEM_API_KEY` into the nmem CLI process — never passed as a CLI argument, never logged.
 
+## How It Works
+
+### Per-Turn Flow
+
+Every user message triggers hooks before the agent sees it, then the agent decides which tools to call.
+
+```mermaid
+flowchart TD
+    A["User sends message"] --> B["before_prompt_build hook"]
+
+    B --> C["Behavioral guidance\n(always, ~50 tokens)"]
+    B -.->|"sessionContext: true"| D["Working Memory +\nrelevant memories (~1-2 KB)"]
+
+    C --> E["Agent processes message\n(9 tools available)"]
+    D --> E
+
+    E --> F{"Needs past context?"}
+    F -->|"Yes"| G["memory_search"]
+    G --> R
+
+    E --> H{"Something worth keeping?"}
+    H -->|"Yes"| I["nowledge_mem_save\n(typed, labeled, temporal)"]
+    I --> R
+
+    E --> R["Respond to user"]
+```
+
+### When Each Tool Gets Called
+
+The behavioral hook nudges the agent to **search before answering** and **save after deciding**. Here's when each tool fires:
+
+| Scenario | Tool | What happens |
+|----------|------|--------------|
+| User asks a question | `memory_search` | Search knowledge base before answering. Also returns `relatedThreads` snippets and `sourceThreadId`. |
+| Agent needs full memory text | `memory_get` | Read one memory by ID or path. `MEMORY.md` alias reads Working Memory. Returns `sourceThreadId`. |
+| Decision made, insight learned | `nowledge_mem_save` | Structured save with `unit_type`, `labels`, `event_start`, `importance`. |
+| "What was I doing last week?" | `nowledge_mem_timeline` | Activity feed grouped by day. Supports exact date ranges. |
+| "How is X connected to Y?" | `nowledge_mem_connections` | Graph walk: edges, entities, EVOLVES chains, document provenance. |
+| Need today's focus/priorities | `nowledge_mem_context` | Read Working Memory daily briefing. Supports section-level patch. |
+| Memory has `sourceThreadId` | `nowledge_mem_thread_fetch` | Fetch full source conversation. Pagination via `offset` + `limit`. |
+| "Find our discussion about X" | `nowledge_mem_thread_search` | Search past conversations by keyword. Returns matched snippets. |
+| "Forget X" | `nowledge_mem_forget` | Delete by ID or search query. |
+
+### Session Lifecycle (Automatic Capture)
+
+When sessions end, conversations are captured and optionally distilled. No user action needed.
+
+```mermaid
+flowchart TD
+    A["Session lifecycle event"] --> B{"Event type"}
+
+    B -->|"agent_end"| C["Append messages to thread\n(idempotent, deduped)"]
+    B -->|"after_compaction"| D["Append messages to thread\n(checkpoint only)"]
+    B -->|"before_reset"| E["Append messages to thread\n(checkpoint only)"]
+
+    C --> F{"sessionDigest enabled\n+ enough messages\n+ cooldown passed?"}
+    F -->|"Yes"| G["LLM triage (~100 tokens):\nworth distilling?"]
+    F -->|"No"| H["Done — thread saved"]
+    G -->|"Decisions, insights,\npreferences found"| I["Full distillation ->\nstructured memories\n(with sourceThreadId)"]
+    G -->|"Routine chat"| H
+
+    D --> H
+    E --> H
+```
+
+**Key points:**
+- Thread capture is **unconditional** — every conversation is saved and searchable via `nowledge_mem_thread_search`
+- LLM distillation only runs at `agent_end`, not during compaction/reset checkpoints
+- Distilled memories carry `sourceThreadId`, linking them back to the source conversation
+- Cooldown (`digestMinInterval`, default 300s) prevents burst distillation
+
+### Progressive Retrieval (Memory -> Thread -> Messages)
+
+Memories distilled from conversations carry a `sourceThreadId`. This creates a retrieval chain:
+
+```mermaid
+flowchart LR
+    A["memory_search\n'PostgreSQL decision'"] --> B["Result includes\nsourceThreadId"]
+    B --> C["nowledge_mem_thread_fetch\n(offset=0, limit=50)"]
+    C --> D["50 messages\nhasMore: true"]
+    D --> E["nowledge_mem_thread_fetch\n(offset=50, limit=50)"]
+    E --> F["Next page"]
+```
+
+Direct conversation search also works:
+
+```mermaid
+flowchart LR
+    G["nowledge_mem_thread_search\n'database architecture'"] --> H["Threads with\nmatched snippets"]
+    H --> I["nowledge_mem_thread_fetch\n(threadId from results)"]
+    I --> J["Full messages"]
+```
+
+Two entry points:
+1. **From a memory** — `memory_search` or `memory_get` returns `sourceThreadId` -> fetch the source conversation
+2. **Direct search** — `nowledge_mem_thread_search` finds conversations by keyword -> fetch any result
+
+### Three Modes at a Glance
+
+```mermaid
+flowchart TD
+    subgraph default ["Default (recommended)"]
+        direction TB
+        D1["Every turn: behavioral guidance (~50 tokens)"]
+        D2["Agent calls 9 tools on demand"]
+        D3["Session end: thread capture + LLM distillation"]
+    end
+
+    subgraph context ["Session Context"]
+        direction TB
+        C1["Every turn: guidance + Working Memory\n+ recalled memories (~1-2 KB)"]
+        C2["Agent calls 9 tools on demand"]
+        C3["Session end: thread capture + LLM distillation"]
+    end
+
+    subgraph minimal ["Minimal"]
+        direction TB
+        M1["Every turn: behavioral guidance (~50 tokens)"]
+        M2["Agent calls 9 tools on demand"]
+        M3["No automatic capture"]
+    end
+```
+
 ## Tools
 
 ### OpenClaw Memory Compatibility
