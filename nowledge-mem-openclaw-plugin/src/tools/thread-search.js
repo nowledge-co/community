@@ -40,9 +40,10 @@ export function createThreadSearchTool(client, logger) {
 				20,
 				Math.max(1, Math.trunc(Number(safeParams.limit ?? 5) || 5)),
 			);
-			const source = safeParams.source
+			const rawSource = safeParams.source
 				? String(safeParams.source).trim()
-				: undefined;
+				: "";
+			const source = rawSource || undefined;
 
 			if (!query) {
 				return {
