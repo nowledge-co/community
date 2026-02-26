@@ -20,9 +20,13 @@ Every memory distilled from a conversation now includes `sourceThreadId` in sear
 - `client.searchThreadsFull(query, { limit, source })` — Full-featured thread search (throws on error, supports source filter). CLI-first with API fallback.
 - `client.fetchThread(threadId, { offset, limit })` — Fetch messages from a thread with pagination. CLI-first with API fallback.
 
-**Behavioral guidance updated.**
+**Save deduplication.**
 
-The always-on hook now tells the agent about `nowledge_mem_thread_fetch` for following up on `sourceThreadId` links.
+Before saving, the plugin checks for near-identical existing memories (≥90% similarity). If a match is found, the save is skipped and the existing memory is returned — preventing obvious duplicates at the plugin level. Deeper semantic dedup is handled by the Knowledge Agent's EVOLVES chains in the background.
+
+**Context-aware behavioral guidance.**
+
+The always-on hook now tells the agent about `nowledge_mem_thread_fetch` for following up on `sourceThreadId` links. When `sessionContext` is enabled, the guidance adjusts to note that relevant memories have already been injected — reducing redundant `memory_search` calls.
 
 ## [0.6.4] - 2026-02-26
 

@@ -6,9 +6,13 @@
  * but reliably follow behavioral guidance in prepended context.
  *
  * Cost: ~50 tokens per turn. Negligible.
+ *
+ * When sessionContext is enabled, guidance is adjusted to note that
+ * relevant memories are already injected — reducing redundant searches
+ * while keeping the save nudge and thread awareness.
  */
 
-const GUIDANCE = [
+const BASE_GUIDANCE = [
 	"<nowledge-mem-guidance>",
 	"You have access to the user's personal knowledge graph (Nowledge Mem).",
 	"When the conversation produces something worth keeping — a decision made, a preference stated,",
@@ -19,9 +23,21 @@ const GUIDANCE = [
 	"</nowledge-mem-guidance>",
 ].join("\n");
 
-export function buildBehavioralHook(logger) {
+const SESSION_CONTEXT_GUIDANCE = [
+	"<nowledge-mem-guidance>",
+	"You have access to the user's personal knowledge graph (Nowledge Mem).",
+	"Relevant memories and your Working Memory have already been injected into this prompt.",
+	"Use memory_search only when you need something specific beyond what was auto-recalled.",
+	"When the conversation produces something worth keeping — a decision made, a preference stated,",
+	"something learned, a plan formed, a useful discovery — save it with nowledge_mem_save. Don't wait to be asked.",
+	"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_fetch.",
+	"</nowledge-mem-guidance>",
+].join("\n");
+
+export function buildBehavioralHook(logger, { sessionContext = false } = {}) {
+	const guidance = sessionContext ? SESSION_CONTEXT_GUIDANCE : BASE_GUIDANCE;
 	return (_event, _ctx) => {
 		logger.debug?.("behavioral: injecting guidance");
-		return { prependContext: GUIDANCE };
+		return { prependContext: guidance };
 	};
 }

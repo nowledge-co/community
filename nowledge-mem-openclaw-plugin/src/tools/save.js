@@ -124,6 +124,39 @@ export function createSaveTool(client, logger) {
 				};
 			}
 
+			// Dedup check: search for near-identical existing memories before saving.
+			// Only blocks at very high similarity (≥0.9) to avoid false positives.
+			// Lower matches (0.7-0.9) are noted but allowed — the Knowledge Agent
+			// handles deeper dedup via EVOLVES chains in the background.
+			try {
+				const query = title || text.slice(0, 200);
+				const existing = await client.searchRich(query, 3);
+				if (existing.length > 0) {
+					const top = existing[0];
+					if (top.score >= 0.9) {
+						logger.info(
+							`save: skipped — near-identical memory exists: ${top.id} (${(top.score * 100).toFixed(0)}%)`,
+						);
+						return {
+							content: [
+								{
+									type: "text",
+									text: `Not saved — a near-identical memory already exists:\n"${top.title}" (id: ${top.id}, similarity: ${(top.score * 100).toFixed(0)}%)\nUse memory_get with id ${top.id} to read it.`,
+								},
+							],
+							details: {
+								skipped: true,
+								reason: "duplicate",
+								existingId: top.id,
+								similarity: top.score,
+							},
+						};
+					}
+				}
+			} catch {
+				// Dedup check is best-effort — never block saves on search failure
+			}
+
 			try {
 				const args = ["--json", "m", "add", text];
 				if (title) args.push("-t", title);

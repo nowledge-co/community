@@ -67,10 +67,10 @@ Every user message triggers hooks before the agent sees it, then the agent decid
 flowchart TD
     A["User sends message"] --> B["before_prompt_build hook"]
 
-    B --> C["Behavioral guidance\n(always, ~50 tokens)"]
-    B -.->|"sessionContext: true"| D["Working Memory +\nrelevant memories (~1-2 KB)"]
+    B --> C["Behavioral guidance(always, ~110 tokens)"]
+    B -.->|"sessionContext: true"| D["Working Memory +relevant memories (~1-2 KB)"]
 
-    C --> E["Agent processes message\n(9 tools available)"]
+    C --> E["Agent processes message(9 tools available)"]
     D --> E
 
     E --> F{"Needs past context?"}
@@ -78,7 +78,7 @@ flowchart TD
     G --> R
 
     E --> H{"Something worth keeping?"}
-    H -->|"Yes"| I["nowledge_mem_save\n(typed, labeled, temporal)"]
+    H -->|"Yes"| I["nowledge_mem_save(typed, labeled, temporal)"]
     I --> R
 
     E --> R["Respond to user"]
@@ -108,14 +108,14 @@ When sessions end, conversations are captured and optionally distilled. No user 
 flowchart TD
     A["Session lifecycle event"] --> B{"Event type"}
 
-    B -->|"agent_end"| C["Append messages to thread\n(idempotent, deduped)"]
-    B -->|"after_compaction"| D["Append messages to thread\n(checkpoint only)"]
-    B -->|"before_reset"| E["Append messages to thread\n(checkpoint only)"]
+    B -->|"agent_end"| C["Append messages to thread(idempotent, deduped)"]
+    B -->|"after_compaction"| D["Append messages to thread(checkpoint only)"]
+    B -->|"before_reset"| E["Append messages to thread(checkpoint only)"]
 
-    C --> F{"sessionDigest enabled\n+ enough messages\n+ cooldown passed?"}
-    F -->|"Yes"| G["LLM triage (~100 tokens):\nworth distilling?"]
+    C --> F{"sessionDigest enabled+ enough messages+ cooldown passed?"}
+    F -->|"Yes"| G["LLM triage (~100 tokens):worth distilling?"]
     F -->|"No"| H["Done — thread saved"]
-    G -->|"Decisions, insights,\npreferences found"| I["Full distillation ->\nstructured memories\n(with sourceThreadId)"]
+    G -->|"Decisions, insights,preferences found"| I["Full distillation ->structured memories(with sourceThreadId)"]
     G -->|"Routine chat"| H
 
     D --> H
@@ -133,11 +133,11 @@ flowchart TD
 Memories distilled from conversations carry a `sourceThreadId`. This creates a retrieval chain:
 
 ```mermaid
-flowchart LR
-    A["memory_search\n'PostgreSQL decision'"] --> B["Result includes\nsourceThreadId"]
-    B --> C["nowledge_mem_thread_fetch\n(offset=0, limit=50)"]
-    C --> D["50 messages\nhasMore: true"]
-    D --> E["nowledge_mem_thread_fetch\n(offset=50, limit=50)"]
+flowchart TD
+    A["memory_search'PostgreSQL decision'"] --> B["Result includessourceThreadId"]
+    B --> C["nowledge_mem_thread_fetch(offset=0, limit=50)"]
+    C --> D["50 messageshasMore: true"]
+    D --> E["nowledge_mem_thread_fetch(offset=50, limit=50)"]
     E --> F["Next page"]
 ```
 
@@ -145,8 +145,8 @@ Direct conversation search also works:
 
 ```mermaid
 flowchart LR
-    G["nowledge_mem_thread_search\n'database architecture'"] --> H["Threads with\nmatched snippets"]
-    H --> I["nowledge_mem_thread_fetch\n(threadId from results)"]
+    G["nowledge_mem_thread_search 'database architecture'"] --> H["Threads with matched snippets"]
+    H --> I["nowledge_mem_thread_fetch(threadId from results)"]
     I --> J["Full messages"]
 ```
 
@@ -157,8 +157,8 @@ Two entry points:
 ### Three Modes at a Glance
 
 ```mermaid
-flowchart TD
-    subgraph default ["Default (recommended)"]
+flowchart LR
+    subgraph "default" ["Default (recommended)"]
         direction TB
         D1["Every turn: behavioral guidance (~50 tokens)"]
         D2["Agent calls 9 tools on demand"]
@@ -167,7 +167,7 @@ flowchart TD
 
     subgraph context ["Session Context"]
         direction TB
-        C1["Every turn: guidance + Working Memory\n+ recalled memories (~1-2 KB)"]
+        C1["Every turn: guidance + Working Memory+ recalled memories (~1-2 KB)"]
         C2["Agent calls 9 tools on demand"]
         C3["Session end: thread capture + LLM distillation"]
     end
@@ -258,17 +258,25 @@ offset: 0, limit: 50
 
 ## Operating Modes
 
-The plugin supports three modes. The default (tool-only) gives the agent full access to all tools with zero token overhead.
+The plugin supports three modes. Choose based on how much you want to guarantee versus how much token budget you're willing to spend.
 
-| Mode | Config | Behavior |
-|------|--------|----------|
-| **Default** (recommended) | `sessionContext: false, sessionDigest: true` | Agent calls tools on demand. Brief behavioral guidance on every turn (~50 tokens). Conversations captured + distilled at session end. |
-| **Session context** | `sessionContext: true` | Working Memory + relevant memories injected at prompt time. |
-| **Minimal** | `sessionDigest: false` | Tool-only, no automatic capture. |
+| Mode | Config | Behavior | Tradeoff |
+|------|--------|----------|----------|
+| **Default** (recommended) | `sessionContext: false, sessionDigest: true` | Agent calls 9 tools on demand. Behavioral guidance every turn (~50 tokens). Conversations captured + distilled at session end. | Lowest cost. Agent decides when to search — usually smart, occasionally forgets. |
+| **Session context** | `sessionContext: true` | Working Memory + relevant memories injected at prompt time, plus all 9 tools still available. | ~1-2 KB/turn. Guarantees context is always present. Best for short sessions or critical workflows. |
+| **Minimal** | `sessionDigest: false` | Tool-only, no automatic capture. | Zero overhead beyond guidance. Use when you handle memory manually. |
+
+**Which mode should you use?**
+
+- **Most users**: start with default. The agent gets behavioral guidance nudging it to search before answering and save after deciding. It works well for most conversations.
+- **Short sessions or critical accuracy**: enable `sessionContext`. This guarantees relevant memories are present from the first turn — the agent doesn't need to decide whether to search. The tradeoff is ~1-2 KB of context per turn.
+- **Full manual control**: set `sessionDigest: false`. You control what gets saved (via `/remember` or `nowledge_mem_save`) and nothing is captured automatically.
 
 ### Session Context (`sessionContext`, default: false)
 
-When enabled, the plugin injects Working Memory and relevant search results at prompt time. Useful for giving the agent immediate context without waiting for it to search proactively.
+When enabled, the plugin injects Working Memory and relevant search results at prompt time. The behavioral guidance automatically adjusts to tell the agent that context is already present — use `memory_search` only for specific follow-up queries, not broad recall. This prevents the agent from redundantly searching for the same context that was just injected.
+
+Useful for giving the agent immediate context without waiting for it to search proactively.
 
 ### Session Digest (`sessionDigest`, default: true)
 
@@ -277,6 +285,30 @@ When enabled, two things happen at `agent_end`, `after_compaction`, and `before_
 **1. Thread capture (always).** The full conversation is appended to a persistent thread. Unconditional, idempotent by message ID.
 
 **2. LLM distillation (when worthwhile).** A lightweight LLM triage determines if the conversation has save-worthy content. If yes, a full distillation pass creates structured memories with types, labels, and temporal data. Language-agnostic — works in any language.
+
+## Design Decisions
+
+Honest answers to common questions about how the memory system works.
+
+**Does the agent always search before answering?**
+
+No. The behavioral guidance nudges the agent to search, but doesn't force it. This is a deliberate tradeoff — forcing a search on every turn would add latency and cost for messages that don't need past context (like "hello" or "thanks"). In practice, modern LLMs follow behavioral guidance reliably for knowledge-related questions. If guaranteed recall matters for your use case, enable `sessionContext: true` — that injects relevant memories at prompt time, before the agent even processes your message.
+
+**What stops the agent from saving duplicate memories?**
+
+Two layers. First, the plugin checks for near-identical existing memories before every save. If a memory with ≥90% similarity already exists, the save is skipped and the existing memory is returned instead. Second, Nowledge Mem's Knowledge Agent runs in the background and handles deeper deduplication — it identifies semantic overlap across memories and links them via EVOLVES chains (replaces, enriches, confirms, or challenges). The plugin handles obvious duplicates; the Knowledge Agent handles subtle ones.
+
+**When `sessionContext` is on, will the agent search again and get duplicate context?**
+
+The behavioral guidance adjusts when `sessionContext` is enabled. Instead of "search with memory_search when prior context would help," it tells the agent "relevant memories have already been injected — use memory_search only for specific follow-up queries." This reduces redundant searches. The injected context and manual search results are in different XML blocks, so even if overlap occurs, it doesn't confuse the agent — it just sees the same fact confirmed from two sources.
+
+**What happens to conversations I don't explicitly save?**
+
+With `sessionDigest` enabled (the default), every conversation is saved as a searchable thread — you can find it later with `nowledge_mem_thread_search`. On top of that, a lightweight LLM triage checks if the conversation contained decisions, insights, or preferences worth keeping as structured memories. If yes, they're extracted with proper types, labels, and temporal context. If the conversation was routine ("fix this typo"), nothing extra is saved.
+
+**Can memories be wrong or outdated?**
+
+Yes. Memories are what you or the AI saved at a point in time. Nowledge Mem's EVOLVES chains track how understanding changes — a newer memory can supersede, enrich, or challenge an older one. The Knowledge Agent identifies these relationships automatically. When you search, the relevance scoring considers recency, so newer memories rank higher by default.
 
 ## Slash Commands
 

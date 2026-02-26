@@ -54,7 +54,8 @@ export default {
 
 		// Always-on: behavioral guidance so the agent proactively saves and searches.
 		// Fires every turn via before_prompt_build — ~50 tokens, negligible cost.
-		api.on("before_prompt_build", buildBehavioralHook(logger));
+		// When sessionContext is on, guidance adjusts to avoid redundant searches.
+		api.on("before_prompt_build", buildBehavioralHook(logger, cfg));
 
 		// Session context: inject Working Memory + recalled memories at prompt time.
 		if (cfg.sessionContext) {
