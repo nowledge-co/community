@@ -2,6 +2,27 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.4] - 2026-02-26
+
+### Changed — Thread search enrichment + sessionDigest default on
+
+**`memory_search` now includes relevant conversation threads.**
+
+When you search memories, the response now also includes `relatedThreads` — snippets from past conversations that match the query. This uses the backend's BM25 thread search (`GET /threads/search`). Thread search is best-effort: if it fails or returns nothing, the memory results are returned as before. No new tool for the agent to learn — thread context surfaces automatically alongside memories.
+
+**`sessionDigest` now defaults to `true`.**
+
+Previously, session digest (thread capture + LLM distillation at session end) was off by default. The cost is negligible — one lightweight triage call per session end, full distillation only when worthwhile. With this change, conversations are captured and distilled automatically out of the box. Users who explicitly set `sessionDigest: false` are unaffected.
+
+**Behavioral hook updated.**
+
+The always-on guidance now mentions that `memory_search` returns conversation snippets alongside memories, so the agent knows to use the enriched results.
+
+### Added
+
+- `client.searchThreads(query, limit)` — calls `GET /threads/search` API. Returns top matching threads with message snippets and relevance scores. Best-effort: never throws.
+- Version bumped to 0.6.4.
+
 ## [0.4.0] - 2026-02-26
 
 ### Changed — Rename config + always-on behavioral guidance

@@ -722,6 +722,44 @@ export class NowledgeMemClient {
 		);
 	}
 
+	// ── Thread search ────────────────────────────────────────────────────────
+
+	/**
+	 * Search conversation threads by keyword. Uses BM25 full-text search
+	 * across all stored messages.
+	 *
+	 * @param {string} query  Search keywords
+	 * @param {number} [limit=3]  Max threads to return
+	 * @returns {Promise<{ threads: Array, totalFound: number }>}
+	 */
+	async searchThreads(query, limit = 3) {
+		const normalizedLimit = Math.min(
+			20,
+			Math.max(1, Math.trunc(Number(limit) || 3)),
+		);
+		const qs = new URLSearchParams({
+			query: String(query || ""),
+			mode: "full",
+			limit: String(normalizedLimit),
+		});
+		try {
+			const data = await this.apiJson(
+				"GET",
+				`/threads/search?${qs.toString()}`,
+			);
+			return {
+				threads: data.threads ?? [],
+				totalFound: Number(data.total_found ?? 0),
+			};
+		} catch (err) {
+			// Thread search is best-effort — don't fail the whole operation
+			this.logger.warn?.(
+				`searchThreads failed: ${err instanceof Error ? err.message : String(err)}`,
+			);
+			return { threads: [], totalFound: 0 };
+		}
+	}
+
 	async checkHealth() {
 		try {
 			this.exec(["status"]);

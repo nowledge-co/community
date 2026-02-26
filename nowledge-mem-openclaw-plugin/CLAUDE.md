@@ -47,7 +47,7 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 ## Tool Surface (7 tools)
 
 ### OpenClaw Memory Slot (required for system prompt activation)
-- `memory_search` — multi-signal: BM25 + embedding + label + graph + decay. Returns `matchedVia` ("Text Match 100% + Semantic 69%"), `importance`, bi-temporal filters (`event_date_from/to`, `recorded_date_from/to`). Mode: `"multi-signal"`.
+- `memory_search` — multi-signal: BM25 + embedding + label + graph + decay. Returns `matchedVia` ("Text Match 100% + Semantic 69%"), `importance`, bi-temporal filters (`event_date_from/to`, `recorded_date_from/to`). Also returns `relatedThreads` (past conversation snippets matching the query). Mode: `"multi-signal"`.
 - `memory_get` — retrieve by `nowledgemem://memory/<id>` path or bare ID. `MEMORY.md` → Working Memory.
 
 ### Nowledge Mem Native (differentiators)
@@ -76,7 +76,7 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `sessionContext` | boolean | `false` | Inject Working Memory + relevant memories at prompt time |
-| `sessionDigest` | boolean | `false` | Thread capture + LLM distillation at session end |
+| `sessionDigest` | boolean | `true` | Thread capture + LLM distillation at session end |
 | `maxContextResults` | integer 1–20 | `5` | How many memories to inject at prompt time |
 | `digestMinInterval` | integer | `300` | Minimum seconds between session digests |
 | `apiUrl` | string | `""` | Remote server URL. Empty = local (127.0.0.1:14242) |
@@ -101,6 +101,7 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 | `nmem --json wm read` | `client.readWorkingMemory()` | Working Memory read |
 | `nmem --json wm patch --heading "## S" --content/--append` | `client.patchWorkingMemory()` | Section-level WM update |
 | `nmem --json m delete <id>` | `client.execJson()` in forget.js | Delete |
+| `GET /threads/search?query=&limit=` | `client.searchThreads()` | Thread search (API-only, no CLI) |
 
 All commands have API fallback for older CLI versions.
 

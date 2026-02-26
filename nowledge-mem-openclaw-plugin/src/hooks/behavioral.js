@@ -14,6 +14,7 @@ const GUIDANCE = [
 	"When the conversation produces something worth keeping — a decision made, a preference stated,",
 	"something learned, a plan formed, a useful discovery — save it with nowledge_mem_save. Don't wait to be asked.",
 	"When prior context would improve your response, search with memory_search.",
+	"memory_search also returns relevant past conversation snippets alongside memories.",
 	"</nowledge-mem-guidance>",
 ].join("\n");
 

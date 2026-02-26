@@ -63,7 +63,7 @@ The `apiKey` is injected as `NMEM_API_KEY` into the nmem CLI process — never p
 
 These satisfy the OpenClaw memory slot contract and activate the "Memory Recall" section in OpenClaw's system prompt.
 
-**memory_search** — Multi-signal recall using embedding, BM25, label match, graph signals, and recency decay. Returns structured source paths (`nowledgemem://memory/<id>`) for follow-up with `memory_get` or `nowledge_mem_connections`.
+**memory_search** — Multi-signal recall using embedding, BM25, label match, graph signals, and recency decay. Returns structured source paths (`nowledgemem://memory/<id>`) for follow-up with `memory_get` or `nowledge_mem_connections`. Also returns relevant past conversation snippets (`relatedThreads`) when available.
 
 **memory_get** — Read a specific memory by ID or path. Supports `MEMORY.md` alias for Working Memory.
 
@@ -124,15 +124,15 @@ The plugin supports three modes. The default (tool-only) gives the agent full ac
 
 | Mode | Config | Behavior |
 |------|--------|----------|
-| **Tool-only** (default) | `sessionContext: false, sessionDigest: false` | Agent calls tools on demand. Brief behavioral guidance on every turn (~50 tokens). |
+| **Default** (recommended) | `sessionContext: false, sessionDigest: true` | Agent calls tools on demand. Brief behavioral guidance on every turn (~50 tokens). Conversations captured + distilled at session end. |
 | **Session context** | `sessionContext: true` | Working Memory + relevant memories injected at prompt time. |
-| **Session digest** | `sessionDigest: true` | Thread capture + LLM distillation at session end. |
+| **Minimal** | `sessionDigest: false` | Tool-only, no automatic capture. |
 
 ### Session Context (`sessionContext`, default: false)
 
 When enabled, the plugin injects Working Memory and relevant search results at prompt time. Useful for giving the agent immediate context without waiting for it to search proactively.
 
-### Session Digest (`sessionDigest`, default: false)
+### Session Digest (`sessionDigest`, default: true)
 
 When enabled, two things happen at `agent_end`, `after_compaction`, and `before_reset`:
 
@@ -160,7 +160,7 @@ openclaw nowledge-mem status
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `sessionContext` | boolean | `false` | Inject Working Memory + relevant memories at prompt time |
-| `sessionDigest` | boolean | `false` | Thread capture + LLM distillation at session end |
+| `sessionDigest` | boolean | `true` | Thread capture + LLM distillation at session end |
 | `maxContextResults` | integer | `5` | Max memories to inject at prompt time (only used when sessionContext is enabled) |
 | `digestMinInterval` | integer | `300` | Minimum seconds between session digests for the same thread |
 

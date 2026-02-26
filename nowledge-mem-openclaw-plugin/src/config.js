@@ -44,9 +44,7 @@ export function parseConfig(raw) {
 	}
 
 	// Strict: reject unknown keys so users catch typos immediately.
-	const unknownKeys = Object.keys(resolved).filter(
-		(k) => !ALLOWED_KEYS.has(k),
-	);
+	const unknownKeys = Object.keys(resolved).filter((k) => !ALLOWED_KEYS.has(k));
 	if (unknownKeys.length > 0) {
 		throw new Error(
 			`nowledge-mem: unknown config key${unknownKeys.length > 1 ? "s" : ""}: ${unknownKeys.join(", ")}. ` +
@@ -76,14 +74,11 @@ export function parseConfig(raw) {
 		sessionDigest:
 			typeof resolved.sessionDigest === "boolean"
 				? resolved.sessionDigest
-				: false,
+				: true,
 		digestMinInterval:
 			typeof resolved.digestMinInterval === "number" &&
 			Number.isFinite(resolved.digestMinInterval)
-				? Math.min(
-						86400,
-						Math.max(0, Math.trunc(resolved.digestMinInterval)),
-					)
+				? Math.min(86400, Math.max(0, Math.trunc(resolved.digestMinInterval)))
 				: 300,
 		maxContextResults:
 			typeof resolved.maxContextResults === "number" &&
