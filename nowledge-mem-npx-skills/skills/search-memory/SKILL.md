@@ -86,6 +86,9 @@ nmem --json m search "debugging tips" -n 5
 | `-l, --label LABEL` | Filter by label (repeatable) | `-l frontend -l react` |
 | `-t, --time RANGE` | Time filter | `-t today`, `-t week`, `-t month` |
 | `-n NUM` | Limit results | `-n 5` |
+| `--unit-type TYPE` | Filter by memory type | `--unit-type decision` |
+
+Available unit types: `fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`.
 
 ### Understanding Results
 
@@ -94,6 +97,8 @@ Parse the `memories` array from JSON response. Check `score` field:
 - **0.6-1.0**: Directly relevant - include in response
 - **0.3-0.6**: Related context - may be useful
 - **< 0.3**: Skip - not relevant enough
+
+Results may include a `source_thread` field linking the memory to the conversation it was distilled from. Use `nmem --json t show <thread_id>` to fetch the full conversation for deeper context.
 
 ## Response Guidelines
 
