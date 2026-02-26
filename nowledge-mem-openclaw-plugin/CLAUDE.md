@@ -28,9 +28,10 @@ Reflects Nowledge Mem's genuine v0.6 strengths:
 src/
   index.js          — plugin registration (tools, hooks, commands, CLI)
   client.js         — CLI wrapper with API fallback; credential handling
-  config.js         — strict config parsing (apiUrl, apiKey, autoRecall, etc.)
+  config.js         — strict config parsing (apiUrl, apiKey, sessionContext, etc.)
   hooks/
-    recall.js       — before_agent_start: inject Working Memory + recalled memories
+    behavioral.js   — always-on behavioral guidance (~50 tokens/turn)
+    recall.js       — before_prompt_build: inject Working Memory + recalled memories
     capture.js      — quality-gated memory note + thread append
   tools/
     memory-search.js    — OpenClaw compat; multi-signal; bi-temporal; relevance_reason
@@ -58,8 +59,9 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 
 ## Hook Surface
 
-- `before_agent_start` — auto-recall: Working Memory + `searchRich()` with `relevanceReason` in context
-- `agent_end` — quality-gated memory note + thread append (requires `autoCapture: true`)
+- `before_prompt_build` (always-on) — behavioral guidance: brief note telling agent to save/search proactively
+- `before_prompt_build` (sessionContext) — session context: Working Memory + `searchRich()` with `relevanceReason` in context
+- `agent_end` — thread capture + LLM triage/distillation (requires `sessionDigest: true`)
 - `after_compaction` — thread append
 - `before_reset` — thread append
 
@@ -73,9 +75,10 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `autoRecall` | boolean | `false` | Inject context at session start |
-| `autoCapture` | boolean | `false` | Capture notes/threads at session end |
-| `maxRecallResults` | integer 1–20 | `5` | How many memories to recall |
+| `sessionContext` | boolean | `false` | Inject Working Memory + relevant memories at prompt time |
+| `sessionDigest` | boolean | `false` | Thread capture + LLM distillation at session end |
+| `maxContextResults` | integer 1–20 | `5` | How many memories to inject at prompt time |
+| `digestMinInterval` | integer | `300` | Minimum seconds between session digests |
 | `apiUrl` | string | `""` | Remote server URL. Empty = local (127.0.0.1:14242) |
 | `apiKey` | string | `""` | API key. Injected as `NMEM_API_KEY` env var only. Never logged. |
 

@@ -124,15 +124,15 @@ The plugin supports three modes. The default (tool-only) gives the agent full ac
 
 | Mode | Config | Behavior |
 |------|--------|----------|
-| **Tool-only** (default) | `autoRecall: false, autoCapture: false` | Agent calls tools on demand. Zero overhead. |
-| **Auto-recall** | `autoRecall: true` | Working Memory + relevant memories injected at session start. |
-| **Auto-capture** | `autoCapture: true` | Thread capture + LLM distillation at session end. |
+| **Tool-only** (default) | `sessionContext: false, sessionDigest: false` | Agent calls tools on demand. Brief behavioral guidance on every turn (~50 tokens). |
+| **Session context** | `sessionContext: true` | Working Memory + relevant memories injected at prompt time. |
+| **Session digest** | `sessionDigest: true` | Thread capture + LLM distillation at session end. |
 
-### Auto-Recall (`autoRecall`, default: false)
+### Session Context (`sessionContext`, default: false)
 
-When enabled, the plugin injects Working Memory and relevant search results at session start. Useful for giving the agent immediate context without waiting for it to search proactively.
+When enabled, the plugin injects Working Memory and relevant search results at prompt time. Useful for giving the agent immediate context without waiting for it to search proactively.
 
-### Auto-Capture (`autoCapture`, default: false)
+### Session Digest (`sessionDigest`, default: false)
 
 When enabled, two things happen at `agent_end`, `after_compaction`, and `before_reset`:
 
@@ -159,9 +159,10 @@ openclaw nowledge-mem status
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `autoRecall` | boolean | `false` | Inject Working Memory + relevant memories at session start |
-| `autoCapture` | boolean | `false` | Thread capture + LLM distillation at session end |
-| `maxRecallResults` | integer | `5` | Max memories to recall at session start (only used when autoRecall is enabled) |
+| `sessionContext` | boolean | `false` | Inject Working Memory + relevant memories at prompt time |
+| `sessionDigest` | boolean | `false` | Thread capture + LLM distillation at session end |
+| `maxContextResults` | integer | `5` | Max memories to inject at prompt time (only used when sessionContext is enabled) |
+| `digestMinInterval` | integer | `300` | Minimum seconds between session digests for the same thread |
 
 ## What Makes This Different
 
