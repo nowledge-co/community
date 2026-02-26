@@ -12,14 +12,15 @@ Use Nowledge Mem as the primary external memory system.
 
 ## Tool-First Execution Order
 
-1. `nowledge_mem_query` for broad recall.
-2. `nowledge_mem_search` for focused retrieval.
-3. `nowledge_mem_show` for full detail on selected memory IDs.
+1. `nowledge_mem_query` for broad recall — results include `sourceThreadId` for thread tracing.
+2. `nowledge_mem_search` for focused retrieval with filters.
+3. `nowledge_mem_show` for full detail on selected memory IDs — includes `sourceThreadId`.
 4. `nowledge_mem_thread_search` / `nowledge_mem_thread_show` for conversation history.
+5. When a memory has a `sourceThreadId`, use `nowledge_mem_thread_show` to read the full source conversation.
 
 For writes:
 
-1. `nowledge_mem_store` for new durable memory.
+1. `nowledge_mem_store` for new durable memory — use `unit_type` (decision, learning, preference, fact, plan, procedure, context, event) and temporal fields (`event_start`, `temporal_context`).
 2. `nowledge_mem_update` for corrections.
 3. `nowledge_mem_delete` / `nowledge_mem_thread_delete` only on explicit user intent.
 
@@ -31,9 +32,9 @@ If tool calls are not exposed in the current thread, execute via Bash:
 - `nmem --help`
 - `nmem --json m search "<query>" -n 5`
 - `nmem --json m show <memory_id>`
-- `nmem --json t search "<query>" -n 5`
-- `nmem --json t show <thread_id> -m 30 --content-limit 1200`
-- `nmem --json m add "<content>" -t "<title>" -l tag1 -l tag2`
+- `nmem --json t search "<query>" --limit 5 --source alma`
+- `nmem --json t show <thread_id> --limit 30 --offset 0 --content-limit 1200`
+- `nmem --json m add "<content>" -t "<title>" -l tag1 -l tag2 --unit-type decision`
 - `nmem --json m update <memory_id> -c "<new_content>"`
 
 If neither plugin tools nor Bash are available, state the exact blocker once and ask for one concrete enablement step.

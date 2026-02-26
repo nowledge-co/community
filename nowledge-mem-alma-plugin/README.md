@@ -5,8 +5,12 @@ Local-first personal memory for [Alma](https://alma.now), powered by [Nowledge M
 This plugin gives Alma chat-native persistent memory:
 
 - Search your memory graph during chats with tools
-- Save decisions and insights as long-term memories
+- Save structured decisions, insights, and facts with typed knowledge nodes
+- Trace memories back to source conversations via sourceThreadId linkage
+- Progressive retrieval: paginate through long conversation threads
+- Dedup guard: prevents saving near-identical memories (>=90% similarity)
 - Inject Working Memory + relevant recall context before first send
+- Behavioral guidance: proactive save nudge + thread awareness in every turn
 - Save thread snapshots back to Nowledge Mem on quit (optional)
 
 All operations run locally via `nmem` CLI (or `uvx --from nmem-cli nmem` fallback).
@@ -39,25 +43,31 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
 
 | Tool | Description |
 | --- | --- |
-| `nowledge_mem_query` | One-shot query across memories with thread fallback |
-| `nowledge_mem_search` | Semantic search across memories (label/time/importance/mode filters) |
-| `nowledge_mem_store` | Save memory with title/importance/labels/source |
-| `nowledge_mem_show` | Show full details for one memory |
+| `nowledge_mem_query` | One-shot query across memories with thread fallback. Results include `sourceThreadId`. |
+| `nowledge_mem_search` | Semantic search with label/time/importance/mode filters. Results include `sourceThreadId`. |
+| `nowledge_mem_store` | Save structured memory with `unit_type`, temporal fields, labels. Dedup guard at >=90%. |
+| `nowledge_mem_show` | Show full memory details. Returns `sourceThreadId` when available. |
 | `nowledge_mem_update` | Update memory content/title/importance |
 | `nowledge_mem_delete` | Delete memory |
 | `nowledge_mem_working_memory` | Read daily Working Memory (`~/ai-now/memory.md`) |
-| `nowledge_mem_thread_search` | Search conversation threads |
-| `nowledge_mem_thread_show` | Show one thread with messages |
+| `nowledge_mem_thread_search` | Search conversation threads with optional `source` filter |
+| `nowledge_mem_thread_show` | Fetch thread messages with pagination (`offset`/`limit`). Returns `hasMore`. |
 | `nowledge_mem_thread_create` | Create thread from content/messages |
 | `nowledge_mem_thread_delete` | Delete thread (optional cascade) |
 
 ## Response Contract
 
 - Search tools (`nowledge_mem_search`, `nowledge_mem_thread_search`) return:
-  - `{ ok, type, query, total, items, raw }`
+  - `{ ok, type, query, total, items, raw }` — items may include `sourceThreadId`
 - Query tool (`nowledge_mem_query`) returns:
-  - `{ ok, query, source, sourceReason, total, items, raw }`
-- Singleton tools (`show`, `store`, `update`, `thread_show`, `thread_create`) return:
+  - `{ ok, query, source, sourceReason, total, items, raw }` — memory items include `sourceThreadId`
+- Show memory returns:
+  - `{ ok, item, truncated, sourceThreadId? }`
+- Show thread returns:
+  - `{ ok, item, totalMessages, offset, returnedMessages, hasMore, truncatedContent }`
+- Store memory returns:
+  - `{ ok, item, summary, raw }` (success) or `{ ok, skipped, reason, existingId, similarity }` (dedup)
+- Other singleton tools (`update`, `thread_create`) return:
   - `{ ok, item, ... }`
 - Delete tools return:
   - `{ ok, id, force, [cascade], notFound, item? }`
@@ -73,9 +83,11 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
   - `{ "ok": true, "source": "memory", "sourceReason": "memory_hits", "total": 3, "items": [...] }`
 
 - `nowledge_mem_store` input:
-  - `{ "text": "Use pyproject scripts for release", "title": "Release workflow", "labels": ["devops","python"] }`
+  - `{ "text": "Use pyproject scripts for release", "title": "Release workflow", "unit_type": "decision", "labels": ["devops","python"], "event_start": "2026-02" }`
 - `nowledge_mem_store` output:
-  - `{ "ok": true, "item": { "id": "...", "title": "Release workflow", "labels": ["devops","python"] } }`
+  - `{ "ok": true, "item": { "id": "...", "title": "Release workflow", "unitType": "decision", "labels": ["devops","python"], "eventStart": "2026-02" }, "summary": "Saved: Release workflow [decision] (id: ...)" }`
+- `nowledge_mem_store` dedup output:
+  - `{ "ok": true, "skipped": true, "reason": "duplicate", "existingId": "mem_abc", "similarity": 0.95 }`
 
 - `nowledge_mem_delete` input (safe default):
   - `{ "id": "mem_xxx" }`

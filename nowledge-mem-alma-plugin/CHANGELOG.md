@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.6.0
+
+### Thread provenance (sourceThreadId linkage)
+- Memory search, show, and query results now include `sourceThreadId` when the memory was distilled from a conversation
+- Enables progressive retrieval: find memory -> trace to source conversation -> read full messages
+
+### Structured save with dedup guard
+- `nowledge_mem_store` now supports `unit_type` (fact, preference, decision, plan, procedure, learning, context, event)
+- Temporal fields: `event_start`, `event_end`, `temporal_context` for when events happened (not when saved)
+- Save dedup check: blocks saves at >=90% similarity to existing memories, preventing duplicates
+- Dedup is best-effort and never blocks saves on search failure
+
+### Thread pagination
+- `nowledge_mem_thread_show` now supports `offset` for progressive retrieval of long conversations
+- Returns `totalMessages`, `hasMore`, `returnedMessages` for client-side pagination awareness
+- CLI uses `--limit`/`--offset` (requires nmem-cli >=0.6)
+
+### Thread source filter
+- `nowledge_mem_thread_search` now accepts `source` parameter to filter by platform (e.g. 'alma', 'claude-code')
+- CLI uses `--source` flag (requires nmem-cli >=0.6)
+
+### Behavioral guidance
+- Recall injection hook now includes proactive save nudge and sourceThreadId awareness
+- Updated CLI playbook with new flags (`--unit-type`, `--source`, `--offset`, `--limit`)
+
+### Improved tool descriptions
+- All tool descriptions updated to mention sourceThreadId linkage and progressive retrieval patterns
+- Store tool description encourages proactive saving with structured types
+
 ## 0.2.13
 
 - Improve quit auto-capture reliability by listening to `app.before-quit`/`app.beforeQuit` in addition to existing quit events

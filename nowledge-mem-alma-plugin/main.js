@@ -131,6 +131,11 @@ class NowledgeMemClient {
 			score: Number(memory.score ?? 0),
 			labels: Array.isArray(memory.labels) ? memory.labels : [],
 			importance: Number(memory.importance ?? memory.rating ?? 0.5),
+			sourceThreadId:
+				memory.source_thread ??
+				memory.source_thread_id ??
+				memory.metadata?.source_thread_id ??
+				null,
 		}));
 	}
 
@@ -209,27 +214,25 @@ class NowledgeMemClient {
 		return this.run(args, false);
 	}
 
-	async searchThreads(query, limit = 5) {
-		return this.run(
-			["--json", "t", "search", query, "-n", String(clamp(Number(limit) || 5, 1, 20))],
-			true,
-		);
+	async searchThreads(query, limit = 5, source) {
+		const args = ["--json", "t", "search", query, "--limit", String(clamp(Number(limit) || 5, 1, 50))];
+		if (source) args.push("--source", String(source));
+		return this.run(args, true);
 	}
 
-	async showThread(id, messages = 30, contentLimit = 1200) {
-		return this.run(
-			[
-				"--json",
-				"t",
-				"show",
-				String(id),
-				"-m",
-				String(Math.max(1, Math.floor(messages))),
-				"--content-limit",
-				String(Math.max(100, Math.floor(contentLimit))),
-			],
-			true,
-		);
+	async showThread(id, messages = 30, contentLimit = 1200, offset = 0) {
+		const args = [
+			"--json",
+			"t",
+			"show",
+			String(id),
+			"--limit",
+			String(Math.max(1, Math.floor(messages))),
+			"--content-limit",
+			String(Math.max(100, Math.floor(contentLimit))),
+		];
+		if (offset > 0) args.push("--offset", String(Math.max(0, Math.floor(offset))));
+		return this.run(args, true);
 	}
 
 	async createThread(title, content, messages, source = "alma") {
@@ -371,10 +374,10 @@ function buildCliPlaybookBlock() {
 		"- Help: `nmem --help`, `nmem m --help`, `nmem t --help`",
 		"- Search memories: `nmem --json m search \"<query>\" -n 5`",
 		"- Show memory: `nmem --json m show <memory_id>`",
-		"- Add memory: `nmem --json m add \"<content>\" -t \"<title>\" -l tag1 -l tag2`",
+		"- Add memory: `nmem --json m add \"<content>\" -t \"<title>\" -l tag1 -l tag2 --unit-type decision`",
 		"- Update memory: `nmem --json m update <memory_id> -c \"<new_content>\"`",
-		"- Search threads: `nmem --json t search \"<query>\" -n 5`",
-		"- Show thread: `nmem --json t show <thread_id> -m 30 --content-limit 1200`",
+		"- Search threads: `nmem --json t search \"<query>\" --limit 5 --source alma`",
+		"- Show thread: `nmem --json t show <thread_id> --limit 30 --offset 0 --content-limit 1200`",
 	];
 }
 
@@ -413,6 +416,8 @@ function buildMemoryContextBlock(workingMemory, results, options = {}) {
 		"Do not claim memory tools are unavailable unless tool execution actually fails in this turn.",
 		"Do not present injected context as fresh retrieval. If no tool was executed, label it as recalled context/hint.",
 		"Prefer nowledge_mem_search/nowledge_mem_store/nowledge_mem_update/nowledge_mem_delete/nowledge_mem_working_memory over local ephemeral memory paths.",
+		"When the conversation produces something worth keeping — a decision, preference, insight, plan — save it with nowledge_mem_store. Don't wait to be asked.",
+		"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_show for deeper context.",
 		"",
 		...sections,
 		...(includeCliPlaybook ? ["", ...buildCliPlaybookBlock()] : []),
@@ -547,7 +552,9 @@ export async function activate(context) {
 
 	registerTool("nowledge_mem_search", {
 		description:
-			"Search memories with optional filters and return ranked results.",
+			"Search memories with optional filters and return ranked results. " +
+			"Results include sourceThreadId when the memory was distilled from a conversation — " +
+			"pass it to nowledge_mem_thread_show to read the full conversation.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -589,7 +596,15 @@ export async function activate(context) {
 						typeof input.importance === "number" ? clamp(input.importance, 0.1, 1.0) : undefined,
 					mode: input.mode === "deep" ? "deep" : "normal",
 				});
-				return normalizeSearchResponse(data, query, "memory");
+				const result = normalizeSearchResponse(data, query, "memory");
+				// Enrich items with sourceThreadId for thread provenance
+				if (result.ok && Array.isArray(result.items)) {
+					for (const item of result.items) {
+						const tid = item.source_thread ?? item.source_thread_id ?? item.metadata?.source_thread_id;
+						if (tid) item.sourceThreadId = tid;
+					}
+				}
+				return result;
 			} catch (err) {
 				return cliErrorResult(err, "memory_search");
 			}
@@ -598,7 +613,8 @@ export async function activate(context) {
 
 	registerTool("nowledge_mem_query", {
 		description:
-			"One-shot memory query. Searches memories first, then threads fallback, and returns combined results.",
+			"One-shot memory query. Searches memories first, then threads fallback, and returns combined results. " +
+			"Memory results include sourceThreadId when available — use nowledge_mem_thread_show to read the full conversation.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -624,6 +640,11 @@ export async function activate(context) {
 				const memoryResult = await client.searchMemory(query, { limit, mode: "normal" });
 				const memoryItems = normalizeItems(memoryResult, ["memories", "results"]);
 				if (memoryItems.length > 0) {
+					// Enrich items with sourceThreadId for thread provenance
+					for (const item of memoryItems) {
+						const tid = item.source_thread ?? item.source_thread_id ?? item.metadata?.source_thread_id;
+						if (tid) item.sourceThreadId = tid;
+					}
 					return {
 						ok: true,
 						query,
@@ -652,16 +673,31 @@ export async function activate(context) {
 		},
 	});
 
+	const VALID_UNIT_TYPES = new Set([
+		"fact", "preference", "decision", "plan", "procedure", "learning", "context", "event",
+	]);
+
 	registerTool("nowledge_mem_store", {
 		description:
-			"Save an insight, decision, or important finding to your personal knowledge base.",
+			"Save a new insight, decision, or fact to the user's permanent knowledge graph. " +
+			"Call this proactively — don't wait to be asked. If the conversation surfaces something worth keeping " +
+			"(a technical choice made, a preference stated, something learned, a plan formed), save it. " +
+			"Specify unit_type to give the memory richer structure. " +
+			"Use labels for topics/projects. Use event_start for when the event HAPPENED (not when it's saved).",
 		inputSchema: {
 			type: "object",
 			properties: {
 				text: { type: "string", minLength: 1 },
 				title: { type: "string", maxLength: 120 },
+				unit_type: {
+					type: "string",
+					enum: ["fact", "preference", "decision", "plan", "procedure", "learning", "context", "event"],
+				},
 				importance: { type: "number", minimum: 0.1, maximum: 1.0 },
 				labels: { type: "array", items: { type: "string" } },
+				event_start: { type: "string" },
+				event_end: { type: "string" },
+				temporal_context: { type: "string", enum: ["past", "present", "future", "timeless"] },
 				source: { type: "string", maxLength: 120 },
 			},
 			required: ["text"],
@@ -671,8 +707,15 @@ export async function activate(context) {
 			properties: {
 				text: { type: "string", minLength: 1 },
 				title: { type: "string", maxLength: 120 },
+				unit_type: {
+					type: "string",
+					enum: ["fact", "preference", "decision", "plan", "procedure", "learning", "context", "event"],
+				},
 				importance: { type: "number", minimum: 0.1, maximum: 1.0 },
 				labels: { type: "array", items: { type: "string" } },
+				event_start: { type: "string" },
+				event_end: { type: "string" },
+				temporal_context: { type: "string", enum: ["past", "present", "future", "timeless"] },
 				source: { type: "string", maxLength: 120 },
 			},
 			required: ["text"],
@@ -687,6 +730,10 @@ export async function activate(context) {
 				typeof input.title === "string" && input.title.trim()
 					? input.title.trim().slice(0, 120)
 					: undefined;
+			const unitType =
+				typeof input.unit_type === "string" && VALID_UNIT_TYPES.has(input.unit_type)
+					? input.unit_type
+					: undefined;
 			const importance =
 				typeof input.importance === "number" &&
 				Number.isFinite(input.importance)
@@ -695,21 +742,72 @@ export async function activate(context) {
 			const labels = Array.isArray(input.labels)
 				? input.labels.map((x) => String(x).trim()).filter(Boolean).slice(0, 8)
 				: [];
+			const eventStart = typeof input.event_start === "string" && input.event_start.trim()
+				? input.event_start.trim() : undefined;
+			const eventEnd = typeof input.event_end === "string" && input.event_end.trim()
+				? input.event_end.trim() : undefined;
+			const temporalContext =
+				typeof input.temporal_context === "string" &&
+				["past", "present", "future", "timeless"].includes(input.temporal_context)
+					? input.temporal_context : undefined;
 			const source = typeof input.source === "string" && input.source.trim()
 				? input.source.trim().slice(0, 120)
 				: "alma";
+
+			// Dedup check: skip save at ≥90% similarity to avoid duplicates.
+			// Best-effort — never blocks save on search failure.
 			try {
-				const result = await client.addMemory(text, title, importance, labels, source);
+				const dedupQuery = title || text.slice(0, 200);
+				const existing = await client.search(dedupQuery, 3);
+				if (existing.length > 0 && existing[0].score >= 0.9) {
+					const top = existing[0];
+					logger.info?.(
+						`nowledge-mem store: skipped — near-identical memory exists: ${top.id} (${(top.score * 100).toFixed(0)}%)`,
+					);
+					return {
+						ok: true,
+						skipped: true,
+						reason: "duplicate",
+						existingId: top.id,
+						existingTitle: top.title,
+						similarity: top.score,
+					};
+				}
+			} catch {
+				// Dedup check is best-effort
+			}
+
+			try {
+				const args = ["--json", "m", "add", text];
+				if (title) args.push("-t", title);
+				if (importance !== undefined && Number.isFinite(importance)) {
+					args.push("-i", String(importance));
+				}
+				if (unitType) args.push("--unit-type", unitType);
+				for (const label of labels) args.push("-l", label);
+				if (eventStart) args.push("--event-start", eventStart);
+				if (eventEnd) args.push("--event-end", eventEnd);
+				if (temporalContext) args.push("--when", temporalContext);
+
+				const result = client.run(args, true);
+				const id = String(result?.id ?? result?.memory?.id ?? result?.memory_id ?? "");
+
+				const typeLabel = unitType ? ` [${unitType}]` : "";
 				return {
 					ok: true,
 					item: {
-						id: String(result?.id ?? ""),
+						id,
 						title: title ?? String(result?.title ?? ""),
 						content: text,
-						labels,
+						unitType: result?.unit_type || unitType,
+						labels: result?.labels || labels,
 						importance: importance ?? Number(result?.importance ?? 0.5),
+						eventStart,
+						eventEnd,
+						temporalContext,
 						source,
 					},
+					summary: `Saved${title ? `: ${title}` : ""}${typeLabel} (id: ${id})`,
 					raw: result,
 				};
 			} catch (err) {
@@ -719,7 +817,9 @@ export async function activate(context) {
 	});
 
 	registerTool("nowledge_mem_show", {
-		description: "Show full details for one memory by id.",
+		description:
+			"Show full details for one memory by id. " +
+			"Returns sourceThreadId when the memory was distilled from a conversation.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -743,11 +843,15 @@ export async function activate(context) {
 			try {
 				const result = await client.showMemory(id, contentLimit);
 				const content = String(result?.content ?? "");
-				return {
+				const sourceThreadId =
+					result?.source_thread ?? result?.source_thread_id ?? result?.metadata?.source_thread_id ?? null;
+				const response = {
 					ok: true,
 					item: result,
 					truncated: content.length >= contentLimit,
 				};
+				if (sourceThreadId) response.sourceThreadId = sourceThreadId;
+				return response;
 			} catch (err) {
 				const info = cliErrorResult(err, "memory_show");
 				if (info.error.code === "not_found") return { ok: true, item: null, notFound: true };
@@ -862,12 +966,17 @@ export async function activate(context) {
 	});
 
 	registerTool("nowledge_mem_thread_search", {
-		description: "Search saved conversation threads by natural language query.",
+		description:
+			"Search past conversations by keyword. Use when the user asks about a past discussion, " +
+			"wants to find a conversation from a specific time, or when a memory's sourceThreadId suggests " +
+			"looking at the full conversation. Returns matched threads with message snippets. " +
+			"To read full messages, pass a thread id to nowledge_mem_thread_show.",
 		inputSchema: {
 			type: "object",
 			properties: {
 				query: { type: "string", minLength: 1 },
 				limit: { type: "number", minimum: 1, maximum: 20, default: 5 },
+				source: { type: "string" },
 			},
 			required: ["query"],
 		},
@@ -876,14 +985,20 @@ export async function activate(context) {
 			properties: {
 				query: { type: "string", minLength: 1 },
 				limit: { type: "number", minimum: 1, maximum: 20, default: 5 },
+				source: {
+					type: "string",
+					description: "Filter by source platform (e.g. 'alma', 'claude-code'). Omit to search all.",
+				},
 			},
 			required: ["query"],
 		},
 		async execute(input) {
 			const query = String(input?.query ?? "").trim();
 			if (!query) return validationErrorResult("thread_search", "query is required");
+			const source = typeof input?.source === "string" && input.source.trim()
+				? input.source.trim() : undefined;
 			try {
-				const data = await client.searchThreads(query, input?.limit ?? 5);
+				const data = await client.searchThreads(query, input?.limit ?? 5, source);
 				return normalizeSearchResponse(data, query, "thread");
 			} catch (err) {
 				return cliErrorResult(err, "thread_search");
@@ -892,12 +1007,17 @@ export async function activate(context) {
 	});
 
 	registerTool("nowledge_mem_thread_show", {
-		description: "Show one thread with messages.",
+		description:
+			"Fetch messages from a conversation thread. Use to read the full context around a memory — " +
+			"pass the sourceThreadId from nowledge_mem_search or nowledge_mem_show results, " +
+			"or a thread id from nowledge_mem_thread_search. " +
+			"Supports pagination: set offset to skip earlier messages for progressive retrieval.",
 		inputSchema: {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				messages: { type: "number", minimum: 1, maximum: 200, default: 30 },
+				limit: { type: "number", minimum: 1, maximum: 200, default: 30 },
+				offset: { type: "number", minimum: 0, default: 0 },
 				contentLimit: { type: "number", minimum: 100, maximum: 20000, default: 1200 },
 			},
 			required: ["id"],
@@ -906,7 +1026,14 @@ export async function activate(context) {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				messages: { type: "number", minimum: 1, maximum: 200, default: 30 },
+				limit: {
+					type: "number", minimum: 1, maximum: 200, default: 30,
+					description: "Max messages to return (1-200, default 30)",
+				},
+				offset: {
+					type: "number", minimum: 0, default: 0,
+					description: "Skip first N messages for pagination (default 0)",
+				},
 				contentLimit: { type: "number", minimum: 100, maximum: 20000, default: 1200 },
 			},
 			required: ["id"],
@@ -915,19 +1042,24 @@ export async function activate(context) {
 			const id = String(input?.id ?? "").trim();
 			if (!id) return validationErrorResult("thread_show", "id is required");
 			try {
-				const messages = clamp(Number(input?.messages ?? 30) || 30, 1, 200);
+				const limit = clamp(Number(input?.limit ?? input?.messages ?? 30) || 30, 1, 200);
+				const offset = Math.max(0, Math.floor(Number(input?.offset ?? 0) || 0));
 				const contentLimit = clamp(Number(input?.contentLimit ?? 1200) || 1200, 100, 20000);
-				const result = await client.showThread(id, messages, contentLimit);
+				const result = await client.showThread(id, limit, contentLimit, offset);
 				const threadMessages = Array.isArray(result?.messages) ? result.messages : [];
-				const truncatedContent = threadMessages.some((m) => {
-					const txt = extractText(m?.content ?? m?.text ?? "");
-					return txt.length >= contentLimit;
-				});
+				const totalMessages = Number(result?.total_messages ?? result?.message_count ?? threadMessages.length);
+				const hasMore = totalMessages > 0 && offset + threadMessages.length < totalMessages;
 				return {
 					ok: true,
 					item: result,
-					truncatedMessages: threadMessages.length >= messages,
-					truncatedContent,
+					totalMessages,
+					offset,
+					returnedMessages: threadMessages.length,
+					hasMore,
+					truncatedContent: threadMessages.some((m) => {
+						const txt = extractText(m?.content ?? m?.text ?? "");
+						return txt.length >= contentLimit;
+					}),
 				};
 			} catch (err) {
 				const info = cliErrorResult(err, "thread_show");
