@@ -9,7 +9,7 @@ This file is a practical continuation guide for future agent sessions working on
 - Runtime: plain ESM (`main.js`), no build step
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 
-## Current Status (as of v0.6.0)
+## Current Status (as of v0.6.1)
 
 - Plugin is installed/activated and registers 11 tools successfully in Alma logs.
 - Main unresolved UX issue is often chat tool allowlist/routing (session-level),
@@ -17,6 +17,8 @@ This file is a practical continuation guide for future agent sessions working on
 - v0.6.0 adds: sourceThreadId linkage, structured save with unit_type + temporal fields,
   save dedup guard (>=90% similarity), thread pagination (offset/limit), thread source filter,
   behavioral guidance in recall injection.
+- v0.6.1 adds: Access Anywhere remote access via `apiUrl` + `apiKey` settings.
+  API key injected via env var only (never as CLI arg). Startup log shows mode=remote or mode=local.
 - Tool contracts were normalized in recent passes:
   - search-style: `{ ok, type, query, total, items, raw }` — items may include `sourceThreadId`
   - singleton-style: `{ ok, item, ... }` — show includes `sourceThreadId` when available
@@ -63,6 +65,8 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 - `nowledgeMem.recallPolicy` (default `balanced_thread_once`)
 - `nowledgeMem.autoCapture` (default `false`)
 - `nowledgeMem.maxRecallResults` (default `5`, clamp 1-20)
+- `nowledgeMem.apiUrl` (default `""`, empty = local `http://127.0.0.1:14242`)
+- `nowledgeMem.apiKey` (default `""`, passed via env var only, never logged)
 
 ## Ground Truth Debug Checklist
 

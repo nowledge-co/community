@@ -1272,7 +1272,9 @@ export async function deactivate(context) {
 	}
 	try {
 		quitCaptureAttempted = true;
-		const client = new NowledgeMemClient(logger);
+		const apiUrl = getSetting(context?.settings, "nowledgeMem.apiUrl", "") || "";
+		const apiKey = getSetting(context?.settings, "nowledgeMem.apiKey", "") || "";
+		const client = new NowledgeMemClient(logger, { apiUrl, apiKey });
 		const message = await saveActiveThread(context, client);
 		logger.info?.(`nowledge-mem: auto-capture on deactivate (${message})`);
 	} catch (err) {
