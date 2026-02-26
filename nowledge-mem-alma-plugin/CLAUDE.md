@@ -9,7 +9,7 @@ This file is a practical continuation guide for future agent sessions working on
 - Runtime: plain ESM (`main.js`), no build step
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 
-## Current Status (as of v0.6.2)
+## Current Status (as of v0.6.3)
 
 - Plugin is installed/activated and registers 12 tools successfully in Alma logs.
 - Main unresolved UX issue is often chat tool allowlist/routing (session-level),
@@ -19,7 +19,8 @@ This file is a practical continuation guide for future agent sessions working on
   behavioral guidance in recall injection.
 - v0.6.1 adds: Access Anywhere remote access via `apiUrl` + `apiKey` settings.
   API key injected via env var only (never as CLI arg). Startup log shows mode=remote or mode=local.
-- v0.6.2 adds: `nowledge_mem_status` diagnostics tool — connection mode, CLI availability, server health, settings.
+- v0.6.3 adds: live settings reload via `onDidChange()`, `nowledge_mem_status` tool, `PluginActivation` dispose.
+  Settings changes (apiUrl, apiKey, etc.) take effect immediately without plugin reload.
 - Tool contracts were normalized in recent passes:
   - search-style: `{ ok, type, query, total, items, raw }` — items may include `sourceThreadId`
   - singleton-style: `{ ok, item, ... }` — show includes `sourceThreadId` when available
