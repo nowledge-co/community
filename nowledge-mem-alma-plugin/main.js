@@ -998,6 +998,61 @@ export async function activate(context) {
 		},
 	});
 
+	registerTool("nowledge_mem_status", {
+		description:
+			"Check Nowledge Mem connection status, diagnostics, and current settings. " +
+			"Use this to verify whether the remote API URL and key are configured correctly, " +
+			"or to troubleshoot connectivity issues.",
+		inputSchema: { type: "object", properties: {} },
+		parameters: { type: "object", properties: {} },
+		async execute() {
+			const remoteMode = client._apiUrl !== "http://127.0.0.1:14242";
+
+			// Check CLI availability
+			let cliAvailable = false;
+			let cliCommand = null;
+			try {
+				const resolved = client.resolveCommand();
+				cliAvailable = true;
+				cliCommand = `${resolved.cmd}${resolved.prefix.length ? ` ${resolved.prefix.join(" ")}` : ""}`;
+			} catch {
+				// CLI not found
+			}
+
+			// Check server connectivity
+			let serverConnected = false;
+			let serverError = null;
+			if (cliAvailable) {
+				try {
+					client.run(["status"], false);
+					serverConnected = true;
+				} catch (err) {
+					serverError = err instanceof Error ? err.message : String(err);
+				}
+			} else {
+				serverError = "nmem CLI not available";
+			}
+
+			return {
+				ok: true,
+				status: {
+					connectionMode: remoteMode ? "remote" : "local",
+					apiUrl: client._apiUrl,
+					apiKeyConfigured: Boolean(client._apiKey),
+					cliAvailable,
+					cliCommand,
+					serverConnected,
+					serverError,
+					settings: {
+						recallPolicy,
+						autoCapture,
+						maxRecallResults,
+					},
+				},
+			};
+		},
+	});
+
 	registerTool("nowledge_mem_thread_search", {
 		description:
 			"Search past conversations by keyword. Use when the user asks about a past discussion, " +

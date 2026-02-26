@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.2
+
+### Status diagnostics tool
+- Add `nowledge_mem_status` tool for checking connection health and configuration
+- Returns: connection mode (local/remote), API URL, API key configured (boolean), CLI availability, server connectivity, and current settings
+- Useful for verifying Access Anywhere remote configuration is working correctly
+
 ## 0.6.1
 
 ### Access Anywhere (remote access)

@@ -1,7 +1,7 @@
 {
   "id": "nowledge-mem",
   "name": "Nowledge Mem",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Local-first personal memory for Alma, powered by Nowledge Mem CLI",
   "author": {
     "name": "Nowledge Labs",
@@ -57,6 +57,11 @@
         "id": "nowledge_mem_working_memory",
         "name": "Read Working Memory",
         "description": "Read your daily Working Memory briefing from ~/ai-now/memory.md."
+      },
+      {
+        "id": "nowledge_mem_status",
+        "name": "Check Status",
+        "description": "Check connection status, CLI availability, server connectivity, and current settings."
       },
       {
         "id": "nowledge_mem_thread_search",

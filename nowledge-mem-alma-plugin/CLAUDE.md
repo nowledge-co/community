@@ -9,9 +9,9 @@ This file is a practical continuation guide for future agent sessions working on
 - Runtime: plain ESM (`main.js`), no build step
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 
-## Current Status (as of v0.6.1)
+## Current Status (as of v0.6.2)
 
-- Plugin is installed/activated and registers 11 tools successfully in Alma logs.
+- Plugin is installed/activated and registers 12 tools successfully in Alma logs.
 - Main unresolved UX issue is often chat tool allowlist/routing (session-level),
   not plugin registration.
 - v0.6.0 adds: sourceThreadId linkage, structured save with unit_type + temporal fields,
@@ -19,11 +19,13 @@ This file is a practical continuation guide for future agent sessions working on
   behavioral guidance in recall injection.
 - v0.6.1 adds: Access Anywhere remote access via `apiUrl` + `apiKey` settings.
   API key injected via env var only (never as CLI arg). Startup log shows mode=remote or mode=local.
+- v0.6.2 adds: `nowledge_mem_status` diagnostics tool — connection mode, CLI availability, server health, settings.
 - Tool contracts were normalized in recent passes:
   - search-style: `{ ok, type, query, total, items, raw }` — items may include `sourceThreadId`
   - singleton-style: `{ ok, item, ... }` — show includes `sourceThreadId` when available
   - store: `{ ok, item, summary }` or `{ ok, skipped, reason, existingId, similarity }`
   - delete-style: `{ ok, id, force, [cascade], notFound, item? }`
+  - status: `{ ok, status:{ connectionMode, apiUrl, apiKeyConfigured, cliAvailable, cliCommand, serverConnected, serverError, settings } }`
   - errors: `{ ok:false, error:{ code, operation, message } }`
 
 ## Files That Matter
@@ -45,6 +47,7 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 - `nowledge_mem_update`
 - `nowledge_mem_delete`
 - `nowledge_mem_working_memory`
+- `nowledge_mem_status`
 - `nowledge_mem_thread_search`
 - `nowledge_mem_thread_show`
 - `nowledge_mem_thread_create`
