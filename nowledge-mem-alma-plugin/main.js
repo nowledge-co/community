@@ -532,39 +532,44 @@ export async function activate(context) {
 		20,
 	);
 
+	const disposables = [];
+
 	const registerTool = (name, tool) => {
 		if (!context.tools?.register) return;
+		let disposable;
 		try {
-			context.tools.register(name, tool);
-			return;
+			disposable = context.tools.register(name, tool);
 		} catch {
 			// try single-object forms
 		}
-		try {
-			context.tools.register({ id: name, ...tool });
-			return;
-		} catch {
-			// fallback to name field
+		if (!disposable) {
+			try {
+				disposable = context.tools.register({ id: name, ...tool });
+			} catch {
+				// fallback to name field
+			}
 		}
-		try {
-			context.tools.register({ name, ...tool });
-		} catch (err) {
-			logger.error?.(
-				`Failed to register tool "${name}": ${err instanceof Error ? err.message : String(err)}`,
-			);
+		if (!disposable) {
+			try {
+				disposable = context.tools.register({ name, ...tool });
+			} catch (err) {
+				logger.error?.(
+					`Failed to register tool "${name}": ${err instanceof Error ? err.message : String(err)}`,
+				);
+			}
 		}
+		if (disposable?.dispose) disposables.push(disposable);
 	};
 
 	const registerEvent = (eventName, handler) => {
+		let disposable;
 		if (context.hooks?.on) {
-			context.hooks.on(eventName, handler);
-			return true;
+			disposable = context.hooks.on(eventName, handler);
+		} else if (context.events?.on) {
+			disposable = context.events.on(eventName, handler);
 		}
-		if (context.events?.on) {
-			context.events.on(eventName, handler);
-			return true;
-		}
-		return false;
+		if (disposable?.dispose) disposables.push(disposable);
+		return Boolean(disposable);
 	};
 
 	const recallInjectionEnabled =
@@ -1314,6 +1319,16 @@ export async function activate(context) {
 	logger.info?.(
 		`nowledge-mem activated for Alma (recallPolicy=${recallPolicy}, recallInjectionEnabled=${recallInjectionEnabled}, recallFrequency=${recallFrequency}, injectCliPlaybook=${injectCliPlaybook}, autoCapture=${autoCapture}, maxRecallResults=${maxRecallResults}, mode=${remoteMode ? `remote → ${apiUrl}` : "local"})`,
 	);
+
+	return {
+		dispose() {
+			for (const d of disposables) {
+				try { d.dispose(); } catch { /* best effort */ }
+			}
+			disposables.length = 0;
+			logger.info?.("nowledge-mem disposed");
+		},
+	};
 }
 
 export async function deactivate(context) {

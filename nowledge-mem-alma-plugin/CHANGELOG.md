@@ -7,6 +7,11 @@
 - Returns: connection mode (local/remote), API URL, API key configured (boolean), CLI availability, server connectivity, and current settings
 - Useful for verifying Access Anywhere remote configuration is working correctly
 
+### Plugin lifecycle compliance
+- `activate()` now returns `{ dispose }` per Alma `PluginActivation` contract
+- Tool and event registrations collect `Disposable` handles for proper cleanup
+- Alma can now cleanly unregister all tools and events on plugin deactivation
+
 ## 0.6.1
 
 ### Access Anywhere (remote access)
