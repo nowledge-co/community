@@ -47,7 +47,7 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema)
 ~/.nowledge-mem/openclaw.json - user config file (auto-created on first run)
 ```
 
-## Tool Surface (9 tools)
+## Tool Surface (10 tools)
 
 ### OpenClaw Memory Slot (required for system prompt activation)
 - `memory_search` - multi-signal: BM25 + embedding + label + graph + decay. Returns `matchedVia` ("Text Match 100% + Semantic 69%"), `importance`, bi-temporal filters (`event_date_from/to`, `recorded_date_from/to`). Also returns `relatedThreads` (past conversation snippets matching the query) and `sourceThreadId` (link to source conversation). Mode: `"multi-signal"`.
@@ -63,6 +63,9 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema)
 ### Thread Tools (progressive conversation retrieval)
 - `nowledge_mem_thread_search` - search past conversations by keyword. Returns threads with matched message snippets, relevance scores, and message counts. Supports `source` filter.
 - `nowledge_mem_thread_fetch` - fetch full messages from a specific thread. Supports pagination via `offset` + `limit` for progressive retrieval of long conversations.
+
+### Diagnostics
+- `nowledge_mem_status` - show effective config (mode, apiUrl, apiKey set, sessionContext, sessionDigest, etc.), backend connectivity, and version. No parameters.
 
 ## Hook Surface
 

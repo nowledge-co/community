@@ -32,7 +32,7 @@ Start Nowledge Mem desktop app or run `nmem serve`, then enable the plugin:
 }
 ```
 
-That's it. The agent gets 9 tools and calls them on demand. No extra tokens wasted.
+That's it. The agent gets 10 tools and calls them on demand. No extra tokens wasted.
 
 ### Remote mode
 
@@ -62,7 +62,7 @@ flowchart TD
     B --> C["Behavioral guidance(always, ~110 tokens)"]
     B -.->|"sessionContext: true"| D["Working Memory +relevant memories (~1-2 KB)"]
 
-    C --> E["Agent processes message(9 tools available)"]
+    C --> E["Agent processes message(10 tools available)"]
     D --> E
 
     E --> F{"Needs past context?"}
@@ -91,6 +91,7 @@ The behavioral hook nudges the agent to **search before answering** and **save a
 | Memory has `sourceThreadId` | `nowledge_mem_thread_fetch` | Fetch full source conversation. Pagination via `offset` + `limit`. |
 | "Find our discussion about X" | `nowledge_mem_thread_search` | Search past conversations by keyword. Returns matched snippets. |
 | "Forget X" | `nowledge_mem_forget` | Delete by ID or search query. |
+| "Is my setup working?" | `nowledge_mem_status` | Show effective config, backend connectivity, and version. |
 
 ### Session Lifecycle (Automatic Capture)
 
@@ -153,21 +154,21 @@ flowchart LR
     subgraph "default" ["Default (recommended)"]
         direction TB
         D1["Every turn: behavioral guidance (~50 tokens)"]
-        D2["Agent calls 9 tools on demand"]
+        D2["Agent calls 10 tools on demand"]
         D3["Session end: thread capture + LLM distillation"]
     end
 
     subgraph context ["Session Context"]
         direction TB
         C1["Every turn: guidance + Working Memory+ recalled memories (~1-2 KB)"]
-        C2["Agent calls 9 tools on demand"]
+        C2["Agent calls 10 tools on demand"]
         C3["Session end: thread capture + LLM distillation"]
     end
 
     subgraph minimal ["Minimal"]
         direction TB
         M1["Every turn: behavioral guidance (~50 tokens)"]
-        M2["Agent calls 9 tools on demand"]
+        M2["Agent calls 10 tools on demand"]
         M3["No automatic capture"]
     end
 ```
@@ -254,8 +255,8 @@ The plugin supports three modes. Choose based on how much you want to guarantee 
 
 | Mode | Config | Behavior | Tradeoff |
 |------|--------|----------|----------|
-| **Default** (recommended) | `sessionContext: false, sessionDigest: true` | Agent calls 9 tools on demand. Behavioral guidance every turn (~50 tokens). Conversations captured + distilled at session end. | Lowest cost. Agent decides when to search, usually smart, occasionally forgets. |
-| **Session context** | `sessionContext: true` | Working Memory + relevant memories injected at prompt time, plus all 9 tools still available. | ~1-2 KB/turn. Guarantees context is always present. Best for short sessions or critical workflows. |
+| **Default** (recommended) | `sessionContext: false, sessionDigest: true` | Agent calls 10 tools on demand. Behavioral guidance every turn (~50 tokens). Conversations captured + distilled at session end. | Lowest cost. Agent decides when to search, usually smart, occasionally forgets. |
+| **Session context** | `sessionContext: true` | Working Memory + relevant memories injected at prompt time, plus all 10 tools still available. | ~1-2 KB/turn. Guarantees context is always present. Best for short sessions or critical workflows. |
 | **Minimal** | `sessionDigest: false` | Tool-only, no automatic capture. | Zero overhead beyond guidance. Use when you handle memory manually. |
 
 **Which mode should you use?**

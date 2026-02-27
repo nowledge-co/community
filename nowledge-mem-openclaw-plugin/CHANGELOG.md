@@ -26,6 +26,7 @@ This ensures your settings survive OpenClaw version upgrades that may strip cust
 
 ### Added
 
+- `nowledge_mem_status` tool: verify effective config, backend connectivity, and version. Shows mode (local/remote), whether API key is set, backend health, and all config values. 10 tools total.
 - Environment variable support for all config keys (not just `apiUrl`/`apiKey`)
 - Migration: first-run config file seeded from existing `pluginConfig` values
 - `isDefaultApiUrl()` helper exported for local-vs-remote detection
@@ -34,7 +35,7 @@ This ensures your settings survive OpenClaw version upgrades that may strip cust
 
 ### Added - Thread tools + sourceThreadId linkage
 
-**Two new tools for conversation retrieval.** The plugin now provides 9 tools total.
+**Two new tools for conversation retrieval.**
 
 - `nowledge_mem_thread_search` - search past conversations by keyword. Returns matched threads with message snippets and relevance scores. Use when the user asks about a past discussion or wants to find a specific conversation.
 - `nowledge_mem_thread_fetch` - fetch full messages from a specific thread with pagination support. Use to progressively retrieve long conversations. Accepts `offset` and `limit` for paginated retrieval.
