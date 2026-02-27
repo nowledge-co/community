@@ -51,6 +51,11 @@ Or use a config file at `~/.nowledge-mem/openclaw.json`:
 
 The `apiKey` is injected as `NMEM_API_KEY` into the nmem CLI process. Never passed as a CLI argument, never logged.
 
+### Configure via WebUI of OpenClaw
+
+<img width="1192" height="2007" alt="openclaw-config" src="https://github.com/user-attachments/assets/a4abd855-db56-4a1f-b0ac-0114909d0c20" />
+
+
 ## How It Works
 
 ### Per-Turn Flow
