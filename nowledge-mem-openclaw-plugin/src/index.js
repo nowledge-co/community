@@ -27,7 +27,7 @@ export default {
 	kind: "memory",
 
 	register(api) {
-		const cfg = parseConfig(api.pluginConfig);
+		const cfg = parseConfig(api.pluginConfig, logger);
 		const logger = api.logger;
 		const client = new NowledgeMemClient(logger, {
 			apiUrl: cfg.apiUrl,
@@ -75,7 +75,7 @@ export default {
 
 		const remoteMode = !isDefaultApiUrl(cfg.apiUrl);
 		logger.info(
-			`nowledge-mem: initialized (recall=${cfg.autoRecall}, capture=${cfg.autoCapture}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
+			`nowledge-mem: initialized (sessionContext=${cfg.autoRecall}, sessionDigest=${cfg.autoCapture}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
 		);
 	},
 };

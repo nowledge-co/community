@@ -8,7 +8,7 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 - Runtime: JS ESM modules under `src/`, no TS build pipeline
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 - Architecture: **CLI-first** — all operations go through the nmem CLI, not direct API calls
-- Remote mode: set `NMEM_API_URL` + `NMEM_API_KEY` env vars or plugin config `apiUrl` + `apiKey`
+- Remote mode: set `NMEM_API_URL` + `NMEM_API_KEY` env vars or config file `apiUrl` + `apiKey`
 
 ## Design Philosophy
 
@@ -28,7 +28,7 @@ Reflects Nowledge Mem's genuine v0.6 strengths:
 src/
   index.js          — plugin registration (tools, hooks, commands, CLI)
   client.js         — CLI wrapper with API fallback; credential handling
-  config.js         — strict config parsing (apiUrl, apiKey, autoRecall, etc.)
+  config.js         — config cascade: pluginConfig > ~/.nowledge-mem/openclaw.json > env vars > defaults
   hooks/
     recall.js       — before_agent_start: inject Working Memory + recalled memories
     capture.js      — quality-gated memory note + thread append
@@ -41,6 +41,7 @@ src/
     timeline.js         — activity feed: daily grouping, event_type filter, memoryId hints
     forget.js           — memory deletion by ID or search
 openclaw.plugin.json — manifest + config schema (version, uiHints, configSchema)
+~/.nowledge-mem/openclaw.json — user config file (auto-created on first run)
 ```
 
 ## Tool Surface (7 tools)
@@ -58,8 +59,8 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 
 ## Hook Surface
 
-- `before_agent_start` — auto-recall: Working Memory + `searchRich()` with `relevanceReason` in context
-- `agent_end` — quality-gated memory note + thread append (requires `autoCapture: true`)
+- `before_agent_start` — session context: Working Memory + `searchRich()` with `relevanceReason` in context
+- `agent_end` — quality-gated memory note + thread append (requires `sessionDigest: true`)
 - `after_compaction` — thread append
 - `before_reset` — thread append
 
@@ -71,18 +72,20 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 
 ## Config Keys
 
-All keys support **env var fallback** — critical for OpenClaw >= 2026.2.25 which may strip plugin config.
+Config file at `~/.nowledge-mem/openclaw.json` (auto-created on first run). Also supports env vars and pluginConfig.
 
 | Key | Type | Default | Env Var | Description |
 |-----|------|---------|---------|-------------|
-| `autoRecall` | boolean | `false` | `NMEM_AUTO_RECALL` | Inject context at session start |
-| `autoCapture` | boolean | `false` | `NMEM_AUTO_CAPTURE` | Capture notes/threads at session end |
+| `sessionContext` | boolean | `false` | `NMEM_SESSION_CONTEXT` | Inject context at session start |
+| `sessionDigest` | boolean | `false` | `NMEM_SESSION_DIGEST` | Capture notes/threads at session end |
 | `captureMinInterval` | integer 0–86400 | `300` | `NMEM_CAPTURE_MIN_INTERVAL` | Seconds between captures per thread |
 | `maxRecallResults` | integer 1–20 | `5` | `NMEM_MAX_RECALL_RESULTS` | How many memories to recall |
 | `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
 | `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
 
-**Priority**: pluginConfig > env var > default.
+**Priority**: pluginConfig > config file > env var > default.
+
+Legacy aliases `autoRecall`/`autoCapture` accepted silently in all sources for backward compat.
 
 ### Credential Handling Rules
 - `apiKey` → ONLY via child process env (`NMEM_API_KEY`). Never CLI arg, never logged.

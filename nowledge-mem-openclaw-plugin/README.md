@@ -124,15 +124,15 @@ The plugin supports three modes. The default (tool-only) gives the agent full ac
 
 | Mode | Config | Behavior |
 |------|--------|----------|
-| **Tool-only** (default) | `autoRecall: false, autoCapture: false` | Agent calls tools on demand. Zero overhead. |
-| **Auto-recall** | `autoRecall: true` | Working Memory + relevant memories injected at session start. |
-| **Auto-capture** | `autoCapture: true` | Thread capture + LLM distillation at session end. |
+| **Tool-only** (default) | `sessionContext: false, sessionDigest: false` | Agent calls tools on demand. Zero overhead. |
+| **Session context** | `sessionContext: true` | Working Memory + relevant memories injected at session start. |
+| **Session digest** | `sessionDigest: true` | Thread capture + LLM distillation at session end. |
 
-### Auto-Recall (`autoRecall`, default: false)
+### Session Context (`sessionContext`, default: false)
 
 When enabled, the plugin injects Working Memory and relevant search results at session start. Useful for giving the agent immediate context without waiting for it to search proactively.
 
-### Auto-Capture (`autoCapture`, default: false)
+### Session Digest (`sessionDigest`, default: false)
 
 When enabled, two things happen at `agent_end`, `after_compaction`, and `before_reset`:
 
@@ -157,34 +157,44 @@ openclaw nowledge-mem status
 
 ## Configuration
 
-All options can be set via **environment variables** or `openclaw.json` plugin config. Environment variables work everywhere — including OpenClaw versions that don't support plugin config fields.
+On first startup, the plugin creates a config file at `~/.nowledge-mem/openclaw.json` with defaults. Edit it to customize:
 
-### Environment Variables (recommended)
-
-```bash
-# Add to ~/.zshrc, ~/.bashrc, or ~/.openclaw/.env
-export NMEM_AUTO_RECALL=true        # Inject context at session start
-export NMEM_AUTO_CAPTURE=true       # Capture threads + distill at session end
-export NMEM_CAPTURE_MIN_INTERVAL=300  # Seconds between captures (default: 300)
-export NMEM_MAX_RECALL_RESULTS=5    # Memories to recall (1–20, default: 5)
-export NMEM_API_URL=https://...     # Remote server (empty = local)
-export NMEM_API_KEY=your-key        # API key for remote mode
+```json
+{
+  "sessionContext": false,
+  "sessionDigest": false,
+  "captureMinInterval": 300,
+  "maxRecallResults": 5,
+  "apiUrl": "",
+  "apiKey": ""
+}
 ```
 
-### Plugin Config (openclaw.json)
+That's it — edit the file and restart OpenClaw. The plugin reads it on every startup.
 
-If your OpenClaw version supports plugin config, you can also set options in `openclaw.json` under `plugins.entries.openclaw-nowledge-mem.config`. Plugin config takes priority over environment variables.
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `sessionContext` | boolean | `false` | Inject Working Memory + relevant memories at session start |
+| `sessionDigest` | boolean | `false` | Thread capture + LLM distillation at session end |
+| `captureMinInterval` | integer | `300` | Seconds between captures per thread (0 = no limit) |
+| `maxRecallResults` | integer | `5` | Max memories to recall at session start |
+| `apiUrl` | string | `""` | Remote server URL (empty = local) |
+| `apiKey` | string | `""` | API key for remote access |
 
-| Key | Type | Default | Env Var | Description |
-|-----|------|---------|---------|-------------|
-| `autoRecall` | boolean | `false` | `NMEM_AUTO_RECALL` | Inject Working Memory + relevant memories at session start |
-| `autoCapture` | boolean | `false` | `NMEM_AUTO_CAPTURE` | Thread capture + LLM distillation at session end |
-| `captureMinInterval` | integer | `300` | `NMEM_CAPTURE_MIN_INTERVAL` | Seconds between captures per thread (0 = no limit) |
-| `maxRecallResults` | integer | `5` | `NMEM_MAX_RECALL_RESULTS` | Max memories to recall at session start |
-| `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL (empty = local) |
-| `apiKey` | string | `""` | `NMEM_API_KEY` | API key for remote access |
+### Advanced: environment variables
 
-**Priority**: plugin config > environment variable > default.
+For CI, scripts, or Docker deployments, all options also support environment variables:
+
+```bash
+NMEM_SESSION_CONTEXT=true
+NMEM_SESSION_DIGEST=true
+NMEM_CAPTURE_MIN_INTERVAL=300
+NMEM_MAX_RECALL_RESULTS=5
+NMEM_API_URL=https://...
+NMEM_API_KEY=your-key
+```
+
+**Priority**: OpenClaw plugin config > config file > env vars > defaults.
 
 ## What Makes This Different
 

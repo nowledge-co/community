@@ -1,14 +1,14 @@
 {
 	"id": "openclaw-nowledge-mem",
-	"version": "0.6.2",
+	"version": "0.6.3",
 	"kind": "memory",
 	"uiHints": {
-		"autoRecall": {
-			"label": "Auto-recall at session start",
+		"sessionContext": {
+			"label": "Session context injection",
 			"help": "Inject Working Memory and relevant memories at session start. Off by default \u2014 the agent can call memory_search on demand instead."
 		},
-		"autoCapture": {
-			"label": "Auto-capture at session end",
+		"sessionDigest": {
+			"label": "Session digest (auto-capture)",
 			"help": "Capture conversation threads and distill key memories via LLM at session end"
 		},
 		"captureMinInterval": {
@@ -32,12 +32,12 @@
 	"configSchema": {
 		"type": "object",
 		"properties": {
-			"autoRecall": {
+			"sessionContext": {
 				"type": "boolean",
 				"default": false,
 				"description": "Inject Working Memory and recalled memories at session start. Off by default \u2014 the agent queries memory on demand via tools."
 			},
-			"autoCapture": {
+			"sessionDigest": {
 				"type": "boolean",
 				"default": false,
 				"description": "Capture conversation threads and distill key memories via LLM at session end"
@@ -54,12 +54,12 @@
 				"default": 5,
 				"minimum": 1,
 				"maximum": 20,
-				"description": "Maximum memories to recall at session start (only used when autoRecall is enabled)"
+				"description": "Maximum memories to recall at session start (only used when sessionContext is enabled)"
 			},
 			"apiUrl": {
 				"type": "string",
 				"default": "",
-				"description": "Remote server URL. Empty = local (http://127.0.0.1:14242). Example: https://nowledge.example.com"
+				"description": "Remote server URL. Empty = local (http://127.0.0.1:14142). Example: https://nowledge.example.com"
 			},
 			"apiKey": {
 				"type": "string",
