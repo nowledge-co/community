@@ -2,7 +2,7 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
-## [0.6.3] - 2026-02-27
+## [0.6.6] - 2026-02-27
 
 ### Changed — Config file + naming refresh
 
