@@ -4,25 +4,25 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## [0.6.6] - 2026-02-27
 
-### Changed — Config file + env var cascade
+### Changed - Config file + env var cascade
 
 **Config file at `~/.nowledge-mem/openclaw.json`**
 
-The plugin now reads configuration from a dedicated config file, independent of OpenClaw's `openclaw.json`. The file is auto-created on first startup with sensible defaults. If you had settings in OpenClaw's plugin config, those values are automatically migrated into the file on first run — no manual steps needed.
+The plugin now reads configuration from a dedicated config file, independent of OpenClaw's `openclaw.json`. The file is auto-created on first startup with sensible defaults. If you had settings in OpenClaw's plugin config, those values are automatically migrated into the file on first run. No manual steps needed.
 
 This ensures your settings survive OpenClaw version upgrades that may strip custom plugin config fields (observed in OpenClaw >= 2026.2.25).
 
 **Config cascade** (4 layers, highest to lowest priority):
-1. `api.pluginConfig` — from OpenClaw's plugin config (when supported)
-2. `~/.nowledge-mem/openclaw.json` — dedicated config file
-3. Environment variables — `NMEM_SESSION_CONTEXT`, `NMEM_SESSION_DIGEST`, etc.
+1. `api.pluginConfig` - from OpenClaw's plugin config (when supported)
+2. `~/.nowledge-mem/openclaw.json` - dedicated config file
+3. Environment variables - `NMEM_SESSION_CONTEXT`, `NMEM_SESSION_DIGEST`, etc.
 4. Built-in defaults
 
 ### Fixed
 
 - **Conversation text unbounded**: `buildConversationText()` now caps per-message content at 2000 chars and total at 30K chars, preventing oversized LLM API payloads from long coding sessions
 - **Config strict mode**: unknown config keys throw a descriptive error listing all valid keys
-- **apiKey not written to config file**: API keys are intentionally excluded from the auto-created config file — they should stay in env vars or OpenClaw's secure config
+- **apiKey not written to config file**: API keys are intentionally excluded from the auto-created config file. They should stay in env vars or OpenClaw's secure config
 
 ### Added
 
@@ -32,12 +32,12 @@ This ensures your settings survive OpenClaw version upgrades that may strip cust
 
 ## [0.6.5] - 2026-02-26
 
-### Added — Thread tools + sourceThreadId linkage
+### Added - Thread tools + sourceThreadId linkage
 
 **Two new tools for conversation retrieval.** The plugin now provides 9 tools total.
 
-- `nowledge_mem_thread_search` — Search past conversations by keyword. Returns matched threads with message snippets and relevance scores. Use when the user asks about a past discussion or wants to find a specific conversation.
-- `nowledge_mem_thread_fetch` — Fetch full messages from a specific thread with pagination support. Use to progressively retrieve long conversations. Accepts `offset` and `limit` for paginated retrieval.
+- `nowledge_mem_thread_search` - search past conversations by keyword. Returns matched threads with message snippets and relevance scores. Use when the user asks about a past discussion or wants to find a specific conversation.
+- `nowledge_mem_thread_fetch` - fetch full messages from a specific thread with pagination support. Use to progressively retrieve long conversations. Accepts `offset` and `limit` for paginated retrieval.
 
 **Memories now link back to their source conversations.**
 
@@ -45,28 +45,28 @@ Every memory distilled from a conversation now includes `sourceThreadId` in sear
 
 **New client methods:**
 
-- `client.searchThreadsFull(query, { limit, source })` — Full-featured thread search (throws on error, supports source filter). CLI-first with API fallback.
-- `client.fetchThread(threadId, { offset, limit })` — Fetch messages from a thread with pagination. CLI-first with API fallback.
+- `client.searchThreadsFull(query, { limit, source })` - full-featured thread search (throws on error, supports source filter). CLI-first with API fallback.
+- `client.fetchThread(threadId, { offset, limit })` - fetch messages from a thread with pagination. CLI-first with API fallback.
 
 **Save deduplication.**
 
-Before saving, the plugin checks for near-identical existing memories (≥90% similarity). If a match is found, the save is skipped and the existing memory is returned — preventing obvious duplicates at the plugin level. Deeper semantic dedup is handled by the Knowledge Agent's EVOLVES chains in the background.
+Before saving, the plugin checks for near-identical existing memories (>=90% similarity). If a match is found, the save is skipped and the existing memory is returned, preventing obvious duplicates at the plugin level. Deeper semantic dedup is handled by the Knowledge Agent's EVOLVES chains in the background.
 
 **Context-aware behavioral guidance.**
 
-The always-on hook now tells the agent about `nowledge_mem_thread_fetch` for following up on `sourceThreadId` links. When `sessionContext` is enabled, the guidance adjusts to note that relevant memories have already been injected — reducing redundant `memory_search` calls.
+The always-on hook now tells the agent about `nowledge_mem_thread_fetch` for following up on `sourceThreadId` links. When `sessionContext` is enabled, the guidance adjusts to note that relevant memories have already been injected, reducing redundant `memory_search` calls.
 
 ## [0.6.4] - 2026-02-26
 
-### Changed — Thread search enrichment + sessionDigest default on
+### Changed - Thread search enrichment + sessionDigest default on
 
 **`memory_search` now includes relevant conversation threads.**
 
-When you search memories, the response now also includes `relatedThreads` — snippets from past conversations that match the query. This uses the backend's BM25 thread search (`GET /threads/search`). Thread search is best-effort: if it fails or returns nothing, the memory results are returned as before. No new tool for the agent to learn — thread context surfaces automatically alongside memories.
+When you search memories, the response now also includes `relatedThreads` - snippets from past conversations that match the query. This uses the backend's BM25 thread search (`GET /threads/search`). Thread search is best-effort: if it fails or returns nothing, the memory results are returned as before. No new tool for the agent to learn. Thread context surfaces automatically alongside memories.
 
 **`sessionDigest` now defaults to `true`.**
 
-Previously, session digest (thread capture + LLM distillation at session end) was off by default. The cost is negligible — one lightweight triage call per session end, full distillation only when worthwhile. With this change, conversations are captured and distilled automatically out of the box. Users who explicitly set `sessionDigest: false` are unaffected.
+Previously, session digest (thread capture + LLM distillation at session end) was off by default. The cost is negligible: one lightweight triage call per session end, full distillation only when worthwhile. Conversations are now captured and distilled automatically out of the box. Users who explicitly set `sessionDigest: false` are unaffected.
 
 **Behavioral hook updated.**
 
@@ -74,12 +74,12 @@ The always-on guidance now mentions that `memory_search` returns conversation sn
 
 ### Added
 
-- `client.searchThreads(query, limit)` — calls `GET /threads/search` API. Returns top matching threads with message snippets and relevance scores. Best-effort: never throws.
+- `client.searchThreads(query, limit)` - calls `GET /threads/search` API. Returns top matching threads with message snippets and relevance scores. Best-effort: never throws.
 - Version bumped to 0.6.4.
 
 ## [0.4.0] - 2026-02-26
 
-### Changed — Rename config + always-on behavioral guidance
+### Changed - Rename config + always-on behavioral guidance
 
 **Renamed config options** (old names still work as silent aliases):
 
@@ -90,30 +90,30 @@ The always-on guidance now mentions that `memory_search` returns conversation sn
 | `captureMinInterval` | `digestMinInterval` |
 | `maxRecallResults` | `maxContextResults` |
 
-Existing configs with old names continue to work — aliases are resolved transparently in `parseConfig()`. New names take precedence if both are present.
+Existing configs with old names continue to work. Aliases are resolved transparently in `parseConfig()`. New names take precedence if both are present.
 
 **Added: Always-on behavioral hook**
 
-The agent now receives brief behavioral guidance (~50 tokens) on every turn via `before_prompt_build`, telling it to proactively save and search. This fires in ALL modes, including tool-only (default). Previously, without `sessionContext` enabled, the agent had no system-level instruction to use memory tools — most LLMs ignored the "call proactively" hints in tool descriptions. This is the single most impactful change for memory adoption.
+The agent now receives brief behavioral guidance (~50 tokens) on every turn via `before_prompt_build`, telling it to proactively save and search. This fires in ALL modes, including tool-only (default). Previously, without `sessionContext` enabled, the agent had no system-level instruction to use memory tools. Most LLMs ignored the "call proactively" hints in tool descriptions. This is the single most impactful change for memory adoption.
 
 **Migrated: `before_prompt_build` for session context**
 
-Session context injection (formerly "autoRecall") now uses the modern `before_prompt_build` hook instead of legacy `before_agent_start`. Both the behavioral hook and session context coexist — OpenClaw concatenates multiple `prependContext` values with `\n\n`.
+Session context injection (formerly "autoRecall") now uses the modern `before_prompt_build` hook instead of legacy `before_agent_start`. Both the behavioral hook and session context coexist. OpenClaw concatenates multiple `prependContext` values with `\n\n`.
 
 ## [0.3.0] - 2026-02-23
 
-### Changed — Architecture overhaul: tool-first, LLM-based capture
+### Changed - Architecture overhaul: tool-first, LLM-based capture
 
 **Breaking: `autoRecall` now defaults to `false`**
 
-The agent has full access to all 7 tools regardless of this setting. Tool-only mode (both `autoRecall` and `autoCapture` off) is now the recommended default. The agent calls `memory_search`, `nowledge_mem_save`, etc. on demand — no tokens wasted on irrelevant context injection.
+The agent has full access to all 7 tools regardless of this setting. Tool-only mode (both `autoRecall` and `autoCapture` off) is now the recommended default. The agent calls `memory_search`, `nowledge_mem_save`, etc. on demand. No tokens wasted on irrelevant context injection.
 
 Users who explicitly set `autoRecall: true` are unaffected.
 
 **Removed: English-only heuristic capture**
 
 The entire rule-based capture pipeline has been removed:
-- `shouldCaptureAsMemory()` — English-only regex patterns (`/\bi (like|prefer|hate)\b/i`)
+- `shouldCaptureAsMemory()` - English-only regex patterns (`/\bi (like|prefer|hate)\b/i`)
 - `MEMORY_TRIGGER_PATTERNS`, `PROMPT_INJECTION_PATTERNS`
 - `looksLikeQuestion()`, `hasMemoryTrigger()`, `looksLikePromptInjection()`
 - `fingerprint()`, per-session dedup map
@@ -124,9 +124,9 @@ These were fundamentally broken for non-English users (~95% of the world) and vi
 
 Replaced heuristics with a proper LLM-based pipeline:
 
-1. **Thread capture** (unconditional, unchanged) — full conversation appended to persistent thread
-2. **Triage** (cheap, fast) — lightweight LLM call (~50 output tokens) determines if conversation contains save-worthy content. Language-agnostic. New backend endpoint: `POST /memories/distill/triage`
-3. **Distillation** (only when worthwhile) — full LLM extraction via existing `POST /memories/distill`, creating structured memories with proper unit_type, labels, and temporal data
+1. **Thread capture** (unconditional, unchanged) - full conversation appended to persistent thread
+2. **Triage** (cheap, fast) - lightweight LLM call (~50 output tokens) determines if conversation contains save-worthy content. Language-agnostic. New backend endpoint: `POST /memories/distill/triage`
+3. **Distillation** (only when worthwhile) - full LLM extraction via existing `POST /memories/distill`, creating structured memories with proper unit_type, labels, and temporal data
 
 Cost: negligible for conversations without save-worthy content (triage only). Moderate for rich conversations (triage + distill). Works in any language.
 
@@ -136,17 +136,17 @@ More directive description for tool-only mode: tells the agent when to proactive
 
 **Migrated: `before_prompt_build` hook**
 
-Auto-recall hook migrated from legacy `before_agent_start` to modern `before_prompt_build` API. Trimmed verbose tool guidance — the agent already sees tool descriptions in its tool list.
+Auto-recall hook migrated from legacy `before_agent_start` to modern `before_prompt_build` API. Trimmed verbose tool guidance. The agent already sees tool descriptions in its tool list.
 
 ### Added
 
-- `client.triageConversation(content)` — calls `POST /memories/distill/triage`
-- `client.distillThread({ threadId, title, content })` — calls `POST /memories/distill`
+- `client.triageConversation(content)` - calls `POST /memories/distill/triage`
+- `client.distillThread({ threadId, title, content })` - calls `POST /memories/distill`
 - Backend `POST /memories/distill/triage` endpoint with lightweight LLM triage prompt
 
 ## [0.2.7] - 2026-02-18
 
-### Added — Gap closures: date range, EVOLVES CLI, WM section edit
+### Added - Gap closures: date range, EVOLVES CLI, WM section edit
 
 **Feed date range filtering**
 
@@ -157,82 +157,82 @@ Auto-recall hook migrated from legacy `before_agent_start` to modern `before_pro
 
 **EVOLVES version chain via CLI**
 
-- `nmem g evolves <id>` — new CLI command showing the full EVOLVES chain for a memory (replaces/enriches/confirms/challenges relations).
-- `client.graphEvolves()` — new client method using `nmem g evolves`; falls back to `GET /agent/evolves?memory_id=<id>`.
+- `nmem g evolves <id>` - new CLI command showing the full EVOLVES chain for a memory (replaces/enriches/confirms/challenges relations).
+- `client.graphEvolves()` - new client method using `nmem g evolves`; falls back to `GET /agent/evolves?memory_id=<id>`.
 - `connections.js` now uses `client.graphEvolves()` instead of a raw API call. "Knowledge evolution" section now correctly shows direction (→ newer / ← older) relative to the queried memory.
 - Backend `GET /agent/evolves` now accepts `memory_id` query param to filter edges for a specific memory.
 
 **Working Memory section-level edit**
 
-- `nmem wm patch --heading "## Notes" --content/--append` — new CLI subcommand. Does client-side read-modify-write: reads WM, patches just the target section, writes the full doc back.
-- `client.patchWorkingMemory(heading, { content, append })` — new client method.
+- `nmem wm patch --heading "## Notes" --content/--append` - new CLI subcommand. Does client-side read-modify-write: reads WM, patches just the target section, writes the full doc back.
+- `client.patchWorkingMemory(heading, { content, append })` - new client method.
 - `nowledge_mem_context` now supports optional `patch_section` + `patch_content`/`patch_append` parameters. An agent can now update one section of Working Memory without destroying the rest.
 - Includes a JS `patchWmSection()` helper in `client.js` for the API fallback path (for CLI versions that predate `wm patch`).
 
 ## [0.2.6] - 2026-02-18
 
-### Added — Rich save: labels, event_start, temporal_context, unit_type fixed
+### Added - Rich save: labels, event_start, temporal_context, unit_type fixed
 
 ## [0.2.5] - 2026-02-18
 
-### Added — Remote mode configuration
+### Added - Remote mode configuration
 
 - `apiUrl` config option: set to your remote server URL to use Nowledge Mem across devices or in a team. Leave empty for local mode (default: `http://127.0.0.1:14242`).
-- `apiKey` config option: API key for remote access. Marked `"secret": true` in uiHints so OpenClaw can mask it in the UI. **Never logged, never passed as a CLI argument** — injected as `NMEM_API_KEY` env var into child processes only.
+- `apiKey` config option: API key for remote access. Marked `"secret": true` in uiHints so OpenClaw can mask it in the UI. **Never logged, never passed as a CLI argument.** Injected as `NMEM_API_KEY` env var into child processes only.
 - `NowledgeMemClient` now accepts `{ apiUrl, apiKey }` credentials at construction time. Both config values and `NMEM_API_URL` / `NMEM_API_KEY` env vars are supported; plugin config wins over env vars.
 - Initialization log now shows `mode=remote → https://...` vs `mode=local` (key never appears in logs).
 - `_spawnEnv()` helper: builds per-spawn env with credentials injected; `_apiUrlArgs()` adds `--api-url` flag only when not local.
 
 ## [0.2.4] - 2026-02-18
 
-### Changed — CLI-first architecture
+### Changed - CLI-first architecture
 
 All operations now go through the `nmem` CLI instead of direct API calls.
 This is a structural alignment that makes every feature work in remote mode
 (`NMEM_API_URL` + `NMEM_API_KEY`) without any plugin changes.
 
-- `client.graphExpand()` — uses `nmem g expand <id>`; falls back to API on older CLI
-- `client.feedEvents()` — uses `nmem f`; falls back to API on older CLI
-- `client.search()` — CLI now returns `relevance_reason`, `importance`, `labels`,
+- `client.graphExpand()` - uses `nmem g expand <id>`; falls back to API on older CLI
+- `client.feedEvents()` - uses `nmem f`; falls back to API on older CLI
+- `client.search()` - CLI now returns `relevance_reason`, `importance`, `labels`,
   temporal fields natively; `searchRich()` is now an alias for `search()`
-- `client.searchTemporal()` — uses `nmem m search --event-from/--recorded-from`
+- `client.searchTemporal()` - uses `nmem m search --event-from/--recorded-from`
   CLI args; falls back to API if CLI is pre-bi-temporal-update
-- `client._normalizeMemory()` — canonical memory shape shared across all search paths
+- `client._normalizeMemory()` - canonical memory shape shared across all search paths
 - Removed `client.apiJson()` usage in `connections.js` and `timeline.js`
 - `connections.js`: `client.apiJson()` retained only for the `/agent/evolves` chain
-  (no CLI command for this yet — tracked as future improvement)
+  (no CLI command for this yet, tracked as future improvement)
 
 ## [0.2.3] - 2026-02-18
 
-### Changed — Graph Transparency & Scoring Visibility
+### Changed - Graph Transparency & Scoring Visibility
 
 - `nowledge_mem_connections`: completely rewritten output format
-  - Edges are now JOIN-ed to their target nodes — each connection shows its relationship type and strength
+  - Edges are now JOIN-ed to their target nodes. Each connection shows its relationship type and strength
   - Sections organized by edge type: "Synthesized from N source memories" (CRYSTALLIZED_FROM), "Knowledge evolution" (EVOLVES), "Sourced from document" (SOURCED_FROM), "Entities mentioned" (MENTIONS)
   - EVOLVES sub-relations are labeled: supersedes, enriches, confirms, challenges
   - Each connected memory includes its `id` for direct follow-up with `memory_get` or `nowledge_mem_connections`
-- `memory_search`: now always uses API path (`searchRich`) — returns `matchedVia` with scoring breakdown
+- `memory_search`: now always uses API path (`searchRich`), returns `matchedVia` with scoring breakdown
   - e.g. `"matchedVia": "Text Match (100%) + Semantic Match (69%) | decay[imp:high]"`
   - Also returns `importance` per result
   - Response `mode` field updated to `"multi-signal"` to reflect actual behavior
-- `nowledge_mem_timeline`: timeline entries now include `(id: <memoryId>)` hint for events with linked memories — enables immediate chaining to `nowledge_mem_connections`
+- `nowledge_mem_timeline`: timeline entries now include `(id: <memoryId>)` hint for events with linked memories, enables immediate chaining to `nowledge_mem_connections`
 - `nowledge_mem_timeline`: `event_type` filter values documented in tool description for model discoverability
-- Auto-recall hook: uses `searchRich` instead of CLI search — shows scoring breakdown in recalled context
+- Auto-recall hook: uses `searchRich` instead of CLI search, shows scoring breakdown in recalled context
 
 ### Added
 
-- `client.searchRich()` — convenience wrapper for `searchTemporal` without temporal filters; always returns `relevanceReason`
+- `client.searchRich()` - convenience wrapper for `searchTemporal` without temporal filters; always returns `relevanceReason`
 
 ## [0.2.2] - 2026-02-18
 
 ### Added
 
 - `memory_search` now supports bi-temporal filtering:
-  - `event_date_from` / `event_date_to` — when the fact/event happened (YYYY, YYYY-MM, YYYY-MM-DD)
-  - `recorded_date_from` / `recorded_date_to` — when the memory was saved to Nowledge Mem
+  - `event_date_from` / `event_date_to` - when the fact/event happened (YYYY, YYYY-MM, YYYY-MM-DD)
+  - `recorded_date_from` / `recorded_date_to` - when the memory was saved to Nowledge Mem
   - Uses API-direct path (`client.searchTemporal`) so it works regardless of installed CLI version
   - Results include `eventStart`, `eventEnd`, `temporalContext` when available
-- `client.searchTemporal()` — new method wrapping `/memories/search` bi-temporal API directly
+- `client.searchTemporal()` - new method wrapping `/memories/search` bi-temporal API directly
 
 ## [0.2.1] - 2026-02-18
 
@@ -244,7 +244,7 @@ This is a structural alignment that makes every feature work in remote mode
 
 ## [0.2.0] - 2026-02-18
 
-### Changed — Tool Set Redesign
+### Changed - Tool Set Redesign
 
 Redesigned from first principles around Nowledge Mem's v0.6 architecture.
 This version reflects our genuine strengths: knowledge graph, structured types,
@@ -252,9 +252,9 @@ Working Memory, and cross-AI continuity.
 
 ### Added
 
-- `nowledge_mem_save` tool: structured knowledge capture with `unit_type` parameter (fact, preference, decision, plan, procedure, learning, context, event) — replaces generic `nowledge_mem_store`
-- `nowledge_mem_context` tool: read today's Working Memory daily briefing — replaces `nowledge_mem_working_memory` with clearer naming
-- `nowledge_mem_connections` tool: explore knowledge graph around a topic — returns connected memories, EVOLVES chains, related entities, and Source document provenance (SOURCED_FROM edges from Library). This is our graph-native differentiator.
+- `nowledge_mem_save` tool: structured knowledge capture with `unit_type` parameter (fact, preference, decision, plan, procedure, learning, context, event). Replaces generic `nowledge_mem_store`
+- `nowledge_mem_context` tool: read today's Working Memory daily briefing. Replaces `nowledge_mem_working_memory` with clearer naming
+- `nowledge_mem_connections` tool: explore knowledge graph around a topic. Returns connected memories, EVOLVES chains, related entities, and Source document provenance (SOURCED_FROM edges from Library). This is our graph-native differentiator.
 - `nowledge_mem_forget` tool: delete memories by ID or search query with confirmation flow
 - `/forget` slash command: quick memory deletion from chat
 - Capture quality gate: prompt injection detection, question filtering, memory-trigger pattern matching
