@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.6.3
+
+### Live settings reload
+- Settings changes (apiUrl, apiKey, recallPolicy, autoCapture, maxRecallResults) now take effect immediately via `settings.onDidChange()`
+- No longer requires plugin reload or Alma restart after changing Access Anywhere credentials
+- Client is recreated with fresh credentials when apiUrl/apiKey change
+
+### Status diagnostics tool
+- Add `nowledge_mem_status` tool for checking connection health and configuration
+- Returns: connection mode (local/remote), API URL, API key configured (boolean), CLI availability, server connectivity, and current settings
+- Useful for verifying Access Anywhere remote configuration is working correctly
+
+### Plugin lifecycle compliance
+- `activate()` now returns `{ dispose }` per Alma `PluginActivation` contract
+- Tool and event registrations collect `Disposable` handles for proper cleanup
+- Alma can now cleanly unregister all tools and events on plugin deactivation
+
+## 0.6.1
+
+### Access Anywhere (remote access)
+- Add `apiUrl` and `apiKey` settings for connecting to a remote Mem instance
+- API key is injected via environment variable only (never as CLI arg, never logged)
+- URL is passed via `--api-url` CLI flag (safe, not a secret)
+- Startup log now shows `mode=remote` or `mode=local`
+
+## 0.6.0
+
+### Thread provenance (sourceThreadId linkage)
+- Memory search, show, and query results now include `sourceThreadId` when the memory was distilled from a conversation
+- Enables progressive retrieval: find memory -> trace to source conversation -> read full messages
+
+### Structured save with dedup guard
+- `nowledge_mem_store` now supports `unit_type` (fact, preference, decision, plan, procedure, learning, context, event)
+- Temporal fields: `event_start`, `event_end`, `temporal_context` for when events happened (not when saved)
+- Save dedup check: blocks saves at >=90% similarity to existing memories, preventing duplicates
+- Dedup is best-effort and never blocks saves on search failure
+
+### Thread pagination
+- `nowledge_mem_thread_show` now supports `offset` for progressive retrieval of long conversations
+- Returns `totalMessages`, `hasMore`, `returnedMessages` for client-side pagination awareness
+- CLI uses `--limit`/`--offset` (requires nmem-cli >=0.6)
+
+### Thread source filter
+- `nowledge_mem_thread_search` now accepts `source` parameter to filter by platform (e.g. 'alma', 'claude-code')
+- CLI uses `--source` flag (requires nmem-cli >=0.6)
+
+### Behavioral guidance
+- Recall injection hook now includes proactive save nudge and sourceThreadId awareness
+- Updated CLI playbook with new flags (`--unit-type`, `--source`, `--offset`, `--limit`)
+
+### Improved tool descriptions
+- All tool descriptions updated to mention sourceThreadId linkage and progressive retrieval patterns
+- Store tool description encourages proactive saving with structured types
+
 ## 0.2.13
 
 - Improve quit auto-capture reliability by listening to `app.before-quit`/`app.beforeQuit` in addition to existing quit events

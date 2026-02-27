@@ -4,17 +4,13 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## [0.6.6] - 2026-02-27
 
-### Changed — Config file + naming refresh
+### Changed — Config file + env var cascade
 
 **Config file at `~/.nowledge-mem/openclaw.json`**
 
-The plugin now reads configuration from a dedicated config file, independent of OpenClaw's `openclaw.json`. The file is auto-created on first startup with sensible defaults. If you had settings in OpenClaw's plugin config (e.g. `autoRecall: true`), those values are automatically migrated into the file on first run — no manual steps needed.
+The plugin now reads configuration from a dedicated config file, independent of OpenClaw's `openclaw.json`. The file is auto-created on first startup with sensible defaults. If you had settings in OpenClaw's plugin config, those values are automatically migrated into the file on first run — no manual steps needed.
 
 This ensures your settings survive OpenClaw version upgrades that may strip custom plugin config fields (observed in OpenClaw >= 2026.2.25).
-
-**Renamed: `autoRecall` → `sessionContext`, `autoCapture` → `sessionDigest`**
-
-User-facing names updated across all docs, manifest, and config schema. The old names (`autoRecall`, `autoCapture`) are still accepted silently from all config sources for backward compatibility.
 
 **Config cascade** (4 layers, highest to lowest priority):
 1. `api.pluginConfig` — from OpenClaw's plugin config (when supported)
@@ -24,9 +20,7 @@ User-facing names updated across all docs, manifest, and config schema. The old 
 
 ### Fixed
 
-- **Startup crash**: `logger` was referenced before declaration in `register()` — `ReferenceError` on every plugin load
 - **Conversation text unbounded**: `buildConversationText()` now caps per-message content at 2000 chars and total at 30K chars, preventing oversized LLM API payloads from long coding sessions
-- **Hook phase**: recall hook changed from `before_prompt_build` to `before_agent_start` (correct semantic phase for one-time session-start injection)
 - **Config strict mode**: unknown config keys throw a descriptive error listing all valid keys
 - **apiKey not written to config file**: API keys are intentionally excluded from the auto-created config file — they should stay in env vars or OpenClaw's secure config
 
@@ -35,6 +29,76 @@ User-facing names updated across all docs, manifest, and config schema. The old 
 - Environment variable support for all config keys (not just `apiUrl`/`apiKey`)
 - Migration: first-run config file seeded from existing `pluginConfig` values
 - `isDefaultApiUrl()` helper exported for local-vs-remote detection
+
+## [0.6.5] - 2026-02-26
+
+### Added — Thread tools + sourceThreadId linkage
+
+**Two new tools for conversation retrieval.** The plugin now provides 9 tools total.
+
+- `nowledge_mem_thread_search` — Search past conversations by keyword. Returns matched threads with message snippets and relevance scores. Use when the user asks about a past discussion or wants to find a specific conversation.
+- `nowledge_mem_thread_fetch` — Fetch full messages from a specific thread with pagination support. Use to progressively retrieve long conversations. Accepts `offset` and `limit` for paginated retrieval.
+
+**Memories now link back to their source conversations.**
+
+Every memory distilled from a conversation now includes `sourceThreadId` in search results (`memory_search`) and individual lookups (`memory_get`). This enables the progressive retrieval workflow: search memories, see which thread they came from, fetch the full conversation for context.
+
+**New client methods:**
+
+- `client.searchThreadsFull(query, { limit, source })` — Full-featured thread search (throws on error, supports source filter). CLI-first with API fallback.
+- `client.fetchThread(threadId, { offset, limit })` — Fetch messages from a thread with pagination. CLI-first with API fallback.
+
+**Save deduplication.**
+
+Before saving, the plugin checks for near-identical existing memories (≥90% similarity). If a match is found, the save is skipped and the existing memory is returned — preventing obvious duplicates at the plugin level. Deeper semantic dedup is handled by the Knowledge Agent's EVOLVES chains in the background.
+
+**Context-aware behavioral guidance.**
+
+The always-on hook now tells the agent about `nowledge_mem_thread_fetch` for following up on `sourceThreadId` links. When `sessionContext` is enabled, the guidance adjusts to note that relevant memories have already been injected — reducing redundant `memory_search` calls.
+
+## [0.6.4] - 2026-02-26
+
+### Changed — Thread search enrichment + sessionDigest default on
+
+**`memory_search` now includes relevant conversation threads.**
+
+When you search memories, the response now also includes `relatedThreads` — snippets from past conversations that match the query. This uses the backend's BM25 thread search (`GET /threads/search`). Thread search is best-effort: if it fails or returns nothing, the memory results are returned as before. No new tool for the agent to learn — thread context surfaces automatically alongside memories.
+
+**`sessionDigest` now defaults to `true`.**
+
+Previously, session digest (thread capture + LLM distillation at session end) was off by default. The cost is negligible — one lightweight triage call per session end, full distillation only when worthwhile. With this change, conversations are captured and distilled automatically out of the box. Users who explicitly set `sessionDigest: false` are unaffected.
+
+**Behavioral hook updated.**
+
+The always-on guidance now mentions that `memory_search` returns conversation snippets alongside memories, so the agent knows to use the enriched results.
+
+### Added
+
+- `client.searchThreads(query, limit)` — calls `GET /threads/search` API. Returns top matching threads with message snippets and relevance scores. Best-effort: never throws.
+- Version bumped to 0.6.4.
+
+## [0.4.0] - 2026-02-26
+
+### Changed — Rename config + always-on behavioral guidance
+
+**Renamed config options** (old names still work as silent aliases):
+
+| Old name | New name |
+|----------|----------|
+| `autoRecall` | `sessionContext` |
+| `autoCapture` | `sessionDigest` |
+| `captureMinInterval` | `digestMinInterval` |
+| `maxRecallResults` | `maxContextResults` |
+
+Existing configs with old names continue to work — aliases are resolved transparently in `parseConfig()`. New names take precedence if both are present.
+
+**Added: Always-on behavioral hook**
+
+The agent now receives brief behavioral guidance (~50 tokens) on every turn via `before_prompt_build`, telling it to proactively save and search. This fires in ALL modes, including tool-only (default). Previously, without `sessionContext` enabled, the agent had no system-level instruction to use memory tools — most LLMs ignored the "call proactively" hints in tool descriptions. This is the single most impactful change for memory adoption.
+
+**Migrated: `before_prompt_build` for session context**
+
+Session context injection (formerly "autoRecall") now uses the modern `before_prompt_build` hook instead of legacy `before_agent_start`. Both the behavioral hook and session context coexist — OpenClaw concatenates multiple `prependContext` values with `\n\n`.
 
 ## [0.3.0] - 2026-02-23
 

@@ -135,19 +135,29 @@ export function createMemoryGetTool(client, logger) {
 					safeParams.lines,
 				);
 
+				// Thread provenance: link to the source conversation
+				const sourceThreadId =
+					memory.source_thread ??
+					memory.source_thread_id ??
+					memory.metadata?.source_thread_id ??
+					null;
+
+				const result = {
+					path,
+					memoryId,
+					title: memory.title || "(untitled)",
+					text: snippet.text,
+					startLine: snippet.startLine,
+					endLine: snippet.endLine,
+					totalLines: snippet.totalLines,
+				};
+				if (sourceThreadId) result.sourceThreadId = sourceThreadId;
+
 				return {
 					content: [
 						{
 							type: "text",
-							text: JSON.stringify({
-								path,
-								memoryId,
-								title: memory.title || "(untitled)",
-								text: snippet.text,
-								startLine: snippet.startLine,
-								endLine: snippet.endLine,
-								totalLines: snippet.totalLines,
-							}),
+							text: JSON.stringify(result),
 						},
 					],
 				};

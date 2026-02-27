@@ -2,6 +2,13 @@
 
 All notable changes to the Nowledge Mem npx Skills will be documented in this file.
 
+## [0.3.0] - 2026-02-26
+
+### Changed
+
+- **search-memory**: add `--unit-type` filter, document `source_thread` field in results for thread provenance
+- **distill-memory**: add `--unit-type` and `-l` (labels) flags to options and examples for structured saves
+
 ## [0.2.0] - 2026-02-14
 
 ### Added

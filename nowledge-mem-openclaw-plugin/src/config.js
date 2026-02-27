@@ -13,19 +13,29 @@ export function isDefaultApiUrl(url) {
 	return !trimmed || trimmed === API_DEFAULT_URL;
 }
 
-// Canonical names (user-facing).
-// Legacy aliases (autoRecall, autoCapture) accepted silently for backward compat.
+// Canonical config keys (new names).
 const ALLOWED_KEYS = new Set([
 	"sessionContext",
 	"sessionDigest",
-	"captureMinInterval",
-	"maxRecallResults",
+	"digestMinInterval",
+	"maxContextResults",
 	"apiUrl",
 	"apiKey",
 	// Legacy aliases — accepted but not advertised
 	"autoRecall",
 	"autoCapture",
+	"captureMinInterval",
+	"maxRecallResults",
 ]);
+
+// Backward-compatible aliases (old names → new names).
+// Accepted silently so existing users' configs keep working.
+const ALIAS_KEYS = {
+	autoRecall: "sessionContext",
+	autoCapture: "sessionDigest",
+	captureMinInterval: "digestMinInterval",
+	maxRecallResults: "maxContextResults",
+};
 
 // --- config file ---------------------------------------------------------
 
@@ -34,9 +44,9 @@ const CONFIG_PATH = join(CONFIG_DIR, "openclaw.json");
 
 const DEFAULT_CONFIG = {
 	sessionContext: false,
-	sessionDigest: false,
-	captureMinInterval: 300,
-	maxRecallResults: 5,
+	sessionDigest: true,
+	digestMinInterval: 300,
+	maxContextResults: 5,
 	apiUrl: "",
 	apiKey: "",
 };
@@ -55,28 +65,33 @@ function readConfigFile(logger, pluginCfg) {
 			// BEFORE a future OpenClaw update can strip them.
 			const initial = { ...DEFAULT_CONFIG };
 			if (pluginCfg && typeof pluginCfg === "object") {
-				if (typeof pluginCfg.sessionContext === "boolean")
-					initial.sessionContext = pluginCfg.sessionContext;
-				else if (typeof pluginCfg.autoRecall === "boolean")
-					initial.sessionContext = pluginCfg.autoRecall;
+				// Resolve aliases in pluginConfig for seeding
+				const resolved = { ...pluginCfg };
+				for (const [oldKey, newKey] of Object.entries(ALIAS_KEYS)) {
+					if (oldKey in resolved) {
+						if (!(newKey in resolved)) {
+							resolved[newKey] = resolved[oldKey];
+						}
+						delete resolved[oldKey];
+					}
+				}
 
-				if (typeof pluginCfg.sessionDigest === "boolean")
-					initial.sessionDigest = pluginCfg.sessionDigest;
-				else if (typeof pluginCfg.autoCapture === "boolean")
-					initial.sessionDigest = pluginCfg.autoCapture;
-
+				if (typeof resolved.sessionContext === "boolean")
+					initial.sessionContext = resolved.sessionContext;
+				if (typeof resolved.sessionDigest === "boolean")
+					initial.sessionDigest = resolved.sessionDigest;
 				if (
-					typeof pluginCfg.captureMinInterval === "number" &&
-					Number.isFinite(pluginCfg.captureMinInterval)
+					typeof resolved.digestMinInterval === "number" &&
+					Number.isFinite(resolved.digestMinInterval)
 				)
-					initial.captureMinInterval = pluginCfg.captureMinInterval;
+					initial.digestMinInterval = resolved.digestMinInterval;
 				if (
-					typeof pluginCfg.maxRecallResults === "number" &&
-					Number.isFinite(pluginCfg.maxRecallResults)
+					typeof resolved.maxContextResults === "number" &&
+					Number.isFinite(resolved.maxContextResults)
 				)
-					initial.maxRecallResults = pluginCfg.maxRecallResults;
-				if (typeof pluginCfg.apiUrl === "string" && pluginCfg.apiUrl.trim())
-					initial.apiUrl = pluginCfg.apiUrl.trim();
+					initial.maxContextResults = resolved.maxContextResults;
+				if (typeof resolved.apiUrl === "string" && resolved.apiUrl.trim())
+					initial.apiUrl = resolved.apiUrl.trim();
 				// apiKey intentionally NOT written to disk — keep in env/pluginConfig only
 			}
 
@@ -125,12 +140,10 @@ function envInt(name) {
 	return Number.isFinite(n) ? n : undefined;
 }
 
-// --- helpers to read a boolean/number from merged sources ----------------
+// --- helpers to read a boolean/number from resolved sources --------------
 
-/** Read a boolean: new name wins over legacy alias. */
-function pickBool(obj, key, legacyKey) {
+function pickBool(obj, key) {
 	if (typeof obj[key] === "boolean") return obj[key];
-	if (legacyKey && typeof obj[legacyKey] === "boolean") return obj[legacyKey];
 	return undefined;
 }
 
@@ -139,23 +152,40 @@ function pickNum(obj, key) {
 	return undefined;
 }
 
+/** Resolve legacy aliases in an object: old names → new names. */
+function resolveAliases(obj) {
+	const resolved = { ...obj };
+	for (const [oldKey, newKey] of Object.entries(ALIAS_KEYS)) {
+		if (oldKey in resolved) {
+			if (!(newKey in resolved)) {
+				resolved[newKey] = resolved[oldKey];
+			}
+			delete resolved[oldKey];
+		}
+	}
+	return resolved;
+}
+
 // -------------------------------------------------------------------------
 
 /**
  * Parse plugin config with cascade:
  *   pluginConfig > ~/.nowledge-mem/openclaw.json > env vars > defaults
  *
- * Canonical keys: sessionContext, sessionDigest, captureMinInterval,
- *                 maxRecallResults, apiUrl, apiKey
+ * Canonical keys: sessionContext, sessionDigest, digestMinInterval,
+ *                 maxContextResults, apiUrl, apiKey
  *
- * Legacy aliases: autoRecall → sessionContext, autoCapture → sessionDigest
- * (accepted from all sources; never shown in docs)
+ * Legacy aliases (accepted from all sources; never shown in docs):
+ *   autoRecall → sessionContext
+ *   autoCapture → sessionDigest
+ *   captureMinInterval → digestMinInterval
+ *   maxRecallResults → maxContextResults
  *
  * Environment variables (all optional):
  *   NMEM_SESSION_CONTEXT       — true/1/yes to enable (alias: NMEM_AUTO_RECALL)
  *   NMEM_SESSION_DIGEST        — true/1/yes to enable (alias: NMEM_AUTO_CAPTURE)
- *   NMEM_CAPTURE_MIN_INTERVAL  — seconds (0–86400)
- *   NMEM_MAX_RECALL_RESULTS    — integer (1–20)
+ *   NMEM_DIGEST_MIN_INTERVAL   — seconds (0–86400)
+ *   NMEM_MAX_CONTEXT_RESULTS   — integer (1–20)
  *   NMEM_API_URL               — remote server URL
  *   NMEM_API_KEY               — API key (never logged)
  */
@@ -163,73 +193,77 @@ export function parseConfig(raw, logger) {
 	const pluginCfg = raw && typeof raw === "object" ? raw : {};
 	const fileCfg = readConfigFile(logger, pluginCfg);
 
+	// Resolve aliases in both sources
+	const resolvedPlugin = resolveAliases(pluginCfg);
+	const resolvedFile = resolveAliases(fileCfg);
+
 	// Strict: reject unknown keys in pluginConfig (typo catcher).
 	// File config is our own — validated by shape, no strict check needed.
-	const unknownKeys = Object.keys(pluginCfg).filter(
+	const unknownKeys = Object.keys(resolvedPlugin).filter(
 		(k) => !ALLOWED_KEYS.has(k),
 	);
 	if (unknownKeys.length > 0) {
 		throw new Error(
 			`nowledge-mem: unknown config key${unknownKeys.length > 1 ? "s" : ""}: ${unknownKeys.join(", ")}. ` +
-				`Allowed keys: ${[...ALLOWED_KEYS].filter((k) => k !== "autoRecall" && k !== "autoCapture").join(", ")}`,
+				`Allowed keys: ${[...ALLOWED_KEYS].filter((k) => !Object.keys(ALIAS_KEYS).includes(k)).join(", ")}`,
 		);
 	}
 
-	// --- sessionContext (legacy: autoRecall) ---
+	// --- sessionContext ---
 	const sessionContext =
-		pickBool(pluginCfg, "sessionContext", "autoRecall") ??
-		pickBool(fileCfg, "sessionContext", "autoRecall") ??
+		pickBool(resolvedPlugin, "sessionContext") ??
+		pickBool(resolvedFile, "sessionContext") ??
 		envBool("NMEM_SESSION_CONTEXT", "NMEM_AUTO_RECALL") ??
 		false;
 
-	// --- sessionDigest (legacy: autoCapture) ---
+	// --- sessionDigest ---
 	const sessionDigest =
-		pickBool(pluginCfg, "sessionDigest", "autoCapture") ??
-		pickBool(fileCfg, "sessionDigest", "autoCapture") ??
+		pickBool(resolvedPlugin, "sessionDigest") ??
+		pickBool(resolvedFile, "sessionDigest") ??
 		envBool("NMEM_SESSION_DIGEST", "NMEM_AUTO_CAPTURE") ??
-		false;
+		true;
 
-	// --- captureMinInterval ---
+	// --- digestMinInterval ---
 	const rawInterval =
-		pickNum(pluginCfg, "captureMinInterval") ??
-		pickNum(fileCfg, "captureMinInterval") ??
+		pickNum(resolvedPlugin, "digestMinInterval") ??
+		pickNum(resolvedFile, "digestMinInterval") ??
+		envInt("NMEM_DIGEST_MIN_INTERVAL") ??
 		envInt("NMEM_CAPTURE_MIN_INTERVAL");
-	const captureMinInterval =
+	const digestMinInterval =
 		rawInterval !== undefined
 			? Math.min(86400, Math.max(0, Math.trunc(rawInterval)))
 			: 300;
 
-	// --- maxRecallResults ---
+	// --- maxContextResults ---
 	const rawMax =
-		pickNum(pluginCfg, "maxRecallResults") ??
-		pickNum(fileCfg, "maxRecallResults") ??
+		pickNum(resolvedPlugin, "maxContextResults") ??
+		pickNum(resolvedFile, "maxContextResults") ??
+		envInt("NMEM_MAX_CONTEXT_RESULTS") ??
 		envInt("NMEM_MAX_RECALL_RESULTS");
-	const maxRecallResults =
+	const maxContextResults =
 		rawMax !== undefined
 			? Math.min(20, Math.max(1, Math.trunc(rawMax)))
 			: 5;
 
 	// --- apiUrl: pluginConfig > file > env > "" ---
 	const apiUrl =
-		(typeof pluginCfg.apiUrl === "string" && pluginCfg.apiUrl.trim()) ||
-		(typeof fileCfg.apiUrl === "string" && fileCfg.apiUrl.trim()) ||
+		(typeof resolvedPlugin.apiUrl === "string" && resolvedPlugin.apiUrl.trim()) ||
+		(typeof resolvedFile.apiUrl === "string" && resolvedFile.apiUrl.trim()) ||
 		envStr("NMEM_API_URL") ||
 		"";
 
 	// --- apiKey: pluginConfig > file > env > "" ---
 	const apiKey =
-		(typeof pluginCfg.apiKey === "string" && pluginCfg.apiKey.trim()) ||
-		(typeof fileCfg.apiKey === "string" && fileCfg.apiKey.trim()) ||
+		(typeof resolvedPlugin.apiKey === "string" && resolvedPlugin.apiKey.trim()) ||
+		(typeof resolvedFile.apiKey === "string" && resolvedFile.apiKey.trim()) ||
 		envStr("NMEM_API_KEY") ||
 		"";
 
 	return {
-		// Canonical names used internally throughout the plugin.
-		// Hooks/capture code reads these — keep the field names stable.
-		autoRecall: sessionContext,
-		autoCapture: sessionDigest,
-		captureMinInterval,
-		maxRecallResults,
+		sessionContext,
+		sessionDigest,
+		digestMinInterval,
+		maxContextResults,
 		apiUrl,
 		apiKey,
 	};

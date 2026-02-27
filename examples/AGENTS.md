@@ -4,26 +4,29 @@ Add this section to your project's `AGENTS.md` file to enable AI agents to auton
 
 ### Memory Operations
 
-**Memory Categories** - Use these to guide content structure:
+**Memory Types** (`--unit-type`) - Classify memories for richer structure:
 
-- **insight**: Key learnings, realizations, "aha" moments
-- **decision**: Choices made with rationale and trade-offs  
+- **learning**: Key learnings, realizations, "aha" moments
+- **decision**: Choices made with rationale and trade-offs
 - **fact**: Important information, data points, references
 - **procedure**: How-to knowledge, workflows, SOPs
-- **experience**: Events, conversations, outcomes
+- **event**: Events, conversations, outcomes
+- **preference**: User taste, style choices
+- **plan**: Future intent, roadmaps
+- **context**: Background info, project setup
 
 **Creating Memories:**
 
 ```bash
-# Basic memory
+# Basic memory with type and labels
 nmem m add "Content with context" \
   -t "Searchable title (max 60 chars)" \
-  -i 0.8
+  -i 0.8 --unit-type learning -l topic
 
-# With title and importance
+# Architecture decision with labels
 nmem m add "Decided to use PostgreSQL for ACID compliance" \
   -t "Database Selection" \
-  -i 0.9
+  -i 0.9 --unit-type decision -l database -l architecture
 ```
 
 **Importance Scale:**
@@ -75,14 +78,14 @@ You are a knowledge management specialist who captures valuable information.
 
 **Process:**
 1. Identify what's worth remembering
-2. Categorize (insight/decision/fact/procedure/experience)
-3. Save using `nmem m add` with appropriate importance
+2. Categorize (learning/decision/fact/procedure/event/preference/plan/context)
+3. Save using `nmem m add` with appropriate importance, unit type, and labels
 
 **Example:**
 ```bash
-nmem m add "Root cause: API rate limiting missing exponential backoff" \
+nmem m add "Root cause: API rate limiting missing exponential backoff. Fixed by adding jitter + exponential delay to retry loop." \
   -t "API Rate Limiting Fix" \
-  -i 0.7
+  -i 0.7 --unit-type learning -l debugging -l api
 ```
 
 Act proactively but judiciously.

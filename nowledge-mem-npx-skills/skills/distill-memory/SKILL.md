@@ -103,7 +103,11 @@ nmem m add "Insight content with context for future use" \
 |------|-------------|---------|
 | `-t, --title` | Searchable title | `-t "React Hooks Cleanup"` |
 | `-i, --importance` | Score 0.0-1.0 | `-i 0.9` |
+| `--unit-type TYPE` | Memory type | `--unit-type decision` |
+| `-l, --label LABEL` | Topic label (repeatable) | `-l react -l frontend` |
 | `--json` | JSON response | `--json` |
+
+Available unit types: `fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`.
 
 ## Suggestion Approach
 
@@ -119,22 +123,22 @@ nmem m add "Insight content with context for future use" \
 # High-value debugging insight
 nmem m add "React hooks cleanup must return function. Missing return caused memory leaks in event listeners when component unmounted." \
   -t "React Hooks Cleanup Pattern" \
-  -i 0.9
+  -i 0.9 --unit-type learning -l react -l frontend
 
 # Architecture decision
 nmem m add "Chose PostgreSQL over MongoDB: needed ACID compliance for financial transactions and complex JOIN queries for reporting." \
   -t "Database Choice: PostgreSQL for ACID" \
-  -i 0.9
+  -i 0.9 --unit-type decision -l database -l architecture
 
 # Development workflow tip
 nmem m add "Docker build cache: COPY package*.json and run npm install BEFORE copying source files. Saves rebuild time on code changes." \
   -t "Docker Build Cache Optimization" \
-  -i 0.7
+  -i 0.7 --unit-type procedure -l docker -l devops
 
 # Debugging lesson
 nmem m add "CORS preflight fails silently in fetch. Check Network tab for OPTIONS request, not just the main request." \
   -t "CORS Debugging: Check OPTIONS Request" \
-  -i 0.8
+  -i 0.8 --unit-type learning -l debugging -l web
 ```
 
 ## Links

@@ -9,15 +9,24 @@ This file is a practical continuation guide for future agent sessions working on
 - Runtime: plain ESM (`main.js`), no build step
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 
-## Current Status (as of v0.2.13)
+## Current Status (as of v0.6.3)
 
-- Plugin is installed/activated and registers tools successfully in Alma logs.
+- Plugin is installed/activated and registers 12 tools successfully in Alma logs.
 - Main unresolved UX issue is often chat tool allowlist/routing (session-level),
   not plugin registration.
+- v0.6.0 adds: sourceThreadId linkage, structured save with unit_type + temporal fields,
+  save dedup guard (>=90% similarity), thread pagination (offset/limit), thread source filter,
+  behavioral guidance in recall injection.
+- v0.6.1 adds: Access Anywhere remote access via `apiUrl` + `apiKey` settings.
+  API key injected via env var only (never as CLI arg). Startup log shows mode=remote or mode=local.
+- v0.6.3 adds: live settings reload via `onDidChange()`, `nowledge_mem_status` tool, `PluginActivation` dispose.
+  Settings changes (apiUrl, apiKey, etc.) take effect immediately without plugin reload.
 - Tool contracts were normalized in recent passes:
-  - search-style: `{ ok, type, query, total, items, raw }`
-  - singleton-style: `{ ok, item, ... }`
+  - search-style: `{ ok, type, query, total, items, raw }` — items may include `sourceThreadId`
+  - singleton-style: `{ ok, item, ... }` — show includes `sourceThreadId` when available
+  - store: `{ ok, item, summary }` or `{ ok, skipped, reason, existingId, similarity }`
   - delete-style: `{ ok, id, force, [cascade], notFound, item? }`
+  - status: `{ ok, status:{ connectionMode, apiUrl, apiKeyConfigured, cliAvailable, cliCommand, serverConnected, serverError, settings } }`
   - errors: `{ ok:false, error:{ code, operation, message } }`
 
 ## Files That Matter
@@ -39,6 +48,7 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 - `nowledge_mem_update`
 - `nowledge_mem_delete`
 - `nowledge_mem_working_memory`
+- `nowledge_mem_status`
 - `nowledge_mem_thread_search`
 - `nowledge_mem_thread_show`
 - `nowledge_mem_thread_create`
@@ -59,6 +69,8 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 - `nowledgeMem.recallPolicy` (default `balanced_thread_once`)
 - `nowledgeMem.autoCapture` (default `false`)
 - `nowledgeMem.maxRecallResults` (default `5`, clamp 1-20)
+- `nowledgeMem.apiUrl` (default `""`, empty = local `http://127.0.0.1:14242`)
+- `nowledgeMem.apiKey` (default `""`, passed via env var only, never logged)
 
 ## Ground Truth Debug Checklist
 
@@ -101,14 +113,24 @@ open -a Alma
 - Tool invocation quality depends on model routing. `nowledge_mem_query` exists to
   reduce multi-step ToolSearch loops.
 
+## Key v0.6.0 Features
+
+- **sourceThreadId**: Search/show/query results include thread provenance for distilled memories.
+  The agent can chain `sourceThreadId` → `nowledge_mem_thread_show` for full conversation context.
+- **Structured save**: `nowledge_mem_store` supports `unit_type`, `event_start`, `event_end`,
+  `temporal_context` for richer knowledge graph nodes.
+- **Save dedup**: Before saving, searches for near-identical existing memories. Blocks at >=90% similarity.
+- **Thread pagination**: `nowledge_mem_thread_show` accepts `offset` for progressive retrieval.
+  Returns `totalMessages`, `hasMore`, `returnedMessages` metadata.
+- **Thread source filter**: `nowledge_mem_thread_search` accepts `source` to filter by platform.
+- **Behavioral guidance**: Recall injection includes proactive save nudge + sourceThreadId awareness.
+
 ## Recommended Next Improvements
 
 Only implement if needed; verify with runtime evidence first.
 
-1. Add optional `limit`/`maxChars` to `nowledge_mem_working_memory` for safer context size.
-2. Add test fixture script to validate response shape per tool automatically.
-3. Add explicit telemetry fields for hook outcomes (`recallUsed`, `captureSavedThreadId`) in logs.
-4. Add optional trace file output for auto-capture diagnostics during store submission QA.
+1. Add test fixture script to validate response shape per tool automatically.
+2. Add explicit telemetry fields for hook outcomes (`recallUsed`, `captureSavedThreadId`) in logs.
 
 ## Non-Goals / Avoid
 

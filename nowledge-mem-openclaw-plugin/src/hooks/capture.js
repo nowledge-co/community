@@ -274,7 +274,7 @@ function buildConversationText(normalized) {
  * triage or distillation, since those are mid-session checkpoints.
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
-	const cooldownMs = (cfg.captureMinInterval ?? 300) * 1000;
+	const cooldownMs = (cfg.digestMinInterval ?? 300) * 1000;
 
 	return async (event, ctx) => {
 		if (!event?.success) return;
@@ -293,7 +293,7 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		// 2. Triage + distill: language-agnostic LLM-based capture.
 		//    Defensive guard — registration in index.js already gates on autoCapture,
 		//    but check here too so the handler is safe if called directly.
-		if (!cfg.autoCapture) return;
+		if (!cfg.sessionDigest) return;
 
 		//    Skip when no new messages were added (e.g. heartbeat re-sync).
 		if (!result || result.messagesAdded === 0) {

@@ -32,15 +32,21 @@ Use the `nmem` CLI to create memories for each important piece of information:
 ```bash
 nmem m add "Bullet list or short paragraph capturing the key insight" \
   --title "Brief, searchable title" \
-  --importance 0.8
+  --importance 0.8 \
+  --unit-type learning \
+  -l topic1 -l topic2
 ```
+
+Available unit types: `fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`.
 
 **Example:**
 
 ```bash
 nmem m add "Implemented JWT-based authentication with refresh tokens. Access tokens expire in 15min, refresh tokens in 7 days. Tokens stored in httpOnly cookies for security." \
   --title "JWT Authentication Implementation" \
-  --importance 0.9
+  --importance 0.9 \
+  --unit-type decision \
+  -l auth -l security
 ```
 
 **For programmatic use**, add `--json` flag to verify creation:

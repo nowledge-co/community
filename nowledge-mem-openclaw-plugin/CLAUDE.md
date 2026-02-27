@@ -30,25 +30,28 @@ src/
   client.js         — CLI wrapper with API fallback; credential handling
   config.js         — config cascade: pluginConfig > ~/.nowledge-mem/openclaw.json > env vars > defaults
   hooks/
-    recall.js       — before_agent_start: inject Working Memory + recalled memories
-    capture.js      — quality-gated memory note + thread append
+    behavioral.js   — always-on behavioral guidance (~50 tokens/turn)
+    recall.js       — before_prompt_build: inject Working Memory + recalled memories
+    capture.js      — thread capture + LLM triage/distillation at session lifecycle events
   tools/
-    memory-search.js    — OpenClaw compat; multi-signal; bi-temporal; relevance_reason
-    memory-get.js       — OpenClaw compat; supports MEMORY.md alias
-    save.js             — structured capture: unit_type, labels, temporal, importance
-    context.js          — Working Memory daily briefing (read-only)
+    memory-search.js    — OpenClaw compat; multi-signal; bi-temporal; relevance_reason; sourceThreadId
+    memory-get.js       — OpenClaw compat; supports MEMORY.md alias; sourceThreadId
+    save.js             — structured capture: unit_type, labels, temporal, importance; pre-save dedup check
+    context.js          — Working Memory daily briefing (read + section-level patch)
     connections.js      — graph exploration: edge types, relationship strength, provenance
     timeline.js         — activity feed: daily grouping, event_type filter, memoryId hints
     forget.js           — memory deletion by ID or search
+    thread-search.js    — search past conversations by keyword
+    thread-fetch.js     — fetch full messages from a thread with pagination
 openclaw.plugin.json — manifest + config schema (version, uiHints, configSchema)
 ~/.nowledge-mem/openclaw.json — user config file (auto-created on first run)
 ```
 
-## Tool Surface (7 tools)
+## Tool Surface (9 tools)
 
 ### OpenClaw Memory Slot (required for system prompt activation)
-- `memory_search` — multi-signal: BM25 + embedding + label + graph + decay. Returns `matchedVia` ("Text Match 100% + Semantic 69%"), `importance`, bi-temporal filters (`event_date_from/to`, `recorded_date_from/to`). Mode: `"multi-signal"`.
-- `memory_get` — retrieve by `nowledgemem://memory/<id>` path or bare ID. `MEMORY.md` → Working Memory.
+- `memory_search` — multi-signal: BM25 + embedding + label + graph + decay. Returns `matchedVia` ("Text Match 100% + Semantic 69%"), `importance`, bi-temporal filters (`event_date_from/to`, `recorded_date_from/to`). Also returns `relatedThreads` (past conversation snippets matching the query) and `sourceThreadId` (link to source conversation). Mode: `"multi-signal"`.
+- `memory_get` — retrieve by `nowledgemem://memory/<id>` path or bare ID. `MEMORY.md` → Working Memory. Returns `sourceThreadId` when available.
 
 ### Nowledge Mem Native (differentiators)
 - `nowledge_mem_save` — structured capture: `unit_type`, `labels[]`, `event_start`, `event_end`, `temporal_context`, `importance`. All fields wired to CLI and API.
@@ -57,10 +60,15 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 - `nowledge_mem_timeline` — activity feed via `nmem f`. Groups by day. `event_type` filter. Exact date range via `date_from`/`date_to` (YYYY-MM-DD). Entries include `(id: <memoryId>)` for chaining to connections.
 - `nowledge_mem_forget` — delete by ID or fuzzy query.
 
+### Thread Tools (progressive conversation retrieval)
+- `nowledge_mem_thread_search` — search past conversations by keyword. Returns threads with matched message snippets, relevance scores, and message counts. Supports `source` filter.
+- `nowledge_mem_thread_fetch` — fetch full messages from a specific thread. Supports pagination via `offset` + `limit` for progressive retrieval of long conversations.
+
 ## Hook Surface
 
-- `before_agent_start` — session context: Working Memory + `searchRich()` with `relevanceReason` in context
-- `agent_end` — quality-gated memory note + thread append (requires `sessionDigest: true`)
+- `before_prompt_build` (always-on) — behavioral guidance: brief note telling agent to save/search proactively. Adjusts when sessionContext is on to avoid redundant searches.
+- `before_prompt_build` (sessionContext) — session context: Working Memory + `searchRich()` with `relevanceReason` in context
+- `agent_end` — thread capture + LLM triage/distillation (requires `sessionDigest: true`)
 - `after_compaction` — thread append
 - `before_reset` — thread append
 
@@ -76,20 +84,22 @@ Config file at `~/.nowledge-mem/openclaw.json` (auto-created on first run). Also
 
 | Key | Type | Default | Env Var | Description |
 |-----|------|---------|---------|-------------|
-| `sessionContext` | boolean | `false` | `NMEM_SESSION_CONTEXT` | Inject context at session start |
-| `sessionDigest` | boolean | `false` | `NMEM_SESSION_DIGEST` | Capture notes/threads at session end |
-| `captureMinInterval` | integer 0–86400 | `300` | `NMEM_CAPTURE_MIN_INTERVAL` | Seconds between captures per thread |
-| `maxRecallResults` | integer 1–20 | `5` | `NMEM_MAX_RECALL_RESULTS` | How many memories to recall |
+| `sessionContext` | boolean | `false` | `NMEM_SESSION_CONTEXT` | Inject Working Memory + relevant memories at prompt time |
+| `sessionDigest` | boolean | `true` | `NMEM_SESSION_DIGEST` | Thread capture + LLM distillation at session end |
+| `digestMinInterval` | integer 0–86400 | `300` | `NMEM_DIGEST_MIN_INTERVAL` | Minimum seconds between session digests |
+| `maxContextResults` | integer 1–20 | `5` | `NMEM_MAX_CONTEXT_RESULTS` | How many memories to inject at prompt time |
 | `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
 | `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
 
 **Priority**: pluginConfig > config file > env var > default.
 
-Legacy aliases `autoRecall`/`autoCapture` accepted silently in all sources for backward compat.
+Legacy aliases accepted silently in all sources for backward compat:
+`autoRecall`→`sessionContext`, `autoCapture`→`sessionDigest`, `captureMinInterval`→`digestMinInterval`, `maxRecallResults`→`maxContextResults`.
 
 ### Credential Handling Rules
 - `apiKey` → ONLY via child process env (`NMEM_API_KEY`). Never CLI arg, never logged.
 - `apiUrl` → passed as `--api-url` flag to CLI (not a secret).
+- Config values win over environment variables.
 - `_spawnEnv()` builds per-spawn env; `_apiUrlArgs()` adds `--api-url` when non-default.
 
 ## CLI Surface (nmem commands used by plugin)
@@ -105,6 +115,9 @@ Legacy aliases `autoRecall`/`autoCapture` accepted silently in all sources for b
 | `nmem --json wm read` | `client.readWorkingMemory()` | Working Memory read |
 | `nmem --json wm patch --heading "## S" --content/--append` | `client.patchWorkingMemory()` | Section-level WM update |
 | `nmem --json m delete <id>` | `client.execJson()` in forget.js | Delete |
+| `GET /threads/search?query=&limit=` | `client.searchThreads()` | Thread search enrichment (best-effort, API-only) |
+| `nmem --json t search <q> --limit N` | `client.searchThreadsFull()` | Full thread search (CLI-first, API fallback) |
+| `nmem --json t show <id> --limit N --offset O` | `client.fetchThread()` | Fetch thread messages with pagination |
 
 All commands have API fallback for older CLI versions.
 

@@ -87,8 +87,9 @@ export function createForgetTool(client, logger) {
 					};
 				}
 
-				// Single high-confidence match — delete directly
-				if (results.length === 1 || results[0].score >= 0.85) {
+				// Auto-delete only when exactly one result with high confidence.
+				// Deletion is irreversible — if multiple matches exist, always ask.
+				if (results.length === 1 && results[0].score >= 0.85) {
 					const target = results[0];
 					try {
 						client.exec(["--json", "m", "delete", "-f", target.id]);
@@ -115,7 +116,7 @@ export function createForgetTool(client, logger) {
 					}
 				}
 
-				// Multiple candidates — return list for user to pick
+				// Multiple candidates or low confidence — return list for user to pick
 				const candidates = results.map(
 					(r, i) =>
 						`${i + 1}. ${r.title || "(untitled)"} (${(r.score * 100).toFixed(0)}%) — id: ${r.id}\n   ${r.content.slice(0, 100)}`,

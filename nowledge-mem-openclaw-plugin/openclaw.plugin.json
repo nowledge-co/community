@@ -5,19 +5,19 @@
 	"uiHints": {
 		"sessionContext": {
 			"label": "Session context injection",
-			"help": "Inject Working Memory and relevant memories at session start. Off by default \u2014 the agent can call memory_search on demand instead."
+			"help": "Inject Working Memory and relevant memories at prompt time. Off by default \u2014 the agent can call memory_search on demand instead."
 		},
 		"sessionDigest": {
-			"label": "Session digest (auto-capture)",
-			"help": "Capture conversation threads and distill key memories via LLM at session end"
+			"label": "Session digest at end",
+			"help": "Capture conversation threads and distill key memories via LLM at session end. On by default \u2014 negligible cost, one triage call per session."
 		},
-		"captureMinInterval": {
-			"label": "Minimum capture interval (seconds)",
-			"help": "Minimum seconds between auto-captures for the same thread. Prevents heartbeat-driven burst captures. Set to 0 for no limit."
+		"digestMinInterval": {
+			"label": "Minimum digest interval (seconds)",
+			"help": "Minimum seconds between session digests for the same thread. Prevents heartbeat-driven burst captures. Set to 0 for no limit."
 		},
-		"maxRecallResults": {
-			"label": "Max recall results",
-			"help": "How many memories to inject for each recall cycle (1\u201320)"
+		"maxContextResults": {
+			"label": "Max context results",
+			"help": "How many memories to inject for each context cycle (1\u201320)"
 		},
 		"apiUrl": {
 			"label": "Server URL (remote mode)",
@@ -35,26 +35,26 @@
 			"sessionContext": {
 				"type": "boolean",
 				"default": false,
-				"description": "Inject Working Memory and recalled memories at session start. Off by default \u2014 the agent queries memory on demand via tools."
+				"description": "Inject Working Memory and recalled memories at prompt time. Off by default \u2014 the agent queries memory on demand via tools."
 			},
 			"sessionDigest": {
 				"type": "boolean",
-				"default": false,
-				"description": "Capture conversation threads and distill key memories via LLM at session end"
+				"default": true,
+				"description": "Capture conversation threads and distill key memories via LLM at session end. On by default."
 			},
-			"captureMinInterval": {
+			"digestMinInterval": {
 				"type": "integer",
 				"default": 300,
 				"minimum": 0,
 				"maximum": 86400,
-				"description": "Minimum seconds between auto-captures for the same thread (0 = no limit). Prevents heartbeat-driven burst captures."
+				"description": "Minimum seconds between session digests for the same thread (0 = no limit). Prevents heartbeat-driven burst captures."
 			},
-			"maxRecallResults": {
+			"maxContextResults": {
 				"type": "integer",
 				"default": 5,
 				"minimum": 1,
 				"maximum": 20,
-				"description": "Maximum memories to recall at session start (only used when sessionContext is enabled)"
+				"description": "Maximum memories to inject at prompt time (only used when sessionContext is enabled)"
 			},
 			"apiUrl": {
 				"type": "string",

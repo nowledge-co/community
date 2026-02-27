@@ -6,6 +6,7 @@ import {
 	createRememberCommand,
 } from "./commands/slash.js";
 import { isDefaultApiUrl, parseConfig } from "./config.js";
+import { buildBehavioralHook } from "./hooks/behavioral.js";
 import {
 	buildAgentEndCaptureHandler,
 	buildBeforeResetCaptureHandler,
@@ -17,6 +18,8 @@ import { createForgetTool } from "./tools/forget.js";
 import { createMemoryGetTool } from "./tools/memory-get.js";
 import { createMemorySearchTool } from "./tools/memory-search.js";
 import { createSaveTool } from "./tools/save.js";
+import { createThreadFetchTool } from "./tools/thread-fetch.js";
+import { createThreadSearchTool } from "./tools/thread-search.js";
 import { createTimelineTool } from "./tools/timeline.js";
 
 export default {
@@ -45,12 +48,22 @@ export default {
 		api.registerTool(createTimelineTool(client, logger));
 		api.registerTool(createForgetTool(client, logger));
 
-		// Hooks
-		if (cfg.autoRecall) {
-			api.on("before_agent_start", buildRecallHandler(client, cfg, logger));
+		// Thread tools (progressive conversation retrieval)
+		api.registerTool(createThreadSearchTool(client, logger));
+		api.registerTool(createThreadFetchTool(client, logger));
+
+		// Always-on: behavioral guidance so the agent proactively saves and searches.
+		// Fires every turn via before_prompt_build — ~50 tokens, negligible cost.
+		// When sessionContext is on, guidance adjusts to avoid redundant searches.
+		api.on("before_prompt_build", buildBehavioralHook(logger, cfg));
+
+		// Session context: inject Working Memory + recalled memories at prompt time.
+		if (cfg.sessionContext) {
+			api.on("before_prompt_build", buildRecallHandler(client, cfg, logger));
 		}
 
-		if (cfg.autoCapture) {
+		// Session digest: capture threads + LLM distillation at lifecycle events.
+		if (cfg.sessionDigest) {
 			const threadCaptureHandler = buildBeforeResetCaptureHandler(
 				client,
 				cfg,
@@ -75,7 +88,7 @@ export default {
 
 		const remoteMode = !isDefaultApiUrl(cfg.apiUrl);
 		logger.info(
-			`nowledge-mem: initialized (sessionContext=${cfg.autoRecall}, sessionDigest=${cfg.autoCapture}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
+			`nowledge-mem: initialized (context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
 		);
 	},
 };

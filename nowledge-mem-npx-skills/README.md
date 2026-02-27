@@ -183,7 +183,7 @@ nmem t save --from claude-code -s "Implemented user auth"
 ```bash
 nmem m add "PostgreSQL over MongoDB: ACID needed for transactions" \
   -t "Database: PostgreSQL for ACID" \
-  -i 0.9
+  -i 0.9 --unit-type decision -l database -l architecture
 ```
 
 ## Alternative Installation

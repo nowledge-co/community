@@ -19,6 +19,7 @@ export function createMemorySearchTool(client, logger) {
 			"Don't wait to be asked — if the conversation topic might have relevant history, search for it. " +
 			"Uses multi-signal scoring: semantic, BM25 keyword, label, graph & community signals, recency/importance decay. " +
 			"Returns snippets with memoryIds — pass a memoryId to nowledge_mem_connections for cross-topic synthesis or source provenance. " +
+			"Also returns relevant past conversation snippets (relatedThreads) when available. " +
 			"Supports bi-temporal filtering: event_date_from/to (when the fact HAPPENED), recorded_date_from/to (when it was SAVED). " +
 			"For browsing recent activity by day use nowledge_mem_timeline instead.",
 		parameters: {
@@ -140,22 +141,50 @@ export function createMemorySearchTool(client, logger) {
 					if (entry.eventEnd) result.eventEnd = entry.eventEnd;
 					if (entry.temporalContext)
 						result.temporalContext = entry.temporalContext;
+					// Thread provenance: link to the source conversation
+					if (entry.sourceThreadId)
+						result.sourceThreadId = entry.sourceThreadId;
 					return result;
 				});
+
+				// Enrich with thread snippets (best-effort, non-blocking)
+				let threadSnippets = [];
+				try {
+					const { threads } = await client.searchThreads(query, 3);
+					if (threads.length > 0) {
+						threadSnippets = threads.map((t) => {
+							const msgs = (t.matched_messages ?? []).slice(0, 2);
+							return {
+								threadId: t.thread_id ?? t.id,
+								title: t.title || "(untitled thread)",
+								source: t.source ?? "unknown",
+								lastActivity: t.last_activity ?? null,
+								relevanceScore: Number(t.relevance_score ?? 0),
+								matchedMessages: msgs.map((m) => ({
+									role: m.role,
+									snippet: truncateSnippet(m.snippet, 200),
+								})),
+							};
+						});
+					}
+				} catch {
+					// Thread search failure is not fatal
+				}
+
+				const responsePayload = {
+					results,
+					provider: "nmem",
+					mode: "multi-signal",
+				};
+				if (threadSnippets.length > 0) {
+					responsePayload.relatedThreads = threadSnippets;
+				}
 
 				return {
 					content: [
 						{
 							type: "text",
-							text: JSON.stringify(
-								{
-									results,
-									provider: "nmem",
-									mode: "multi-signal",
-								},
-								null,
-								2,
-							),
+							text: JSON.stringify(responsePayload, null, 2),
 						},
 					],
 					details: { query, resultCount: results.length },
