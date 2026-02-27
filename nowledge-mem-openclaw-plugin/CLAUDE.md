@@ -28,7 +28,7 @@ Reflects Nowledge Mem's genuine v0.6 strengths:
 src/
   index.js          - plugin registration (tools, hooks, commands, CLI)
   client.js         - CLI wrapper with API fallback; credential handling
-  config.js         - config cascade: pluginConfig > ~/.nowledge-mem/openclaw.json > env vars > defaults
+  config.js         - config cascade: ~/.nowledge-mem/openclaw.json > pluginConfig > env vars > defaults
   hooks/
     behavioral.js   - always-on behavioral guidance (~50 tokens/turn)
     recall.js       - before_prompt_build: inject Working Memory + recalled memories
@@ -44,7 +44,7 @@ src/
     thread-search.js    - search past conversations by keyword
     thread-fetch.js     - fetch full messages from a thread with pagination
 openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema)
-~/.nowledge-mem/openclaw.json - user config file (auto-created on first run)
+~/.nowledge-mem/openclaw.json - optional user config file (overrides OpenClaw settings when present)
 ```
 
 ## Tool Surface (10 tools)
@@ -83,7 +83,7 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema)
 
 ## Config Keys
 
-Config file at `~/.nowledge-mem/openclaw.json` (auto-created on first run). Also supports env vars and pluginConfig.
+Optional config file at `~/.nowledge-mem/openclaw.json`. Falls through to OpenClaw plugin settings when the file is absent.
 
 | Key | Type | Default | Env Var | Description |
 |-----|------|---------|---------|-------------|
@@ -94,7 +94,9 @@ Config file at `~/.nowledge-mem/openclaw.json` (auto-created on first run). Also
 | `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
 | `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
 
-**Priority**: pluginConfig > config file > env var > default.
+**Priority**: config file > pluginConfig > env var > default.
+
+`parseConfig()` returns `_sources` object tracking where each value came from (`"file"`, `"pluginConfig"`, `"env"`, `"default"`). Used by `nowledge_mem_status` tool.
 
 Legacy aliases accepted silently in all sources for backward compat:
 `autoRecall`→`sessionContext`, `autoCapture`→`sessionDigest`, `captureMinInterval`→`digestMinInterval`, `maxRecallResults`→`maxContextResults`.
@@ -102,7 +104,6 @@ Legacy aliases accepted silently in all sources for backward compat:
 ### Credential Handling Rules
 - `apiKey` → ONLY via child process env (`NMEM_API_KEY`). Never CLI arg, never logged.
 - `apiUrl` → passed as `--api-url` flag to CLI (not a secret).
-- Config values win over environment variables.
 - `_spawnEnv()` builds per-spawn env; `_apiUrlArgs()` adds `--api-url` when non-default.
 
 ## CLI Surface (nmem commands used by plugin)

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -42,66 +42,14 @@ const ALIAS_KEYS = {
 const CONFIG_DIR = join(homedir(), ".nowledge-mem");
 const CONFIG_PATH = join(CONFIG_DIR, "openclaw.json");
 
-const DEFAULT_CONFIG = {
-	sessionContext: false,
-	sessionDigest: true,
-	digestMinInterval: 300,
-	maxContextResults: 5,
-	apiUrl: "",
-	apiKey: "",
-};
-
 /**
- * Read ~/.nowledge-mem/openclaw.json.
- * On first run, creates the file seeded with values from pluginConfig.
- * Returns {} on any error — never crashes.
+ * Read ~/.nowledge-mem/openclaw.json if it exists.
+ * Returns {} when the file is missing or unreadable.
  */
-function readConfigFile(logger, pluginCfg) {
+function readConfigFile(logger) {
 	try {
 		if (!existsSync(CONFIG_PATH)) {
-			// Seed from pluginConfig values so the user has a starting point.
-			const initial = { ...DEFAULT_CONFIG };
-			if (pluginCfg && typeof pluginCfg === "object") {
-				// Resolve aliases in pluginConfig for seeding
-				const resolved = { ...pluginCfg };
-				for (const [oldKey, newKey] of Object.entries(ALIAS_KEYS)) {
-					if (oldKey in resolved) {
-						if (!(newKey in resolved)) {
-							resolved[newKey] = resolved[oldKey];
-						}
-						delete resolved[oldKey];
-					}
-				}
-
-				if (typeof resolved.sessionContext === "boolean")
-					initial.sessionContext = resolved.sessionContext;
-				if (typeof resolved.sessionDigest === "boolean")
-					initial.sessionDigest = resolved.sessionDigest;
-				if (
-					typeof resolved.digestMinInterval === "number" &&
-					Number.isFinite(resolved.digestMinInterval)
-				)
-					initial.digestMinInterval = resolved.digestMinInterval;
-				if (
-					typeof resolved.maxContextResults === "number" &&
-					Number.isFinite(resolved.maxContextResults)
-				)
-					initial.maxContextResults = resolved.maxContextResults;
-				if (typeof resolved.apiUrl === "string" && resolved.apiUrl.trim())
-					initial.apiUrl = resolved.apiUrl.trim();
-				// apiKey intentionally NOT written to disk — keep in env/pluginConfig only
-			}
-
-			mkdirSync(CONFIG_DIR, { recursive: true });
-			writeFileSync(
-				CONFIG_PATH,
-				JSON.stringify(initial, null, 2) + "\n",
-				"utf-8",
-			);
-			logger?.info?.(
-				`nowledge-mem: created config at ${CONFIG_PATH} — edit to customize`,
-			);
-			return { ...initial };
+			return {};
 		}
 		const content = readFileSync(CONFIG_PATH, "utf-8").trim();
 		if (!content) return {};
@@ -145,7 +93,8 @@ function pickBool(obj, key) {
 }
 
 function pickNum(obj, key) {
-	if (typeof obj[key] === "number" && Number.isFinite(obj[key])) return obj[key];
+	if (typeof obj[key] === "number" && Number.isFinite(obj[key]))
+		return obj[key];
 	return undefined;
 }
 
@@ -163,11 +112,27 @@ function resolveAliases(obj) {
 	return resolved;
 }
 
+/**
+ * Return the first option whose value is not undefined.
+ * Each option is { value, source } where source is a label like
+ * "file", "pluginConfig", "env", or "default".
+ */
+function firstDefined(...options) {
+	for (const opt of options) {
+		if (opt.value !== undefined) return opt;
+	}
+	return options[options.length - 1];
+}
+
 // -------------------------------------------------------------------------
 
 /**
  * Parse plugin config with cascade:
- *   pluginConfig > ~/.nowledge-mem/openclaw.json > env vars > defaults
+ *   ~/.nowledge-mem/openclaw.json > pluginConfig > env vars > defaults
+ *
+ * The config file (if it exists) takes highest priority so users who
+ * create it get predictable behavior. Most users won't have one and
+ * will configure via OpenClaw's plugin settings UI (pluginConfig).
  *
  * Canonical keys: sessionContext, sessionDigest, digestMinInterval,
  *                 maxContextResults, apiUrl, apiKey
@@ -181,21 +146,20 @@ function resolveAliases(obj) {
  * Environment variables (all optional):
  *   NMEM_SESSION_CONTEXT       — true/1/yes to enable (alias: NMEM_AUTO_RECALL)
  *   NMEM_SESSION_DIGEST        — true/1/yes to enable (alias: NMEM_AUTO_CAPTURE)
- *   NMEM_DIGEST_MIN_INTERVAL   — seconds (0–86400)
- *   NMEM_MAX_CONTEXT_RESULTS   — integer (1–20)
+ *   NMEM_DIGEST_MIN_INTERVAL   — seconds (0-86400)
+ *   NMEM_MAX_CONTEXT_RESULTS   — integer (1-20)
  *   NMEM_API_URL               — remote server URL
  *   NMEM_API_KEY               — API key (never logged)
  */
 export function parseConfig(raw, logger) {
 	const pluginCfg = raw && typeof raw === "object" ? raw : {};
-	const fileCfg = readConfigFile(logger, pluginCfg);
+	const fileCfg = readConfigFile(logger);
 
 	// Resolve aliases in both sources
 	const resolvedPlugin = resolveAliases(pluginCfg);
 	const resolvedFile = resolveAliases(fileCfg);
 
 	// Strict: reject unknown keys in pluginConfig (typo catcher).
-	// File config is our own — validated by shape, no strict check needed.
 	const unknownKeys = Object.keys(resolvedPlugin).filter(
 		(k) => !ALLOWED_KEYS.has(k),
 	);
@@ -206,55 +170,97 @@ export function parseConfig(raw, logger) {
 		);
 	}
 
-	// --- sessionContext ---
-	const sessionContext =
-		pickBool(resolvedPlugin, "sessionContext") ??
-		pickBool(resolvedFile, "sessionContext") ??
-		envBool("NMEM_SESSION_CONTEXT", "NMEM_AUTO_RECALL") ??
-		false;
+	const _sources = {};
 
-	// --- sessionDigest ---
-	const sessionDigest =
-		pickBool(resolvedPlugin, "sessionDigest") ??
-		pickBool(resolvedFile, "sessionDigest") ??
-		envBool("NMEM_SESSION_DIGEST", "NMEM_AUTO_CAPTURE") ??
-		true;
+	// --- sessionContext: file > pluginConfig > env > default ---
+	const sc = firstDefined(
+		{ value: pickBool(resolvedFile, "sessionContext"), source: "file" },
+		{
+			value: pickBool(resolvedPlugin, "sessionContext"),
+			source: "pluginConfig",
+		},
+		{
+			value: envBool("NMEM_SESSION_CONTEXT", "NMEM_AUTO_RECALL"),
+			source: "env",
+		},
+		{ value: false, source: "default" },
+	);
+	const sessionContext = sc.value;
+	_sources.sessionContext = sc.source;
 
-	// --- digestMinInterval ---
-	const rawInterval =
-		pickNum(resolvedPlugin, "digestMinInterval") ??
-		pickNum(resolvedFile, "digestMinInterval") ??
-		envInt("NMEM_DIGEST_MIN_INTERVAL") ??
-		envInt("NMEM_CAPTURE_MIN_INTERVAL");
-	const digestMinInterval =
-		rawInterval !== undefined
-			? Math.min(86400, Math.max(0, Math.trunc(rawInterval)))
-			: 300;
+	// --- sessionDigest: file > pluginConfig > env > default ---
+	const sd = firstDefined(
+		{ value: pickBool(resolvedFile, "sessionDigest"), source: "file" },
+		{
+			value: pickBool(resolvedPlugin, "sessionDigest"),
+			source: "pluginConfig",
+		},
+		{
+			value: envBool("NMEM_SESSION_DIGEST", "NMEM_AUTO_CAPTURE"),
+			source: "env",
+		},
+		{ value: true, source: "default" },
+	);
+	const sessionDigest = sd.value;
+	_sources.sessionDigest = sd.source;
 
-	// --- maxContextResults ---
-	const rawMax =
-		pickNum(resolvedPlugin, "maxContextResults") ??
-		pickNum(resolvedFile, "maxContextResults") ??
-		envInt("NMEM_MAX_CONTEXT_RESULTS") ??
-		envInt("NMEM_MAX_RECALL_RESULTS");
-	const maxContextResults =
-		rawMax !== undefined
-			? Math.min(20, Math.max(1, Math.trunc(rawMax)))
-			: 5;
+	// --- digestMinInterval: file > pluginConfig > env > default ---
+	const dmiEnv =
+		envInt("NMEM_DIGEST_MIN_INTERVAL") ?? envInt("NMEM_CAPTURE_MIN_INTERVAL");
+	const dmi = firstDefined(
+		{ value: pickNum(resolvedFile, "digestMinInterval"), source: "file" },
+		{
+			value: pickNum(resolvedPlugin, "digestMinInterval"),
+			source: "pluginConfig",
+		},
+		{ value: dmiEnv, source: "env" },
+		{ value: 300, source: "default" },
+	);
+	const digestMinInterval = Math.min(86400, Math.max(0, Math.trunc(dmi.value)));
+	_sources.digestMinInterval = dmi.source;
 
-	// --- apiUrl: pluginConfig > file > env > "" ---
-	const apiUrl =
-		(typeof resolvedPlugin.apiUrl === "string" && resolvedPlugin.apiUrl.trim()) ||
-		(typeof resolvedFile.apiUrl === "string" && resolvedFile.apiUrl.trim()) ||
-		envStr("NMEM_API_URL") ||
-		"";
+	// --- maxContextResults: file > pluginConfig > env > default ---
+	const mcrEnv =
+		envInt("NMEM_MAX_CONTEXT_RESULTS") ?? envInt("NMEM_MAX_RECALL_RESULTS");
+	const mcr = firstDefined(
+		{ value: pickNum(resolvedFile, "maxContextResults"), source: "file" },
+		{
+			value: pickNum(resolvedPlugin, "maxContextResults"),
+			source: "pluginConfig",
+		},
+		{ value: mcrEnv, source: "env" },
+		{ value: 5, source: "default" },
+	);
+	const maxContextResults = Math.min(20, Math.max(1, Math.trunc(mcr.value)));
+	_sources.maxContextResults = mcr.source;
 
-	// --- apiKey: pluginConfig > file > env > "" ---
-	const apiKey =
-		(typeof resolvedPlugin.apiKey === "string" && resolvedPlugin.apiKey.trim()) ||
-		(typeof resolvedFile.apiKey === "string" && resolvedFile.apiKey.trim()) ||
-		envStr("NMEM_API_KEY") ||
-		"";
+	// --- apiUrl: file > pluginConfig > env > "" ---
+	const fileUrl =
+		typeof resolvedFile.apiUrl === "string" && resolvedFile.apiUrl.trim();
+	const pluginUrl =
+		typeof resolvedPlugin.apiUrl === "string" && resolvedPlugin.apiUrl.trim();
+	const au = firstDefined(
+		{ value: fileUrl || undefined, source: "file" },
+		{ value: pluginUrl || undefined, source: "pluginConfig" },
+		{ value: envStr("NMEM_API_URL"), source: "env" },
+		{ value: "", source: "default" },
+	);
+	const apiUrl = au.value;
+	_sources.apiUrl = au.source;
+
+	// --- apiKey: file > pluginConfig > env > "" ---
+	const fileKey =
+		typeof resolvedFile.apiKey === "string" && resolvedFile.apiKey.trim();
+	const pluginKey =
+		typeof resolvedPlugin.apiKey === "string" && resolvedPlugin.apiKey.trim();
+	const ak = firstDefined(
+		{ value: fileKey || undefined, source: "file" },
+		{ value: pluginKey || undefined, source: "pluginConfig" },
+		{ value: envStr("NMEM_API_KEY"), source: "env" },
+		{ value: "", source: "default" },
+	);
+	const apiKey = ak.value;
+	_sources.apiKey = ak.source;
 
 	return {
 		sessionContext,
@@ -263,5 +269,6 @@ export function parseConfig(raw, logger) {
 		maxContextResults,
 		apiUrl,
 		apiKey,
+		_sources,
 	};
 }

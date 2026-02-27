@@ -38,7 +38,9 @@ That's it. The agent gets 10 tools and calls them on demand. No extra tokens was
 
 Connect to a Nowledge Mem server running elsewhere (a VPS, a home server, or a shared team instance). See [remote access guide](https://mem.nowledge.co/docs/remote-access) for server setup.
 
-Enable the plugin the same way as local mode, then set your remote server in `~/.nowledge-mem/openclaw.json`:
+Enable the plugin the same way as local mode, then set `apiUrl` and `apiKey` in the OpenClaw plugin settings.
+
+Or use a config file at `~/.nowledge-mem/openclaw.json`:
 
 ```json
 {
@@ -320,7 +322,22 @@ openclaw nowledge-mem status
 
 ## Configuration
 
-On first startup, the plugin creates a config file at `~/.nowledge-mem/openclaw.json` with defaults. Edit it to customize:
+No config needed to get started. The defaults work for local mode.
+
+To change settings, use the OpenClaw plugin settings UI. Changes take effect on restart.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `sessionContext` | boolean | `false` | Inject Working Memory + relevant memories at prompt time |
+| `sessionDigest` | boolean | `true` | Thread capture + LLM distillation at session end |
+| `digestMinInterval` | integer | `300` | Minimum seconds between session digests for the same thread (0-86400) |
+| `maxContextResults` | integer | `5` | Max memories to inject at prompt time (1-20, only used when sessionContext is enabled) |
+| `apiUrl` | string | `""` | Remote server URL. Empty = local (`http://127.0.0.1:14242`) |
+| `apiKey` | string | `""` | API key for remote access. Injected as `NMEM_API_KEY` env var, never logged |
+
+### Advanced: config file
+
+For persistent or scripted config, create `~/.nowledge-mem/openclaw.json`:
 
 ```json
 {
@@ -333,16 +350,7 @@ On first startup, the plugin creates a config file at `~/.nowledge-mem/openclaw.
 }
 ```
 
-Edit the file and restart OpenClaw. The plugin reads it on every startup.
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `sessionContext` | boolean | `false` | Inject Working Memory + relevant memories at prompt time |
-| `sessionDigest` | boolean | `true` | Thread capture + LLM distillation at session end |
-| `digestMinInterval` | integer | `300` | Minimum seconds between session digests for the same thread (0-86400) |
-| `maxContextResults` | integer | `5` | Max memories to inject at prompt time (1-20, only used when sessionContext is enabled) |
-| `apiUrl` | string | `""` | Remote server URL. Empty = local (`http://127.0.0.1:14242`) |
-| `apiKey` | string | `""` | API key for remote access. Injected as `NMEM_API_KEY` env var, never logged |
+The config file takes priority over OpenClaw settings. Only the keys you include are overridden; missing keys fall through to OpenClaw settings, then env vars, then defaults.
 
 ### Advanced: environment variables
 
@@ -357,7 +365,13 @@ NMEM_API_URL=https://...
 NMEM_API_KEY=your-key
 ```
 
-**Priority**: OpenClaw plugin config > config file > env vars > defaults.
+### Priority
+
+```
+config file > OpenClaw settings > env vars > defaults
+```
+
+Use `nowledge_mem_status` (or `openclaw nowledge-mem status`) to see where each value comes from.
 
 ## What Makes This Different
 

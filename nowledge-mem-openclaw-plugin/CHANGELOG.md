@@ -2,6 +2,14 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.8] - 2026-02-27
+
+### Changed
+
+- **Config priority flipped**: `~/.nowledge-mem/openclaw.json` now takes priority over OpenClaw plugin settings. Most users configure via OpenClaw UI (no file needed). Users who create the file get predictable overrides.
+- **No auto-created config file**: The plugin no longer creates `~/.nowledge-mem/openclaw.json` on first startup. OpenClaw's settings UI works out of the box. Create the file manually when you need persistent or scripted config.
+- **Status tool shows config sources**: `nowledge_mem_status` now shows where each setting comes from (`file`, `pluginConfig`, `env`, or `default`).
+
 ## [0.6.7] - 2026-02-27
 
 ### Added
