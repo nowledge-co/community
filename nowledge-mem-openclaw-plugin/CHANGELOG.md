@@ -2,6 +2,40 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.3] - 2026-02-27
+
+### Changed — Config file + naming refresh
+
+**Config file at `~/.nowledge-mem/openclaw.json`**
+
+The plugin now reads configuration from a dedicated config file, independent of OpenClaw's `openclaw.json`. The file is auto-created on first startup with sensible defaults. If you had settings in OpenClaw's plugin config (e.g. `autoRecall: true`), those values are automatically migrated into the file on first run — no manual steps needed.
+
+This ensures your settings survive OpenClaw version upgrades that may strip custom plugin config fields (observed in OpenClaw >= 2026.2.25).
+
+**Renamed: `autoRecall` → `sessionContext`, `autoCapture` → `sessionDigest`**
+
+User-facing names updated across all docs, manifest, and config schema. The old names (`autoRecall`, `autoCapture`) are still accepted silently from all config sources for backward compatibility.
+
+**Config cascade** (4 layers, highest to lowest priority):
+1. `api.pluginConfig` — from OpenClaw's plugin config (when supported)
+2. `~/.nowledge-mem/openclaw.json` — dedicated config file
+3. Environment variables — `NMEM_SESSION_CONTEXT`, `NMEM_SESSION_DIGEST`, etc.
+4. Built-in defaults
+
+### Fixed
+
+- **Startup crash**: `logger` was referenced before declaration in `register()` — `ReferenceError` on every plugin load
+- **Conversation text unbounded**: `buildConversationText()` now caps per-message content at 2000 chars and total at 30K chars, preventing oversized LLM API payloads from long coding sessions
+- **Hook phase**: recall hook changed from `before_prompt_build` to `before_agent_start` (correct semantic phase for one-time session-start injection)
+- **Config strict mode**: unknown config keys throw a descriptive error listing all valid keys
+- **apiKey not written to config file**: API keys are intentionally excluded from the auto-created config file — they should stay in env vars or OpenClaw's secure config
+
+### Added
+
+- Environment variable support for all config keys (not just `apiUrl`/`apiKey`)
+- Migration: first-run config file seeded from existing `pluginConfig` values
+- `isDefaultApiUrl()` helper exported for local-vs-remote detection
+
 ## [0.3.0] - 2026-02-23
 
 ### Changed — Architecture overhaul: tool-first, LLM-based capture

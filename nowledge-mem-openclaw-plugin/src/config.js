@@ -43,22 +43,53 @@ const DEFAULT_CONFIG = {
 
 /**
  * Read ~/.nowledge-mem/openclaw.json.
- * Creates the file with defaults on first run.
+ * On first run, creates the file seeded with values from pluginConfig
+ * (if any) — this migrates settings before OpenClaw strips them.
  * Returns {} on any error — never crashes.
  */
-function readConfigFile(logger) {
+function readConfigFile(logger, pluginCfg) {
 	try {
 		if (!existsSync(CONFIG_PATH)) {
+			// Seed from pluginConfig + env vars for migration.
+			// Users on older OpenClaw get their values written to the file
+			// BEFORE a future OpenClaw update can strip them.
+			const initial = { ...DEFAULT_CONFIG };
+			if (pluginCfg && typeof pluginCfg === "object") {
+				if (typeof pluginCfg.sessionContext === "boolean")
+					initial.sessionContext = pluginCfg.sessionContext;
+				else if (typeof pluginCfg.autoRecall === "boolean")
+					initial.sessionContext = pluginCfg.autoRecall;
+
+				if (typeof pluginCfg.sessionDigest === "boolean")
+					initial.sessionDigest = pluginCfg.sessionDigest;
+				else if (typeof pluginCfg.autoCapture === "boolean")
+					initial.sessionDigest = pluginCfg.autoCapture;
+
+				if (
+					typeof pluginCfg.captureMinInterval === "number" &&
+					Number.isFinite(pluginCfg.captureMinInterval)
+				)
+					initial.captureMinInterval = pluginCfg.captureMinInterval;
+				if (
+					typeof pluginCfg.maxRecallResults === "number" &&
+					Number.isFinite(pluginCfg.maxRecallResults)
+				)
+					initial.maxRecallResults = pluginCfg.maxRecallResults;
+				if (typeof pluginCfg.apiUrl === "string" && pluginCfg.apiUrl.trim())
+					initial.apiUrl = pluginCfg.apiUrl.trim();
+				// apiKey intentionally NOT written to disk — keep in env/pluginConfig only
+			}
+
 			mkdirSync(CONFIG_DIR, { recursive: true });
 			writeFileSync(
 				CONFIG_PATH,
-				JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n",
+				JSON.stringify(initial, null, 2) + "\n",
 				"utf-8",
 			);
 			logger?.info?.(
 				`nowledge-mem: created config at ${CONFIG_PATH} — edit to customize`,
 			);
-			return { ...DEFAULT_CONFIG };
+			return { ...initial };
 		}
 		const content = readFileSync(CONFIG_PATH, "utf-8").trim();
 		if (!content) return {};
@@ -130,7 +161,7 @@ function pickNum(obj, key) {
  */
 export function parseConfig(raw, logger) {
 	const pluginCfg = raw && typeof raw === "object" ? raw : {};
-	const fileCfg = readConfigFile(logger);
+	const fileCfg = readConfigFile(logger, pluginCfg);
 
 	// Strict: reject unknown keys in pluginConfig (typo catcher).
 	// File config is our own — validated by shape, no strict check needed.

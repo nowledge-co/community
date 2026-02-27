@@ -27,8 +27,8 @@ export default {
 	kind: "memory",
 
 	register(api) {
-		const cfg = parseConfig(api.pluginConfig, logger);
 		const logger = api.logger;
+		const cfg = parseConfig(api.pluginConfig, logger);
 		const client = new NowledgeMemClient(logger, {
 			apiUrl: cfg.apiUrl,
 			apiKey: cfg.apiKey,
