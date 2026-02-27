@@ -66,7 +66,6 @@
 				"default": "",
 				"description": "API key for remote access. Stored in plugin config, injected as NMEM_API_KEY env var. Never logged."
 			}
-		},
-		"additionalProperties": true
+		}
 	}
 }

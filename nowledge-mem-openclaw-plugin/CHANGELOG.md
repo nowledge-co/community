@@ -10,6 +10,10 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 - **No auto-created config file**: The plugin no longer creates `~/.nowledge-mem/openclaw.json` on first startup. OpenClaw's settings UI works out of the box. Create the file manually when you need persistent or scripted config.
 - **Status tool shows config sources**: `nowledge_mem_status` now shows where each setting comes from (`file`, `pluginConfig`, `env`, or `default`).
 
+### Fixed
+
+- **configSchema broke OpenClaw form UI**: `additionalProperties: true` (added in 0.6.7) caused OpenClaw's config form to show "Unsupported schema mode. Use Raw mode." Removed the field entirely - JSON Schema defaults to allowing additional properties when omitted, so typos still don't crash the plugin, and the form renders normally.
+
 ## [0.6.7] - 2026-02-27
 
 ### Added
