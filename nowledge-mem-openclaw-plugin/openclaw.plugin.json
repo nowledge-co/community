@@ -59,12 +59,12 @@
 			"apiUrl": {
 				"type": "string",
 				"default": "",
-				"description": "Remote server URL. Empty = local (http://127.0.0.1:14142). Example: https://nowledge.example.com"
+				"description": "Remote server URL. Empty = local (http://127.0.0.1:14242). Example: https://nowledge.example.com"
 			},
 			"apiKey": {
 				"type": "string",
 				"default": "",
-				"description": "API key for remote access. Stored in plugin config, injected as NMEM_API_KEY env var \u2014 never logged."
+				"description": "API key for remote access. Stored in plugin config, injected as NMEM_API_KEY env var. Never logged."
 			}
 		},
 		"additionalProperties": false

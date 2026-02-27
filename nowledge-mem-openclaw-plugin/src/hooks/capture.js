@@ -291,7 +291,7 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		});
 
 		// 2. Triage + distill: language-agnostic LLM-based capture.
-		//    Defensive guard — registration in index.js already gates on autoCapture,
+		//    Defensive guard - registration in index.js already gates on sessionDigest,
 		//    but check here too so the handler is safe if called directly.
 		if (!cfg.sessionDigest) return;
 
