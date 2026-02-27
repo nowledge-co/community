@@ -53,16 +53,13 @@ const DEFAULT_CONFIG = {
 
 /**
  * Read ~/.nowledge-mem/openclaw.json.
- * On first run, creates the file seeded with values from pluginConfig
- * (if any) — this migrates settings before OpenClaw strips them.
+ * On first run, creates the file seeded with values from pluginConfig.
  * Returns {} on any error — never crashes.
  */
 function readConfigFile(logger, pluginCfg) {
 	try {
 		if (!existsSync(CONFIG_PATH)) {
-			// Seed from pluginConfig + env vars for migration.
-			// Users on older OpenClaw get their values written to the file
-			// BEFORE a future OpenClaw update can strip them.
+			// Seed from pluginConfig values so the user has a starting point.
 			const initial = { ...DEFAULT_CONFIG };
 			if (pluginCfg && typeof pluginCfg === "object") {
 				// Resolve aliases in pluginConfig for seeding

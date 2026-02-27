@@ -8,9 +8,9 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 **Config file at `~/.nowledge-mem/openclaw.json`**
 
-The plugin now reads configuration from a dedicated config file, independent of OpenClaw's `openclaw.json`. The file is auto-created on first startup with sensible defaults. If you had settings in OpenClaw's plugin config, those values are automatically migrated into the file on first run. No manual steps needed.
+The plugin now reads configuration from a dedicated config file, independent of OpenClaw's `openclaw.json`. The file is auto-created on first startup with sensible defaults. If you had settings in OpenClaw's plugin config, those values are automatically seeded into the file on first run. No manual steps needed.
 
-This ensures your settings survive OpenClaw version upgrades that may strip custom plugin config fields (observed in OpenClaw >= 2026.2.25).
+This gives you a single, easy-to-find place for all Nowledge Mem settings. The file persists across plugin reinstalls and OpenClaw upgrades.
 
 **Config cascade** (4 layers, highest to lowest priority):
 1. `api.pluginConfig` - from OpenClaw's plugin config (when supported)
