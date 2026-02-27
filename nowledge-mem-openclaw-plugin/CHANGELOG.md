@@ -2,6 +2,17 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.7] - 2026-02-27
+
+### Added
+
+- `nowledge_mem_status` tool: verify effective config, backend connectivity, and version. Shows mode (local/remote), whether API key is set, backend health, and all config values. 10 tools total.
+
+### Fixed
+
+- **configSchema too strict**: `additionalProperties` changed from `false` to `true`. Previously, a typo in openclaw.json config (e.g. `sesionContext`) caused the plugin to silently fail to load. Now OpenClaw passes validation and the plugin's own parser gives a descriptive error listing valid keys.
+- **apiUrl port typo**: configSchema description had port 14142 instead of 14242.
+
 ## [0.6.6] - 2026-02-27
 
 ### Changed - Config file + env var cascade
@@ -26,7 +37,6 @@ This gives you a single, easy-to-find place for all Nowledge Mem settings. The f
 
 ### Added
 
-- `nowledge_mem_status` tool: verify effective config, backend connectivity, and version. Shows mode (local/remote), whether API key is set, backend health, and all config values. 10 tools total.
 - Environment variable support for all config keys (not just `apiUrl`/`apiKey`)
 - Migration: first-run config file seeded from existing `pluginConfig` values
 - `isDefaultApiUrl()` helper exported for local-vs-remote detection
