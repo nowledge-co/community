@@ -157,11 +157,34 @@ openclaw nowledge-mem status
 
 ## Configuration
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `autoRecall` | boolean | `false` | Inject Working Memory + relevant memories at session start |
-| `autoCapture` | boolean | `false` | Thread capture + LLM distillation at session end |
-| `maxRecallResults` | integer | `5` | Max memories to recall at session start (only used when autoRecall is enabled) |
+All options can be set via **environment variables** or `openclaw.json` plugin config. Environment variables work everywhere — including OpenClaw versions that don't support plugin config fields.
+
+### Environment Variables (recommended)
+
+```bash
+# Add to ~/.zshrc, ~/.bashrc, or ~/.openclaw/.env
+export NMEM_AUTO_RECALL=true        # Inject context at session start
+export NMEM_AUTO_CAPTURE=true       # Capture threads + distill at session end
+export NMEM_CAPTURE_MIN_INTERVAL=300  # Seconds between captures (default: 300)
+export NMEM_MAX_RECALL_RESULTS=5    # Memories to recall (1–20, default: 5)
+export NMEM_API_URL=https://...     # Remote server (empty = local)
+export NMEM_API_KEY=your-key        # API key for remote mode
+```
+
+### Plugin Config (openclaw.json)
+
+If your OpenClaw version supports plugin config, you can also set options in `openclaw.json` under `plugins.entries.openclaw-nowledge-mem.config`. Plugin config takes priority over environment variables.
+
+| Key | Type | Default | Env Var | Description |
+|-----|------|---------|---------|-------------|
+| `autoRecall` | boolean | `false` | `NMEM_AUTO_RECALL` | Inject Working Memory + relevant memories at session start |
+| `autoCapture` | boolean | `false` | `NMEM_AUTO_CAPTURE` | Thread capture + LLM distillation at session end |
+| `captureMinInterval` | integer | `300` | `NMEM_CAPTURE_MIN_INTERVAL` | Seconds between captures per thread (0 = no limit) |
+| `maxRecallResults` | integer | `5` | `NMEM_MAX_RECALL_RESULTS` | Max memories to recall at session start |
+| `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL (empty = local) |
+| `apiKey` | string | `""` | `NMEM_API_KEY` | API key for remote access |
+
+**Priority**: plugin config > environment variable > default.
 
 ## What Makes This Different
 

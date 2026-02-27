@@ -71,18 +71,22 @@ openclaw.plugin.json — manifest + config schema (version, uiHints, configSchem
 
 ## Config Keys
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `autoRecall` | boolean | `false` | Inject context at session start |
-| `autoCapture` | boolean | `false` | Capture notes/threads at session end |
-| `maxRecallResults` | integer 1–20 | `5` | How many memories to recall |
-| `apiUrl` | string | `""` | Remote server URL. Empty = local (127.0.0.1:14242) |
-| `apiKey` | string | `""` | API key. Injected as `NMEM_API_KEY` env var only. Never logged. |
+All keys support **env var fallback** — critical for OpenClaw >= 2026.2.25 which may strip plugin config.
+
+| Key | Type | Default | Env Var | Description |
+|-----|------|---------|---------|-------------|
+| `autoRecall` | boolean | `false` | `NMEM_AUTO_RECALL` | Inject context at session start |
+| `autoCapture` | boolean | `false` | `NMEM_AUTO_CAPTURE` | Capture notes/threads at session end |
+| `captureMinInterval` | integer 0–86400 | `300` | `NMEM_CAPTURE_MIN_INTERVAL` | Seconds between captures per thread |
+| `maxRecallResults` | integer 1–20 | `5` | `NMEM_MAX_RECALL_RESULTS` | How many memories to recall |
+| `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
+| `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
+
+**Priority**: pluginConfig > env var > default.
 
 ### Credential Handling Rules
 - `apiKey` → ONLY via child process env (`NMEM_API_KEY`). Never CLI arg, never logged.
 - `apiUrl` → passed as `--api-url` flag to CLI (not a secret).
-- Config values win over environment variables.
 - `_spawnEnv()` builds per-spawn env; `_apiUrlArgs()` adds `--api-url` when non-default.
 
 ## CLI Surface (nmem commands used by plugin)
