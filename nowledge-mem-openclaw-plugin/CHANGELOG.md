@@ -2,14 +2,6 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
-## [0.6.9] - 2026-03-01
-
-### Changed
-
-- Release-quality polish: plugin source now passes `npm run lint` cleanly (Biome formatting fixes in hook/tool files).
-- Version metadata aligned for publish (`package.json` and `openclaw.plugin.json`).
-- No runtime behavior changes in this patch release.
-
 ## [0.6.8] - 2026-02-27
 
 ### Changed
