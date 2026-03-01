@@ -1,6 +1,49 @@
 import { spawnSync } from "node:child_process";
+import { isIP } from "node:net";
 
 const LOCAL_DEFAULT_API_URL = "http://127.0.0.1:14242";
+
+function isPrivateIpv4(host) {
+	const parts = host.split(".").map((part) => Number.parseInt(part, 10));
+	if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) {
+		return false;
+	}
+	const [a, b] = parts;
+	// RFC1918 + loopback + link-local
+	return (
+		a === 10 ||
+		(a === 172 && b >= 16 && b <= 31) ||
+		(a === 192 && b === 168) ||
+		a === 127 ||
+		(a === 169 && b === 254)
+	);
+}
+
+function isPrivateIpv6(host) {
+	const normalized = host.toLowerCase();
+	if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") return true;
+	// fc00::/7 (ULA) and fe80::/10 (link-local)
+	return (
+		normalized.startsWith("fc") ||
+		normalized.startsWith("fd") ||
+		/^fe[89ab]/u.test(normalized)
+	);
+}
+
+function isTrustedLanHost(hostname) {
+	const host = String(hostname || "")
+		.trim()
+		.toLowerCase();
+	if (!host) return false;
+	if (host === "localhost") return true;
+	if (host.endsWith(".local")) return true;
+	if (!host.includes(".")) return true; // common single-label LAN hostnames
+
+	const ipVersion = isIP(host);
+	if (ipVersion === 4) return isPrivateIpv4(host);
+	if (ipVersion === 6) return isPrivateIpv6(host);
+	return false;
+}
 
 /**
  * Patch a single markdown section in a Working Memory document.
@@ -89,11 +132,22 @@ export class NowledgeMemClient {
 		return this._apiUrl !== LOCAL_DEFAULT_API_URL;
 	}
 
+	_isTrustedLanHttpNoKeyMode() {
+		try {
+			const parsed = new URL(this._apiUrl);
+			if (parsed.protocol !== "http:") return false;
+			return isTrustedLanHost(parsed.hostname);
+		} catch {
+			return false;
+		}
+	}
+
 	_getRemoteAuthConfigError() {
 		if (!this._isRemoteMode() || this._apiKey) return null;
+		if (this._isTrustedLanHttpNoKeyMode()) return null;
 		return (
-			"Remote mode requires apiKey. " +
-			"Set Access Anywhere URL + API key from Mem Desktop (Settings -> Access Anywhere)."
+			"Remote HTTPS/public mode requires apiKey. " +
+			"For Access Anywhere, copy URL + key from Mem Desktop (Settings -> Access Anywhere)."
 		);
 	}
 

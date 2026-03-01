@@ -2,12 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
-## [Unreleased]
+## [0.6.9] - 2026-03-01
 
 ### Security
 
-- **Remote mode now hard-requires API key**: when `apiUrl` is set but `apiKey` is missing, the plugin blocks remote requests and returns a clear configuration error.
-- **Status visibility improved**: `nowledge_mem_status` now reports invalid remote-auth config directly instead of ambiguous connectivity failures.
+- **Remote mode guard by target type**: public/HTTPS remote URLs now require API key; trusted LAN HTTP targets can run without key (for users intentionally running LAN-trust mode).
+- **Status visibility improved**: `nowledge_mem_status` now reports remote auth policy and invalid config directly instead of ambiguous connectivity failures.
 - **Docs/UI hints clarified**: remote settings now explicitly say to use Access Anywhere URL + key from Mem Desktop.
 
 ## [0.6.8] - 2026-02-27

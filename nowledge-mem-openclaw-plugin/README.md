@@ -38,11 +38,13 @@ That's it. The agent gets 10 tools and calls them on demand. No extra tokens was
 
 Connect to a Nowledge Mem server running elsewhere (a VPS, a home server, or a shared team instance). See [remote access guide](https://mem.nowledge.co/docs/remote-access) for server setup.
 
-Remote mode requires **both**:
-- `apiUrl` = Access Anywhere public URL (for example `https://mem.example.com`)
-- `apiKey` = Access Anywhere API key (`nmem_...`)
+Remote mode has two safe paths:
+- **Internet / Access Anywhere (recommended):**  
+  `apiUrl` = `https://...` and `apiKey` = `nmem_...` (required)
+- **Trusted LAN HTTP:**  
+  `apiUrl` = `http://192.168.x.x:14242` (or other private/LAN host), `apiKey` optional
 
-If `apiUrl` is set but `apiKey` is missing, the plugin blocks remote requests by design.
+If you set a public/HTTPS URL but omit `apiKey`, the plugin blocks remote requests by design.
 
 Enable the plugin the same way as local mode, then set `apiUrl` and `apiKey` in the OpenClaw plugin settings.
 
@@ -344,7 +346,7 @@ To change settings, use the OpenClaw plugin settings UI. Changes take effect on 
 | `digestMinInterval` | integer | `300` | Minimum seconds between session digests for the same thread (0-86400) |
 | `maxContextResults` | integer | `5` | Max memories to inject at prompt time (1-20, only used when sessionContext is enabled) |
 | `apiUrl` | string | `""` | Access Anywhere URL. Empty = local (`http://127.0.0.1:14242`) |
-| `apiKey` | string | `""` | API key for remote access. Required when `apiUrl` is set. Injected as `NMEM_API_KEY` env var, never logged |
+| `apiKey` | string | `""` | API key for remote access. Required for HTTPS/public URLs; optional for trusted LAN HTTP targets. Injected as `NMEM_API_KEY` env var, never logged |
 
 ### Advanced: config file
 
