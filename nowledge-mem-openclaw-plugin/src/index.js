@@ -91,12 +91,8 @@ export default {
 		});
 
 		const remoteMode = !isDefaultApiUrl(cfg.apiUrl);
-		const remoteAuthError = client.getRemoteAuthConfigError?.();
 		logger.info(
 			`nowledge-mem: initialized (context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
 		);
-		if (remoteAuthError) {
-			logger.warn(`nowledge-mem: ${remoteAuthError}`);
-		}
 	},
 };

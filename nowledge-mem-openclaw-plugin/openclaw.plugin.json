@@ -21,11 +21,11 @@
 		},
 		"apiUrl": {
 			"label": "Server URL (remote mode)",
-			"help": "Leave empty for local mode (default: http://127.0.0.1:14242). For remote mode, use your Access Anywhere URL (https://...) from Mem Desktop. See: https://docs.nowledge.co/docs/remote-access"
+			"help": "Leave empty for local mode (default: http://127.0.0.1:14242). Set to your remote server URL for cross-device or team access. See: https://docs.nowledge.co/docs/remote-access"
 		},
 		"apiKey": {
 			"label": "API key (remote mode)",
-			"help": "Required when apiUrl is set. Plugin blocks remote requests without this key. Never logged or passed as a CLI argument \u2014 injected as NMEM_API_KEY env var only.",
+			"help": "Required when connecting to a remote server. Never logged or passed as a CLI argument \u2014 injected as NMEM_API_KEY env var only.",
 			"secret": true
 		}
 	},
@@ -59,12 +59,12 @@
 			"apiUrl": {
 				"type": "string",
 				"default": "",
-				"description": "Remote Access Anywhere URL. Empty = local (http://127.0.0.1:14242). Example: https://mem.example.com"
+				"description": "Remote server URL. Empty = local (http://127.0.0.1:14242). Example: https://nowledge.example.com"
 			},
 			"apiKey": {
 				"type": "string",
 				"default": "",
-				"description": "API key for remote access. Required when apiUrl is set. Stored in plugin config, injected as NMEM_API_KEY env var. Never logged."
+				"description": "API key for remote access. Stored in plugin config, injected as NMEM_API_KEY env var. Never logged."
 			}
 		}
 	}
