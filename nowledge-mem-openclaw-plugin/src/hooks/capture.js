@@ -250,7 +250,10 @@ function buildConversationText(normalized) {
 	const parts = [];
 	let total = 0;
 	for (const m of normalized) {
-		const text = truncate(m.fullContent || m.content, MAX_DISTILL_MESSAGE_CHARS);
+		const text = truncate(
+			m.fullContent || m.content,
+			MAX_DISTILL_MESSAGE_CHARS,
+		);
 		const line = `${m.role}: ${text}`;
 		if (total + line.length > MAX_CONVERSATION_CHARS) break;
 		parts.push(line);
@@ -297,7 +300,9 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 
 		//    Skip when no new messages were added (e.g. heartbeat re-sync).
 		if (!result || result.messagesAdded === 0) {
-			logger.debug?.("capture: no new messages since last sync, skipping triage");
+			logger.debug?.(
+				"capture: no new messages since last sync, skipping triage",
+			);
 			return;
 		}
 

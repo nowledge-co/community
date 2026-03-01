@@ -293,9 +293,7 @@ export function createConnectionsTool(client, logger) {
 						const otherTitle = isOlderNode
 							? edge.newer_title || "(untitled)"
 							: edge.older_title || "(untitled)";
-						const otherId = isOlderNode
-							? edge.newer_id
-							: edge.older_id;
+						const otherId = isOlderNode ? edge.newer_id : edge.older_id;
 						const direction = isOlderNode ? "→" : "←";
 						const idLine = otherId ? `\n    → id: ${otherId}` : "";
 						return `  ${direction} ${otherTitle}${relLabel ? ` — ${relLabel}` : ""}${idLine}`;
