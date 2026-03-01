@@ -29,11 +29,16 @@ export function createStatusTool(client, _logger, cfg) {
 			details.mode = mode;
 			details.apiUrl = cfg.apiUrl || "http://127.0.0.1:14242";
 			details.apiKeySet = Boolean(cfg.apiKey);
+			const remoteAuthError = client.getRemoteAuthConfigError?.() || null;
+			details.remoteAuthConfigured = !remoteAuthError;
 
 			lines.push(
 				`Mode: ${remote ? `Remote (${cfg.apiUrl})` : "Local (127.0.0.1:14242)"}`,
 			);
 			lines.push(`API key: ${cfg.apiKey ? "set" : "not set"}`);
+			if (remoteAuthError) {
+				lines.push(`Remote auth: invalid config - ${remoteAuthError}`);
+			}
 
 			// 2. CLI resolution
 			try {
@@ -84,7 +89,9 @@ export function createStatusTool(client, _logger, cfg) {
 						"  Check that apiUrl is correct and the server is running.",
 					);
 					if (!cfg.apiKey) {
-						lines.push("  Remote mode usually requires an API key.");
+						lines.push(
+							"  Remote mode requires API key. Copy URL + key from Mem Desktop > Access Anywhere.",
+						);
 					}
 				} else {
 					lines.push("  Ensure the Nowledge Mem desktop app is running.");

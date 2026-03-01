@@ -91,8 +91,8 @@ Optional config file at `~/.nowledge-mem/openclaw.json`. Falls through to OpenCl
 | `sessionDigest` | boolean | `true` | `NMEM_SESSION_DIGEST` | Thread capture + LLM distillation at session end |
 | `digestMinInterval` | integer 0-86400 | `300` | `NMEM_DIGEST_MIN_INTERVAL` | Minimum seconds between session digests |
 | `maxContextResults` | integer 1-20 | `5` | `NMEM_MAX_CONTEXT_RESULTS` | How many memories to inject at prompt time |
-| `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
-| `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
+| `apiUrl` | string | `""` | `NMEM_API_URL` | Access Anywhere URL. Empty = local (127.0.0.1:14242) |
+| `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Required when `apiUrl` is set. Never logged. |
 
 **Priority**: config file > pluginConfig > env var > default.
 

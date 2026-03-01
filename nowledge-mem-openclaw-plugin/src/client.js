@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
 
+const LOCAL_DEFAULT_API_URL = "http://127.0.0.1:14242";
+
 /**
  * Patch a single markdown section in a Working Memory document.
  * Returns the updated document string, or null if heading not found.
@@ -79,9 +81,35 @@ export class NowledgeMemClient {
 		this.logger = logger;
 		this.nmemCmd = null;
 		// Resolved once from config + env (config wins over env, both win over default)
-		this._apiUrl =
-			(credentials.apiUrl || "").trim() || "http://127.0.0.1:14242";
+		this._apiUrl = (credentials.apiUrl || "").trim() || LOCAL_DEFAULT_API_URL;
 		this._apiKey = (credentials.apiKey || "").trim();
+	}
+
+	_isRemoteMode() {
+		return this._apiUrl !== LOCAL_DEFAULT_API_URL;
+	}
+
+	_getRemoteAuthConfigError() {
+		if (!this._isRemoteMode() || this._apiKey) return null;
+		return (
+			"Remote mode requires apiKey. " +
+			"Set Access Anywhere URL + API key from Mem Desktop (Settings -> Access Anywhere)."
+		);
+	}
+
+	getConnectionMode() {
+		return this._isRemoteMode() ? "remote" : "local";
+	}
+
+	getRemoteAuthConfigError() {
+		return this._getRemoteAuthConfigError();
+	}
+
+	_assertRemoteAuthConfigured() {
+		const error = this._getRemoteAuthConfigError();
+		if (error) {
+			throw new Error(error);
+		}
 	}
 
 	// ── API helpers (fallback path and direct operations) ─────────────────────
@@ -100,6 +128,7 @@ export class NowledgeMemClient {
 	}
 
 	async apiJson(method, path, body, timeout = 30_000) {
+		this._assertRemoteAuthConfigured();
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), timeout);
 		const url = `${this.getApiBaseUrl()}${path}`;
@@ -169,7 +198,7 @@ export class NowledgeMemClient {
 	_spawnEnv() {
 		const env = { ...process.env };
 		// Explicit config wins over any existing env var
-		if (this._apiUrl !== "http://127.0.0.1:14242") {
+		if (this._apiUrl !== LOCAL_DEFAULT_API_URL) {
 			env.NMEM_API_URL = this._apiUrl;
 		}
 		if (this._apiKey) {
@@ -183,12 +212,13 @@ export class NowledgeMemClient {
 	 * The key is NEVER added here — it goes in env only.
 	 */
 	_apiUrlArgs() {
-		return this._apiUrl !== "http://127.0.0.1:14242"
+		return this._apiUrl !== LOCAL_DEFAULT_API_URL
 			? ["--api-url", this._apiUrl]
 			: [];
 	}
 
 	exec(args, timeout = 30_000) {
+		this._assertRemoteAuthConfigured();
 		const cmd = this.resolveCommand();
 		const [bin, ...baseArgs] = cmd;
 		try {
