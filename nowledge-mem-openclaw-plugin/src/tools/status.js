@@ -38,8 +38,6 @@ export function createStatusTool(client, _logger, cfg) {
 			lines.push(`API key: ${cfg.apiKey ? "set" : "not set"}`);
 			if (remoteAuthError) {
 				lines.push(`Remote auth: invalid config - ${remoteAuthError}`);
-			} else if (remote && !cfg.apiKey) {
-				lines.push("Remote auth: no key (trusted LAN HTTP mode)");
 			}
 
 			// 2. CLI resolution
@@ -90,8 +88,10 @@ export function createStatusTool(client, _logger, cfg) {
 					lines.push(
 						"  Check that apiUrl is correct and the server is running.",
 					);
-					if (remoteAuthError) {
-						lines.push(`  ${remoteAuthError}`);
+					if (!cfg.apiKey) {
+						lines.push(
+							"  Remote mode requires API key. Copy URL + key from Mem Desktop > Access Anywhere.",
+						);
 					}
 				} else {
 					lines.push("  Ensure the Nowledge Mem desktop app is running.");
