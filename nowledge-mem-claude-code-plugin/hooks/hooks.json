@@ -1,5 +1,5 @@
 {
-  "description": "Lifecycle hooks for Working Memory context injection",
+  "description": "Nowledge Mem lifecycle hooks — Working Memory injection and session capture",
   "hooks": {
     "SessionStart": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cat ~/ai-now/memory.md 2>/dev/null || true"
+            "command": "nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);print(d.get('content',''))\" 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true"
           }
         ]
       },
@@ -16,7 +16,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{ cat ~/ai-now/memory.md 2>/dev/null; printf '\\n---\\nContext was compacted. Please checkpoint any important decisions or findings from this session before continuing:\\n  nmem m add \"<your insight>\" --title \"<short title>\"\\n'; } 2>/dev/null || true"
+            "command": "{ nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);print(d.get('content',''))\" 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "nmem t save --from claude-code --truncate >/dev/null 2>&1 &"
           }
         ]
       }

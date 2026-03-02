@@ -29,7 +29,13 @@ description: Read your daily Working Memory briefing to understand current conte
 
 ## Usage
 
-Read the Working Memory file directly:
+Read Working Memory via nmem CLI (works for both local and remote):
+
+```bash
+nmem wm read
+```
+
+Fallback for local-only (when nmem is not installed):
 
 ```bash
 cat ~/ai-now/memory.md
@@ -54,24 +60,6 @@ The Working Memory briefing contains:
 
 ## Troubleshooting
 
-**nmem CLI** - Choose one option:
+If `nmem` is not in PATH: `pip install nmem-cli` or `pipx install nmem-cli`
 
-**Option 1: uvx (Recommended)**
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uvx --from nmem-cli nmem --version
-```
-
-**Option 2: pip**
-```bash
-pip install nmem-cli
-nmem --version
-```
-
-Ensure Nowledge Mem server is running at `http://localhost:14242`
-
-## Links
-
-- [Documentation](https://mem.nowledge.co/docs)
-- [Nowledge Mem](https://mem.nowledge.co)
-- [Discord Community](https://nowled.ge/discord)
+If Nowledge Mem is on a remote server, set `NMEM_API_URL` and `NMEM_API_KEY` environment variables.

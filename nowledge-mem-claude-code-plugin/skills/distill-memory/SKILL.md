@@ -68,19 +68,6 @@ nmem m add "Chose PostgreSQL over MongoDB for ACID compliance and complex querie
 
 ## Troubleshooting
 
-If `nmem` is not available:
+If `nmem` is not in PATH: `pip install nmem-cli`
 
-**Option 1 (Recommended): Use uvx**
-```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Run nmem (no installation needed)
-uvx --from nmem-cli nmem --version
-```
-
-**Option 2: Install with pip**
-```bash
-pip install nmem-cli
-nmem --version
-```
+Run `/status` to check server connection.

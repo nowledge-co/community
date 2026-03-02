@@ -5,6 +5,20 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-03-02
+
+### Added
+
+- **Stop hook** for automatic session capture — runs `nmem t save --from claude-code` in the background after every response. Essential for remote mode where the desktop app file watcher cannot reach session files. Idempotent for local mode.
+- **`/status` command** — check Nowledge Mem server connection, API URL, and database status
+
+### Changed
+
+- **SessionStart hooks now use `nmem wm read`** — fetches Working Memory via API (works for both local and remote), with fallback to `cat ~/ai-now/memory.md` for local-only setups
+- **Trimmed skill token overhead** — replaced verbose troubleshooting sections with concise guidance and `/status` reference
+- **README rewritten** — from 452 lines to ~90 lines. Concise, accurate, reflects v0.7.0 capabilities.
+- **marketplace.json version synced** — was stuck at 0.5.0, now 0.7.0
+
 ## [0.6.1] - 2026-02-28
 
 ### Fixed
@@ -55,18 +69,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - N/A (initial release)
 
-## [Unreleased]
-
-### Planned
-
-- Support for additional Claude Code clients beyond Claude Code
-- Enhanced memory graph exploration capabilities
-- Community detection and clustering features
-- Export/import functionality for memory backups
-- Advanced filtering and search operators
-
----
-
-## Version History
-
-- **0.4.1** (2025-01-23): Initial release with Agent Skills and MCP integration

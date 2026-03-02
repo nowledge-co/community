@@ -1,7 +1,7 @@
 {
   "name": "nowledge-mem",
-  "description": "Memory and Thread Management for AI Agents using nmem CLI",
-  "version": "0.6.1",
+  "description": "Personal knowledge graph for Claude Code — remembers decisions, searches past work, captures sessions",
+  "version": "0.7.0",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",
