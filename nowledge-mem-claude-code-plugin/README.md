@@ -25,7 +25,8 @@ On Windows/Linux with the Nowledge Mem desktop app, `nmem` is already bundled.
 
 **Automatic (no action needed):**
 
-- Working Memory briefing loaded at every session start
+- Working Memory briefing loaded at every session start, resume, and clear
+- Per-turn behavioral nudge with search/save syntax
 - Session conversations captured to your knowledge graph on each response
 - Context recovered after compaction events
 
@@ -50,9 +51,10 @@ On Windows/Linux with the Nowledge Mem desktop app, `nmem` is already bundled.
 
 | Event | Trigger | Action |
 |-------|---------|--------|
-| `SessionStart` | New session | Loads Working Memory via `nmem wm read` |
+| `SessionStart` | New, resume, or clear | Loads Working Memory via `nmem wm read` |
 | `SessionStart` | After compaction | Re-loads Working Memory + checkpoint prompt |
-| `Stop` | Model finishes responding | Captures session to knowledge graph (backgrounded) |
+| `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
+| `Stop` | Model finishes responding | Captures session to knowledge graph (async) |
 
 The `SessionStart` hook tries `nmem wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` directly.
 

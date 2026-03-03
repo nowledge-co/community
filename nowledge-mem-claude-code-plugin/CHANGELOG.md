@@ -9,15 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Stop hook** for automatic session capture — runs `nmem t save --from claude-code` in the background after every response. Essential for remote mode where the desktop app file watcher cannot reach session files. Idempotent for local mode.
+- **Stop hook** for automatic session capture — runs `nmem t save --from claude-code` asynchronously after every response. Essential for remote mode where the desktop app file watcher cannot reach session files. Idempotent for local mode.
+- **UserPromptSubmit hook** — per-turn behavioral nudge that injects search/save syntax as context Claude can see. Lightweight (~35 tokens) but significantly improves memory adoption.
 - **`/status` command** — check Nowledge Mem server connection, API URL, and database status
 
 ### Changed
 
 - **SessionStart hooks now use `nmem wm read`** — fetches Working Memory via API (works for both local and remote), with fallback to `cat ~/ai-now/memory.md` for local-only setups
+- **SessionStart matcher broadened** — now covers `startup|resume|clear` (was `startup` only). Users resuming sessions or clearing context now get fresh Working Memory.
+- **Stop hook uses `async: true`** — proper Claude Code background execution instead of shell `&`
 - **Trimmed skill token overhead** — replaced verbose troubleshooting sections with concise guidance and `/status` reference
-- **README rewritten** — from 452 lines to ~90 lines. Concise, accurate, reflects v0.7.0 capabilities.
+- **README rewritten** — from 452 lines to ~100 lines. Concise, accurate, reflects v0.7.0 capabilities.
 - **marketplace.json version synced** — was stuck at 0.5.0, now 0.7.0
+
+### Fixed
+
+- **Working Memory fallback on server error** — when `nmem wm read` returns error JSON (e.g. connection refused), the python pipe now correctly exits non-zero, allowing fallback to `cat ~/ai-now/memory.md`
 
 ## [0.6.1] - 2026-02-28
 
