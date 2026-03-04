@@ -59,4 +59,6 @@ Thread ID: claude-code-{session_id}
 
 If `nmem` is not in PATH: `pip install nmem-cli`
 
+For remote servers: create `~/.nowledge-mem/config.json` with `{"apiUrl": "...", "apiKey": "..."}`.
+
 Run `/status` to check server connection.

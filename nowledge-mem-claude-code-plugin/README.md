@@ -68,7 +68,10 @@ The plugin works transparently in both modes:
 - **Remote** (Mem on different machine): Create `~/.nowledge-mem/config.json` with your connection settings. The `nmem` CLI reads this automatically.
 
 ```json
-{"apiUrl": "https://your-server:14242", "apiKey": "your-key"}
+{
+  "apiUrl": "https://your-server:14242",
+  "apiKey": "your-key"
+}
 ```
 
 You can also use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`), which override the config file.

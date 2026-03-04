@@ -62,4 +62,4 @@ The Working Memory briefing contains:
 
 If `nmem` is not in PATH: `pip install nmem-cli` or `pipx install nmem-cli`
 
-If Nowledge Mem is on a remote server, set `NMEM_API_URL` and `NMEM_API_KEY` environment variables.
+If Nowledge Mem is on a remote server, create `~/.nowledge-mem/config.json` with `{"apiUrl": "...", "apiKey": "..."}`, or set `NMEM_API_URL` and `NMEM_API_KEY` environment variables.

@@ -25,5 +25,5 @@ Shows:
 If status shows errors:
 
 1. **Server not running:** Start the Nowledge Mem desktop app, or run `nmem serve` on your server
-2. **Wrong API URL:** Set `NMEM_API_URL` environment variable (default: `http://localhost:14242`)
-3. **Auth failed (remote):** Set `NMEM_API_KEY` environment variable
+2. **Wrong API URL:** Create `~/.nowledge-mem/config.json` with `{"apiUrl": "..."}`, or set `NMEM_API_URL` env var (default: `http://localhost:14242`)
+3. **Auth failed (remote):** Add `"apiKey"` to config file, or set `NMEM_API_KEY` env var
