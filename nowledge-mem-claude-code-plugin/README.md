@@ -65,12 +65,13 @@ The `Stop` hook runs `nmem t save --from claude-code` in the background after ev
 The plugin works transparently in both modes:
 
 - **Local** (Mem on same machine): Working Memory read from API or local file. Sessions captured by both the desktop app file watcher and the Stop hook (idempotent).
-- **Remote** (Mem on different machine): The hooks use `nmem` CLI to communicate via API. Set environment variables:
+- **Remote** (Mem on different machine): Create `~/.nowledge-mem/config.json` with your connection settings. The `nmem` CLI reads this automatically.
 
-```bash
-export NMEM_API_URL=https://your-server:14242
-export NMEM_API_KEY=your-key
+```json
+{"apiUrl": "https://your-server:14242", "apiKey": "your-key"}
 ```
+
+You can also use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`), which override the config file.
 
 ## Update
 

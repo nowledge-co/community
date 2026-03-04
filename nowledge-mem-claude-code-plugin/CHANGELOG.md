@@ -5,7 +5,7 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.0] - 2026-03-02
+## [0.7.0] - 2026-03-04
 
 ### Added
 
@@ -15,11 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Plugin structure fixed** — `plugin.json` moved to `.claude-plugin/plugin.json` per Claude Code plugin spec. Ensures correct namespacing (`/nowledge-mem:search`, not `/nowledge-mem-claude-code-plugin:search`).
 - **SessionStart hooks now use `nmem wm read`** — fetches Working Memory via API (works for both local and remote), with fallback to `cat ~/ai-now/memory.md` for local-only setups
 - **SessionStart matcher broadened** — now covers `startup|resume|clear` (was `startup` only). Users resuming sessions or clearing context now get fresh Working Memory.
 - **Stop hook uses `async: true`** — proper Claude Code background execution instead of shell `&`
+- **Remote mode simplified** — config file (`~/.nowledge-mem/config.json`) replaces environment variable export. Set once, works everywhere.
 - **Trimmed skill token overhead** — replaced verbose troubleshooting sections with concise guidance and `/status` reference
-- **README rewritten** — from 452 lines to ~100 lines. Concise, accurate, reflects v0.7.0 capabilities.
+- **README rewritten** — concise, accurate, reflects v0.7.0 capabilities
 - **marketplace.json version synced** — was stuck at 0.5.0, now 0.7.0
 
 ### Fixed
