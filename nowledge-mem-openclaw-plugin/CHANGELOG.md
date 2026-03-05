@@ -2,6 +2,16 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.9] - 2026-03-05
+
+### Fixed
+
+- **Auto-recall searched with full prompt instead of user message**: `event.prompt` contains the entire conversation history (system prompt + all prior turns), making recalled memories irrelevant as conversation grows. Now uses a tiered query strategy: substantial messages (>=40 chars) search alone; short messages (3-39 chars, likely follow-ups like "explain that more") include the last 3 messages as context for topic grounding; tiny messages (<3 chars) skip recall. Falls back to truncated `event.prompt` (500 chars) only when `event.messages` is unavailable.
+
+### Added
+
+- **`recallMinScore` config option** (0-100, default 0): Minimum relevance score threshold for auto-recalled memories. Set to e.g. 30 to filter out low-confidence results. Configurable via OpenClaw Config UI, config file, or `NMEM_RECALL_MIN_SCORE` env var.
+
 ## [0.6.8] - 2026-02-27
 
 ### Changed

@@ -1,15 +1,15 @@
 {
 	"id": "openclaw-nowledge-mem",
-	"version": "0.6.8",
+	"version": "0.6.9",
 	"kind": "memory",
 	"uiHints": {
 		"sessionContext": {
 			"label": "Session context injection",
-			"help": "Inject Working Memory and relevant memories at prompt time. Off by default \u2014 the agent can call memory_search on demand instead."
+			"help": "Inject Working Memory and relevant memories at prompt time. Off by default; the agent can call memory_search on demand instead."
 		},
 		"sessionDigest": {
 			"label": "Session digest at end",
-			"help": "Capture conversation threads and distill key memories via LLM at session end. On by default \u2014 negligible cost, one triage call per session."
+			"help": "Capture conversation threads and distill key memories via LLM at session end. On by default. Negligible cost, one triage call per session."
 		},
 		"digestMinInterval": {
 			"label": "Minimum digest interval (seconds)",
@@ -17,7 +17,11 @@
 		},
 		"maxContextResults": {
 			"label": "Max context results",
-			"help": "How many memories to inject for each context cycle (1\u201320)"
+			"help": "How many memories to inject for each context cycle (1-20)"
+		},
+		"recallMinScore": {
+			"label": "Min recall score (%)",
+			"help": "Only inject memories with relevance score above this threshold (0-100). Set to 0 to include all results."
 		},
 		"apiUrl": {
 			"label": "Server URL (remote mode)",
@@ -25,7 +29,7 @@
 		},
 		"apiKey": {
 			"label": "API key (remote mode)",
-			"help": "Required when connecting to a remote server. Never logged or passed as a CLI argument \u2014 injected as NMEM_API_KEY env var only.",
+			"help": "Required when connecting to a remote server. Never logged or passed as a CLI argument. Injected as NMEM_API_KEY env var only.",
 			"secret": true
 		}
 	},
@@ -35,7 +39,7 @@
 			"sessionContext": {
 				"type": "boolean",
 				"default": false,
-				"description": "Inject Working Memory and recalled memories at prompt time. Off by default \u2014 the agent queries memory on demand via tools."
+				"description": "Inject Working Memory and recalled memories at prompt time. Off by default; the agent queries memory on demand via tools."
 			},
 			"sessionDigest": {
 				"type": "boolean",
@@ -55,6 +59,13 @@
 				"minimum": 1,
 				"maximum": 20,
 				"description": "Maximum memories to inject at prompt time (only used when sessionContext is enabled)"
+			},
+			"recallMinScore": {
+				"type": "integer",
+				"default": 0,
+				"minimum": 0,
+				"maximum": 100,
+				"description": "Minimum relevance score (0-100%) to include a memory in auto-recall. Set to 0 to include all results."
 			},
 			"apiUrl": {
 				"type": "string",

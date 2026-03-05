@@ -106,6 +106,9 @@ export function createStatusTool(client, _logger, cfg) {
 			lines.push(
 				`  maxContextResults: ${cfg.maxContextResults} (${sources.maxContextResults || "?"})`,
 			);
+			lines.push(
+				`  recallMinScore: ${cfg.recallMinScore}% (${sources.recallMinScore || "?"})`,
+			);
 
 			details.config = {
 				sessionContext: {
@@ -123,6 +126,10 @@ export function createStatusTool(client, _logger, cfg) {
 				maxContextResults: {
 					value: cfg.maxContextResults,
 					source: sources.maxContextResults,
+				},
+				recallMinScore: {
+					value: cfg.recallMinScore,
+					source: sources.recallMinScore,
 				},
 				apiUrl: { value: cfg.apiUrl || "(local)", source: sources.apiUrl },
 				apiKey: {

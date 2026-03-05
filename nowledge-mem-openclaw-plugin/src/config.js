@@ -19,6 +19,7 @@ const ALLOWED_KEYS = new Set([
 	"sessionDigest",
 	"digestMinInterval",
 	"maxContextResults",
+	"recallMinScore",
 	"apiUrl",
 	"apiKey",
 	// Legacy aliases — accepted but not advertised
@@ -135,7 +136,7 @@ function firstDefined(...options) {
  * will configure via OpenClaw's plugin settings UI (pluginConfig).
  *
  * Canonical keys: sessionContext, sessionDigest, digestMinInterval,
- *                 maxContextResults, apiUrl, apiKey
+ *                 maxContextResults, recallMinScore, apiUrl, apiKey
  *
  * Legacy aliases (accepted from all sources; never shown in docs):
  *   autoRecall → sessionContext
@@ -148,6 +149,7 @@ function firstDefined(...options) {
  *   NMEM_SESSION_DIGEST        — true/1/yes to enable (alias: NMEM_AUTO_CAPTURE)
  *   NMEM_DIGEST_MIN_INTERVAL   — seconds (0-86400)
  *   NMEM_MAX_CONTEXT_RESULTS   — integer (1-20)
+ *   NMEM_RECALL_MIN_SCORE      — integer (0-100)
  *   NMEM_API_URL               — remote server URL
  *   NMEM_API_KEY               — API key (never logged)
  */
@@ -234,6 +236,20 @@ export function parseConfig(raw, logger) {
 	const maxContextResults = Math.min(20, Math.max(1, Math.trunc(mcr.value)));
 	_sources.maxContextResults = mcr.source;
 
+	// --- recallMinScore: file > pluginConfig > env > default ---
+	const rmsEnv = envInt("NMEM_RECALL_MIN_SCORE");
+	const rms = firstDefined(
+		{ value: pickNum(resolvedFile, "recallMinScore"), source: "file" },
+		{
+			value: pickNum(resolvedPlugin, "recallMinScore"),
+			source: "pluginConfig",
+		},
+		{ value: rmsEnv, source: "env" },
+		{ value: 0, source: "default" },
+	);
+	const recallMinScore = Math.min(100, Math.max(0, Math.trunc(rms.value)));
+	_sources.recallMinScore = rms.source;
+
 	// --- apiUrl: file > pluginConfig > env > "" ---
 	const fileUrl =
 		typeof resolvedFile.apiUrl === "string" && resolvedFile.apiUrl.trim();
@@ -267,6 +283,7 @@ export function parseConfig(raw, logger) {
 		sessionDigest,
 		digestMinInterval,
 		maxContextResults,
+		recallMinScore,
 		apiUrl,
 		apiKey,
 		_sources,
