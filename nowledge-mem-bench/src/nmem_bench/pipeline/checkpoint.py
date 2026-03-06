@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
+
+
+def _filter_fields(cls: type, data: dict) -> dict:
+    """Filter dict to only keys that are valid dataclass fields."""
+    valid = {f.name for f in fields(cls)}
+    return {k: v for k, v in data.items() if k in valid}
 
 logger = logging.getLogger(__name__)
 
@@ -82,10 +88,10 @@ class RunCheckpoint:
         )
 
         for sid, cdata in data.get("conversations", {}).items():
-            cp.conversations[sid] = ConversationState(**cdata)
+            cp.conversations[sid] = ConversationState(**_filter_fields(ConversationState, cdata))
 
         for qid, qdata in data.get("questions", {}).items():
-            cp.questions[qid] = QuestionState(**qdata)
+            cp.questions[qid] = QuestionState(**_filter_fields(QuestionState, qdata))
 
         return cp
 

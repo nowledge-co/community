@@ -51,6 +51,7 @@ class LongMemEvalBenchmark:
         self.name = "longmemeval"
         self._data_dir = Path(data_dir) if data_dir else Path("data/longmemeval")
         self._items: list[dict[str, Any]] = []
+        self._by_id: dict[str, dict[str, Any]] = {}  # question_id → item lookup
 
     def load(self) -> None:
         """Load (and download if needed) the LongMemEval dataset."""
@@ -63,6 +64,7 @@ class LongMemEvalBenchmark:
         with open(data_file) as f:
             self._items = json.load(f)
 
+        self._by_id = {item["question_id"]: item for item in self._items}
         logger.info("Loaded LongMemEval: %d items", len(self._items))
 
     def _download(self, dest: Path) -> None:
@@ -142,10 +144,7 @@ class LongMemEvalBenchmark:
         return sessions
 
     def _find_item(self, question_id: str) -> dict[str, Any] | None:
-        for item in self._items:
-            if item["question_id"] == question_id:
-                return item
-        return None
+        return self._by_id.get(question_id)
 
     def stats(self) -> dict[str, Any]:
         all_q = self.get_questions()

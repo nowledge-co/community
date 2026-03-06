@@ -66,6 +66,28 @@ async def _generate_answer(
     return response.choices[0].message.content.strip()
 
 
+async def _answer_one(
+    q: UnifiedQuestion,
+    qstate: "QuestionState",
+    context: str,
+    model: str,
+    sem: asyncio.Semaphore,
+) -> None:
+    """Answer a single question with semaphore-bounded concurrency."""
+    from nmem_bench.pipeline.checkpoint import QuestionState
+
+    async with sem:
+        t0 = time.time()
+        try:
+            answer = await _generate_answer(q, context, model)
+            qstate.answer = answer
+            qstate.answer_latency_ms = (time.time() - t0) * 1000
+            qstate.phase = "answered"
+        except Exception as e:
+            qstate.error = f"Answer failed: {e}"
+            logger.error("Answer generation failed for %s: %s", q.question_id, e)
+
+
 def answer_questions(
     questions: list[UnifiedQuestion],
     checkpoint: RunCheckpoint,
@@ -73,13 +95,19 @@ def answer_questions(
     concurrency: int = 5,
     on_progress: callable = None,
 ) -> None:
-    """Generate answers for all searched questions."""
+    """Generate answers for all searched questions.
+
+    Uses asyncio.gather with a semaphore for bounded concurrent LLM calls.
+    Checkpoints after each batch.
+    """
     total = len(questions)
     answered = 0
 
     async def _process_batch(batch):
         nonlocal answered
+        sem = asyncio.Semaphore(concurrency)
         tasks = []
+
         for q in batch:
             qstate = checkpoint.get_question(q.question_id)
             if qstate.phase in ("answered", "evaluated"):
@@ -89,27 +117,19 @@ def answer_questions(
                 continue
 
             context = _format_context(qstate.search_results)
-            tasks.append((q, qstate, context))
+            tasks.append(_answer_one(q, qstate, context, model, sem))
 
-        for q, qstate, context in tasks:
-            t0 = time.time()
-            try:
-                answer = await _generate_answer(q, context, model)
-                qstate.answer = answer
-                qstate.answer_latency_ms = (time.time() - t0) * 1000
-                qstate.phase = "answered"
-            except Exception as e:
-                qstate.error = f"Answer failed: {e}"
-                logger.error("Answer generation failed for %s: %s", q.question_id, e)
+        if tasks:
+            await asyncio.gather(*tasks)
+            answered += len(tasks)
 
-            answered += 1
-            if on_progress:
-                on_progress(answered, total, q.question_id)
+        if on_progress:
+            on_progress(answered, total, "")
 
         checkpoint.save()
 
     # Process in batches for checkpointing
-    batch_size = concurrency * 2
+    batch_size = concurrency * 4
     for i in range(0, len(questions), batch_size):
         batch = questions[i : i + batch_size]
         asyncio.run(_process_batch(batch))

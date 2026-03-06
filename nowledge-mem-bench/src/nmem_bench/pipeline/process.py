@@ -10,16 +10,17 @@ from nmem_bench.pipeline.checkpoint import RunCheckpoint
 logger = logging.getLogger(__name__)
 
 
-def distill_locomo(
+def distill_threads(
     client: NmemClient,
     checkpoint: RunCheckpoint,
     extraction_level: str = "comprehensive",
     on_progress: callable = None,
 ) -> None:
-    """Distill memories from all ingested LoCoMo threads.
+    """Distill memories from all ingested threads.
 
-    Runs `nmem t distill` on each thread, then waits for background
-    Knowledge Agent processing (KG extraction, EVOLVES, crystals).
+    Finds all checkpoint conversations in "ingested" phase, runs
+    `nmem t distill` on each thread, and marks them "distilled".
+    Works for both LoCoMo and LongMemEval.
     """
     conversations = [
         (sid, c)

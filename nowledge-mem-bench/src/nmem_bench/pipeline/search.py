@@ -18,11 +18,13 @@ def search_questions(
     checkpoint: RunCheckpoint,
     search_mode: str = "normal",
     top_k: int = 10,
+    max_content_len: int = 2000,
     on_progress: callable = None,
 ) -> None:
     """Search for context for each question via nmem.
 
     For each question, calls `nmem m search` and records results + latency.
+    Content is truncated to max_content_len chars in checkpoint to bound size.
     """
     total = len(questions)
     searched = 0
@@ -47,7 +49,7 @@ def search_questions(
                 {
                     "memory_id": r.memory_id,
                     "title": r.title,
-                    "content": r.content[:500],  # Truncate for checkpoint size
+                    "content": r.content[:max_content_len],
                     "confidence": r.confidence,
                 }
                 for r in results

@@ -18,39 +18,21 @@ except ImportError:
     _stemmer = None
 
 
-# ── Tokenizer (from LoCoMo) ──
-
-class SimpleTokenizer:
-    ALPHA_NUM = r"[\p{L}\p{N}\p{M}]+"
-    NON_WS = r"[^\p{Z}\p{C}]"
-
-    def __init__(self):
-        self._regexp = regex.compile(
-            "(%s)|(%s)" % (self.ALPHA_NUM, self.NON_WS),
-            flags=regex.IGNORECASE + regex.UNICODE + regex.MULTILINE,
-        )
-
-    def tokenize(self, text: str, uncased: bool = False) -> list[str]:
-        matches = [m for m in self._regexp.finditer(text)]
-        if uncased:
-            return [m.group().lower() for m in matches]
-        return [m.group() for m in matches]
-
-
-_tokenizer = SimpleTokenizer()
-
-
 # ── Normalization ──
 
 def normalize_answer(s: str) -> str:
-    """Normalize answer text for comparison."""
+    """Normalize answer text for comparison.
+
+    Matches the exact order from LoCoMo reference (evaluation.py):
+    comma removal → lowercase → punctuation removal → article removal → whitespace fix.
+    """
     s = s.replace(",", "")
     s = s.lower()
-    # Remove articles
-    s = regex.sub(r"\b(a|an|the|and)\b", " ", s)
-    # Remove punctuation
+    # Remove punctuation (BEFORE articles — order matters for word boundaries)
     exclude = set(string.punctuation)
     s = "".join(ch for ch in s if ch not in exclude)
+    # Remove articles
+    s = regex.sub(r"\b(a|an|the|and)\b", " ", s)
     # Fix whitespace
     s = " ".join(s.split())
     return s
@@ -115,21 +97,10 @@ def evaluate_question(prediction: str, ground_truth: str, category: int) -> floa
     For LongMemEval question types, use the type name instead of numeric category.
     """
     if category == 5:
-        # Adversarial: check if prediction indicates absence
+        # Adversarial: binary abstention check.
+        # Matches LoCoMo reference exactly — only these 2 phrases.
         pred_lower = prediction.lower()
-        if any(
-            phrase in pred_lower
-            for phrase in [
-                "no information available",
-                "not mentioned",
-                "no information",
-                "i don't know",
-                "i don't have",
-                "cannot determine",
-                "not enough information",
-                "no relevant",
-            ]
-        ):
+        if "no information available" in pred_lower or "not mentioned" in pred_lower:
             return 1.0
         return 0.0
 

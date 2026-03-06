@@ -45,7 +45,7 @@ def _generate_run_id(config: RunConfig) -> str:
 def run_benchmark(config: RunConfig) -> Path:
     """Execute a full benchmark run and return the report path."""
     from nmem_bench.pipeline.ingest import ingest_locomo, ingest_longmemeval
-    from nmem_bench.pipeline.process import distill_locomo, wait_for_processing
+    from nmem_bench.pipeline.process import distill_threads, wait_for_processing
     from nmem_bench.pipeline.search import search_questions
     from nmem_bench.pipeline.answer import answer_questions
     from nmem_bench.pipeline.evaluate import evaluate_f1, evaluate_llm_judge
@@ -97,7 +97,7 @@ def run_benchmark(config: RunConfig) -> Path:
         # Phase 2: Process (distill + KG)
         if not config.skip_distill:
             logger.info("═══ Phase 2: PROCESS (distill + KG) ═══")
-            distill_locomo(
+            distill_threads(
                 client, checkpoint,
                 extraction_level=config.extraction_level,
                 on_progress=_progress,
@@ -131,9 +131,14 @@ def run_benchmark(config: RunConfig) -> Path:
             on_progress=_progress,
         )
 
-        # Phase 2: Process
+        # Phase 2: Process (distill + KG)
         if not config.skip_distill:
-            logger.info("═══ Phase 2: PROCESS ═══")
+            logger.info("═══ Phase 2: PROCESS (distill + KG) ═══")
+            distill_threads(
+                client, checkpoint,
+                extraction_level=config.extraction_level,
+                on_progress=_progress,
+            )
             wait_for_processing(
                 client, checkpoint,
                 timeout=config.process_timeout,

@@ -12,6 +12,8 @@ from nmem_bench.pipeline.checkpoint import RunCheckpoint
 
 logger = logging.getLogger(__name__)
 
+JUDGE_CONCURRENCY = 10
+
 
 def evaluate_f1(
     questions: list[UnifiedQuestion],
@@ -65,23 +67,17 @@ def evaluate_llm_judge(
     judge_model: str = "gpt-4o-mini",
     on_progress: callable = None,
 ) -> None:
-    """Evaluate answers using LLM-as-judge (secondary scoring)."""
+    """Evaluate answers using LLM-as-judge (secondary scoring).
+
+    Uses asyncio.gather with bounded concurrency for parallel judge calls.
+    """
     from nmem_bench.evaluation.llm_judge import judge_answer
 
     total = len(questions)
     judged = 0
 
-    async def _judge_batch(batch):
-        nonlocal judged
-        for q in batch:
-            qstate = checkpoint.get_question(q.question_id)
-            if qstate.llm_judge_score >= 0:
-                judged += 1
-                continue
-            if not qstate.answer:
-                judged += 1
-                continue
-
+    async def _judge_one(q, qstate, sem):
+        async with sem:
             try:
                 result = await judge_answer(
                     question=q.question,
@@ -97,12 +93,30 @@ def evaluate_llm_judge(
             except Exception as e:
                 logger.error("LLM judge failed for %s: %s", q.question_id, e)
 
-            judged += 1
-            if on_progress:
-                on_progress(judged, total, q.question_id)
+    async def _judge_batch(batch):
+        nonlocal judged
+        sem = asyncio.Semaphore(JUDGE_CONCURRENCY)
+        tasks = []
 
-    # Process in batches
-    batch_size = 20
+        for q in batch:
+            qstate = checkpoint.get_question(q.question_id)
+            if qstate.llm_judge_score >= 0:
+                judged += 1
+                continue
+            if not qstate.answer:
+                judged += 1
+                continue
+            tasks.append(_judge_one(q, qstate, sem))
+
+        if tasks:
+            await asyncio.gather(*tasks)
+            judged += len(tasks)
+
+        if on_progress:
+            on_progress(judged, total, "")
+
+    # Process in batches for checkpointing
+    batch_size = JUDGE_CONCURRENCY * 4
     for i in range(0, len(questions), batch_size):
         batch = questions[i : i + batch_size]
         asyncio.run(_judge_batch(batch))

@@ -90,14 +90,24 @@ def ingest_longmemeval(
 
     Each question's haystack sessions become threads.
     Deduplicates sessions that appear in multiple questions.
+    Thread IDs are stored in a single ConversationState keyed as "__longmemeval__".
     """
+    conv_state = checkpoint.get_conversation("__longmemeval__")
+    if conv_state.phase in ("ingested", "distilled", "processed"):
+        logger.info("LongMemEval already ingested (%s)", conv_state.phase)
+        return
+
     questions = benchmark.get_questions()
     if question_ids:
         questions = [q for q in questions if q.question_id in question_ids]
 
     # Collect all unique sessions across questions
     ingested_sessions: set[str] = set()
+    thread_ids: list[str] = []
     total = len(questions)
+
+    stats = client.stats()
+    conv_state.memory_count_before = stats.memory_count
 
     with tempfile.TemporaryDirectory(prefix="nmem-bench-lme-") as tmp_dir:
         tmp_path = Path(tmp_dir)
@@ -115,7 +125,8 @@ def ingest_longmemeval(
                     title += f" ({session.date})"
 
                 try:
-                    client.thread_create_from_file(title=title, file_path=md_path)
+                    info = client.thread_create_from_file(title=title, file_path=md_path)
+                    thread_ids.append(info.thread_id)
                     ingested_sessions.add(session.session_id)
                 except Exception as e:
                     logger.error("Failed to ingest session %s: %s", session.session_id, e)
@@ -123,7 +134,11 @@ def ingest_longmemeval(
             if on_progress:
                 on_progress(idx + 1, total, question.question_id)
 
+    conv_state.thread_ids = thread_ids
+    conv_state.phase = "ingested"
+    checkpoint.save()
+
     logger.info(
-        "Ingested %d unique sessions for %d questions",
-        len(ingested_sessions), total,
+        "Ingested %d unique sessions (%d threads) for %d questions",
+        len(ingested_sessions), len(thread_ids), total,
     )
