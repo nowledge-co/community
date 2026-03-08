@@ -23,6 +23,10 @@
 			"label": "Min recall score (%)",
 			"help": "Only inject memories with relevance score above this threshold (0-100). Set to 0 to include all results."
 		},
+		"maxThreadMessageChars": {
+			"label": "Max thread message chars",
+			"help": "Maximum characters preserved per captured OpenClaw thread message (200-20000). Higher values keep more of long messages in Nowledge thread history."
+		},
 		"apiUrl": {
 			"label": "Server URL (remote mode)",
 			"help": "Leave empty for local mode (default: http://127.0.0.1:14242). Set to your remote server URL for cross-device or team access. See: https://docs.nowledge.co/docs/remote-access"
@@ -66,6 +70,13 @@
 				"minimum": 0,
 				"maximum": 100,
 				"description": "Minimum relevance score (0-100%) to include a memory in auto-recall. Set to 0 to include all results."
+			},
+			"maxThreadMessageChars": {
+				"type": "integer",
+				"default": 800,
+				"minimum": 200,
+				"maximum": 20000,
+				"description": "Maximum characters preserved per captured OpenClaw thread message before truncation."
 			},
 			"apiUrl": {
 				"type": "string",

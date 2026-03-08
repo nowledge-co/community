@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-const MAX_MESSAGE_CHARS = 800;
+const DEFAULT_MAX_MESSAGE_CHARS = 800;
 const MAX_DISTILL_MESSAGE_CHARS = 2000;
 const MAX_CONVERSATION_CHARS = 30_000;
 const MIN_MESSAGES_FOR_DISTILL = 4;
@@ -23,7 +23,7 @@ function _setLastCapture(threadId, now) {
 	}
 }
 
-function truncate(text, max = MAX_MESSAGE_CHARS) {
+function truncate(text, max = DEFAULT_MAX_MESSAGE_CHARS) {
 	const str = String(text || "").trim();
 	if (!str) return "";
 	return str.length > max ? `${str.slice(0, max)}…` : str;
@@ -48,7 +48,7 @@ function extractText(content) {
 	return parts.join("\n").trim();
 }
 
-function normalizeRoleMessage(raw) {
+function normalizeRoleMessage(raw, maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS) {
 	if (!raw || typeof raw !== "object") return null;
 	const msg =
 		raw.message && typeof raw.message === "object" ? raw.message : raw;
@@ -80,7 +80,7 @@ function normalizeRoleMessage(raw) {
 
 	return {
 		role,
-		content: truncate(text),
+		content: truncate(text, maxMessageChars),
 		fullContent: text,
 		timestamp,
 		externalHint,
@@ -170,7 +170,7 @@ async function resolveHookMessages(event) {
 	return loadMessagesFromSessionFile(sessionFile);
 }
 
-async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
+async function appendOrCreateThread({ client, logger, event, ctx, reason, maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS }) {
 	const rawMessages = await resolveHookMessages(event);
 	if (!Array.isArray(rawMessages) || rawMessages.length === 0) return;
 
@@ -178,7 +178,9 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason }) {
 	const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "session");
 	const sessionId = String(ctx?.sessionId || "").trim();
 	const title = buildThreadTitle(ctx, reason);
-	const normalized = rawMessages.map(normalizeRoleMessage).filter(Boolean);
+	const normalized = rawMessages
+		.map((message) => normalizeRoleMessage(message, maxMessageChars))
+		.filter(Boolean);
 	if (normalized.length === 0) return;
 
 	const messages = normalized.map((message, index) => ({
@@ -291,6 +293,7 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 			event,
 			ctx,
 			reason: "agent_end",
+			maxMessageChars: cfg.maxThreadMessageChars,
 		});
 
 		// 2. Triage + distill: language-agnostic LLM-based capture.
@@ -376,6 +379,13 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 export function buildBeforeResetCaptureHandler(client, _cfg, logger) {
 	return async (event, ctx) => {
 		const reason = typeof event?.reason === "string" ? event.reason : undefined;
-		await appendOrCreateThread({ client, logger, event, ctx, reason });
+		await appendOrCreateThread({
+			client,
+			logger,
+			event,
+			ctx,
+			reason,
+			maxMessageChars: _cfg?.maxThreadMessageChars,
+		});
 	};
 }
