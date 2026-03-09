@@ -47,6 +47,20 @@ Cursor's docs say to submit the repository link at:
 
 Before submitting, confirm the repository is public and that the root `.cursor-plugin/marketplace.json` still points to `nowledge-mem-cursor-plugin`.
 
+## Recommended Publish Form Values
+
+Use stable, package-specific values when filling the submission form:
+
+- Organization name: `Nowledge Labs`
+- Organization handle: `nowledge-labs`
+- Contact email: `hello@nowledge-labs.ai`
+- GitHub repository: `https://github.com/nowledge-co/community`
+- Website URL: `https://mem.nowledge.co/docs/integrations/cursor`
+- Logo URL: `https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-cursor-plugin/assets/logo.png`
+- Short description: `Bring Working Memory, memory recall, and handoff summaries into Cursor with Nowledge Mem.`
+
+Prefer the docs page over the site homepage for the website field so reviewers land directly on setup instructions. Prefer the raw GitHub logo URL over ephemeral upload links so the asset remains stable during review.
+
 ## Submission Checklist
 
 - run `node scripts/validate-plugin.mjs`

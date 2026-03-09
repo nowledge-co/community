@@ -5,13 +5,13 @@
     "email": "hello@nowledge-labs.ai"
   },
   "metadata": {
-    "description": "Community Cursor plugins for Nowledge Mem."
+    "description": "Official Cursor plugins from Nowledge Labs."
   },
   "plugins": [
     {
       "name": "nowledge-mem",
-      "source": "nowledge-mem-cursor-plugin",
-      "description": "Cursor plugin for Nowledge Mem with bundled MCP config, rules, skills, and honest save-handoff semantics."
+      "source": "./nowledge-mem-cursor-plugin",
+      "description": "Bring Working Memory, memory recall, and handoff summaries into Cursor with Nowledge Mem."
     }
   ]
 }

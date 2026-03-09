@@ -108,8 +108,9 @@ async function main() {
   if (!entry) {
     fail('community marketplace manifest must include this plugin by name');
   }
-  if (entry.source !== path.basename(pluginRoot)) {
-    fail(`marketplace source for ${manifest.name} must be ${path.basename(pluginRoot)}`);
+  const expectedSource = path.basename(pluginRoot);
+  if (entry.source !== expectedSource && entry.source !== `./${expectedSource}`) {
+    fail(`marketplace source for ${manifest.name} must be ${expectedSource} or ./${expectedSource}`);
   }
 
   console.log('Validated Cursor plugin manifest, package structure, MCP config, and community marketplace manifest.');

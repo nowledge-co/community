@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "description": "Cursor plugin for Nowledge Mem with MCP-backed recall, Working Memory, distillation, and resumable handoffs.",
+  "description": "Bring Working Memory, memory recall, and handoff summaries into Cursor with Nowledge Mem.",
   "version": "0.1.1",
   "author": {
     "name": "Nowledge Labs",
