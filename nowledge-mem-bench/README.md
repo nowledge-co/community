@@ -1,5 +1,7 @@
 # nmem-bench
 
+> **Status: WIP**
+
 Open-source benchmark for personal memory systems. Evaluates memory retrieval quality using established academic datasets via the `nmem` CLI.
 
 ## Supported Benchmarks
