@@ -93,7 +93,7 @@ Act proactively but judiciously.
 
 ### Auto-Save Sessions with Hooks
 
-For Claude Code, add to `.claude/config.json`:
+For Claude Code, add to `.claude/settings.json`:
 
 ```json
 {
