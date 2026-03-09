@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def distill_threads(
     client: NmemClient,
     checkpoint: RunCheckpoint,
-    extraction_level: str = "comprehensive",
+    extraction_level: str = "guided",
     on_progress: callable = None,
 ) -> None:
     """Distill memories from all ingested threads.

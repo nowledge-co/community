@@ -61,7 +61,7 @@ Run a full benchmark pipeline (ingest → distill → search → answer → eval
 | `-k`, `--top-k` | `10` | Top-K search results per question |
 | `--answer-model` | `gpt-4o-mini` | LLM for answer generation |
 | `--judge-model` | `gpt-4o-mini` | LLM for judge evaluation |
-| `--extraction-level` | `comprehensive` | Distillation: `swift` or `comprehensive` |
+| `--extraction-level` | `guided` | Distillation depth: `swift` (fast) or `guided` (thorough) |
 | `-s`, `--sample` | all | LoCoMo sample ID(s) to evaluate |
 | `-l`, `--limit` | all | Max questions to evaluate |
 | `--skip-distill` | false | Skip distillation (use existing memories) |

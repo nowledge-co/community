@@ -37,7 +37,7 @@ def main(verbose: bool) -> None:
 @click.option("-k", "--top-k", default=10, help="Top-K search results")
 @click.option("--answer-model", default="gpt-4o-mini", help="LLM model for answer generation")
 @click.option("--judge-model", default="gpt-4o-mini", help="LLM model for judge evaluation")
-@click.option("--extraction-level", type=click.Choice(["swift", "comprehensive"]), default="comprehensive")
+@click.option("--extraction-level", type=click.Choice(["swift", "guided"]), default="guided")
 @click.option("-s", "--sample", multiple=True, help="LoCoMo sample IDs (e.g. conv-26)")
 @click.option("-l", "--limit", type=int, default=None, help="Limit number of questions")
 @click.option("--skip-distill", is_flag=True, help="Skip distillation (use pre-existing memories)")

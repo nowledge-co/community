@@ -165,15 +165,16 @@ class NmemClient:
     def thread_distill(
         self,
         thread_id: str,
-        extraction_level: str = "comprehensive",
+        extraction_level: str = "guided",
     ) -> dict[str, Any]:
         """Distill memories from a thread.
 
         Returns the raw distillation response (memory object + metadata).
+        Valid extraction levels: "swift" (fast) or "guided" (multi-step, thorough).
         """
         args = [
             "t", "distill", thread_id,
-            "--extraction-level", extraction_level,
+            "--level", extraction_level,
         ]
         return self._run(args, timeout=180)
 
@@ -288,11 +289,13 @@ class NmemClient:
         initial_stats: Stats | None = None,
         timeout: int = 300,
         poll_interval: int = 10,
+        min_wait: int = 15,
     ) -> Stats:
         """Wait for background processing to settle.
 
-        Polls stats until memory and entity counts stabilize
-        (unchanged for 2 consecutive intervals).
+        After distillation, the Knowledge Agent needs time to start processing.
+        We wait at least `min_wait` seconds before polling, then require counts
+        to stabilize for 2 consecutive intervals.
         """
         if initial_stats is None:
             initial_stats = self.stats()
@@ -301,6 +304,12 @@ class NmemClient:
         last_entity_count = initial_stats.entity_count
         stable_count = 0
         elapsed = 0
+
+        # Wait before first poll to let background processing start
+        if min_wait > 0:
+            logger.debug("Initial wait %ds for processing to begin...", min_wait)
+            time.sleep(min_wait)
+            elapsed += min_wait
 
         while elapsed < timeout:
             time.sleep(poll_interval)

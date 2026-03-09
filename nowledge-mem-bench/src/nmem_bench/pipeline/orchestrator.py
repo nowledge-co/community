@@ -25,7 +25,7 @@ class RunConfig:
     top_k: int = 10
     answer_model: str = "gpt-4o-mini"
     judge_model: str = "gpt-4o-mini"
-    extraction_level: str = "comprehensive"
+    extraction_level: str = "guided"
     sample_ids: list[str] | None = None  # LoCoMo: filter to specific conversations
     limit: int | None = None  # Limit number of questions
     skip_distill: bool = False
@@ -59,6 +59,13 @@ def run_benchmark(config: RunConfig) -> Path:
     # Load or create checkpoint
     if checkpoint_path.exists():
         checkpoint = RunCheckpoint.load(checkpoint_path)
+        # Validate checkpoint matches current config
+        if checkpoint.benchmark != config.benchmark:
+            raise ValueError(
+                f"Checkpoint benchmark mismatch: checkpoint has '{checkpoint.benchmark}' "
+                f"but config specifies '{config.benchmark}'. "
+                f"Use a different --run-id or delete {checkpoint_path}"
+            )
         logger.info("Resuming run %s", run_id)
     else:
         checkpoint = RunCheckpoint(
