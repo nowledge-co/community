@@ -1,0 +1,33 @@
+---
+description: Nowledge Mem lifecycle for Cursor
+globs:
+alwaysApply: true
+---
+Use Nowledge Mem as the primary external memory system in Cursor.
+
+## Memory Lifecycle
+
+1. Read Working Memory at session start or when current priorities matter.
+2. Route recall across distilled memories and conversation threads.
+3. Distill durable knowledge into atomic memories.
+4. Use handoff summaries when the user explicitly asks for a resumable checkpoint.
+
+## Retrieval Routing
+
+- Use `read_working_memory` for the user's current focus and recent context.
+- Use `memory_search` first for durable knowledge, decisions, procedures, and facts.
+- Use `thread_search` when the user is asking about a prior discussion, previous session, or exact conversation history.
+- When a memory result includes `source_thread_id` or thread search finds the likely conversation, use `thread_fetch_messages` progressively rather than loading huge conversations all at once.
+
+## Writing Rules
+
+- Use `memory_add` for durable decisions, lessons, procedures, and preferences.
+- Do not present a summary-only save as a real transcript import.
+- Cursor does not yet have a first-class Nowledge live session importer here, so do not claim `save-thread` exists in this plugin.
+- If the user explicitly asks for a checkpoint or resumable summary, create a handoff via the terminal with `nmem --json t create ...` when `nmem` is available.
+
+## Response Contract
+
+- Be explicit about provenance when you used Working Memory, memory search, or thread search.
+- Prefer the smallest retrieval surface that answers the question.
+- Avoid dumping long threads when one page of messages is enough.
