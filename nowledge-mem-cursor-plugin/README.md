@@ -6,10 +6,10 @@ This package follows Cursor's plugin format with `.cursor-plugin/plugin.json`, b
 
 ## What You Get
 
-- MCP-backed `read_working_memory`, `memory_search`, `thread_search`, `thread_fetch_messages`, and `memory_add`
-- Cursor rule for routed recall across memories and threads
+- MCP-backed `read_working_memory`, `memory_search`, `thread_search`, `thread_fetch_messages`, `memory_add`, and `memory_update`
+- Cursor rules for Working Memory timing, proactive recall, retrieval routing, and add-vs-update behavior
 - Four skills: `read-working-memory`, `search-memory`, `distill-memory`, and `save-handoff`
-- Honest lifecycle contract: Working Memory, routed recall, distillation, and handoff summaries
+- A clear lifecycle: Working Memory, routed recall, distillation, and resumable handoffs
 
 ## Important Constraint
 
@@ -48,6 +48,15 @@ For remote Mem, adjust the MCP server URL and headers using Cursor's MCP configu
 If Nowledge Mem is running on the same machine through the desktop app, install `nmem` from **Settings -> Preferences -> Developer Tools -> Install CLI**.
 
 That enables the `save-handoff` skill to create resumable handoff threads with `nmem --json t create`.
+
+## Why The Rules Matter
+
+Cursor can see the tools, but the bundled rules and skills tell it when to use them:
+
+- read Working Memory once near the beginning of a session
+- search proactively when the user references previous work or a similar bug
+- search threads only when exact prior conversation history matters
+- update an existing memory instead of duplicating it when the same decision evolves
 
 ## Validate Locally
 

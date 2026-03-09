@@ -52,32 +52,32 @@ If the command succeeds but returns `exists: false`, there is no Working Memory 
 Only fall back to the legacy file below for older local-only setups where the user still keeps Working Memory there:
 
 ```bash
-cat ~/ai-now/memory.md
+test -f ~/ai-now/memory.md && cat ~/ai-now/memory.md
 ```
 
-Summarize only the parts that matter for the current task: active projects, priorities, blockers, and the next likely actions.
+Read Working Memory once near the start of a session, then reuse that context mentally. Do not re-read on every turn unless the user asks, the session context changed materially, or a long-running session clearly needs a refresh.
 
 ## Search Memory
 
 Search past knowledge when:
 
-- the current task connects to previous work
-- the user asks why a choice was made
-- the problem resembles a past bug, design, or workflow
+- the user references previous work, a prior fix, or an earlier decision
+- the task resumes a named feature, bug, refactor, incident, or subsystem
+- a debugging pattern resembles something solved earlier
+- the user asks for rationale, preferences, procedures, or recurring workflow details
+- the current result is ambiguous and prior context would make the answer sharper
 
-Start with a short retrieval query:
+Start with durable recall:
 
 ```bash
 nmem --json m search "query"
 ```
 
-If the recall need is conceptual, historical, or the first pass is weak, try a deeper pass:
+If the recall need is conceptual or the first pass is weak, use deep search:
 
 ```bash
 nmem --json m search "query" --mode deep
 ```
-
-Use labels, importance thresholds, or recorded/event-date filters when the task clearly implies them.
 
 If the user is really asking about a previous conversation or session, search threads directly:
 
@@ -91,17 +91,23 @@ If a memory search result includes `source_thread`, or thread search finds the l
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-Increase `--offset` only when more messages are actually needed.
+Prefer the smallest retrieval surface that answers the question.
 
 ## Distill Memory
 
-When the conversation produces a durable insight, decision, lesson, or procedure, save an atomic memory with strong metadata:
+Distill only durable knowledge worth keeping after the current session ends.
+
+Use `memory_add` for genuinely new decisions, procedures, lessons, preferences, or plans:
 
 ```bash
 nmem --json m add "Insight with enough context to stand on its own." -t "Searchable title" -i 0.8 --unit-type decision -l project-name -s gemini-cli
 ```
 
-Prefer `decision`, `procedure`, `learning`, `preference`, or `plan` when they fit better than the default `fact`. Use labels only when they materially help retrieval.
+If an existing memory already captures the same decision, workflow, or preference and the new information refines it, update that memory instead of creating a duplicate:
+
+```bash
+nmem m update <id> -t "Updated title"
+```
 
 ## Save Thread
 

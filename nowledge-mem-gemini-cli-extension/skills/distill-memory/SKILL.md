@@ -5,36 +5,19 @@ description: Detect breakthrough moments, durable lessons, and decisions worth p
 
 # Distill Memory
 
-Save knowledge that future you would be glad to find.
+Store only knowledge that should remain useful after the current session ends.
 
-This Gemini integration is CLI-first. Use direct `nmem` commands rather than introducing extra layers.
+## Good Candidates
 
-## Worth Saving
+- decisions with rationale
+- repeatable procedures
+- lessons from debugging or incident work
+- durable preferences or constraints
+- plans that future sessions will need to resume cleanly
 
-- A debugging breakthrough
-- A design or architecture decision with rationale
-- A counterintuitive lesson
-- A reusable procedure or workflow
-- A preference that will matter again
+## Add vs Update
 
-## Not Worth Saving
+- Use `nmem --json m add` when the insight is genuinely new.
+- If an existing memory already captures the same decision, workflow, or preference and the new information refines it, use `nmem m update <id> ...` instead of creating a duplicate.
 
-- Routine edits
-- Partial work with no conclusion
-- Generic information
-- Verbose transcripts
-
-## Command
-
-```bash
-nmem --json m add "Insight with enough context to stand alone." -t "Searchable title" -i 0.8 --unit-type learning -l project-name -s gemini-cli
-```
-
-Use `decision`, `procedure`, `learning`, `preference`, or `plan` when that makes retrieval sharper than the default `fact`. Add labels only when they materially help future search.
-
-## Quality Bar
-
-- atomic, not multi-topic
-- standalone, not dependent on the chat transcript
-- focused on what was learned or decided
-- clear enough to reuse months later
+Prefer atomic, standalone memories with strong titles and structured meaning. Focus on what was learned or decided, not routine chatter.
