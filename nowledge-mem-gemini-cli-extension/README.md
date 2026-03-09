@@ -112,6 +112,8 @@ Save that to:
 
 If you need a temporary override for one Gemini session, launch Gemini from a shell where `NMEM_API_URL` and `NMEM_API_KEY` are already exported. For durable setup, keep using `~/.nowledge-mem/config.json`.
 
+For thread save in remote mode, the important detail is that `nmem t save --from gemini-cli` reads Gemini's local session files on the machine running Gemini, then uploads the normalized thread messages to Mem. The remote Mem server does not need direct access to your `~/.gemini` directory.
+
 ## Direct `nmem` Use Is Always Allowed
 
 The bundled commands are convenience paths, not a cage. Gemini should freely compose direct `nmem` commands when that is clearer or more flexible.

@@ -76,6 +76,8 @@ The plugin works transparently in both modes:
 
 You can also use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`), which override the config file.
 
+In remote mode, the Stop hook still reads Claude session files locally through `nmem t save --from claude-code` on the machine where Claude Code is running, then uploads the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` directory.
+
 ## Update
 
 ```bash
