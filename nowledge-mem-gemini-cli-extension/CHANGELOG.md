@@ -5,6 +5,19 @@ All notable changes to the Nowledge Mem Gemini CLI extension will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-03-09
+
+### Changed
+
+- Clarified the remote-mode contract so real thread save is explicitly described as client-side transcript capture through `nmem`, not server-side filesystem access
+- Sharpened release readiness around hook validation, release packaging, and user-facing documentation for the marketplace path
+- Polished command, skill, README, website, and lifecycle wording so Working Memory, routed recall, real thread save, distillation, and handoff summaries present one coherent product model
+
+### Fixed
+
+- Corrected the Gemini hook schema to use the top-level `hooks` object Gemini expects during extension linking
+- Ensured `save-handoff` remains the resumable-summary surface while `save-thread` remains reserved for the real Gemini transcript importer
+
 ## [0.1.0] - 2026-03-07
 
 ### Added

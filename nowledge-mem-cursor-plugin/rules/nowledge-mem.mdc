@@ -10,7 +10,7 @@ Use Nowledge Mem as the primary external memory system in Cursor.
 1. Read Working Memory at session start or when current priorities matter.
 2. Route recall across distilled memories and conversation threads.
 3. Distill durable knowledge into atomic memories.
-4. Use handoff summaries when the user explicitly asks for a resumable checkpoint.
+4. Use `save-handoff` only when the user explicitly asks for a resumable checkpoint or handoff summary.
 
 ## Retrieval Routing
 
@@ -24,7 +24,7 @@ Use Nowledge Mem as the primary external memory system in Cursor.
 - Use `memory_add` for durable decisions, lessons, procedures, and preferences.
 - Do not present a summary-only save as a real transcript import.
 - Cursor does not yet have a first-class Nowledge live session importer here, so do not claim `save-thread` exists in this plugin.
-- If the user explicitly asks for a checkpoint or resumable summary, create a handoff via the terminal with `nmem --json t create ...` when `nmem` is available.
+- If the user explicitly asks for a checkpoint or resumable summary, use `save-handoff` semantics and create a handoff via the terminal with `nmem --json t create ...` when `nmem` is available.
 
 ## Response Contract
 

@@ -1,13 +1,20 @@
 {
   "name": "nowledge-mem",
   "description": "Cursor plugin for Nowledge Mem with MCP-backed recall, Working Memory, distillation, and resumable handoffs.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",
     "url": "https://nowledge-labs.ai"
   },
-  "homepage": "https://mem.nowledge.co/",
-  "repository": "https://github.com/nowledge-co/community.git",
-  "license": "MIT"
+  "homepage": "https://mem.nowledge.co/docs/integrations/cursor",
+  "repository": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-cursor-plugin",
+  "license": "MIT",
+  "keywords": [
+    "cursor",
+    "memory",
+    "knowledge-graph",
+    "mcp",
+    "nowledge"
+  ]
 }

@@ -1,0 +1,17 @@
+{
+  "name": "nowledge-community",
+  "owner": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai"
+  },
+  "metadata": {
+    "description": "Community Cursor plugins for Nowledge Mem."
+  },
+  "plugins": [
+    {
+      "name": "nowledge-mem",
+      "source": "nowledge-mem-cursor-plugin",
+      "description": "Cursor plugin for Nowledge Mem with bundled MCP config, rules, skills, and honest save-handoff semantics."
+    }
+  ]
+}

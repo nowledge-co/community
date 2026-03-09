@@ -63,17 +63,17 @@ nowledge-mem-gemini-cli-extension-v*
 Example:
 
 ```bash
-git tag nowledge-mem-gemini-cli-extension-v0.1.0
-git push origin nowledge-mem-gemini-cli-extension-v0.1.0
+git tag nowledge-mem-gemini-cli-extension-v0.1.1
+git push origin nowledge-mem-gemini-cli-extension-v0.1.1
 ```
 
 ## Initial Public Release
 
 For the first public release, use:
 
-- tag: `nowledge-mem-gemini-cli-extension-v0.1.0`
-- release title: `Nowledge Mem Gemini CLI Extension v0.1.0`
-- release notes source: `release-notes/0.1.0.md`
+- tag: `nowledge-mem-gemini-cli-extension-v0.1.1`
+- release title: `Nowledge Mem Gemini CLI Extension v0.1.1`
+- release notes source: `release-notes/0.1.1.md`
 - workflow behavior: the release workflow verifies that the pushed tag matches `package.json` and publishes the matching `release-notes/<version>.md` file as the GitHub Release body
 
 ## Installation After Release
@@ -81,7 +81,7 @@ For the first public release, use:
 Once the tagged GitHub Release exists, Gemini users can install from the repository and ref:
 
 ```bash
-gemini extensions install github.com/nowledge-co/community --ref nowledge-mem-gemini-cli-extension-v0.1.0
+gemini extensions install github.com/nowledge-co/community --ref nowledge-mem-gemini-cli-extension-v0.1.1
 ```
 
 Gemini's own release docs say GitHub Releases are supported as install sources, and the workflow-created archive is shaped specifically for that path.

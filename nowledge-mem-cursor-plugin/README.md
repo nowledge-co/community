@@ -49,9 +49,20 @@ If Nowledge Mem is running on the same machine through the desktop app, install 
 
 That enables the `save-handoff` skill to create resumable handoff threads with `nmem --json t create`.
 
+## Validate Locally
+
+Run the package validator before manual Cursor testing or marketplace submission:
+
+```bash
+cd community/nowledge-mem-cursor-plugin
+node scripts/validate-plugin.mjs
+```
+
 ## Install
 
 This package is prepared for Cursor's plugin format and Cursor Marketplace review. Until it is published in the marketplace, use the plugin directory as the installable source of truth together with Cursor's plugin workflow.
+
+Release and submission notes live in [`RELEASING.md`](./RELEASING.md).
 
 ## Why This Design
 
