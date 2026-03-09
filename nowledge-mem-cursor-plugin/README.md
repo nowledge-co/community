@@ -60,7 +60,7 @@ node scripts/validate-plugin.mjs
 
 ## Install
 
-This package is prepared for Cursor's plugin format and Cursor Marketplace review. Until it is published in the marketplace, use the plugin directory as the installable source of truth together with Cursor's plugin workflow.
+This package is prepared for Cursor's plugin format and Cursor Marketplace review. Cursor's public docs currently center the marketplace install path and repository submission flow, not a stable documented local folder-loader. Treat this directory as the source-of-truth package for manual validation before publish, then install through the marketplace once the listing is live.
 
 Release and submission notes live in [`RELEASING.md`](./RELEASING.md).
 

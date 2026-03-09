@@ -10,7 +10,7 @@
 
 ### Changed
 
-- Tightened marketplace-facing plugin metadata with a docs-specific homepage, package-specific repository URL, and explicit keywords
+- Tightened marketplace-facing plugin metadata with a docs-specific homepage, package-specific repository URL, explicit keywords, a display name, and an in-package logo asset
 - Clarified the rule contract so `save-handoff` is named explicitly and `save-thread` remains unavailable until Cursor has a real Nowledge live session importer
 - Clarified the README around local validation and release workflow
 

@@ -16,5 +16,7 @@
     "knowledge-graph",
     "mcp",
     "nowledge"
-  ]
+  ],
+  "displayName": "Nowledge Mem",
+  "logo": "assets/logo.png"
 }

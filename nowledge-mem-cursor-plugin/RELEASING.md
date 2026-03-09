@@ -32,7 +32,7 @@ This validator checks:
 
 These still require a real Cursor IDE validation pass before submission:
 
-- install/load the plugin through Cursor's current plugin workflow
+- manually validate the package in Cursor IDE using your current internal development workflow for unpublished plugins
 - confirm the rule is applied and all four skills are discovered
 - confirm MCP connects locally
 - confirm remote MCP configuration works when URL and headers are updated
@@ -53,7 +53,7 @@ Before submitting, confirm the repository is public and that the root `.cursor-p
 - review `README.md` for accurate install/configuration instructions
 - confirm `plugin.json` metadata is final: name, description, author, homepage, repository, license
 - confirm the repository-level `.cursor-plugin/marketplace.json` is valid and committed
-- manually test in Cursor IDE with local Mem
+- manually test in Cursor IDE with local Mem (do not rely on an undocumented public folder-loader claim)
 - manually test in Cursor IDE with remote Mem MCP configuration
 - verify that `save-handoff` is present and `save-thread` is not claimed
 - submit the repository link through Cursor's marketplace publish page

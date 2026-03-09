@@ -37,6 +37,7 @@ async function main() {
 
   assertString(manifest.name, 'plugin.json name');
   assertString(manifest.version, 'plugin.json version');
+  assertString(manifest.displayName ?? manifest.name, 'plugin.json displayName or name');
   assertString(manifest.description, 'plugin.json description');
   assertString(manifest.homepage, 'plugin.json homepage');
   assertString(manifest.repository, 'plugin.json repository');
@@ -50,6 +51,14 @@ async function main() {
     fail('plugin.json author must be an object');
   }
   assertString(manifest.author.name, 'plugin.json author.name');
+
+  if (manifest.logo !== undefined) {
+    assertString(manifest.logo, 'plugin.json logo');
+    if (path.isAbsolute(manifest.logo) || manifest.logo.includes('..')) {
+      fail('plugin.json logo must be a relative in-package path');
+    }
+    await assertNonEmpty(manifest.logo);
+  }
 
   if (manifest.keywords !== undefined) {
     if (!Array.isArray(manifest.keywords) || manifest.keywords.length === 0) {
