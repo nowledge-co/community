@@ -16,7 +16,7 @@ Use Nowledge Mem as the primary external memory system.
 2. `nowledge_mem_search` for focused retrieval with filters.
 3. `nowledge_mem_show` for full detail on selected memory IDs — includes `sourceThreadId`.
 4. `nowledge_mem_thread_search` / `nowledge_mem_thread_show` for conversation history.
-5. When a memory has a `sourceThreadId`, use `nowledge_mem_thread_show` to read the full source conversation.
+5. When a memory has a `sourceThreadId`, use `nowledge_mem_thread_show` or `nmem --json t show` progressively: start with the first page and fetch more only if the current page is not enough.
 
 For writes:
 
@@ -42,8 +42,10 @@ If neither plugin tools nor Bash are available, state the exact blocker once and
 ## Query Heuristics
 
 - Trigger retrieval when user asks about prior decisions, historical context, previous threads, “what did we do before,” or asks to continue prior work.
+- Start with memory/query search for distilled knowledge, and use thread search when the user is really asking about conversation history.
 - Start normal mode first; use deep mode only when normal retrieval misses likely context.
 - Prefer narrower queries over broad vague queries.
+- Avoid dumping a huge thread when one page of messages is enough to answer.
 
 ## Write Heuristics
 

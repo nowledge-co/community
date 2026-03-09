@@ -337,6 +337,7 @@ To change settings, use the OpenClaw plugin settings UI. Changes take effect on 
 | `sessionDigest` | boolean | `true` | Thread capture + LLM distillation at session end |
 | `digestMinInterval` | integer | `300` | Minimum seconds between session digests for the same thread (0-86400) |
 | `maxContextResults` | integer | `5` | Max memories to inject at prompt time (1-20, only used when sessionContext is enabled) |
+| `recallMinScore` | integer | `0` | Min relevance score (0-100%) to include in auto-recall. 0 = include all |
 | `apiUrl` | string | `""` | Remote server URL. Empty = local (`http://127.0.0.1:14242`) |
 | `apiKey` | string | `""` | API key for remote access. Injected as `NMEM_API_KEY` env var, never logged |
 
@@ -350,6 +351,7 @@ For persistent or scripted config, create `~/.nowledge-mem/openclaw.json`:
   "sessionDigest": true,
   "digestMinInterval": 300,
   "maxContextResults": 5,
+  "recallMinScore": 0,
   "apiUrl": "",
   "apiKey": ""
 }
@@ -366,6 +368,7 @@ NMEM_SESSION_CONTEXT=true
 NMEM_SESSION_DIGEST=true
 NMEM_DIGEST_MIN_INTERVAL=300
 NMEM_MAX_CONTEXT_RESULTS=5
+NMEM_RECALL_MIN_SCORE=0
 NMEM_API_URL=https://...
 NMEM_API_KEY=your-key
 ```

@@ -29,11 +29,13 @@ description: Read your daily Working Memory briefing to understand current conte
 
 ## Usage
 
-Read the Working Memory file directly:
+Read Working Memory with `nmem` first:
 
 ```bash
-cat ~/ai-now/memory.md
+nmem --json wm read
 ```
+
+If it succeeds but reports `exists: false`, say there is no Working Memory briefing yet. Only fall back to `~/ai-now/memory.md` for older local-only setups.
 
 ### What You'll Find
 
@@ -56,9 +58,9 @@ The Working Memory briefing contains:
 
 ```bash
 # Read today's briefing
-cat ~/ai-now/memory.md
+nmem --json wm read
 
-# Check if the file exists first
+# Legacy local-only fallback
 test -f ~/ai-now/memory.md && cat ~/ai-now/memory.md || echo "No Working Memory found. Ensure Nowledge Mem is running with Background Intelligence enabled."
 ```
 

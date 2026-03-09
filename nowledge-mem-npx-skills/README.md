@@ -10,9 +10,9 @@
 
 These skills extend your AI coding agent with persistent memory capabilities powered by [Nowledge Mem](https://mem.nowledge.co):
 
-- **Search Memory** - Automatically surface relevant context from your knowledge base
+- **Search Memory** - Automatically route recall across distilled memories and prior discussion threads
 - **Read Working Memory** - Load your daily briefing at session start for cross-tool continuity
-- **Save Thread** - Persist complete coding sessions for future reference
+- **Save Handoff** - Leave resumable handoff summaries in generic agent environments
 - **Distill Memory** - Capture breakthrough moments as searchable insights
 
 ## Installation
@@ -101,9 +101,9 @@ Agent: [Automatically searches knowledge base]
 Found it! We solved this 2 weeks ago. The issue was token expiration...
 ```
 
-### Save Thread (`save-thread`)
+### Save Handoff (`save-handoff`)
 
-Saves complete conversations as checkpoints for future reference.
+Saves a structured resumable handoff for future reference.
 
 **Activates when you say:**
 - "Save this session"
@@ -114,10 +114,10 @@ Saves complete conversations as checkpoints for future reference.
 ```
 You: Save this session - implemented JWT authentication
 
-Agent: ✓ Thread saved
-Summary: Implemented JWT authentication
-Messages: 23
-Thread ID: claude-code-abc123
+Agent: ✓ Handoff saved
+Title: Session Handoff - JWT authentication
+Summary: Goal, Decisions, Files, Risks, Next
+Thread ID: generic-agent-abc123
 ```
 
 ### Read Working Memory (`read-working-memory`)
@@ -130,7 +130,7 @@ Loads your daily Working Memory briefing at session start so the agent knows you
 
 **Example:**
 ```
-[Agent reads ~/ai-now/memory.md at session start]
+[Agent reads Working Memory at session start]
 
 Agent: I see you're focused on the auth migration and have an
 unresolved flag about the session handling approach. Want me to
@@ -168,14 +168,74 @@ nmem --json m search "React patterns"
 "What do I know about database optimization?"
 ```
 
-### Save a Session
+### Memory Lifecycle
+
+The reusable skills follow the same core flow as the richer native integrations: read Working Memory, route recall across memories and threads, save a resumable handoff when asked, and distill durable knowledge.
+
+## Make Agents Use Memory Proactively
+
+Native integrations like Claude Code, Gemini CLI, Cursor, OpenClaw, and Alma already bundle the behavioral guidance that teaches the agent when to read context, search, or save.
+
+For less common agents, custom harnesses, or environments that only see `nmem`, skills, or MCP tools, you should add explicit intent guidance in `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or the system prompt.
+
+### Step 1: Give The Agent A Memory Surface
+
+Use one of these:
+
+- `npx skills` for shared skill-based behavior
+- `nmem` CLI for terminal-visible commands
+- MCP when the client can call tools directly
+
+### Step 2: Add An Intent Policy
+
+For CLI or skill-driven agents, paste a policy like this into `AGENTS.md` or your system prompt:
+
+```markdown
+## Nowledge Mem
+
+Use Nowledge Mem as your external memory system.
+
+At session start:
+- Run `nmem --json wm read` once to load current priorities and recent context.
+- Do not re-read it on every turn unless the user asks or the session context changed materially.
+
+Search proactively when:
+- the user references previous work, a prior fix, or an earlier decision
+- the task resumes a named feature, bug, refactor, or subsystem
+- a debugging pattern resembles something solved earlier
+- the user asks for rationale, preferences, procedures, or recurring workflow details
+
+Retrieval routing:
+- Start with `nmem --json m search` for durable knowledge.
+- Use `nmem --json t search` when the user is asking about a prior discussion or exact conversation history.
+- If a memory result includes `source_thread`, inspect that conversation progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
+
+When preserving knowledge:
+- Use `nmem --json m add` for genuinely new durable knowledge.
+- If an existing memory already captures the same decision, preference, or workflow and the new information refines it, use `nmem m update <id> ...` instead of creating a duplicate.
+- Use a handoff save only when the user explicitly asks for a resumable checkpoint or handoff summary.
+```
+
+For MCP-only agents, use the same policy but replace the commands with the tool names `read_working_memory`, `memory_search`, `thread_search`, `thread_fetch_messages`, `memory_add`, and `memory_update`.
+
+### Step 3: Keep The Prompt Direct
+
+The best intent prompts are short and operational. Tell the agent exactly:
+
+- when to read Working Memory
+- when to search proactively
+- when to use thread tools instead of memory search
+- when to add a new memory versus update an existing one
+- when handoff save is explicit-only
+
+### Save a Handoff
 
 ```bash
 # Via CLI
-nmem t save --from claude-code -s "Implemented user auth"
+nmem --json t create -t "Session Handoff - auth refactor" -c "Goal: finish auth refactor. Decisions: keep refresh verification in the API layer. Files: auth.ts, auth.test.ts. Risks: remote expiry path still unverified. Next: run the remote flow." -s generic-agent
 
 # In conversation
-"Save this session - fixed memory leak in event listeners"
+"Save a handoff for this debugging session"
 ```
 
 ### Create a Memory
@@ -190,7 +250,7 @@ nmem m add "PostgreSQL over MongoDB: ACID needed for transactions" \
 
 ### Claude Code Plugin (Full Featured)
 
-For Claude Code users, the full plugin with slash commands is also available:
+For Claude Code users, the full plugin with slash commands and real session import is also available:
 
 ```bash
 claude plugin marketplace add nowledge-co/community

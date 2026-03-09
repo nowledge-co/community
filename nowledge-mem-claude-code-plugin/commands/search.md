@@ -39,5 +39,7 @@ Returns matching memories with:
 ## Usage Tips
 
 - Use specific keywords that match stored memory titles
-- Check `source_thread` to view the full original conversation
+- If the user is asking about a prior conversation or session, also try `nmem --json t search "$ARGUMENTS" --limit 5`
+- If a result has `source_thread`, inspect that thread progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`
+- Page with a higher `--offset` only when more messages are actually needed
 - Higher scores indicate better semantic matches

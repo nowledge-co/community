@@ -1,0 +1,21 @@
+prompt = """
+Load the user's Working Memory briefing before continuing.
+
+Use the shell tool to try:
+
+```bash
+nmem --json wm read
+```
+
+If the command succeeds but reports that no Working Memory exists yet, say that clearly.
+
+Only if `nmem` is unavailable in an older local-only setup, fall back to:
+
+```bash
+cat ~/ai-now/memory.md
+```
+
+Then summarize the user's active focus areas, priorities, unresolved flags, and the most relevant recent changes when a briefing is actually present.
+
+If remote access is configured through `~/.nowledge-mem/config.json`, let `nmem` use it naturally. Do not assume environment variables are the only auth path.
+"""

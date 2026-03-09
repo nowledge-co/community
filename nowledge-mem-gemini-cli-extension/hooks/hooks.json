@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "name": "load-working-memory",
+            "type": "command",
+            "command": "node \"${extensionPath}${/}hooks${/}session-start.mjs\"",
+            "description": "Load Working Memory into Gemini at session start.",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "name": "auto-save-thread",
+            "type": "command",
+            "command": "node \"${extensionPath}${/}hooks${/}session-end.mjs\"",
+            "description": "Best-effort Gemini session import on shutdown.",
+            "timeout": 20000
+          }
+        ]
+      }
+    ]
+  }
+}

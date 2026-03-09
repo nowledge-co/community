@@ -55,6 +55,20 @@ nmem --json m search "meeting notes" -t week
 
 **JSON Response:** Parse `memories` array, check `score` field for relevance
 
+Use thread search when the user is really asking about a prior conversation, previous session, or exact discussion:
+
+```bash
+nmem --json t search "query" --limit 5
+```
+
+If a memory result includes `source_thread` or thread search finds the likely conversation, inspect it progressively instead of loading the whole thread at once:
+
+```bash
+nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
+```
+
+Increase `--offset` only when more messages are actually needed.
+
 **Scores:** 0.6-1.0 direct | 0.3-0.6 related | <0.3 skip
 
 **Examples:**

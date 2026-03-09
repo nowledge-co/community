@@ -4,7 +4,7 @@
 
 <img src="https://github.com/user-attachments/assets/fbf6f921-ff0a-40dc-be43-8f9b0d66cb09" width="200" alt="Nowledge Community Logo">
 
-**Support, feedback, and community hub for Nowledge Labs products**
+**Community integrations for [Nowledge Mem](https://mem.nowledge.co)**
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=flat&logo=discord&logoColor=white)](https://nowled.ge/discord)
 [![Docs](https://img.shields.io/badge/Docs-Read-orange?style=flat&logo=readthedocs&logoColor=white)](https://nowled.ge/mem-docs)
@@ -13,111 +13,60 @@
 
 </div>
 
-## ⚡ Nowledge Communities
+## Integrations
 
-### Nowledge Mem
+Each directory is a standalone integration. Pick the one that matches your tool.
 
-[![Get Mem](https://img.shields.io/badge/Get-Mem-00A3A3?style=flat&logo=rocket&logoColor=white)](https://mem.nowledge.co/)
+| Integration | Install | What it does |
+|-------------|---------|--------------|
+| **[Skills](nowledge-mem-npx-skills)** | `npx skills add nowledge-co/community/nowledge-mem-npx-skills` | Reusable workflow package for Working Memory, routed recall, resumable handoffs, and distillation. Prefer native packages when your tool has one. |
+| **[Claude Code Plugin](nowledge-mem-claude-code-plugin)** | `claude plugin marketplace add nowledge-co/community` then `claude plugin install nowledge-mem@nowledge-community` | Claude Code native plugin with hooks for Working Memory bootstrap, routed recall, and automatic session capture. |
+| **[Gemini CLI Extension](nowledge-mem-gemini-cli-extension)** | `cd nowledge-mem-gemini-cli-extension && gemini extensions link .` | Gemini-native context, hooks, commands, and skills for Working Memory, routed recall, real thread save, and handoff summaries. |
+| **[Cursor Plugin](nowledge-mem-cursor-plugin)** | Use the packaged Cursor plugin directory with Cursor's plugin workflow | Cursor-native plugin package with bundled MCP config, rules, Working Memory, routed recall, distillation, and honest `save-handoff` semantics. |
+| **[Codex Prompts](nowledge-mem-codex-prompts)** | Copy `AGENTS.md` to your project | Codex-native workflow pack for Working Memory, routed recall, real session save, and distillation. |
+| **[OpenClaw Plugin](nowledge-mem-openclaw-plugin)** | `openclaw plugins install @nowledge/openclaw-nowledge-mem` | Full memory lifecycle with memory tools, thread tools, automatic capture, and distillation. |
+| **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with Working Memory, thread-aware recall, structured saves, and optional auto-capture. |
+| **[Raycast Extension](nowledge-mem-raycast)** | Search Nowledge in Raycast Extension Store | Search memories from Raycast launcher. |
+| **[MCP](#direct-mcp)** | For tools without a dedicated Nowledge package, use [direct MCP](#direct-mcp). | Standard memory and thread tools exposed through one shared MCP server. |
 
-A **local-first, graph-augmented personal context manager** that preserves conversations and insights from your AI interactions. Stop opening 5 chatbot apps to find *that one conversation*. Type → found.
+## Direct MCP
 
-Mem persists entire conversation threads across all your AI tools while also distilling key insights into searchable memories. Everything connected through an intelligent knowledge graph.
-
-**Privacy-first. Graph-native. AI-integrated.**
-
-#### Ways to Use Mem
-
-##### Capture Knowledge
-
-- **🤖 MCP Integration** | Works with [Claude Code](https://github.com/nowledge-co/community/tree/main/nowledge-mem-claude-code-plugin), [Claude Desktop](https://github.com/nowledge-co/claude-dxt), [Cursor](https://mem.nowledge.co/docs/integrations), Github Copilot, Gemini CLI, Qwen Code & more, [ref config](./mcp.json)
-- **🌐 Browser Extension** | One-click imports from ChatGPT, Claude, Gemini, Perplexity (Chrome, Edge)
-- **📂 Thread Import** | Upload conversation files from Cursor, ChatWise, Markdown exports or Claude Code/Codex command
-
-> [!NOTE]
-> General MCP Configuration:
+Add to your tool's MCP settings:
 
 ```json
 {
   "mcpServers": {
     "nowledge-mem": {
       "url": "http://localhost:14242/mcp",
-      "type": "streamableHttp",
-      "headers": {
-        "APP": "<MCP Client App Name here>"
-      }
+      "type": "streamableHttp"
     }
   }
 }
 ```
 
-##### Access Your Knowledge
+See [mcp.json](mcp.json) for the reference config.
 
-- **⌨️ Global Launcher (⌘⇧K)** | Paste memories anywhere without leaving your workflow
-- **🔍 In-App Search** | Deep exploration with semantic search, keywords, and graph navigation
-- **🤝 Agent Access** | Let AI agents autonomously search and save memories during tasks
+## Requirements
 
-##### Advanced Features
+- [Nowledge Mem](https://mem.nowledge.co) running locally
+- `nmem` CLI on your PATH: if Mem is running on the same machine, install it from **Settings > Preferences > Developer Tools > Install CLI** in the app, or use `pip install nmem-cli` for a standalone setup
 
-- **🕸️ Knowledge Graph** | Auto-extract entities and relationships for semantic connections
-- **🎯 Topic Clustering** | Discover natural groupings and expertise areas via graph algorithms
-- **📊 Visual Exploration** | Interactive graph view to explore connections and patterns
+```bash
+nmem status   # verify Nowledge Mem is running
+```
 
-### Open Knowledge Layer
+## Links
 
-[![GitHub](https://img.shields.io/badge/GitHub-OpenKL-181717?style=flat&logo=github&logoColor=white)](https://github.com/nowledge-co/OpenKL)
-
-An **open-source unified protocol** enabling AI agents to access and interact with personal knowledge. **CLI-ready** and file-based for seamless integration with tools like Claude Code. Built for broader knowledge management: massive document collections, entire codebases, and external knowledge corpus with automatic chunking.
-
-## 🚀 Quick Links
-
-### Nowledge Mem Community
-
-- 📚 **[Documentation](https://mem.nowledge.co/docs)** | Learn how to use Nowledge Mem
-- 📖 **[Blog Post](https://www.nowledge-labs.ai/blog/nowledge-mem)** | Deep dive into our vision
-- 🔌 **Claude Code Plugin** | Install via marketplace:
-
-  ```bash
-  claude plugin marketplace add nowledge-co/community
-  claude plugin install nowledge-mem@nowledge-community
-  ```
-
-- 🛠️ **npx Skills** | Install to any supported agent (Claude Code, Cursor, OpenCode, Codex, etc.):
-
-  ```bash
-  npx skills add nowledge-co/community/nowledge-mem-npx-skills
-  ```
-
-- 🐾 **OpenClaw Plugin** | Install for [OpenClaw](https://openclaw.ai) agents:
-
-  ```bash
-  openclaw plugin add @nowledge/openclaw-nowledge-mem
-  ```
-
-- 🧠 **Alma Plugin** | Install local plugin for [Alma](https://alma.now):
-
-  ```bash
-  cd nowledge-mem-alma-plugin && npm install
-  ```
-
-- 🔍 **Raycast Extension** | Search memories from [Raycast](https://raycast.com):
-
-  ```bash
-  cd nowledge-mem-raycast && npm install && npm run dev
-  ```
-
-- 🐛 **[Report Bug](https://github.com/nowledge-co/community/issues/new?template=bug_report.md)** | Found an issue? Let us know
-- 💡 **[Request Feature](https://github.com/nowledge-co/community/issues/new?template=feature_request.md)** | Share your ideas
-- 💌 **[Send Feedback](mailto:hello@nowledge-labs.ai)** | We'd love to hear from you
-
-### Open Knowledge Layer Community
-
-- 🔗 **[GitHub Repository](https://nowled.ge/kl)** | Explore the open-source project
-- 💬 **[Join Discord](https://nowled.ge/discord)** | Connect with users and the team
+- [Documentation](https://mem.nowledge.co/docs)
+- [Blog](https://www.nowledge-labs.ai/blog/nowledge-mem)
+- [Report a Bug](https://github.com/nowledge-co/community/issues/new?template=bug_report.md)
+- [Request a Feature](https://github.com/nowledge-co/community/issues/new?template=feature_request.md)
+- [hello@nowledge-labs.ai](mailto:hello@nowledge-labs.ai)
 
 ---
 
 <div align="center">
 
-**Built with ❤️ by [Nowledge Labs](https://nowledge-labs.ai)**
+**Built by [Nowledge Labs](https://nowledge-labs.ai)**
 
 </div>

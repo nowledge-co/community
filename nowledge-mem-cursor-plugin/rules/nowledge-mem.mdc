@@ -1,0 +1,43 @@
+---
+description: Nowledge Mem lifecycle for Cursor
+globs:
+alwaysApply: true
+---
+Use Nowledge Mem as the primary external memory system in Cursor.
+
+## Working Memory
+
+- Read Working Memory once near session start, resume, or when the user explicitly asks about current priorities.
+- After reading it, reuse that context mentally. Do not re-read on every turn unless the session context changed materially, the user asks for a refresh, or a long-running session clearly needs it.
+
+## When To Recall Proactively
+
+Call recall tools when past knowledge would materially improve the answer, especially when:
+
+- the user says "continue", "resume", "what did we decide", "how did we fix this before", or otherwise references previous work
+- a bug, refactor, migration, or feature resembles something solved earlier
+- the user asks for rationale, preferences, procedures, or recurring workflow details
+- the task returns to a named repo area, subsystem, feature, incident, or customer context
+- the current result is ambiguous and prior decisions or conversation history would clarify it
+
+## Retrieval Routing
+
+- Use `memory_search` first for durable knowledge: decisions, procedures, lessons, preferences, and facts.
+- Use `thread_search` when the user is asking about a prior discussion, previous session, or exact conversation history.
+- If memory search returns a likely result with `source_thread_id`, or thread search identifies the right discussion, use `thread_fetch_messages` progressively instead of loading a huge conversation all at once.
+- Prefer the smallest retrieval surface that answers the question.
+
+## Writing Rules
+
+- Use `memory_add` for new durable knowledge worth reusing later.
+- If recall already surfaced the same decision, preference, or workflow and the new information refines or corrects it, use `memory_update` instead of creating a duplicate.
+- Distill only decisions, procedures, lessons, or preferences that should remain useful after the current session ends.
+- Never present a summary-only save as a real transcript import.
+- Cursor does not yet expose a real Nowledge live session importer in this plugin, so do not claim `save-thread` exists here.
+- Use `save-handoff` only when the user explicitly asks for a resumable checkpoint or handoff summary.
+
+## Response Contract
+
+- Be explicit about whether you relied on Working Memory, memory recall, or thread recall.
+- Avoid repeated Working Memory reads or broad thread fetches when one targeted lookup is enough.
+- When `nmem` is available and the user explicitly asks for a resumable handoff, create it through the terminal with `nmem --json t create ...`.

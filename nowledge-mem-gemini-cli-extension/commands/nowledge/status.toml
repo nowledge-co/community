@@ -1,0 +1,17 @@
+prompt = """
+Check whether Nowledge Mem is reachable from Gemini CLI.
+
+Use the shell tool to run:
+
+```bash
+nmem status
+```
+
+Summarize:
+- whether the CLI can reach Mem
+- the effective API URL
+- the config source reported by `nmem` (`env`, `config`, or `default`)
+- whether a config file is present or malformed
+- whether remote auth appears to be set when the API URL is remote
+- the next concrete fix if setup is broken
+"""

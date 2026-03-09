@@ -1,6 +1,6 @@
 ---
 name: Save Thread
-description: Save complete conversation as checkpoint. Only when user explicitly requests ("save session", "checkpoint this"). Use nmem t save to automatically import Claude Code sessions.
+description: Save the real Claude Code session messages only when the user explicitly requests it. Use nmem t save to import the recorded session, not a summary-only checkpoint.
 ---
 
 # Save Thread
@@ -44,7 +44,7 @@ nmem t save --from claude-code -p /path/to/project
 
 ## Thread vs Memory
 
-Thread = full history | Memory = distilled insights (different purposes, can do both)
+Thread = real session messages | Memory = distilled insights (different purposes, can do both)
 
 ## Response
 

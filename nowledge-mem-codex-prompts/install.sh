@@ -71,7 +71,7 @@ install_prompt() {
 
 # Install prompts with error handling
 failed=0
-for prompt in "read_working_memory.md" "save_session.md" "distill.md"; do
+for prompt in "read_working_memory.md" "search_memory.md" "save_session.md" "distill.md"; do
     if ! install_prompt "$prompt"; then
         failed=1
     fi
@@ -176,3 +176,6 @@ echo ""
 echo "📋 Installed prompts:"
 ls -lh "$PROMPTS_DIR"/*.md 2>/dev/null | awk '{print "   " $9}' | sed "s|$PROMPTS_DIR/|   |" || echo "   No prompts installed"
 echo ""
+
+echo "💡 Optional: copy or merge AGENTS.md from the package into your project root for stronger default memory behavior."
+echo "   https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/AGENTS.md"

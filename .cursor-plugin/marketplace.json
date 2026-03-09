@@ -1,0 +1,17 @@
+{
+  "name": "nowledge-community",
+  "owner": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai"
+  },
+  "metadata": {
+    "description": "Official Cursor plugins from Nowledge Labs."
+  },
+  "plugins": [
+    {
+      "name": "nowledge-mem",
+      "source": "./nowledge-mem-cursor-plugin",
+      "description": "Bring Working Memory, memory recall, and handoff summaries into Cursor with Nowledge Mem."
+    }
+  ]
+}

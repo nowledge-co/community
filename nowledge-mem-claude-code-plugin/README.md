@@ -26,13 +26,13 @@ On Windows/Linux with the Nowledge Mem desktop app, `nmem` is already bundled.
 **Automatic (no action needed):**
 
 - Working Memory briefing loaded at every session start, resume, and clear
-- Per-turn behavioral nudge with search/save syntax
+- Per-turn behavioral nudge with memory search, thread search, and save syntax
 - Session conversations captured to your knowledge graph on each response
 - Context recovered after compaction events
 
 **Autonomous skills (Claude acts on its own):**
 
-- **Search Memory** -- searches past work when you reference it
+- **Search Memory** -- searches both distilled memories and prior sessions when continuity matters
 - **Distill Memory** -- suggests saving breakthroughs and decisions
 - **Read Working Memory** -- loads your daily context briefing
 
@@ -75,6 +75,8 @@ The plugin works transparently in both modes:
 ```
 
 You can also use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`), which override the config file.
+
+In remote mode, the Stop hook still reads Claude session files locally through `nmem t save --from claude-code` on the machine where Claude Code is running, then uploads the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` directory.
 
 ## Update
 

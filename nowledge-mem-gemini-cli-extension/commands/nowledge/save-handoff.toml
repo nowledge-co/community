@@ -1,0 +1,16 @@
+prompt = """
+Save a concise handoff summary of the current Gemini CLI session to Nowledge Mem.
+
+This command is intentionally a handoff-summary action, not a full thread importer.
+
+If the user wants the real Gemini session messages, use `/nowledge:save-thread` instead.
+
+Workflow:
+
+1. Write a short structured handoff with these fields: Goal, Decisions, Files, Risks, Next.
+2. Use the shell tool to create a handoff thread with `nmem --json t create -s gemini-cli`.
+3. Use a title in the form `Gemini CLI Session - <topic>`.
+4. Return the created handoff title and the summary that was stored.
+
+Keep the handoff concise, honest, and useful for resuming work later.
+"""

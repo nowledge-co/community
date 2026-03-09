@@ -38,6 +38,12 @@ nmem m add "Insight + context for future use" \
   -i 0.8
 ```
 
+If an existing memory already captures the same decision, workflow, or preference and the new information refines it, update that memory instead of creating a duplicate:
+
+```bash
+nmem m update <id> -t "Updated title"
+```
+
 **Content:** Outcome/insight focus, include "why", enough context
 
 **Importance:** 0.8-1.0 major | 0.5-0.7 useful | 0.3-0.4 minor

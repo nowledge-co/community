@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nowledge-mem": {
+      "url": "http://localhost:14242/mcp",
+      "type": "streamableHttp"
+    }
+  }
+}

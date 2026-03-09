@@ -13,20 +13,148 @@ function escapeForPrompt(text) {
 	);
 }
 
+/** Max query length sent to search — longer messages get truncated. */
+const MAX_QUERY_LENGTH = 500;
+
 /**
- * Builds the before_agent_start hook handler.
+ * Messages shorter than this get augmented with recent conversational
+ * context. Below this threshold, a message is likely referential
+ * ("explain that more", "what about the second point?") and needs
+ * surrounding context to produce useful search results.
  *
- * Injects two layers of context at session start:
+ * Messages at or above this threshold are substantial enough to
+ * search on their own ("openviking 不好用", "how do I deploy to k8s?").
+ */
+const SHORT_QUERY_THRESHOLD = 40;
+
+/** How many recent messages to include for short-query context. */
+const CONTEXT_MESSAGES = 3;
+
+/** Per-message cap when building context window. */
+const CONTEXT_MSG_MAX_CHARS = 150;
+
+/**
+ * Extract text from message content (string or structured blocks).
+ * Mirrors the pattern from capture.js.
+ */
+function extractText(content) {
+	if (typeof content === "string") return content.trim();
+	if (!Array.isArray(content)) return "";
+	const parts = [];
+	for (const block of content) {
+		if (!block || typeof block !== "object") continue;
+		if (block.type === "text" && typeof block.text === "string") {
+			const text = block.text.trim();
+			if (text) parts.push(text);
+		}
+	}
+	return parts.join("\n").trim();
+}
+
+/**
+ * Normalize a raw message entry to { role, text }.
+ * Handles both flat { role, content } and nested { message: { role, content } }.
+ * Returns null for non-user/assistant messages, empty content, or slash commands.
+ */
+function normalizeMessage(raw) {
+	if (!raw || typeof raw !== "object") return null;
+	const msg =
+		raw.message && typeof raw.message === "object" ? raw.message : raw;
+	const role = typeof msg.role === "string" ? msg.role : "";
+	if (role !== "user" && role !== "assistant") return null;
+	const text = extractText(msg.content);
+	if (!text) return null;
+	// Skip slash commands — they're plugin directives, not conversational
+	if (role === "user" && text.startsWith("/")) return null;
+	return { role, text };
+}
+
+/**
+ * Build the search query from the hook event.
+ *
+ * Three tiers:
+ *   >= 40 chars : latest user message alone (self-contained)
+ *   3-39 chars  : latest user message + recent context (likely referential)
+ *   < 3 chars   : skip recall (too short — "ok", emoji, etc.)
+ *
+ * The event object provides:
+ * - event.messages: structured array of {role, content} messages (preferred)
+ * - event.prompt: the full formatted prompt (fallback, truncated)
+ */
+function buildSearchQuery(event) {
+	const messages = event?.messages;
+
+	if (Array.isArray(messages) && messages.length > 0) {
+		// Find the latest user message (walk backwards)
+		let latestUserIdx = -1;
+		let latestUserText = "";
+		for (let i = messages.length - 1; i >= 0; i--) {
+			const norm = normalizeMessage(messages[i]);
+			if (norm && norm.role === "user") {
+				latestUserIdx = i;
+				latestUserText = norm.text;
+				break;
+			}
+		}
+
+		if (!latestUserText || latestUserText.length < 3) return "";
+
+		// Substantial message — use it alone
+		if (latestUserText.length >= SHORT_QUERY_THRESHOLD) {
+			return latestUserText.slice(0, MAX_QUERY_LENGTH);
+		}
+
+		// Short message — likely a follow-up. Add recent context so
+		// the search engine sees what topic the conversation is about.
+		// Collect up to CONTEXT_MESSAGES messages preceding the latest user
+		// message (both user and assistant, for topic grounding).
+		const contextParts = [];
+		const scanFrom = Math.max(0, latestUserIdx - CONTEXT_MESSAGES);
+		for (let i = scanFrom; i < latestUserIdx; i++) {
+			const norm = normalizeMessage(messages[i]);
+			if (!norm) continue;
+			const truncated =
+				norm.text.length > CONTEXT_MSG_MAX_CHARS
+					? `${norm.text.slice(0, CONTEXT_MSG_MAX_CHARS)}…`
+					: norm.text;
+			contextParts.push(truncated);
+		}
+
+		if (contextParts.length > 0) {
+			// Latest message first (primary intent), then context
+			const combined = `${latestUserText}\n\n${contextParts.join("\n")}`;
+			return combined.slice(0, MAX_QUERY_LENGTH);
+		}
+
+		// No prior context available (first message) — use as-is
+		return latestUserText;
+	}
+
+	// Fallback: use event.prompt but truncate aggressively.
+	// This path only fires when OpenClaw doesn't provide event.messages.
+	if (typeof event?.prompt === "string" && event.prompt.length >= 5) {
+		return event.prompt.slice(0, MAX_QUERY_LENGTH);
+	}
+
+	return "";
+}
+
+/**
+ * Builds the before_prompt_build hook handler.
+ *
+ * Injects two layers of context at prompt time:
  * 1. Working Memory — today's focus, priorities, unresolved flags
- * 2. Relevant memories — with types, labels, and source provenance
+ * 2. Relevant memories — searched using the user's latest message
  *
  * Tool guidance is minimal — the agent already sees full tool descriptions
  * in its tool list. We only add a brief behavioral note.
  */
 export function buildRecallHandler(client, cfg, logger) {
+	const minScore = (cfg.recallMinScore ?? 0) / 100; // config is 0-100, API is 0-1
+
 	return async (event) => {
-		const prompt = event.prompt;
-		if (!prompt || prompt.length < 5) return;
+		const searchQuery = buildSearchQuery(event);
+		if (!searchQuery) return;
 
 		const sections = [];
 
@@ -44,9 +172,17 @@ export function buildRecallHandler(client, cfg, logger) {
 
 		// 2. Relevant memories — enriched with scoring signals and labels
 		try {
-			const results = await client.searchRich(prompt, cfg.maxContextResults);
-			if (results.length > 0) {
-				const lines = results.map((r) => {
+			const results = await client.searchRich(
+				searchQuery,
+				cfg.maxContextResults,
+			);
+			// Filter by minimum score if configured
+			const filtered =
+				minScore > 0
+					? results.filter((r) => (r.score ?? 0) >= minScore)
+					: results;
+			if (filtered.length > 0) {
+				const lines = filtered.map((r) => {
 					const title = r.title || "(untitled)";
 					const score = `${(r.score * 100).toFixed(0)}%`;
 					const labels =
@@ -82,7 +218,9 @@ export function buildRecallHandler(client, cfg, logger) {
 			"</nowledge-mem>",
 		].join("\n");
 
-		logger.debug?.(`recall: injecting ${context.length} chars`);
+		logger.debug?.(
+			`recall: injecting ${context.length} chars (query: ${searchQuery.slice(0, 80)}…)`,
+		);
 		return { prependContext: context };
 	};
 }

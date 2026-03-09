@@ -1,64 +1,28 @@
 ---
-description: Analyze conversation and create structured memory entries
+description: Distill durable insights from the current Codex conversation into Nowledge Mem
 ---
 
-Analyze our current conversation and create structured memory entries for important information. Follow this systematic approach:
+Distill the most valuable insights from the current Codex conversation into Nowledge Mem.
 
-**Analysis Process:**
+## Workflow
 
-1. **Content Review**: Examine our conversation to identify:
-   - Key insights, decisions, and learnings
-   - Important details, names, and dates
-   - Actionable items and outcomes
-   - Information valuable for future reference
+1. Identify 1-3 durable insights, decisions, lessons, procedures, or preferences.
+2. Skip routine chatter, unresolved half-ideas, and low-signal implementation noise.
+3. If a memory likely already exists, search first instead of creating a duplicate.
+4. Use `nmem --json m add` for each selected memory.
+5. Use strong titles, a fitting `--unit-type`, and 0-3 labels only when they improve retrieval.
+6. Set `-s codex` so the capture path stays auditable.
 
-2. **Memory Structuring**: For each significant piece of information, create:
-   - **Concise Title** (max 60 characters): Captures the essence and is searchable
-   - **Structured Summary**: Preserves key details, uses clear language, includes actionable items
-   - **Importance Score** (0.1-1.0): Based on significance and future value
-   - **Relevant Labels**: 2-4 labels using lowercase with hyphens (e.g., work, meeting, python, decision)
+## Importance Guide
 
-3. **Quality Standards**:
-   - Write in clear, professional language
-   - Use specific details (names, dates, technical terms)
-   - Structure with bullet points or numbered lists when appropriate
-   - Ensure memories are standalone and understandable out of context
-   - Avoid redundancy across memories
+- `0.6-0.7`: useful but routine durable knowledge
+- `0.8-0.9`: major lesson, decision, or breakthrough
+- `1.0`: rare, foundational memory
 
-**Memory Creation**:
-
-Use the `nmem` CLI to create memories for each important piece of information:
+## Example
 
 ```bash
-nmem m add "Bullet list or short paragraph capturing the key insight" \
-  --title "Brief, searchable title" \
-  --importance 0.8 \
-  --unit-type learning \
-  -l topic1 -l topic2
+nmem --json m add "JWT refresh failures came from gateway and API clock skew. Keep refresh verification in the API layer and validate expiry against remote sessions."   --title "JWT refresh failures traced to clock skew"   --importance 0.9   --unit-type learning   -l auth -l backend   -s codex
 ```
 
-Available unit types: `fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`.
-
-**Example:**
-
-```bash
-nmem m add "Implemented JWT-based authentication with refresh tokens. Access tokens expire in 15min, refresh tokens in 7 days. Tokens stored in httpOnly cookies for security." \
-  --title "JWT Authentication Implementation" \
-  --importance 0.9 \
-  --unit-type decision \
-  -l auth -l security
-```
-
-**For programmatic use**, add `--json` flag to verify creation:
-
-```bash
-nmem --json m add "Content here" --title "Title" --importance 0.8
-```
-
-**Guidelines:**
-
-- **High importance** (0.8-1.0): Critical decisions, major insights, key learnings
-- **Medium importance** (0.5-0.7): Useful details, preferences, contextual information  
-- **Lower importance** (0.1-0.4): Minor notes, exploratory discussions
-
-Create 2-5 focused memories that capture the essential takeaways from our conversation.
+After saving, report what was stored, which unit types were used, and why each memory was worth keeping.

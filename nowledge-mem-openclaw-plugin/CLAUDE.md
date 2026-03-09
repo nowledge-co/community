@@ -62,7 +62,7 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema)
 
 ### Thread Tools (progressive conversation retrieval)
 - `nowledge_mem_thread_search` - search past conversations by keyword. Returns threads with matched message snippets, relevance scores, and message counts. Supports `source` filter.
-- `nowledge_mem_thread_fetch` - fetch full messages from a specific thread. Supports pagination via `offset` + `limit` for progressive retrieval of long conversations.
+- `nowledge_mem_thread_fetch` - fetch messages from a specific thread. Start with a small page, then use `offset` + `limit` for progressive retrieval only when more context is needed.
 
 ### Diagnostics
 - `nowledge_mem_status` - show effective config (mode, apiUrl, apiKey set, sessionContext, sessionDigest, etc.), backend connectivity, and version. No parameters.
@@ -91,6 +91,7 @@ Optional config file at `~/.nowledge-mem/openclaw.json`. Falls through to OpenCl
 | `sessionDigest` | boolean | `true` | `NMEM_SESSION_DIGEST` | Thread capture + LLM distillation at session end |
 | `digestMinInterval` | integer 0-86400 | `300` | `NMEM_DIGEST_MIN_INTERVAL` | Minimum seconds between session digests |
 | `maxContextResults` | integer 1-20 | `5` | `NMEM_MAX_CONTEXT_RESULTS` | How many memories to inject at prompt time |
+| `recallMinScore` | integer 0-100 | `0` | `NMEM_RECALL_MIN_SCORE` | Min relevance score (%) to include in auto-recall |
 | `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
 | `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
 
