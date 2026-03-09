@@ -26,13 +26,13 @@ On Windows/Linux with the Nowledge Mem desktop app, `nmem` is already bundled.
 **Automatic (no action needed):**
 
 - Working Memory briefing loaded at every session start, resume, and clear
-- Per-turn behavioral nudge with search/save syntax
+- Per-turn behavioral nudge with memory search, thread search, and save syntax
 - Session conversations captured to your knowledge graph on each response
 - Context recovered after compaction events
 
 **Autonomous skills (Claude acts on its own):**
 
-- **Search Memory** -- searches past work when you reference it
+- **Search Memory** -- searches both distilled memories and prior sessions when continuity matters
 - **Distill Memory** -- suggests saving breakthroughs and decisions
 - **Read Working Memory** -- loads your daily context briefing
 

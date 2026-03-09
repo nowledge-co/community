@@ -10,9 +10,9 @@
 
 These skills extend your AI coding agent with persistent memory capabilities powered by [Nowledge Mem](https://mem.nowledge.co):
 
-- **Search Memory** - Automatically surface relevant context from your knowledge base
+- **Search Memory** - Automatically route recall across distilled memories and prior discussion threads
 - **Read Working Memory** - Load your daily briefing at session start for cross-tool continuity
-- **Save Thread** - Persist complete coding sessions for future reference
+- **Save Handoff** - Leave resumable handoff summaries in generic agent environments
 - **Distill Memory** - Capture breakthrough moments as searchable insights
 
 ## Installation
@@ -101,9 +101,9 @@ Agent: [Automatically searches knowledge base]
 Found it! We solved this 2 weeks ago. The issue was token expiration...
 ```
 
-### Save Thread (`save-thread`)
+### Save Handoff (`save-handoff`)
 
-Saves complete conversations as checkpoints for future reference.
+Saves a structured resumable handoff for future reference.
 
 **Activates when you say:**
 - "Save this session"
@@ -114,10 +114,10 @@ Saves complete conversations as checkpoints for future reference.
 ```
 You: Save this session - implemented JWT authentication
 
-Agent: ✓ Thread saved
-Summary: Implemented JWT authentication
-Messages: 23
-Thread ID: claude-code-abc123
+Agent: ✓ Handoff saved
+Title: Session Handoff - JWT authentication
+Summary: Goal, Decisions, Files, Risks, Next
+Thread ID: generic-agent-abc123
 ```
 
 ### Read Working Memory (`read-working-memory`)
@@ -130,7 +130,7 @@ Loads your daily Working Memory briefing at session start so the agent knows you
 
 **Example:**
 ```
-[Agent reads ~/ai-now/memory.md at session start]
+[Agent reads Working Memory at session start]
 
 Agent: I see you're focused on the auth migration and have an
 unresolved flag about the session handling approach. Want me to
@@ -168,14 +168,18 @@ nmem --json m search "React patterns"
 "What do I know about database optimization?"
 ```
 
-### Save a Session
+### Memory Lifecycle
+
+The reusable skills follow the same core flow as the richer native integrations: read Working Memory, route recall across memories and threads, save a resumable handoff when asked, and distill durable knowledge.
+
+### Save a Handoff
 
 ```bash
 # Via CLI
-nmem t save --from claude-code -s "Implemented user auth"
+nmem --json t create -t "Session Handoff - auth refactor" -c "Goal: finish auth refactor. Decisions: keep refresh verification in the API layer. Files: auth.ts, auth.test.ts. Risks: remote expiry path still unverified. Next: run the remote flow." -s generic-agent
 
 # In conversation
-"Save this session - fixed memory leak in event listeners"
+"Save a handoff for this debugging session"
 ```
 
 ### Create a Memory
@@ -190,7 +194,7 @@ nmem m add "PostgreSQL over MongoDB: ACID needed for transactions" \
 
 ### Claude Code Plugin (Full Featured)
 
-For Claude Code users, the full plugin with slash commands is also available:
+For Claude Code users, the full plugin with slash commands and real session import is also available:
 
 ```bash
 claude plugin marketplace add nowledge-co/community

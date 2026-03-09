@@ -1,97 +1,125 @@
-# Nowledge Mem Custom Prompts for Codex
+# Nowledge Mem for Codex CLI
 
-Custom prompts to save your Codex sessions or create memory entries to Nowledge Mem.
+> Memory-aware custom prompts for Codex CLI, with an optional project `AGENTS.md` companion for stronger default behavior.
+
+Codex does not yet have the same packaged extension surface as Gemini CLI. The stable Codex-native path today is:
+
+- install reusable custom prompts in `~/.codex/prompts`
+- optionally merge this package's `AGENTS.md` into your project root
+- let `nmem` handle local and remote memory operations directly
+
+That keeps the integration sharp, durable, and easy to reason about.
+
+## Memory Lifecycle
+
+This package follows the same core flow as the richer native integrations:
+
+1. read Working Memory for current priorities
+2. route recall across memories and threads
+3. save the real session when the user asks
+4. distill durable knowledge from the work
 
 ## Quick Install
 
-> Fresh install:
+Fresh install:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/install.sh | bash
 ```
 
-> Update install:
+Update install:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/install.sh -o /tmp/install.sh && bash /tmp/install.sh --force && rm /tmp/install.sh
 ```
 
-## Available Commands
+## What You Get
 
-### `/prompts:read_working_memory`
+### Custom prompts
 
-Load your daily Working Memory briefing — focus areas, priorities, flags, and recent activity. Run at session start for context.
+- `/prompts:read_working_memory`
+- `/prompts:search_memory`
+- `/prompts:save_session`
+- `/prompts:distill`
 
-### `/prompts:save_session`
+### Project guidance
 
-Save your current Codex session to Nowledge. Lists available sessions and lets you choose which one to save.
+- `AGENTS.md` you can copy or merge into your project root to teach Codex when to read Working Memory, search memory, distill high-value insights, and save real sessions.
 
-### `/prompts:distill`
+## Recommended Setup
 
-Analyze your conversation and create structured memory entries with key insights and learnings.
+### 1. Make sure `nmem` is available
 
-## Prerequisites
+If Nowledge Mem is already running on the same machine through the desktop app, the cleanest setup is **Settings -> Preferences -> Developer Tools -> Install CLI**.
 
-1. **nmem CLI**: Use `uvx --from nmem-cli nmem` (recommended) or install with `pip install nmem-cli`
-2. **jq**: Install with `brew install jq` (macOS) or `sudo apt install jq` (Debian/Ubuntu)
-
-### nmem CLI Setup
-
-**Option 1: uvx (Recommended - No Installation Required)**
-
-Use `uvx` to run `nmem` without installing it:
+You can also install `nmem` standalone:
 
 ```bash
-# Install uv if not already installed
+# Option 1: uvx
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Run nmem directly (downloads automatically on first use)
 uvx --from nmem-cli nmem --version
-```
 
-**Benefits:**
-- No manual installation or updates needed
-- Isolated from system Python
-- Cached for fast startup (use `uvx --refresh --from nmem-cli nmem` to update)
-- Works on macOS, Linux, and Windows
-
-**Option 2: pip/pipx (Traditional Installation)**
-
-```bash
-# Using pip
+# Option 2: pip
 pip install nmem-cli
-
-# Or using pipx for isolated installation
-pipx install nmem-cli
 ```
 
-Verify installation:
+Verify it:
 
 ```bash
-nmem --version
-# or
-uvx --from nmem-cli nmem --version
+nmem status
 ```
 
-**Note**: 
-- On Windows/Linux with Nowledge Mem Desktop app installed, `nmem` is bundled
-- On macOS or when using Mem as a remote server, use `uvx` or install manually
-- The CLI connects to your Nowledge Mem instance at `http://localhost:14242` by default
+### 2. Configure remote Mem the durable way when needed
 
-## Troubleshooting
+Preferred long-term remote setup:
 
-- **"Command not found: uvx"** → Install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **"Command not found: nmem"** → Use `uvx --from nmem-cli nmem` or install with `pip install nmem-cli`
-- **"Command not found: jq"** → Install jq using your package manager
-- **"Cannot connect to server"** → Ensure Nowledge Mem is running at `http://localhost:14242`
-- **Sessions not listing** → Ensure you're in the correct project directory
+```json
+{
+  "apiUrl": "https://mem.example.com",
+  "apiKey": "nmem_your_key"
+}
+```
+
+Save it to:
+
+```text
+~/.nowledge-mem/config.json
+```
+
+`nmem` resolves connection settings in this order:
+
+1. `--api-url`
+2. `NMEM_API_URL` / `NMEM_API_KEY`
+3. `~/.nowledge-mem/config.json`
+4. defaults
+
+### 3. Optionally merge `AGENTS.md` into your project
+
+If your project already has an `AGENTS.md`, merge the Nowledge section into it instead of overwriting the file.
 
 ## Manual Install
+
+Install prompts:
 
 ```bash
 mkdir -p ~/.codex/prompts
 cd ~/.codex/prompts
 curl -O https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/read_working_memory.md
+curl -O https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/search_memory.md
 curl -O https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/save_session.md
 curl -O https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/distill.md
 ```
+
+Then copy or merge the project guidance file:
+
+```bash
+curl -O https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/AGENTS.md
+```
+
+## Troubleshooting
+
+- **"Command not found: uvx"** → Install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **"Command not found: nmem"** → Use `uvx --from nmem-cli nmem ...` or install with `pip install nmem-cli`
+- **"Cannot connect to server"** → Check `nmem status` and verify `~/.nowledge-mem/config.json` for remote setups
+- **Prompts do not appear in Codex** → Restart Codex CLI after installation
+- **Sessions not listing** → Make sure you are saving from the same project directory used in Codex

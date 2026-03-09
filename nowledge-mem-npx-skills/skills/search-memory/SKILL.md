@@ -98,7 +98,19 @@ Parse the `memories` array from JSON response. Check `score` field:
 - **0.3-0.6**: Related context - may be useful
 - **< 0.3**: Skip - not relevant enough
 
-Results may include a `source_thread` field linking the memory to the conversation it was distilled from. Use `nmem --json t show <thread_id>` to fetch the full conversation for deeper context.
+Results may include a `source_thread` field linking the memory to the conversation it was distilled from. If the user is really asking about a prior conversation or session, also use:
+
+```bash
+nmem --json t search "your query here" --limit 5
+```
+
+When you need conversation-level context, inspect it progressively instead of loading the whole thread at once:
+
+```bash
+nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
+```
+
+Increase `--offset` only when more messages are actually needed.
 
 ## Response Guidelines
 

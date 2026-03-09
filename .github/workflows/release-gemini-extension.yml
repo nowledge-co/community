@@ -1,0 +1,52 @@
+name: Release Gemini Extension
+
+on:
+  push:
+    tags:
+      - 'nowledge-mem-gemini-cli-extension-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nowledge-mem-gemini-cli-extension
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve release metadata
+        id: release_meta
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          EXPECTED_TAG="nowledge-mem-gemini-cli-extension-v${VERSION}"
+          if [ "${GITHUB_REF_NAME}" != "${EXPECTED_TAG}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package version ${VERSION}" >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "expected_tag=${EXPECTED_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate extension package
+        run: npm run validate
+
+      - name: Build release archive
+        run: npm run package:release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Nowledge Mem Gemini CLI Extension v${{ steps.release_meta.outputs.version }}
+          body_path: nowledge-mem-gemini-cli-extension/release-notes/${{ steps.release_meta.outputs.version }}.md
+          files: |
+            nowledge-mem-gemini-cli-extension/dist/nowledge-mem-gemini-cli-extension.tar.gz
+            nowledge-mem-gemini-cli-extension/dist/nowledge-mem-gemini-cli-extension.tar.gz.sha256

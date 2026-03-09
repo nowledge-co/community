@@ -62,7 +62,7 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema)
 
 ### Thread Tools (progressive conversation retrieval)
 - `nowledge_mem_thread_search` - search past conversations by keyword. Returns threads with matched message snippets, relevance scores, and message counts. Supports `source` filter.
-- `nowledge_mem_thread_fetch` - fetch full messages from a specific thread. Supports pagination via `offset` + `limit` for progressive retrieval of long conversations.
+- `nowledge_mem_thread_fetch` - fetch messages from a specific thread. Start with a small page, then use `offset` + `limit` for progressive retrieval only when more context is needed.
 
 ### Diagnostics
 - `nowledge_mem_status` - show effective config (mode, apiUrl, apiKey set, sessionContext, sessionDigest, etc.), backend connectivity, and version. No parameters.
