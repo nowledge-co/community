@@ -1,0 +1,3 @@
+[submodule "nowledge-mem-gemini-cli"]
+	path = nowledge-mem-gemini-cli
+	url = git@github.com:nowledge-co/nowledge-mem-gemini-cli.git
