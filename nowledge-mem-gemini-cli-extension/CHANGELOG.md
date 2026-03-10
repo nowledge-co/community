@@ -5,6 +5,18 @@ All notable changes to the Nowledge Mem Gemini CLI extension will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-03-10
+
+### Changed
+
+- Hardened the Gemini release packaging flow so the shipped archive better matches what the marketplace crawler expects from a clean extension bundle
+- Refined release instructions to explicitly call out archive verification for macOS metadata drift before publishing
+
+### Fixed
+
+- Prevented macOS AppleDouble metadata entries such as `._README.md` from being emitted into the release archive
+- Added archive verification that fails packaging if hidden metadata files still appear in the generated `.tar.gz`
+
 ## [0.1.1] - 2026-03-09
 
 ### Changed

@@ -19,6 +19,7 @@ These are required for Gemini's gallery crawler, but cannot be enforced purely b
 - the repository About section must include the `gemini-cli-extension` topic
 - the release must be tagged and published on GitHub
 - the attached archive must contain `gemini-extension.json` at the archive root
+- the attached archive must be free of macOS AppleDouble metadata entries such as `._README.md`
 
 ## Validate Locally
 
@@ -63,17 +64,17 @@ nowledge-mem-gemini-cli-extension-v*
 Example:
 
 ```bash
-git tag nowledge-mem-gemini-cli-extension-v0.1.1
-git push origin nowledge-mem-gemini-cli-extension-v0.1.1
+git tag nowledge-mem-gemini-cli-extension-v0.1.2
+git push origin nowledge-mem-gemini-cli-extension-v0.1.2
 ```
 
 ## Initial Public Release
 
 For the first public release, use:
 
-- tag: `nowledge-mem-gemini-cli-extension-v0.1.1`
-- release title: `Nowledge Mem Gemini CLI Extension v0.1.1`
-- release notes source: `release-notes/0.1.1.md`
+- tag: `nowledge-mem-gemini-cli-extension-v0.1.2`
+- release title: `Nowledge Mem Gemini CLI Extension v0.1.2`
+- release notes source: `release-notes/0.1.2.md`
 - workflow behavior: the release workflow verifies that the pushed tag matches `package.json` and publishes the matching `release-notes/<version>.md` file as the GitHub Release body
 
 ## Installation After Release
@@ -81,7 +82,7 @@ For the first public release, use:
 Once the tagged GitHub Release exists, Gemini users can install from the repository and ref:
 
 ```bash
-gemini extensions install github.com/nowledge-co/community --ref nowledge-mem-gemini-cli-extension-v0.1.1
+gemini extensions install github.com/nowledge-co/community --ref nowledge-mem-gemini-cli-extension-v0.1.2
 ```
 
 Gemini's own release docs say GitHub Releases are supported as install sources, and the workflow-created archive is shaped specifically for that path.
@@ -96,4 +97,5 @@ Gemini's own release docs say GitHub Releases are supported as install sources, 
 - create and push a matching tag
 - publish the GitHub Release with the generated `.tar.gz` asset and checksum
 - verify the repo still has the `gemini-cli-extension` topic
+- verify the archive contents with `tar -tzf dist/nowledge-mem-gemini-cli-extension.tar.gz` and make sure there are no `._*` entries
 - verify discovery on `geminicli.com/extensions` after the crawler runs

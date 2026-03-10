@@ -64,12 +64,25 @@ function verifyArchive(filePath) {
     process.exit(result.status ?? 1);
   }
 
+  const rawEntries = result.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
   const entries = new Set(
-    result.stdout
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
+    rawEntries.map((line) => {
+      if (line === '.') return './';
+      return line.startsWith('./') ? line : `./${line}`;
+    })
   );
+
+  for (const entry of rawEntries) {
+    const normalized = entry.startsWith('./') ? entry.slice(2) : entry;
+    if (normalized === '._.' || normalized.startsWith('._') || normalized.includes('/._')) {
+      console.error(`ERROR: release archive contains macOS metadata entry ${entry}`);
+      process.exit(1);
+    }
+  }
 
   for (const requiredEntry of requiredArchiveEntries) {
     if (!entries.has(requiredEntry)) {
@@ -92,13 +105,19 @@ async function main() {
     });
   }
 
-  run('tar', ['-czf', archivePath, '-C', stageDir, '.']);
+  run('tar', ['-czf', archivePath, '-C', stageDir, '.'], extensionRoot, {
+    env: {
+      ...process.env,
+      COPYFILE_DISABLE: '1'
+    }
+  });
   verifyArchive(archivePath);
 
   const checksum = await fileSha256(archivePath);
   await writeFile(
     path.join(distDir, `${archiveName}.sha256`),
-    `${checksum}  ${archiveName}\n`,
+    `${checksum}  ${archiveName}
+`,
     'utf8'
   );
 
