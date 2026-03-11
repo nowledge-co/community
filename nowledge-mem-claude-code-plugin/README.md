@@ -21,6 +21,14 @@ nmem status             # verify connection
 
 On Windows/Linux with the Nowledge Mem desktop app, `nmem` is already bundled.
 
+**Using Claude Code inside WSL?** Run this one-liner to bridge `nmem` into your WSL environment:
+
+```bash
+mkdir -p ~/.local/bin && printf '#!/bin/bash\ncmd.exe /c nmem.cmd "$@"\n' > ~/.local/bin/nmem && chmod +x ~/.local/bin/nmem
+```
+
+This calls the Windows `nmem` via interop — no extra setup or network configuration needed.
+
 ## What You Get
 
 **Automatic (no action needed):**
@@ -88,7 +96,7 @@ claude plugin update nowledge-mem@nowledge-community
 
 ## Troubleshooting
 
-**nmem not found:** Install with `pip install nmem-cli` or `pipx install nmem-cli`
+**nmem not found:** Install with `pip install nmem-cli` or `pipx install nmem-cli`. If you're in WSL, see the [WSL setup](#install) above.
 
 **Server not running:** Start the Nowledge Mem desktop app, or run `nmem serve` on your server
 
