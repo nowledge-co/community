@@ -1,6 +1,6 @@
 # Nowledge Mem
 
-Search and browse your personal knowledge base from Raycast. Find memories, save insights, read your daily Working Memory briefing, and explore your knowledge graph without leaving your workflow.
+Search and browse your personal knowledge base from Raycast. Find memories, save insights, and read your daily Working Memory briefing without leaving your workflow.
 
 ## Setup
 
@@ -27,7 +27,6 @@ The extension now supports the same remote auth shape used across other Nowledge
 | **Add Memory** | Save a quick memory with title, content, and importance level. |
 | **Read Working Memory** | Read today's Working Memory briefing from the Mem API. |
 | **Edit Working Memory** | Open `~/ai-now/memory.md` in your default editor for quick local edits. |
-| **Explore Graph** | Search graph nodes, inspect connected memories and entities, or start from a specific memory's neighborhood. |
 
 ### Actions
 
@@ -35,22 +34,12 @@ Every memory in search results supports:
 
 - **Copy Content** — copy the full memory text
 - **Copy Title** — copy just the title
-- **Explore Connections** — jump directly into the graph neighborhood for that memory
 - **Open in Nowledge Mem** — deep link to the memory in the desktop app
 
 The Working Memory view supports:
 
 - **Copy Working Memory** — copy the full briefing
 - **Open in Nowledge Mem** — jump to the app
-
-The graph explorer supports:
-
-- **View Node** — inspect metadata and visible connections
-- **Explore Connections** — recurse from any memory node into its own neighborhood
-- **Open Memory in Nowledge Mem** — available for memory nodes
-- **Copy Node ID / Label** — useful for debugging or follow-up tools
-
-Under the hood, memory-seeded graph views use the shared HTTP `GET /graph/explore` endpoint so launcher clients and other authenticated HTTP consumers can build the same graph neighborhoods without depending on MCP-only surfaces.
 
 ## What Is Working Memory?
 
@@ -67,6 +56,6 @@ If preferences are empty, the extension also checks `~/.nowledge-mem/config.json
 
 ## Notes
 
-- **Remote support**: search, add memory, read Working Memory, and graph explore all support authenticated remote Mem access.
+- **Remote support**: search, add memory, and read Working Memory all support authenticated remote Mem access.
 - **Edit Working Memory** remains a local-file convenience command. For remote-only setups, edit through the Nowledge Mem app or API instead.
-- **Graph explore in Raycast** is a compact inspector built on the same graph APIs and graph-neighborhood model used elsewhere in Nowledge Mem, not the full interactive canvas you see in AI Now or MCP-native hosts.
+- **Graph visualization** is available through the desktop app and MCP-native hosts (Claude Code, Codex) which support interactive canvas rendering. Raycast's UI model does not support embedded web views, so graph exploration is not included in this extension.

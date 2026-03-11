@@ -67,19 +67,6 @@
         "briefing",
         "ai-now"
       ]
-    },
-    {
-      "name": "explore-graph",
-      "title": "Explore Graph",
-      "subtitle": "Nowledge Mem",
-      "description": "Explore related memories, entities, and graph connections",
-      "mode": "view",
-      "keywords": [
-        "graph",
-        "connections",
-        "relationships",
-        "explore"
-      ]
     }
   ],
   "preferences": [

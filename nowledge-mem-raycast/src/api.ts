@@ -132,31 +132,6 @@ export interface WorkingMemoryResponse {
   parsed?: Record<string, unknown> | null;
 }
 
-export interface GraphNode {
-  id: string;
-  label: string;
-  node_type: string;
-  size: number;
-  community?: string;
-  importance?: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface GraphEdge {
-  id: string;
-  source: string;
-  target: string;
-  edge_type: string;
-  weight: number;
-  label?: string;
-}
-
-export interface GraphResponse {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  communities?: Array<{ id: string; name: string; member_count: number }>;
-}
-
 export async function searchMemories(
   query: string,
   limit = 10,
@@ -198,49 +173,4 @@ export async function createMemory(
 export async function readWorkingMemory(): Promise<WorkingMemoryResponse> {
   const res = await apiFetch("/agent/working-memory");
   return (await res.json()) as WorkingMemoryResponse;
-}
-
-export async function searchGraph(
-  query: string,
-  limit = 30,
-  depth = 2,
-): Promise<GraphResponse> {
-  const params = new URLSearchParams({
-    query,
-    limit: String(limit),
-    depth: String(depth),
-  });
-  const res = await apiFetch(`/graph/search?${params.toString()}`);
-  return (await res.json()) as GraphResponse;
-}
-
-export async function getGraphSample(
-  limit = 80,
-  depth = 1,
-): Promise<GraphResponse> {
-  const params = new URLSearchParams({
-    limit: String(limit),
-    depth: String(depth),
-  });
-  const res = await apiFetch(`/graph/sample?${params.toString()}`);
-  return (await res.json()) as GraphResponse;
-}
-
-export async function exploreGraphFromMemories(
-  memoryIds: string[],
-  depth = 2,
-  limit = 100,
-): Promise<GraphResponse> {
-  const ids = memoryIds.map((id) => id.trim()).filter(Boolean);
-  if (ids.length === 0) {
-    return { nodes: [], edges: [], communities: [] };
-  }
-
-  const params = new URLSearchParams({
-    memory_ids: ids.join(","),
-    depth: String(depth),
-    limit: String(limit),
-  });
-  const res = await apiFetch(`/graph/explore?${params.toString()}`);
-  return (await res.json()) as GraphResponse;
 }
