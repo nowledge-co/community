@@ -18,6 +18,7 @@ import {
   type SearchMemory,
   type ListMemory,
 } from "./api";
+import { GraphExplorerView } from "./explore-graph";
 
 function scoreColor(score: number): Color {
   if (score >= 0.8) return Color.Green;
@@ -154,6 +155,17 @@ function SearchMemoryDetail({
             content={memory.title || ""}
             shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
           />
+          <Action.Push
+            title="Explore Connections"
+            icon={Icon.Network}
+            target={
+              <GraphExplorerView
+                initialNodeId={memory.id}
+                initialNodeLabel={memory.title || "Untitled"}
+              />
+            }
+            shortcut={{ modifiers: ["cmd"], key: "g" }}
+          />
           <Action.Open
             title="Open in Nowledge Mem"
             target={`nowledgemem://memory/${memory.id}`}
@@ -240,6 +252,17 @@ function ListMemoryDetail({ memory }: { memory: ListMemory }) {
             title="Copy Title"
             content={memory.title || ""}
             shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+          />
+          <Action.Push
+            title="Explore Connections"
+            icon={Icon.Network}
+            target={
+              <GraphExplorerView
+                initialNodeId={memory.id}
+                initialNodeLabel={memory.title || "Untitled"}
+              />
+            }
+            shortcut={{ modifiers: ["cmd"], key: "g" }}
           />
           <Action.Open
             title="Open in Nowledge Mem"
