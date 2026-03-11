@@ -13,6 +13,7 @@ These skills extend your AI coding agent with persistent memory capabilities pow
 - **Search Memory** - Automatically route recall across distilled memories and prior discussion threads
 - **Read Working Memory** - Load your daily briefing at session start for cross-tool continuity
 - **Save Handoff** - Leave resumable handoff summaries in generic agent environments
+- **Save Thread (Deprecated Compatibility)** - Preserved for users who already installed the old skill name; in generic runtimes it must degrade honestly to a handoff, not claim lossless transcript import
 - **Distill Memory** - Capture breakthrough moments as searchable insights
 
 ## Installation
@@ -103,7 +104,7 @@ Found it! We solved this 2 weeks ago. The issue was token expiration...
 
 ### Save Handoff (`save-handoff`)
 
-Saves a structured resumable handoff for future reference.
+Saves a structured resumable handoff for future reference. This is the preferred save surface in generic `npx skills` environments.
 
 **Activates when you say:**
 - "Save this session"
@@ -119,6 +120,27 @@ Title: Session Handoff - JWT authentication
 Summary: Goal, Decisions, Files, Risks, Next
 Thread ID: generic-agent-abc123
 ```
+
+### Save Thread (`save-thread`, deprecated compatibility)
+
+This old skill name is kept for compatibility because indexed `npx skills` entries can stay discoverable long after a rename.
+
+**What it means now:**
+- In generic `npx skills` environments, `save-thread` must behave like `save-handoff`
+- It must **not** claim a real transcript-backed thread import unless the runtime has a dedicated native integration that actually supports one
+
+**Why:**
+- A shared skills package does not control whether the host agent exposes readable session transcripts
+- Many agents only expose prompt behavior, not a programmatic session-history API
+- Pretending this is a lossless thread save would be misleading for users and harmful for retrieval quality later
+
+**If you need real thread save:**
+- Use a native integration that has a real importer for that runtime
+- Today that includes dedicated Nowledge integrations such as Gemini CLI or Claude Code, where `nmem t save --from ...` can read local session files on the client machine
+
+**What to say as a user:**
+- In generic agents: ask for **save handoff** or **checkpoint this**
+- In native integrations with transcript import: ask for **save thread** when you want the actual session captured
 
 ### Read Working Memory (`read-working-memory`)
 
@@ -171,6 +193,8 @@ nmem --json m search "React patterns"
 ### Memory Lifecycle
 
 The reusable skills follow the same core flow as the richer native integrations: read Working Memory, route recall across memories and threads, save a resumable handoff when asked, and distill durable knowledge.
+
+For generic `npx skills` environments, treat `save-handoff` as the honest default. The deprecated `save-thread` compatibility skill stays published only so existing indexed installs do not break or mislead users.
 
 ## Make Agents Use Memory Proactively
 
