@@ -2,6 +2,17 @@
 
 All notable changes to the Nowledge Mem npx Skills will be documented in this file.
 
+## [0.4.1] - 2026-03-11
+
+### Added
+
+- Restored **save-thread** as a deprecated compatibility skill so previously indexed installs do not break or silently disappear
+
+### Changed
+
+- **save-thread** now clearly redirects generic agent environments to honest handoff semantics instead of pretending to provide real transcript-backed thread import
+- README now explains why shared skills cannot guarantee real thread save and when users should prefer native integrations like Gemini CLI or Claude Code
+
 ## [0.4.0] - 2026-03-09
 
 ### Changed
