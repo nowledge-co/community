@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true"
+            "command": "command -v nmem >/dev/null 2>&1 || nmem(){ cmd.exe /s /c \"\\\"nmem.cmd\\\" $*\"; }; nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true"
           }
         ]
       },
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{ nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
+            "command": "command -v nmem >/dev/null 2>&1 || nmem(){ cmd.exe /s /c \"\\\"nmem.cmd\\\" $*\"; }; { nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Search past knowledge: nmem --json m search \"query\". Save insights: nmem m add \"content\" -t \"Title\" -i 0.8' || true"
+            "command": "{ command -v nmem >/dev/null 2>&1 || command -v nmem.cmd >/dev/null 2>&1; } && printf '[Nowledge Mem] Search past knowledge: nmem --json m search \"query\". Save insights: nmem m add \"content\" -t \"Title\" -i 0.8' || true"
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "nmem t save --from claude-code --truncate 2>/dev/null || true",
+            "command": "command -v nmem >/dev/null 2>&1 || nmem(){ cmd.exe /s /c \"\\\"nmem.cmd\\\" $*\"; }; nmem t save --from claude-code --truncate 2>/dev/null || true",
             "async": true
           }
         ]
