@@ -1,0 +1,195 @@
+"""Bub hook implementations for Nowledge Mem.
+
+Hooks:
+  system_prompt  — behavioural guidance (~50 tokens) + optional WM / recall
+  load_state     — fetch Working Memory and (if session_context) recalled memories
+  save_state     — capture each turn to a Nowledge Mem thread (incremental)
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import os
+
+from bub import hookimpl
+from bub.envelope import content_of
+
+from .client import NmemClient, NmemError
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Behavioural guidance injected into the system prompt.
+# Cost: ~50 tokens.  Adjusts when session_context is on to avoid redundant
+# tool calls for context that was already injected.
+# ---------------------------------------------------------------------------
+
+_GUIDANCE_BASE = """\
+You have access to the user's personal knowledge graph (Nowledge Mem).
+It contains knowledge from all their tools — Claude Code, Cursor, ChatGPT, and others — not just this session.
+When prior context would improve your response, search with mem.search.
+When the conversation produces something worth keeping, save it with mem.save.
+When a memory has source_thread_id, fetch the full conversation with mem.thread."""
+
+_GUIDANCE_WITH_CONTEXT = """\
+You have access to the user's personal knowledge graph (Nowledge Mem).
+It contains knowledge from all their tools — not just this session.
+Relevant memories and Working Memory have already been injected into context.
+Use mem.search only for specific follow-ups beyond what was auto-recalled.
+When the conversation produces something worth keeping, save it with mem.save."""
+
+
+class NowledgeMemPlugin:
+    """Nowledge Mem integration for Bub.
+
+    Configuration (env vars):
+      NMEM_SESSION_CONTEXT  — "1"/"true"  to inject WM + recall each turn
+      NMEM_SESSION_DIGEST   — "0"/"false" to disable thread capture
+      NMEM_API_URL          — remote server URL
+      NMEM_API_KEY          — API key (passed to nmem via env, never logged)
+    """
+
+    def __init__(self) -> None:
+        self.client = NmemClient()
+        self._session_context = os.environ.get(
+            "NMEM_SESSION_CONTEXT", ""
+        ).lower() in ("1", "true", "yes")
+        self._session_digest = os.environ.get(
+            "NMEM_SESSION_DIGEST", "1"
+        ).lower() not in ("0", "false", "no")
+        self._known_threads: set[str] = set()
+
+    # ------------------------------------------------------------------
+    # system_prompt — sync, call_many, results joined with \n\n
+    # ------------------------------------------------------------------
+
+    @hookimpl
+    def system_prompt(self, prompt, state) -> str:
+        """Inject behavioural guidance and, when session_context is on,
+        Working Memory + recalled knowledge from state."""
+        sections: list[str] = []
+
+        # Always: behavioural nudge
+        if self._session_context:
+            sections.append(_GUIDANCE_WITH_CONTEXT)
+        else:
+            sections.append(_GUIDANCE_BASE)
+
+        if not self._session_context:
+            return "\n".join(sections)
+
+        # Session context mode: include WM + recalled memories
+        wm = state.get("_nmem_working_memory")
+        if wm:
+            sections.append(f"<working-memory>\n{wm}\n</working-memory>")
+
+        recalled = state.get("_nmem_recalled")
+        if recalled:
+            lines: list[str] = []
+            for r in recalled:
+                title = r.get("title", "")
+                text = r.get("content", "")[:300]
+                mid = r.get("id", "")
+                thread = r.get("source_thread_id", "")
+                entry = f"- [{title}] {text}"
+                if mid:
+                    entry += f" (id: {mid})"
+                if thread:
+                    entry += f" (thread: {thread})"
+                lines.append(entry)
+            sections.append(
+                "<recalled-knowledge>\n"
+                + "\n".join(lines)
+                + "\n</recalled-knowledge>"
+            )
+
+        return "\n\n".join(sections)
+
+    # ------------------------------------------------------------------
+    # load_state — async, call_many, dicts merged into state
+    # ------------------------------------------------------------------
+
+    @hookimpl
+    async def load_state(self, message, session_id) -> dict:
+        """Load Working Memory and recalled memories (when session_context is on)."""
+        state: dict = {"_nmem_client": self.client}
+
+        if not self.client.is_available():
+            logger.debug("nmem not in PATH, skipping load_state")
+            return state
+
+        if not self._session_context:
+            # Default mode: no per-turn fetches.  The agent calls
+            # mem.context or mem.search on demand.
+            return state
+
+        # Session context mode: fetch WM + recalled memories
+        try:
+            wm = await self.client.read_working_memory()
+            content = wm.get("content", "")
+            if content:
+                state["_nmem_working_memory"] = content
+        except Exception as exc:
+            logger.debug("working memory read failed: %s", exc)
+
+        # Recall: search for memories relevant to the current message
+        query = content_of(message)
+        if query and len(query.strip()) > 3:
+            try:
+                results = await self.client.search(query[:500], limit=5)
+                if results:
+                    state["_nmem_recalled"] = results
+            except Exception as exc:
+                logger.debug("recall search failed: %s", exc)
+
+        return state
+
+    # ------------------------------------------------------------------
+    # save_state — async, call_many, always runs (finally block)
+    # ------------------------------------------------------------------
+
+    @hookimpl
+    async def save_state(self, session_id, state, message, model_output) -> None:
+        """Append the turn (user + assistant) to a Nowledge Mem thread."""
+        if not self._session_digest:
+            return
+        if not self.client.is_available():
+            return
+
+        try:
+            user_content = content_of(message)
+            if not user_content or not model_output:
+                return
+
+            digest = hashlib.sha1(session_id.encode()).hexdigest()[:10]
+            thread_id = f"bub-{digest}"
+
+            messages = [
+                {"role": "user", "content": user_content[:800]},
+                {"role": "assistant", "content": str(model_output)[:800]},
+            ]
+            messages_json = json.dumps(messages)
+
+            if thread_id in self._known_threads:
+                await self.client.append_thread(thread_id, messages_json)
+            else:
+                try:
+                    await self.client.append_thread(thread_id, messages_json)
+                    self._known_threads.add(thread_id)
+                except NmemError as exc:
+                    err_msg = str(exc).lower()
+                    if "not found" not in err_msg and "404" not in err_msg:
+                        raise  # timeout, auth, network — don't mask
+                    title = f"Bub Session ({session_id[:30]})"
+                    await self.client.create_thread(
+                        thread_id, title, messages_json
+                    )
+                    self._known_threads.add(thread_id)
+        except Exception as exc:
+            # save_state must never raise — it runs in a finally block
+            logger.debug("session capture failed: %s", exc)
+
+
+plugin = NowledgeMemPlugin()
