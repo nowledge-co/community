@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 (2026-03-12)
+
+- Fixed: nmem cli argument issue by @ferstar via https://github.com/nowledge-co/community/pull/118
+
 ## 0.1.1 (2026-03-12)
 
 - Fixed: broad `NmemError` catch in `save_state` no longer causes double timeout (up to 30s) when nmem is unreachable — only retries on "not found" errors, and caches thread existence after first success
