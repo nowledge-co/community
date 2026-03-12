@@ -1,6 +1,6 @@
 [project]
 name = "nowledge-mem-bub"
-version = "0.1.1"
+version = "0.1.2"
 description = "Nowledge Mem plugin for Bub — cross-ai context for your agent."
 readme = "README.md"
 license = "Apache-2.0"
