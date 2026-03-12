@@ -184,7 +184,7 @@ class NmemClient:
         if event_end:
             args.extend(["--event-end", event_end])
         if temporal_context:
-            args.extend(["--temporal-context", temporal_context])
+            args.extend(["--when", temporal_context])
         args.extend(["-s", "bub"])
         result = await self._exec_json(*args)
         return result if isinstance(result, dict) else {}
@@ -240,13 +240,13 @@ class NmemClient:
         date_from: str | None = None,
         date_to: str | None = None,
     ) -> list:
-        args = ["f", "--last-n-days", str(days)]
+        args = ["f", "--days", str(days)]
         if event_type:
             args.extend(["--type", event_type])
         if date_from:
-            args.extend(["--date-from", date_from])
+            args.extend(["--from", date_from])
         if date_to:
-            args.extend(["--date-to", date_to])
+            args.extend(["--to", date_to])
         result = await self._exec_json(*args)
         if isinstance(result, list):
             return result
