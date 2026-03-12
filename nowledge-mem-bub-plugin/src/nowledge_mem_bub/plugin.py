@@ -59,6 +59,7 @@ class NowledgeMemPlugin:
         self._session_digest = os.environ.get(
             "NMEM_SESSION_DIGEST", "1"
         ).lower() not in ("0", "false", "no")
+        self._known_threads: set[str] = set()
 
     # ------------------------------------------------------------------
     # system_prompt — sync, call_many, results joined with \n\n
@@ -171,17 +172,21 @@ class NowledgeMemPlugin:
             ]
             messages_json = json.dumps(messages)
 
-            try:
+            if thread_id in self._known_threads:
                 await self.client.append_thread(thread_id, messages_json)
-            except NmemError:
-                # Thread doesn't exist yet — create it
-                title = f"Bub Session ({session_id[:30]})"
+            else:
                 try:
+                    await self.client.append_thread(thread_id, messages_json)
+                    self._known_threads.add(thread_id)
+                except NmemError as exc:
+                    err_msg = str(exc).lower()
+                    if "not found" not in err_msg and "404" not in err_msg:
+                        raise  # timeout, auth, network — don't mask
+                    title = f"Bub Session ({session_id[:30]})"
                     await self.client.create_thread(
                         thread_id, title, messages_json
                     )
-                except Exception as exc:
-                    logger.debug("thread create failed: %s", exc)
+                    self._known_threads.add(thread_id)
         except Exception as exc:
             # save_state must never raise — it runs in a finally block
             logger.debug("session capture failed: %s", exc)

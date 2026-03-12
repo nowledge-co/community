@@ -193,10 +193,6 @@ class NmemClient:
         result = await self._exec_json("m", "delete", memory_id, "-f")
         return result if isinstance(result, dict) else {}
 
-    async def get_memory(self, memory_id: str) -> dict:
-        result = await self._exec_json("m", "show", memory_id)
-        return result if isinstance(result, dict) else {}
-
     # ------------------------------------------------------------------
     # Working Memory
     # ------------------------------------------------------------------

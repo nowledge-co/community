@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-03-12)
+
+- Fixed: broad `NmemError` catch in `save_state` no longer causes double timeout (up to 30s) when nmem is unreachable — only retries on "not found" errors, and caches thread existence after first success
+- Fixed: `bub_skills` package now includes `__init__.py` so bub can discover the bundled skill via `importlib`
+- Removed: unused `get_memory` method from client
+
 ## 0.1.0 (2026-03-12)
 
 Initial release — brings cross-tool knowledge into Bub.
