@@ -1,0 +1,35 @@
+{
+  "description": "Nowledge Mem lifecycle hooks for Droid: Working Memory bootstrap and lightweight recall guidance",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; nmem wm read 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; { nmem wm read 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, distill them before continuing:\\n  nmem --json m add \"<insight>\" -t \"<short title>\" -i 0.8 -s droid\\n'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Search past knowledge with nmem --json m search \"query\". Search prior sessions with nmem --json t search \"query\" --limit 5. Save durable insights with nmem --json m add \"content\" -t \"Title\" -i 0.8 -s droid. For resumable checkpoints, use nmem --json t create -t \"Session Handoff - <topic>\" -c \"Goal: ... Decisions: ... Files: ... Risks: ... Next: ...\" -s droid. Do not claim save-thread unless a real Droid transcript importer exists.' || true"
+          }
+        ]
+      }
+    ]
+  }
+}
