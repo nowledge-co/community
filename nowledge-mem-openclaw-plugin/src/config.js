@@ -20,6 +20,7 @@ const ALLOWED_KEYS = new Set([
 	"digestMinInterval",
 	"maxContextResults",
 	"recallMinScore",
+	"maxThreadMessageChars",
 	"apiUrl",
 	"apiKey",
 	// Legacy aliases — accepted but not advertised
@@ -136,7 +137,7 @@ function firstDefined(...options) {
  * will configure via OpenClaw's plugin settings UI (pluginConfig).
  *
  * Canonical keys: sessionContext, sessionDigest, digestMinInterval,
- *                 maxContextResults, recallMinScore, apiUrl, apiKey
+ *                 maxContextResults, recallMinScore, maxThreadMessageChars, apiUrl, apiKey
  *
  * Legacy aliases (accepted from all sources; never shown in docs):
  *   autoRecall → sessionContext
@@ -150,6 +151,7 @@ function firstDefined(...options) {
  *   NMEM_DIGEST_MIN_INTERVAL   — seconds (0-86400)
  *   NMEM_MAX_CONTEXT_RESULTS   — integer (1-20)
  *   NMEM_RECALL_MIN_SCORE      — integer (0-100)
+ *   NMEM_MAX_THREAD_MESSAGE_CHARS — integer (200-20000)
  *   NMEM_API_URL               — remote server URL
  *   NMEM_API_KEY               — API key (never logged)
  */
@@ -250,6 +252,23 @@ export function parseConfig(raw, logger) {
 	const recallMinScore = Math.min(100, Math.max(0, Math.trunc(rms.value)));
 	_sources.recallMinScore = rms.source;
 
+	// --- maxThreadMessageChars: file > pluginConfig > env > default ---
+	const mtmcEnv = envInt("NMEM_MAX_THREAD_MESSAGE_CHARS");
+	const mtmc = firstDefined(
+		{ value: pickNum(resolvedFile, "maxThreadMessageChars"), source: "file" },
+		{
+			value: pickNum(resolvedPlugin, "maxThreadMessageChars"),
+			source: "pluginConfig",
+		},
+		{ value: mtmcEnv, source: "env" },
+		{ value: 800, source: "default" },
+	);
+	const maxThreadMessageChars = Math.min(
+		20000,
+		Math.max(200, Math.trunc(mtmc.value)),
+	);
+	_sources.maxThreadMessageChars = mtmc.source;
+
 	// --- apiUrl: file > pluginConfig > env > "" ---
 	const fileUrl =
 		typeof resolvedFile.apiUrl === "string" && resolvedFile.apiUrl.trim();
@@ -284,6 +303,7 @@ export function parseConfig(raw, logger) {
 		digestMinInterval,
 		maxContextResults,
 		recallMinScore,
+		maxThreadMessageChars,
 		apiUrl,
 		apiKey,
 		_sources,

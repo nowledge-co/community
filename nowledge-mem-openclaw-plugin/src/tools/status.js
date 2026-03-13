@@ -109,6 +109,9 @@ export function createStatusTool(client, _logger, cfg) {
 			lines.push(
 				`  recallMinScore: ${cfg.recallMinScore}% (${sources.recallMinScore || "?"})`,
 			);
+			lines.push(
+				`  maxThreadMessageChars: ${cfg.maxThreadMessageChars} (${sources.maxThreadMessageChars || "?"})`,
+			);
 
 			details.config = {
 				sessionContext: {
@@ -130,6 +133,10 @@ export function createStatusTool(client, _logger, cfg) {
 				recallMinScore: {
 					value: cfg.recallMinScore,
 					source: sources.recallMinScore,
+				},
+				maxThreadMessageChars: {
+					value: cfg.maxThreadMessageChars,
+					source: sources.maxThreadMessageChars,
 				},
 				apiUrl: { value: cfg.apiUrl || "(local)", source: sources.apiUrl },
 				apiKey: {
