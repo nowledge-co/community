@@ -259,7 +259,7 @@ class NmemClient:
     async def search_threads(
         self, query: str, limit: int = 5, source: str | None = None
     ) -> list:
-        args = ["t", "search", query, "--limit", str(limit)]
+        args = ["t", "search", query, "-n", str(limit)]
         if source:
             args.extend(["--source", source])
         result = await self._exec_json(*args)
@@ -270,7 +270,7 @@ class NmemClient:
     async def fetch_thread(
         self, thread_id: str, limit: int = 20, offset: int = 0
     ) -> dict:
-        args = ["t", "show", thread_id, "-m", str(limit)]
+        args = ["t", "show", thread_id, "-n", str(limit)]
         if offset > 0:
             args.extend(["--offset", str(offset)])
         args.extend(["--content-limit", "1200"])

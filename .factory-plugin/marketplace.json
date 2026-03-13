@@ -1,0 +1,16 @@
+{
+  "name": "nowledge-community",
+  "description": "Official Nowledge Labs plugin marketplace for Factory Droid",
+  "owner": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai"
+  },
+  "plugins": [
+    {
+      "name": "nowledge-mem",
+      "description": "Personal knowledge graph for Droid with Working Memory, routed recall, distillation, and honest handoff summaries",
+      "category": "knowledge",
+      "source": "./nowledge-mem-droid-plugin"
+    }
+  ]
+}
