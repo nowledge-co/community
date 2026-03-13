@@ -245,7 +245,7 @@ class NowledgeMemClient {
 	}
 
 	async searchThreads(query, limit = 5, source) {
-		const args = ["--json", "t", "search", query, "--limit", String(clamp(Number(limit) || 5, 1, 50))];
+		const args = ["--json", "t", "search", query, "-n", String(clamp(Number(limit) || 5, 1, 50))];
 		if (source) args.push("--source", String(source));
 		return this.run(args, true);
 	}
@@ -256,7 +256,7 @@ class NowledgeMemClient {
 			"t",
 			"show",
 			String(id),
-			"--limit",
+			"-n",
 			String(Math.max(1, Math.floor(messages))),
 			"--content-limit",
 			String(Math.max(100, Math.floor(contentLimit))),
