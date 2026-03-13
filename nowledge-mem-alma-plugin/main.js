@@ -406,8 +406,8 @@ function buildCliPlaybookBlock() {
 		"- Show memory: `nmem --json m show <memory_id>`",
 		"- Add memory: `nmem --json m add \"<content>\" -t \"<title>\" -l tag1 -l tag2 --unit-type decision`",
 		"- Update memory: `nmem --json m update <memory_id> -c \"<new_content>\"`",
-		"- Search threads: `nmem --json t search \"<query>\" --limit 5 --source alma`",
-		"- Show thread: `nmem --json t show <thread_id> --limit 30 --offset 0 --content-limit 1200`",
+		"- Search threads: `nmem --json t search \"<query>\" -n 5 --source alma`",
+		"- Show thread: `nmem --json t show <thread_id> -n 30 --offset 0 --content-limit 1200`",
 	];
 }
 

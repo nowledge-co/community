@@ -122,7 +122,7 @@ Legacy aliases accepted silently in all sources for backward compat:
 | `nmem --json m delete <id>` | `client.execJson()` in forget.js | Delete |
 | `GET /threads/search?query=&limit=` | `client.searchThreads()` | Thread search enrichment (best-effort, API-only) |
 | `nmem --json t search <q> --limit N` | `client.searchThreadsFull()` | Full thread search (CLI-first, API fallback) |
-| `nmem --json t show <id> --limit N --offset O` | `client.fetchThread()` | Fetch thread messages with pagination |
+| `nmem --json t show <id> -n N --offset O` | `client.fetchThread()` | Fetch thread messages with pagination |
 
 All commands have API fallback for older CLI versions.
 
