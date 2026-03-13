@@ -3,8 +3,10 @@
 import { readFileSync, existsSync, statSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-const pluginRoot = path.resolve(process.cwd());
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
 
 const fail = (message) => {
@@ -128,10 +130,10 @@ if (pluginText.includes("nmem t save --from droid")) {
   ok("no fake Droid transcript importer claim");
 }
 
-if (pluginText.includes("python3")) {
-  fail("plugin should not require python3 just to load Working Memory");
+if (pluginText.includes("python3") && !pluginText.includes("command -v python3")) {
+  fail("plugin should not require an unguarded python3 dependency in runtime surfaces");
 } else {
-  ok("no python3 dependency in plugin runtime surfaces");
+  ok("python3 usage is optional or absent in plugin runtime surfaces");
 }
 
 if (process.exitCode) {

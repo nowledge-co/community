@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; nmem wm read 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true"
+            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; read_wm(){ if command -v python3 >/dev/null 2>&1; then nmem --json wm read 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); c=d.get('content',''); print(c) if d.get('exists') and c else sys.exit(1)\" 2>/dev/null; else nmem wm read 2>/dev/null; fi; }; read_wm || cat ~/ai-now/memory.md 2>/dev/null || true"
           }
         ]
       },
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; { nmem wm read 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, distill them before continuing:\\n  nmem --json m add \"<insight>\" -t \"<short title>\" -i 0.8 -s droid\\n'"
+            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; read_wm(){ if command -v python3 >/dev/null 2>&1; then nmem --json wm read 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); c=d.get('content',''); print(c) if d.get('exists') and c else sys.exit(1)\" 2>/dev/null; else nmem wm read 2>/dev/null; fi; }; { read_wm || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, distill them before continuing:\\n  nmem --json m add \"<insight>\" -t \"<short title>\" -i 0.8 -s droid\\n'"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Search past knowledge with nmem --json m search \"query\". Search prior sessions with nmem --json t search \"query\" --limit 5. Save durable insights with nmem --json m add \"content\" -t \"Title\" -i 0.8 -s droid. For resumable checkpoints, use nmem --json t create -t \"Session Handoff - <topic>\" -c \"Goal: ... Decisions: ... Files: ... Risks: ... Next: ...\" -s droid. Do not claim save-thread unless a real Droid transcript importer exists.' || true"
+            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Search past knowledge with nmem --json m search \"query\". Search prior sessions with nmem --json t search \"query\" -n 5. Save durable insights with nmem --json m add \"content\" -t \"Title\" -i 0.8 -s droid. For resumable checkpoints, use nmem --json t create -t \"Session Handoff - <topic>\" -c \"Goal: ... Decisions: ... Files: ... Risks: ... Next: ...\" -s droid. Do not claim save-thread unless a real Droid transcript importer exists.' || true"
           }
         ]
       }

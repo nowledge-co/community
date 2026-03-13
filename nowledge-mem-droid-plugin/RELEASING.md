@@ -16,8 +16,8 @@ Factory still expects a `version` field in `.factory-plugin/plugin.json`, but Dr
 ## Validate Locally
 
 ```bash
-cd nowledge-mem-droid-plugin
-node scripts/validate-plugin.mjs
+cd community
+node nowledge-mem-droid-plugin/scripts/validate-plugin.mjs
 ```
 
 This validator checks:
@@ -60,7 +60,7 @@ droid plugin install nowledge-mem@nowledge-community
 
 - update `.factory-plugin/plugin.json` version when the package contract changes in a user-visible way
 - update `CHANGELOG.md`
-- run `node scripts/validate-plugin.mjs`
+- run `node nowledge-mem-droid-plugin/scripts/validate-plugin.mjs` from `community/`
 - confirm the repository-level `.factory-plugin/marketplace.json` still points at `./nowledge-mem-droid-plugin`
 - keep the marketplace and plugin manifests aligned with Factory's documented schema
 - manually install and test in Droid

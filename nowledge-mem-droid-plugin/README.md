@@ -145,6 +145,14 @@ droid plugin update nowledge-mem@nowledge-community
 
 ## Validate Locally
 
+From the `community/` checkout root:
+
+```bash
+node nowledge-mem-droid-plugin/scripts/validate-plugin.mjs
+```
+
+Or from inside `community/nowledge-mem-droid-plugin/`:
+
 ```bash
 node scripts/validate-plugin.mjs
 ```
