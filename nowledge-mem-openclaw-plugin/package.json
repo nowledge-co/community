@@ -1,6 +1,6 @@
 {
 	"name": "@nowledge/openclaw-nowledge-mem",
-	"version": "0.6.11",
+	"version": "0.6.12",
 	"type": "module",
 	"description": "Nowledge Mem memory plugin for OpenClaw, local-first personal knowledge base",
 	"author": {
@@ -16,6 +16,7 @@
 	},
 	"files": [
 		"src",
+		"skills",
 		"README.md",
 		"CHANGELOG.md",
 		"CLAUDE.md",

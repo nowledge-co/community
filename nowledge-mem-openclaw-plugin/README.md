@@ -62,7 +62,7 @@ If you manage config manually, or you want to verify what the installer selected
 }
 ```
 
-By default the agent gets 10 tools on demand, a short always-on system hint, and end-of-session capture. Working Memory injection is optional and controlled by `sessionContext`.
+By default the agent gets 10 tools on demand, a behavioral skill that teaches it when to search and save, a short always-on system hint, and end-of-session capture. Working Memory injection is optional and controlled by `sessionContext`.
 
 ### Remote mode
 
@@ -115,7 +115,7 @@ flowchart TD
 
 ### When Each Tool Gets Called
 
-The behavioral hook nudges the agent to **search before answering** and **save after deciding**. Here's when each tool fires:
+The behavioral skill and always-on hook nudge the agent to **search before answering** and **save after deciding**. Here's when each tool fires:
 
 | Scenario | Tool | What happens |
 |----------|------|--------------|
@@ -322,7 +322,7 @@ Honest answers to common questions about how the memory system works.
 
 **Does the agent always search before answering?**
 
-No. The behavioral guidance nudges the agent to search, but doesn't force it. This is a deliberate tradeoff: forcing a search on every turn would add latency and cost for messages that don't need past context (like "hello" or "thanks"). In practice, modern LLMs follow behavioral guidance reliably for knowledge-related questions. If guaranteed recall matters for your use case, enable `sessionContext: true`. That injects relevant memories at prompt time, before the agent even processes your message.
+The plugin uses two layers to drive recall. First, a behavioral skill (auto-discovered by OpenClaw) teaches the agent when and how to use memory tools. Second, a short always-on system hint reminds it to "search before answering questions about prior work, decisions, dates, people, preferences, or plans." In practice, modern LLMs follow this directive guidance reliably for knowledge-related questions. For messages that don't need past context (like "hello" or "thanks"), the agent skips the search, which is the right tradeoff. If guaranteed recall matters for your use case, enable `sessionContext: true`. That injects relevant memories at prompt time, before the agent even processes your message.
 
 **What stops the agent from saving duplicate memories?**
 
