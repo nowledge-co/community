@@ -200,9 +200,36 @@ export class NowledgeMemClient {
 			: [];
 	}
 
+	_commandLabel(cmd, args) {
+		let i = cmd.length;
+		const argv = [...cmd, ...this._apiUrlArgs(), ...args];
+		while (i < argv.length) {
+			const token = argv[i];
+			if (token === "--api-url") {
+				i += 2;
+				continue;
+			}
+			break;
+		}
+		const route = argv
+			.slice(i, i + 2)
+			.filter(Boolean)
+			.join(" ");
+		return route ? `nmem ${route}` : cmd.join(" ");
+	}
+
+	_summarizeExecError(message) {
+		if (!message) return "failed";
+		if (message.includes("timed out")) return "timed out";
+		const codeMatch = message.match(/exited with code\s+(\d+)/i);
+		if (codeMatch) return `exited with code ${codeMatch[1]}`;
+		return "failed";
+	}
+
 	async exec(args, timeout = 30_000) {
 		const cmd = await this.resolveCommand();
 		const argv = [...cmd, ...this._apiUrlArgs(), ...args];
+		const commandLabel = this._commandLabel(cmd, args);
 		try {
 			const result = await this.runtimeSystem.runCommandWithTimeout(argv, {
 				timeoutMs: timeout,
@@ -226,7 +253,9 @@ export class NowledgeMemClient {
 			return String(result.stdout ?? "").trim();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
-			this.logger.error(`nmem command failed: ${argv.join(" ")} — ${message}`);
+			this.logger.error(
+				`nmem command failed (${commandLabel}): ${this._summarizeExecError(message)}`,
+			);
 			throw err;
 		}
 	}
@@ -909,7 +938,7 @@ export class NowledgeMemClient {
 
 	async checkHealth() {
 		try {
-			await this.exec(["status"]);
+			await this.execJson(["--json", "status"]);
 			return true;
 		} catch {
 			return false;

@@ -19,6 +19,7 @@
 		"README.md",
 		"CHANGELOG.md",
 		"CLAUDE.md",
+		"SKILL.md",
 		"openclaw.plugin.json"
 	],
 	"openclaw": {

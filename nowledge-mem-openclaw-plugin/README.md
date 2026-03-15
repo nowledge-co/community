@@ -2,7 +2,7 @@
 
 Local-first knowledge graph memory for [OpenClaw](https://openclaw.ai) agents, powered by [Nowledge Mem](https://mem.nowledge.co).
 
-Your AI tools forget. We remember. Everywhere. This plugin gives your OpenClaw agents persistent, graph-connected memory across WhatsApp, Telegram, Discord, Slack, and every channel OpenClaw supports. All data stays on your machine.
+Your AI tools forget. We remember. Everywhere. This plugin gives OpenClaw the same graph-connected memory layer your other AI tools can use too. What you learned in Claude, decided in Cursor, captured from web chats, or distilled from imported threads can all be searchable in OpenClaw. Local-first by default, with remote mode when you want a shared server.
 
 ## Requirements
 
@@ -16,6 +16,18 @@ openclaw plugins install @nowledge/openclaw-nowledge-mem
 ```
 
 OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. Restart OpenClaw after install to load it.
+
+### Agent-assisted setup
+
+If another AI agent is helping you install this plugin, point it at the bundled [SKILL.md](./SKILL.md).
+
+Copyable instruction:
+
+```text
+Read https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-openclaw-plugin/SKILL.md and follow it to install, configure, verify, and explain Nowledge Mem for OpenClaw.
+```
+
+That guide is written for AI agents, not for humans. It handles local vs remote mode, optional API auth, trust pinning, restart, verification, and next steps.
 
 ### Recommended hardening
 
