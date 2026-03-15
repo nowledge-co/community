@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { buildNmemSpawnEnv } from "./spawn-env.js";
 
 /**
  * Patch a single markdown section in a Working Memory document.
@@ -66,18 +66,21 @@ function patchWmSection(currentContent, heading, { content, append } = {}) {
  *
  * Credential rules:
  * - apiUrl: passed to CLI via --api-url flag (not a secret)
- * - apiKey: injected into the child process env as NMEM_API_KEY ONLY
+ * - apiKey: injected into the command runner env as NMEM_API_KEY ONLY
  *   (never passed as a CLI arg to avoid exposure in `ps aux`)
  *   (never logged, even at debug level)
  */
 export class NowledgeMemClient {
 	/**
 	 * @param {object} logger
+	 * @param {object} runtimeSystem
 	 * @param {{ apiUrl?: string; apiKey?: string }} [credentials]
 	 */
-	constructor(logger, credentials = {}) {
+	constructor(logger, runtimeSystem, credentials = {}) {
 		this.logger = logger;
+		this.runtimeSystem = runtimeSystem;
 		this.nmemCmd = null;
+		this.nmemCmdPromise = null;
 		// Resolved once from config + env (config wins over env, both win over default)
 		this._apiUrl =
 			(credentials.apiUrl || "").trim() || "http://127.0.0.1:14242";
@@ -138,28 +141,42 @@ export class NowledgeMemClient {
 
 	// ── CLI helpers ────────────────────────────────────────────────────────────
 
-	resolveCommand() {
+	async resolveCommand() {
 		if (this.nmemCmd) return this.nmemCmd;
+		if (this.nmemCmdPromise) return this.nmemCmdPromise;
 
 		const candidates = [["nmem"], ["uvx", "--from", "nmem-cli", "nmem"]];
 
-		for (const cmd of candidates) {
-			const [bin, ...baseArgs] = cmd;
-			const result = spawnSync(bin, [...baseArgs, "--version"], {
-				stdio: ["ignore", "pipe", "pipe"],
-				timeout: 10_000,
-				encoding: "utf-8",
-			});
-			if (result.status === 0) {
-				this.nmemCmd = cmd;
-				this.logger.info(`nmem resolved: ${cmd.join(" ")}`);
-				return cmd;
+		this.nmemCmdPromise = (async () => {
+			for (const cmd of candidates) {
+				try {
+					const result = await this.runtimeSystem.runCommandWithTimeout(
+						[...cmd, "--version"],
+						{
+							timeoutMs: 10_000,
+							env: this._spawnEnv(),
+						},
+					);
+					if ((result.code ?? 1) === 0) {
+						this.nmemCmd = cmd;
+						this.logger.info(`nmem resolved: ${cmd.join(" ")}`);
+						return cmd;
+					}
+				} catch {
+					// Try the next candidate.
+				}
 			}
-		}
 
-		throw new Error(
-			"nmem CLI not found. Install with: pip install nmem-cli (or use uvx)",
-		);
+			throw new Error(
+				"nmem CLI not found. Install with: pip install nmem-cli (or use uvx)",
+			);
+		})();
+
+		try {
+			return await this.nmemCmdPromise;
+		} finally {
+			this.nmemCmdPromise = null;
+		}
 	}
 
 	/**
@@ -167,15 +184,10 @@ export class NowledgeMemClient {
 	 * apiKey is injected here — NEVER via CLI args.
 	 */
 	_spawnEnv() {
-		const env = { ...process.env };
-		// Explicit config wins over any existing env var
-		if (this._apiUrl !== "http://127.0.0.1:14242") {
-			env.NMEM_API_URL = this._apiUrl;
-		}
-		if (this._apiKey) {
-			env.NMEM_API_KEY = this._apiKey;
-		}
-		return env;
+		return buildNmemSpawnEnv({
+			apiUrl: this._apiUrl,
+			apiKey: this._apiKey,
+		});
 	}
 
 	/**
@@ -188,41 +200,39 @@ export class NowledgeMemClient {
 			: [];
 	}
 
-	exec(args, timeout = 30_000) {
-		const cmd = this.resolveCommand();
-		const [bin, ...baseArgs] = cmd;
+	async exec(args, timeout = 30_000) {
+		const cmd = await this.resolveCommand();
+		const argv = [...cmd, ...this._apiUrlArgs(), ...args];
 		try {
-			const result = spawnSync(
-				bin,
-				[...baseArgs, ...this._apiUrlArgs(), ...args],
-				{
-					stdio: ["ignore", "pipe", "pipe"],
-					timeout,
-					encoding: "utf-8",
-					env: this._spawnEnv(),
-				},
-			);
-			if (result.error) {
-				throw result.error;
+			const result = await this.runtimeSystem.runCommandWithTimeout(argv, {
+				timeoutMs: timeout,
+				env: this._spawnEnv(),
+			});
+			if (
+				result.termination === "timeout" ||
+				result.termination === "no-output-timeout"
+			) {
+				const message =
+					(result.stderr || result.stdout || "").trim() ||
+					`nmem timed out after ${timeout}ms`;
+				throw new Error(message);
 			}
-			if (result.status !== 0) {
+			if ((result.code ?? 1) !== 0) {
 				const message = (result.stderr || result.stdout || "").trim();
 				throw new Error(
-					message || `nmem exited with code ${String(result.status)}`,
+					message || `nmem exited with code ${String(result.code)}`,
 				);
 			}
 			return String(result.stdout ?? "").trim();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
-			this.logger.error(
-				`nmem command failed: ${cmd.join(" ")} ${args.join(" ")} — ${message}`,
-			);
+			this.logger.error(`nmem command failed: ${argv.join(" ")} — ${message}`);
 			throw err;
 		}
 	}
 
-	execJson(args, timeout = 30_000) {
-		const raw = this.exec(args, timeout);
+	async execJson(args, timeout = 30_000) {
+		const raw = await this.exec(args, timeout);
 		return JSON.parse(raw);
 	}
 
@@ -237,7 +247,7 @@ export class NowledgeMemClient {
 			100,
 			Math.max(1, Math.trunc(Number(limit) || 5)),
 		);
-		const data = this.execJson([
+		const data = await this.execJson([
 			"--json",
 			"m",
 			"search",
@@ -296,7 +306,7 @@ export class NowledgeMemClient {
 
 		let data;
 		try {
-			data = this.execJson(args);
+			data = await this.execJson(args);
 		} catch (err) {
 			// Graceful fallback: CLI doesn't know --event-from yet → use API directly
 			const message = err instanceof Error ? err.message : String(err);
@@ -388,7 +398,7 @@ export class NowledgeMemClient {
 		];
 
 		try {
-			return this.execJson(args);
+			return await this.execJson(args);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			const needsFallback =
@@ -422,7 +432,7 @@ export class NowledgeMemClient {
 			String(limit),
 		];
 		try {
-			return this.execJson(args);
+			return await this.execJson(args);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			const needsFallback =
@@ -472,7 +482,7 @@ export class NowledgeMemClient {
 		if (dateTo) args.push("--to", String(dateTo));
 
 		try {
-			const data = this.execJson(args);
+			const data = await this.execJson(args);
 			return Array.isArray(data) ? data : (data.events ?? []);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -506,7 +516,7 @@ export class NowledgeMemClient {
 		if (importance !== undefined && Number.isFinite(Number(importance))) {
 			args.push("-i", String(importance));
 		}
-		const data = this.execJson(args);
+		const data = await this.execJson(args);
 		return String(data.id ?? data.memory?.id ?? data.memory_id ?? "created");
 	}
 
@@ -535,7 +545,7 @@ export class NowledgeMemClient {
 			if (threadId) {
 				args.push("--id", String(threadId));
 			}
-			data = this.execJson(args);
+			data = await this.execJson(args);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			const needsApiFallback =
@@ -588,7 +598,7 @@ export class NowledgeMemClient {
 			if (idempotencyKey) {
 				args.push("--idempotency-key", String(idempotencyKey));
 			}
-			const data = this.execJson(args);
+			const data = await this.execJson(args);
 			return {
 				messagesAdded: Number(data.messages_added ?? 0),
 				totalMessages: Number(data.total_messages ?? 0),
@@ -627,7 +637,7 @@ export class NowledgeMemClient {
 		if (!id) {
 			throw new Error("getMemory requires memoryId");
 		}
-		return this.execJson(["--json", "m", "show", id]);
+		return await this.execJson(["--json", "m", "show", id]);
 	}
 
 	isThreadNotFoundError(err) {
@@ -643,7 +653,7 @@ export class NowledgeMemClient {
 
 	async readWorkingMemory() {
 		try {
-			const data = this.execJson(["--json", "wm", "read"], 15_000);
+			const data = await this.execJson(["--json", "wm", "read"], 15_000);
 			const content = String(data.content ?? "").trim();
 			const exists = Boolean(data.exists);
 			return { content, available: exists && content.length > 0 };
@@ -667,7 +677,7 @@ export class NowledgeMemClient {
 		if (append !== undefined) args.push("--append", String(append));
 
 		try {
-			return this.execJson(args, 20_000);
+			return await this.execJson(args, 20_000);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			const notSupported =
@@ -772,7 +782,7 @@ export class NowledgeMemClient {
 	 * Unlike searchThreads() (best-effort, swallows errors), this throws on failure
 	 * and supports additional parameters.
 	 *
-	 * Uses CLI: `nmem --json t search "<query>" --limit N`
+	 * Uses CLI: `nmem --json t search "<query>" -n N`
 	 * Falls back to API: GET /threads/search
 	 *
 	 * @param {string} query  Search keywords
@@ -789,13 +799,13 @@ export class NowledgeMemClient {
 			"t",
 			"search",
 			String(query || ""),
-			"--limit",
+			"-n",
 			String(normalizedLimit),
 		];
 		if (source) args.push("--source", String(source));
 
 		try {
-			const data = this.execJson(args);
+			const data = await this.execJson(args);
 			return {
 				threads: data.threads ?? [],
 				totalFound: Number(data.total_found ?? data.total ?? 0),
@@ -830,7 +840,7 @@ export class NowledgeMemClient {
 	 * Fetch full messages from a specific thread.
 	 * Supports pagination for progressive retrieval of long conversations.
 	 *
-	 * Uses CLI: `nmem --json t show <id> --limit N --offset O`
+	 * Uses CLI: `nmem --json t show <id> -n N --offset O`
 	 * Falls back to API: GET /threads/{id}
 	 *
 	 * @param {string} threadId  Thread ID
@@ -846,20 +856,13 @@ export class NowledgeMemClient {
 		);
 		const normalizedOffset = Math.max(0, Math.trunc(Number(offset) || 0));
 
-		const args = [
-			"--json",
-			"t",
-			"show",
-			id,
-			"--limit",
-			String(normalizedLimit),
-		];
+		const args = ["--json", "t", "show", id, "-n", String(normalizedLimit)];
 		if (normalizedOffset > 0) {
 			args.push("--offset", String(normalizedOffset));
 		}
 
 		try {
-			const data = this.execJson(args);
+			const data = await this.execJson(args);
 			return {
 				threadId: data.thread_id ?? data.id ?? id,
 				title: data.title ?? "(untitled)",
@@ -906,7 +909,7 @@ export class NowledgeMemClient {
 
 	async checkHealth() {
 		try {
-			this.exec(["status"]);
+			await this.exec(["status"]);
 			return true;
 		} catch {
 			return false;

@@ -37,7 +37,7 @@ export function createStatusTool(client, _logger, cfg) {
 
 			// 2. CLI resolution
 			try {
-				const cmd = client.resolveCommand();
+				const cmd = await client.resolveCommand();
 				details.cli = cmd.join(" ");
 				lines.push(`CLI: ${cmd.join(" ")}`);
 			} catch {

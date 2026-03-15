@@ -3,7 +3,7 @@
  *
  * This is the single most impactful change for memory adoption:
  * most LLMs ignore "call this proactively" in tool descriptions,
- * but reliably follow behavioral guidance in prepended context.
+ * but reliably follow behavioral guidance in system-prompt space.
  *
  * Cost: ~50 tokens per turn. Negligible.
  *
@@ -38,6 +38,6 @@ export function buildBehavioralHook(logger, { sessionContext = false } = {}) {
 	const guidance = sessionContext ? SESSION_CONTEXT_GUIDANCE : BASE_GUIDANCE;
 	return (_event, _ctx) => {
 		logger.debug?.("behavioral: injecting guidance");
-		return { prependContext: guidance };
+		return { appendSystemContext: guidance };
 	};
 }

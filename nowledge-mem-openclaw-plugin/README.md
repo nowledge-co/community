@@ -7,7 +7,7 @@ Your AI tools forget. We remember. Everywhere. This plugin gives your OpenClaw a
 ## Requirements
 
 - [Nowledge Mem](https://mem.nowledge.co) desktop app **or** `nmem` CLI
-- [OpenClaw](https://openclaw.ai) >= 2026.1.29
+- [OpenClaw](https://openclaw.ai) >= 2026.3.7
 
 ## Installation
 
@@ -15,9 +15,25 @@ Your AI tools forget. We remember. Everywhere. This plugin gives your OpenClaw a
 openclaw plugins install @nowledge/openclaw-nowledge-mem
 ```
 
-### Local mode (default)
+OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. Restart OpenClaw after install to load it.
 
-Start Nowledge Mem desktop app or run `nmem serve`, then enable the plugin:
+### Recommended hardening
+
+If you keep non-bundled plugins on an explicit trust allowlist, add:
+
+```json
+{
+  "plugins": {
+    "allow": ["openclaw-nowledge-mem"]
+  }
+}
+```
+
+`plugins.allow` is id-based, not source-based. If you also use `plugins.load.paths` or `openclaw plugins install --link`, review those paths too. An allowlist trusts the active plugin with that id; it does not pin where it came from.
+
+### Manual config or verification
+
+If you manage config manually, or you want to verify what the installer selected, this is the expected shape:
 
 ```json
 {
@@ -32,7 +48,7 @@ Start Nowledge Mem desktop app or run `nmem serve`, then enable the plugin:
 }
 ```
 
-That's it. The agent gets 10 tools and calls them on demand. No extra tokens wasted.
+By default the agent gets 10 tools on demand, a short always-on system hint, and end-of-session capture. Working Memory injection is optional and controlled by `sessionContext`.
 
 ### Remote mode
 
@@ -66,7 +82,7 @@ Every user message triggers hooks before the agent sees it, then the agent decid
 flowchart TD
     A["User sends message"] --> B["before_prompt_build hook"]
 
-    B --> C["Behavioral guidance(always, ~110 tokens)"]
+    B --> C["Behavioral guidance(cacheable system hint)"]
     B -.->|"sessionContext: true"| D["Working Memory +relevant memories (~1-2 KB)"]
 
     C --> E["Agent processes message(10 tools available)"]
@@ -160,7 +176,7 @@ Two entry points:
 flowchart LR
     subgraph "default" ["Default (recommended)"]
         direction TB
-        D1["Every turn: behavioral guidance (~50 tokens)"]
+        D1["Every turn: short system hint"]
         D2["Agent calls 10 tools on demand"]
         D3["Session end: thread capture + LLM distillation"]
     end
@@ -174,7 +190,7 @@ flowchart LR
 
     subgraph minimal ["Minimal"]
         direction TB
-        M1["Every turn: behavioral guidance (~50 tokens)"]
+        M1["Every turn: short system hint"]
         M2["Agent calls 10 tools on demand"]
         M3["No automatic capture"]
     end
@@ -262,14 +278,14 @@ The plugin supports three modes. Choose based on how much you want to guarantee 
 
 | Mode | Config | Behavior | Tradeoff |
 |------|--------|----------|----------|
-| **Default** (recommended) | `sessionContext: false, sessionDigest: true` | Agent calls 10 tools on demand. Behavioral guidance every turn (~50 tokens). Conversations captured + distilled at session end. | Lowest cost. Agent decides when to search, usually smart, occasionally forgets. |
-| **Session context** | `sessionContext: true` | Working Memory + relevant memories injected at prompt time, plus all 10 tools still available. | ~1-2 KB/turn. Guarantees context is always present. Best for short sessions or critical workflows. |
-| **Minimal** | `sessionDigest: false` | Tool-only, no automatic capture. | Zero overhead beyond guidance. Use when you handle memory manually. |
+| **Default** (recommended) | `sessionContext: false, sessionDigest: true` | Agent calls 10 tools on demand. A short system hint stays on. Conversations captured + distilled at session end. | Lowest overhead. Agent decides when to search, usually smart, occasionally forgets. |
+| **Session context** | `sessionContext: true` | Working Memory + relevant memories injected at prompt time, plus all 10 tools still available. | Higher per-turn context cost. Guarantees context is present from the first turn. |
+| **Minimal** | `sessionDigest: false` | Tool-only, no automatic capture. | Small overhead from the always-on hint only. Use when you handle memory manually. |
 
 **Which mode should you use?**
 
 - **Most users**: start with default. The agent gets behavioral guidance nudging it to search before answering and save after deciding. It works well for most conversations.
-- **Short sessions or critical accuracy**: enable `sessionContext`. This guarantees relevant memories are present from the first turn. The agent doesn't need to decide whether to search. The tradeoff is ~1-2 KB of context per turn.
+- **Short sessions or critical accuracy**: enable `sessionContext`. This guarantees relevant memories are present from the first turn. The agent doesn't need to decide whether to search. The tradeoff is a larger per-turn prompt.
 - **Full manual control**: set `sessionDigest: false`. You control what gets saved (via `/remember` or `nowledge_mem_save`) and nothing is captured automatically.
 
 ### Session Context (`sessionContext`, default: false)
@@ -327,7 +343,7 @@ openclaw nowledge-mem status
 
 ## Configuration
 
-No config needed to get started. The defaults work for local mode.
+No config is required for a normal npm install. The defaults work for local mode, and `openclaw plugins install` already enables the plugin and selects the memory slot.
 
 To change settings, use the OpenClaw plugin settings UI. Changes take effect on restart.
 
@@ -380,6 +396,20 @@ config file > OpenClaw settings > env vars > defaults
 ```
 
 Use `nowledge_mem_status` (or `openclaw nowledge-mem status`) to see where each value comes from.
+
+### Trust warning after install
+
+If OpenClaw logs a warning like `plugins.allow is empty; discovered non-bundled plugins may auto-load`, the plugin is installed correctly. OpenClaw is warning that you have not pinned trust for non-bundled plugins yet. Add:
+
+```json
+{
+  "plugins": {
+    "allow": ["openclaw-nowledge-mem"]
+  }
+}
+```
+
+If you also use linked or workspace copies, review `plugins.load.paths` before relying on an allowlist. OpenClaw allowlists plugin ids, not install provenance.
 
 ## What Makes This Different
 
