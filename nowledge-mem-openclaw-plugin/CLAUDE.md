@@ -45,7 +45,10 @@ src/
     forget.js           - memory deletion by ID or search
     thread-search.js    - search past conversations by keyword
     thread-fetch.js     - fetch full messages from a thread with pagination
-openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema)
+skills/
+  memory-guide/
+    SKILL.md            - agent behavioral skill: when/how to search, save, explore memory (auto-discovered by OpenClaw)
+openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema, skills)
 ~/.nowledge-mem/openclaw.json - optional user config file (overrides OpenClaw settings when present)
 ```
 
@@ -69,10 +72,14 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema)
 ### Diagnostics
 - `nowledge_mem_status` - show effective config (mode, apiUrl, apiKey set, sessionContext, sessionDigest, etc.), backend connectivity, and version. No parameters.
 
+## Skill Surface
+
+- `skills/memory-guide/SKILL.md` - agent behavioral skill auto-discovered by OpenClaw via manifest `skills[]`. Teaches the agent when/how to search, save, explore connections, fetch threads, and use Working Memory. Read on-demand when the agent identifies a memory-related task.
+
 ## Hook Surface
 
-- `before_prompt_build` (always-on) - behavioral guidance in system-prompt space: brief note telling agent to save/search proactively. Adjusts when sessionContext is on to avoid redundant searches.
-- `before_prompt_build` (sessionContext) - session context: Working Memory + `searchRich()` with `relevanceReason` in context
+- `before_prompt_build` (always-on) - directive behavioral guidance in system-prompt space: tells agent to search before answering questions about prior work/decisions/preferences, and to save decisions/learnings proactively. Explicitly notes semantic search (not file paths) to counter OpenClaw's hardcoded memory section. Adjusts when sessionContext is on to avoid redundant searches.
+- `before_prompt_build` (sessionContext) - session context: Working Memory + `searchRich()` memories with `relevanceReason`. Note: does NOT inject thread snippets — threads are available via `memory_search` tool and `nowledge_mem_thread_fetch`.
 - `agent_end` - thread capture + LLM triage/distillation (requires `sessionDigest: true`)
 - `after_compaction` - thread append
 - `before_reset` - thread append

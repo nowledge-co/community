@@ -15,11 +15,11 @@
 const BASE_GUIDANCE = [
 	"<nowledge-mem-guidance>",
 	"You have access to the user's personal knowledge graph (Nowledge Mem).",
-	"When the conversation produces something worth keeping — a decision made, a preference stated,",
-	"something learned, a plan formed, a useful discovery — save it with nowledge_mem_save. Don't wait to be asked.",
-	"When prior context would improve your response, search with memory_search.",
-	"memory_search also returns relevant past conversation snippets alongside memories.",
-	"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_fetch.",
+	"Before answering questions about prior work, decisions, dates, people, preferences, or plans:",
+	"search with memory_search using natural language queries (not file paths).",
+	"memory_search returns memories with scores, labels, and relevant past conversation snippets.",
+	"When results include a sourceThreadId, use nowledge_mem_thread_fetch for full conversation context.",
+	"When the conversation produces a decision, preference, plan, or learning, save it with nowledge_mem_save.",
 	"</nowledge-mem-guidance>",
 ].join("\n");
 
@@ -27,10 +27,10 @@ const SESSION_CONTEXT_GUIDANCE = [
 	"<nowledge-mem-guidance>",
 	"You have access to the user's personal knowledge graph (Nowledge Mem).",
 	"Relevant memories and your Working Memory have already been injected into this prompt.",
-	"Use memory_search only when you need something specific beyond what was auto-recalled.",
-	"When the conversation produces something worth keeping — a decision made, a preference stated,",
-	"something learned, a plan formed, a useful discovery — save it with nowledge_mem_save. Don't wait to be asked.",
-	"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_fetch.",
+	"Use memory_search when you need something specific beyond what was auto-recalled (natural language queries, not file paths).",
+	"memory_search also returns relevant past conversation snippets alongside memories.",
+	"When results include a sourceThreadId, use nowledge_mem_thread_fetch for full conversation context.",
+	"When the conversation produces a decision, preference, plan, or learning, save it with nowledge_mem_save.",
 	"</nowledge-mem-guidance>",
 ].join("\n");
 

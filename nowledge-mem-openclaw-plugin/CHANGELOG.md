@@ -2,6 +2,16 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.12] - 2026-03-15
+
+### Added
+
+- **Agent behavioral skill**: the plugin now registers a `skills/memory-guide/SKILL.md` skill via the OpenClaw manifest `skills[]` array. OpenClaw auto-discovers it and presents it to the agent as an available skill. The skill teaches the agent when and how to search, save, explore connections, browse timelines, fetch past conversations, and use Working Memory. This is the single biggest change for memory recall quality: agents now receive structured guidance before their first memory interaction, rather than relying on tool descriptions alone.
+
+### Changed
+
+- **Behavioral guidance is now directive**: the always-on system hint now says "Before answering questions about prior work, decisions, dates, people, preferences, or plans: search with memory_search" instead of the previous "When prior context would improve your response, search." This matches the imperative pattern that LLMs follow most reliably, and explicitly notes "natural language queries, not file paths" to prevent confusion with OpenClaw's built-in file-based memory guidance.
+
 ## [0.6.11] - 2026-03-15
 
 ### Changed
