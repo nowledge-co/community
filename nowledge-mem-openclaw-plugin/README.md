@@ -2,7 +2,7 @@
 
 Local-first knowledge graph memory for [OpenClaw](https://openclaw.ai) agents, powered by [Nowledge Mem](https://mem.nowledge.co).
 
-Your AI tools forget. We remember. Everywhere. This plugin gives OpenClaw the same graph-connected memory layer your other AI tools can use too. What you learned in Claude, decided in Cursor, captured from web chats, or distilled from imported threads can all be searchable in OpenClaw. Local-first by default, with remote mode when you want a shared server.
+Your AI tools forget. We remember. Everywhere. This plugin gives OpenClaw both lossless session memory and the same graph-connected memory layer your other AI tools can use too. Every OpenClaw conversation is captured as a searchable thread, important moments can distill into linked memories with `sourceThreadId`, and knowledge from Claude, Cursor, web chats, and imported threads stays searchable inside OpenClaw. Local-first by default, with remote mode when you want a shared server.
 
 ## Requirements
 
