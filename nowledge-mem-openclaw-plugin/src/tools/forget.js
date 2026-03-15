@@ -46,7 +46,7 @@ export function createForgetTool(client, logger) {
 			// Mode 1: Direct delete by ID
 			if (memoryId) {
 				try {
-					client.exec(["--json", "m", "delete", "-f", memoryId]);
+					await client.exec(["--json", "m", "delete", "-f", memoryId]);
 					logger.info(`forget: deleted memory ${memoryId}`);
 					return {
 						content: [
@@ -92,7 +92,7 @@ export function createForgetTool(client, logger) {
 				if (results.length === 1 && results[0].score >= 0.85) {
 					const target = results[0];
 					try {
-						client.exec(["--json", "m", "delete", "-f", target.id]);
+						await client.exec(["--json", "m", "delete", "-f", target.id]);
 						logger.info(`forget: deleted memory ${target.id} via search`);
 						return {
 							content: [

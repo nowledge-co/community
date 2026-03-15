@@ -33,7 +33,7 @@ export default {
 	register(api) {
 		const logger = api.logger;
 		const cfg = parseConfig(api.pluginConfig, logger);
-		const client = new NowledgeMemClient(logger, {
+		const client = new NowledgeMemClient(logger, api.runtime.system, {
 			apiUrl: cfg.apiUrl,
 			apiKey: cfg.apiKey,
 		});

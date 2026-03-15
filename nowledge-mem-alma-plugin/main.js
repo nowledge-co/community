@@ -245,7 +245,7 @@ class NowledgeMemClient {
 	}
 
 	async searchThreads(query, limit = 5, source) {
-		const args = ["--json", "t", "search", query, "--limit", String(clamp(Number(limit) || 5, 1, 50))];
+		const args = ["--json", "t", "search", query, "-n", String(clamp(Number(limit) || 5, 1, 50))];
 		if (source) args.push("--source", String(source));
 		return this.run(args, true);
 	}
@@ -256,7 +256,7 @@ class NowledgeMemClient {
 			"t",
 			"show",
 			String(id),
-			"--limit",
+			"-n",
 			String(Math.max(1, Math.floor(messages))),
 			"--content-limit",
 			String(Math.max(100, Math.floor(contentLimit))),
@@ -406,8 +406,8 @@ function buildCliPlaybookBlock() {
 		"- Show memory: `nmem --json m show <memory_id>`",
 		"- Add memory: `nmem --json m add \"<content>\" -t \"<title>\" -l tag1 -l tag2 --unit-type decision`",
 		"- Update memory: `nmem --json m update <memory_id> -c \"<new_content>\"`",
-		"- Search threads: `nmem --json t search \"<query>\" --limit 5 --source alma`",
-		"- Show thread: `nmem --json t show <thread_id> --limit 30 --offset 0 --content-limit 1200`",
+		"- Search threads: `nmem --json t search \"<query>\" -n 5 --source alma`",
+		"- Show thread: `nmem --json t show <thread_id> -n 30 --offset 0 --content-limit 1200`",
 	];
 }
 

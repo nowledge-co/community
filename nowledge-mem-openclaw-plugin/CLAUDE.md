@@ -7,7 +7,8 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 - Plugin target: OpenClaw plugin runtime (memory slot provider)
 - Runtime: JS ESM modules under `src/`, no TS build pipeline
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
-- Architecture: **CLI-first** - all operations go through the nmem CLI, not direct API calls
+- OpenClaw minimum: `2026.3.7` (`appendSystemContext` / system-context guidance required)
+- Architecture: **CLI-first via OpenClaw runtime** - all CLI execution goes through `api.runtime.system.runCommandWithTimeout`, not direct `child_process`
 - Remote mode: set `NMEM_API_URL` + `NMEM_API_KEY` env vars or config file `apiUrl` + `apiKey`
 
 ## Design Philosophy
@@ -27,7 +28,8 @@ Reflects Nowledge Mem's genuine v0.6 strengths:
 ```
 src/
   index.js          - plugin registration (tools, hooks, commands, CLI)
-  client.js         - CLI wrapper with API fallback; credential handling
+  client.js         - CLI wrapper with API fallback; async runtime command execution; credential handling
+  spawn-env.js      - env-only credential injection for the nmem runner
   config.js         - config cascade: ~/.nowledge-mem/openclaw.json > pluginConfig > env vars > defaults
   hooks/
     behavioral.js   - always-on behavioral guidance (~50 tokens/turn)
@@ -69,7 +71,7 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema)
 
 ## Hook Surface
 
-- `before_prompt_build` (always-on) - behavioral guidance: brief note telling agent to save/search proactively. Adjusts when sessionContext is on to avoid redundant searches.
+- `before_prompt_build` (always-on) - behavioral guidance in system-prompt space: brief note telling agent to save/search proactively. Adjusts when sessionContext is on to avoid redundant searches.
 - `before_prompt_build` (sessionContext) - session context: Working Memory + `searchRich()` with `relevanceReason` in context
 - `agent_end` - thread capture + LLM triage/distillation (requires `sessionDigest: true`)
 - `after_compaction` - thread append
@@ -121,8 +123,8 @@ Legacy aliases accepted silently in all sources for backward compat:
 | `nmem --json wm patch --heading "## S" --content/--append` | `client.patchWorkingMemory()` | Section-level WM update |
 | `nmem --json m delete <id>` | `client.execJson()` in forget.js | Delete |
 | `GET /threads/search?query=&limit=` | `client.searchThreads()` | Thread search enrichment (best-effort, API-only) |
-| `nmem --json t search <q> --limit N` | `client.searchThreadsFull()` | Full thread search (CLI-first, API fallback) |
-| `nmem --json t show <id> --limit N --offset O` | `client.fetchThread()` | Fetch thread messages with pagination |
+| `nmem --json t search <q> -n N` | `client.searchThreadsFull()` | Full thread search (CLI-first, API fallback) |
+| `nmem --json t show <id> -n N --offset O` | `client.fetchThread()` | Fetch thread messages with pagination |
 
 All commands have API fallback for older CLI versions.
 

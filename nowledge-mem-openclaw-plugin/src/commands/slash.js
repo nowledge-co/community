@@ -38,7 +38,7 @@ export function createForgetCommand(client, logger) {
 
 			try {
 				if (isLikelyId) {
-					client.exec(["--json", "m", "delete", "-f", text]);
+					await client.exec(["--json", "m", "delete", "-f", text]);
 					logger.info(`/forget: deleted memory ${text}`);
 					return { text: `Forgotten: memory ${text} deleted.` };
 				}
@@ -50,7 +50,7 @@ export function createForgetCommand(client, logger) {
 
 				if (results[0].score >= 0.85) {
 					const target = results[0];
-					client.exec(["--json", "m", "delete", "-f", target.id]);
+					await client.exec(["--json", "m", "delete", "-f", target.id]);
 					logger.info(`/forget: deleted memory ${target.id}`);
 					const preview = target.title || target.content.slice(0, 60);
 					return {

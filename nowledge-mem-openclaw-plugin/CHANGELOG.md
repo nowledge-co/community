@@ -2,6 +2,26 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.11] - 2026-03-15
+
+### Changed
+
+- **Release-cycle alignment**: the OpenClaw plugin version now tracks the main Nowledge Mem `0.6.11` release line, so the published plugin and app-facing changelog stay in sync for this release.
+- **Agent-assisted onboarding added**: the plugin now ships with a bundled `SKILL.md` playbook so AI agents can install, configure, verify, and explain the integration without collapsing the human docs into an agent script.
+- **Aligned command execution with OpenClaw runtime**: the plugin now runs `nmem` through OpenClaw's runtime command runner instead of importing `child_process` directly. This removes gateway-blocking synchronous process calls from the plugin surface and matches current OpenClaw plugin abstractions.
+- **Static guidance moved into system-prompt space**: the always-on behavioral hint now uses system-context injection instead of user-prompt prepend text, matching OpenClaw's newer `prependSystemContext` / `appendSystemContext` guidance for cacheable stable instructions.
+- **Minimum supported OpenClaw version is now `2026.3.7`**: this is the first release with the system-context fields the plugin now relies on.
+- **Package publishing is now explicit**: npm contents are pinned through the package manifest instead of relying on `.gitignore` fallback behavior, making releases more deterministic.
+
+### Fixed
+
+- **Health checks now keep the JSON contract**: the internal `status` probe now uses `--json`, matching the rest of the plugin's parseable CLI surface.
+- **Resolved config now overrides inherited `NMEM_*` values cleanly**: child-process env construction now clears inherited `NMEM_API_URL` and `NMEM_API_KEY` before applying the effective plugin config, so local mode cannot accidentally inherit a stale remote backend.
+- **Failure logs no longer echo full CLI argv**: plugin logs now record a sanitized command label instead of raw `nmem` arguments, avoiding retention of user queries or message batches in log files.
+- **Thread CLI flag drift**: thread search and thread fetch now use `-n`, matching the current `nmem` thread CLI surface and the plugin's own internal docs.
+- **Install and trust docs now match current OpenClaw behavior**: the docs now explain that `openclaw plugins install` enables the plugin and selects the memory slot automatically, and they document the recommended `plugins.allow` hardening path for non-bundled plugins.
+- **Default-mode docs no longer over-promise auto-injected context**: Working Memory and recalled memories are now described as opt-in `sessionContext` behavior, not something every default install gets automatically.
+
 ## [0.6.9] - 2026-03-05
 
 ### Fixed

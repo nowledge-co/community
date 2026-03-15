@@ -169,7 +169,7 @@ export function createSaveTool(client, logger) {
 				if (eventEnd) args.push("--event-end", eventEnd);
 				if (temporalContext) args.push("--when", temporalContext);
 
-				const data = client.execJson(args);
+				const data = await client.execJson(args);
 				const id = String(
 					data.id ?? data.memory?.id ?? data.memory_id ?? "created",
 				);
