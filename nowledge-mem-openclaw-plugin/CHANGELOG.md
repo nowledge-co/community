@@ -2,10 +2,11 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
-## [0.6.10] - 2026-03-15
+## [0.6.11] - 2026-03-15
 
 ### Changed
 
+- **Release-cycle alignment**: the OpenClaw plugin version now tracks the main Nowledge Mem `0.6.11` release line, so the published plugin and app-facing changelog stay in sync for this release.
 - **Aligned command execution with OpenClaw runtime**: the plugin now runs `nmem` through OpenClaw's runtime command runner instead of importing `child_process` directly. This removes gateway-blocking synchronous process calls from the plugin surface and matches current OpenClaw plugin abstractions.
 - **Static guidance moved into system-prompt space**: the always-on behavioral hint now uses system-context injection instead of user-prompt prepend text, matching OpenClaw's newer `prependSystemContext` / `appendSystemContext` guidance for cacheable stable instructions.
 - **Minimum supported OpenClaw version is now `2026.3.7`**: this is the first release with the system-context fields the plugin now relies on.
