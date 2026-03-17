@@ -31,7 +31,7 @@
 		"apiKey": {
 			"label": "API key (remote mode)",
 			"help": "Required when connecting to a remote server. Never logged or passed as a CLI argument. Injected as NMEM_API_KEY env var only.",
-			"secret": true
+			"sensitive": true
 		}
 	},
 	"configSchema": {
