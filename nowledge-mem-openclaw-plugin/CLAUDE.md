@@ -156,6 +156,16 @@ nmem wm patch --heading "## Notes" --append "New note from agent"
 NMEM_API_URL=https://your-server NMEM_API_KEY=key nmem status
 ```
 
+## Version Bump Checklist
+
+All three files must match on every release:
+
+1. **`package.json`** — `"version"` (npm registry reads this for `npm publish`)
+2. **`openclaw.plugin.json`** — `"version"` (OpenClaw runtime reads this at load time)
+3. **`CHANGELOG.md`** — new `## [x.y.z] - YYYY-MM-DD` section header
+
+After bumping, commit inside the `community/` submodule, then stage the updated submodule ref in the parent repo.
+
 ## Known Gaps / Accepted Limitations
 
 1. **Feed API `date_from`/`date_to`** - supported. Backend filters events by YYYY-MM-DD range. CLI: `nmem f --from/--to`. Plugin: `nowledge_mem_timeline` accepts `date_from`/`date_to`.

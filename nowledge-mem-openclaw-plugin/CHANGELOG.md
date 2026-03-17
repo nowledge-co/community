@@ -2,6 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.13] - 2026-03-17
+
+### Fixed
+
+- **Dashboard config: API key field now masked correctly.** The manifest `uiHints` for `apiKey` used `"secret": true` but OpenClaw's `PluginConfigUiHint` type expects `"sensitive": true`. The field now renders as a password input in the OpenClaw dashboard.
+
 ## [0.6.12] - 2026-03-15
 
 ### Added
