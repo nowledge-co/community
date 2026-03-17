@@ -2,6 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.14] - 2026-03-17
+
+### Added
+
+- **Configurable thread message truncation.** New `maxThreadMessageChars` setting (200-20000, default 800) controls how many characters are preserved per captured thread message. Higher values keep more context in long conversations. Configurable via dashboard, config file, or `NMEM_MAX_THREAD_MESSAGE_CHARS` env var. Contributed by @blessonism.
+
 ## [0.6.13] - 2026-03-17
 
 ### Fixed

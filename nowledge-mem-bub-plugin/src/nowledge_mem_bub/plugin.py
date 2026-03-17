@@ -1,8 +1,8 @@
 """Bub hook implementations for Nowledge Mem.
 
 Hooks:
-  system_prompt  — behavioural guidance (~50 tokens) + optional WM / recall
-  load_state     — fetch Working Memory and (if session_context) recalled memories
+  system_prompt  — static behavioural guidance (~50 tokens), identical every turn
+  build_prompt   — when session_context is on, inject WM + recalled memories
   save_state     — capture each turn to a Nowledge Mem thread (incremental)
 """
 
@@ -138,7 +138,7 @@ class NowledgeMemPlugin:
             # mem.context or mem.search on demand.
             return "", []
         if not self.client.is_available():
-            logger.debug("nmem not in PATH, skipping load_state")
+            logger.debug("nmem not in PATH, skipping memory load")
             return "", []
 
         # Session context mode: fetch WM + recalled memories

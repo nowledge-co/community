@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 (2026-03-17)
+
+- Fixed: memory context (Working Memory + recalled knowledge) no longer injected into system prompt, which was breaking LLM prefix cache and causing full KV recomputation every turn. Context now injected via `build_prompt` hook into user prompt space. System prompt stays static and cacheable. Contributed by @frostming.
+- Changed: `system_prompt` hook now returns only static behavioral guidance (identical every turn), preserving prefix cache.
+- Changed: memory loading moved from `load_state` hook to private `_load_memory` method called from `build_prompt`.
+- Changed: skill directory renamed from `bub_skills/` to `skills/` for consistency.
+
 ## 0.1.2 (2026-03-12)
 
 - Fixed: nmem cli argument issue by @ferstar via https://github.com/nowledge-co/community/pull/118
