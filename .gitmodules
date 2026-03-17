@@ -1,3 +1,9 @@
 [submodule "nowledge-mem-gemini-cli"]
 	path = nowledge-mem-gemini-cli
 	url = git@github.com:nowledge-co/nowledge-mem-gemini-cli.git
+[submodule "windsurf-trajectory-extractor"]
+	path = windsurf-trajectory-extractor
+	url = git@github.com:jijiamoer/windsurf-trajectory-extractor.git
+[submodule "antigravity-trajectory-extractor"]
+	path = antigravity-trajectory-extractor
+	url = git@github.com:jijiamoer/antigravity-trajectory-extractor.git
