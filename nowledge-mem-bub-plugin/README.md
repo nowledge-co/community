@@ -20,7 +20,7 @@ nmem status             # verify connection
 ## Verify
 
 ```bash
-uv run bub hooks        # should list nowledge_mem for system_prompt, load_state, save_state
+uv run bub hooks        # should list nowledge_mem for system_prompt, build_prompt, save_state
 uv run bub run "what was I working on this week?"
 ```
 
