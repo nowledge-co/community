@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 import os
+from typing import Any
 
 from bub import hookimpl
 from bub.envelope import content_of
@@ -53,39 +54,57 @@ class NowledgeMemPlugin:
 
     def __init__(self) -> None:
         self.client = NmemClient()
-        self._session_context = os.environ.get(
-            "NMEM_SESSION_CONTEXT", ""
-        ).lower() in ("1", "true", "yes")
+        self._session_context = os.environ.get("NMEM_SESSION_CONTEXT", "").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         self._session_digest = os.environ.get(
             "NMEM_SESSION_DIGEST", "1"
         ).lower() not in ("0", "false", "no")
         self._known_threads: set[str] = set()
 
+    async def _builtin_build_prompt(self, message, session_id, state) -> str:
+        agent = state.get("_runtime_agent")
+        if agent is None:
+            return ""
+        parent_caller = agent.framework._plugin_manager.subset_hook_caller(
+            "build_prompt", [self]
+        )
+
+        return await parent_caller(message=message, session_id=session_id, state=state)
+
     # ------------------------------------------------------------------
     # system_prompt — sync, call_many, results joined with \n\n
     # ------------------------------------------------------------------
-
     @hookimpl
     def system_prompt(self, prompt, state) -> str:
         """Inject behavioural guidance and, when session_context is on,
         Working Memory + recalled knowledge from state."""
-        sections: list[str] = []
-
         # Always: behavioural nudge
         if self._session_context:
-            sections.append(_GUIDANCE_WITH_CONTEXT)
+            return _GUIDANCE_WITH_CONTEXT
         else:
-            sections.append(_GUIDANCE_BASE)
+            return _GUIDANCE_BASE
 
+    # ------------------------------------------------------------------
+    # build_prompt — async, call_first, can modify prompt
+    # ------------------------------------------------------------------
+    @hookimpl
+    async def build_prompt(
+        self, message, session_id, state
+    ) -> list[dict[str, str]] | str:
+        """When session_context is on, inject WM + recalled memories into the prompt."""
+        prompt = await self._builtin_build_prompt(message, session_id, state)
         if not self._session_context:
-            return "\n".join(sections)
+            return prompt
 
+        sections = []
         # Session context mode: include WM + recalled memories
-        wm = state.get("_nmem_working_memory")
+        wm, recalled = await self._load_memory(message)
         if wm:
             sections.append(f"<working-memory>\n{wm}\n</working-memory>")
 
-        recalled = state.get("_nmem_recalled")
         if recalled:
             lines: list[str] = []
             for r in recalled:
@@ -100,37 +119,33 @@ class NowledgeMemPlugin:
                     entry += f" (thread: {thread})"
                 lines.append(entry)
             sections.append(
-                "<recalled-knowledge>\n"
-                + "\n".join(lines)
-                + "\n</recalled-knowledge>"
+                "<recalled-knowledge>\n" + "\n".join(lines) + "\n</recalled-knowledge>"
             )
 
-        return "\n\n".join(sections)
+        mem_context = "\n\n".join(sections)
+        if not prompt:
+            return mem_context
+        if not isinstance(prompt, list):
+            prompt = [{"type": "text", "text": str(prompt)}]
+        prompt.insert(0, {"type": "text", "text": mem_context})
+        return prompt
 
-    # ------------------------------------------------------------------
-    # load_state — async, call_many, dicts merged into state
-    # ------------------------------------------------------------------
-
-    @hookimpl
-    async def load_state(self, message, session_id) -> dict:
+    async def _load_memory(self, message) -> tuple[str, list[dict[str, Any]]]:
         """Load Working Memory and recalled memories (when session_context is on)."""
-        state: dict = {"_nmem_client": self.client}
-
-        if not self.client.is_available():
-            logger.debug("nmem not in PATH, skipping load_state")
-            return state
 
         if not self._session_context:
             # Default mode: no per-turn fetches.  The agent calls
             # mem.context or mem.search on demand.
-            return state
+            return "", []
+        if not self.client.is_available():
+            logger.debug("nmem not in PATH, skipping load_state")
+            return "", []
 
         # Session context mode: fetch WM + recalled memories
+        working_memory, recalled = "", []
         try:
             wm = await self.client.read_working_memory()
-            content = wm.get("content", "")
-            if content:
-                state["_nmem_working_memory"] = content
+            working_memory = wm.get("content", "")
         except Exception as exc:
             logger.debug("working memory read failed: %s", exc)
 
@@ -138,13 +153,11 @@ class NowledgeMemPlugin:
         query = content_of(message)
         if query and len(query.strip()) > 3:
             try:
-                results = await self.client.search(query[:500], limit=5)
-                if results:
-                    state["_nmem_recalled"] = results
+                recalled = await self.client.search(query[:500], limit=5)
             except Exception as exc:
                 logger.debug("recall search failed: %s", exc)
 
-        return state
+        return working_memory, recalled
 
     # ------------------------------------------------------------------
     # save_state — async, call_many, always runs (finally block)
@@ -183,9 +196,7 @@ class NowledgeMemPlugin:
                     if "not found" not in err_msg and "404" not in err_msg:
                         raise  # timeout, auth, network — don't mask
                     title = f"Bub Session ({session_id[:30]})"
-                    await self.client.create_thread(
-                        thread_id, title, messages_json
-                    )
+                    await self.client.create_thread(thread_id, title, messages_json)
                     self._known_threads.add(thread_id)
         except Exception as exc:
             # save_state must never raise — it runs in a finally block
