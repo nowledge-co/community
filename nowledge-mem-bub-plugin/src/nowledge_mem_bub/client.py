@@ -44,12 +44,13 @@ class NmemClient:
             except Exception:
                 logger.warning("failed to parse %s", config_path)
 
-        self._api_url = (
+        raw_url = (
             os.environ.get("NMEM_API_URL")
             or file_config.get("apiUrl")
             or file_config.get("api_url")
             or None
         )
+        self._api_url = raw_url.rstrip("/") if raw_url else None
         self._api_key = (
             os.environ.get("NMEM_API_KEY")
             or file_config.get("apiKey")
