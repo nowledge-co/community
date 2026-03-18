@@ -2,6 +2,16 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.6.15] - 2026-03-18
+
+### Changed
+
+- **Shared config for remote credentials.** The plugin now reads `apiUrl` and `apiKey` from `~/.nowledge-mem/config.json` — the same file used by nmem CLI, Bub, Claude Code, and other integrations. One config file connects all your tools. The legacy `~/.nowledge-mem/openclaw.json` is still honored at highest priority for backward compatibility, but is no longer the recommended path. New cascade for credentials: `openclaw.json` (legacy) > OpenClaw dashboard > `config.json` (shared) > env vars > defaults.
+
+### Fixed
+
+- **Trailing slash in API URL no longer causes 404.** URLs like `https://mem.example.com/` (with trailing slash) produced double-slash paths in API fallback requests. The URL is now normalized at construction time.
+
 ## [0.6.14] - 2026-03-17
 
 ### Added

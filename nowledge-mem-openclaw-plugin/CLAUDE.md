@@ -9,7 +9,7 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 - OpenClaw minimum: `2026.3.7` (`appendSystemContext` / system-context guidance required)
 - Architecture: **CLI-first via OpenClaw runtime** - all CLI execution goes through `api.runtime.system.runCommandWithTimeout`, not direct `child_process`
-- Remote mode: set `NMEM_API_URL` + `NMEM_API_KEY` env vars or config file `apiUrl` + `apiKey`
+- Remote mode: `~/.nowledge-mem/config.json` (shared) or OpenClaw dashboard. Legacy `openclaw.json` still honored.
 
 ## Design Philosophy
 
@@ -30,7 +30,7 @@ src/
   index.js          - plugin registration (tools, hooks, commands, CLI)
   client.js         - CLI wrapper with API fallback; async runtime command execution; credential handling
   spawn-env.js      - env-only credential injection for the nmem runner
-  config.js         - config cascade: ~/.nowledge-mem/openclaw.json > pluginConfig > env vars > defaults
+  config.js         - config cascade: openclaw.json (legacy) > pluginConfig > config.json (credentials) > env > defaults
   hooks/
     behavioral.js   - always-on behavioral guidance (~50 tokens/turn)
     recall.js       - before_prompt_build: inject Working Memory + recalled memories
@@ -49,7 +49,8 @@ skills/
   memory-guide/
     SKILL.md            - agent behavioral skill: when/how to search, save, explore memory (auto-discovered by OpenClaw)
 openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema, skills)
-~/.nowledge-mem/openclaw.json - optional user config file (overrides OpenClaw settings when present)
+~/.nowledge-mem/openclaw.json - legacy config file (still honored, deprecated in docs)
+~/.nowledge-mem/config.json   - shared credentials (apiUrl/apiKey) read by all Nowledge Mem tools
 ```
 
 ## Tool Surface (10 tools)
@@ -92,7 +93,8 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema,
 
 ## Config Keys
 
-Optional config file at `~/.nowledge-mem/openclaw.json`. Falls through to OpenClaw plugin settings when the file is absent.
+Plugin settings: OpenClaw dashboard (pluginConfig). Legacy `~/.nowledge-mem/openclaw.json` still honored.
+Credentials (apiUrl/apiKey): also reads `~/.nowledge-mem/config.json` (shared with all Nowledge Mem tools).
 
 | Key | Type | Default | Env Var | Description |
 |-----|------|---------|---------|-------------|
@@ -105,9 +107,10 @@ Optional config file at `~/.nowledge-mem/openclaw.json`. Falls through to OpenCl
 | `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
 | `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
 
-**Priority**: config file > pluginConfig > env var > default.
+**Priority** (plugin-specific keys): `openclaw.json` (legacy) > pluginConfig > env var > default.
+**Priority** (apiUrl/apiKey): `openclaw.json` (legacy) > pluginConfig > `config.json` (shared) > env var > default.
 
-`parseConfig()` returns `_sources` object tracking where each value came from (`"file"`, `"pluginConfig"`, `"env"`, `"default"`). Used by `nowledge_mem_status` tool.
+`parseConfig()` returns `_sources` object tracking where each value came from (`"file"`, `"pluginConfig"`, `"sharedConfig"`, `"env"`, `"default"`). Used by `nowledge_mem_status` tool.
 
 Legacy aliases accepted silently in all sources for backward compat:
 `autoRecall`→`sessionContext`, `autoCapture`→`sessionDigest`, `captureMinInterval`→`digestMinInterval`, `maxRecallResults`→`maxContextResults`.

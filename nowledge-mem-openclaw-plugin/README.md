@@ -372,24 +372,18 @@ To change settings, use the OpenClaw plugin settings UI. Changes take effect on 
 | `apiUrl` | string | `""` | Remote server URL. Empty = local (`http://127.0.0.1:14242`) |
 | `apiKey` | string | `""` | API key for remote access. Injected as `NMEM_API_KEY` env var, never logged |
 
-### Advanced: config file
+### Remote access
 
-For persistent or scripted config, create `~/.nowledge-mem/openclaw.json`:
+Create `~/.nowledge-mem/config.json` with your credentials. This file is shared by all Nowledge Mem integrations (nmem CLI, Bub, Claude Code, etc.) so one file connects everything:
 
 ```json
 {
-  "sessionContext": false,
-  "sessionDigest": true,
-  "digestMinInterval": 300,
-  "maxContextResults": 5,
-  "recallMinScore": 0,
-  "maxThreadMessageChars": 800,
-  "apiUrl": "",
-  "apiKey": ""
+  "apiUrl": "https://<your-url>",
+  "apiKey": "nmem_..."
 }
 ```
 
-The config file takes priority over OpenClaw settings. Only the keys you include are overridden; missing keys fall through to OpenClaw settings, then env vars, then defaults.
+See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access).
 
 ### Advanced: environment variables
 
@@ -401,15 +395,24 @@ NMEM_SESSION_DIGEST=true
 NMEM_DIGEST_MIN_INTERVAL=300
 NMEM_MAX_CONTEXT_RESULTS=5
 NMEM_RECALL_MIN_SCORE=0
+NMEM_MAX_THREAD_MESSAGE_CHARS=800
 NMEM_API_URL=https://...
 NMEM_API_KEY=your-key
 ```
 
 ### Priority
 
+Plugin-specific settings:
 ```
-config file > OpenClaw settings > env vars > defaults
+openclaw.json (legacy) > OpenClaw dashboard > env vars > defaults
 ```
+
+Credentials (apiUrl, apiKey):
+```
+openclaw.json (legacy) > OpenClaw dashboard > config.json (shared) > env vars > defaults
+```
+
+`~/.nowledge-mem/openclaw.json` is still honored for backward compatibility but is no longer the recommended path. New users should configure plugin-specific settings via the OpenClaw dashboard and shared credentials via `~/.nowledge-mem/config.json`.
 
 Use `nowledge_mem_status` (or `openclaw nowledge-mem status`) to see where each value comes from.
 

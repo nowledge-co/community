@@ -3,6 +3,7 @@
 ## 0.2.0 (2026-03-17)
 
 - Fixed: memory context (Working Memory + recalled knowledge) no longer injected into system prompt, which was breaking LLM prefix cache and causing full KV recomputation every turn. Context now injected via `build_prompt` hook into user prompt space. System prompt stays static and cacheable. Contributed by @frostming.
+- Fixed: trailing slash in API URL no longer causes silent 404 — URLs like `https://mem.example.com/` are now normalized at config load time.
 - Changed: `system_prompt` hook now returns only static behavioral guidance (identical every turn), preserving prefix cache.
 - Changed: memory loading moved from `load_state` hook to private `_load_memory` method called from `build_prompt`.
 - Changed: skill directory renamed from `bub_skills/` to `skills/` for consistency.

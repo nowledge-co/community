@@ -1,5 +1,5 @@
 ---
-name: Search Memory
+name: search-memory
 description: Search memory store when past insights would improve response. Recognize when user's stored breakthroughs, decisions, or solutions are relevant. Search proactively based on context, not just explicit requests.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: Save Thread
+name: save-thread
 description: Save the real Claude Code session messages only when the user explicitly requests it. Use nmem t save to import the recorded session, not a summary-only checkpoint.
 ---
 
