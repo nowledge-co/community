@@ -50,6 +50,11 @@ class NmemClient:
             or file_config.get("api_url")
             or None
         )
+        if isinstance(raw_url, str):
+            normalized = raw_url.strip().rstrip("/")
+            self._api_url = normalized or None
+        else:
+            self._api_url = None
         self._api_url = raw_url.rstrip("/") if raw_url else None
         self._api_key = (
             os.environ.get("NMEM_API_KEY")
