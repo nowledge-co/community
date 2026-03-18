@@ -10,16 +10,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 import os
 from typing import Any
 
 from bub import hookimpl
 from bub.envelope import content_of
+from loguru import logger
 
 from .client import NmemClient, NmemError
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Behavioural guidance injected into the system prompt.
@@ -138,7 +136,7 @@ class NowledgeMemPlugin:
             # mem.context or mem.search on demand.
             return "", []
         if not self.client.is_available():
-            logger.debug("nmem not in PATH, skipping memory load")
+            logger.warning("nmem not in PATH, skipping memory load")
             return "", []
 
         # Session context mode: fetch WM + recalled memories
@@ -147,7 +145,7 @@ class NowledgeMemPlugin:
             wm = await self.client.read_working_memory()
             working_memory = wm.get("content", "")
         except Exception as exc:
-            logger.debug("working memory read failed: %s", exc)
+            logger.warning("working memory read failed: {}", exc)
 
         # Recall: search for memories relevant to the current message
         query = content_of(message)
@@ -155,7 +153,7 @@ class NowledgeMemPlugin:
             try:
                 recalled = await self.client.search(query[:500], limit=5)
             except Exception as exc:
-                logger.debug("recall search failed: %s", exc)
+                logger.warning("recall search failed: {}", exc)
 
         return working_memory, recalled
 
@@ -171,20 +169,20 @@ class NowledgeMemPlugin:
         if not self.client.is_available():
             return
 
+        user_content = content_of(message)
+        if not user_content or not model_output:
+            return
+
+        digest = hashlib.sha1(session_id.encode()).hexdigest()[:10]
+        thread_id = f"bub-{digest}"
+
+        messages = [
+            {"role": "user", "content": user_content[:800]},
+            {"role": "assistant", "content": str(model_output)[:800]},
+        ]
+        messages_json = json.dumps(messages)
+
         try:
-            user_content = content_of(message)
-            if not user_content or not model_output:
-                return
-
-            digest = hashlib.sha1(session_id.encode()).hexdigest()[:10]
-            thread_id = f"bub-{digest}"
-
-            messages = [
-                {"role": "user", "content": user_content[:800]},
-                {"role": "assistant", "content": str(model_output)[:800]},
-            ]
-            messages_json = json.dumps(messages)
-
             if thread_id in self._known_threads:
                 await self.client.append_thread(thread_id, messages_json)
             else:
@@ -200,7 +198,7 @@ class NowledgeMemPlugin:
                     self._known_threads.add(thread_id)
         except Exception as exc:
             # save_state must never raise — it runs in a finally block
-            logger.debug("session capture failed: %s", exc)
+            logger.warning("session capture failed: {}", exc)
 
 
 plugin = NowledgeMemPlugin()

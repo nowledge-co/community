@@ -74,9 +74,7 @@ class NmemClient:
         if cmd:
             self._cmd = cmd
             return cmd
-        raise NmemError(
-            "nmem not found in PATH. Install with: pip install nmem-cli"
-        )
+        raise NmemError("nmem not found in PATH. Install with: pip install nmem-cli")
 
     def _build_env(self) -> dict[str, str]:
         env = dict(os.environ)
@@ -109,9 +107,7 @@ class NmemClient:
                 stderr=asyncio.subprocess.PIPE,
                 env=self._build_env(),
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             proc.kill()  # type: ignore[union-attr]
             raise NmemError(f"nmem timed out after {timeout}s")
@@ -119,7 +115,7 @@ class NmemClient:
             raise NmemError("nmem not found in PATH")
 
         if proc.returncode != 0:
-            err = stderr.decode(errors="replace").strip()
+            err = (stderr or stdout).decode(errors="replace").strip()
             raise NmemError(f"nmem exited {proc.returncode}: {err}")
 
         return stdout.decode(errors="replace").strip()
@@ -229,9 +225,7 @@ class NmemClient:
         return result if isinstance(result, dict) else {}
 
     async def graph_evolves(self, memory_id: str, limit: int = 10) -> dict:
-        result = await self._exec_json(
-            "g", "evolves", memory_id, "-n", str(limit)
-        )
+        result = await self._exec_json("g", "evolves", memory_id, "-n", str(limit))
         return result if isinstance(result, dict) else {}
 
     # ------------------------------------------------------------------
@@ -287,14 +281,26 @@ class NmemClient:
         self, thread_id: str, title: str, messages_json: str
     ) -> dict:
         result = await self._exec_json(
-            "t", "create", "--id", thread_id, "-t", title,
-            "-m", messages_json, "-s", "bub",
+            "t",
+            "create",
+            "--id",
+            thread_id,
+            "-t",
+            title,
+            "-m",
+            messages_json,
+            "-s",
+            "bub",
         )
         return result if isinstance(result, dict) else {}
 
     async def append_thread(self, thread_id: str, messages_json: str) -> dict:
         result = await self._exec_json(
-            "t", "append", thread_id, "-m", messages_json,
+            "t",
+            "append",
+            thread_id,
+            "-m",
+            messages_json,
         )
         return result if isinstance(result, dict) else {}
 
