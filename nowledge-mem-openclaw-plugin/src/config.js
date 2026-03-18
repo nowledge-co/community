@@ -39,13 +39,20 @@ const ALIAS_KEYS = {
 	maxRecallResults: "maxContextResults",
 };
 
-// --- config file ---------------------------------------------------------
+// --- config files --------------------------------------------------------
 
 const CONFIG_DIR = join(homedir(), ".nowledge-mem");
+
+// Legacy dedicated config (deprecated — still honored for backward compat)
 const CONFIG_PATH = join(CONFIG_DIR, "openclaw.json");
+
+// Shared config read by all Nowledge Mem integrations (nmem CLI, Bub, Claude Code, etc.)
+const SHARED_CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
 /**
  * Read ~/.nowledge-mem/openclaw.json if it exists.
+ * Deprecated: new users should use the OpenClaw dashboard for plugin settings
+ * and ~/.nowledge-mem/config.json for shared credentials (apiUrl, apiKey).
  * Returns {} when the file is missing or unreadable.
  */
 function readConfigFile(logger) {
@@ -64,8 +71,37 @@ function readConfigFile(logger) {
 	}
 }
 
+/**
+ * Read apiUrl and apiKey from the shared ~/.nowledge-mem/config.json.
+ * Only credentials are extracted — plugin-specific keys are ignored.
+ * Returns { apiUrl?, apiKey? } or {} when the file is missing or unreadable.
+ */
+function readSharedConfig(logger) {
+	try {
+		if (!existsSync(SHARED_CONFIG_PATH)) {
+			return {};
+		}
+		const content = readFileSync(SHARED_CONFIG_PATH, "utf-8").trim();
+		if (!content) return {};
+		const parsed = JSON.parse(content);
+		const result = {};
+		if (typeof parsed.apiUrl === "string" && parsed.apiUrl.trim()) {
+			result.apiUrl = parsed.apiUrl.trim();
+		}
+		if (typeof parsed.apiKey === "string" && parsed.apiKey.trim()) {
+			result.apiKey = parsed.apiKey.trim();
+		}
+		return result;
+	} catch (err) {
+		logger?.warn?.(
+			`nowledge-mem: could not read ${SHARED_CONFIG_PATH}: ${err instanceof Error ? err.message : err}`,
+		);
+		return {};
+	}
+}
+
 /** Exported for tests / CLI tooling. */
-export { CONFIG_PATH };
+export { CONFIG_PATH, SHARED_CONFIG_PATH };
 
 // --- env var helpers -----------------------------------------------------
 
@@ -130,11 +166,18 @@ function firstDefined(...options) {
 
 /**
  * Parse plugin config with cascade:
- *   ~/.nowledge-mem/openclaw.json > pluginConfig > env vars > defaults
  *
- * The config file (if it exists) takes highest priority so users who
- * create it get predictable behavior. Most users won't have one and
- * will configure via OpenClaw's plugin settings UI (pluginConfig).
+ *   Plugin-specific keys (sessionContext, sessionDigest, etc.):
+ *     openclaw.json (legacy) > pluginConfig (dashboard) > env vars > defaults
+ *
+ *   Credentials (apiUrl, apiKey):
+ *     openclaw.json (legacy) > pluginConfig (dashboard) > config.json (shared) > env vars > defaults
+ *
+ * Most users configure via the OpenClaw dashboard (pluginConfig) and
+ * ~/.nowledge-mem/config.json for shared credentials across all tools.
+ *
+ * ~/.nowledge-mem/openclaw.json is still honored for backward compat
+ * but is no longer the recommended path.
  *
  * Canonical keys: sessionContext, sessionDigest, digestMinInterval,
  *                 maxContextResults, recallMinScore, maxThreadMessageChars, apiUrl, apiKey
@@ -158,6 +201,7 @@ function firstDefined(...options) {
 export function parseConfig(raw, logger) {
 	const pluginCfg = raw && typeof raw === "object" ? raw : {};
 	const fileCfg = readConfigFile(logger);
+	const sharedCfg = readSharedConfig(logger);
 
 	// Resolve aliases in both sources
 	const resolvedPlugin = resolveAliases(pluginCfg);
@@ -269,7 +313,7 @@ export function parseConfig(raw, logger) {
 	);
 	_sources.maxThreadMessageChars = mtmc.source;
 
-	// --- apiUrl: file > pluginConfig > env > "" ---
+	// --- apiUrl: file (legacy) > pluginConfig > sharedConfig > env > "" ---
 	const fileUrl =
 		typeof resolvedFile.apiUrl === "string" && resolvedFile.apiUrl.trim();
 	const pluginUrl =
@@ -277,13 +321,14 @@ export function parseConfig(raw, logger) {
 	const au = firstDefined(
 		{ value: fileUrl || undefined, source: "file" },
 		{ value: pluginUrl || undefined, source: "pluginConfig" },
+		{ value: sharedCfg.apiUrl || undefined, source: "sharedConfig" },
 		{ value: envStr("NMEM_API_URL"), source: "env" },
 		{ value: "", source: "default" },
 	);
 	const apiUrl = au.value;
 	_sources.apiUrl = au.source;
 
-	// --- apiKey: file > pluginConfig > env > "" ---
+	// --- apiKey: file (legacy) > pluginConfig > sharedConfig > env > "" ---
 	const fileKey =
 		typeof resolvedFile.apiKey === "string" && resolvedFile.apiKey.trim();
 	const pluginKey =
@@ -291,6 +336,7 @@ export function parseConfig(raw, logger) {
 	const ak = firstDefined(
 		{ value: fileKey || undefined, source: "file" },
 		{ value: pluginKey || undefined, source: "pluginConfig" },
+		{ value: sharedCfg.apiKey || undefined, source: "sharedConfig" },
 		{ value: envStr("NMEM_API_KEY"), source: "env" },
 		{ value: "", source: "default" },
 	);
