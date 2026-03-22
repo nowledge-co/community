@@ -23,6 +23,40 @@ function _setLastCapture(threadId, now) {
 	}
 }
 
+/**
+ * Test whether a session key matches any exclusion glob pattern.
+ * Glob `*` matches within a colon-delimited segment (not across colons).
+ * Example: "agent:*:cron:*" matches "agent:main:cron:abc123"
+ */
+function matchesExcludePattern(sessionKey, patterns) {
+	if (!Array.isArray(patterns) || patterns.length === 0) return false;
+	const key = String(sessionKey || "").toLowerCase();
+	return patterns.some((pattern) => {
+		const re = new RegExp(
+			"^" +
+				String(pattern)
+					.toLowerCase()
+					.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+					.replace(/\*/g, "[^:]*") +
+				"$",
+		);
+		return re.test(key);
+	});
+}
+
+/**
+ * Check if any message contains the skip marker text.
+ * Scans both raw message content and nested message objects.
+ */
+function hasSkipMarker(messages, marker) {
+	if (!marker || !Array.isArray(messages)) return false;
+	const markerLc = marker.toLowerCase();
+	return messages.some((msg) => {
+		const text = extractText(msg?.content ?? msg?.message?.content);
+		return text.toLowerCase().includes(markerLc);
+	});
+}
+
 function truncate(text, max = DEFAULT_MAX_MESSAGE_CHARS) {
 	const str = String(text || "").trim();
 	if (!str) return "";
@@ -284,6 +318,22 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
 		if (!event?.success) return;
 
+		// Layer 1: pattern-based exclusion (e.g. cron jobs, subagent sessions)
+		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
+		if (matchesExcludePattern(sessionKey, cfg.captureExclude)) {
+			logger.debug?.(`capture: skipped excluded session ${sessionKey}`);
+			return;
+		}
+
+		// Layer 2: marker-based exclusion (user typed #nmem-skip in conversation)
+		const rawMessages = await resolveHookMessages(event);
+		if (hasSkipMarker(rawMessages, cfg.captureSkipMarker)) {
+			logger.debug?.(
+				`capture: skipped session with skip marker ${sessionKey}`,
+			);
+			return;
+		}
+
 		// 1. Always thread-append (idempotent, self-guards on empty messages).
 		//    Never skip this — messages must always be persisted regardless of
 		//    cooldown state, since appendOrCreateThread is deduped and cheap.
@@ -376,8 +426,24 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
  * Capture thread messages before reset or after compaction.
  * Thread-only (no distillation) — these are lifecycle checkpoints.
  */
-export function buildBeforeResetCaptureHandler(client, _cfg, logger) {
+export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
+		// Layer 1: pattern-based exclusion
+		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
+		if (matchesExcludePattern(sessionKey, cfg.captureExclude)) {
+			logger.debug?.(`capture: skipped excluded session ${sessionKey}`);
+			return;
+		}
+
+		// Layer 2: marker-based exclusion
+		const rawMessages = await resolveHookMessages(event);
+		if (hasSkipMarker(rawMessages, cfg.captureSkipMarker)) {
+			logger.debug?.(
+				`capture: skipped session with skip marker ${sessionKey}`,
+			);
+			return;
+		}
+
 		const reason = typeof event?.reason === "string" ? event.reason : undefined;
 		await appendOrCreateThread({
 			client,

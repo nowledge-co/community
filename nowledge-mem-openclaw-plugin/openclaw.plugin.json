@@ -28,6 +28,14 @@
 			"label": "Max thread message chars",
 			"help": "Maximum characters preserved per captured OpenClaw thread message (200-20000). Higher values keep more of long messages in Nowledge thread history."
 		},
+		"captureExclude": {
+			"label": "Exclude session patterns",
+			"help": "Session key glob patterns to skip during auto-capture. Use * to match within a colon-segment. Example: agent:*:cron:*"
+		},
+		"captureSkipMarker": {
+			"label": "Skip marker",
+			"help": "Text marker in messages that prevents capture for the session. Default: #nmem-skip"
+		},
 		"apiUrl": {
 			"label": "Server URL (remote mode)",
 			"help": "Leave empty for local mode (default: http://127.0.0.1:14242). Set to your remote server URL for cross-device or team access. See: https://docs.nowledge.co/docs/remote-access"
@@ -78,6 +86,17 @@
 				"minimum": 200,
 				"maximum": 20000,
 				"description": "Maximum characters preserved per captured OpenClaw thread message before truncation."
+			},
+			"captureExclude": {
+				"type": "array",
+				"items": { "type": "string" },
+				"default": [],
+				"description": "Session key glob patterns to exclude from auto-capture. Glob * matches within a colon-delimited segment. Example: agent:*:cron:* excludes all cron job sessions."
+			},
+			"captureSkipMarker": {
+				"type": "string",
+				"default": "#nmem-skip",
+				"description": "Text marker in messages that prevents capture for the entire session. When any message contains this marker, the session is skipped."
 			},
 			"apiUrl": {
 				"type": "string",
