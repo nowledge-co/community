@@ -82,8 +82,9 @@ export class NowledgeMemClient {
 		this.nmemCmd = null;
 		this.nmemCmdPromise = null;
 		// Resolved once from config + env (config wins over env, both win over default)
-		this._apiUrl =
-			((credentials.apiUrl || "").trim() || "http://127.0.0.1:14242").replace(/\/+$/, "");
+		this._apiUrl = (
+			(credentials.apiUrl || "").trim() || "http://127.0.0.1:14242"
+		).replace(/\/+$/, "");
 		this._apiKey = (credentials.apiKey || "").trim();
 	}
 

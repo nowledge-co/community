@@ -225,6 +225,13 @@ After bumping, commit inside the `community/` submodule, then stage the updated 
 4. **`unit_type` requires rebuilt backend** - `MemoryCreateRequest` includes `unit_type` (fixed). Restart backend after rebuild.
 5. **Working Memory full-overwrite only via API** - the API (`PUT /agent/working-memory`) still takes full content. The section-level patch is implemented purely client-side. This is acceptable; the Knowledge Agent regenerates WM each morning anyway.
 
+## Cache Safety Rules
+
+- **Hooks**: always return `{ appendSystemContext }` — never `{ prependContext }`. `prependContext` injects into user-message space and breaks Anthropic's system prompt cache prefix on every turn.
+- **CE assemble()**: return `systemPromptAddition` — same cache-safe position as `appendSystemContext`.
+- **Never** embed dynamic content (timestamps, per-turn IDs) in system-prompt-level injection. Static behavioral guidance is fine; recalled memories are fine (they append after the cached prefix).
+- See `postmortem/2026-03-23-system-prompt-cache-breaking-plugins.md` for the full incident.
+
 ## Non-Goals
 
 - Do NOT add `nowledge_mem_search` - `memory_search` covers it.
