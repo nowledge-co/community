@@ -152,7 +152,7 @@ Only implement if needed; verify with runtime evidence first.
 - However, avoid embedding per-turn variance (timestamps, random IDs) in injected content. Removed `generated_at` in 0.6.4.
 - `balanced_thread_once` limits injection to once per thread, which is the best mitigation available given Alma's API constraints.
 - If Alma adds a system-level injection API in the future, migrate to it.
-- See `postmortem/2026-03-23-system-prompt-cache-breaking-plugins.md` for the cross-plugin audit.
+
 
 ## Non-Goals / Avoid
 

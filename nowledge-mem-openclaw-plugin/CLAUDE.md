@@ -230,7 +230,7 @@ After bumping, commit inside the `community/` submodule, then stage the updated 
 - **Hooks**: always return `{ appendSystemContext }` — never `{ prependContext }`. `prependContext` injects into user-message space and breaks Anthropic's system prompt cache prefix on every turn.
 - **CE assemble()**: return `systemPromptAddition` — same cache-safe position as `appendSystemContext`.
 - **Never** embed dynamic content (timestamps, per-turn IDs) in system-prompt-level injection. Static behavioral guidance is fine; recalled memories are fine (they append after the cached prefix).
-- See `postmortem/2026-03-23-system-prompt-cache-breaking-plugins.md` for the full incident.
+
 
 ## Non-Goals
 
