@@ -2,6 +2,38 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- **Thread sync no longer depends on argv-sized CLI payloads.** OpenClaw conversation capture now creates and appends threads through the Mem HTTP API instead of passing whole message arrays through `nmem ... -m '<json>'`. This removes the transport limit that caused repeated append failures on long or repetitive sessions.
+- **Session capture now syncs only the unsynced tail.** The plugin preserves the real transcript, asks Mem how many messages are already stored, and appends only the new tail instead of replaying the whole session on every hook or Context Engine turn.
+- **Remote config is still unified after the transport change.** The same resolved `apiUrl` and `apiKey` from OpenClaw settings / `~/.nowledge-mem/config.json` now drive both CLI-backed memory tools and API-backed thread sync.
+- **Removed lossy repetitive-session collapse.** The temporary content-based dedup workaround for cron-style sessions has been removed so conversation structure is preserved faithfully.
+
+## [0.7.1] - 2026-03-23
+
+### Fixed
+
+- **Heartbeat sessions no longer trigger thread capture.** Sessions with `ctx.trigger === "heartbeat"` are now skipped in hook handlers. For cron-triggered heartbeat sessions (which use `trigger: "cron"`), a content-based dedup detects repetitive patterns: when >50% of messages in a session are duplicates, only unique messages are kept. This collapses 20 repetitive heartbeat messages down to 2, eliminating the CLI timeout caused by oversized payloads.
+
+## [0.7.0] - 2026-03-23
+
+### Added
+
+- **Context Engine support.** The plugin now registers a full OpenClaw Context Engine alongside its memory slot. When you set `plugins.slots.contextEngine: "nowledge-mem"` in your OpenClaw config, the engine takes over context assembly, capturing, and compaction — replacing the hook-based approach with richer lifecycle integration:
+  - **`assemble()`** — behavioral guidance and recalled memories injected via `systemPromptAddition` (system-prompt space, cache-friendly). Replaces the behavioral and recall hooks.
+  - **`afterTurn()`** — continuous thread capture and triage/distillation after every turn, not just session end. More granular than the `agent_end` hook.
+  - **`compact()`** — memory-aware compaction. When compacting old messages, the compactor is told which key decisions and learnings are already saved in your knowledge graph, so it can reference them concisely rather than losing them in summarization.
+  - **`prepareSubagentSpawn()`** — when OpenClaw spawns parallel research agents, child sessions inherit your Working Memory and recently recalled memories automatically.
+  - **`bootstrap()`** — pre-warms Working Memory on session start for instant first-turn context.
+  - **`dispose()`** — clean session teardown.
+- **Backward compatible.** When the CE slot is not activated, hooks continue working exactly as before. No config changes required for existing users.
+
+### Fixed
+
+- **Recalled memories no longer hurt prompt cache.** The recall hook now injects context via `appendSystemContext` (system-prompt space) instead of `prependContext` (user-message space). This preserves OpenClaw's prompt cache across turns. The fix applies to both the hook path and the new CE path.
+
 ## [0.6.15] - 2026-03-18
 
 ### Changed
@@ -62,7 +94,7 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ### Added
 
-- **`recallMinScore` config option** (0-100, default 0): Minimum relevance score threshold for auto-recalled memories. Set to e.g. 30 to filter out low-confidence results. Configurable via OpenClaw Config UI, config file, or `NMEM_RECALL_MIN_SCORE` env var.
+- `recallMinScore` config option (0-100, default 0): Minimum relevance score threshold for auto-recalled memories. Set to e.g. 30 to filter out low-confidence results. Configurable via OpenClaw Config UI, config file, or `NMEM_RECALL_MIN_SCORE` env var.
 
 ## [0.6.8] - 2026-02-27
 

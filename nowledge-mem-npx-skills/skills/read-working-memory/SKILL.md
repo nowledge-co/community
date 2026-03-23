@@ -77,3 +77,7 @@ Working Memory is generated daily by Nowledge Mem's Background Intelligence. It 
 - [Documentation](https://mem.nowledge.co/docs)
 - [Nowledge Mem](https://mem.nowledge.co)
 - [Discord Community](https://nowled.ge/discord)
+
+## Native Plugin
+
+These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem plugin — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations

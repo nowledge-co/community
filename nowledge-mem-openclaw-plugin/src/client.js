@@ -54,15 +54,11 @@ function patchWmSection(currentContent, heading, { content, append } = {}) {
 }
 
 /**
- * Nowledge Mem client. Wraps the nmem CLI for local-first and remote operations.
+ * Nowledge Mem client. Wraps the nmem CLI plus direct API calls.
  *
- * All operations go through the CLI first. This means:
- * - Local mode: CLI uses http://127.0.0.1:14242 automatically
- * - Remote mode: configure via apiUrl + apiKey (plugin config or env vars)
- *   (see: https://docs.nowledge.co/docs/remote-access)
- *
- * Falls back to direct API calls when a CLI command is too new for the installed
- * version. The fallback path uses the same apiUrl / apiKey.
+ * Most interactive reads/writes stay CLI-first for local-first ergonomics.
+ * Thread create/append are API-first because large message batches should
+ * travel in an HTTP body, not as a single argv-sized JSON argument.
  *
  * Credential rules:
  * - apiUrl: passed to CLI via --api-url flag (not a secret)
@@ -82,8 +78,9 @@ export class NowledgeMemClient {
 		this.nmemCmd = null;
 		this.nmemCmdPromise = null;
 		// Resolved once from config + env (config wins over env, both win over default)
-		this._apiUrl =
-			((credentials.apiUrl || "").trim() || "http://127.0.0.1:14242").replace(/\/+$/, "");
+		this._apiUrl = (
+			(credentials.apiUrl || "").trim() || "http://127.0.0.1:14242"
+		).replace(/\/+$/, "");
 		this._apiKey = (credentials.apiKey || "").trim();
 	}
 
@@ -558,42 +555,12 @@ export class NowledgeMemClient {
 			throw new Error("createThread requires at least one message");
 		}
 
-		let data;
-		try {
-			const args = [
-				"--json",
-				"t",
-				"create",
-				"-t",
-				normalizedTitle,
-				"-m",
-				JSON.stringify(messages),
-				"-s",
-				String(source),
-			];
-			if (threadId) {
-				args.push("--id", String(threadId));
-			}
-			data = await this.execJson(args);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			const needsApiFallback =
-				Boolean(threadId) &&
-				(message.includes("unrecognized arguments: --id") ||
-					message.includes("invalid choice"));
-			if (!needsApiFallback) {
-				throw err;
-			}
-			this.logger.warn(
-				"createThread: CLI missing --id support, falling back to API",
-			);
-			data = await this.apiJson("POST", "/threads", {
-				thread_id: String(threadId),
-				title: normalizedTitle,
-				source: String(source),
-				messages,
-			});
-		}
+		const data = await this.apiJson("POST", "/threads", {
+			...(threadId ? { thread_id: String(threadId) } : {}),
+			title: normalizedTitle,
+			source: String(source),
+			messages,
+		});
 
 		return String(
 			data.id ?? data.thread?.thread_id ?? data.thread_id ?? "created",
@@ -614,50 +581,46 @@ export class NowledgeMemClient {
 			return { messagesAdded: 0, totalMessages: 0 };
 		}
 
+		const data = await this.apiJson(
+			"POST",
+			`/threads/${encodeURIComponent(normalizedThreadId)}/append`,
+			{
+				messages,
+				deduplicate,
+				...(idempotencyKey
+					? { idempotency_key: String(idempotencyKey) }
+					: {}),
+			},
+		);
+		return {
+			messagesAdded: Number(data.messages_added ?? 0),
+			totalMessages: Number(data.total_messages ?? 0),
+		};
+	}
+
+	async getThreadMessageCount(threadId) {
+		const normalizedThreadId = String(threadId || "").trim();
+		if (!normalizedThreadId) {
+			throw new Error("getThreadMessageCount requires threadId");
+		}
+
 		try {
-			const args = [
-				"--json",
-				"t",
-				"append",
-				normalizedThreadId,
-				"-m",
-				JSON.stringify(messages),
-				...(deduplicate ? [] : ["--no-deduplicate"]),
-			];
-			if (idempotencyKey) {
-				args.push("--idempotency-key", String(idempotencyKey));
-			}
-			const data = await this.execJson(args);
-			return {
-				messagesAdded: Number(data.messages_added ?? 0),
-				totalMessages: Number(data.total_messages ?? 0),
-			};
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			const needsApiFallback =
-				message.includes("invalid choice") ||
-				message.includes("unrecognized arguments");
-			if (!needsApiFallback) {
-				throw err;
-			}
-			this.logger.warn(
-				"appendThread: CLI missing append support, falling back to API",
-			);
 			const data = await this.apiJson(
-				"POST",
-				`/threads/${encodeURIComponent(normalizedThreadId)}/append`,
-				{
-					messages,
-					deduplicate,
-					...(idempotencyKey
-						? { idempotency_key: String(idempotencyKey) }
-						: {}),
-				},
+				"GET",
+				`/threads/${encodeURIComponent(normalizedThreadId)}?limit=1`,
+				undefined,
+				15_000,
 			);
-			return {
-				messagesAdded: Number(data.messages_added ?? 0),
-				totalMessages: Number(data.total_messages ?? 0),
-			};
+			return Number(
+				data.message_count ??
+					data.total_messages ??
+					(Array.isArray(data.messages) ? data.messages.length : 0),
+			);
+		} catch (err) {
+			if (this.isThreadNotFoundError(err)) {
+				return null;
+			}
+			throw err;
 		}
 	}
 

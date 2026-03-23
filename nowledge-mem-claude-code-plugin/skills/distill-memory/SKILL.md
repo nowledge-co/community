@@ -5,6 +5,8 @@ description: Recognize breakthrough moments, blocking resolutions, and design de
 
 # Distill Memory
 
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+
 ## When to Suggest (Moment Detection)
 
 **Breakthrough:** Extended debugging resolves, user relief ("Finally!", "Aha!"), root cause found

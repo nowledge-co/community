@@ -56,3 +56,7 @@ Thread ID: {thread_id}
 ```
 
 Never present this as a real transcript import.
+
+## Native Plugin
+
+These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem plugin — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations

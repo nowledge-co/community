@@ -1,7 +1,7 @@
 {
   "id": "nowledge-mem",
   "name": "Nowledge Mem",
-  "version": "0.6.3",
+  "version": "0.6.13",
   "description": "Local-first personal memory for Alma, powered by Nowledge Mem CLI",
   "author": {
     "name": "Nowledge Labs",
@@ -95,8 +95,8 @@
         },
         "nowledgeMem.autoCapture": {
           "type": "boolean",
-          "default": false,
-          "description": "Persist active Alma thread to Nowledge Mem on app quit."
+          "default": true,
+          "description": "Sync conversations to Nowledge Mem live (idle timer, thread switch, quit)."
         },
         "nowledgeMem.maxRecallResults": {
           "type": "number",

@@ -14,6 +14,12 @@
 
 </div>
 
+## Registry
+
+The canonical source of truth for all integrations is [`integrations.json`](integrations.json). Capabilities, install commands, transport, tool naming, and thread save methods are tracked there. Update the registry first when adding or modifying integrations.
+
+For behavioral guidance (when to search, save, read Working Memory), see [`shared/behavioral-guidance.md`](shared/behavioral-guidance.md). For plugin authoring rules, see [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md).
+
 ## Integrations
 
 Each directory is a standalone integration. Pick the one that matches your tool.
@@ -23,14 +29,17 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[Skills](nowledge-mem-npx-skills)** | `npx skills add nowledge-co/community/nowledge-mem-npx-skills` | Reusable workflow package for Working Memory, routed recall, resumable handoffs, and distillation. Prefer native packages when your tool has one. |
 | **[Claude Code Plugin](nowledge-mem-claude-code-plugin)** | `claude plugin marketplace add nowledge-co/community` then `claude plugin install nowledge-mem@nowledge-community` | Claude Code native plugin with hooks for Working Memory bootstrap, routed recall, and automatic session capture. |
 | **[Droid Plugin](nowledge-mem-droid-plugin)** | `droid plugin marketplace add https://github.com/nowledge-co/community` then `droid plugin install nowledge-mem@nowledge-community` | Factory Droid plugin with Working Memory bootstrap, routed recall, distillation, and honest `save-handoff` semantics. |
-| **[Gemini CLI](https://github.com/nowledge-co/nowledge-mem-gemini-cli)** | `git clone https://github.com/nowledge-co/nowledge-mem-gemini-cli.git` then `cd nowledge-mem-gemini-cli && gemini extensions link .` | Gemini-native context, hooks, commands, and skills for Working Memory, routed recall, real thread save, and handoff summaries. |
+| **[Gemini CLI](https://github.com/nowledge-co/nowledge-mem-gemini-cli)** | Search `Nowledge Mem` in the [Gemini CLI Extensions Gallery](https://geminicli.com/extensions/?name=nowledge-co/nowledge-mem-gemini-cli) and install | Gemini-native context, hooks, commands, and skills for Working Memory, routed recall, real thread save, and handoff summaries. |
 | **[Antigravity Trajectory Extractor](https://github.com/jijiamoer/antigravity-trajectory-extractor)** | `git clone https://github.com/jijiamoer/antigravity-trajectory-extractor.git` | Live RPC extraction for Antigravity conversation trajectories. |
 | **[Windsurf Trajectory Extractor](https://github.com/jijiamoer/windsurf-trajectory-extractor)** | `git clone https://github.com/jijiamoer/windsurf-trajectory-extractor.git` | Offline protobuf extraction for Windsurf Cascade conversation history. |
-| **[Cursor Plugin](nowledge-mem-cursor-plugin)** | Use the packaged Cursor plugin directory with Cursor's plugin workflow | Cursor-native plugin package with bundled MCP config, rules, Working Memory, routed recall, distillation, and honest `save-handoff` semantics. |
+| **[Cursor Plugin](nowledge-mem-cursor-plugin)** | Search `Nowledge Mem` in Cursor Marketplace | Cursor-native plugin package with bundled MCP config, rules, Working Memory, routed recall, distillation, and honest `save-handoff` semantics. |
 | **[Codex Prompts](nowledge-mem-codex-prompts)** | Copy `AGENTS.md` to your project | Codex-native workflow pack for Working Memory, routed recall, real session save, and distillation. |
 | **[OpenClaw Plugin](nowledge-mem-openclaw-plugin)** | `openclaw plugins install @nowledge/openclaw-nowledge-mem` | Full memory lifecycle with memory tools, thread tools, automatic capture, and distillation. |
 | **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with Working Memory, thread-aware recall, structured saves, and optional auto-capture. |
+| **[Bub Plugin](nowledge-mem-bub-plugin)** | `pip install nowledge-mem-bub` | Bub-native plugin: cross-tool knowledge, auto-capture via save_state, Working Memory, and graph exploration. |
 | **[Raycast Extension](nowledge-mem-raycast)** | Search Nowledge in Raycast Extension Store | Search memories from Raycast launcher. |
+| **[Claude Desktop](https://github.com/nowledge-co/claude-dxt)** | Download from [nowled.ge/claude-dxt](https://nowled.ge/claude-dxt), double-click `.mcpb` file | One-click extension for Claude Desktop with memory search, save, and update. |
+| **[Browser Extension](https://chromewebstore.google.com/detail/nowledge-memory-exchange/kjgpkgodplgakbeanoifnlpkphemcbmh)** | Install from Chrome Web Store | Side-panel capture for ChatGPT, Claude, Gemini, Perplexity, and other web AI surfaces. |
 | **[MCP](#direct-mcp)** | For tools without a dedicated Nowledge package, use [direct MCP](#direct-mcp). | Standard memory and thread tools exposed through one shared MCP server. |
 
 ## Direct MCP

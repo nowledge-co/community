@@ -70,7 +70,7 @@ Connect to a Nowledge Mem server running elsewhere (a VPS, a home server, or a s
 
 Enable the plugin the same way as local mode, then set `apiUrl` and `apiKey` in the OpenClaw plugin settings.
 
-Or use a config file at `~/.nowledge-mem/openclaw.json`:
+Or use the shared config file at `~/.nowledge-mem/config.json` so OpenClaw, `nmem`, Bub, Claude Code, and other integrations all point at the same remote Mem:
 
 ```json
 {
@@ -79,7 +79,9 @@ Or use a config file at `~/.nowledge-mem/openclaw.json`:
 }
 ```
 
-The `apiKey` is injected as `NMEM_API_KEY` into the nmem CLI process. Never passed as a CLI argument, never logged.
+Legacy `~/.nowledge-mem/openclaw.json` is still honored first for backward compatibility.
+
+The resolved `apiUrl` and `apiKey` are reused across the plugin: CLI-backed memory tools and API-backed thread sync both talk to the same backend. The `apiKey` is never passed as a CLI argument and is never logged.
 
 ### Configure via WebUI of OpenClaw
 
@@ -154,6 +156,7 @@ flowchart TD
 
 **Key points:**
 - Thread capture is unconditional: every conversation is saved and searchable via `nowledge_mem_thread_search`
+- Thread sync is incremental: the plugin preserves the real transcript but appends only the unsynced tail instead of replaying the whole session
 - LLM distillation only runs at `agent_end`, not during compaction/reset checkpoints
 - Distilled memories carry `sourceThreadId`, linking them back to the source conversation
 - Cooldown (`digestMinInterval`, default 300s) prevents burst distillation

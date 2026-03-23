@@ -1,16 +1,19 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { ceState } from "../ce-state.js";
 
-const DEFAULT_MAX_MESSAGE_CHARS = 800;
-const MAX_DISTILL_MESSAGE_CHARS = 2000;
-const MAX_CONVERSATION_CHARS = 30_000;
-const MIN_MESSAGES_FOR_DISTILL = 4;
+export const DEFAULT_MAX_MESSAGE_CHARS = 800;
+export const MAX_DISTILL_MESSAGE_CHARS = 2000;
+export const MAX_CONVERSATION_CHARS = 30_000;
+export const MIN_MESSAGES_FOR_DISTILL = 4;
 
 // Per-thread triage cooldown: prevents burst triage/distillation from heartbeat.
 // Maps threadId -> timestamp (ms) of last successful triage.
 // Evicted opportunistically when new entries are set (see _setLastCapture).
 const _lastCaptureAt = new Map();
 const _MAX_COOLDOWN_ENTRIES = 200;
+const _syncedMessageCounts = new Map();
+const _MAX_SYNC_CURSOR_ENTRIES = 500;
 
 function _setLastCapture(threadId, now) {
 	_lastCaptureAt.set(threadId, now);
@@ -23,13 +26,27 @@ function _setLastCapture(threadId, now) {
 	}
 }
 
-function truncate(text, max = DEFAULT_MAX_MESSAGE_CHARS) {
+function _setSyncedMessageCount(threadId, count) {
+	if (!threadId || !Number.isFinite(count) || count < 0) return;
+	_syncedMessageCounts.set(threadId, Math.trunc(count));
+	if (_syncedMessageCounts.size > _MAX_SYNC_CURSOR_ENTRIES) {
+		const excess = _syncedMessageCounts.size - _MAX_SYNC_CURSOR_ENTRIES;
+		let removed = 0;
+		for (const key of _syncedMessageCounts.keys()) {
+			_syncedMessageCounts.delete(key);
+			removed += 1;
+			if (removed >= excess) break;
+		}
+	}
+}
+
+export function truncate(text, max = DEFAULT_MAX_MESSAGE_CHARS) {
 	const str = String(text || "").trim();
 	if (!str) return "";
 	return str.length > max ? `${str.slice(0, max)}…` : str;
 }
 
-function extractText(content) {
+export function extractText(content) {
 	if (typeof content === "string") {
 		return content.trim();
 	}
@@ -48,7 +65,10 @@ function extractText(content) {
 	return parts.join("\n").trim();
 }
 
-function normalizeRoleMessage(raw, maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS) {
+export function normalizeRoleMessage(
+	raw,
+	maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS,
+) {
 	if (!raw || typeof raw !== "object") return null;
 	const msg =
 		raw.message && typeof raw.message === "object" ? raw.message : raw;
@@ -87,7 +107,7 @@ function normalizeRoleMessage(raw, maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS) 
 	};
 }
 
-function buildThreadTitle(ctx, reason) {
+export function buildThreadTitle(ctx, reason) {
 	const session = ctx?.sessionKey || ctx?.sessionId || "session";
 	const reasonSuffix = reason ? ` (${reason})` : "";
 	return `OpenClaw ${session}${reasonSuffix}`;
@@ -102,7 +122,7 @@ function sanitizeIdPart(input, max = 48) {
 	return normalized.slice(0, max);
 }
 
-function buildStableThreadId(event, ctx) {
+export function buildStableThreadId(event, ctx) {
 	const base =
 		String(ctx?.sessionId || "").trim() ||
 		String(ctx?.sessionKey || "").trim() ||
@@ -160,7 +180,7 @@ async function loadMessagesFromSessionFile(sessionFile) {
 	}
 }
 
-async function resolveHookMessages(event) {
+export async function resolveHookMessages(event) {
 	if (Array.isArray(event?.messages) && event.messages.length > 0) {
 		return event.messages;
 	}
@@ -170,7 +190,14 @@ async function resolveHookMessages(event) {
 	return loadMessagesFromSessionFile(sessionFile);
 }
 
-async function appendOrCreateThread({ client, logger, event, ctx, reason, maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS }) {
+export async function appendOrCreateThread({
+	client,
+	logger,
+	event,
+	ctx,
+	reason,
+	maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS,
+}) {
 	const rawMessages = await resolveHookMessages(event);
 	if (!Array.isArray(rawMessages) || rawMessages.length === 0) return;
 
@@ -183,7 +210,7 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason, maxMes
 		.filter(Boolean);
 	if (normalized.length === 0) return;
 
-	const messages = normalized.map((message, index) => ({
+	const allMessages = normalized.map((message, index) => ({
 		role: message.role,
 		content: message.content,
 		timestamp: message.timestamp,
@@ -199,16 +226,46 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason, maxMes
 			session_id: sessionId || undefined,
 		},
 	}));
-	const idempotencyKey = buildAppendIdempotencyKey(threadId, reason, messages);
+
+	let syncedCount = _syncedMessageCounts.get(threadId);
+	if (syncedCount === undefined) {
+		syncedCount = await client.getThreadMessageCount(threadId);
+		if (syncedCount !== null) {
+			_setSyncedMessageCount(threadId, syncedCount);
+		}
+	}
+
+	if (typeof syncedCount === "number" && syncedCount > allMessages.length) {
+		// OpenClaw compaction can shrink the active transcript after we already
+		// stored the pre-compaction history. Reset the local cursor to the new
+		// compacted length so future turns append only the post-compaction tail.
+		_setSyncedMessageCount(threadId, allMessages.length);
+		return { threadId, normalized, messagesAdded: 0 };
+	}
+
+	const appendStart =
+		typeof syncedCount === "number" && syncedCount > 0
+			? Math.min(syncedCount, allMessages.length)
+			: 0;
+	const newMessages = allMessages.slice(appendStart);
+	if (newMessages.length === 0) {
+		return { threadId, normalized, messagesAdded: 0 };
+	}
+	const idempotencyKey = buildAppendIdempotencyKey(
+		threadId,
+		reason,
+		newMessages,
+	);
 
 	try {
 		const appended = await client.appendThread({
 			threadId,
-			messages,
+			messages: newMessages,
 			deduplicate: true,
 			idempotencyKey,
 		});
 		const added = appended.messagesAdded ?? 0;
+		_setSyncedMessageCount(threadId, allMessages.length);
 		logger.info(
 			`capture: appended ${added} messages to ${threadId} (${reason || "event"})`,
 		);
@@ -225,13 +282,14 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason, maxMes
 		const createdId = await client.createThread({
 			threadId,
 			title,
-			messages,
+			messages: allMessages,
 			source: "openclaw",
 		});
+		_setSyncedMessageCount(threadId, allMessages.length);
 		logger.info(
-			`capture: created thread ${createdId} with ${messages.length} messages (${reason || "event"})`,
+			`capture: created thread ${createdId} with ${allMessages.length} messages (${reason || "event"})`,
 		);
-		return { threadId, normalized, messagesAdded: messages.length };
+		return { threadId, normalized, messagesAdded: allMessages.length };
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.warn(`capture: thread create failed for ${threadId}: ${message}`);
@@ -248,7 +306,7 @@ async function appendOrCreateThread({ client, logger, event, ctx, reason, maxMes
  * bounded — long coding sessions with large code blocks can produce
  * arbitrarily large fullContent.
  */
-function buildConversationText(normalized) {
+export function buildConversationText(normalized) {
 	const parts = [];
 	let total = 0;
 	for (const m of normalized) {
@@ -265,29 +323,97 @@ function buildConversationText(normalized) {
 }
 
 /**
+ * Run triage and distillation on a captured thread result.
+ *
+ * Shared by the agent_end hook handler and the CE afterTurn lifecycle.
+ * Callers must have already completed thread append (captureResult).
+ */
+export async function triageAndDistill({
+	client,
+	cfg,
+	logger,
+	captureResult,
+	ctx,
+}) {
+	if (!cfg.sessionDigest) return;
+	if (!captureResult || captureResult.messagesAdded === 0) {
+		logger.debug?.("capture: no new messages since last sync, skipping triage");
+		return;
+	}
+
+	const cooldownMs = (cfg.digestMinInterval ?? 300) * 1000;
+	if (cooldownMs > 0 && captureResult.threadId) {
+		const lastCapture = _lastCaptureAt.get(captureResult.threadId) || 0;
+		if (Date.now() - lastCapture < cooldownMs) {
+			logger.debug?.(
+				`capture: triage cooldown active for ${captureResult.threadId}, skipping`,
+			);
+			return;
+		}
+	}
+
+	if (
+		!captureResult.normalized ||
+		captureResult.normalized.length < MIN_MESSAGES_FOR_DISTILL
+	) {
+		return;
+	}
+
+	const conversationText = buildConversationText(captureResult.normalized);
+	if (conversationText.length < 100) return;
+
+	if (cooldownMs > 0 && captureResult.threadId) {
+		_setLastCapture(captureResult.threadId, Date.now());
+	}
+
+	try {
+		const triage = await client.triageConversation(conversationText);
+		if (!triage?.should_distill) {
+			logger.debug?.(
+				`capture: triage skipped distillation — ${triage?.reason || "no reason"}`,
+			);
+			return;
+		}
+
+		logger.info(`capture: triage passed — ${triage.reason}`);
+
+		const distillResult = await client.distillThread({
+			threadId: captureResult.threadId,
+			title: buildThreadTitle(ctx, "distilled"),
+			content: conversationText,
+		});
+
+		const count =
+			distillResult?.memories_created ??
+			distillResult?.created_memories?.length ??
+			0;
+		logger.info(
+			`capture: distilled ${count} memories from ${captureResult.threadId}`,
+		);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		logger.warn(`capture: triage/distill failed: ${message}`);
+	}
+}
+
+/**
  * Capture thread + LLM-based distillation after a successful agent run.
  *
- * Two independent operations (agent_end only):
- * 1. Thread append: always attempted (unconditional, idempotent).
- * 2. Triage + distill: only if enough messages AND cheap LLM triage
- *    determines the conversation has save-worthy content. This replaces
- *    the old English-only regex heuristic with language-agnostic LLM
- *    classification.
+ * When the context engine is active, this hook is a no-op — afterTurn
+ * handles capture and distillation through the CE lifecycle.
  *
- * Note: LLM distillation (step 2) runs exclusively in this agent_end handler.
- * The before_reset / after_compaction handlers only capture threads — no
- * triage or distillation, since those are mid-session checkpoints.
+ * Heartbeat sessions (ctx.trigger === "heartbeat") are skipped — they
+ * produce repetitive status pings that aren't worth preserving.
+ * Other sessions use incremental tail sync: we preserve the real
+ * transcript, but only append messages that are not already stored.
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
-	const cooldownMs = (cfg.digestMinInterval ?? 300) * 1000;
-
 	return async (event, ctx) => {
+		if (ceState.active) return;
 		if (!event?.success) return;
+		if (ctx?.trigger === "heartbeat") return;
 
-		// 1. Always thread-append (idempotent, self-guards on empty messages).
-		//    Never skip this — messages must always be persisted regardless of
-		//    cooldown state, since appendOrCreateThread is deduped and cheap.
-		const result = await appendOrCreateThread({
+		const captureResult = await appendOrCreateThread({
 			client,
 			logger,
 			event,
@@ -296,88 +422,23 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 			maxMessageChars: cfg.maxThreadMessageChars,
 		});
 
-		// 2. Triage + distill: language-agnostic LLM-based capture.
-		//    Defensive guard - registration in index.js already gates on sessionDigest,
-		//    but check here too so the handler is safe if called directly.
-		if (!cfg.sessionDigest) return;
-
-		//    Skip when no new messages were added (e.g. heartbeat re-sync).
-		if (!result || result.messagesAdded === 0) {
-			logger.debug?.(
-				"capture: no new messages since last sync, skipping triage",
-			);
-			return;
-		}
-
-		//    Triage cooldown: skip expensive LLM triage/distillation if this
-		//    thread was already triaged recently. Thread append above still ran,
-		//    so no messages are lost — only the LLM cost is avoided.
-		if (cooldownMs > 0 && result.threadId) {
-			const lastCapture = _lastCaptureAt.get(result.threadId) || 0;
-			if (Date.now() - lastCapture < cooldownMs) {
-				logger.debug?.(
-					`capture: triage cooldown active for ${result.threadId}, skipping`,
-				);
-				return;
-			}
-		}
-
-		//    Skip short conversations — not worth the triage cost.
-		if (
-			!result.normalized ||
-			result.normalized.length < MIN_MESSAGES_FOR_DISTILL
-		) {
-			return;
-		}
-
-		const conversationText = buildConversationText(result.normalized);
-		if (conversationText.length < 100) return;
-
-		//    Record cooldown AFTER all eligibility checks pass, right before
-		//    the expensive LLM call. If triage was skipped by filters above,
-		//    the cooldown stays unset so the next call can retry.
-		if (cooldownMs > 0 && result.threadId) {
-			_setLastCapture(result.threadId, Date.now());
-		}
-
-		try {
-			const triage = await client.triageConversation(conversationText);
-			if (!triage?.should_distill) {
-				logger.debug?.(
-					`capture: triage skipped distillation — ${triage?.reason || "no reason"}`,
-				);
-				return;
-			}
-
-			logger.info(`capture: triage passed — ${triage.reason}`);
-
-			const distillResult = await client.distillThread({
-				threadId: result.threadId,
-				title: buildThreadTitle(ctx, "distilled"),
-				content: conversationText,
-			});
-
-			const count =
-				distillResult?.memories_created ??
-				distillResult?.created_memories?.length ??
-				0;
-			logger.info(
-				`capture: distilled ${count} memories from ${result.threadId}`,
-			);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			logger.warn(`capture: triage/distill failed: ${message}`);
-			// Not fatal — thread is already captured above.
-		}
+		await triageAndDistill({ client, cfg, logger, captureResult, ctx });
 	};
 }
 
 /**
  * Capture thread messages before reset or after compaction.
  * Thread-only (no distillation) — these are lifecycle checkpoints.
+ *
+ * When the context engine is active, this hook is a no-op — afterTurn
+ * handles capture through the CE lifecycle.
+ *
+ * Heartbeat sessions are skipped (same rationale as agent_end).
  */
 export function buildBeforeResetCaptureHandler(client, _cfg, logger) {
 	return async (event, ctx) => {
+		if (ceState.active) return;
+		if (ctx?.trigger === "heartbeat") return;
 		const reason = typeof event?.reason === "string" ? event.reason : undefined;
 		await appendOrCreateThread({
 			client,

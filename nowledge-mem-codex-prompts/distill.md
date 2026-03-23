@@ -2,11 +2,11 @@
 description: Distill durable insights from the current Codex conversation into Nowledge Mem
 ---
 
-Distill the most valuable insights from the current Codex conversation into Nowledge Mem.
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
 
 ## Workflow
 
-1. Identify 1-3 durable insights, decisions, lessons, procedures, or preferences.
+1. Identify durable insights, decisions, lessons, procedures, or preferences from the conversation.
 2. Skip routine chatter, unresolved half-ideas, and low-signal implementation noise.
 3. If a memory likely already exists, search first instead of creating a duplicate.
 4. Use `nmem --json m add` for each selected memory.
