@@ -51,7 +51,7 @@ Save proactively when the conversation produces a decision, preference, plan, pr
 
 Use `nmem --json m add` for new knowledge. If an existing memory captures the same concept and new information refines it, use `nmem m update <id>` instead of creating a duplicate.
 
-Prefer high-signal memories over routine chatter. Use `--unit-type` (decision, procedure, learning, preference, event) and `-l` labels when they improve retrieval.
+Prefer high-signal memories over routine chatter. Use `--unit-type` (learning, decision, fact, procedure, event, preference, plan, context) and `-l` labels when they improve retrieval.
 
 ## Save Session
 
