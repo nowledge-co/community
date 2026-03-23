@@ -1,0 +1,442 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth — other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file.",
+  "version": "1.0.0",
+  "integrations": [
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.7.1",
+      "directory": "nowledge-mem-claude-code-plugin",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "claude-code",
+        "command": "nmem t save --from claude-code"
+      },
+      "install": {
+        "command": "claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
+        "detectionHint": "Running as Claude Code agent; ~/.claude/ exists",
+        "docsUrl": "/docs/integrations/claude-code"
+      },
+      "toolNaming": {
+        "convention": "cli-direct",
+        "note": "Declarative skills and slash commands invoke nmem CLI directly"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
+      "slashCommands": ["/save", "/search", "/sum", "/status"]
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Gemini CLI",
+      "category": "coding",
+      "type": "extension",
+      "version": "0.1.3",
+      "directory": "nowledge-mem-gemini-cli",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "gemini-cli",
+        "command": "nmem t save --from gemini-cli"
+      },
+      "install": {
+        "command": "Search 'Nowledge Mem' in the Gemini CLI Extensions Gallery and install",
+        "detectionHint": "Running as Gemini CLI agent; ~/.gemini/ exists",
+        "docsUrl": "/docs/integrations/gemini-cli"
+      },
+      "toolNaming": {
+        "convention": "cli-direct",
+        "note": "TOML commands and lifecycle hooks invoke nmem CLI"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "save-handoff"],
+      "slashCommands": ["/nowledge:read-working-memory", "/nowledge:search-memory", "/nowledge:distill-memory", "/nowledge:save-thread", "/nowledge:save-handoff", "/nowledge:status"]
+    },
+    {
+      "id": "codex-cli",
+      "name": "Codex CLI",
+      "category": "coding",
+      "type": "prompts",
+      "version": null,
+      "directory": "nowledge-mem-codex-prompts",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "codex",
+        "command": "nmem t save --from codex"
+      },
+      "install": {
+        "command": "curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/install.sh | bash",
+        "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
+        "docsUrl": "/docs/integrations/codex-cli"
+      },
+      "toolNaming": {
+        "convention": "cli-direct",
+        "note": "Custom prompts teach agent to invoke nmem CLI"
+      },
+      "skills": [],
+      "slashCommands": ["/prompts:read_working_memory", "/prompts:search_memory", "/prompts:save_session", "/prompts:distill"]
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.1",
+      "directory": "nowledge-mem-cursor-plugin",
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Cursor lacks a native transcript importer; save-handoff used instead"
+      },
+      "install": {
+        "command": "Install from Cursor Marketplace (search 'Nowledge Mem')",
+        "detectionHint": "Running inside Cursor IDE",
+        "docsUrl": "/docs/integrations/cursor"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "prefix": "memory_",
+        "note": "MCP tools defined by backend (memory_search, memory_add, etc.); skills use nmem CLI for save-handoff"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff"],
+      "slashCommands": []
+    },
+    {
+      "id": "droid",
+      "name": "Droid",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-droid-plugin",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Droid lacks a native transcript importer; save-handoff used instead"
+      },
+      "install": {
+        "command": "Add nowledge-co/community marketplace to Droid, then install nowledge-mem@nowledge-community",
+        "detectionHint": "Running inside Droid (Factory)",
+        "docsUrl": "/docs/integrations/droid"
+      },
+      "toolNaming": {
+        "convention": "cli-direct",
+        "note": "Shell hooks and declarative skills invoke nmem CLI"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff"],
+      "slashCommands": ["/nowledge-read-working-memory", "/nowledge-search-memory", "/nowledge-distill-memory", "/nowledge-save-handoff", "/nowledge-status"]
+    },
+    {
+      "id": "openclaw",
+      "name": "OpenClaw",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.7.0",
+      "directory": "nowledge-mem-openclaw-plugin",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true,
+        "contextEngine": true
+      },
+      "threadSave": {
+        "method": "plugin-capture",
+        "note": "Plugin captures sessions via lifecycle hooks (agent_end, after_compaction) and Context Engine afterTurn; sends via nmem CLI"
+      },
+      "install": {
+        "command": "openclaw plugins install @nowledge/openclaw-nowledge-mem",
+        "detectionHint": "Running as OpenClaw agent; ~/.openclaw/ exists",
+        "docsUrl": "/docs/integrations/openclaw"
+      },
+      "toolNaming": {
+        "convention": "nowledge_mem_prefix",
+        "prefix": "nowledge_mem_",
+        "note": "10 tools: memory_search and memory_get use OpenClaw memory-slot convention; others use nowledge_mem_* prefix",
+        "tools": ["memory_search", "memory_get", "nowledge_mem_save", "nowledge_mem_context", "nowledge_mem_connections", "nowledge_mem_timeline", "nowledge_mem_forget", "nowledge_mem_thread_search", "nowledge_mem_thread_fetch", "nowledge_mem_status"]
+      },
+      "skills": ["memory-guide"],
+      "slashCommands": ["/remember", "/recall", "/forget"]
+    },
+    {
+      "id": "alma",
+      "name": "Alma",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.6.4",
+      "directory": "nowledge-mem-alma-plugin",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "plugin-capture",
+        "note": "Plugin captures active thread on app quit via hooks; sends via nmem CLI"
+      },
+      "install": {
+        "command": "In Alma: Settings > Plugins > Marketplace, search 'Nowledge Mem', click Install",
+        "detectionHint": "Running inside Alma; ~/.config/alma/ exists",
+        "docsUrl": "/docs/integrations/alma"
+      },
+      "toolNaming": {
+        "convention": "nowledge_mem_prefix",
+        "prefix": "nowledge_mem_",
+        "tools": ["nowledge_mem_query", "nowledge_mem_search", "nowledge_mem_store", "nowledge_mem_show", "nowledge_mem_update", "nowledge_mem_delete", "nowledge_mem_working_memory", "nowledge_mem_status", "nowledge_mem_thread_search", "nowledge_mem_thread_show", "nowledge_mem_thread_create", "nowledge_mem_thread_delete"]
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "bub",
+      "name": "Bub",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.2.1",
+      "directory": "nowledge-mem-bub-plugin",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "plugin-capture",
+        "note": "Plugin captures Bub conversations via save_state hook; sends via nmem CLI"
+      },
+      "install": {
+        "command": "pip install nowledge-mem-bub",
+        "detectionHint": "Running inside Bub",
+        "docsUrl": "/docs/integrations/bub"
+      },
+      "toolNaming": {
+        "convention": "platform-namespace",
+        "prefix": "mem.",
+        "note": "Bub dot-namespace convention: mem.search, mem.save, etc.",
+        "tools": ["mem.search", "mem.save", "mem.context", "mem.connections", "mem.timeline", "mem.forget", "mem.threads", "mem.thread", "mem.status"]
+      },
+      "skills": ["nowledge-mem"],
+      "slashCommands": []
+    },
+    {
+      "id": "npx-skills",
+      "name": "npx Skills",
+      "category": "surface",
+      "type": "skills",
+      "version": "0.5.0",
+      "directory": "nowledge-mem-npx-skills",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "handoff-only",
+        "note": "Generic skill environments cannot guarantee real transcript import; save-handoff creates a structured summary"
+      },
+      "install": {
+        "command": "npx skills add nowledge-co/community/nowledge-mem-npx-skills",
+        "detectionHint": "Any agent that supports npx skills",
+        "docsUrl": "/docs/integrations#fastest-reusable-setup-for-many-coding-agents"
+      },
+      "toolNaming": {
+        "convention": "cli-direct",
+        "note": "Skills teach agents to invoke nmem CLI directly"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "save-thread", "check-integration", "status"],
+      "slashCommands": []
+    },
+    {
+      "id": "raycast",
+      "name": "Raycast",
+      "category": "surface",
+      "type": "extension",
+      "version": null,
+      "directory": "nowledge-mem-raycast",
+      "transport": "http-api",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": true,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none"
+      },
+      "install": {
+        "command": "Install from Raycast Store: search 'Nowledge Mem'",
+        "docsUrl": "/docs/integrations/raycast"
+      },
+      "toolNaming": {
+        "convention": "http-api",
+        "note": "UI extension calls Nowledge Mem HTTP API directly (appropriate for launcher extensions)"
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "claude-desktop",
+      "name": "Claude Desktop",
+      "category": "chat",
+      "type": "extension",
+      "version": null,
+      "directory": null,
+      "externalRepo": "https://github.com/nowledge-co/claude-dxt",
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none"
+      },
+      "install": {
+        "command": "Download from nowled.ge/claude-dxt, double-click .mcpb file",
+        "docsUrl": "/docs/integrations/claude-desktop"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "MCP tools defined by backend"
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "browser-extension",
+      "name": "Browser Extension",
+      "category": "surface",
+      "type": "extension",
+      "version": null,
+      "directory": null,
+      "externalPath": "nowledge-mem-exchange/nowledge-mem-exchange-extension",
+      "transport": "http-api",
+      "capabilities": {
+        "workingMemory": false,
+        "search": false,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "plugin-capture",
+        "note": "Extension captures browser AI conversations via DOM extraction and sends via HTTP API"
+      },
+      "install": {
+        "command": "Install from Chrome Web Store: search 'Nowledge Memory Exchange'",
+        "docsUrl": "/docs/integrations/browser-extension"
+      },
+      "toolNaming": {
+        "convention": "http-api",
+        "note": "Extension calls Nowledge Mem HTTP API directly (appropriate for browser extensions)"
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "mcp-direct",
+      "name": "MCP",
+      "category": "surface",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Depends on client capabilities"
+      },
+      "install": {
+        "command": "Point your MCP client at http://localhost:14242/mcp",
+        "docsUrl": "/docs/integrations#model-context-protocol-mcp"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "MCP tools defined by backend"
+      },
+      "skills": [],
+      "slashCommands": []
+    }
+  ]
+}
