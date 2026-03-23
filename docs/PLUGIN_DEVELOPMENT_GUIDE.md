@@ -114,7 +114,7 @@ Before adding thread save to a new integration:
 
 When shipping a new integration:
 
-1. [ ] Add entry to `community/integrations.json`
+1. [ ] Add entry to `community/integrations.json` — **always update the registry first**
 2. [ ] Align behavioral guidance with `community/shared/behavioral-guidance.md`
 3. [ ] Use `nowledge_mem_*` tool naming (or document platform convention)
 4. [ ] Update `community/README.md` integration table
@@ -122,3 +122,21 @@ When shipping a new integration:
 6. [ ] Add marketplace entry if applicable (`.claude-plugin/`, `.cursor-plugin/`, `.factory-plugin/`)
 7. [ ] Update `nowledge-mem-npx-skills/skills/check-integration/SKILL.md` detection table
 8. [ ] Add integration docs page to website (EN + ZH)
+
+When bumping a plugin **version**:
+
+1. [ ] Update `version` field in `community/integrations.json`
+2. [ ] Verify `nowledge-labs-website/nowledge-mem/data/integrations.ts` alignment
+3. [ ] Add marketplace entry version bump if applicable
+
+### Runtime Consumers
+
+The registry is fetched at runtime by multiple consumers. Changes to schema or field
+names affect all of them:
+
+| Consumer | How it reads | What it uses |
+|----------|-------------|-------------|
+| Desktop app (Tauri) | `fetch_plugin_registry` command — fetches from GitHub, caches to disk | `id`, `name`, `version` for update awareness |
+| `nmem plugins check` CLI | Direct `httpx.get()` — fetches from GitHub, caches to `~/.nowledge-mem/` | `id`, `name`, `version` for update awareness |
+| `check-integration` npx skill | Reads detection hints at skill invocation time | `install.command`, `install.docsUrl`, detection hints |
+| Website `integrations.ts` | Manually synced (not auto-fetched) | All fields for the integrations showcase page |
