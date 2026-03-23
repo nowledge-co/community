@@ -1302,126 +1302,141 @@ export async function activate(context) {
 		},
 	});
 
-	if (recallInjectionEnabled) {
-		registerEvent("chat.message.willSend", async (first, second) => {
-			const payload = normalizeWillSendPayload(first, second);
-			const { threadId, currentContent } = payload;
-			if (!currentContent || !currentContent.trim()) return;
+	// -- Live thread sync state (used by willSend + quit hooks) --
+	// We accumulate messages from willSend payloads directly, since
+	// context.chat.getActiveThread()/getMessages() may not exist in all
+	// Alma versions. Only chat.message.willSend is confirmed to fire.
+	const pendingCaptures = new Map(); // almaThreadId → { title, messages[] }
+	const savedMessageCounts = new Map(); // almaThreadId → last saved msg count
+	let idleSaveTimer = null;
+	let lastSeenThreadId = null;
 
-			const allowAutoRecall =
-				currentContent.length >= 8 &&
-				!(recallFrequency === "thread_once" && recalledThreads.has(threadId));
+	/** Save a buffered thread to Nowledge Mem if it has new messages since last save. */
+	const flushThread = async (threadId) => {
+		const data = pendingCaptures.get(threadId);
+		if (!data) return;
+		const normalized = normalizeThreadMessages(data.messages);
+		const lastSaved = savedMessageCounts.get(threadId) || 0;
+		if (normalized.length < 2 || normalized.length <= lastSaved) return;
+		try {
+			const summary = normalized
+				.slice(-8)
+				.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
+				.join("\n");
+			await client.createThread(
+				data.title,
+				escapeForInline(summary, 1200),
+				normalized,
+				"alma",
+			);
+			savedMessageCounts.set(threadId, normalized.length);
+			pendingCaptures.delete(threadId);
+			logger.info?.(
+				`nowledge-mem: thread synced (${threadId}, ${normalized.length} msgs)`,
+			);
+		} catch (err) {
+			logger.error?.(
+				`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
+	};
 
-			if (allowAutoRecall) {
-				const wm = await client.readWorkingMemory();
-				const results = await client.search(currentContent, maxRecallResults);
-				const contextBlock = buildMemoryContextBlock(wm, results, {
-					includeCliPlaybook: injectCliPlaybook,
-				});
-				if (!contextBlock) return;
-				if (payload.setContent(`${contextBlock}\n\n${currentContent}`)) {
-					if (allowAutoRecall && recallFrequency === "thread_once") {
-						recalledThreads.add(threadId);
-					}
-				}
-			}
-		});
-	}
+	const flushAllPending = async () => {
+		for (const threadId of [...pendingCaptures.keys()]) {
+			await flushThread(threadId);
+		}
+	};
 
-	if (autoCapture) {
-		// -- Live thread sync via willSend --
-		// Alma's only reliably-firing hook is chat.message.willSend.
-		// didReceive/thread.activated may not exist in all Alma versions.
-		// Strategy: on each willSend, buffer the current thread state (which
-		// includes all prior AI responses). Flush when the threadId changes
-		// (user switched threads) or after idle. Quit hooks as safety net.
-		const pendingCaptures = new Map(); // almaThreadId → { title, messages }
-		const savedMessageCounts = new Map(); // almaThreadId → last saved count
-		let idleSaveTimer = null;
-		let lastSeenThreadId = null;
+	// Single willSend handler — handles both recall injection AND live capture.
+	// Alma may only support one handler per event name, so we must not register twice.
+	registerEvent("chat.message.willSend", async (first, second) => {
+		const payload = normalizeWillSendPayload(first, second);
+		const { threadId, currentContent } = payload;
 
-		/** Save a buffered thread to Nowledge Mem if it has new messages since last save. */
-		const flushThread = async (threadId) => {
-			const data = pendingCaptures.get(threadId);
-			if (!data) return;
-			const normalized = normalizeThreadMessages(data.messages);
-			const lastSaved = savedMessageCounts.get(threadId) || 0;
-			if (normalized.length < 2 || normalized.length <= lastSaved) return;
+		// --- Part 1: Live capture (accumulate from payload) ---
+		if (autoCapture && currentContent && currentContent.trim()) {
 			try {
-				const summary = normalized
-					.slice(-8)
-					.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
-					.join("\n");
-				await client.createThread(
-					data.title,
-					escapeForInline(summary, 1200),
-					normalized,
-					"alma",
-				);
-				savedMessageCounts.set(threadId, normalized.length);
-				pendingCaptures.delete(threadId);
-				logger.info?.(
-					`nowledge-mem: thread synced (${threadId}, ${normalized.length} msgs)`,
-				);
-			} catch (err) {
-				logger.error?.(
-					`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`,
-				);
-			}
-		};
-
-		const flushAllPending = async () => {
-			for (const threadId of [...pendingCaptures.keys()]) {
-				await flushThread(threadId);
-			}
-		};
-
-		/** Buffer thread state on willSend (fires before each user message). */
-		const captureOnWillSend = async () => {
-			try {
-				const chat = context.chat;
-				if (!chat?.getActiveThread || !chat?.getMessages) return;
-				const activeThread = await chat.getActiveThread();
-				if (!activeThread?.id) return;
-				const messages = await chat.getMessages(activeThread.id);
-				if (!Array.isArray(messages) || !messages.length) return;
-
 				// If user switched threads, flush the previous one immediately
-				if (lastSeenThreadId && lastSeenThreadId !== activeThread.id) {
+				if (lastSeenThreadId && lastSeenThreadId !== threadId) {
 					await flushThread(lastSeenThreadId);
 				}
-				lastSeenThreadId = activeThread.id;
+				lastSeenThreadId = threadId;
 
-				pendingCaptures.set(activeThread.id, {
-					title: escapeForInline(
-						typeof activeThread.title === "string" && activeThread.title.trim()
-							? activeThread.title
-							: `Alma Thread ${new Date().toISOString().slice(0, 10)}`,
-						120,
-					),
-					messages: [...messages],
-				});
+				// Try context.chat API first (full thread history including AI responses)
+				let capturedMessages = null;
+				let capturedTitle = null;
+				try {
+					const chat = context.chat;
+					if (chat?.getActiveThread && chat?.getMessages) {
+						const activeThread = await chat.getActiveThread();
+						if (activeThread?.id) {
+							const msgs = await chat.getMessages(activeThread.id);
+							if (Array.isArray(msgs) && msgs.length > 0) {
+								capturedMessages = [...msgs];
+								capturedTitle = typeof activeThread.title === "string" && activeThread.title.trim()
+									? activeThread.title : null;
+							}
+						}
+					}
+				} catch (_chatErr) {
+					// context.chat not available — fall through to payload accumulation
+				}
+
+				if (capturedMessages) {
+					// Full thread history from chat API
+					logger.debug?.(`nowledge-mem: captured ${capturedMessages.length} msgs via chat API for ${threadId}`);
+					pendingCaptures.set(threadId, {
+						title: escapeForInline(capturedTitle || `Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
+						messages: capturedMessages,
+					});
+				} else {
+					// Fallback: accumulate from willSend payloads.
+					// On each willSend we only see the user message (not AI response),
+					// so this is partial — but still captures the user side.
+					logger.debug?.(`nowledge-mem: accumulating msg from willSend payload for ${threadId}`);
+					const existing = pendingCaptures.get(threadId) || {
+						title: escapeForInline(`Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
+						messages: [],
+					};
+					existing.messages.push({ role: "human", content: currentContent });
+					pendingCaptures.set(threadId, existing);
+				}
 
 				// Reset idle timer — save 2 minutes after conversation goes quiet
 				if (idleSaveTimer) clearTimeout(idleSaveTimer);
 				idleSaveTimer = setTimeout(() => {
 					idleSaveTimer = null;
-					flushThread(activeThread.id);
+					flushThread(threadId);
 				}, 120_000);
 			} catch (err) {
-				logger.debug?.(
-					`nowledge-mem: willSend capture failed: ${err?.message}`,
-				);
+				logger.debug?.(`nowledge-mem: willSend capture failed: ${err?.message}`);
 			}
-		};
+		}
 
-		// Register a willSend hook solely for capture (separate from recall injection).
-		// This fires for every user message regardless of recallPolicy.
-		registerEvent("chat.message.willSend", async () => {
-			// Fire-and-forget capture — don't block the message send
-			captureOnWillSend();
-		});
+		// --- Part 2: Recall injection ---
+		if (!recallInjectionEnabled) return;
+		if (!currentContent || !currentContent.trim()) return;
 
+		const allowAutoRecall =
+			currentContent.length >= 8 &&
+			!(recallFrequency === "thread_once" && recalledThreads.has(threadId));
+
+		if (allowAutoRecall) {
+			const wm = await client.readWorkingMemory();
+			const results = await client.search(currentContent, maxRecallResults);
+			const contextBlock = buildMemoryContextBlock(wm, results, {
+				includeCliPlaybook: injectCliPlaybook,
+			});
+			if (!contextBlock) return;
+			if (payload.setContent(`${contextBlock}\n\n${currentContent}`)) {
+				if (allowAutoRecall && recallFrequency === "thread_once") {
+					recalledThreads.add(threadId);
+				}
+			}
+		}
+	});
+
+	if (autoCapture) {
 		// Quit hooks as safety net
 		const handleAutoCapture = async (_input, output) => {
 			quitCaptureAttempted = true;
