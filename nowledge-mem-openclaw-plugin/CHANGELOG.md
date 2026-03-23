@@ -2,6 +2,15 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- **Thread sync no longer depends on argv-sized CLI payloads.** OpenClaw conversation capture now creates and appends threads through the Mem HTTP API instead of passing whole message arrays through `nmem ... -m '<json>'`. This removes the transport limit that caused repeated append failures on long or repetitive sessions.
+- **Session capture now syncs only the unsynced tail.** The plugin preserves the real transcript, asks Mem how many messages are already stored, and appends only the new tail instead of replaying the whole session on every hook or Context Engine turn.
+- **Remote config is still unified after the transport change.** The same resolved `apiUrl` and `apiKey` from OpenClaw settings / `~/.nowledge-mem/config.json` now drive both CLI-backed memory tools and API-backed thread sync.
+- **Removed lossy repetitive-session collapse.** The temporary content-based dedup workaround for cron-style sessions has been removed so conversation structure is preserved faithfully.
+
 ## [0.7.1] - 2026-03-23
 
 ### Fixed

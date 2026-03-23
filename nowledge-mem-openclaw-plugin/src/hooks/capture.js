@@ -12,6 +12,8 @@ export const MIN_MESSAGES_FOR_DISTILL = 4;
 // Evicted opportunistically when new entries are set (see _setLastCapture).
 const _lastCaptureAt = new Map();
 const _MAX_COOLDOWN_ENTRIES = 200;
+const _syncedMessageCounts = new Map();
+const _MAX_SYNC_CURSOR_ENTRIES = 500;
 
 function _setLastCapture(threadId, now) {
 	_lastCaptureAt.set(threadId, now);
@@ -20,6 +22,20 @@ function _setLastCapture(threadId, now) {
 		const cutoff = now - 86_400_000; // 24h — generous TTL
 		for (const [key, ts] of _lastCaptureAt) {
 			if (ts < cutoff) _lastCaptureAt.delete(key);
+		}
+	}
+}
+
+function _setSyncedMessageCount(threadId, count) {
+	if (!threadId || !Number.isFinite(count) || count < 0) return;
+	_syncedMessageCounts.set(threadId, Math.trunc(count));
+	if (_syncedMessageCounts.size > _MAX_SYNC_CURSOR_ENTRIES) {
+		const excess = _syncedMessageCounts.size - _MAX_SYNC_CURSOR_ENTRIES;
+		let removed = 0;
+		for (const key of _syncedMessageCounts.keys()) {
+			_syncedMessageCounts.delete(key);
+			removed += 1;
+			if (removed >= excess) break;
 		}
 	}
 }
@@ -189,40 +205,12 @@ export async function appendOrCreateThread({
 	const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "session");
 	const sessionId = String(ctx?.sessionId || "").trim();
 	const title = buildThreadTitle(ctx, reason);
-	const allNormalized = rawMessages
+	const normalized = rawMessages
 		.map((message) => normalizeRoleMessage(message, maxMessageChars))
 		.filter(Boolean);
-	if (allNormalized.length === 0) return;
-
-	// Collapse highly repetitive sessions (cron heartbeats, status pings).
-	// If >50% of messages are duplicates, keep only unique (role, content)
-	// pairs. This catches alternating user/assistant heartbeat patterns
-	// that consecutive-only dedup would miss.
-	let normalized;
-	const uniqueKeys = new Set(
-		allNormalized.map((m) => `${m.role}\0${m.content}`),
-	);
-	if (
-		allNormalized.length > 4 &&
-		uniqueKeys.size / allNormalized.length < 0.5
-	) {
-		const seen = new Set();
-		normalized = [];
-		for (const msg of allNormalized) {
-			const key = `${msg.role}\0${msg.content}`;
-			if (seen.has(key)) continue;
-			seen.add(key);
-			normalized.push(msg);
-		}
-		logger?.info?.(
-			`capture: collapsed ${allNormalized.length} repetitive msgs to ${normalized.length}`,
-		);
-	} else {
-		normalized = allNormalized;
-	}
 	if (normalized.length === 0) return;
 
-	const messages = normalized.map((message, index) => ({
+	const allMessages = normalized.map((message, index) => ({
 		role: message.role,
 		content: message.content,
 		timestamp: message.timestamp,
@@ -238,16 +226,46 @@ export async function appendOrCreateThread({
 			session_id: sessionId || undefined,
 		},
 	}));
-	const idempotencyKey = buildAppendIdempotencyKey(threadId, reason, messages);
+
+	let syncedCount = _syncedMessageCounts.get(threadId);
+	if (syncedCount === undefined) {
+		syncedCount = await client.getThreadMessageCount(threadId);
+		if (syncedCount !== null) {
+			_setSyncedMessageCount(threadId, syncedCount);
+		}
+	}
+
+	if (typeof syncedCount === "number" && syncedCount > allMessages.length) {
+		// OpenClaw compaction can shrink the active transcript after we already
+		// stored the pre-compaction history. Reset the local cursor to the new
+		// compacted length so future turns append only the post-compaction tail.
+		_setSyncedMessageCount(threadId, allMessages.length);
+		return { threadId, normalized, messagesAdded: 0 };
+	}
+
+	const appendStart =
+		typeof syncedCount === "number" && syncedCount > 0
+			? Math.min(syncedCount, allMessages.length)
+			: 0;
+	const newMessages = allMessages.slice(appendStart);
+	if (newMessages.length === 0) {
+		return { threadId, normalized, messagesAdded: 0 };
+	}
+	const idempotencyKey = buildAppendIdempotencyKey(
+		threadId,
+		reason,
+		newMessages,
+	);
 
 	try {
 		const appended = await client.appendThread({
 			threadId,
-			messages,
+			messages: newMessages,
 			deduplicate: true,
 			idempotencyKey,
 		});
 		const added = appended.messagesAdded ?? 0;
+		_setSyncedMessageCount(threadId, allMessages.length);
 		logger.info(
 			`capture: appended ${added} messages to ${threadId} (${reason || "event"})`,
 		);
@@ -264,13 +282,14 @@ export async function appendOrCreateThread({
 		const createdId = await client.createThread({
 			threadId,
 			title,
-			messages,
+			messages: allMessages,
 			source: "openclaw",
 		});
+		_setSyncedMessageCount(threadId, allMessages.length);
 		logger.info(
-			`capture: created thread ${createdId} with ${messages.length} messages (${reason || "event"})`,
+			`capture: created thread ${createdId} with ${allMessages.length} messages (${reason || "event"})`,
 		);
-		return { threadId, normalized, messagesAdded: messages.length };
+		return { threadId, normalized, messagesAdded: allMessages.length };
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.warn(`capture: thread create failed for ${threadId}: ${message}`);
@@ -385,9 +404,8 @@ export async function triageAndDistill({
  *
  * Heartbeat sessions (ctx.trigger === "heartbeat") are skipped — they
  * produce repetitive status pings that aren't worth preserving.
- * Cron sessions (trigger === "cron") ARE captured — they may contain
- * real work. The consecutive dedup in appendOrCreateThread handles
- * repetitive cron output (e.g., repeated HEARTBEAT_OK messages).
+ * Other sessions use incremental tail sync: we preserve the real
+ * transcript, but only append messages that are not already stored.
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
