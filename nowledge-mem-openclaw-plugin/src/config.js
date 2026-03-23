@@ -353,6 +353,11 @@ export function parseConfig(raw, logger) {
 		const fromPlugin = Array.isArray(resolvedPlugin.captureExclude)
 			? resolvedPlugin.captureExclude
 			: null;
+		_sources.captureExclude = fromFile
+			? "file"
+			: fromPlugin
+				? "pluginConfig"
+				: "default";
 		const raw = fromFile ?? fromPlugin ?? [];
 		return raw.filter((v) => typeof v === "string" && v.trim());
 	})();
@@ -367,6 +372,11 @@ export function parseConfig(raw, logger) {
 			typeof resolvedPlugin.captureSkipMarker === "string"
 				? resolvedPlugin.captureSkipMarker.trim()
 				: undefined;
+		_sources.captureSkipMarker = fromFile
+			? "file"
+			: fromPlugin
+				? "pluginConfig"
+				: "default";
 		return fromFile || fromPlugin || "#nmem-skip";
 	})();
 

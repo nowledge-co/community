@@ -24,31 +24,46 @@ function _setLastCapture(threadId, now) {
 }
 
 /**
- * Test whether a session key matches any exclusion glob pattern.
- * Glob `*` matches within a colon-delimited segment (not across colons).
- * Example: "agent:*:cron:*" matches "agent:main:cron:abc123"
+ * Compile a glob pattern (where `*` matches within a colon-delimited segment)
+ * into a RegExp. Results are cached since patterns are immutable after parse.
  */
-function matchesExcludePattern(sessionKey, patterns) {
-	if (!Array.isArray(patterns) || patterns.length === 0) return false;
-	const key = String(sessionKey || "").toLowerCase();
-	return patterns.some((pattern) => {
-		const re = new RegExp(
+const _compiledPatterns = new Map();
+function _compileGlob(pattern) {
+	const key = String(pattern).toLowerCase();
+	let re = _compiledPatterns.get(key);
+	if (!re) {
+		re = new RegExp(
 			"^" +
-				String(pattern)
-					.toLowerCase()
+				key
 					.replace(/[.+^${}()|[\]\\]/g, "\\$&")
 					.replace(/\*/g, "[^:]*") +
 				"$",
 		);
-		return re.test(key);
-	});
+		_compiledPatterns.set(key, re);
+	}
+	return re;
+}
+
+/**
+ * Test whether a session key matches any exclusion glob pattern.
+ * Glob `*` matches within a colon-delimited segment (not across colons).
+ * Example: "agent:*:cron:*" matches "agent:main:cron:abc123"
+ *
+ * Exported for reuse by Context Engine and other capture paths.
+ */
+export function matchesExcludePattern(sessionKey, patterns) {
+	if (!Array.isArray(patterns) || patterns.length === 0) return false;
+	const key = String(sessionKey || "").toLowerCase();
+	return patterns.some((pattern) => _compileGlob(pattern).test(key));
 }
 
 /**
  * Check if any message contains the skip marker text.
  * Scans both raw message content and nested message objects.
+ *
+ * Exported for reuse by Context Engine and other capture paths.
  */
-function hasSkipMarker(messages, marker) {
+export function hasSkipMarker(messages, marker) {
 	if (!marker || !Array.isArray(messages)) return false;
 	const markerLc = marker.toLowerCase();
 	return messages.some((msg) => {
@@ -451,7 +466,7 @@ export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 			event,
 			ctx,
 			reason,
-			maxMessageChars: _cfg?.maxThreadMessageChars,
+			maxMessageChars: cfg.maxThreadMessageChars,
 		});
 	};
 }
