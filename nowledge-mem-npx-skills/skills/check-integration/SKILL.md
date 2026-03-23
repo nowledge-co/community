@@ -29,17 +29,19 @@ If this fails, Nowledge Mem is not installed or not running. Guide the user:
 
 These skills work in any agent via CLI. But native plugins provide richer features: auto-recall at prompt time, auto-capture at session end, graph exploration tools, and Working Memory injection.
 
-Check which agent you're running in and recommend the native plugin if available:
+Check which agent you're running in and recommend the native plugin if available.
+
+The canonical source for this table is `community/integrations.json`.
 
 | Agent | How to Detect | Native Plugin Install | Docs |
 |-------|--------------|----------------------|------|
-| **Claude Code** | Running as Claude Code agent, `~/.claude/` exists | `npx nowledge-mem-claude-code install` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
-| **OpenClaw** | Running as OpenClaw agent, `~/.openclaw/` exists | `openclaw plugins install @nowledge/openclaw-nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/openclaw) |
-| **Cursor** | Running inside Cursor IDE | Add MCP server in Cursor settings, or install from marketplace | [Guide](https://mem.nowledge.co/docs/integrations/cursor) |
-| **Gemini CLI** | Running as Gemini CLI agent | `gemini extensions install nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/gemini-cli) |
-| **Alma** | Running inside Alma | Copy plugin to `~/.config/alma/plugins/nowledge-mem/` | [Guide](https://mem.nowledge.co/docs/integrations/alma) |
-| **Droid** | Running inside Droid | Copy plugin to Droid factory plugins directory | [Guide](https://mem.nowledge.co/docs/integrations/droid) |
-| **Codex CLI** | Running as Codex CLI agent | Install workflow pack: see docs | [Guide](https://mem.nowledge.co/docs/integrations/codex-cli) |
+| **Claude Code** | Running as Claude Code agent; `~/.claude/` exists | `claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
+| **OpenClaw** | Running as OpenClaw agent; `~/.openclaw/` exists | `openclaw plugins install @nowledge/openclaw-nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/openclaw) |
+| **Cursor** | Running inside Cursor IDE | Install from Cursor Marketplace (search "Nowledge Mem") | [Guide](https://mem.nowledge.co/docs/integrations/cursor) |
+| **Gemini CLI** | Running as Gemini CLI agent; `~/.gemini/` exists | Search "Nowledge Mem" in the Gemini CLI Extensions Gallery | [Guide](https://mem.nowledge.co/docs/integrations/gemini-cli) |
+| **Alma** | Running inside Alma; `~/.config/alma/` exists | In Alma: Settings > Plugins > Marketplace, search "Nowledge Mem" | [Guide](https://mem.nowledge.co/docs/integrations/alma) |
+| **Droid** | Running inside Droid (Factory) | Add nowledge-co/community marketplace, install nowledge-mem@nowledge-community | [Guide](https://mem.nowledge.co/docs/integrations/droid) |
+| **Codex CLI** | Running as Codex CLI agent; `~/.codex/` exists | `curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/install.sh \| bash` | [Guide](https://mem.nowledge.co/docs/integrations/codex-cli) |
 | **Bub** | Running inside Bub | `pip install nowledge-mem-bub` | [Guide](https://mem.nowledge.co/docs/integrations/bub) |
 
 If the agent is not listed above, the npx skills you already have are the best option. They work everywhere via the `nmem` CLI.

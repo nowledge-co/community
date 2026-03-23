@@ -5,17 +5,20 @@ description: Capture breakthrough moments and valuable insights as searchable me
 
 # Distill Memory
 
-Store only knowledge that should remain useful after the current session ends.
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
 
 ## When to Save
 
 Good candidates include:
 
-- decisions with rationale
-- repeatable procedures
-- lessons from debugging or incident work
+- decisions with rationale ("we chose PostgreSQL because ACID is required")
+- repeatable procedures or workflows
+- lessons from debugging, incidents, or root cause analysis
 - durable preferences or constraints
 - plans that future sessions will need to resume cleanly
+- important context that would be lost when the session ends
+
+Skip routine fixes with no generalizable lesson, work in progress that will change, simple Q&A answerable from documentation, and generic information already widely known.
 
 ## Add vs Update
 
@@ -23,6 +26,8 @@ Good candidates include:
 - If an existing memory already captures the same decision, workflow, or preference and the new information refines it, use `nmem m update <id> ...` instead of creating a duplicate.
 
 Prefer atomic, standalone memories with strong titles and clear meaning. Focus on what was learned or decided, not routine chatter.
+
+Use structured saves when possible: `--unit-type` (decision, procedure, learning, preference, event), `-l` labels, `-i` importance (0.8–1.0 major decisions, 0.5–0.7 useful patterns, 0.3–0.4 minor notes).
 
 ## Native Plugin
 

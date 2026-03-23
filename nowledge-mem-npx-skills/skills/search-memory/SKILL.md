@@ -9,12 +9,19 @@ description: Search your personal knowledge base when past insights would improv
 
 ## When to Use
 
-Search when:
+**Strong signals — search when:**
 
 - the user references previous work, a prior fix, or an earlier decision
 - the task resumes a named feature, bug, refactor, incident, or subsystem
 - a debugging pattern resembles something solved earlier
 - the user asks for rationale, preferences, procedures, or recurring workflow details
+- the user uses implicit recall language: "that approach", "like before", "the pattern we used"
+
+**Contextual signals — consider searching when:**
+
+- complex debugging where prior context would narrow the search space
+- architecture discussion that may intersect with past decisions
+- domain-specific conventions the user has established before
 - the current result is ambiguous and past context would make the answer sharper
 
 ## Retrieval Routing
