@@ -194,15 +194,31 @@ export async function appendOrCreateThread({
 		.filter(Boolean);
 	if (allNormalized.length === 0) return;
 
-	// Collapse consecutive duplicate messages (same role + content).
-	// Cron/heartbeat sessions produce many identical status pings;
-	// sending them all inflates the CLI payload and adds no value.
-	const normalized = [];
-	for (const msg of allNormalized) {
-		const prev = normalized[normalized.length - 1];
-		if (prev && prev.role === msg.role && prev.content === msg.content)
-			continue;
-		normalized.push(msg);
+	// Collapse highly repetitive sessions (cron heartbeats, status pings).
+	// If >50% of messages are duplicates, keep only unique (role, content)
+	// pairs. This catches alternating user/assistant heartbeat patterns
+	// that consecutive-only dedup would miss.
+	let normalized;
+	const uniqueKeys = new Set(
+		allNormalized.map((m) => `${m.role}\0${m.content}`),
+	);
+	if (
+		allNormalized.length > 4 &&
+		uniqueKeys.size / allNormalized.length < 0.5
+	) {
+		const seen = new Set();
+		normalized = [];
+		for (const msg of allNormalized) {
+			const key = `${msg.role}\0${msg.content}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			normalized.push(msg);
+		}
+		logger?.info?.(
+			`capture: collapsed ${allNormalized.length} repetitive msgs to ${normalized.length}`,
+		);
+	} else {
+		normalized = allNormalized;
 	}
 	if (normalized.length === 0) return;
 
