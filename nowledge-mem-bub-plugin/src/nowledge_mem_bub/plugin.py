@@ -29,7 +29,7 @@ _GUIDANCE_BASE = """\
 You have access to the user's personal knowledge graph (Nowledge Mem).
 It contains knowledge from all their tools — Claude Code, Cursor, ChatGPT, and others — not just this session.
 When prior context would improve your response, search with mem.search.
-When the conversation produces something worth keeping, save it with mem.save.
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context — do not wait to be asked. Use mem.save.
 When a memory has source_thread_id, fetch the full conversation with mem.thread."""
 
 _GUIDANCE_WITH_CONTEXT = """\

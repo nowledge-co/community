@@ -7,14 +7,21 @@ description: Search memory and thread history when past knowledge would material
 
 ## When to Search
 
-Search proactively when:
+**Strong signals — search when:**
 
 - the current task connects to prior work
 - the bug or design resembles something solved earlier
 - the user asks why a decision was made
 - a previous discussion or session likely contains the missing context
+- the user uses implicit recall language: "that approach", "like before"
 
-Skip when:
+**Contextual signals — consider searching when:**
+
+- complex debugging where prior context would narrow the search space
+- architecture discussion that may intersect with past decisions
+- domain-specific conventions the user has established before
+
+**Skip when:**
 
 - the task is fundamentally new
 - the question is generic syntax or reference material

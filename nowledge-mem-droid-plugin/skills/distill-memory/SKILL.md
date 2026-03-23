@@ -5,20 +5,19 @@ description: Recognize breakthrough moments, design decisions, and durable lesso
 
 # Distill Memory
 
-## When to Suggest
+## Proactive Save
 
-Suggest distillation after:
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+
+## Good Candidates
 
 - a debugging breakthrough
 - a design decision with rationale
 - a research conclusion
 - an unexpected lesson or preventive measure
+- plans that future sessions will need to resume
 
-Skip:
-
-- routine fixes
-- work in progress without a stable takeaway
-- generic Q&A
+Skip routine fixes, work in progress without a stable takeaway, and generic Q&A.
 
 ## Tool Usage
 

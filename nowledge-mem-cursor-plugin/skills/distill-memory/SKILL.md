@@ -5,16 +5,19 @@ description: Capture durable decisions, lessons, and procedures from Cursor work
 
 # Distill Memory
 
-Capture only durable knowledge that should remain useful after the current session ends.
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
 
 ## When To Save
 
-Use memory storage for:
+Good candidates:
 
 - decisions with rationale
 - repeatable procedures
 - lessons from debugging or incident work
 - durable preferences or constraints
+- plans that future sessions will need to resume
+
+Skip routine fixes, work in progress, simple Q&A, and generic information.
 
 ## Add vs Update
 

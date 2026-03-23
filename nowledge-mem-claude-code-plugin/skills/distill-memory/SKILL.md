@@ -19,6 +19,10 @@ description: Recognize breakthrough moments, blocking resolutions, and design de
 
 **Skip:** Routine fixes, work in progress, simple Q&A, generic info
 
+## Proactive Save
+
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+
 ## Memory Quality
 
 **Good (atomic + actionable):**
