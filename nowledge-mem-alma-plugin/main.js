@@ -1329,12 +1329,16 @@ export async function activate(context) {
 	}
 
 	if (autoCapture) {
-		// -- Live thread sync --
-		// Users rarely quit Alma, so quit hooks alone are insufficient.
-		// Strategy: buffer thread state on every AI response, flush on idle or thread switch.
+		// -- Live thread sync via willSend --
+		// Alma's only reliably-firing hook is chat.message.willSend.
+		// didReceive/thread.activated may not exist in all Alma versions.
+		// Strategy: on each willSend, buffer the current thread state (which
+		// includes all prior AI responses). Flush when the threadId changes
+		// (user switched threads) or after idle. Quit hooks as safety net.
 		const pendingCaptures = new Map(); // almaThreadId → { title, messages }
 		const savedMessageCounts = new Map(); // almaThreadId → last saved count
 		let idleSaveTimer = null;
+		let lastSeenThreadId = null;
 
 		/** Save a buffered thread to Nowledge Mem if it has new messages since last save. */
 		const flushThread = async (threadId) => {
@@ -1372,8 +1376,8 @@ export async function activate(context) {
 			}
 		};
 
-		// Trigger 1: Buffer thread state after every AI response, debounced save on idle
-		registerEvent("chat.message.didReceive", async () => {
+		/** Buffer thread state on willSend (fires before each user message). */
+		const captureOnWillSend = async () => {
 			try {
 				const chat = context.chat;
 				if (!chat?.getActiveThread || !chat?.getMessages) return;
@@ -1381,6 +1385,12 @@ export async function activate(context) {
 				if (!activeThread?.id) return;
 				const messages = await chat.getMessages(activeThread.id);
 				if (!Array.isArray(messages) || !messages.length) return;
+
+				// If user switched threads, flush the previous one immediately
+				if (lastSeenThreadId && lastSeenThreadId !== activeThread.id) {
+					await flushThread(lastSeenThreadId);
+				}
+				lastSeenThreadId = activeThread.id;
 
 				pendingCaptures.set(activeThread.id, {
 					title: escapeForInline(
@@ -1400,21 +1410,19 @@ export async function activate(context) {
 				}, 120_000);
 			} catch (err) {
 				logger.debug?.(
-					`nowledge-mem: didReceive capture failed: ${err?.message}`,
+					`nowledge-mem: willSend capture failed: ${err?.message}`,
 				);
 			}
+		};
+
+		// Register a willSend hook solely for capture (separate from recall injection).
+		// This fires for every user message regardless of recallPolicy.
+		registerEvent("chat.message.willSend", async () => {
+			// Fire-and-forget capture — don't block the message send
+			captureOnWillSend();
 		});
 
-		// Trigger 2: Flush on thread switch (natural conversation boundary)
-		registerEvent("thread.activated", async () => {
-			if (idleSaveTimer) {
-				clearTimeout(idleSaveTimer);
-				idleSaveTimer = null;
-			}
-			await flushAllPending();
-		});
-
-		// Trigger 3: Quit hooks as safety net
+		// Quit hooks as safety net
 		const handleAutoCapture = async (_input, output) => {
 			quitCaptureAttempted = true;
 			try {

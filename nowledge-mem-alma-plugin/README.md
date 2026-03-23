@@ -122,11 +122,9 @@ For casual chat, the AI intentionally does NOT save every message. This is by de
 
 ### Hooks
 
-- **Auto-recall** (`chat.message.willSend`): injects behavioral guidance + Working Memory + relevant memories according to `recallPolicy`. Behavioral guidance is always injected (even with no memories yet), so the AI knows about Nowledge Mem tools from the first message.
+- **Auto-recall + live sync** (`chat.message.willSend`): On every user message, the hook (1) injects behavioral guidance + Working Memory + relevant memories according to `recallPolicy`, and (2) buffers the current thread state for capture. The buffer saves to Nowledge Mem after 2 minutes of idle, or immediately when the user switches to a different thread (detected by threadId change). This is the primary capture mechanism — it uses the only hook confirmed to fire reliably across Alma versions.
 - Auto-recall is preloaded context, not equivalent to a successful plugin tool call in that turn.
 - When recalled memories exist, the injected block instructs the model to explicitly disclose when it answered from injected context only.
-- **Live sync** (`chat.message.didReceive`): buffers thread state after each AI response. Saves to Nowledge Mem after 2 minutes of idle. This is the primary capture mechanism.
-- **Thread switch** (`thread.activated`): flushes any pending thread capture immediately when switching to a different thread.
 - **Quit capture** (`app.willQuit`): saves active thread before Alma exits. Safety net for the rare case when quit happens before the idle timer fires.
 
 No plugin commands/slash actions are registered. The plugin runs through tools + hooks only.

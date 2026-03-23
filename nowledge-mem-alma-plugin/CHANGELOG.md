@@ -3,7 +3,7 @@
 ## 0.6.5
 
 ### Live thread sync
-- Conversations are now synced to Nowledge Mem during normal use — no need to quit Alma. The plugin buffers thread state after each AI response and saves after 2 minutes of idle, or immediately when you switch threads. Quit hooks remain as a safety net but are no longer the primary capture mechanism. This addresses the most critical user feedback: threads were never saved because users rarely quit Alma.
+- Conversations are now synced to Nowledge Mem during normal use — no need to quit Alma. The plugin buffers thread state on every user message (via the `willSend` hook — the only hook confirmed to fire reliably) and saves after 2 minutes of idle, or immediately when you switch threads. Quit hooks remain as a safety net. This addresses the most critical user feedback: threads were never saved because users rarely quit Alma.
 
 ### Auto-capture on by default
 - `autoCapture` now defaults to `true`. Previously defaulted to `false`, meaning new users saw no evidence of the plugin working until they manually enabled capture or explicitly asked the AI to save something.

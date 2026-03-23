@@ -125,13 +125,13 @@ open -a Alma
 - **Thread source filter**: `nowledge_mem_thread_search` accepts `source` to filter by platform.
 - **Behavioral guidance**: Recall injection includes proactive save nudge + sourceThreadId awareness.
 
-## Available but Unused Alma Hooks
+## Alma Hook Availability
 
-These hooks exist in Alma's API but are not used by the plugin. Consider for future improvements:
-
-- `chat.message.didReceive` — after AI response. Could analyze for save-worthy content.
-- `thread.activated` — when user switches threads. Could reset per-thread recall state.
-- `tool.willExecute` / `tool.didExecute` / `tool.onError` — tool lifecycle. Could monitor Nowledge Mem tool usage quality.
+**Only `chat.message.willSend` is confirmed to fire reliably.** Other event names
+(`chat.message.didReceive`, `thread.activated`, `tool.willExecute`, etc.) may exist
+in some Alma versions but are **not verified** — `registerEvent` silently returns
+`false` if the event is unsupported. Never build critical capture logic on
+unverified hooks. The live sync in v0.6.5 uses `willSend` exclusively.
 
 ## Known Limitations
 
