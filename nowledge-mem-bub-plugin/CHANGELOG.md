@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1 (2026-03-23)
+## 0.2.2 (2026-03-23)
 
 - Changed: strengthened autonomous save guidance in system prompt to align with shared behavioral guidance across all Nowledge Mem integrations.
 - Changed: updated token budget comment (~50 → ~70 tokens) to match actual guidance length.
