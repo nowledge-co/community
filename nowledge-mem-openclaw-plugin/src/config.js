@@ -359,7 +359,9 @@ export function parseConfig(raw, logger) {
 				? "pluginConfig"
 				: "default";
 		const raw = fromFile ?? fromPlugin ?? [];
-		return raw.filter((v) => typeof v === "string" && v.trim());
+		return raw
+			.filter((v) => typeof v === "string" && v.trim())
+			.map((v) => v.trim());
 	})();
 
 	// --- captureSkipMarker: file > pluginConfig > default ---

@@ -254,8 +254,9 @@ export async function appendOrCreateThread({
 	ctx,
 	reason,
 	maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS,
+	resolvedMessages,
 }) {
-	const rawMessages = await resolveHookMessages(event);
+	const rawMessages = resolvedMessages ?? (await resolveHookMessages(event));
 	if (!Array.isArray(rawMessages) || rawMessages.length === 0) return;
 
 	const threadId = buildStableThreadId(event, ctx);
@@ -478,8 +479,8 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		}
 
 		// Layer 2: marker-based exclusion (user typed #nmem-skip in conversation)
-		const rawMessages = await resolveHookMessages(event);
-		if (hasSkipMarker(rawMessages, cfg.captureSkipMarker)) {
+		const resolvedMessages = await resolveHookMessages(event);
+		if (hasSkipMarker(resolvedMessages, cfg.captureSkipMarker)) {
 			logger.debug?.(
 				`capture: skipped session with skip marker ${sessionKey}`,
 			);
@@ -493,6 +494,7 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 			ctx,
 			reason: "agent_end",
 			maxMessageChars: cfg.maxThreadMessageChars,
+			resolvedMessages,
 		});
 
 		await triageAndDistill({ client, cfg, logger, captureResult, ctx });
@@ -521,8 +523,8 @@ export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 		}
 
 		// Layer 2: marker-based exclusion
-		const rawMessages = await resolveHookMessages(event);
-		if (hasSkipMarker(rawMessages, cfg.captureSkipMarker)) {
+		const resolvedMessages = await resolveHookMessages(event);
+		if (hasSkipMarker(resolvedMessages, cfg.captureSkipMarker)) {
 			logger.debug?.(
 				`capture: skipped session with skip marker ${sessionKey}`,
 			);
@@ -537,6 +539,7 @@ export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 			ctx,
 			reason,
 			maxMessageChars: cfg.maxThreadMessageChars,
+			resolvedMessages,
 		});
 	};
 }

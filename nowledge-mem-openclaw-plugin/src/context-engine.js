@@ -347,20 +347,23 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 			}) {
 				if (isHeartbeat) return;
 
+				// Normalize sessionKey consistently with hook handlers
+				const normalizedKey = String(sessionKey || sessionId || "");
+
 				// Capture exclusion: pattern-based and marker-based filters
-				if (matchesExcludePattern(sessionKey, cfg.captureExclude)) {
-					logger.debug?.(`ce: skipped excluded session ${sessionKey}`);
+				if (matchesExcludePattern(normalizedKey, cfg.captureExclude)) {
+					logger.debug?.(`ce: skipped excluded session ${normalizedKey}`);
 					return;
 				}
 				if (hasSkipMarker(messages, cfg.captureSkipMarker)) {
 					logger.debug?.(
-						`ce: skipped session with skip marker ${sessionKey}`,
+						`ce: skipped session with skip marker ${normalizedKey}`,
 					);
 					return;
 				}
 
 				const event = { messages, sessionFile };
-				const ctx = { sessionId, sessionKey };
+				const ctx = { sessionId, sessionKey: normalizedKey };
 
 				// 1. Always capture thread (idempotent, deduped)
 				const captureResult = await appendOrCreateThread({
