@@ -2,6 +2,17 @@
 
 All notable changes to the Nowledge Mem npx Skills will be documented in this file.
 
+## [0.5.0] - 2026-03-23
+
+### Added
+
+- **check-integration** skill — detects the current agent, verifies nmem setup, and guides native plugin installation for richer features (auto-recall, auto-capture, graph tools)
+- All skills now include a "Native Plugin" footer pointing agents to the check-integration skill and the integrations docs page
+
+### Changed
+
+- Skills are now positioned as the universal foundation layer: work in any agent via CLI, complemented by native plugins for platform-specific features
+
 ## [0.4.1] - 2026-03-11
 
 ### Added

@@ -15,6 +15,7 @@ These skills extend your AI coding agent with persistent memory capabilities pow
 - **Save Handoff** - Leave resumable handoff summaries in generic agent environments
 - **Save Thread (Deprecated Compatibility)** - Preserved for users who already installed the old skill name; in generic runtimes it must degrade honestly to a handoff, not claim lossless transcript import
 - **Distill Memory** - Capture breakthrough moments as searchable insights
+- **Check Integration** - Detect your agent, verify setup, and guide native plugin installation for richer features
 
 ## Installation
 
