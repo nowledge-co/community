@@ -2,6 +2,13 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.7.1] - 2026-03-23
+
+### Fixed
+
+- **Heartbeat sessions no longer trigger thread capture.** Cron heartbeat sessions (`ctx.trigger === "heartbeat"`) are now skipped in the `agent_end`, `before_reset`, and `after_compaction` hook handlers. Previously, these repetitive status-ping sessions were captured and sent to `nmem t append`, causing timeouts on large payloads. The Context Engine path already filtered heartbeats; this aligns the hook path.
+- **Consecutive duplicate messages collapsed before sync.** When a session accumulates identical messages (common in cron heartbeats), they are now deduplicated before sending to the CLI. This reduces payload size and prevents timeout failures even for non-heartbeat sessions with repetitive content.
+
 ## [0.7.0] - 2026-03-23
 
 ### Added

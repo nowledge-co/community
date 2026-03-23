@@ -189,9 +189,21 @@ export async function appendOrCreateThread({
 	const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "session");
 	const sessionId = String(ctx?.sessionId || "").trim();
 	const title = buildThreadTitle(ctx, reason);
-	const normalized = rawMessages
+	const allNormalized = rawMessages
 		.map((message) => normalizeRoleMessage(message, maxMessageChars))
 		.filter(Boolean);
+	if (allNormalized.length === 0) return;
+
+	// Collapse consecutive duplicate messages (same role + content).
+	// Cron/heartbeat sessions produce many identical status pings;
+	// sending them all inflates the CLI payload and adds no value.
+	const normalized = [];
+	for (const msg of allNormalized) {
+		const prev = normalized[normalized.length - 1];
+		if (prev && prev.role === msg.role && prev.content === msg.content)
+			continue;
+		normalized.push(msg);
+	}
 	if (normalized.length === 0) return;
 
 	const messages = normalized.map((message, index) => ({
@@ -354,11 +366,15 @@ export async function triageAndDistill({
  *
  * When the context engine is active, this hook is a no-op — afterTurn
  * handles capture and distillation through the CE lifecycle.
+ *
+ * Heartbeat sessions (ctx.trigger === "heartbeat") are skipped — they
+ * produce repetitive status pings that aren't worth preserving.
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
 		if (ceState.active) return;
 		if (!event?.success) return;
+		if (ctx?.trigger === "heartbeat") return;
 
 		const captureResult = await appendOrCreateThread({
 			client,
@@ -379,10 +395,13 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
  *
  * When the context engine is active, this hook is a no-op — afterTurn
  * handles capture through the CE lifecycle.
+ *
+ * Heartbeat sessions are skipped (same rationale as agent_end).
  */
 export function buildBeforeResetCaptureHandler(client, _cfg, logger) {
 	return async (event, ctx) => {
 		if (ceState.active) return;
+		if (ctx?.trigger === "heartbeat") return;
 		const reason = typeof event?.reason === "string" ? event.reason : undefined;
 		await appendOrCreateThread({
 			client,
