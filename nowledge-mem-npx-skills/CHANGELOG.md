@@ -2,6 +2,30 @@
 
 All notable changes to the Nowledge Mem npx Skills will be documented in this file.
 
+## [0.6.0] - 2026-03-23
+
+### Added
+
+- **status** skill — check connection, server version, CLI version, and mode (local/remote) with `nmem --json status`
+- **Autonomous save guidance** in distill-memory — agents are now encouraged to save proactively ("do not wait to be asked") with structured save fields (unit-type, labels, importance)
+- **Contextual search signals** in search-memory — implicit recall language, debugging context, and architecture discussion now trigger proactive search
+- **check-integration** detection table now references `community/integrations.json` as canonical source, with corrected install commands for all 8 agents
+
+### Changed
+
+- All skills aligned with `community/shared/behavioral-guidance.md` — the single source of truth for behavioral heuristics across all Nowledge Mem integrations
+
+## [0.5.0] - 2026-03-23
+
+### Added
+
+- **check-integration** skill — detects the current agent, verifies nmem setup, and guides native plugin installation for richer features (auto-recall, auto-capture, graph tools)
+- All skills now include a "Native Plugin" footer pointing agents to the check-integration skill and the integrations docs page
+
+### Changed
+
+- Skills are now positioned as the universal foundation layer: work in any agent via CLI, complemented by native plugins for platform-specific features
+
 ## [0.4.1] - 2026-03-11
 
 ### Added

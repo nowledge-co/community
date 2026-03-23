@@ -6,6 +6,7 @@ import {
 	createRememberCommand,
 } from "./commands/slash.js";
 import { isDefaultApiUrl, parseConfig } from "./config.js";
+import { createNowledgeMemContextEngineFactory } from "./context-engine.js";
 import { buildBehavioralHook } from "./hooks/behavioral.js";
 import {
 	buildAgentEndCaptureHandler,
@@ -55,6 +56,27 @@ export default {
 
 		// Diagnostics
 		api.registerTool(createStatusTool(client, logger, cfg));
+
+		// --- Context Engine registration ---
+		// When the user sets `plugins.slots.contextEngine: "nowledge-mem"`,
+		// this CE takes over from the hooks below (assemble replaces behavioral
+		// + recall; afterTurn replaces agent_end + capture hooks). When the CE
+		// slot points elsewhere, hooks continue working as before.
+		try {
+			api.registerContextEngine(
+				"nowledge-mem",
+				createNowledgeMemContextEngineFactory(client, cfg, logger),
+			);
+		} catch (err) {
+			// OpenClaw < CE support — degrade gracefully to hooks-only mode
+			logger.debug?.(
+				`nowledge-mem: context engine registration unavailable (${err}), using hooks`,
+			);
+		}
+
+		// --- Hooks (fallback when CE is not active) ---
+		// Each hook checks ceState.active and returns early when the CE handles
+		// the same lifecycle through assemble/afterTurn.
 
 		// Always-on: behavioral guidance so the agent proactively saves and searches.
 		// Fires every turn via before_prompt_build — ~50 tokens, negligible cost.

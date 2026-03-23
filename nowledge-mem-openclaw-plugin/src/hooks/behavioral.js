@@ -10,9 +10,14 @@
  * When sessionContext is enabled, guidance is adjusted to note that
  * relevant memories are already injected — reducing redundant searches
  * while keeping the save nudge and thread awareness.
+ *
+ * When the context engine is active, this hook is a no-op —
+ * assemble() handles behavioral guidance via systemPromptAddition.
  */
 
-const BASE_GUIDANCE = [
+import { ceState } from "../ce-state.js";
+
+export const BASE_GUIDANCE = [
 	"<nowledge-mem-guidance>",
 	"You have access to the user's personal knowledge graph (Nowledge Mem).",
 	"Before answering questions about prior work, decisions, dates, people, preferences, or plans:",
@@ -23,7 +28,7 @@ const BASE_GUIDANCE = [
 	"</nowledge-mem-guidance>",
 ].join("\n");
 
-const SESSION_CONTEXT_GUIDANCE = [
+export const SESSION_CONTEXT_GUIDANCE = [
 	"<nowledge-mem-guidance>",
 	"You have access to the user's personal knowledge graph (Nowledge Mem).",
 	"Relevant memories and your Working Memory have already been injected into this prompt.",
@@ -37,6 +42,7 @@ const SESSION_CONTEXT_GUIDANCE = [
 export function buildBehavioralHook(logger, { sessionContext = false } = {}) {
 	const guidance = sessionContext ? SESSION_CONTEXT_GUIDANCE : BASE_GUIDANCE;
 	return (_event, _ctx) => {
+		if (ceState.active) return;
 		logger.debug?.("behavioral: injecting guidance");
 		return { appendSystemContext: guidance };
 	};

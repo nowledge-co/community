@@ -100,14 +100,37 @@ No modal input commands are used. The plugin is designed to stay inside normal c
 
 ## Optional Skill Prompt
 
-For stronger on-demand tool usage, load `alma-skill-nowledge-mem.md` into an Alma skill and enable it for chats that should prioritize external memory operations.
+For deeper tool-usage guidance (execution order, query heuristics, write heuristics, CLI fallback), load `alma-skill-nowledge-mem.md` into an Alma skill and enable it for chats that should prioritize external memory operations.
 
-## Hooks
+Note: Alma does not have a programmatic skill registration API. The skill file must be loaded manually into Alma's settings. The plugin already injects core behavioral guidance via the `chat.message.willSend` hook, so the skill file is supplementary — it adds more detailed instructions for power users.
 
-- **Auto-recall** (`chat.message.willSend`): injects Working Memory + relevant memories according to `recallPolicy`.
+## How It Works
+
+The plugin provides two tiers of memory:
+
+### Tier 1: Thread capture (automatic)
+
+Conversations are synced to Nowledge Mem automatically during normal use. The plugin saves your thread after a few seconds of idle, when you switch threads, or when you quit Alma. You don't need to do anything — conversations are preserved as they happen.
+
+Saved threads appear in the Nowledge Mem desktop app under Threads and can be distilled into structured memories later.
+
+### Tier 2: Memory saves (AI-decided)
+
+During conversation, the AI can use `nowledge_mem_store` to save specific insights, decisions, or facts as structured memories. This happens when the AI judges the information is durable and worth keeping — architecture decisions, debugging conclusions, workflow agreements, preferences.
+
+For casual chat, the AI intentionally does NOT save every message. This is by design: memory should contain signal, not noise. If you want something specific saved, ask: "save this decision to memory."
+
+### Hooks
+
+- **`chat.message.willSend`** — (1) buffers the user message from hook input for live sync, (2) injects recall context (Working Memory + relevant memories) per `recallPolicy`.
+- **`chat.message.didReceive`** — buffers the AI response from hook input and starts a 7-second idle timer. When the timer fires, the thread is flushed to Nowledge Mem.
+- **`thread.activated`** — flushes the previous thread immediately on thread switch.
+- **Quit hooks** (`app.willQuit` etc.) — safety net flush before Alma exits.
+
+All thread data comes from hook payloads, never from `context.chat.getMessages()`. Thread titles are resolved at flush time via `context.chat.getThread()` with multi-strategy fallback.
+
 - Auto-recall is preloaded context, not equivalent to a successful plugin tool call in that turn.
-- The injected block instructs the model to explicitly disclose when it answered from injected context only.
-- **Auto-capture** (`app.willQuit`): saves active thread before Alma exits.
+- When recalled memories exist, the injected block instructs the model to explicitly disclose when it answered from injected context only.
 
 No plugin commands/slash actions are registered. The plugin runs through tools + hooks only.
 
@@ -118,7 +141,7 @@ No plugin commands/slash actions are registered. The plugin runs through tools +
 - `recallPolicy=balanced_every_message`: inject before each outgoing message.
 - `recallPolicy=strict_tools`: disable recall injection and rely on real `nowledge_mem_*` tools.
 - `maxRecallResults`: applies in balanced modes.
-- `autoCapture=true`: save current active thread on Alma quit.
+- `autoCapture=true` (default): live thread sync via hooks + quit safety net. Set to `false` to disable.
 
 Backward compatibility:
 
@@ -154,7 +177,7 @@ See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access) for full s
 The plugin currently uses these defaults:
 
 - Recall policy: `balanced_thread_once`
-- Auto-capture on app quit: `false`
+- Auto-capture on app quit: `true`
 - Max recalled memories per injection: `5`
 
 ## License

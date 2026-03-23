@@ -1,7 +1,7 @@
 """Bub hook implementations for Nowledge Mem.
 
 Hooks:
-  system_prompt  — static behavioural guidance (~50 tokens), identical every turn
+  system_prompt  — static behavioural guidance (~70 tokens), identical every turn
   build_prompt   — when session_context is on, inject WM + recalled memories
   save_state     — capture each turn to a Nowledge Mem thread (incremental)
 """
@@ -21,7 +21,7 @@ from .client import NmemClient, NmemError
 
 # ---------------------------------------------------------------------------
 # Behavioural guidance injected into the system prompt.
-# Cost: ~50 tokens.  Adjusts when session_context is on to avoid redundant
+# Cost: ~70 tokens.  Adjusts when session_context is on to avoid redundant
 # tool calls for context that was already injected.
 # ---------------------------------------------------------------------------
 
@@ -29,7 +29,7 @@ _GUIDANCE_BASE = """\
 You have access to the user's personal knowledge graph (Nowledge Mem).
 It contains knowledge from all their tools — Claude Code, Cursor, ChatGPT, and others — not just this session.
 When prior context would improve your response, search with mem.search.
-When the conversation produces something worth keeping, save it with mem.save.
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context — do not wait to be asked. Use mem.save.
 When a memory has source_thread_id, fetch the full conversation with mem.thread."""
 
 _GUIDANCE_WITH_CONTEXT = """\

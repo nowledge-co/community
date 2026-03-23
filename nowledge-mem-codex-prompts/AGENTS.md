@@ -47,9 +47,11 @@ nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 
 ## Distill Memory
 
-When the conversation produces a durable insight, decision, lesson, or procedure, save an atomic memory with `nmem --json m add`.
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
 
-Prefer high-signal memories over routine chatter.
+Use `nmem --json m add` for new knowledge. If an existing memory captures the same concept and new information refines it, use `nmem m update <id>` instead of creating a duplicate.
+
+Prefer high-signal memories over routine chatter. Use `--unit-type` (learning, decision, fact, procedure, event, preference, plan, context) and `-l` labels when they improve retrieval.
 
 ## Save Session
 

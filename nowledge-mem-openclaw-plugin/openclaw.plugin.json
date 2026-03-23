@@ -1,6 +1,6 @@
 {
 	"id": "openclaw-nowledge-mem",
-	"version": "0.6.15",
+	"version": "0.7.1",
 	"kind": "memory",
 	"skills": ["skills/memory-guide"],
 	"uiHints": {
