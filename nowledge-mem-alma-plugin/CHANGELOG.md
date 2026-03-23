@@ -3,11 +3,14 @@
 ## 0.6.13
 
 ### Reliable live thread sync (complete rewrite)
-- Conversations sync during normal use — no need to quit Alma. Three hooks work together: `willSend` buffers the user message, `didReceive` buffers the AI response and starts a 7-second idle timer, `thread.activated` flushes the previous thread on switch. Quit hooks remain as a safety net.
+- Conversations sync during normal use — no need to quit Alma. Three hooks work together: `willSend` buffers the user message, `didReceive` buffers the AI response and starts a 7-second idle timer, `thread.activated` flushes the previous thread on switch. Quit hooks flush all buffered threads as a safety net.
 - All message data comes from hook payloads (`input.content`, `input.response.content`), never from `context.chat.getMessages()` which returns empty in `willSend` timing.
-- Thread titles are resolved at flush time via `context.chat.getThread()` with 4-strategy fallback — Alma generates titles asynchronously after the first AI response, so early capture misses them.
-- Hook registration uses `context.events ?? context.hooks` (canonical API first). Previous versions tried `context.hooks` first, which silently ate registrations.
-- Thread buffer LRU eviction at 20 entries prevents unbounded memory growth in long sessions.
+- Thread titles resolved at flush time via `context.chat.getThread()` with 4-strategy fallback — Alma generates titles asynchronously after the first AI response, so early capture misses them.
+- Incremental sync: first flush creates a new thread; subsequent flushes append only new messages to the existing thread (no duplicate thread creation).
+- Per-thread idle timers: multiple concurrent conversations are tracked independently.
+- Content-safe: AI responses in array-of-blocks format (Anthropic API style) are properly extracted.
+- Thread buffer LRU eviction at 20 entries with best-effort flush before eviction.
+- Concurrent flush guard prevents duplicate saves from overlapping timer/quit/switch triggers.
 
 ### Auto-capture on by default
 - `autoCapture` now defaults to `true`. New users see thread sync working immediately.

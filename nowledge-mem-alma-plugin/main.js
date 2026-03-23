@@ -275,6 +275,11 @@ class NowledgeMemClient {
 		return this.run(args, true);
 	}
 
+	async appendThread(threadId, messages) {
+		const args = ["--json", "t", "append", String(threadId), "-m", JSON.stringify(messages)];
+		return this.run(args, true);
+	}
+
 	async deleteThread(id, force = false, cascade = false) {
 		const args = ["--json", "t", "delete", String(id)];
 		if (force) args.push("-f");
@@ -1308,31 +1313,29 @@ export async function activate(context) {
 	// Accumulate messages from hook payloads (willSend = user, didReceive = AI).
 	// Never rely on context.chat.getMessages() — not all Alma versions expose it,
 	// and timing may cause it to miss the latest message.
+	//
+	// Buffer schema: { title, messages: [{role,content}], savedCount: number,
+	//   nowledgeThreadId: string|null, flushing: boolean, timer: number|null }
 	const MAX_THREAD_BUFFERS = 20;
-	const threadBuffers = new Map(); // threadId → { title, messages: [{role,content}] }
-	const savedMessageCounts = new Map(); // threadId → last saved msg count
-	let idleSaveTimer = null;
+	const threadBuffers = new Map();
 	let activeThreadId = null;
 
 	/** Resolve the best possible thread title via Alma APIs, falling back to first user message. */
 	const resolveTitle = async (threadId, buf) => {
 		try {
 			const chat = context.chat;
-			// Strategy 1: getThread(id) — specific thread by ID
 			if (chat?.getThread) {
 				try {
 					const t = await chat.getThread(threadId);
 					if (t?.title && typeof t.title === "string" && t.title.trim()) return t.title.trim();
 				} catch (_) {}
 			}
-			// Strategy 2: getActiveThread
 			if (chat?.getActiveThread) {
 				try {
 					const t = await chat.getActiveThread();
 					if (t?.title && typeof t.title === "string" && t.title.trim()) return t.title.trim();
 				} catch (_) {}
 			}
-			// Strategy 3: listThreads and find by ID
 			if (chat?.listThreads) {
 				try {
 					const threads = await chat.listThreads();
@@ -1341,11 +1344,10 @@ export async function activate(context) {
 				} catch (_) {}
 			}
 		} catch (_) {}
-		// Strategy 4: derive from first user message
 		const firstUserMsg = buf.messages.find((m) => m.role === "user");
 		if (firstUserMsg?.content) {
 			const raw = firstUserMsg.content.replace(/\s+/g, " ").trim();
-			return raw.length > 80 ? raw.slice(0, 77) + "..." : raw;
+			return raw.length > 80 ? `${raw.slice(0, 77)}...` : raw;
 		}
 		return null;
 	};
@@ -1354,54 +1356,82 @@ export async function activate(context) {
 	const flushThread = async (threadId) => {
 		const buf = threadBuffers.get(threadId);
 		if (!buf || buf.messages.length < 2) return;
-		const lastSaved = savedMessageCounts.get(threadId) || 0;
-		if (buf.messages.length <= lastSaved) return;
+		if (buf.messages.length <= buf.savedCount) return;
+		if (buf.flushing) return; // guard against concurrent flush
+		buf.flushing = true;
 
-		// Cancel idle timer — we're flushing now
-		if (idleSaveTimer) { clearTimeout(idleSaveTimer); idleSaveTimer = null; }
-
-		// Resolve title right before saving (Alma generates titles asynchronously)
-		const resolved = await resolveTitle(threadId, buf);
-		if (resolved) buf.title = escapeForInline(resolved, 120);
-		logger.info?.(`nowledge-mem: flushing ${threadId} (${buf.messages.length} msgs, title="${buf.title}")`);
+		// Cancel this buffer's idle timer
+		if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
 
 		try {
-			const summary = buf.messages
-				.slice(-8)
-				.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
-				.join("\n");
-			await client.createThread(
-				buf.title,
-				escapeForInline(summary, 1200),
-				buf.messages,
-				"alma",
-			);
-			savedMessageCounts.set(threadId, buf.messages.length);
+			// Resolve title right before saving (Alma generates titles asynchronously)
+			const resolved = await resolveTitle(threadId, buf);
+			if (resolved) buf.title = escapeForInline(resolved, 120);
+
+			if (buf.nowledgeThreadId) {
+				// Append only new messages to existing thread
+				const newMessages = buf.messages.slice(buf.savedCount);
+				logger.info?.(`nowledge-mem: appending ${newMessages.length} msgs to ${buf.nowledgeThreadId}`);
+				await client.appendThread(buf.nowledgeThreadId, newMessages);
+			} else {
+				// First flush — create the thread
+				const summary = buf.messages
+					.slice(-8)
+					.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
+					.join("\n");
+				logger.info?.(`nowledge-mem: creating thread for ${threadId} (${buf.messages.length} msgs, title="${buf.title}")`);
+				const result = await client.createThread(
+					buf.title,
+					escapeForInline(summary, 1200),
+					buf.messages,
+					"alma",
+				);
+				// Extract the created thread ID from the result
+				const createdId =
+					(result && typeof result === "object")
+						? String(result.id ?? result.thread_id ?? result.thread?.thread_id ?? "")
+						: String(result ?? "");
+				if (createdId) buf.nowledgeThreadId = createdId;
+			}
+			buf.savedCount = buf.messages.length;
 			logger.info?.(`nowledge-mem: thread synced (${threadId}, ${buf.messages.length} msgs)`);
 		} catch (err) {
 			logger.error?.(`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`);
+		} finally {
+			buf.flushing = false;
 		}
 	};
 
 	const resetIdleTimer = (threadId) => {
-		if (idleSaveTimer) clearTimeout(idleSaveTimer);
-		idleSaveTimer = setTimeout(() => {
-			idleSaveTimer = null;
+		const buf = threadBuffers.get(threadId);
+		if (!buf) return;
+		if (buf.timer) clearTimeout(buf.timer);
+		buf.timer = setTimeout(() => {
+			buf.timer = null;
 			flushThread(threadId);
 		}, 7_000);
 	};
 
 	const ensureBuffer = (threadId) => {
 		if (!threadBuffers.has(threadId)) {
-			// Evict oldest buffer if at capacity (prevent unbounded memory growth)
+			// Evict oldest buffer if at capacity
 			if (threadBuffers.size >= MAX_THREAD_BUFFERS) {
 				const oldest = threadBuffers.keys().next().value;
+				const evicted = threadBuffers.get(oldest);
+				// Best-effort flush before eviction (fire-and-forget)
+				if (evicted && evicted.messages.length > evicted.savedCount && evicted.messages.length >= 2) {
+					flushThread(oldest).catch(() => {});
+				}
+				if (evicted?.timer) clearTimeout(evicted.timer);
 				threadBuffers.delete(oldest);
-				savedMessageCounts.delete(oldest);
 			}
 			threadBuffers.set(threadId, {
 				title: escapeForInline(`Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
 				messages: [],
+				savedCount: 0,
+				nowledgeThreadId: null,
+				flushing: false,
+				timer: null,
 			});
 		}
 		return threadBuffers.get(threadId);
@@ -1447,10 +1477,10 @@ export async function activate(context) {
 	if (autoCapture) {
 		registerEvent("chat.message.didReceive", (input, _output) => {
 			const threadId = input?.threadId;
-			const aiContent = input?.response?.content;
+			// Use extractText to handle both string and array-of-blocks content
+			const aiContent = extractText(input?.response?.content);
 			logger.debug?.(`nowledge-mem: didReceive fired, threadId=${threadId}, hasContent=${!!aiContent}`);
-			if (!threadId) return;
-			if (typeof aiContent !== "string" || !aiContent.trim()) return;
+			if (!threadId || !aiContent) return;
 
 			const buf = ensureBuffer(threadId);
 			buf.messages.push({ role: "assistant", content: aiContent });
@@ -1463,10 +1493,6 @@ export async function activate(context) {
 		registerEvent("thread.activated", async (input, _output) => {
 			const newThreadId = input?.threadId;
 			logger.debug?.(`nowledge-mem: thread.activated fired, threadId=${newThreadId}`);
-			if (idleSaveTimer) {
-				clearTimeout(idleSaveTimer);
-				idleSaveTimer = null;
-			}
 			// Flush the previous thread (await to avoid race with new thread's hooks)
 			if (activeThreadId && activeThreadId !== newThreadId) {
 				await flushThread(activeThreadId);
@@ -1478,14 +1504,16 @@ export async function activate(context) {
 		const handleAutoCapture = async (_input, output) => {
 			quitCaptureAttempted = true;
 			try {
-				if (idleSaveTimer) {
-					clearTimeout(idleSaveTimer);
-					idleSaveTimer = null;
+				// Flush all buffers with unsaved messages
+				const flushPromises = [];
+				for (const [tid, buf] of threadBuffers) {
+					if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
+					if (buf.messages.length >= 2 && buf.messages.length > buf.savedCount) {
+						flushPromises.push(flushThread(tid));
+					}
 				}
-				// Flush buffered thread, then try saveActiveThread as fallback
-				if (activeThreadId) await flushThread(activeThreadId);
-				const message = await saveActiveThread(context, client);
-				logger.info?.(`nowledge-mem: auto-capture on quit (${message})`);
+				await Promise.allSettled(flushPromises);
+				logger.info?.(`nowledge-mem: auto-capture on quit (flushed ${flushPromises.length} threads)`);
 			} catch (err) {
 				logger.error?.(
 					`nowledge-mem auto-capture failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -1501,12 +1529,11 @@ export async function activate(context) {
 		registerEvent("app.beforeQuit", handleAutoCapture);
 		registerEvent("app.before-quit", handleAutoCapture);
 
-		// Cleanup disposable for the idle timer
+		// Cleanup disposable for all idle timers
 		disposables.push({
 			dispose() {
-				if (idleSaveTimer) {
-					clearTimeout(idleSaveTimer);
-					idleSaveTimer = null;
+				for (const buf of threadBuffers.values()) {
+					if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
 				}
 			},
 		});

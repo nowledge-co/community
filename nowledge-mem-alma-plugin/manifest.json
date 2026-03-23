@@ -96,7 +96,7 @@
         "nowledgeMem.autoCapture": {
           "type": "boolean",
           "default": true,
-          "description": "Persist active Alma thread to Nowledge Mem on app quit."
+          "description": "Sync conversations to Nowledge Mem live (idle timer, thread switch, quit)."
         },
         "nowledgeMem.maxRecallResults": {
           "type": "number",

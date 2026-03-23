@@ -227,7 +227,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Plugin captures active thread on app quit via hooks; sends via nmem CLI"
+        "note": "Plugin captures threads live via idle timer, thread switch, and quit hooks; sends via nmem CLI"
       },
       "install": {
         "command": "In Alma: Settings > Plugins > Marketplace, search 'Nowledge Mem', click Install",

@@ -369,6 +369,9 @@ export async function triageAndDistill({
  *
  * Heartbeat sessions (ctx.trigger === "heartbeat") are skipped — they
  * produce repetitive status pings that aren't worth preserving.
+ * Cron sessions (trigger === "cron") ARE captured — they may contain
+ * real work. The consecutive dedup in appendOrCreateThread handles
+ * repetitive cron output (e.g., repeated HEARTBEAT_OK messages).
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {

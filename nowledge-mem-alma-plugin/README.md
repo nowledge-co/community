@@ -110,7 +110,7 @@ The plugin provides two tiers of memory:
 
 ### Tier 1: Thread capture (automatic)
 
-Conversations are synced to Nowledge Mem automatically during normal use. The plugin saves your thread after 2 minutes of idle, when you switch threads, or when you quit Alma. You don't need to do anything — conversations are preserved as they happen.
+Conversations are synced to Nowledge Mem automatically during normal use. The plugin saves your thread after a few seconds of idle, when you switch threads, or when you quit Alma. You don't need to do anything — conversations are preserved as they happen.
 
 Saved threads appear in the Nowledge Mem desktop app under Threads and can be distilled into structured memories later.
 
