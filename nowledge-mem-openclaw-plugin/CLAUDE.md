@@ -4,11 +4,12 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 
 ## Scope
 
-- Plugin target: OpenClaw plugin runtime (memory slot provider)
+- Plugin target: OpenClaw plugin runtime (memory slot + context engine)
 - Runtime: JS ESM modules under `src/`, no TS build pipeline
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 - OpenClaw minimum: `2026.3.7` (`appendSystemContext` / system-context guidance required)
 - Architecture: **CLI-first via OpenClaw runtime** - all CLI execution goes through `api.runtime.system.runCommandWithTimeout`, not direct `child_process`
+- Context engine: registered via `api.registerContextEngine("nowledge-mem", factory)`. Activated when user sets `plugins.slots.contextEngine: "nowledge-mem"`. Falls back to hooks when CE is not active.
 - Remote mode: `~/.nowledge-mem/config.json` (shared) or OpenClaw dashboard. Legacy `openclaw.json` still honored.
 
 ## Design Philosophy
@@ -27,14 +28,16 @@ Reflects Nowledge Mem's genuine v0.6 strengths:
 
 ```
 src/
-  index.js          - plugin registration (tools, hooks, commands, CLI)
+  index.js          - plugin registration (tools, hooks, CE, commands, CLI)
+  context-engine.js - Context Engine factory: assemble, afterTurn, compact, subagent hooks
+  ce-state.js       - shared { active } flag for CE/hook coordination
   client.js         - CLI wrapper with API fallback; async runtime command execution; credential handling
   spawn-env.js      - env-only credential injection for the nmem runner
   config.js         - config cascade: openclaw.json (legacy) > pluginConfig > config.json (credentials) > env > defaults
   hooks/
-    behavioral.js   - always-on behavioral guidance (~50 tokens/turn)
-    recall.js       - before_prompt_build: inject Working Memory + recalled memories
-    capture.js      - thread capture + LLM triage/distillation at session lifecycle events
+    behavioral.js   - always-on behavioral guidance (~50 tokens/turn); no-ops when CE active
+    recall.js       - before_prompt_build: inject Working Memory + recalled memories; no-ops when CE active
+    capture.js      - thread capture + LLM triage/distillation; shared functions used by both hooks and CE
   tools/
     memory-search.js    - OpenClaw compat; multi-signal; bi-temporal; relevance_reason; sourceThreadId
     memory-get.js       - OpenClaw compat; supports MEMORY.md alias; sourceThreadId
@@ -52,6 +55,50 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema,
 ~/.nowledge-mem/openclaw.json - legacy config file (still honored, deprecated in docs)
 ~/.nowledge-mem/config.json   - shared credentials (apiUrl/apiKey) read by all Nowledge Mem tools
 ```
+
+## Context Engine (CE) Architecture
+
+The plugin registers both a **memory slot** (`kind: "memory"`) and a **context engine** (`api.registerContextEngine`). These are independent registrations:
+
+- **Memory slot**: provides `memory_search` + `memory_get`, activates OpenClaw's "Memory Recall" system prompt section. Always active.
+- **Context engine**: activated when user sets `plugins.slots.contextEngine: "nowledge-mem"`. Replaces hooks with richer CE lifecycle.
+
+### CE vs Hooks (dual-path design)
+
+A shared `ceState.active` flag (in `ce-state.js`) coordinates the two paths:
+
+| Lifecycle | CE active | CE inactive (hooks) |
+|-----------|-----------|---------------------|
+| Behavioral guidance | `assemble()` → `systemPromptAddition` | `before_prompt_build` → `appendSystemContext` |
+| Memory recall | `assemble()` → `systemPromptAddition` | `before_prompt_build` → `appendSystemContext` |
+| Thread capture | `afterTurn()` (every turn) | `agent_end` / `after_compaction` / `before_reset` |
+| Triage + distill | `afterTurn()` | `agent_end` only |
+| Compaction | `compact()` with memory-aware instructions | None (OpenClaw legacy) |
+| Subagent context | `prepareSubagentSpawn()` + `onSubagentEnded()` | None |
+| Session init | `bootstrap()` pre-warms WM | None |
+
+### Key design decisions
+
+- **`ownsCompaction: false`**: we enhance compaction instructions with memory context, but delegate the actual compaction to OpenClaw's runtime via `delegateCompactionToRuntime()`.
+- **Messages pass through unchanged**: `assemble()` returns the same messages it receives. We only add `systemPromptAddition`. We never own message selection.
+- **Per-session state**: `_sessions` map (bounded at 100 entries) caches Working Memory and recalled memories per session. `_childContext` map caches subagent context.
+- **Cache-friendly injection**: both CE (`systemPromptAddition`) and hooks (`appendSystemContext`) inject into system-prompt space. Never use `prependContext` (user-message space, breaks cache).
+
+### Activation
+
+```json
+// openclaw.json
+{
+  "plugins": {
+    "slots": {
+      "memory": "openclaw-nowledge-mem",
+      "contextEngine": "nowledge-mem"
+    }
+  }
+}
+```
+
+When `contextEngine` points elsewhere (or is absent), hooks handle everything. No config change needed for existing users.
 
 ## Tool Surface (10 tools)
 

@@ -2,6 +2,23 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.7.0] - 2026-03-23
+
+### Added
+
+- **Context Engine support.** The plugin now registers a full OpenClaw Context Engine alongside its memory slot. When you set `plugins.slots.contextEngine: "nowledge-mem"` in your OpenClaw config, the engine takes over context assembly, capturing, and compaction — replacing the hook-based approach with richer lifecycle integration:
+  - **`assemble()`** — behavioral guidance and recalled memories injected via `systemPromptAddition` (system-prompt space, cache-friendly). Replaces the behavioral and recall hooks.
+  - **`afterTurn()`** — continuous thread capture and triage/distillation after every turn, not just session end. More granular than the `agent_end` hook.
+  - **`compact()`** — memory-aware compaction. When compacting old messages, the compactor is told which key decisions and learnings are already saved in your knowledge graph, so it can reference them concisely rather than losing them in summarization.
+  - **`prepareSubagentSpawn()`** — when OpenClaw spawns parallel research agents, child sessions inherit your Working Memory and recently recalled memories automatically.
+  - **`bootstrap()`** — pre-warms Working Memory on session start for instant first-turn context.
+  - **`dispose()`** — clean session teardown.
+- **Backward compatible.** When the CE slot is not activated, hooks continue working exactly as before. No config changes required for existing users.
+
+### Fixed
+
+- **Recalled memories no longer hurt prompt cache.** The recall hook now injects context via `appendSystemContext` (system-prompt space) instead of `prependContext` (user-message space). This preserves OpenClaw's prompt cache across turns. The fix applies to both the hook path and the new CE path.
+
 ## [0.6.15] - 2026-03-18
 
 ### Changed
@@ -62,7 +79,7 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ### Added
 
-- **`recallMinScore` config option** (0-100, default 0): Minimum relevance score threshold for auto-recalled memories. Set to e.g. 30 to filter out low-confidence results. Configurable via OpenClaw Config UI, config file, or `NMEM_RECALL_MIN_SCORE` env var.
+- `recallMinScore` config option (0-100, default 0): Minimum relevance score threshold for auto-recalled memories. Set to e.g. 30 to filter out low-confidence results. Configurable via OpenClaw Config UI, config file, or `NMEM_RECALL_MIN_SCORE` env var.
 
 ## [0.6.8] - 2026-02-27
 
