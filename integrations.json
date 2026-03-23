@@ -8,7 +8,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.1",
+      "version": "0.7.2",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -127,7 +127,7 @@
         "note": "Cursor lacks a native transcript importer; save-handoff used instead"
       },
       "install": {
-        "command": "Install from Cursor Marketplace (search 'Nowledge Mem')",
+        "command": "Search 'Nowledge Mem' in Cursor Marketplace and install",
         "detectionHint": "Running inside Cursor IDE",
         "docsUrl": "/docs/integrations/cursor"
       },
@@ -161,7 +161,7 @@
         "note": "Droid lacks a native transcript importer; save-handoff used instead"
       },
       "install": {
-        "command": "Add nowledge-co/community marketplace to Droid, then install nowledge-mem@nowledge-community",
+        "command": "droid plugin marketplace add https://github.com/nowledge-co/community && droid plugin install nowledge-mem@nowledge-community",
         "detectionHint": "Running inside Droid (Factory)",
         "docsUrl": "/docs/integrations/droid"
       },
@@ -410,23 +410,23 @@
       "id": "antigravity-extractor",
       "name": "Antigravity Trajectory Extractor",
       "category": "surface",
-      "type": "extension",
+      "type": "extractor",
       "version": null,
       "directory": null,
       "externalRepo": "https://github.com/jijiamoer/antigravity-trajectory-extractor",
-      "transport": "http-api",
+      "transport": "cli",
       "capabilities": {
         "workingMemory": false,
         "search": false,
         "distill": false,
         "autoRecall": false,
-        "autoCapture": true,
+        "autoCapture": false,
         "graphExploration": false,
         "status": false
       },
       "threadSave": {
-        "method": "plugin-capture",
-        "note": "Live RPC extraction for Antigravity conversation trajectories"
+        "method": "manual-export",
+        "note": "CLI tool extracts Antigravity conversations via local RPC; outputs Markdown/JSON files for manual import into Nowledge Mem"
       },
       "install": {
         "command": "git clone https://github.com/jijiamoer/antigravity-trajectory-extractor.git",
@@ -434,7 +434,7 @@
       },
       "toolNaming": {
         "convention": "n/a",
-        "note": "Standalone extraction tool, no agent-facing tools"
+        "note": "Standalone extraction CLI, no agent-facing tools"
       },
       "skills": [],
       "slashCommands": []
@@ -443,23 +443,23 @@
       "id": "windsurf-extractor",
       "name": "Windsurf Trajectory Extractor",
       "category": "surface",
-      "type": "extension",
+      "type": "extractor",
       "version": null,
       "directory": null,
       "externalRepo": "https://github.com/jijiamoer/windsurf-trajectory-extractor",
-      "transport": "http-api",
+      "transport": "cli",
       "capabilities": {
         "workingMemory": false,
         "search": false,
         "distill": false,
         "autoRecall": false,
-        "autoCapture": true,
+        "autoCapture": false,
         "graphExploration": false,
         "status": false
       },
       "threadSave": {
-        "method": "plugin-capture",
-        "note": "Offline protobuf extraction for Windsurf Cascade conversation history"
+        "method": "manual-export",
+        "note": "CLI tool decodes Windsurf Cascade protobuf history; outputs JSONL files for manual import into Nowledge Mem"
       },
       "install": {
         "command": "git clone https://github.com/jijiamoer/windsurf-trajectory-extractor.git",
@@ -467,7 +467,7 @@
       },
       "toolNaming": {
         "convention": "n/a",
-        "note": "Standalone extraction tool, no agent-facing tools"
+        "note": "Standalone extraction CLI, no agent-facing tools"
       },
       "skills": [],
       "slashCommands": []
