@@ -49,12 +49,14 @@ If neither plugin tools nor Bash are available, state the exact blocker once and
 
 ## Write Heuristics
 
-- Write only durable information:
-  - architecture decisions
-  - debugging conclusions
-  - workflow agreements
-  - stable preferences
-- Avoid storing transient chat filler.
+- Save information the user would want to recall later:
+  - decisions (technical or personal)
+  - preferences expressed during conversation
+  - conclusions from debugging or analysis
+  - workflow agreements or plans
+  - facts the user shared about themselves, their projects, or their work
+- Even casual conversations may contain preferences or decisions worth keeping. When in doubt, save — the user can always delete later.
+- Skip pure pleasantries and filler that carry no informational value.
 
 ## Response Contract
 

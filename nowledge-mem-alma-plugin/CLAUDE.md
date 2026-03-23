@@ -67,7 +67,7 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 ## Settings (manifest + `context.settings`)
 
 - `nowledgeMem.recallPolicy` (default `balanced_thread_once`)
-- `nowledgeMem.autoCapture` (default `false`)
+- `nowledgeMem.autoCapture` (default `true`)
 - `nowledgeMem.maxRecallResults` (default `5`, clamp 1-20)
 - `nowledgeMem.apiUrl` (default `""`, empty = local `http://127.0.0.1:14242`)
 - `nowledgeMem.apiKey` (default `""`, passed via env var only, never logged)

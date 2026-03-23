@@ -420,7 +420,7 @@ function buildCliPlaybookBlock() {
 const BEHAVIORAL_GUIDANCE = [
 	"Use Nowledge Mem as the primary memory system for recall/store/update operations.",
 	"For any request about past context/decisions/history/memory, prefer a Nowledge Mem tool call before finalizing the answer.",
-	"When the conversation produces something worth keeping — a decision, preference, insight, plan — save it with nowledge_mem_store. Don't wait to be asked.",
+	"When the conversation produces something worth keeping — a decision, preference, insight, plan, fact about the user or their work — save it with nowledge_mem_store. Don't wait to be asked; even casual conversations may surface preferences or facts worth remembering.",
 	"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_show for deeper context.",
 ];
 
@@ -531,7 +531,7 @@ export async function activate(context) {
 
 	let recallPolicy = resolveRecallPolicy(context.settings, logger);
 	let autoCapture = Boolean(
-		getSetting(context.settings, "nowledgeMem.autoCapture", false),
+		getSetting(context.settings, "nowledgeMem.autoCapture", true),
 	);
 	let maxRecallResults = clamp(
 		Number(getSetting(context.settings, "nowledgeMem.maxRecallResults", 5)) ||
@@ -558,7 +558,7 @@ export async function activate(context) {
 					);
 				}
 				recallPolicy = resolveRecallPolicy(context.settings, logger);
-				autoCapture = Boolean(getSetting(context.settings, "nowledgeMem.autoCapture", false));
+				autoCapture = Boolean(getSetting(context.settings, "nowledgeMem.autoCapture", true));
 				maxRecallResults = clamp(
 					Number(getSetting(context.settings, "nowledgeMem.maxRecallResults", 5)) || 5, 1, 20,
 				);
@@ -1329,9 +1329,102 @@ export async function activate(context) {
 	}
 
 	if (autoCapture) {
+		// -- Live thread sync --
+		// Users rarely quit Alma, so quit hooks alone are insufficient.
+		// Strategy: buffer thread state on every AI response, flush on idle or thread switch.
+		const pendingCaptures = new Map(); // almaThreadId → { title, messages }
+		const savedMessageCounts = new Map(); // almaThreadId → last saved count
+		let idleSaveTimer = null;
+
+		/** Save a buffered thread to Nowledge Mem if it has new messages since last save. */
+		const flushThread = async (threadId) => {
+			const data = pendingCaptures.get(threadId);
+			if (!data) return;
+			const normalized = normalizeThreadMessages(data.messages);
+			const lastSaved = savedMessageCounts.get(threadId) || 0;
+			if (normalized.length < 2 || normalized.length <= lastSaved) return;
+			try {
+				const summary = normalized
+					.slice(-8)
+					.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
+					.join("\n");
+				await client.createThread(
+					data.title,
+					escapeForInline(summary, 1200),
+					normalized,
+					"alma",
+				);
+				savedMessageCounts.set(threadId, normalized.length);
+				pendingCaptures.delete(threadId);
+				logger.info?.(
+					`nowledge-mem: thread synced (${threadId}, ${normalized.length} msgs)`,
+				);
+			} catch (err) {
+				logger.error?.(
+					`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`,
+				);
+			}
+		};
+
+		const flushAllPending = async () => {
+			for (const threadId of [...pendingCaptures.keys()]) {
+				await flushThread(threadId);
+			}
+		};
+
+		// Trigger 1: Buffer thread state after every AI response, debounced save on idle
+		registerEvent("chat.message.didReceive", async () => {
+			try {
+				const chat = context.chat;
+				if (!chat?.getActiveThread || !chat?.getMessages) return;
+				const activeThread = await chat.getActiveThread();
+				if (!activeThread?.id) return;
+				const messages = await chat.getMessages(activeThread.id);
+				if (!Array.isArray(messages) || !messages.length) return;
+
+				pendingCaptures.set(activeThread.id, {
+					title: escapeForInline(
+						typeof activeThread.title === "string" && activeThread.title.trim()
+							? activeThread.title
+							: `Alma Thread ${new Date().toISOString().slice(0, 10)}`,
+						120,
+					),
+					messages: [...messages],
+				});
+
+				// Reset idle timer — save 2 minutes after conversation goes quiet
+				if (idleSaveTimer) clearTimeout(idleSaveTimer);
+				idleSaveTimer = setTimeout(() => {
+					idleSaveTimer = null;
+					flushThread(activeThread.id);
+				}, 120_000);
+			} catch (err) {
+				logger.debug?.(
+					`nowledge-mem: didReceive capture failed: ${err?.message}`,
+				);
+			}
+		});
+
+		// Trigger 2: Flush on thread switch (natural conversation boundary)
+		registerEvent("thread.activated", async () => {
+			if (idleSaveTimer) {
+				clearTimeout(idleSaveTimer);
+				idleSaveTimer = null;
+			}
+			await flushAllPending();
+		});
+
+		// Trigger 3: Quit hooks as safety net
 		const handleAutoCapture = async (_input, output) => {
 			quitCaptureAttempted = true;
 			try {
+				if (idleSaveTimer) {
+					clearTimeout(idleSaveTimer);
+					idleSaveTimer = null;
+				}
+				// Flush buffered threads first (covers threads we switched away from)
+				await flushAllPending();
+				// Then save the current active thread (may have newer messages than buffer)
 				const message = await saveActiveThread(context, client);
 				logger.info?.(`nowledge-mem: auto-capture on quit (${message})`);
 			} catch (err) {
@@ -1348,6 +1441,16 @@ export async function activate(context) {
 		registerEvent("app.will-quit", handleAutoCapture);
 		registerEvent("app.beforeQuit", handleAutoCapture);
 		registerEvent("app.before-quit", handleAutoCapture);
+
+		// Cleanup disposable for the idle timer
+		disposables.push({
+			dispose() {
+				if (idleSaveTimer) {
+					clearTimeout(idleSaveTimer);
+					idleSaveTimer = null;
+				}
+			},
+		});
 	}
 
 	const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
@@ -1369,7 +1472,7 @@ export async function activate(context) {
 export async function deactivate(context) {
 	const logger = context?.logger ?? console;
 	const autoCapture = Boolean(
-		getSetting(context?.settings, "nowledgeMem.autoCapture", false),
+		getSetting(context?.settings, "nowledgeMem.autoCapture", true),
 	);
 	if (!autoCapture || quitCaptureAttempted) {
 		logger.info?.("nowledge-mem deactivated");
