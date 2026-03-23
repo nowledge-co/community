@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.4
+
+### Behavioral guidance always injected
+- Behavioral guidance (use memory tools, save decisions proactively, fetch source threads) is now injected on the first message of every thread, even when there are no existing memories or Working Memory yet. Previously, new users with zero memories got no guidance at all — the AI never learned about Nowledge Mem tools from the plugin alone.
+
+### Recall injection stability
+- Remove per-turn `generated_at` timestamp from injected context block — eliminates gratuitous variance in conversation history and improves token efficiency across turns
+
 ## 0.6.3
 
 ### Live settings reload

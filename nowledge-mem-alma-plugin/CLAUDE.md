@@ -125,12 +125,34 @@ open -a Alma
 - **Thread source filter**: `nowledge_mem_thread_search` accepts `source` to filter by platform.
 - **Behavioral guidance**: Recall injection includes proactive save nudge + sourceThreadId awareness.
 
+## Available but Unused Alma Hooks
+
+These hooks exist in Alma's API but are not used by the plugin. Consider for future improvements:
+
+- `chat.message.didReceive` — after AI response. Could analyze for save-worthy content.
+- `thread.activated` — when user switches threads. Could reset per-thread recall state.
+- `tool.willExecute` / `tool.didExecute` / `tool.onError` — tool lifecycle. Could monitor Nowledge Mem tool usage quality.
+
+## Known Limitations
+
+1. **Skill file requires manual setup** — Alma has no `contributes.skills` or programmatic skill registration API. The `alma-skill-nowledge-mem.md` file must be manually loaded into Alma's settings by the user. The plugin injects core behavioral guidance via the `chat.message.willSend` hook, so the skill file is supplementary.
+2. **`recallPolicy` live reload is incomplete** — `recallInjectionEnabled` and `recallFrequency` are `const` computed once at activation. If the user changes `recallPolicy` at runtime via `onDidChange`, the hook registration state doesn't change. Fix requires disposing and re-registering the hook.
+
 ## Recommended Next Improvements
 
 Only implement if needed; verify with runtime evidence first.
 
 1. Add test fixture script to validate response shape per tool automatically.
 2. Add explicit telemetry fields for hook outcomes (`recallUsed`, `captureSavedThreadId`) in logs.
+3. Fix live `recallPolicy` reload by moving hook registration logic into a function that can be torn down and re-created on settings change.
+
+## Cache Safety
+
+- Alma's only injection point is `chat.message.willSend` which modifies **user message content**. This is user-message space, NOT system-prompt space — it does not break Anthropic's system prompt cache.
+- However, avoid embedding per-turn variance (timestamps, random IDs) in injected content. Removed `generated_at` in 0.6.4.
+- `balanced_thread_once` limits injection to once per thread, which is the best mitigation available given Alma's API constraints.
+- If Alma adds a system-level injection API in the future, migrate to it.
+- See `postmortem/2026-03-23-system-prompt-cache-breaking-plugins.md` for the cross-plugin audit.
 
 ## Non-Goals / Avoid
 

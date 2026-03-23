@@ -411,6 +411,19 @@ function buildCliPlaybookBlock() {
 	];
 }
 
+/**
+ * Behavioral guidance lines injected into user messages.
+ *
+ * Always injected (even when no WM or recall results exist) so the AI
+ * knows about Nowledge Mem tools from the very first message.
+ */
+const BEHAVIORAL_GUIDANCE = [
+	"Use Nowledge Mem as the primary memory system for recall/store/update operations.",
+	"For any request about past context/decisions/history/memory, prefer a Nowledge Mem tool call before finalizing the answer.",
+	"When the conversation produces something worth keeping — a decision, preference, insight, plan — save it with nowledge_mem_store. Don't wait to be asked.",
+	"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_show for deeper context.",
+];
+
 function buildMemoryContextBlock(workingMemory, results, options = {}) {
 	const includeCliPlaybook = options.includeCliPlaybook === true;
 	const sections = [];
@@ -429,31 +442,26 @@ function buildMemoryContextBlock(workingMemory, results, options = {}) {
 		);
 	}
 
-	if (sections.length === 0) return "";
-
-	const generatedAt = new Date().toISOString();
-	const memoryCount = Array.isArray(results) ? results.length : 0;
-
-	return [
+	const lines = [
 		"<nowledge-mem-central-context>",
-		`meta: mode=injected_context generated_at=${generatedAt} memory_count=${memoryCount}`,
-		"This block is preloaded by plugin hook and is NOT equivalent to live tool execution output.",
-		"If you answer using this block only, explicitly disclose that no tool call executed in this turn.",
-		"Use Nowledge Mem as the primary memory system for recall/store/update operations.",
-		"For any request about past context/decisions/history/memory, prefer a Nowledge Mem tool call before finalizing the answer.",
-		"Preferred order: nowledge-mem.nowledge_mem_query -> nowledge-mem.nowledge_mem_search -> nowledge-mem.nowledge_mem_thread_search.",
-		"If tool call format needs short ids, use nowledge_mem_query / nowledge_mem_search / nowledge_mem_thread_search.",
-		"Do not claim memory tools are unavailable unless tool execution actually fails in this turn.",
-		"Do not present injected context as fresh retrieval. If no tool was executed, label it as recalled context/hint.",
-		"Prefer nowledge_mem_search/nowledge_mem_store/nowledge_mem_update/nowledge_mem_delete/nowledge_mem_working_memory over local ephemeral memory paths.",
-		"When the conversation produces something worth keeping — a decision, preference, insight, plan — save it with nowledge_mem_store. Don't wait to be asked.",
-		"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_show for deeper context.",
-		"",
-		...sections,
-		...(includeCliPlaybook ? ["", ...buildCliPlaybookBlock()] : []),
-		"",
-		"</nowledge-mem-central-context>",
-	].join("\n");
+		...BEHAVIORAL_GUIDANCE,
+	];
+
+	if (sections.length > 0) {
+		lines.push(
+			"This block is preloaded by plugin hook and is NOT equivalent to live tool execution output.",
+			"If you answer using this block only, explicitly disclose that no tool call executed in this turn.",
+			"",
+			...sections,
+		);
+	}
+
+	if (includeCliPlaybook) {
+		lines.push("", ...buildCliPlaybookBlock());
+	}
+
+	lines.push("", "</nowledge-mem-central-context>");
+	return lines.join("\n");
 }
 
 function normalizeThreadMessages(messages) {

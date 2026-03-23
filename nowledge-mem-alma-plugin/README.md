@@ -100,13 +100,15 @@ No modal input commands are used. The plugin is designed to stay inside normal c
 
 ## Optional Skill Prompt
 
-For stronger on-demand tool usage, load `alma-skill-nowledge-mem.md` into an Alma skill and enable it for chats that should prioritize external memory operations.
+For deeper tool-usage guidance (execution order, query heuristics, write heuristics, CLI fallback), load `alma-skill-nowledge-mem.md` into an Alma skill and enable it for chats that should prioritize external memory operations.
+
+Note: Alma does not have a programmatic skill registration API. The skill file must be loaded manually into Alma's settings. The plugin already injects core behavioral guidance via the `chat.message.willSend` hook, so the skill file is supplementary — it adds more detailed instructions for power users.
 
 ## Hooks
 
-- **Auto-recall** (`chat.message.willSend`): injects Working Memory + relevant memories according to `recallPolicy`.
+- **Auto-recall** (`chat.message.willSend`): injects behavioral guidance + Working Memory + relevant memories according to `recallPolicy`. Behavioral guidance is always injected (even with no memories yet), so the AI knows about Nowledge Mem tools from the first message.
 - Auto-recall is preloaded context, not equivalent to a successful plugin tool call in that turn.
-- The injected block instructs the model to explicitly disclose when it answered from injected context only.
+- When recalled memories exist, the injected block instructs the model to explicitly disclose when it answered from injected context only.
 - **Auto-capture** (`app.willQuit`): saves active thread before Alma exits.
 
 No plugin commands/slash actions are registered. The plugin runs through tools + hooks only.
