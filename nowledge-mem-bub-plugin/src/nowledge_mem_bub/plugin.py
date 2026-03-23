@@ -1,7 +1,7 @@
 """Bub hook implementations for Nowledge Mem.
 
 Hooks:
-  system_prompt  — static behavioural guidance (~50 tokens), identical every turn
+  system_prompt  — static behavioural guidance (~70 tokens), identical every turn
   build_prompt   — when session_context is on, inject WM + recalled memories
   save_state     — capture each turn to a Nowledge Mem thread (incremental)
 """
@@ -21,7 +21,7 @@ from .client import NmemClient, NmemError
 
 # ---------------------------------------------------------------------------
 # Behavioural guidance injected into the system prompt.
-# Cost: ~50 tokens.  Adjusts when session_context is on to avoid redundant
+# Cost: ~70 tokens.  Adjusts when session_context is on to avoid redundant
 # tool calls for context that was already injected.
 # ---------------------------------------------------------------------------
 

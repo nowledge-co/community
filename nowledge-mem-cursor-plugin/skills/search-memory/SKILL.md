@@ -22,7 +22,6 @@ Search when:
 - complex debugging where prior context would narrow the search space
 - architecture discussion that may intersect with past decisions
 - domain-specific conventions the user has established before
-- the current result is ambiguous and past context would make the answer sharper
 
 ## Retrieval Routing
 

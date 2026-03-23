@@ -282,7 +282,7 @@
       "name": "npx Skills",
       "category": "surface",
       "type": "skills",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "directory": "nowledge-mem-npx-skills",
       "transport": "cli",
       "capabilities": {
@@ -402,6 +402,72 @@
       "toolNaming": {
         "convention": "http-api",
         "note": "Extension calls Nowledge Mem HTTP API directly (appropriate for browser extensions)"
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "antigravity-extractor",
+      "name": "Antigravity Trajectory Extractor",
+      "category": "surface",
+      "type": "extension",
+      "version": null,
+      "directory": null,
+      "externalRepo": "https://github.com/jijiamoer/antigravity-trajectory-extractor",
+      "transport": "http-api",
+      "capabilities": {
+        "workingMemory": false,
+        "search": false,
+        "distill": false,
+        "autoRecall": false,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "plugin-capture",
+        "note": "Live RPC extraction for Antigravity conversation trajectories"
+      },
+      "install": {
+        "command": "git clone https://github.com/jijiamoer/antigravity-trajectory-extractor.git",
+        "docsUrl": "https://github.com/jijiamoer/antigravity-trajectory-extractor#readme"
+      },
+      "toolNaming": {
+        "convention": "n/a",
+        "note": "Standalone extraction tool, no agent-facing tools"
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "windsurf-extractor",
+      "name": "Windsurf Trajectory Extractor",
+      "category": "surface",
+      "type": "extension",
+      "version": null,
+      "directory": null,
+      "externalRepo": "https://github.com/jijiamoer/windsurf-trajectory-extractor",
+      "transport": "http-api",
+      "capabilities": {
+        "workingMemory": false,
+        "search": false,
+        "distill": false,
+        "autoRecall": false,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "plugin-capture",
+        "note": "Offline protobuf extraction for Windsurf Cascade conversation history"
+      },
+      "install": {
+        "command": "git clone https://github.com/jijiamoer/windsurf-trajectory-extractor.git",
+        "docsUrl": "https://github.com/jijiamoer/windsurf-trajectory-extractor#readme"
+      },
+      "toolNaming": {
+        "convention": "n/a",
+        "note": "Standalone extraction tool, no agent-facing tools"
       },
       "skills": [],
       "slashCommands": []
