@@ -1,15 +1,19 @@
 # Changelog
 
-## 0.6.5
+## 0.6.13
 
-### Live thread sync
-- Conversations are now synced to Nowledge Mem during normal use — no need to quit Alma. The plugin buffers thread state on every user message (via the `willSend` hook — the only hook confirmed to fire reliably) and saves after 2 minutes of idle, or immediately when you switch threads. Quit hooks remain as a safety net. This addresses the most critical user feedback: threads were never saved because users rarely quit Alma.
+### Reliable live thread sync (complete rewrite)
+- Conversations sync during normal use — no need to quit Alma. Three hooks work together: `willSend` buffers the user message, `didReceive` buffers the AI response and starts a 7-second idle timer, `thread.activated` flushes the previous thread on switch. Quit hooks remain as a safety net.
+- All message data comes from hook payloads (`input.content`, `input.response.content`), never from `context.chat.getMessages()` which returns empty in `willSend` timing.
+- Thread titles are resolved at flush time via `context.chat.getThread()` with 4-strategy fallback — Alma generates titles asynchronously after the first AI response, so early capture misses them.
+- Hook registration uses `context.events ?? context.hooks` (canonical API first). Previous versions tried `context.hooks` first, which silently ate registrations.
+- Thread buffer LRU eviction at 20 entries prevents unbounded memory growth in long sessions.
 
 ### Auto-capture on by default
-- `autoCapture` now defaults to `true`. Previously defaulted to `false`, meaning new users saw no evidence of the plugin working until they manually enabled capture or explicitly asked the AI to save something.
+- `autoCapture` now defaults to `true`. New users see thread sync working immediately.
 
 ### Broader write guidance
-- Behavioral guidance now encourages saving facts and preferences from casual conversations, not just "architecture decisions" and "debugging conclusions." The write heuristics were too restrictive — they caused the AI to save nothing during everyday conversations, making users think the plugin was broken.
+- Behavioral guidance now encourages saving facts and preferences from casual conversations, not just "architecture decisions" and "debugging conclusions."
 
 ## 0.6.4
 

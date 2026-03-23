@@ -122,10 +122,15 @@ For casual chat, the AI intentionally does NOT save every message. This is by de
 
 ### Hooks
 
-- **Auto-recall + live sync** (`chat.message.willSend`): On every user message, the hook (1) injects behavioral guidance + Working Memory + relevant memories according to `recallPolicy`, and (2) buffers the current thread state for capture. The buffer saves to Nowledge Mem after 2 minutes of idle, or immediately when the user switches to a different thread (detected by threadId change). This is the primary capture mechanism — it uses the only hook confirmed to fire reliably across Alma versions.
+- **`chat.message.willSend`** — (1) buffers the user message from hook input for live sync, (2) injects recall context (Working Memory + relevant memories) per `recallPolicy`.
+- **`chat.message.didReceive`** — buffers the AI response from hook input and starts a 7-second idle timer. When the timer fires, the thread is flushed to Nowledge Mem.
+- **`thread.activated`** — flushes the previous thread immediately on thread switch.
+- **Quit hooks** (`app.willQuit` etc.) — safety net flush before Alma exits.
+
+All thread data comes from hook payloads, never from `context.chat.getMessages()`. Thread titles are resolved at flush time via `context.chat.getThread()` with multi-strategy fallback.
+
 - Auto-recall is preloaded context, not equivalent to a successful plugin tool call in that turn.
 - When recalled memories exist, the injected block instructs the model to explicitly disclose when it answered from injected context only.
-- **Quit capture** (`app.willQuit`): saves active thread before Alma exits. Safety net for the rare case when quit happens before the idle timer fires.
 
 No plugin commands/slash actions are registered. The plugin runs through tools + hooks only.
 
@@ -136,7 +141,7 @@ No plugin commands/slash actions are registered. The plugin runs through tools +
 - `recallPolicy=balanced_every_message`: inject before each outgoing message.
 - `recallPolicy=strict_tools`: disable recall injection and rely on real `nowledge_mem_*` tools.
 - `maxRecallResults`: applies in balanced modes.
-- `autoCapture=true` (default): save current active thread on Alma quit. Set to `false` to disable.
+- `autoCapture=true` (default): live thread sync via hooks + quit safety net. Set to `false` to disable.
 
 Backward compatibility:
 

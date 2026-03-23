@@ -596,14 +596,16 @@ export async function activate(context) {
 		if (disposable?.dispose) disposables.push(disposable);
 	};
 
+	// Use context.events (canonical Alma API) first, context.hooks as legacy fallback.
+	const eventsAPI = context.events ?? context.hooks;
 	const registerEvent = (eventName, handler) => {
-		let disposable;
-		if (context.hooks?.on) {
-			disposable = context.hooks.on(eventName, handler);
-		} else if (context.events?.on) {
-			disposable = context.events.on(eventName, handler);
+		if (!eventsAPI?.on) {
+			logger.warn?.(`nowledge-mem: no events API available, cannot register ${eventName}`);
+			return false;
 		}
+		const disposable = eventsAPI.on(eventName, handler);
 		if (disposable?.dispose) disposables.push(disposable);
+		logger.info?.(`nowledge-mem: registered hook ${eventName} → ${!!disposable}`);
 		return Boolean(disposable);
 	};
 
@@ -1302,118 +1304,123 @@ export async function activate(context) {
 		},
 	});
 
-	// -- Live thread sync state (used by willSend + quit hooks) --
-	// We accumulate messages from willSend payloads directly, since
-	// context.chat.getActiveThread()/getMessages() may not exist in all
-	// Alma versions. Only chat.message.willSend is confirmed to fire.
-	const pendingCaptures = new Map(); // almaThreadId → { title, messages[] }
-	const savedMessageCounts = new Map(); // almaThreadId → last saved msg count
+	// -- Live thread sync state --
+	// Accumulate messages from hook payloads (willSend = user, didReceive = AI).
+	// Never rely on context.chat.getMessages() — not all Alma versions expose it,
+	// and timing may cause it to miss the latest message.
+	const MAX_THREAD_BUFFERS = 20;
+	const threadBuffers = new Map(); // threadId → { title, messages: [{role,content}] }
+	const savedMessageCounts = new Map(); // threadId → last saved msg count
 	let idleSaveTimer = null;
-	let lastSeenThreadId = null;
+	let activeThreadId = null;
 
-	/** Save a buffered thread to Nowledge Mem if it has new messages since last save. */
-	const flushThread = async (threadId) => {
-		const data = pendingCaptures.get(threadId);
-		if (!data) return;
-		const normalized = normalizeThreadMessages(data.messages);
-		const lastSaved = savedMessageCounts.get(threadId) || 0;
-		if (normalized.length < 2 || normalized.length <= lastSaved) return;
+	/** Resolve the best possible thread title via Alma APIs, falling back to first user message. */
+	const resolveTitle = async (threadId, buf) => {
 		try {
-			const summary = normalized
+			const chat = context.chat;
+			// Strategy 1: getThread(id) — specific thread by ID
+			if (chat?.getThread) {
+				try {
+					const t = await chat.getThread(threadId);
+					if (t?.title && typeof t.title === "string" && t.title.trim()) return t.title.trim();
+				} catch (_) {}
+			}
+			// Strategy 2: getActiveThread
+			if (chat?.getActiveThread) {
+				try {
+					const t = await chat.getActiveThread();
+					if (t?.title && typeof t.title === "string" && t.title.trim()) return t.title.trim();
+				} catch (_) {}
+			}
+			// Strategy 3: listThreads and find by ID
+			if (chat?.listThreads) {
+				try {
+					const threads = await chat.listThreads();
+					const t = Array.isArray(threads) ? threads.find((th) => th?.id === threadId) : null;
+					if (t?.title && typeof t.title === "string" && t.title.trim()) return t.title.trim();
+				} catch (_) {}
+			}
+		} catch (_) {}
+		// Strategy 4: derive from first user message
+		const firstUserMsg = buf.messages.find((m) => m.role === "user");
+		if (firstUserMsg?.content) {
+			const raw = firstUserMsg.content.replace(/\s+/g, " ").trim();
+			return raw.length > 80 ? raw.slice(0, 77) + "..." : raw;
+		}
+		return null;
+	};
+
+	/** Flush a thread buffer to Nowledge Mem if it has new messages. */
+	const flushThread = async (threadId) => {
+		const buf = threadBuffers.get(threadId);
+		if (!buf || buf.messages.length < 2) return;
+		const lastSaved = savedMessageCounts.get(threadId) || 0;
+		if (buf.messages.length <= lastSaved) return;
+
+		// Cancel idle timer — we're flushing now
+		if (idleSaveTimer) { clearTimeout(idleSaveTimer); idleSaveTimer = null; }
+
+		// Resolve title right before saving (Alma generates titles asynchronously)
+		const resolved = await resolveTitle(threadId, buf);
+		if (resolved) buf.title = escapeForInline(resolved, 120);
+		logger.info?.(`nowledge-mem: flushing ${threadId} (${buf.messages.length} msgs, title="${buf.title}")`);
+
+		try {
+			const summary = buf.messages
 				.slice(-8)
 				.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
 				.join("\n");
 			await client.createThread(
-				data.title,
+				buf.title,
 				escapeForInline(summary, 1200),
-				normalized,
+				buf.messages,
 				"alma",
 			);
-			savedMessageCounts.set(threadId, normalized.length);
-			pendingCaptures.delete(threadId);
-			logger.info?.(
-				`nowledge-mem: thread synced (${threadId}, ${normalized.length} msgs)`,
-			);
+			savedMessageCounts.set(threadId, buf.messages.length);
+			logger.info?.(`nowledge-mem: thread synced (${threadId}, ${buf.messages.length} msgs)`);
 		} catch (err) {
-			logger.error?.(
-				`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`,
-			);
+			logger.error?.(`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
 
-	const flushAllPending = async () => {
-		for (const threadId of [...pendingCaptures.keys()]) {
-			await flushThread(threadId);
-		}
+	const resetIdleTimer = (threadId) => {
+		if (idleSaveTimer) clearTimeout(idleSaveTimer);
+		idleSaveTimer = setTimeout(() => {
+			idleSaveTimer = null;
+			flushThread(threadId);
+		}, 7_000);
 	};
 
-	// Single willSend handler — handles both recall injection AND live capture.
-	// Alma may only support one handler per event name, so we must not register twice.
+	const ensureBuffer = (threadId) => {
+		if (!threadBuffers.has(threadId)) {
+			// Evict oldest buffer if at capacity (prevent unbounded memory growth)
+			if (threadBuffers.size >= MAX_THREAD_BUFFERS) {
+				const oldest = threadBuffers.keys().next().value;
+				threadBuffers.delete(oldest);
+				savedMessageCounts.delete(oldest);
+			}
+			threadBuffers.set(threadId, {
+				title: escapeForInline(`Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
+				messages: [],
+			});
+		}
+		return threadBuffers.get(threadId);
+	};
+
+	// --- Hook: willSend (recall injection + capture user message) ---
 	registerEvent("chat.message.willSend", async (first, second) => {
 		const payload = normalizeWillSendPayload(first, second);
 		const { threadId, currentContent } = payload;
 
-		// --- Part 1: Live capture (accumulate from payload) ---
+		// Capture user message into buffer
 		if (autoCapture && currentContent && currentContent.trim()) {
-			try {
-				// If user switched threads, flush the previous one immediately
-				if (lastSeenThreadId && lastSeenThreadId !== threadId) {
-					await flushThread(lastSeenThreadId);
-				}
-				lastSeenThreadId = threadId;
-
-				// Try context.chat API first (full thread history including AI responses)
-				let capturedMessages = null;
-				let capturedTitle = null;
-				try {
-					const chat = context.chat;
-					if (chat?.getActiveThread && chat?.getMessages) {
-						const activeThread = await chat.getActiveThread();
-						if (activeThread?.id) {
-							const msgs = await chat.getMessages(activeThread.id);
-							if (Array.isArray(msgs) && msgs.length > 0) {
-								capturedMessages = [...msgs];
-								capturedTitle = typeof activeThread.title === "string" && activeThread.title.trim()
-									? activeThread.title : null;
-							}
-						}
-					}
-				} catch (_chatErr) {
-					// context.chat not available — fall through to payload accumulation
-				}
-
-				if (capturedMessages) {
-					// Full thread history from chat API
-					logger.debug?.(`nowledge-mem: captured ${capturedMessages.length} msgs via chat API for ${threadId}`);
-					pendingCaptures.set(threadId, {
-						title: escapeForInline(capturedTitle || `Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
-						messages: capturedMessages,
-					});
-				} else {
-					// Fallback: accumulate from willSend payloads.
-					// On each willSend we only see the user message (not AI response),
-					// so this is partial — but still captures the user side.
-					logger.debug?.(`nowledge-mem: accumulating msg from willSend payload for ${threadId}`);
-					const existing = pendingCaptures.get(threadId) || {
-						title: escapeForInline(`Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
-						messages: [],
-					};
-					existing.messages.push({ role: "human", content: currentContent });
-					pendingCaptures.set(threadId, existing);
-				}
-
-				// Reset idle timer — save 2 minutes after conversation goes quiet
-				if (idleSaveTimer) clearTimeout(idleSaveTimer);
-				idleSaveTimer = setTimeout(() => {
-					idleSaveTimer = null;
-					flushThread(threadId);
-				}, 120_000);
-			} catch (err) {
-				logger.debug?.(`nowledge-mem: willSend capture failed: ${err?.message}`);
-			}
+			const buf = ensureBuffer(threadId);
+			buf.messages.push({ role: "user", content: currentContent });
+			activeThreadId = threadId;
+			logger.debug?.(`nowledge-mem: buffered user msg for ${threadId} (${buf.messages.length} total)`);
 		}
 
-		// --- Part 2: Recall injection ---
+		// Recall injection
 		if (!recallInjectionEnabled) return;
 		if (!currentContent || !currentContent.trim()) return;
 
@@ -1436,8 +1443,38 @@ export async function activate(context) {
 		}
 	});
 
+	// --- Hook: didReceive (capture AI response + start idle timer) ---
 	if (autoCapture) {
-		// Quit hooks as safety net
+		registerEvent("chat.message.didReceive", (input, _output) => {
+			const threadId = input?.threadId;
+			const aiContent = input?.response?.content;
+			logger.debug?.(`nowledge-mem: didReceive fired, threadId=${threadId}, hasContent=${!!aiContent}`);
+			if (!threadId) return;
+			if (typeof aiContent !== "string" || !aiContent.trim()) return;
+
+			const buf = ensureBuffer(threadId);
+			buf.messages.push({ role: "assistant", content: aiContent });
+			activeThreadId = threadId;
+			logger.debug?.(`nowledge-mem: buffered AI msg for ${threadId} (${buf.messages.length} total)`);
+			resetIdleTimer(threadId);
+		});
+
+		// --- Hook: thread.activated (flush on thread switch) ---
+		registerEvent("thread.activated", async (input, _output) => {
+			const newThreadId = input?.threadId;
+			logger.debug?.(`nowledge-mem: thread.activated fired, threadId=${newThreadId}`);
+			if (idleSaveTimer) {
+				clearTimeout(idleSaveTimer);
+				idleSaveTimer = null;
+			}
+			// Flush the previous thread (await to avoid race with new thread's hooks)
+			if (activeThreadId && activeThreadId !== newThreadId) {
+				await flushThread(activeThreadId);
+			}
+			if (newThreadId) activeThreadId = newThreadId;
+		});
+
+		// --- Quit hooks as safety net ---
 		const handleAutoCapture = async (_input, output) => {
 			quitCaptureAttempted = true;
 			try {
@@ -1445,9 +1482,8 @@ export async function activate(context) {
 					clearTimeout(idleSaveTimer);
 					idleSaveTimer = null;
 				}
-				// Flush buffered threads first (covers threads we switched away from)
-				await flushAllPending();
-				// Then save the current active thread (may have newer messages than buffer)
+				// Flush buffered thread, then try saveActiveThread as fallback
+				if (activeThreadId) await flushThread(activeThreadId);
 				const message = await saveActiveThread(context, client);
 				logger.info?.(`nowledge-mem: auto-capture on quit (${message})`);
 			} catch (err) {

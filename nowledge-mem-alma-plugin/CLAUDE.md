@@ -9,18 +9,16 @@ This file is a practical continuation guide for future agent sessions working on
 - Runtime: plain ESM (`main.js`), no build step
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 
-## Current Status (as of v0.6.3)
+## Current Status (as of v0.6.13)
 
 - Plugin is installed/activated and registers 12 tools successfully in Alma logs.
+- Live thread sync works via three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
+- All message data from hook payloads, never `context.chat.getMessages()`.
+- Titles resolved at flush time via `context.chat.getThread()` with 4-strategy fallback.
+- Hook registration: `context.events ?? context.hooks` (canonical API first).
+- Thread buffer LRU eviction at 20 entries.
 - Main unresolved UX issue is often chat tool allowlist/routing (session-level),
   not plugin registration.
-- v0.6.0 adds: sourceThreadId linkage, structured save with unit_type + temporal fields,
-  save dedup guard (>=90% similarity), thread pagination (offset/limit), thread source filter,
-  behavioral guidance in recall injection.
-- v0.6.1 adds: Access Anywhere remote access via `apiUrl` + `apiKey` settings.
-  API key injected via env var only (never as CLI arg). Startup log shows mode=remote or mode=local.
-- v0.6.3 adds: live settings reload via `onDidChange()`, `nowledge_mem_status` tool, `PluginActivation` dispose.
-  Settings changes (apiUrl, apiKey, etc.) take effect immediately without plugin reload.
 - Tool contracts were normalized in recent passes:
   - search-style: `{ ok, type, query, total, items, raw }` — items may include `sourceThreadId`
   - singleton-style: `{ ok, item, ... }` — show includes `sourceThreadId` when available
@@ -56,18 +54,16 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 
 ## Hooks
 
-- `chat.message.willSend`: auto-recall injection
-- Quit/deactivate auto-capture:
-  - `app.willQuit`
-  - `app.will-quit`
-  - `app.beforeQuit`
-  - `app.before-quit`
-  - `deactivate()` fallback if quit hooks do not fire
+- `chat.message.willSend`: buffer user message (from `input.content`) + recall injection
+- `chat.message.didReceive`: buffer AI response (from `input.response.content`) + start 7s idle timer
+- `thread.activated`: flush previous thread immediately on switch
+- Quit hooks (`app.willQuit`, `app.will-quit`, `app.beforeQuit`, `app.before-quit`): safety net flush
+- `deactivate()`: fallback if quit hooks do not fire
 
 ## Settings (manifest + `context.settings`)
 
 - `nowledgeMem.recallPolicy` (default `balanced_thread_once`)
-- `nowledgeMem.autoCapture` (default `true`)
+- `nowledgeMem.autoCapture` (default `true`) — enables live thread sync via willSend/didReceive/thread.activated hooks
 - `nowledgeMem.maxRecallResults` (default `5`, clamp 1-20)
 - `nowledgeMem.apiUrl` (default `""`, empty = local `http://127.0.0.1:14242`)
 - `nowledgeMem.apiKey` (default `""`, passed via env var only, never logged)
@@ -127,11 +123,12 @@ open -a Alma
 
 ## Alma Hook Availability
 
-**Only `chat.message.willSend` is confirmed to fire reliably.** Other event names
-(`chat.message.didReceive`, `thread.activated`, `tool.willExecute`, etc.) may exist
-in some Alma versions but are **not verified** — `registerEvent` silently returns
-`false` if the event is unsupported. Never build critical capture logic on
-unverified hooks. The live sync in v0.6.5 uses `willSend` exclusively.
+All three hooks used by live sync are confirmed working in Alma (verified v0.6.13):
+- `chat.message.willSend` — fires before user message is sent. Input: `{threadId, content, model, providerId}`.
+- `chat.message.didReceive` — fires after AI response. Input: `{threadId, response: {content, usage?}, pricing?}`.
+- `thread.activated` — fires on thread switch. Input: `{threadId, title?}`.
+
+**Key pattern**: Get all data from hook payloads. Never use `context.chat.getMessages()` from within hooks — it returns empty in `willSend` timing for new threads. See `3pp/alma-plugins/plugins/token-counter/` for the canonical reference implementation.
 
 ## Known Limitations
 
