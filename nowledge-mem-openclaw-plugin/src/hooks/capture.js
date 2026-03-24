@@ -85,7 +85,7 @@ export function matchesExcludePattern(sessionKey, patterns) {
  * Exported for reuse by Context Engine and other capture paths.
  */
 export function hasSkipMarker(messages, marker) {
-	if (!marker || !Array.isArray(messages)) return false;
+	if (!marker || typeof marker !== "string" || !Array.isArray(messages)) return false;
 	const markerLc = marker.toLowerCase();
 	return messages.some((msg) => {
 		const text = extractText(msg?.content ?? msg?.message?.content);
