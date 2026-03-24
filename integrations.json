@@ -27,6 +27,7 @@
       },
       "install": {
         "command": "claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running as Claude Code agent; ~/.claude/ exists",
         "docsUrl": "/docs/integrations/claude-code"
       },
@@ -61,6 +62,7 @@
       },
       "install": {
         "command": "Search 'Nowledge Mem' in the Gemini CLI Extensions Gallery and install",
+        "updateCommand": "Reinstall from the Gemini CLI Extensions Gallery to get the latest version",
         "detectionHint": "Running as Gemini CLI agent; ~/.gemini/ exists",
         "docsUrl": "/docs/integrations/gemini-cli"
       },
@@ -95,6 +97,7 @@
       },
       "install": {
         "command": "curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/install.sh | bash",
+        "updateCommand": "curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/install.sh | bash",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },
@@ -128,6 +131,7 @@
       },
       "install": {
         "command": "Search 'Nowledge Mem' in Cursor Marketplace and install",
+        "updateCommand": "Cursor Marketplace auto-updates extensions; uninstall and reinstall to force",
         "detectionHint": "Running inside Cursor IDE",
         "docsUrl": "/docs/integrations/cursor"
       },
@@ -162,6 +166,7 @@
       },
       "install": {
         "command": "droid plugin marketplace add https://github.com/nowledge-co/community && droid plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "droid plugin marketplace update nowledge-community && droid plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running inside Droid (Factory)",
         "docsUrl": "/docs/integrations/droid"
       },
@@ -196,6 +201,7 @@
       },
       "install": {
         "command": "openclaw plugins install @nowledge/openclaw-nowledge-mem",
+        "updateCommand": "openclaw plugins update openclaw-nowledge-mem",
         "detectionHint": "Running as OpenClaw agent; ~/.openclaw/ exists",
         "docsUrl": "/docs/integrations/openclaw"
       },
@@ -231,6 +237,7 @@
       },
       "install": {
         "command": "In Alma: Settings > Plugins > Marketplace, search 'Nowledge Mem', click Install",
+        "updateCommand": "In Alma: Settings > Plugins > Marketplace, find Nowledge Mem, click Update",
         "detectionHint": "Running inside Alma; ~/.config/alma/ exists",
         "docsUrl": "/docs/integrations/alma"
       },
@@ -264,7 +271,8 @@
         "note": "Plugin captures Bub conversations via save_state hook; sends via nmem CLI"
       },
       "install": {
-        "command": "pip install nowledge-mem-bub",
+        "command": "python3 -m pip install nowledge-mem-bub",
+        "updateCommand": "python3 -m pip install --upgrade nowledge-mem-bub",
         "detectionHint": "Running inside Bub",
         "docsUrl": "/docs/integrations/bub"
       },
