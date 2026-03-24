@@ -34,7 +34,7 @@
 		},
 		"captureSkipMarker": {
 			"label": "Skip marker",
-			"help": "Text marker in messages that prevents capture for the session. Default: #nmem-skip"
+			"help": "Text marker in messages that prevents capture for the session. Default: #nmem-skip. Note: if compaction drops the marked message, capture resumes — use captureExclude patterns for persistent filtering."
 		},
 		"apiUrl": {
 			"label": "Server URL (remote mode)",
@@ -96,7 +96,7 @@
 			"captureSkipMarker": {
 				"type": "string",
 				"default": "#nmem-skip",
-				"description": "Text marker in messages that prevents capture for the entire session. When any message contains this marker, the session is skipped."
+				"description": "Text marker in messages that prevents capture for the entire session. When any message contains this marker, the session is skipped. Note: compaction may drop the marked message — use captureExclude for persistent filtering."
 			},
 			"apiUrl": {
 				"type": "string",

@@ -56,7 +56,7 @@ function _compileGlob(pattern) {
 		re = new RegExp(
 			"^" +
 				key
-					.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+					.replace(/[.+?^${}()|[\]\\]/g, "\\$&")
 					.replace(/\*/g, "[^:]*") +
 				"$",
 		);

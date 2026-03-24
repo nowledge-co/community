@@ -151,6 +151,8 @@ Credentials (apiUrl/apiKey): also reads `~/.nowledge-mem/config.json` (shared wi
 | `maxContextResults` | integer 1-20 | `5` | `NMEM_MAX_CONTEXT_RESULTS` | How many memories to inject at prompt time |
 | `recallMinScore` | integer 0-100 | `0` | `NMEM_RECALL_MIN_SCORE` | Min relevance score (%) to include in auto-recall |
 | `maxThreadMessageChars` | integer 200-20000 | `800` | `NMEM_MAX_THREAD_MESSAGE_CHARS` | Max chars per captured thread message before truncation |
+| `captureExclude` | string[] | `[]` | — | Session key glob patterns to skip during auto-capture. `*` matches within a colon-segment. Example: `["agent:*:cron:*"]` |
+| `captureSkipMarker` | string | `"#nmem-skip"` | — | In-band marker: any message containing this text skips capture for the session. Not sticky across compaction |
 | `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
 | `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
 
