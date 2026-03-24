@@ -22,7 +22,12 @@
 
 import { ceState } from "./ce-state.js";
 import { BASE_GUIDANCE, SESSION_CONTEXT_GUIDANCE } from "./hooks/behavioral.js";
-import { appendOrCreateThread, triageAndDistill } from "./hooks/capture.js";
+import {
+	appendOrCreateThread,
+	hasSkipMarker,
+	matchesExcludePattern,
+	triageAndDistill,
+} from "./hooks/capture.js";
 import {
 	MAX_QUERY_LENGTH,
 	SHORT_QUERY_THRESHOLD,
@@ -342,8 +347,23 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 			}) {
 				if (isHeartbeat) return;
 
+				// Normalize sessionKey consistently with hook handlers
+				const normalizedKey = String(sessionKey || sessionId || "");
+
+				// Capture exclusion: pattern-based and marker-based filters
+				if (matchesExcludePattern(normalizedKey, cfg.captureExclude)) {
+					logger.debug?.(`ce: skipped excluded session ${normalizedKey}`);
+					return;
+				}
+				if (hasSkipMarker(messages, cfg.captureSkipMarker)) {
+					logger.debug?.(
+						`ce: skipped session with skip marker ${normalizedKey}`,
+					);
+					return;
+				}
+
 				const event = { messages, sessionFile };
-				const ctx = { sessionId, sessionKey };
+				const ctx = { sessionId, sessionKey: normalizedKey };
 
 				// 1. Always capture thread (idempotent, deduped)
 				const captureResult = await appendOrCreateThread({

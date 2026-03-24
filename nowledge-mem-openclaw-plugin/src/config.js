@@ -21,6 +21,8 @@ const ALLOWED_KEYS = new Set([
 	"maxContextResults",
 	"recallMinScore",
 	"maxThreadMessageChars",
+	"captureExclude",
+	"captureSkipMarker",
 	"apiUrl",
 	"apiKey",
 	// Legacy aliases — accepted but not advertised
@@ -343,6 +345,43 @@ export function parseConfig(raw, logger) {
 	const apiKey = ak.value;
 	_sources.apiKey = ak.source;
 
+	// --- captureExclude: file > pluginConfig > default ---
+	const captureExclude = (() => {
+		const fromFile = Array.isArray(resolvedFile.captureExclude)
+			? resolvedFile.captureExclude
+			: null;
+		const fromPlugin = Array.isArray(resolvedPlugin.captureExclude)
+			? resolvedPlugin.captureExclude
+			: null;
+		_sources.captureExclude = fromFile
+			? "file"
+			: fromPlugin
+				? "pluginConfig"
+				: "default";
+		const entries = fromFile ?? fromPlugin ?? [];
+		return entries
+			.filter((v) => typeof v === "string" && v.trim())
+			.map((v) => v.trim());
+	})();
+
+	// --- captureSkipMarker: file > pluginConfig > default ---
+	const captureSkipMarker = (() => {
+		const fromFile =
+			typeof resolvedFile.captureSkipMarker === "string"
+				? resolvedFile.captureSkipMarker.trim()
+				: undefined;
+		const fromPlugin =
+			typeof resolvedPlugin.captureSkipMarker === "string"
+				? resolvedPlugin.captureSkipMarker.trim()
+				: undefined;
+		_sources.captureSkipMarker = fromFile
+			? "file"
+			: fromPlugin
+				? "pluginConfig"
+				: "default";
+		return fromFile || fromPlugin || "#nmem-skip";
+	})();
+
 	return {
 		sessionContext,
 		sessionDigest,
@@ -350,6 +389,8 @@ export function parseConfig(raw, logger) {
 		maxContextResults,
 		recallMinScore,
 		maxThreadMessageChars,
+		captureExclude,
+		captureSkipMarker,
 		apiUrl,
 		apiKey,
 		_sources,

@@ -40,6 +40,63 @@ function _setSyncedMessageCount(threadId, count) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Capture exclusion filters
+// ---------------------------------------------------------------------------
+
+/**
+ * Compile a glob pattern (where `*` matches within a colon-delimited segment)
+ * into a RegExp. Results are cached since patterns are immutable after parse.
+ */
+const _compiledPatterns = new Map();
+function _compileGlob(pattern) {
+	const key = String(pattern).toLowerCase();
+	let re = _compiledPatterns.get(key);
+	if (!re) {
+		re = new RegExp(
+			"^" +
+				key
+					.replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+					.replace(/\*/g, "[^:]*") +
+				"$",
+		);
+		_compiledPatterns.set(key, re);
+	}
+	return re;
+}
+
+/**
+ * Test whether a session key matches any exclusion glob pattern.
+ * Glob `*` matches within a colon-delimited segment (not across colons).
+ * Example: "agent:*:cron:*" matches "agent:main:cron:abc123"
+ *
+ * Exported for reuse by Context Engine and other capture paths.
+ */
+export function matchesExcludePattern(sessionKey, patterns) {
+	if (!Array.isArray(patterns) || patterns.length === 0) return false;
+	const key = String(sessionKey || "").toLowerCase();
+	return patterns.some((pattern) => _compileGlob(pattern).test(key));
+}
+
+/**
+ * Check if any message contains the skip marker text.
+ * Scans both raw message content and nested message objects.
+ *
+ * Exported for reuse by Context Engine and other capture paths.
+ */
+export function hasSkipMarker(messages, marker) {
+	if (!marker || typeof marker !== "string" || !Array.isArray(messages)) return false;
+	const markerLc = marker.toLowerCase();
+	return messages.some((msg) => {
+		const text = extractText(msg?.content ?? msg?.message?.content);
+		return text.toLowerCase().includes(markerLc);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Message normalization utilities
+// ---------------------------------------------------------------------------
+
 export function truncate(text, max = DEFAULT_MAX_MESSAGE_CHARS) {
 	const str = String(text || "").trim();
 	if (!str) return "";
@@ -197,8 +254,9 @@ export async function appendOrCreateThread({
 	ctx,
 	reason,
 	maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS,
+	resolvedMessages,
 }) {
-	const rawMessages = await resolveHookMessages(event);
+	const rawMessages = resolvedMessages ?? (await resolveHookMessages(event));
 	if (!Array.isArray(rawMessages) || rawMessages.length === 0) return;
 
 	const threadId = buildStableThreadId(event, ctx);
@@ -413,6 +471,22 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		if (!event?.success) return;
 		if (ctx?.trigger === "heartbeat") return;
 
+		// Layer 1: pattern-based exclusion (e.g. cron jobs, subagent sessions)
+		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
+		if (matchesExcludePattern(sessionKey, cfg.captureExclude)) {
+			logger.debug?.(`capture: skipped excluded session ${sessionKey}`);
+			return;
+		}
+
+		// Layer 2: marker-based exclusion (user typed #nmem-skip in conversation)
+		const resolvedMessages = await resolveHookMessages(event);
+		if (hasSkipMarker(resolvedMessages, cfg.captureSkipMarker)) {
+			logger.debug?.(
+				`capture: skipped session with skip marker ${sessionKey}`,
+			);
+			return;
+		}
+
 		const captureResult = await appendOrCreateThread({
 			client,
 			logger,
@@ -420,6 +494,7 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 			ctx,
 			reason: "agent_end",
 			maxMessageChars: cfg.maxThreadMessageChars,
+			resolvedMessages,
 		});
 
 		await triageAndDistill({ client, cfg, logger, captureResult, ctx });
@@ -435,10 +510,27 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
  *
  * Heartbeat sessions are skipped (same rationale as agent_end).
  */
-export function buildBeforeResetCaptureHandler(client, _cfg, logger) {
+export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
 		if (ceState.active) return;
 		if (ctx?.trigger === "heartbeat") return;
+
+		// Layer 1: pattern-based exclusion
+		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
+		if (matchesExcludePattern(sessionKey, cfg.captureExclude)) {
+			logger.debug?.(`capture: skipped excluded session ${sessionKey}`);
+			return;
+		}
+
+		// Layer 2: marker-based exclusion
+		const resolvedMessages = await resolveHookMessages(event);
+		if (hasSkipMarker(resolvedMessages, cfg.captureSkipMarker)) {
+			logger.debug?.(
+				`capture: skipped session with skip marker ${sessionKey}`,
+			);
+			return;
+		}
+
 		const reason = typeof event?.reason === "string" ? event.reason : undefined;
 		await appendOrCreateThread({
 			client,
@@ -446,7 +538,8 @@ export function buildBeforeResetCaptureHandler(client, _cfg, logger) {
 			event,
 			ctx,
 			reason,
-			maxMessageChars: _cfg?.maxThreadMessageChars,
+			maxMessageChars: cfg.maxThreadMessageChars,
+			resolvedMessages,
 		});
 	};
 }
