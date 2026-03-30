@@ -186,6 +186,18 @@ First check the plugin status:
 openclaw nowledge-mem status
 ```
 
+If only `memory_search` and `memory_get` tools are available (other Nowledge Mem tools missing), the memory slot may still point to the built-in `memory-core`. Verify the slot in `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "plugins": {
+    "slots": { "memory": "openclaw-nowledge-mem" }
+  }
+}
+```
+
+If missing, reinstall (`openclaw plugins install @nowledge/openclaw-nowledge-mem`) which sets the slot automatically. This is common after upgrading OpenClaw to 3.22+ where the default memory slot changed.
+
 Then verify in chat.
 
 For a clean synthetic check:

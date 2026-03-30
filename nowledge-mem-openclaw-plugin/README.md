@@ -433,6 +433,40 @@ If OpenClaw logs a warning like `plugins.allow is empty; discovered non-bundled 
 
 If you also use linked or workspace copies, review `plugins.load.paths` before relying on an allowlist. OpenClaw allowlists plugin ids, not install provenance.
 
+## Troubleshooting
+
+**Only `memory_search` and `memory_get` show up — saves go to local markdown files**
+
+The memory slot is probably still set to the built-in `memory-core`. OpenClaw 3.22+ defaults to `memory-core` when no explicit slot is configured. Reinstall to reset the slot automatically:
+
+```bash
+openclaw plugins install @nowledge/openclaw-nowledge-mem
+```
+
+Or set the slot manually in `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "plugins": {
+    "slots": { "memory": "openclaw-nowledge-mem" }
+  }
+}
+```
+
+Restart OpenClaw after either change.
+
+**Search timeouts with many concurrent agents**
+
+When running many agents in parallel, all searches share a single database connection. Upgrade to Nowledge Mem v0.6.12+ (backend) so scoring writes no longer block search responses.
+
+**`nmem --json status` fails in local mode**
+
+The Nowledge Mem backend is not running. Start it from the desktop app, or run the backend manually.
+
+**Remote mode not connecting**
+
+Check `~/.nowledge-mem/config.json` credentials. Run `nmem --json --api-url "$URL" status` to verify the server is reachable.
+
 ## What Makes This Different
 
 - **Local-first**: no API key, no cloud account. Your knowledge stays on your machine.
