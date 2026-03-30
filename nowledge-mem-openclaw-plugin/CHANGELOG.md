@@ -2,11 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
-## [Unreleased]
+## [0.7.2] - 2026-03-30
 
 ### Added
 
 - **Status tool now reports memory slot configuration.** `nowledge_mem_status` checks whether the OpenClaw memory slot points to `openclaw-nowledge-mem`. If another plugin (e.g. the built-in `memory-core`) holds the slot, the tool shows a warning with the fix command. This catches a common misconfiguration after upgrading to OpenClaw 3.22+, where the implicit slot default changed to `memory-core`.
+- **Documented HTTP gateway limitation.** Plugin tools (save, connections, timeline, etc.) are not accessible via the OpenClaw HTTP gateway API (`/tools/invoke`) due to the gateway's `stripPluginOnlyAllowlist` policy. The built-in `memory_search` and `memory_get` are core gateway tools and always work via HTTP. Added troubleshooting guidance across README, SKILL.md, and website docs (EN + ZH).
 
 ### Fixed
 
