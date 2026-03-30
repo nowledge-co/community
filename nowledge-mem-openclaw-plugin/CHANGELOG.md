@@ -4,6 +4,10 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## [Unreleased]
 
+### Added
+
+- **Status tool now reports memory slot configuration.** `nowledge_mem_status` checks whether the OpenClaw memory slot points to `openclaw-nowledge-mem`. If another plugin (e.g. the built-in `memory-core`) holds the slot, the tool shows a warning with the fix command. This catches a common misconfiguration after upgrading to OpenClaw 3.22+, where the implicit slot default changed to `memory-core`.
+
 ### Fixed
 
 - **Thread sync no longer depends on argv-sized CLI payloads.** OpenClaw conversation capture now creates and appends threads through the Mem HTTP API instead of passing whole message arrays through `nmem ... -m '<json>'`. This removes the transport limit that caused repeated append failures on long or repetitive sessions.

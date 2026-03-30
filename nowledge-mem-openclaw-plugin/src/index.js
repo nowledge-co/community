@@ -54,8 +54,10 @@ export default {
 		api.registerTool(createThreadSearchTool(client, logger));
 		api.registerTool(createThreadFetchTool(client, logger));
 
-		// Diagnostics
-		api.registerTool(createStatusTool(client, logger, cfg));
+		// Diagnostics — pass the resolved memory slot so the status tool
+		// can warn when the slot points elsewhere (e.g. memory-core).
+		const memorySlot = api.config?.plugins?.slots?.memory;
+		api.registerTool(createStatusTool(client, logger, cfg, { memorySlot }));
 
 		// --- Context Engine registration ---
 		// When the user sets `plugins.slots.contextEngine: "nowledge-mem"`,

@@ -7,7 +7,7 @@
  */
 import { isDefaultApiUrl } from "../config.js";
 
-export function createStatusTool(client, _logger, cfg) {
+export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 	return {
 		name: "nowledge_mem_status",
 		description:
@@ -22,6 +22,24 @@ export function createStatusTool(client, _logger, cfg) {
 			const lines = [];
 			const details = {};
 			const sources = cfg._sources || {};
+
+			// 0. Memory slot check — detect misconfiguration early
+			const memorySlot = runtimeInfo.memorySlot;
+			details.memorySlot = memorySlot ?? "(unknown)";
+			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {
+				lines.push(
+					`⚠ Memory slot: "${memorySlot}" — Nowledge Mem is NOT the active memory plugin.`,
+				);
+				lines.push(
+					"  Only memory_search and memory_get will work. Other tools (save, connections, timeline, etc.) are inactive.",
+				);
+				lines.push(
+					'  Fix: run "openclaw plugins install @nowledge/openclaw-nowledge-mem" or set plugins.slots.memory to "openclaw-nowledge-mem" in your config.',
+				);
+				lines.push("");
+			} else if (memorySlot === "openclaw-nowledge-mem") {
+				lines.push("Memory slot: openclaw-nowledge-mem (active)");
+			}
 
 			// 1. Mode + connection target
 			const remote = !isDefaultApiUrl(cfg.apiUrl);
