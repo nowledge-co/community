@@ -118,7 +118,7 @@ When `contextEngine` points elsewhere (or is absent), hooks handle everything. N
 - `nowledge_mem_thread_fetch` - fetch messages from a specific thread. Start with a small page, then use `offset` + `limit` for progressive retrieval only when more context is needed.
 
 ### Diagnostics
-- `nowledge_mem_status` - show memory slot status, effective config (mode, apiUrl, apiKey set, sessionContext, sessionDigest, etc.), backend connectivity, and version. Warns if the memory slot points to `memory-core` instead of `openclaw-nowledge-mem` (common after OpenClaw 3.22+ upgrade). No parameters.
+- `nowledge_mem_status` - show plugin trust status, memory slot status, effective config (mode, apiUrl, apiKey set, sessionContext, sessionDigest, etc.), backend connectivity, and version. Checks `plugins.allow`: warns if set but plugin not included (loading blocked); shows tip if not set (plugin loads via `entries.enabled` but trust is implicit). Warns if the memory slot points to `memory-core` instead of `openclaw-nowledge-mem` (common after OpenClaw 3.22+ upgrade). No parameters.
 
 ## Skill Surface
 

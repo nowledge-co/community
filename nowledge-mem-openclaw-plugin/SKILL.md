@@ -249,7 +249,7 @@ What to expect:
 | `plugins.allow is empty` warning | Add `openclaw-nowledge-mem` to `plugins.allow` if the user wants explicit trust |
 | Remote config seems ignored | Check whether `~/.nowledge-mem/openclaw.json` is overriding plugin settings |
 | Local mode unexpectedly talks to a remote server | Check for stale `NMEM_API_URL` / `NMEM_API_KEY` in the environment or an overriding `~/.nowledge-mem/openclaw.json` |
-| Plugin tools return 404 via HTTP API (`/tools/invoke`) | This is an OpenClaw gateway limitation — the tool policy pipeline strips plugin tool names from `tools.allow`. The built-in `memory_search` and `memory_get` work via HTTP (core gateway tools). For the full tool surface, use an agent conversation instead of the HTTP API. |
+| Plugin tools missing | Ensure the plugin is in `plugins.allow: ["openclaw-nowledge-mem"]`. Do **not** put `nowledge_mem_*` tool names in `tools.allow` — OpenClaw silently strips plugin-only allowlists. No `tools.*` config is needed; plugin tools load automatically when the plugin is allowed. |
 
 ## Notes for Agents
 

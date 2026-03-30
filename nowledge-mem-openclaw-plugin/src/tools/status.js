@@ -23,7 +23,43 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			const details = {};
 			const sources = cfg._sources || {};
 
-			// 0. Memory slot check — detect misconfiguration early
+			// 0a. Plugin trust check — detect missing plugins.allow
+			const pluginsAllow = runtimeInfo.pluginsAllow;
+			const pluginId = "openclaw-nowledge-mem";
+			details.pluginsAllow = !Array.isArray(pluginsAllow)
+				? "(not set)"
+				: pluginsAllow.includes(pluginId)
+					? "listed"
+					: "set but plugin not included";
+
+			if (
+				Array.isArray(pluginsAllow) &&
+				pluginsAllow.length > 0 &&
+				!pluginsAllow.includes(pluginId)
+			) {
+				lines.push(
+					`⚠ plugins.allow is set but does not include "${pluginId}".`,
+				);
+				lines.push(
+					"  The plugin will be BLOCKED from loading unless it holds the memory slot or is explicitly enabled.",
+				);
+				lines.push(
+					`  Fix: add "${pluginId}" to plugins.allow in your OpenClaw config.`,
+				);
+				lines.push("");
+			} else if (!Array.isArray(pluginsAllow) || pluginsAllow.length === 0) {
+				lines.push(
+					"Plugin trust: plugins.allow not set (plugin loads via entries.enabled)",
+				);
+				lines.push(
+					`  Tip: set plugins.allow to ["${pluginId}"] to pin trust explicitly.`,
+				);
+				lines.push("");
+			} else {
+				lines.push(`Plugin trust: ${pluginId} (allowlisted)`);
+			}
+
+			// 0b. Memory slot check — detect misconfiguration early
 			const memorySlot = runtimeInfo.memorySlot;
 			details.memorySlot = memorySlot ?? "(unknown)";
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {

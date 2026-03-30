@@ -455,11 +455,21 @@ Or set the slot manually in `~/.openclaw/openclaw.json`:
 
 Restart OpenClaw after either change.
 
-**Plugin tools return 404 via OpenClaw HTTP API (`/tools/invoke`)**
+**Plugin tools not available**
 
-The `nowledge_mem_*` tools work in normal agent conversations but return 404 when called through OpenClaw's HTTP gateway API. This is an OpenClaw gateway limitation: the tool policy pipeline (`stripPluginOnlyAllowlist`) filters out plugin-registered tool names from `tools.allow`, so there is currently no configuration path to expose them via HTTP.
+All 10 plugin tools register automatically when the plugin loads. No tool-level config is needed — just make sure the plugin itself is trusted:
 
-The built-in `memory_search` and `memory_get` are core gateway tools and always work via HTTP. For the full tool surface, use an agent conversation instead of the HTTP API.
+```json
+{
+  "plugins": {
+    "allow": ["openclaw-nowledge-mem"]
+  }
+}
+```
+
+If `openclaw status` shows a CRITICAL warning about `plugins.allow`, this is the fix. Run `nowledge_mem_status` inside a conversation to check both plugin trust and memory slot status.
+
+Do not list `nowledge_mem_*` tool names in `tools.allow` — OpenClaw silently strips allowlists that contain only plugin entries, so the config looks active but does nothing.
 
 **Search timeouts with many concurrent agents**
 
