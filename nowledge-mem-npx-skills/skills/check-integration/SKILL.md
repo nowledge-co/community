@@ -41,7 +41,7 @@ The canonical source for this table is `community/integrations.json`.
 | **Gemini CLI** | Running as Gemini CLI agent; `~/.gemini/` exists | Search "Nowledge Mem" in the Gemini CLI Extensions Gallery | [Guide](https://mem.nowledge.co/docs/integrations/gemini-cli) |
 | **Alma** | Running inside Alma; `~/.config/alma/` exists | In Alma: Settings > Plugins > Marketplace, search "Nowledge Mem" | [Guide](https://mem.nowledge.co/docs/integrations/alma) |
 | **Droid** | Running inside Droid (Factory) | Add nowledge-co/community marketplace, install nowledge-mem@nowledge-community | [Guide](https://mem.nowledge.co/docs/integrations/droid) |
-| **Codex CLI** | Running as Codex CLI agent; `~/.codex/` exists | `curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/install.sh \| bash` | [Guide](https://mem.nowledge.co/docs/integrations/codex-cli) |
+| **Codex CLI** | Running as Codex CLI agent; `~/.codex/` exists | Copy `nowledge-mem-codex-plugin` to `~/.codex/plugins/nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/codex-cli) |
 | **Bub** | Running inside Bub | `pip install nowledge-mem-bub` | [Guide](https://mem.nowledge.co/docs/integrations/bub) |
 
 If the agent is not listed above, the npx skills you already have are the best option. They work everywhere via the `nmem` CLI.
