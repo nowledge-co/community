@@ -1,9 +1,9 @@
 ---
 name: search-memory
-description: Search the user's memory store for past decisions, procedures, learnings, or context relevant to the current task. Uses nmem CLI. Trigger when the task connects to prior work, a debugging pattern resembles a past issue, the user asks about previous decisions or rationale, or the user uses implicit recall language like "that approach" or "like before".
+description: Search past decisions, procedures, learnings, or context relevant to the current task. Trigger when work connects to prior decisions, a debugging pattern resembles a past issue, the user asks about rationale, or uses recall language like "that approach" or "like before".
 ---
 
-Search the user's knowledge graph for relevant memories and past conversations.
+Find what the user already knows. Search their memories and past conversations for decisions, procedures, and context that make the current task sharper.
 
 ## When to use
 

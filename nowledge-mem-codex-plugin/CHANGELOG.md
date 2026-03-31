@@ -4,7 +4,7 @@
 
 ### Added
 
-- Initial Codex plugin with five nmem-cli-based skills: `read-working-memory`, `search-memory`, `save-thread`, `distill-memory`, `status`.
-- Plugin manifest (`.codex-plugin/plugin.json`) with marketplace metadata.
-- Project-level `AGENTS.md` behavioral companion.
-- Migration guide from `nowledge-mem-codex-prompts` custom prompts package.
+- Five composable skills: `read-working-memory`, `search-memory`, `save-thread`, `distill-memory`, `status`.
+- Plugin manifest with marketplace metadata.
+- Project-level `AGENTS.md` for stronger memory behavior in repos.
+- Migration path from `nowledge-mem-codex-prompts`.

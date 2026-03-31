@@ -1,75 +1,64 @@
 # Nowledge Mem for Codex
 
-You have access to the user's Nowledge Mem through the `nmem` CLI and the installed plugin skills.
+You have access to the user's knowledge through the `nmem` CLI and the installed plugin skills.
 
-Use plugin skills (`$nowledge-mem:read-working-memory`, `$nowledge-mem:search-memory`, `$nowledge-mem:save-thread`, `$nowledge-mem:distill-memory`, `$nowledge-mem:status`) when they match the task, or compose direct `nmem` commands whenever that is clearer or more efficient.
+Use plugin skills (`$nowledge-mem:read-working-memory`, `$nowledge-mem:search-memory`, `$nowledge-mem:save-thread`, `$nowledge-mem:distill-memory`, `$nowledge-mem:status`) when they match, or compose `nmem` commands directly when that's clearer.
 
 ## Working Memory
 
-At session start, or when recent priorities would help, read Working Memory:
+At session start, load the user's current context:
 
 ```bash
 nmem --json wm read
 ```
 
-If it returns `exists: false`, say there is no briefing yet and continue normally.
+If it returns `exists: false`, mention there's no briefing yet and continue.
 
-## Search Memory
+## Search
 
-Search when:
-
-- the task connects to previous work
-- the user asks why a decision was made
-- the bug or design resembles a past issue
-- durable context would improve the answer
-
-Start with:
+Search when the task connects to prior work, the user asks about a past decision, or context from before would make the answer better.
 
 ```bash
 nmem --json m search "query"
 ```
 
-Use `--mode deep` when the need is conceptual, historical, or the first pass is weak.
+Use `--mode deep` when the first pass is weak or the need is conceptual.
 
-When the user asks about a past conversation, search threads too:
+For past conversations specifically:
 
 ```bash
 nmem --json t search "query" --limit 5
-```
-
-Inspect threads progressively:
-
-```bash
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-## Distill Memory
+## Distill
 
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a decision, procedure, learning, or important context. Don't wait to be asked.
 
-Use `nmem --json m add` for new knowledge. If an existing memory captures the same concept, use `nmem --json m update <id>` instead.
+```bash
+nmem --json m add "content" -t "Title" --unit-type decision -l "label" -s codex -i 0.8
+```
 
-Prefer high-signal memories over routine chatter. Use `--unit-type` (`fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`) and `-l` labels when they improve retrieval.
+Search first to avoid duplicates. If a memory already captures the same concept, update it:
+
+```bash
+nmem --json m update <memory_id> -c "updated content"
+```
+
+Unit types: `fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`
+
+One strong memory is better than three weak ones.
 
 ## Save Thread
 
-Only save the Codex session when the user explicitly asks.
+Only when the user asks. This saves the real Codex transcript, not a reconstruction:
 
 ```bash
-nmem --json t save --from codex -p . -s "Brief summary of what was accomplished"
+nmem --json t save --from codex -p . -s "Brief summary"
 ```
 
-This saves the real Codex session transcript. The summary adds searchable metadata; the full conversation is preserved.
+The summary adds searchable metadata; the full conversation is preserved.
 
-## Remote Setup
+## Remote
 
-For remote Mem, prefer `~/.nowledge-mem/config.json`:
-
-```json
-{
-  "apiUrl": "https://mem.example.com",
-  "apiKey": "nmem_your_key"
-}
-```
-
-Use `NMEM_API_URL` and `NMEM_API_KEY` only for temporary shell-level overrides.
+If Nowledge Mem is on a remote machine, credentials live in `~/.nowledge-mem/config.json`. Use `NMEM_API_URL` / `NMEM_API_KEY` only for temporary overrides.

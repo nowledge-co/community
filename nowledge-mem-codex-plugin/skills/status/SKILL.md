@@ -1,9 +1,9 @@
 ---
 name: status
-description: Check Nowledge Mem server connectivity, configuration, and health. Uses nmem CLI. Trigger when the user asks about Mem status, when memory commands are failing, or when setting up Nowledge Mem for the first time.
+description: Check whether Nowledge Mem is reachable and working. Trigger when memory commands fail, the user asks about Mem status, or during first-time setup.
 ---
 
-Check whether Nowledge Mem is running and reachable.
+Quick health check — is Nowledge Mem running, reachable, and configured correctly?
 
 ## Command
 

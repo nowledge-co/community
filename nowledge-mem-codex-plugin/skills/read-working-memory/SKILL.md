@@ -1,9 +1,9 @@
 ---
 name: read-working-memory
-description: Read the user's Working Memory briefing at the start of a session or when the user asks for current context, focus areas, or priorities. Uses nmem CLI. Trigger at session start, when resuming a project after a break, or when the user asks "what am I working on".
+description: Load your current context at session start — what you were working on, active priorities, and unresolved flags. Also trigger when resuming after a break or when the user asks "what am I working on".
 ---
 
-Load the user's Working Memory briefing for current focus areas, priorities, and recent knowledge changes.
+Start with what matters. Working Memory is a daily briefing of your active focus areas, priorities, and recent knowledge changes — kept up to date across every AI tool you use.
 
 ## Command
 
@@ -11,44 +11,32 @@ Load the user's Working Memory briefing for current focus areas, priorities, and
 nmem --json wm read
 ```
 
-## What You'll Find
+## What you'll find
 
-- **Active Focus Areas** — Topics currently engaged with, ranked by recent activity
+- **Focus areas** — What you're actively working on, ranked by recent activity
 - **Priorities** — Items flagged as important or needing attention
-- **Unresolved Flags** — Contradictions, stale information, or items needing verification
-- **Recent Activity** — What changed in your knowledge base since the last briefing
-- **Deep Links** — References to specific memories for further exploration
+- **Unresolved flags** — Contradictions, stale information, or items to verify
+- **Recent changes** — What shifted in your knowledge base since the last briefing
 
-## Interpretation
+## How to use it
 
-- If Working Memory has content, summarize key focus areas and any unresolved flags briefly (2-3 sentences), then proceed informed by this context.
+- Summarize key focus areas and any unresolved flags briefly (2-3 sentences), then work informed by this context.
 - If `exists: false` or the command fails, say there is no briefing yet and continue normally.
-- Reference naturally — share only the parts relevant to what the user is working on.
+- Share only the parts relevant to what the user is doing now.
 
-## When to use
+## When to read
 
-**At session start:**
-
-- Beginning of a new conversation
+- Beginning of a new session
 - Returning to a project after a break
-- When context about recent work would help
-
-**During session:**
-
 - User asks "what am I working on?" or "what's my context?"
-- User references recent priorities or decisions
 
-**Skip when:**
+## When to skip
 
 - Already loaded this session — do not re-read unless the user asks
 - User explicitly wants a fresh start
-- Working on an isolated, context-independent task
-
-## Cross-tool continuity
-
-Working Memory is shared across all connected AI tools — insights saved in any agent appear in the same briefing. Updated daily by Background Intelligence.
+- Task is isolated and needs no prior context
 
 ## Links
 
-- [Documentation](https://mem.nowledge.co/docs)
-- [Working Memory guide](https://mem.nowledge.co/docs/features/working-memory)
+- [Working Memory](https://mem.nowledge.co/docs/features/working-memory)
+- [Getting started](https://mem.nowledge.co/docs)

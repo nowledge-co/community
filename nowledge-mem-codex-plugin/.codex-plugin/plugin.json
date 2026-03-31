@@ -1,27 +1,27 @@
 {
   "name": "nowledge-mem",
   "version": "0.1.0",
-  "description": "Search past decisions, distill insights, and recall context across all your AI tools — powered by Nowledge Mem.",
+  "description": "Your Codex agent remembers past decisions, finds relevant context, and learns from every session — across all your AI tools.",
   "author": {
-    "name": "Nowledge",
-    "url": "https://nowledge.co"
+    "name": "Nowledge Labs",
+    "url": "https://nowledge-labs.ai"
   },
   "homepage": "https://mem.nowledge.co/docs/integrations/codex-cli",
   "repository": "https://github.com/nowledge-co/community",
   "license": "MIT",
-  "keywords": ["memory", "knowledge-graph", "recall", "cross-ai", "nmem"],
+  "keywords": ["memory", "context", "knowledge", "recall", "working-memory"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Nowledge Mem",
-    "shortDescription": "Cross-AI memory for Codex agents",
-    "developerName": "Nowledge",
+    "shortDescription": "Memory that follows you across AI tools",
+    "developerName": "Nowledge Labs",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://mem.nowledge.co",
     "defaultPrompt": [
-      "Read my Working Memory for today's context.",
-      "Search my memories for past decisions about this.",
-      "Distill the key insights from this session."
+      "What was I working on?",
+      "What do we know about this from before?",
+      "Save the key takeaways from this session."
     ]
   }
 }

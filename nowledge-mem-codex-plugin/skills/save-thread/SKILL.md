@@ -1,9 +1,9 @@
 ---
 name: save-thread
-description: Save the current Codex session as a real thread import into Nowledge Mem. Uses nmem CLI. Trigger when the user asks to save or preserve this conversation, or at the end of a significant work session.
+description: Save the current Codex session so the user can find it later or resume from another tool. Trigger only when the user explicitly asks to save or preserve this conversation.
 ---
 
-Import the real Codex session transcript into Nowledge Mem as a thread.
+Save the actual Codex session transcript — not a summary — so it can be searched, resumed, or referenced from any connected tool.
 
 ## Command
 

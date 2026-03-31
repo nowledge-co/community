@@ -1,9 +1,9 @@
 ---
 name: distill-memory
-description: Proactively distill key insights, decisions, procedures, or learnings from the current conversation into Nowledge Mem. Uses nmem CLI. Trigger when a significant decision is made, a non-obvious procedure is discovered, or a lesson is learned — without waiting for the user to ask.
+description: Save key decisions, procedures, or learnings so the user never has to rediscover them. Trigger when a significant decision is made, a non-obvious procedure is found, or a lesson is learned — without waiting to be asked.
 ---
 
-Save durable insights from the current session into Nowledge Mem. Act proactively — do not wait to be asked.
+Capture what matters before the session ends. Save decisions, procedures, and learnings as durable memories that any connected AI tool can find later.
 
 ## What to distill
 
