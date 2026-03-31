@@ -77,9 +77,10 @@
       "id": "codex-cli",
       "name": "Codex CLI",
       "category": "coding",
-      "type": "prompts",
-      "version": null,
-      "directory": "nowledge-mem-codex-prompts",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-codex-plugin",
+      "legacyDirectory": "nowledge-mem-codex-prompts",
       "transport": "cli",
       "capabilities": {
         "workingMemory": true,
@@ -88,7 +89,7 @@
         "autoRecall": false,
         "autoCapture": false,
         "graphExploration": false,
-        "status": false
+        "status": true
       },
       "threadSave": {
         "method": "cli-native",
@@ -96,17 +97,17 @@
         "command": "nmem t save --from codex"
       },
       "install": {
-        "command": "curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/install.sh | bash",
-        "updateCommand": "curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/install.sh | bash",
+        "command": "Copy nowledge-mem-codex-plugin to ~/.codex/plugins/nowledge-mem or .agents/plugins/nowledge-mem",
+        "updateCommand": "Replace the plugin directory with the latest version from the community repo",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "Custom prompts teach agent to invoke nmem CLI"
+        "note": "Plugin skills teach agent to invoke nmem CLI progressively"
       },
-      "skills": [],
-      "slashCommands": ["/prompts:read_working_memory", "/prompts:search_memory", "/prompts:save_session", "/prompts:distill"]
+      "skills": ["read-working-memory", "search-memory", "save-thread", "distill-memory", "status"],
+      "slashCommands": []
     },
     {
       "id": "cursor",

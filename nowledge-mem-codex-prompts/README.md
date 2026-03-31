@@ -1,5 +1,7 @@
 # Nowledge Mem for Codex CLI
 
+> **Deprecated**: This custom prompts package has been superseded by the **[Codex Plugin](../nowledge-mem-codex-plugin/)**. The plugin provides the same capabilities as composable Codex skills with proper plugin lifecycle support. See the [migration guide](https://mem.nowledge.co/docs/integrations/codex-cli#migrating-from-custom-prompts) for details.
+
 > Memory-aware custom prompts for Codex CLI, with an optional project `AGENTS.md` companion for stronger default behavior.
 
 Codex does not yet have the same packaged extension surface as Gemini CLI. The stable Codex-native path today is:
