@@ -287,6 +287,73 @@
       "slashCommands": []
     },
     {
+      "id": "pi",
+      "name": "Pi",
+      "category": "coding",
+      "type": "skills",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-pi-package",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "handoff-only",
+        "note": "Pi does not have a native transcript importer; save-thread creates a structured handoff summary"
+      },
+      "install": {
+        "command": "pi install npm:nowledge-mem-pi",
+        "updateCommand": "pi install npm:nowledge-mem-pi@latest",
+        "detectionHint": "Running as Pi agent; ~/.pi/ exists",
+        "docsUrl": "/docs/integrations/pi"
+      },
+      "toolNaming": {
+        "convention": "cli-direct",
+        "note": "Skills teach agent to invoke nmem CLI directly"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
+      "slashCommands": []
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes Agent",
+      "category": "coding",
+      "type": "connector",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-hermes",
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Depends on MCP client capabilities"
+      },
+      "install": {
+        "command": "Add nowledge-mem MCP server to ~/.hermes/config.yaml",
+        "detectionHint": "Running as Hermes agent; ~/.hermes/ exists",
+        "docsUrl": "/docs/integrations/hermes"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "MCP tools defined by backend (memory_search, memory_add, etc.)"
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
       "id": "npx-skills",
       "name": "npx Skills",
       "category": "surface",

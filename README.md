@@ -37,6 +37,8 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[OpenClaw Plugin](nowledge-mem-openclaw-plugin)** | `openclaw plugins install @nowledge/openclaw-nowledge-mem` | Full memory lifecycle with memory tools, thread tools, automatic capture, and distillation. |
 | **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with Working Memory, thread-aware recall, structured saves, and optional auto-capture. |
 | **[Bub Plugin](nowledge-mem-bub-plugin)** | `pip install nowledge-mem-bub` | Bub-native plugin: cross-tool knowledge, auto-capture via save_state, Working Memory, and graph exploration. |
+| **[Pi Package](nowledge-mem-pi-package)** | `pi install npm:nowledge-mem-pi` | Five composable skills for Working Memory, routed recall, distillation, and resumable handoffs in Pi. |
+| **[Hermes Agent](nowledge-mem-hermes)** | Add MCP server to `~/.hermes/config.yaml` | Cross-tool knowledge in Hermes via MCP: search, save, Working Memory, and thread history. |
 | **[Raycast Extension](nowledge-mem-raycast)** | Search Nowledge in Raycast Extension Store | Search memories from Raycast launcher. |
 | **[Claude Desktop](https://github.com/nowledge-co/claude-dxt)** | Download from [nowled.ge/claude-dxt](https://nowled.ge/claude-dxt), double-click `.mcpb` file | One-click extension for Claude Desktop with memory search, save, and update. |
 | **[Browser Extension](https://chromewebstore.google.com/detail/nowledge-memory-exchange/kjgpkgodplgakbeanoifnlpkphemcbmh)** | Install from Chrome Web Store | Side-panel capture for ChatGPT, Claude, Gemini, Perplexity, and other web AI surfaces. |

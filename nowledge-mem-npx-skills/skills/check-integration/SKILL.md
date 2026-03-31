@@ -43,6 +43,8 @@ The canonical source for this table is `community/integrations.json`.
 | **Droid** | Running inside Droid (Factory) | Add nowledge-co/community marketplace, install nowledge-mem@nowledge-community | [Guide](https://mem.nowledge.co/docs/integrations/droid) |
 | **Codex CLI** | Running as Codex CLI agent; `~/.codex/` exists | Copy `nowledge-mem-codex-plugin` to `~/.codex/plugins/nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/codex-cli) |
 | **Bub** | Running inside Bub | `pip install nowledge-mem-bub` | [Guide](https://mem.nowledge.co/docs/integrations/bub) |
+| **Pi** | Running as Pi agent; `~/.pi/` exists | `pi install npm:nowledge-mem-pi` | [Guide](https://mem.nowledge.co/docs/integrations/pi) |
+| **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Add MCP server to `~/.hermes/config.yaml` | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
 
 If the agent is not listed above, the npx skills you already have are the best option. They work everywhere via the `nmem` CLI.
 
