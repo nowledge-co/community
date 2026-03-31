@@ -33,6 +33,8 @@ nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 
 Load threads progressively. Increase `--offset` only when the user needs more.
 
+If a memory result includes `source_thread`, inspect the original conversation with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
+
 ## Autonomous Save
 
 Save proactively when the conversation produces a decision, procedure, learning, or important context. Don't wait for the user to ask.
@@ -42,6 +44,8 @@ nmem --json m add "content" -t "Title" --unit-type decision -i 0.8
 ```
 
 Unit types: `fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`.
+
+Use `-l` to attach labels for easier retrieval: `nmem --json m add "content" -t "Title" --unit-type decision -i 0.8 -l backend -l auth`.
 
 ## Add vs Update
 
@@ -55,7 +59,14 @@ One strong memory is better than three weak ones.
 
 ## Thread Save Honesty
 
-Pi does not have a native transcript importer. When the user asks to save the session, create a structured handoff summary using `nmem --json t create`. Be transparent: this is a curated summary, not a verbatim transcript. Include goals, decisions, files touched, and next steps.
+Pi does not have a native transcript importer. When the user asks to save the session, create a structured handoff summary using `nmem --json t create`. Be transparent: this is a curated summary, not a verbatim transcript. Include goals, decisions, files touched, risks, and next steps.
+
+```bash
+nmem --json t create \
+  -t "Session Handoff - <topic>" \
+  -c "Goal: ... Decisions: ... Files: ... Risks: ... Next: ..." \
+  -s generic-agent
+```
 
 ## Remote Configuration
 

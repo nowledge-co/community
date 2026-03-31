@@ -20,7 +20,7 @@ Never auto-save or suggest saving unprompted.
 ```bash
 nmem --json t create \
   -t "Session Handoff - <topic>" \
-  -c "Goal: ... Decisions: ... Files: ... Next: ..." \
+  -c "Goal: ... Decisions: ... Files: ... Risks: ... Next: ..." \
   -s generic-agent
 ```
 
@@ -33,6 +33,7 @@ Goal: What the session set out to accomplish
 Decisions: Key choices made and their rationale
 Files: Important files created or modified
 Outcome: What was achieved
+Risks: Known risks, open questions, or things that could break
 Next: Concrete steps for the next session
 ```
 
@@ -45,6 +46,7 @@ nmem --json t create \
 Decisions: Chose Authorization Code flow with PKCE over Implicit for security. Using passport-oauth2 library.
 Files: src/auth/oauth2.ts (new), src/auth/middleware.ts (updated), tests/auth.test.ts (updated).
 Outcome: Core flow working, token refresh implemented, tests passing.
+Risks: Token refresh not tested under clock skew; CSRF state parameter still missing.
 Next: Add CSRF state parameter, update API docs, deploy to staging." \
   -s generic-agent
 ```
@@ -56,4 +58,4 @@ A thread preserves session structure: goals, sequence, context. A memory distill
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/pi)
-- [Troubleshooting](/docs/troubleshooting)
+- [Troubleshooting](https://mem.nowledge.co/docs/troubleshooting)

@@ -35,4 +35,4 @@ nmem --json status
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/pi)
-- [Troubleshooting](/docs/troubleshooting)
+- [Troubleshooting](https://mem.nowledge.co/docs/troubleshooting)

@@ -79,7 +79,7 @@ For behavioral guidance that shapes how Pi uses these skills (when to search, wh
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/pi)
-- [All Integrations](/docs/integrations)
+- [All Integrations](https://mem.nowledge.co/docs/integrations)
 - [GitHub](https://github.com/nowledge-co/community)
 
 ---

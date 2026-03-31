@@ -83,4 +83,4 @@ Do not distill routine work. If the user wouldn't miss it when it's gone, it sho
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/pi)
-- [Troubleshooting](/docs/troubleshooting)
+- [Troubleshooting](https://mem.nowledge.co/docs/troubleshooting)

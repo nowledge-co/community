@@ -37,6 +37,10 @@ Start a new Hermes session and ask:
 
 Hermes should call `memory_search` and return results from your knowledge graph. If Mem is not running, you will see a connection error.
 
+## Update
+
+The MCP server runs inside Nowledge Mem. When you update the desktop app, all MCP tools update automatically. No changes to your Hermes config needed.
+
 ## MCP tools
 
 These tools are available to Hermes once the MCP server is connected:
@@ -44,16 +48,16 @@ These tools are available to Hermes once the MCP server is connected:
 | Tool | Purpose |
 |------|---------|
 | `read_working_memory` | Load your daily context briefing |
-| `working_memory_update` | Update your Working Memory |
 | `memory_search` | Search memories and distilled knowledge |
 | `memory_add` | Save a new memory |
 | `memory_update` | Refine an existing memory |
-| `memory_get` | Retrieve a specific memory by ID |
 | `memory_delete` | Remove a memory |
 | `thread_search` | Search past conversations |
 | `thread_fetch_messages` | Read messages from a specific thread |
 | `thread_persist` | Save a conversation thread |
 | `list_memory_labels` | Browse memory categories |
+
+Additional tools for graph exploration, source analysis, and knowledge processing are available depending on your server configuration.
 
 ## Behavioral guidance (optional)
 

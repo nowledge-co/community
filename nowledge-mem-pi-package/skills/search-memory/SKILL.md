@@ -60,10 +60,9 @@ Increase `--offset` only when more messages are actually needed.
 |------|---------|
 | `--mode deep` | Conceptual or weak first-pass results |
 | `-l label` | Filter by label (multiple uses AND logic) |
-| `-s source` | Filter by source tool |
 | `-n limit` | Limit number of results (default: 10) |
 | `--importance MIN` | Minimum importance score (0.0-1.0) |
-| `-t RANGE` | Time filter: today, week, month, year |
+| `--time RANGE` | Time filter: today, week, month, year |
 
 ## Examples
 
@@ -75,7 +74,7 @@ nmem --json m search "database optimization" --importance 0.7
 nmem --json m search "React patterns" -l frontend -l react
 
 # Recent memories only
-nmem --json m search "deployment fix" -t week -n 5
+nmem --json m search "deployment fix" --time week -n 5
 
 # Deep mode for conceptual queries
 nmem --json m search "auth architecture rationale" --mode deep
@@ -95,4 +94,4 @@ Do not search for every message. Search when there is a reasonable expectation t
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/pi)
-- [Troubleshooting](/docs/troubleshooting)
+- [Troubleshooting](https://mem.nowledge.co/docs/troubleshooting)
