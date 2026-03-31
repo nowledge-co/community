@@ -3,7 +3,7 @@ name: save-thread
 description: Save the current Codex session so the user can find it later or resume from another tool. Trigger only when the user explicitly asks to save or preserve this conversation.
 ---
 
-Save the actual Codex session transcript — not a summary — so it can be searched, resumed, or referenced from any connected tool.
+Save the actual Codex session transcript, not a summary, so it can be searched, resumed, or referenced from any connected tool.
 
 ## Command
 
@@ -23,7 +23,7 @@ nmem --json t save --from codex -p . -s "Brief summary of what was accomplished"
 
 ## Important
 
-This is a **real session import** — it captures the actual Codex transcript, not a summary. The `-s` flag adds searchable metadata, but the full conversation is preserved.
+This is a **real session import**. It captures the actual Codex transcript, not a summary. The `-s` flag adds searchable metadata; the full conversation is preserved.
 
 Do not replace this with `nmem t create`. Do not fabricate a transcript.
 

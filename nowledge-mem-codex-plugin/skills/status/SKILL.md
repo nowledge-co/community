@@ -3,7 +3,7 @@ name: status
 description: Check whether Nowledge Mem is reachable and working. Trigger when memory commands fail, the user asks about Mem status, or during first-time setup.
 ---
 
-Quick health check — is Nowledge Mem running, reachable, and configured correctly?
+Quick health check: is Nowledge Mem running, reachable, and configured correctly?
 
 ## Command
 

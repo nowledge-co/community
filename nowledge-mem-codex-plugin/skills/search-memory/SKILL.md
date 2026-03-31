@@ -7,7 +7,7 @@ Find what the user already knows. Search their memories and past conversations f
 
 ## When to use
 
-**Strong signals — search when:**
+**Strong signals (search when):**
 
 - The user references previous work, a prior fix, or an earlier decision
 - The task resumes a named feature, bug, refactor, incident, or subsystem
@@ -15,7 +15,7 @@ Find what the user already knows. Search their memories and past conversations f
 - The user asks for rationale, preferences, procedures, or recurring workflow details
 - The user uses implicit recall language: "that approach", "like before", "the pattern we used"
 
-**Contextual signals — consider searching when:**
+**Contextual signals (consider searching when):**
 
 - Complex debugging where prior context would narrow the search space
 - Architecture discussion that may intersect with past decisions
@@ -33,7 +33,7 @@ Find what the user already knows. Search their memories and past conversations f
 1. Start with `nmem --json m search "query"` for durable knowledge (decisions, insights, procedures).
 2. Use `nmem --json t search "query" --limit 5` when the user is asking about a prior conversation or exact session history.
 3. If a result includes `source_thread`, inspect it progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
-4. Prefer the smallest retrieval surface that answers the question — do not over-fetch.
+4. Prefer the smallest retrieval that answers the question. Do not over-fetch.
 
 ## Deep mode
 

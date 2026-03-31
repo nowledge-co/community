@@ -1,16 +1,16 @@
 # Nowledge Mem for Codex
 
-> Your Codex agent remembers what you've worked on — across every AI tool you use.
+> Your Codex agent remembers what you've worked on, across every AI tool you use.
 
-Switch between Claude Code, Gemini, Cursor, and Codex without losing context. Decisions you made last week, procedures you discovered yesterday, the architecture rationale from three months ago — it's all there when you need it.
+Switch between Claude Code, Gemini, Cursor, and Codex without losing context. Decisions you made last week, procedures you discovered yesterday, the architecture rationale from three months ago: it's all there when you need it.
 
 ## What you get
 
-- **Pick up where you left off** — Every session starts with what matters: your current priorities, recent decisions, and unresolved questions
-- **The agent searches for you** — When past context would improve the answer, the agent finds it without you asking
-- **Insights stick around** — Key decisions and learnings are saved automatically, ready for any future session in any tool
-- **Real session history** — Save the full Codex transcript, not just a summary
-- **Quick diagnostics** — One command to verify everything is connected
+- **Pick up where you left off.** Every session starts with what matters: your current priorities, recent decisions, and unresolved questions.
+- **The agent searches for you.** When past context would improve the answer, the agent finds it without you asking.
+- **Insights stick around.** Key decisions and learnings are saved automatically, ready for any future session in any tool.
+- **Real session history.** Save the full Codex transcript, not just a summary.
+- **Quick diagnostics.** One command to verify everything is connected.
 
 ## Skills
 
@@ -60,7 +60,7 @@ enabled = true
 
 ## Verify
 
-Start a new Codex session and ask: "What was I working on?" — the agent should load your Working Memory briefing. If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
+Start a new Codex session and ask: "What was I working on?" The agent should load your Working Memory briefing. If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 
 ## Update
 
@@ -106,9 +106,9 @@ If you used `nowledge-mem-codex-prompts` before:
 
 ## Troubleshooting
 
-- **"Command not found: nmem"** — `pip install nmem-cli` or use `uvx --from nmem-cli nmem`. See [Getting Started](https://mem.nowledge.co/docs/installation).
-- **"Cannot connect to server"** — Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
-- **Skills not appearing** — Restart Codex after installing. Verify the plugin is enabled in `~/.codex/config.toml`.
+- **"Command not found: nmem"**: `pip install nmem-cli` or use `uvx --from nmem-cli nmem`. See [Getting Started](https://mem.nowledge.co/docs/installation).
+- **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
+- **Skills not appearing**: Restart Codex after installing. Verify the plugin is enabled in `~/.codex/config.toml`.
 
 ## Links
 

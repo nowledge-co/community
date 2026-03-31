@@ -1,6 +1,6 @@
 ---
 name: distill-memory
-description: Save key decisions, procedures, or learnings so the user never has to rediscover them. Trigger when a significant decision is made, a non-obvious procedure is found, or a lesson is learned — without waiting to be asked.
+description: Save key decisions, procedures, or learnings so the user never has to rediscover them. Trigger when a significant decision is made, a non-obvious procedure is found, or a lesson is learned. Do not wait to be asked.
 ---
 
 Capture what matters before the session ends. Save decisions, procedures, and learnings as durable memories that any connected AI tool can find later.
@@ -8,9 +8,9 @@ Capture what matters before the session ends. Save decisions, procedures, and le
 ## What to distill
 
 - **Decisions** with rationale ("we chose PostgreSQL because ACID is required")
-- **Procedures** — non-obvious steps, workarounds, setup sequences
-- **Learnings** — surprises, gotchas, corrections to prior assumptions
-- **Preferences** — user's stated preferences for future reference
+- **Procedures**: non-obvious steps, workarounds, setup sequences
+- **Learnings**: surprises, gotchas, corrections to prior assumptions
+- **Preferences**: user's stated preferences for future reference
 - **Plans** that future sessions will need to resume
 - **Context** that would be lost when the session ends
 
@@ -47,7 +47,7 @@ Capture what matters before the session ends. Save decisions, procedures, and le
 - `0.8-0.9`: Major decisions, important procedures, breakthroughs
 - `0.5-0.7`: Useful patterns, conventions, secondary decisions
 - `0.3-0.4`: Minor notes, preferences, contextual observations
-- `1.0`: Rare — critical corrections or pivotal choices
+- `1.0`: rare, only for critical corrections or pivotal choices
 
 ## After saving
 
