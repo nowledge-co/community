@@ -34,4 +34,4 @@ Do not replace this with `nmem t create`. Do not fabricate a transcript.
 
 ## Links
 
-- [Thread documentation](https://mem.nowledge.co/docs/features/threads)
+- [Threads](https://mem.nowledge.co/docs/threads)

@@ -57,4 +57,4 @@ Summarize only the strongest matches and clearly say when nothing relevant was f
 
 ## Links
 
-- [Search documentation](https://mem.nowledge.co/docs/features/search)
+- [Search](https://mem.nowledge.co/docs/search-relevance)

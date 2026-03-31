@@ -38,5 +38,5 @@ nmem --json wm read
 
 ## Links
 
-- [Working Memory](https://mem.nowledge.co/docs/features/working-memory)
+- [Working Memory](https://mem.nowledge.co/docs/advanced-features#working-memory)
 - [Getting started](https://mem.nowledge.co/docs)
