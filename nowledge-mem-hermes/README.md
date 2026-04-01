@@ -23,7 +23,7 @@ Add the Nowledge Mem MCP server to your Hermes configuration:
 ```yaml title="~/.hermes/config.yaml"
 mcp_servers:
   nowledge-mem:
-    url: "http://localhost:14242/mcp"
+    url: "http://127.0.0.1:14242/mcp"
     timeout: 120
 ```
 
@@ -84,7 +84,7 @@ Ensure the remote server has API access enabled. See [Remote Access](https://mem
 
 ## Troubleshooting
 
-- **"Cannot connect to MCP server"**: Verify the Nowledge Mem desktop app is running and the server is listening on port 14242. Check with `curl http://localhost:14242/health`.
+- **"Cannot connect to MCP server"**: Verify the Nowledge Mem desktop app is running and the server is listening on port 14242. Check with `curl http://127.0.0.1:14242/health`.
 - **Tools not appearing**: Restart Hermes after editing `config.yaml`. Confirm the `mcp_servers` block is properly indented.
 - **Slow responses**: The default timeout of 120 seconds covers deep search. If searches consistently time out, check server performance or network latency for remote setups.
 - **No results from search**: Nowledge Mem may be empty. Add a few memories first through the desktop app or another integration, then try again.
@@ -92,7 +92,7 @@ Ensure the remote server has API access enabled. See [Remote Access](https://mem
 ## Links
 
 - [Hermes integration guide](https://mem.nowledge.co/docs/integrations/hermes)
-- [Documentation](/docs/integrations)
+- [Documentation](https://mem.nowledge.co/docs/integrations)
 - [Discord](https://nowled.ge/discord)
 - [GitHub](https://github.com/nowledge-co/community)
 

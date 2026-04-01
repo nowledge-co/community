@@ -334,12 +334,12 @@
         "distill": true,
         "autoRecall": false,
         "autoCapture": false,
-        "graphExploration": false,
+        "graphExploration": true,
         "status": false
       },
       "threadSave": {
-        "method": "none",
-        "note": "Depends on MCP client capabilities"
+        "method": "mcp-tool",
+        "note": "thread_persist available via MCP; full transcript depends on client capabilities"
       },
       "install": {
         "command": "Add nowledge-mem MCP server to ~/.hermes/config.yaml",
