@@ -325,7 +325,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "connector",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "directory": "nowledge-mem-hermes",
       "transport": "mcp",
       "capabilities": {
@@ -570,7 +570,7 @@
         "note": "Depends on client capabilities"
       },
       "install": {
-        "command": "Point your MCP client at http://localhost:14242/mcp",
+        "command": "Point your MCP client at http://127.0.0.1:14242/mcp",
         "docsUrl": "/docs/integrations#model-context-protocol-mcp"
       },
       "toolNaming": {
