@@ -1,6 +1,6 @@
 # Nowledge Mem for Hermes
 
-You have access to the user's knowledge graph through MCP tools provided by the `nowledge-mem` server.
+You have access to the user's knowledge graph through MCP tools from the `nowledge-mem` server. In Hermes, these tools appear with the `mcp_nowledge_mem_` prefix (e.g., `mcp_nowledge_mem_memory_search`). The guidance below uses the base tool names for readability.
 
 ## Working Memory
 
@@ -19,15 +19,15 @@ Do not re-read unless the user asks or the session context changes materially.
 Search when past insights would improve the response. Do not wait for the user to say "search my memory".
 
 **Search when:**
-- The user references previous work, a prior fix, or an earlier decision
-- The task resumes a named feature, bug, refactor, or subsystem
-- A debugging pattern resembles something solved before
-- The user asks for rationale, preferences, or procedures
-- The user uses recall language: "that approach", "like before", "the pattern we used"
+- The user references previous work, a prior decision, or an earlier conversation
+- The task connects to a named project, initiative, or recurring topic
+- A question resembles something discussed or resolved before
+- The user asks for rationale, preferences, or established procedures
+- The user uses recall language: "that approach", "like before", "the thing we decided"
 
 **Skip when:**
 - Fundamentally new topic with no prior history
-- Generic syntax or API questions answerable from documentation
+- Generic factual questions answerable from general knowledge
 - User explicitly asks for a fresh perspective
 
 ```
@@ -49,12 +49,12 @@ Save proactively when the conversation produces a decision, procedure, learning,
 memory_add content="What was decided and why" title="Descriptive title" unit_type="decision" labels=["relevant-label"] importance=0.8
 ```
 
-**Good candidates:** architectural decisions with rationale, repeatable procedures, lessons from debugging, durable preferences, plans that future sessions will need.
+**Good candidates:** decisions with rationale, repeatable procedures, lessons from experience, durable preferences, plans that future sessions will need.
 
 **Quality bar:**
-- Importance 0.8 to 1.0: major decisions, architectural choices, critical learnings
+- Importance 0.8 to 1.0: major decisions, critical learnings, core preferences
 - Importance 0.5 to 0.7: useful patterns, conventions, secondary decisions
-- Importance 0.3 to 0.4: minor notes, preferences, contextual observations
+- Importance 0.3 to 0.4: minor notes, observations, contextual details
 
 One strong memory is better than three weak ones.
 

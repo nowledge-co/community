@@ -35,7 +35,7 @@ Start a new Hermes session and ask:
 
 > Search my memories for recent decisions.
 
-Hermes should call `memory_search` and return results from your knowledge graph. If Mem is not running, you will see a connection error.
+Hermes should call `mcp_nowledge_mem_memory_search` and return results from your knowledge graph. If Mem is not running, you will see a connection error.
 
 ## Update
 
@@ -43,7 +43,7 @@ The MCP server runs inside Nowledge Mem. When you update the desktop app, all MC
 
 ## MCP tools
 
-These tools are available to Hermes once the MCP server is connected:
+These tools are available to Hermes once the MCP server is connected. Hermes prefixes them as `mcp_nowledge_mem_<tool>` (see [Hermes MCP naming convention](https://hermes-agent.ai/docs/user-guide/features/overview)):
 
 | Tool | Purpose |
 |------|---------|
@@ -59,15 +59,41 @@ These tools are available to Hermes once the MCP server is connected:
 
 Additional tools for graph exploration, source analysis, and knowledge processing are available depending on your server configuration.
 
-## Behavioral guidance (optional)
+## Behavioral guidance
 
-For stronger memory behavior in a specific project, copy the included `AGENTS.md` into your project root as `AGENTS.md` or `HERMES.md`. Hermes reads these files for project-level context.
+Hermes discovers `.hermes.md` and `HERMES.md` files by walking from the working directory upward. This means you can place guidance at two levels:
+
+### Global (all sessions)
+
+Create `~/HERMES.md` (or `~/.hermes.md`). When Hermes runs outside a git repository, it walks all the way to `~`, so this file provides memory behavior guidance for every session: research, writing, planning, coding, anything.
+
+Append the contents of the included `AGENTS.md` to your `~/HERMES.md`:
 
 ```bash
-cp AGENTS.md /path/to/your/project/HERMES.md
+cat AGENTS.md >> ~/HERMES.md
 ```
 
-This tells Hermes when to search, when to save, and how to use Working Memory. Without it, the MCP tools still work, but Hermes relies on its own judgment for when to call them.
+If you don't have a `~/HERMES.md` yet, you can use ours as a starting point:
+
+```bash
+cp AGENTS.md ~/HERMES.md
+```
+
+### Project-level (specific projects)
+
+For project-specific guidance, append the contents to your existing project context file. Do not overwrite it, as your project instructions are valuable:
+
+```bash
+cat AGENTS.md >> /path/to/your/project/HERMES.md
+```
+
+Or if the project uses `AGENTS.md`:
+
+```bash
+cat AGENTS.md >> /path/to/your/project/AGENTS.md
+```
+
+Without behavioral guidance, the MCP tools still work, but Hermes relies on its own judgment for when to call them.
 
 ## Remote access
 
