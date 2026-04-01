@@ -52,7 +52,7 @@ Add to your tool's MCP settings:
 {
   "mcpServers": {
     "nowledge-mem": {
-      "url": "http://localhost:14242/mcp",
+      "url": "http://127.0.0.1:14242/mcp",
       "type": "streamableHttp"
     }
   }
