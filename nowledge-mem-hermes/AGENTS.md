@@ -1,6 +1,8 @@
 # Nowledge Mem for Hermes
 
-You have access to the user's knowledge graph through MCP tools from the `nowledge-mem` server. In Hermes, these tools appear with the `mcp_nowledge_mem_` prefix (e.g., `mcp_nowledge_mem_memory_search`). The guidance below uses the base tool names for readability.
+You have access to the user's cross-tool knowledge graph through MCP tools from the `nowledge-mem` server. In Hermes, these tools appear with the `mcp_nowledge_mem_` prefix (e.g., `mcp_nowledge_mem_memory_search`). The guidance below uses the base tool names for readability.
+
+**Nowledge Mem vs Hermes built-in memory:** Hermes' built-in memory stores Hermes-specific facts (env details, tool quirks). Nowledge Mem stores cross-tool knowledge: decisions, procedures, and learnings that future sessions in any tool should know about. Use both. When in doubt about where to save, ask: "Would this matter in a Claude Code, Cursor, or Codex session?" If yes, save to Nowledge Mem.
 
 ## Working Memory
 
@@ -76,6 +78,8 @@ Save the current conversation when the user asks:
 ```
 thread_persist summary="Brief description of what was discussed"
 ```
+
+Be transparent: `thread_persist` creates a structured save based on Hermes' session context. The completeness of the captured transcript depends on what Hermes passes to MCP. This is not guaranteed to be a verbatim record of every message.
 
 Browse past conversations to recover context:
 

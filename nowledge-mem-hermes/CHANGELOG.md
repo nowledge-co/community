@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0] - 2026-04-01
+
+### Added
+
+- Setup script (`setup.sh`) that safely creates or appends behavioral guidance to `~/HERMES.md`.
+- "Hermes memory vs Nowledge Mem" section in README explaining when to use each system.
+- "Recalls but never saves" troubleshooting entry with fix.
+
+### Changed
+
+- Behavioral guidance setup is now documented as a **required** step, not optional. This is the most common setup issue: without `~/HERMES.md`, Hermes has tools but no instruction on when to use them proactively.
+- AGENTS.md now explicitly addresses the dual-memory-system question: Hermes built-in memory for tool-specific facts, Nowledge Mem for cross-tool knowledge.
+- `thread_persist` guidance now includes transparency note about transcript completeness.
+
 ## [0.2.0] - 2026-04-01
 
 ### Changed

@@ -325,7 +325,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "connector",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "directory": "nowledge-mem-hermes",
       "transport": "mcp",
       "capabilities": {
@@ -349,6 +349,40 @@
       "toolNaming": {
         "convention": "mcp-backend",
         "note": "MCP tools defined by backend (memory_search, memory_add, etc.)"
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.2.0",
+      "directory": "nowledge-mem-opencode-plugin",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "handoff-only",
+        "note": "OpenCode does not have a native transcript importer; save-handoff creates a structured summary"
+      },
+      "install": {
+        "command": "Add \"opencode-nowledge-mem\" to plugin array in opencode.json",
+        "detectionHint": "Running as OpenCode agent; ~/.config/opencode/ or .opencode/ exists",
+        "docsUrl": "/docs/integrations/opencode"
+      },
+      "toolNaming": {
+        "convention": "canonical",
+        "prefix": "nowledge_mem_",
+        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode-ai/plugin"
       },
       "skills": [],
       "slashCommands": []

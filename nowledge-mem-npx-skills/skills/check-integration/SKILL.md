@@ -44,6 +44,7 @@ The canonical source for this table is `community/integrations.json`.
 | **Codex CLI** | Running as Codex CLI agent; `~/.codex/` exists | Copy `nowledge-mem-codex-plugin` to `~/.codex/plugins/nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/codex-cli) |
 | **Bub** | Running inside Bub | `pip install nowledge-mem-bub` | [Guide](https://mem.nowledge.co/docs/integrations/bub) |
 | **Pi** | Running as Pi agent; `~/.pi/` exists | `pi install npm:nowledge-mem-pi` | [Guide](https://mem.nowledge.co/docs/integrations/pi) |
+| **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | Add `"opencode-nowledge-mem"` to `opencode.json` plugin array | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
 | **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Add MCP server to `~/.hermes/config.yaml` | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
 
 If the agent is not listed above, the npx skills you already have are the best option. They work everywhere via the `nmem` CLI.

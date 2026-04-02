@@ -38,6 +38,7 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with Working Memory, thread-aware recall, structured saves, and optional auto-capture. |
 | **[Bub Plugin](nowledge-mem-bub-plugin)** | `pip install nowledge-mem-bub` | Bub-native plugin: cross-tool knowledge, auto-capture via save_state, Working Memory, and graph exploration. |
 | **[Pi Package](nowledge-mem-pi-package)** | `pi install npm:nowledge-mem-pi` | Five composable skills for Working Memory, routed recall, distillation, and resumable handoffs in Pi. |
+| **[OpenCode Plugin](nowledge-mem-opencode-plugin)** | Add `"opencode-nowledge-mem"` to `opencode.json` plugins | Native OpenCode plugin with seven tools for Working Memory, search, save, update, thread search, handoff, and status. |
 | **[Hermes Agent](nowledge-mem-hermes)** | Add MCP server to `~/.hermes/config.yaml` | Cross-tool knowledge in Hermes via MCP: search, save, Working Memory, and thread history. |
 | **[Raycast Extension](nowledge-mem-raycast)** | Search Nowledge in Raycast Extension Store | Search memories from Raycast launcher. |
 | **[Claude Desktop](https://github.com/nowledge-co/claude-dxt)** | Download from [nowled.ge/claude-dxt](https://nowled.ge/claude-dxt), double-click `.mcpb` file | One-click extension for Claude Desktop with memory search, save, and update. |
