@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0] - 2026-04-02
+
+### Added
+
+- `nowledge_mem_save_thread` tool: captures the full session via OpenCode's SDK client and posts to Nowledge Mem's thread API over HTTP. Idempotent (create-or-append with deduplication). Handles large sessions without shell argument limits.
+- HTTP transport layer (`nmemApi`) for thread operations alongside existing CLI transport for memory operations.
+- Message extraction from OpenCode's SDK format (TextPart, ToolPart, ReasoningPart) to Nowledge Mem's thread message format with external IDs for deduplication.
+
+### Changed
+
+- `save_handoff` source changed from `generic-agent` to `opencode`.
+- Session capture documentation rewritten to describe three-layer capture: background auto-sync, plugin full capture, and plugin proactive save.
+- Behavioral guidance updated with `save_thread` usage instructions.
+
 ## [0.2.0] - 2026-04-02
 
 ### Added

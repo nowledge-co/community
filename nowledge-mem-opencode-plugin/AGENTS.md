@@ -37,9 +37,13 @@ Use `nowledge_mem_save` with clear titles and appropriate importance scores:
 
 Search first to avoid duplicates. If an existing memory already captures the same concept and the new information refines it, use `nowledge_mem_update` instead.
 
-## Session Handoff
+## Saving Sessions
 
-When the user asks to save progress or wrap up, use `nowledge_mem_save_handoff` with a structured summary: goal, decisions, files touched, open questions, and next steps.
+Two tools for saving conversations:
+
+**`nowledge_mem_save_thread`** captures the full message history from the current OpenCode session. It reads the conversation directly from OpenCode's SDK, formats it, and sends it to Nowledge Mem via HTTP. Idempotent: calling it multiple times will not create duplicates. Use this at natural stopping points or when the user asks to save the session.
+
+**`nowledge_mem_save_handoff`** creates a curated summary you compose yourself: goal, decisions, files touched, open questions, next steps. Lighter and faster than a full transcript. Use this for a quick wrap-up when the full conversation is not needed.
 
 ## Long Sessions
 

@@ -20,12 +20,19 @@ Save proactively when the conversation produces a decision, preference, plan, pr
 **When to search threads (\`nowledge_mem_thread_search\`):**
 - The user asks about a prior conversation or exact session history
 - A memory result references a source thread
+
+**When to save the session (\`nowledge_mem_save_thread\`):**
+- The user asks to save the conversation or "remember this session"
+- A long productive session is wrapping up
+- The conversation produced decisions or context worth preserving as a full thread
 `
 
 export default {
   id: "nowledge-mem",
   server: async (input) => {
-    const { $ } = input
+    const { $, client } = input
+
+    // --- CLI transport (for memory operations) ---
 
     async function nmem(args: string): Promise<string> {
       try {
@@ -40,6 +47,60 @@ export default {
         }
         return JSON.stringify({ error: stderr || String(err) })
       }
+    }
+
+    // --- HTTP transport (for thread operations with large payloads) ---
+
+    const apiUrl = process.env.NMEM_API_URL || "http://127.0.0.1:14242"
+    const apiKey = process.env.NMEM_API_KEY
+
+    async function nmemApi(
+      path: string,
+      body: unknown,
+    ): Promise<{ ok: boolean; status: number; data: any }> {
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`
+      const res = await fetch(`${apiUrl}${path}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => null)
+      return { ok: res.ok, status: res.status, data }
+    }
+
+    // --- Transform OpenCode SDK messages to Nowledge Mem thread format ---
+
+    function extractMessageContent(parts: any[]): string {
+      const segments: string[] = []
+
+      for (const part of parts) {
+        if (part.type === "text" && (part.content || part.text)) {
+          segments.push(part.content ?? part.text)
+        } else if (part.type === "tool") {
+          const name = part.tool ?? part.name ?? "unknown"
+          const status = part.state === "error" ? " (failed)" : ""
+          segments.push(`[Tool call: ${name}${status}]`)
+        } else if (part.type === "reasoning" && (part.content || part.text)) {
+          // Include reasoning for completeness but mark it
+          segments.push(`<thinking>\n${part.content ?? part.text}\n</thinking>`)
+        }
+      }
+
+      return segments.join("\n") || "(empty message)"
+    }
+
+    function toThreadMessages(sdkMessages: any[]): any[] {
+      return sdkMessages.map(({ info, parts }: any) => ({
+        content: extractMessageContent(parts ?? []),
+        role: info.role === "user" ? "user" : "assistant",
+        timestamp: new Date(info.time?.created ?? Date.now()).toISOString(),
+        metadata: {
+          external_id: `opencode-msg-${info.id}`,
+          ...(info.agent ? { agent: info.agent } : {}),
+          ...(info.role === "assistant" && info.modelID ? { model: info.modelID } : {}),
+        },
+      }))
     }
 
     return {
@@ -179,9 +240,74 @@ export default {
           },
         }),
 
+        nowledge_mem_save_thread: tool({
+          description:
+            "Save the current OpenCode session as a full conversation thread in Nowledge Mem. Extracts the complete message history so any tool can find and read this conversation later. Idempotent: safe to call multiple times. Use at natural stopping points or when the user asks to save the session.",
+          args: {
+            summary: tool.schema
+              .string()
+              .optional()
+              .describe("Brief description of what was discussed (used as thread title)"),
+          },
+          async execute(args, ctx) {
+            try {
+              // Fetch full session messages via OpenCode SDK
+              const sdkMessages = await (client as any).session.messages({
+                sessionID: ctx.sessionID,
+              })
+
+              if (!sdkMessages || sdkMessages.length === 0) {
+                return JSON.stringify({ error: "No messages found in current session" })
+              }
+
+              const threadMessages = toThreadMessages(sdkMessages)
+              const threadId = `opencode-${ctx.sessionID}`
+              const title =
+                args.summary ||
+                threadMessages[0]?.content?.slice(0, 120) ||
+                "OpenCode Session"
+
+              // Try create; if thread exists, append with deduplication
+              let res = await nmemApi("/threads", {
+                thread_id: threadId,
+                title,
+                messages: threadMessages,
+                source: "opencode",
+                project: ctx.directory,
+                metadata: { opencode_session_id: ctx.sessionID },
+              })
+
+              if (res.status === 409) {
+                res = await nmemApi(
+                  `/threads/${encodeURIComponent(threadId)}/append`,
+                  { messages: threadMessages, deduplicate: true },
+                )
+              }
+
+              if (!res.ok) {
+                return JSON.stringify({
+                  error: `Thread save failed (${res.status}): ${JSON.stringify(res.data)}`,
+                })
+              }
+
+              return JSON.stringify({
+                success: true,
+                thread_id: threadId,
+                messages_saved: threadMessages.length,
+                title,
+              })
+            } catch (err: any) {
+              // Fall back to handoff-style save if SDK access fails
+              return JSON.stringify({
+                error: `Session capture failed: ${err.message}. Use nowledge_mem_save_handoff for a curated summary instead.`,
+              })
+            }
+          },
+        }),
+
         nowledge_mem_save_handoff: tool({
           description:
-            "Save a resumable handoff summary of the current session. Creates a structured thread that any future session in any tool can pick up from. Use when the user asks to save progress or wrap up.",
+            "Save a curated handoff summary of the current session. Creates a structured thread that any future session in any tool can pick up from. Lighter than save_thread: use this for a quick summary when you do not need the full transcript.",
           args: {
             topic: tool.schema
               .string()
@@ -194,7 +320,7 @@ export default {
           },
           async execute(args, _ctx) {
             const title = `Session Handoff - ${args.topic}`
-            const cmd = `t create -t "${title.replace(/"/g, '\\"')}" -c "${args.summary.replace(/"/g, '\\"')}" -s generic-agent`
+            const cmd = `t create -t "${title.replace(/"/g, '\\"')}" -c "${args.summary.replace(/"/g, '\\"')}" -s opencode`
             return await nmem(cmd)
           },
         }),

@@ -358,9 +358,9 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "directory": "nowledge-mem-opencode-plugin",
-      "transport": "cli",
+      "transport": "cli+http",
       "capabilities": {
         "workingMemory": true,
         "search": true,
@@ -371,8 +371,8 @@
         "status": true
       },
       "threadSave": {
-        "method": "handoff-only",
-        "note": "OpenCode does not have a native transcript importer; save-handoff creates a structured summary"
+        "method": "sdk-extract",
+        "note": "save_thread reads session messages via OpenCode SDK and posts to Nowledge Mem thread API over HTTP; save_handoff available as lighter alternative"
       },
       "install": {
         "command": "Add \"opencode-nowledge-mem\" to plugin array in opencode.json",

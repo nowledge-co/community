@@ -69,18 +69,21 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 | `nowledge_mem_save` | Save a decision, insight, or preference so any tool can find it. |
 | `nowledge_mem_update` | Update an existing memory with refined information. |
 | `nowledge_mem_thread_search` | Search past conversations from any tool. |
-| `nowledge_mem_save_handoff` | Save a resumable session handoff summary. |
+| `nowledge_mem_save_thread` | Save the current session as a full conversation thread (SDK extraction + HTTP). |
+| `nowledge_mem_save_handoff` | Save a curated handoff summary (lighter, agent-composed). |
 | `nowledge_mem_status` | Check Nowledge Mem server connectivity and diagnostics. |
 
 ## How session capture works
 
-Nowledge Mem captures OpenCode sessions in two complementary ways:
+Nowledge Mem captures OpenCode sessions in three complementary ways:
 
-1. **Background auto-sync (local mode).** The desktop app periodically polls OpenCode's session database and imports conversations based on your sync policy. This happens automatically once you enable OpenCode in **Settings > Thread Sync**. No plugin needed for this part.
+1. **Background auto-sync (local mode).** The desktop app periodically polls OpenCode's session database and imports conversations based on your sync policy. Enable OpenCode in **Settings > Thread Sync**. No plugin needed for this part.
 
-2. **Plugin-driven proactive save.** The plugin teaches OpenCode to save decisions, insights, and procedures as they happen via `nowledge_mem_save`, and to create structured handoffs via `nowledge_mem_save_handoff`. This captures the *meaning* of a conversation, not just the transcript.
+2. **Plugin full session capture.** `nowledge_mem_save_thread` reads the current session's messages via OpenCode's SDK and posts them to Nowledge Mem's thread API. Idempotent (safe to call multiple times) and handles large sessions via HTTP, not shell arguments. Works in both local and remote mode.
 
-**Remote mode limitation:** Background auto-sync reads OpenCode's local SQLite database directly, so it only works when Nowledge Mem and OpenCode run on the same machine. In remote mode, use the plugin's save tools or `nmem t save` from the client machine.
+3. **Plugin proactive knowledge save.** `nowledge_mem_save` captures individual decisions and insights as they happen. `nowledge_mem_save_handoff` creates a curated summary at wrap-up.
+
+**Remote mode note:** Background auto-sync (1) reads OpenCode's local SQLite database, so it only works when both tools run on the same machine. The plugin tools (2, 3) work in both local and remote mode.
 
 ## Hooks
 
