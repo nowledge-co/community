@@ -60,13 +60,25 @@ export default {
     ): Promise<{ ok: boolean; status: number; data: any }> {
       const headers: Record<string, string> = { "Content-Type": "application/json" }
       if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`
-      const res = await fetch(`${apiUrl}${path}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      })
-      const data = await res.json().catch(() => null)
-      return { ok: res.ok, status: res.status, data }
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 30_000)
+      try {
+        const res = await fetch(`${apiUrl}${path}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        })
+        const data = await res.json().catch(() => null)
+        return { ok: res.ok, status: res.status, data }
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          return { ok: false, status: 504, data: { error: "Request timed out after 30s" } }
+        }
+        return { ok: false, status: 0, data: { error: err.message } }
+      } finally {
+        clearTimeout(timeout)
+      }
     }
 
     // --- Transform OpenCode SDK messages to Nowledge Mem thread format ---
@@ -75,15 +87,29 @@ export default {
       const segments: string[] = []
 
       for (const part of parts) {
-        if (part.type === "text" && (part.content || part.text)) {
-          segments.push(part.content ?? part.text)
-        } else if (part.type === "tool") {
-          const name = part.tool ?? part.name ?? "unknown"
-          const status = part.state === "error" ? " (failed)" : ""
-          segments.push(`[Tool call: ${name}${status}]`)
-        } else if (part.type === "reasoning" && (part.content || part.text)) {
-          // Include reasoning for completeness but mark it
-          segments.push(`<thinking>\n${part.content ?? part.text}\n</thinking>`)
+        switch (part.type) {
+          case "text":
+            if (part.content || part.text) segments.push(part.content ?? part.text)
+            break
+          case "tool": {
+            const name = part.tool ?? part.name ?? "unknown"
+            const status = part.state === "error" ? " (failed)" : ""
+            segments.push(`[Tool: ${name}${status}]`)
+            break
+          }
+          case "reasoning":
+            if (part.content || part.text) {
+              segments.push(`<thinking>\n${part.content ?? part.text}\n</thinking>`)
+            }
+            break
+          case "file":
+            segments.push(`[File: ${part.filename ?? part.path ?? "attachment"}]`)
+            break
+          case "patch":
+            segments.push(`[Patch: ${part.path ?? "file change"}]`)
+            break
+          // step-start, step-finish, snapshot, compaction, retry, agent, subtask
+          // are structural markers, not user-visible content; skip them
         }
       }
 
@@ -250,9 +276,15 @@ export default {
               .describe("Brief description of what was discussed (used as thread title)"),
           },
           async execute(args, ctx) {
+            if (!ctx.sessionID) {
+              return JSON.stringify({
+                error: "No session ID available. Use nowledge_mem_save_handoff instead.",
+              })
+            }
+
             try {
               // Fetch full session messages via OpenCode SDK
-              const sdkMessages = await (client as any).session.messages({
+              const sdkMessages = await client.session.messages({
                 sessionID: ctx.sessionID,
               })
 
@@ -261,13 +293,15 @@ export default {
               }
 
               const threadMessages = toThreadMessages(sdkMessages)
-              const threadId = `opencode-${ctx.sessionID}`
+              // Match import service convention: lowercase for dedup consistency
+              const threadId = `opencode-${ctx.sessionID}`.toLowerCase()
               const title =
                 args.summary ||
                 threadMessages[0]?.content?.slice(0, 120) ||
                 "OpenCode Session"
 
-              // Try create; if thread exists, append with deduplication
+              // Try create first; if it fails (thread may already exist from
+              // auto-sync or a previous save), fall back to append with dedup
               let res = await nmemApi("/threads", {
                 thread_id: threadId,
                 title,
@@ -277,7 +311,7 @@ export default {
                 metadata: { opencode_session_id: ctx.sessionID },
               })
 
-              if (res.status === 409) {
+              if (!res.ok) {
                 res = await nmemApi(
                   `/threads/${encodeURIComponent(threadId)}/append`,
                   { messages: threadMessages, deduplicate: true },
@@ -297,7 +331,6 @@ export default {
                 title,
               })
             } catch (err: any) {
-              // Fall back to handoff-style save if SDK access fails
               return JSON.stringify({
                 error: `Session capture failed: ${err.message}. Use nowledge_mem_save_handoff for a curated summary instead.`,
               })
