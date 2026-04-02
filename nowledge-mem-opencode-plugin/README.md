@@ -74,11 +74,13 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ## How session capture works
 
-Some integrations (like Claude Code) auto-capture every session in the background because they write conversation files to disk that the desktop app can watch. OpenCode stores sessions in its own database, so background auto-capture is not available.
+Nowledge Mem captures OpenCode sessions in two complementary ways:
 
-Instead, the plugin teaches OpenCode to **save knowledge proactively during the conversation**: decisions, insights, and procedures are saved as they happen via `nowledge_mem_save`. When you wrap up, use `nowledge_mem_save_handoff` for a structured summary any future session can pick up from.
+1. **Background auto-sync (local mode).** The desktop app periodically polls OpenCode's session database and imports conversations based on your sync policy. This happens automatically once you enable OpenCode in **Settings > Thread Sync**. No plugin needed for this part.
 
-In practice, this means your important knowledge is captured as it emerges, not reconstructed after the fact.
+2. **Plugin-driven proactive save.** The plugin teaches OpenCode to save decisions, insights, and procedures as they happen via `nowledge_mem_save`, and to create structured handoffs via `nowledge_mem_save_handoff`. This captures the *meaning* of a conversation, not just the transcript.
+
+**Remote mode limitation:** Background auto-sync reads OpenCode's local SQLite database directly, so it only works when Nowledge Mem and OpenCode run on the same machine. In remote mode, use the plugin's save tools or `nmem t save` from the client machine.
 
 ## Hooks
 
