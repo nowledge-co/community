@@ -16,9 +16,21 @@ Hermes has its own memory and learning system. Nowledge Mem complements it with 
 1. **Nowledge Mem desktop app** running (or the server accessible on port 14242)
 2. **Hermes Agent** installed and configured
 
-## Setup
+## Quick setup (one command)
 
-Two steps: connect the MCP server, then teach Hermes when to use it.
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)
+```
+
+This configures the MCP server and installs behavioral guidance. Safe to run multiple times. Restart Hermes after running.
+
+If you have the repo cloned, run directly:
+
+```bash
+cd community/nowledge-mem-hermes && ./setup.sh
+```
+
+## Manual setup
 
 ### Step 1: MCP server
 
@@ -33,39 +45,27 @@ mcp_servers:
 
 ### Step 2: Behavioral guidance (required)
 
-Without this step, Hermes sees the tools but does not know when to save knowledge proactively. Run:
+Without this step, Hermes sees the tools but does not know when to save knowledge proactively.
+
+Append the guidance to `~/.hermes/SOUL.md` (Hermes loads this file on every session):
 
 ```bash
-# If you already have a ~/HERMES.md, append:
-cat AGENTS.md >> ~/HERMES.md
-
-# If you don't have one yet:
-cp AGENTS.md ~/HERMES.md
-```
-
-Or use the setup script, which handles both steps safely:
-
-```bash
-./setup.sh
+curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/AGENTS.md >> ~/.hermes/SOUL.md
 ```
 
 Restart Hermes after both steps.
 
-> **Why is this required?** Hermes discovers behavioral guidance from `HERMES.md` files, not from MCP tool descriptions alone. Without the guidance, Hermes can recall memories when asked, but will not proactively save decisions, search for context, or load your Working Memory briefing at session start. This is the most common setup issue.
+> **Why SOUL.md?** Hermes discovers `HERMES.md` by walking from the current directory to the git repository root. If you place guidance at `~/HERMES.md`, it is not found when working inside any git repository. `~/.hermes/SOUL.md` is the only file Hermes loads on every session regardless of working directory.
 
-### Project-level guidance
+### Project-level alternative
 
-For project-specific guidance, append the contents to your existing project context file:
-
-```bash
-cat AGENTS.md >> /path/to/your/project/HERMES.md
-```
-
-Or if the project uses `AGENTS.md`:
+For project-specific guidance that overrides or supplements the global file, add to your project's git root:
 
 ```bash
-cat AGENTS.md >> /path/to/your/project/AGENTS.md
+curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/AGENTS.md >> HERMES.md
 ```
+
+Hermes walks from the current directory to the git root looking for `HERMES.md` or `.hermes.md`. Project-level guidance is loaded in addition to SOUL.md.
 
 ## Verify
 
@@ -125,7 +125,7 @@ Ensure the remote server has API access enabled. See [Remote Access](https://mem
 
 - **"Cannot connect to MCP server"**: Verify the Nowledge Mem desktop app is running and the server is listening on port 14242. Check with `curl http://127.0.0.1:14242/health`.
 - **Tools not appearing**: Restart Hermes after editing `config.yaml`. Confirm the `mcp_servers` block is properly indented.
-- **Hermes recalls but never saves**: Step 2 (behavioral guidance) is missing. Run `cat AGENTS.md >> ~/HERMES.md` and restart Hermes.
+- **Hermes recalls but never saves**: Behavioral guidance is missing from `~/.hermes/SOUL.md`. Run `bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)` and restart. Note: `~/HERMES.md` is not found inside git repositories; use SOUL.md or a project-level HERMES.md.
 - **Slow responses**: The default timeout of 120 seconds covers deep search. If searches consistently time out, check server performance or network latency for remote setups.
 - **No results from search**: Nowledge Mem may be empty. Add a few memories first through the desktop app or another integration, then try again.
 

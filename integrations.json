@@ -325,7 +325,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "connector",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "directory": "nowledge-mem-hermes",
       "transport": "mcp",
       "capabilities": {
