@@ -88,20 +88,22 @@ export default {
 
       for (const part of parts) {
         switch (part.type) {
-          case "text":
-            if (part.content || part.text) segments.push(part.content ?? part.text)
+          case "text": {
+            const text = part.content || part.text
+            if (text) segments.push(text)
             break
+          }
           case "tool": {
             const name = part.tool ?? part.name ?? "unknown"
             const status = part.state === "error" ? " (failed)" : ""
             segments.push(`[Tool: ${name}${status}]`)
             break
           }
-          case "reasoning":
-            if (part.content || part.text) {
-              segments.push(`<thinking>\n${part.content ?? part.text}\n</thinking>`)
-            }
+          case "reasoning": {
+            const reasoning = part.content || part.text
+            if (reasoning) segments.push(`<thinking>\n${reasoning}\n</thinking>`)
             break
+          }
           case "file":
             segments.push(`[File: ${part.filename ?? part.path ?? "attachment"}]`)
             break
@@ -116,17 +118,27 @@ export default {
       return segments.join("\n") || "(empty message)"
     }
 
+    function safeTimestamp(raw: unknown): string {
+      try {
+        const d = new Date(raw as any)
+        if (!isNaN(d.getTime())) return d.toISOString()
+      } catch { /* fall through */ }
+      return new Date().toISOString()
+    }
+
     function toThreadMessages(sdkMessages: any[]): any[] {
-      return sdkMessages.map(({ info, parts }: any) => ({
-        content: extractMessageContent(parts ?? []),
-        role: info.role === "user" ? "user" : "assistant",
-        timestamp: new Date(info.time?.created ?? Date.now()).toISOString(),
-        metadata: {
-          external_id: `opencode-msg-${info.id}`,
-          ...(info.agent ? { agent: info.agent } : {}),
-          ...(info.role === "assistant" && info.modelID ? { model: info.modelID } : {}),
-        },
-      }))
+      return sdkMessages
+        .filter((m: any) => m?.info)
+        .map(({ info, parts }: any) => ({
+          content: extractMessageContent(parts ?? []),
+          role: info.role === "user" ? "user" : "assistant",
+          timestamp: safeTimestamp(info.time?.created ?? Date.now()),
+          metadata: {
+            external_id: `opencode-msg-${info.id}`,
+            ...(info.agent ? { agent: info.agent } : {}),
+            ...(info.role === "assistant" && info.modelID ? { model: info.modelID } : {}),
+          },
+        }))
     }
 
     return {

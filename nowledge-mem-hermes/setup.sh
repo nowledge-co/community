@@ -16,29 +16,32 @@ AGENTS_URL="https://raw.githubusercontent.com/nowledge-co/community/main/nowledg
 
 mkdir -p "$HERMES_HOME"
 
+MCP_OK=false
+GUIDANCE_OK=false
+
 # --- Step 1: MCP server config ---
 
 if [ -f "$CONFIG" ] && grep -qF "nowledge-mem" "$CONFIG"; then
   echo "[ok] MCP server already in $CONFIG"
-else
-  if [ ! -f "$CONFIG" ]; then
-    cat > "$CONFIG" << 'YAML'
+  MCP_OK=true
+elif [ ! -f "$CONFIG" ]; then
+  cat > "$CONFIG" << 'YAML'
 mcp_servers:
   nowledge-mem:
     url: "http://127.0.0.1:14242/mcp"
     timeout: 120
 YAML
-    echo "[ok] Created $CONFIG with Nowledge Mem MCP server"
-  else
-    echo ""
-    echo "[action needed] Add the MCP server to $CONFIG:"
-    echo ""
-    echo "  mcp_servers:"
-    echo "    nowledge-mem:"
-    echo '      url: "http://127.0.0.1:14242/mcp"'
-    echo "      timeout: 120"
-    echo ""
-  fi
+  echo "[ok] Created $CONFIG with Nowledge Mem MCP server"
+  MCP_OK=true
+else
+  echo ""
+  echo "[action needed] $CONFIG exists but does not contain nowledge-mem."
+  echo "Add the following under your existing mcp_servers: block:"
+  echo ""
+  echo "    nowledge-mem:"
+  echo '      url: "http://127.0.0.1:14242/mcp"'
+  echo "      timeout: 120"
+  echo ""
 fi
 
 # --- Step 2: Behavioral guidance ---
@@ -50,9 +53,14 @@ fi
 
 if [ -f "$SOUL_MD" ] && grep -qF "$MARKER" "$SOUL_MD"; then
   echo "[ok] Behavioral guidance already in $SOUL_MD"
+  GUIDANCE_OK=true
 else
   # Prefer local AGENTS.md (for repo-cloned users); fall back to GitHub
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" 2>/dev/null)" 2>/dev/null && pwd 2>/dev/null)" || SCRIPT_DIR=""
+  SCRIPT_DIR=""
+  if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != /dev/* && "${BASH_SOURCE[0]}" != /proc/* ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || SCRIPT_DIR=""
+  fi
+
   GUIDANCE=""
   if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/AGENTS.md" ]; then
     GUIDANCE="$(cat "$SCRIPT_DIR/AGENTS.md")"
@@ -61,8 +69,15 @@ else
   fi
 
   if [ -z "$GUIDANCE" ]; then
-    echo "[error] Could not download guidance. Add manually:"
-    echo "  curl -sL $AGENTS_URL >> $SOUL_MD"
+    echo "[error] Could not download guidance. Check your network and try again."
+    echo "  Manual alternative: curl -sL $AGENTS_URL >> $SOUL_MD"
+    exit 1
+  fi
+
+  # Validate that we got the expected content, not an error page
+  if ! printf '%s' "$GUIDANCE" | grep -qF "$MARKER"; then
+    echo "[error] Downloaded content does not look like Nowledge Mem guidance."
+    echo "  Manual alternative: curl -sL $AGENTS_URL >> $SOUL_MD"
     exit 1
   fi
 
@@ -70,14 +85,21 @@ else
     printf '\n\n---\n\n%s\n' "$GUIDANCE" >> "$SOUL_MD"
     echo "[ok] Appended Nowledge Mem guidance to $SOUL_MD"
   else
-    echo "$GUIDANCE" > "$SOUL_MD"
+    printf '%s\n' "$GUIDANCE" > "$SOUL_MD"
     echo "[ok] Created $SOUL_MD with Nowledge Mem guidance"
   fi
+  GUIDANCE_OK=true
 fi
 
+# --- Summary ---
+
 echo ""
-echo "Restart Hermes, then test:"
-echo '  "Search my memories for recent decisions"'
-echo ""
-echo "If Hermes searches but never saves proactively, verify that"
-echo "$SOUL_MD contains the '# Nowledge Mem for Hermes' section."
+if $MCP_OK && $GUIDANCE_OK; then
+  echo "Setup complete. Restart Hermes, then test:"
+  echo '  "Search my memories for recent decisions"'
+elif $GUIDANCE_OK; then
+  echo "Behavioral guidance is ready, but MCP config needs manual setup (see above)."
+  echo "After adding the config, restart Hermes."
+else
+  echo "Setup incomplete. See errors above."
+fi
