@@ -382,7 +382,8 @@
       "toolNaming": {
         "convention": "canonical",
         "prefix": "nowledge_mem_",
-        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode-ai/plugin"
+        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode-ai/plugin",
+        "tools": ["nowledge_mem_working_memory", "nowledge_mem_search", "nowledge_mem_save", "nowledge_mem_update", "nowledge_mem_thread_search", "nowledge_mem_save_thread", "nowledge_mem_save_handoff", "nowledge_mem_status"]
       },
       "skills": [],
       "slashCommands": []

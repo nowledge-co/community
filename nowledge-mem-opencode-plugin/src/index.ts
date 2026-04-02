@@ -34,8 +34,10 @@ export default {
 
     // --- CLI transport (for memory operations) ---
 
-    async function nmem(args: string): Promise<string> {
+    async function nmem(args: string[]): Promise<string> {
       try {
+        // Bun's $ tagged template escapes each array element as a separate
+        // shell argument, so values containing spaces/quotes are safe.
         const result = await $`nmem --json ${args}`.text()
         return result.trim()
       } catch (err: any) {
@@ -148,7 +150,7 @@ export default {
             "Read today's Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Call this near the start of each session.",
           args: {},
           async execute(_args, _ctx) {
-            return await nmem("wm read")
+            return await nmem(["wm", "read"])
           },
         }),
 
@@ -175,10 +177,10 @@ export default {
               ),
           },
           async execute(args, _ctx) {
-            let cmd = `m search "${args.query.replace(/"/g, '\\"')}"`
-            if (args.limit) cmd += ` -n ${Math.min(20, Math.max(1, args.limit))}`
-            if (args.label) cmd += ` -l "${args.label.replace(/"/g, '\\"')}"`
-            if (args.mode === "deep") cmd += " --mode deep"
+            const cmd = ["m", "search", args.query]
+            if (args.limit) cmd.push("-n", String(Math.min(20, Math.max(1, args.limit))))
+            if (args.label) cmd.push("-l", args.label)
+            if (args.mode === "deep") cmd.push("--mode", "deep")
             return await nmem(cmd)
           },
         }),
@@ -218,14 +220,14 @@ export default {
               ),
           },
           async execute(args, _ctx) {
-            let cmd = `m add "${args.content.replace(/"/g, '\\"')}" -t "${args.title.replace(/"/g, '\\"')}"`
-            if (args.unit_type) cmd += ` --unit-type ${args.unit_type}`
+            const cmd = ["m", "add", args.content, "-t", args.title]
+            if (args.unit_type) cmd.push("--unit-type", args.unit_type)
             if (args.labels) {
-              for (const label of args.labels.split(",").map((l) => l.trim())) {
-                if (label) cmd += ` -l "${label.replace(/"/g, '\\"')}"`
+              for (const label of args.labels.split(",").map((l: string) => l.trim())) {
+                if (label) cmd.push("-l", label)
               }
             }
-            if (args.importance != null) cmd += ` -i ${args.importance}`
+            if (args.importance != null) cmd.push("-i", String(args.importance))
             return await nmem(cmd)
           },
         }),
@@ -251,10 +253,10 @@ export default {
               .describe("Updated importance score"),
           },
           async execute(args, _ctx) {
-            let cmd = `m update ${args.memory_id}`
-            if (args.content) cmd += ` -c "${args.content.replace(/"/g, '\\"')}"`
-            if (args.title) cmd += ` -t "${args.title.replace(/"/g, '\\"')}"`
-            if (args.importance != null) cmd += ` -i ${args.importance}`
+            const cmd = ["m", "update", args.memory_id]
+            if (args.content) cmd.push("-c", args.content)
+            if (args.title) cmd.push("-t", args.title)
+            if (args.importance != null) cmd.push("-i", String(args.importance))
             return await nmem(cmd)
           },
         }),
@@ -272,8 +274,8 @@ export default {
               .describe("Max results (default 5)"),
           },
           async execute(args, _ctx) {
-            let cmd = `t search "${args.query.replace(/"/g, '\\"')}"`
-            if (args.limit) cmd += ` --limit ${Math.min(20, Math.max(1, args.limit))}`
+            const cmd = ["t", "search", args.query]
+            if (args.limit) cmd.push("--limit", String(Math.min(20, Math.max(1, args.limit))))
             return await nmem(cmd)
           },
         }),
@@ -365,8 +367,7 @@ export default {
           },
           async execute(args, _ctx) {
             const title = `Session Handoff - ${args.topic}`
-            const cmd = `t create -t "${title.replace(/"/g, '\\"')}" -c "${args.summary.replace(/"/g, '\\"')}" -s opencode`
-            return await nmem(cmd)
+            return await nmem(["t", "create", "-t", title, "-c", args.summary, "-s", "opencode"])
           },
         }),
 
@@ -375,7 +376,7 @@ export default {
             "Check Nowledge Mem server connectivity and configuration. Use when memory tools fail or the user asks about setup.",
           args: {},
           async execute(_args, _ctx) {
-            return await nmem("status")
+            return await nmem(["status"])
           },
         }),
       },
