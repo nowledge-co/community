@@ -14,8 +14,10 @@ You have Nowledge Mem tools for cross-tool knowledge management. Use them proact
 - The user asks for rationale, preferences, procedures, or recurring workflow details
 - The user uses recall language: "that approach", "like before", "the pattern we used"
 
-**When to save (\`nowledge_mem_save\`):**
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked. Search first to avoid duplicates; update existing memories when the new information refines rather than replaces.
+**When to save or update:**
+Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked. Search first to check for related memories:
+- If a related memory exists, call \`nowledge_mem_update\` to refine it
+- If genuinely new, call \`nowledge_mem_save\`
 
 **When to search threads (\`nowledge_mem_thread_search\`):**
 - The user asks about a prior conversation or exact session history
@@ -41,7 +43,7 @@ export default {
         const result = await $`nmem --json ${args}`.text()
         return result.trim()
       } catch (err: any) {
-        const stderr = err?.stderr ?? ""
+        const stderr = String(err?.stderr ?? "")
         if (stderr.includes("command not found") || stderr.includes("not recognized")) {
           return JSON.stringify({
             error: "nmem CLI not found. Install it from Nowledge Mem: Settings > Developer Tools > Install CLI, or run: pip install nmem-cli",
@@ -307,6 +309,9 @@ export default {
               }
 
               const threadMessages = toThreadMessages(sdkMessages)
+              if (threadMessages.length === 0) {
+                return JSON.stringify({ error: "No extractable messages in current session" })
+              }
               // Match import service convention: lowercase for dedup consistency
               const threadId = `opencode-${ctx.sessionID}`.toLowerCase()
               const title =
