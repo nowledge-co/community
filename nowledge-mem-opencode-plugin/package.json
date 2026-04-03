@@ -1,0 +1,34 @@
+{
+  "name": "opencode-nowledge-mem",
+  "version": "0.3.0",
+  "description": "Nowledge Mem plugin for OpenCode. Cross-tool knowledge: search, save, Working Memory, and distillation.",
+  "type": "module",
+  "main": "src/index.ts",
+  "files": [
+    "src",
+    "AGENTS.md",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "nowledge",
+    "memory",
+    "knowledge-graph"
+  ],
+  "author": {
+    "name": "Nowledge Labs",
+    "url": "https://nowledge-labs.ai"
+  },
+  "license": "MIT",
+  "homepage": "https://mem.nowledge.co/docs/integrations/opencode",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nowledge-co/community.git",
+    "directory": "nowledge-mem-opencode-plugin"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.3.0"
+  }
+}
