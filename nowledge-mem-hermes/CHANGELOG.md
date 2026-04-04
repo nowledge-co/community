@@ -12,6 +12,7 @@
 - **6 native tools** with clean `nmem_` prefix (e.g. `nmem_search` instead of `mcp_nowledge_mem_memory_search`). Graph tools (neighbors, evolves, labels) deferred until `nmem` CLI adds those commands.
 - **`hermes memory setup` integration** via `get_config_schema()` and `save_config()`.
 - **CLI-only client** (`client.py`) using only stdlib (subprocess + json). Shells out to `nmem` CLI, which handles server URL, API key, and remote access. No duplicate HTTP transport or config surface.
+- **Upsert by ID** on `nmem_save`: pass a stable `id` to create-or-update in one call. Eliminates the search-then-update dance for agents that track their own memory keys.
 
 ### Changed
 

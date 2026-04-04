@@ -43,9 +43,16 @@ decisions, procedures, and learnings. Ask yourself: "Would this matter in a \
 Claude Code, Cursor, or Codex session?" If yes, save to Nowledge Mem.
 
 Save proactively when the conversation produces a decision, procedure, \
-learning, or important context. Search first (nmem_search); if existing \
-knowledge covers the topic, use nmem_update rather than create a duplicate. \
-One strong memory is better than three weak ones."""
+learning, or important context. One strong memory is better than three \
+weak ones.
+
+**Upsert by ID:** pass a stable id to nmem_save to create-or-update in one \
+call. If a memory with that ID already exists it is updated; otherwise a new \
+one is created. Use this when you have a natural key (e.g. topic or decision \
+name) instead of the search-then-update dance.
+
+Without an id, search first (nmem_search); if existing knowledge covers the \
+topic, use nmem_update rather than create a duplicate."""
 
 
 # ---------------------------------------------------------------------------
