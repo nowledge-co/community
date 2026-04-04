@@ -90,14 +90,17 @@ class NowledgeMemClient:
         self,
         content: str,
         *,
+        memory_id: Optional[str] = None,
         title: Optional[str] = None,
         importance: Optional[float] = None,
         labels: Optional[List[str]] = None,
         unit_type: Optional[str] = None,
         event_date: Optional[str] = None,
     ) -> Any:
-        """Save a new memory."""
+        """Save a new memory, or upsert by memory_id."""
         cmd = ["m", "add", content]
+        if memory_id:
+            cmd.extend(["--id", memory_id])
         if title:
             cmd.extend(["-t", title])
         if importance is not None:

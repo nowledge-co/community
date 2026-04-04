@@ -86,12 +86,21 @@ _SAVE = {
     "name": "nmem_save",
     "description": (
         "Save a decision, insight, procedure, or learning. "
-        "Search first to avoid duplicates; use nmem_update if it exists."
+        "Pass id to upsert: update if that ID exists, create if not. "
+        "Without id, search first to avoid duplicates."
     ),
     "parameters": {
         "type": "object",
         "properties": {
             "content": {"type": "string", "description": "Memory content."},
+            "id": {
+                "type": "string",
+                "description": (
+                    "Stable ID for upsert. If a memory with this ID exists "
+                    "it is updated; otherwise created with this ID. Omit to "
+                    "auto-generate."
+                ),
+            },
             "title": {"type": "string", "description": "Descriptive title."},
             "importance": {
                 "type": "number",
@@ -395,6 +404,7 @@ class NowledgeMemProvider(MemoryProvider):
         if tool_name == "nmem_save":
             return c.save(
                 args["content"],
+                memory_id=args.get("id"),
                 title=args.get("title"),
                 importance=args.get("importance"),
                 labels=self._parse_csv(args.get("labels")),
