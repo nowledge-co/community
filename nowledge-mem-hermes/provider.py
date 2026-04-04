@@ -5,8 +5,9 @@ user's cross-tool knowledge graph. Replaces the generic MCP connection
 with lifecycle hooks: automatic Working Memory injection, per-turn
 recall, user-profile mirroring, and native tool names.
 
-Transport: the client handles CLI vs HTTP dispatch internally.
-The provider is transport-agnostic.
+Transport: ``nmem`` CLI only. The CLI handles server URL, API key, and
+remote access. If ``nmem`` is not installed, the provider disables
+gracefully.
 
 Requires Hermes v0.7.0+ (MemoryProvider support).
 """
@@ -44,13 +45,7 @@ Claude Code, Cursor, or Codex session?" If yes, save to Nowledge Mem.
 Save proactively when the conversation produces a decision, procedure, \
 learning, or important context. Search first (nmem_search); if existing \
 knowledge covers the topic, use nmem_update rather than create a duplicate. \
-One strong memory is better than three weak ones.
-
-Graph exploration: nmem_neighbors discovers related memories and entities. \
-nmem_evolves traces how a decision changed over time.
-
-Labels: check existing with nmem_labels before creating new ones. \
-Use 1-3 per memory, prefer broad categories."""
+One strong memory is better than three weak ones."""
 
 
 # ---------------------------------------------------------------------------
@@ -60,16 +55,15 @@ Use 1-3 per memory, prefer broad categories."""
 _SEARCH = {
     "name": "nmem_search",
     "description": (
-        "Search stored memories or list recent. "
-        "Omit query to list. Supports label filtering, temporal filtering, "
-        "and deep search mode."
+        "Search stored memories. "
+        "Supports label filtering and deep search mode."
     ),
     "parameters": {
         "type": "object",
         "properties": {
             "query": {
                 "type": "string",
-                "description": "Search query. Omit to list recent memories.",
+                "description": "Search query.",
             },
             "limit": {
                 "type": "integer",
@@ -84,7 +78,7 @@ _SEARCH = {
                 "description": "'normal' (fast, default) or 'deep' (graph-enhanced).",
             },
         },
-        "required": [],
+        "required": ["query"],
     },
 }
 
@@ -147,10 +141,6 @@ _UPDATE = {
                 "type": "number",
                 "description": "Updated importance (omit to keep current).",
             },
-            "add_labels": {
-                "type": "string",
-                "description": "Labels to add, comma-separated (omit to keep current).",
-            },
         },
         "required": ["memory_id"],
     },
@@ -179,16 +169,10 @@ _DELETE = {
     },
 }
 
-_LABELS = {
-    "name": "nmem_labels",
-    "description": "List labels with usage counts.",
-    "parameters": {"type": "object", "properties": {}, "required": []},
-}
-
 _THREAD_SEARCH = {
     "name": "nmem_thread_search",
     "description": (
-        "Search past conversations or list recent. "
+        "Search past conversations. "
         "Returns threads with matched message snippets."
     ),
     "parameters": {
@@ -196,7 +180,7 @@ _THREAD_SEARCH = {
         "properties": {
             "query": {
                 "type": "string",
-                "description": "Search query. Omit to list recent threads.",
+                "description": "Search query.",
             },
             "limit": {
                 "type": "integer",
@@ -207,7 +191,7 @@ _THREAD_SEARCH = {
                 "description": "Filter by source (e.g. 'claude-code', 'hermes').",
             },
         },
-        "required": [],
+        "required": ["query"],
     },
 }
 
@@ -231,48 +215,13 @@ _THREAD_MESSAGES = {
     },
 }
 
-_NEIGHBORS = {
-    "name": "nmem_neighbors",
-    "description": (
-        "Discover related memories and entities via knowledge graph connections."
-    ),
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "memory_id": {
-                "type": "string",
-                "description": "Memory ID to explore from.",
-            },
-        },
-        "required": ["memory_id"],
-    },
-}
-
-_EVOLVES = {
-    "name": "nmem_evolves",
-    "description": "Trace how a decision or understanding changed over time.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "memory_id": {
-                "type": "string",
-                "description": "Memory ID to trace.",
-            },
-        },
-        "required": ["memory_id"],
-    },
-}
-
 ALL_TOOL_SCHEMAS = [
     _SEARCH,
     _SAVE,
     _UPDATE,
     _DELETE,
-    _LABELS,
     _THREAD_SEARCH,
     _THREAD_MESSAGES,
-    _NEIGHBORS,
-    _EVOLVES,
 ]
 
 
@@ -304,10 +253,8 @@ class NowledgeMemProvider(MemoryProvider):
     # -- Core lifecycle ------------------------------------------------------
 
     def is_available(self) -> bool:
-        """Check if nmem CLI is installed or HTTP URL is configured."""
-        if NowledgeMemClient._detect_cli():
-            return True
-        return bool(os.environ.get("NOWLEDGE_MEM_URL"))
+        """Check if nmem CLI is installed."""
+        return NowledgeMemClient.is_available()
 
     def initialize(self, session_id: str, **kwargs: Any) -> None:
         agent_context = kwargs.get("agent_context", "")
@@ -323,17 +270,11 @@ class NowledgeMemProvider(MemoryProvider):
             self._cron_skipped = True
             return
 
-        hermes_home = kwargs.get("hermes_home", "")
-        url, api_key, timeout = self._load_config(hermes_home)
-
-        self._client = NowledgeMemClient(url=url, api_key=api_key, timeout=timeout)
+        timeout = self._load_timeout(kwargs.get("hermes_home", ""))
+        self._client = NowledgeMemClient(timeout=timeout)
 
         if not self._client.health():
-            logger.warning(
-                "Nowledge Mem not reachable (transport=%s, url=%s)",
-                self._client.transport,
-                url,
-            )
+            logger.warning("Nowledge Mem not reachable via nmem CLI")
             self._client = None
             return
 
@@ -345,11 +286,7 @@ class NowledgeMemProvider(MemoryProvider):
             logger.debug("Working memory fetch failed: %s", e)
             self._working_memory = ""
 
-        logger.info(
-            "Nowledge Mem provider initialized (transport=%s, url=%s)",
-            self._client.transport,
-            url,
-        )
+        logger.info("Nowledge Mem provider initialized (CLI transport)")
 
     def system_prompt_block(self) -> str:
         if self._cron_skipped:
@@ -471,7 +408,6 @@ class NowledgeMemProvider(MemoryProvider):
                 content=args.get("content"),
                 title=args.get("title"),
                 importance=args.get("importance"),
-                add_labels=self._parse_csv(args.get("add_labels")),
             )
 
         if tool_name == "nmem_delete":
@@ -480,9 +416,6 @@ class NowledgeMemProvider(MemoryProvider):
             if args.get("memory_id"):
                 return c.delete(args["memory_id"])
             raise ValueError("nmem_delete requires memory_id or memory_ids")
-
-        if tool_name == "nmem_labels":
-            return c.list_labels()
 
         if tool_name == "nmem_thread_search":
             return c.thread_search(
@@ -498,29 +431,12 @@ class NowledgeMemProvider(MemoryProvider):
                 offset=args.get("offset", 0),
             )
 
-        if tool_name == "nmem_neighbors":
-            return c.neighbors(args["memory_id"])
-
-        if tool_name == "nmem_evolves":
-            return c.evolves(args["memory_id"])
-
         raise ValueError(f"Unknown tool: {tool_name}")
 
     # -- Config --------------------------------------------------------------
 
     def get_config_schema(self) -> List[Dict[str, Any]]:
         return [
-            {
-                "key": "url",
-                "description": "Nowledge Mem server URL",
-                "default": "http://127.0.0.1:14242",
-            },
-            {
-                "key": "api_key",
-                "description": "API key for remote access",
-                "secret": True,
-                "env_var": "NOWLEDGE_MEM_API_KEY",
-            },
             {
                 "key": "timeout",
                 "description": "Request timeout in seconds",
@@ -558,25 +474,17 @@ class NowledgeMemProvider(MemoryProvider):
         return [s.strip() for s in value.split(",") if s.strip()]
 
     @staticmethod
-    def _load_config(hermes_home: str) -> tuple:
-        """Resolve URL, API key, and timeout from env / config / defaults."""
-        url = os.environ.get("NOWLEDGE_MEM_URL", "")
-        api_key = os.environ.get("NOWLEDGE_MEM_API_KEY", "")
-        timeout = 30
-
+    def _load_timeout(hermes_home: str) -> int:
+        """Resolve timeout from config file or default."""
         if hermes_home:
             config_path = Path(hermes_home) / "nowledge-mem.json"
             if config_path.exists():
                 try:
                     cfg = json.loads(config_path.read_text())
-                    url = url or cfg.get("url", "")
-                    api_key = api_key or cfg.get("api_key", "")
-                    timeout = int(cfg.get("timeout", 30))
+                    return int(cfg.get("timeout", 30))
                 except Exception:
                     pass
-
-        url = url or "http://127.0.0.1:14242"
-        return url, api_key, timeout
+        return 30
 
     @staticmethod
     def _format_working_memory(wm: Any) -> str:

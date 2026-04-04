@@ -327,14 +327,14 @@
       "type": "plugin",
       "version": "0.5.0",
       "directory": "nowledge-mem-hermes",
-      "transport": "cli+http",
+      "transport": "cli",
       "capabilities": {
         "workingMemory": true,
         "search": true,
         "distill": false,
         "autoRecall": true,
         "autoCapture": false,
-        "graphExploration": true,
+        "graphExploration": false,
         "status": false
       },
       "threadSave": {
@@ -350,7 +350,7 @@
       "toolNaming": {
         "convention": "provider-native",
         "note": "Plugin mode: nmem_ prefix (nmem_search, nmem_save, etc.). MCP mode: mcp_nowledge_mem_ prefix.",
-        "tools": ["nmem_search", "nmem_save", "nmem_update", "nmem_delete", "nmem_labels", "nmem_thread_search", "nmem_thread_messages", "nmem_neighbors", "nmem_evolves"]
+        "tools": ["nmem_search", "nmem_save", "nmem_update", "nmem_delete", "nmem_thread_search", "nmem_thread_messages"]
       },
       "skills": [],
       "slashCommands": []

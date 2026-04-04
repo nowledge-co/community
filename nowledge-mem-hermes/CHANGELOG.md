@@ -9,9 +9,9 @@
 - **Per-turn proactive recall** via `prefetch()`. Relevant memories are searched and injected as context before every LLM call, without relying on SOUL.md guidance compliance.
 - **User profile mirroring** via `on_memory_write()`. When Hermes writes a user fact to its built-in USER.md, the fact is also saved to Nowledge Mem for cross-tool availability.
 - **Compression awareness** via `on_pre_compress()`. The context compressor is told that external knowledge exists and can be recovered via search.
-- **9 native tools** with clean `nmem_` prefix (e.g. `nmem_search` instead of `mcp_nowledge_mem_memory_search`).
+- **6 native tools** with clean `nmem_` prefix (e.g. `nmem_search` instead of `mcp_nowledge_mem_memory_search`). Graph tools (neighbors, evolves, labels) deferred until `nmem` CLI adds those commands.
 - **`hermes memory setup` integration** via `get_config_schema()` and `save_config()`.
-- **Dual-transport client** (`client.py`) using only stdlib (subprocess + urllib). Prefers `nmem` CLI when available; falls back to HTTP REST when CLI is not installed. Domain methods handle transport dispatch internally.
+- **CLI-only client** (`client.py`) using only stdlib (subprocess + json). Shells out to `nmem` CLI, which handles server URL, API key, and remote access. No duplicate HTTP transport or config surface.
 
 ### Changed
 
