@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0] - 2026-04-04
+
+### Added
+
+- **Native memory provider plugin** for Hermes v0.7.0+. Implements the `MemoryProvider` ABC with lifecycle hooks that replace behavioral guidance with deterministic behavior.
+- **Automatic Working Memory injection** via `system_prompt_block()`. No manual `read_working_memory` tool call needed.
+- **Per-turn proactive recall** via `prefetch()`. Relevant memories are searched and injected as context before every LLM call, without relying on SOUL.md guidance compliance.
+- **User profile mirroring** via `on_memory_write()`. When Hermes writes a user fact to its built-in USER.md, the fact is also saved to Nowledge Mem for cross-tool availability.
+- **Compression awareness** via `on_pre_compress()`. The context compressor is told that external knowledge exists and can be recovered via search.
+- **9 native tools** with clean `nmem_` prefix (e.g. `nmem_search` instead of `mcp_nowledge_mem_memory_search`).
+- **`hermes memory setup` integration** via `get_config_schema()` and `save_config()`.
+- **Dual-transport client** (`client.py`) using only stdlib (subprocess + urllib). Prefers `nmem` CLI when available; falls back to HTTP REST when CLI is not installed. Domain methods handle transport dispatch internally.
+
+### Changed
+
+- `setup.sh` now supports `--plugin` (default) and `--mcp` flags for choosing install mode.
+- README rewritten for dual install paths: plugin (recommended) vs MCP-only (alternative).
+
 ## [0.4.0] - 2026-04-02
 
 ### Fixed

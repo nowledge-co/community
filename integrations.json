@@ -324,31 +324,33 @@
       "id": "hermes",
       "name": "Hermes Agent",
       "category": "coding",
-      "type": "connector",
-      "version": "0.4.0",
+      "type": "plugin",
+      "version": "0.5.0",
       "directory": "nowledge-mem-hermes",
-      "transport": "mcp",
+      "transport": "cli+http",
       "capabilities": {
         "workingMemory": true,
         "search": true,
-        "distill": true,
-        "autoRecall": false,
+        "distill": false,
+        "autoRecall": true,
         "autoCapture": false,
         "graphExploration": true,
         "status": false
       },
       "threadSave": {
-        "method": "mcp-tool",
-        "note": "thread_persist available via MCP; full transcript depends on client capabilities"
+        "method": "none",
+        "note": "Thread auto-persist planned for v0.6.0 when backend thread creation API is available"
       },
       "install": {
-        "command": "Add nowledge-mem MCP server to ~/.hermes/config.yaml",
+        "command": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
+        "updateCommand": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
         "detectionHint": "Running as Hermes agent; ~/.hermes/ exists",
         "docsUrl": "/docs/integrations/hermes"
       },
       "toolNaming": {
-        "convention": "mcp-backend",
-        "note": "MCP tools defined by backend (memory_search, memory_add, etc.)"
+        "convention": "provider-native",
+        "note": "Plugin mode: nmem_ prefix (nmem_search, nmem_save, etc.). MCP mode: mcp_nowledge_mem_ prefix.",
+        "tools": ["nmem_search", "nmem_save", "nmem_update", "nmem_delete", "nmem_labels", "nmem_thread_search", "nmem_thread_messages", "nmem_neighbors", "nmem_evolves"]
       },
       "skills": [],
       "slashCommands": []
