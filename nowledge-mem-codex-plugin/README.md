@@ -40,23 +40,62 @@ Or `pip install nmem-cli`. Then verify with `nmem status`.
 
 ## Install
 
+### Home-level (all projects)
+
 ```bash
-# Clone the community repo
 git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community
-
-# Home-level install (available in all projects)
-cp -r /tmp/nowledge-community/nowledge-mem-codex-plugin ~/.codex/plugins/nowledge-mem
-
-# Or repo-level install (this project only)
-cp -r /tmp/nowledge-community/nowledge-mem-codex-plugin ./.agents/plugins/nowledge-mem
+mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local
+cp -r /tmp/nowledge-community/nowledge-mem-codex-plugin/* \
+  ~/.codex/plugins/cache/local/nowledge-mem/local/
+rm -rf /tmp/nowledge-community
 ```
 
-Enable in `~/.codex/config.toml`:
+Add both entries to `~/.codex/config.toml`:
 
 ```toml
+[features]
+plugins = true
+
 [plugins."nowledge-mem@local"]
 enabled = true
 ```
+
+Restart Codex after installation.
+
+### Repo-level (this project only)
+
+Place the plugin source in your repo and create a `marketplace.json` so Codex discovers it:
+
+```bash
+git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community
+cp -r /tmp/nowledge-community/nowledge-mem-codex-plugin ./.agents/nowledge-mem
+rm -rf /tmp/nowledge-community
+mkdir -p .agents/plugins
+```
+
+Create `.agents/plugins/marketplace.json`:
+
+```json
+{
+  "name": "local",
+  "plugins": [
+    {
+      "name": "nowledge-mem",
+      "source": {
+        "source": "local",
+        "path": "./.agents/nowledge-mem"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
+      }
+    }
+  ]
+}
+```
+
+The path is relative to the repo root, not to the `marketplace.json` file.
+
+You still need the feature gate and plugin entry in `~/.codex/config.toml` (see Home-level above). Codex will discover the marketplace on startup and load the plugin from the repo-local source.
 
 ## Verify
 
@@ -65,9 +104,10 @@ Start a new Codex session and ask: "What was I working on?" The agent should loa
 ## Update
 
 ```bash
-cd /tmp && git clone https://github.com/nowledge-co/community.git nowledge-community-update
-cp -r nowledge-community-update/nowledge-mem-codex-plugin ~/.codex/plugins/nowledge-mem
-rm -rf nowledge-community-update
+git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community-update
+cp -r /tmp/nowledge-community-update/nowledge-mem-codex-plugin/* \
+  ~/.codex/plugins/cache/local/nowledge-mem/local/
+rm -rf /tmp/nowledge-community-update
 ```
 
 Restart Codex after updating.
@@ -108,7 +148,8 @@ If you used `nowledge-mem-codex-prompts` before:
 
 - **"Command not found: nmem"**: `pip install nmem-cli` or use `uvx --from nmem-cli nmem`. See [Getting Started](https://mem.nowledge.co/docs/installation).
 - **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
-- **Skills not appearing**: Restart Codex after installing. Verify the plugin is enabled in `~/.codex/config.toml`.
+- **Skills not appearing**: Restart Codex after installing. Verify both `[features] plugins = true` and `[plugins."nowledge-mem@local"] enabled = true` are in `~/.codex/config.toml`.
+- **"plugin is not installed"**: Check that the plugin files are at `~/.codex/plugins/cache/local/nowledge-mem/local/` and that `.codex-plugin/plugin.json` exists inside that directory.
 
 ## Links
 

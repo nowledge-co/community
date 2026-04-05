@@ -78,7 +78,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-codex-plugin",
       "legacyDirectory": "nowledge-mem-codex-prompts",
       "transport": "cli",
@@ -97,8 +97,9 @@
         "command": "nmem t save --from codex"
       },
       "install": {
-        "command": "Copy nowledge-mem-codex-plugin to ~/.codex/plugins/nowledge-mem or .agents/plugins/nowledge-mem",
-        "updateCommand": "Replace the plugin directory with the latest version from the community repo",
+        "command": "mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local && cp -r nowledge-mem-codex-plugin/* ~/.codex/plugins/cache/local/nowledge-mem/local/",
+        "updateCommand": "cp -r nowledge-mem-codex-plugin/* ~/.codex/plugins/cache/local/nowledge-mem/local/",
+        "configRequired": "[features] plugins = true AND [plugins.\"nowledge-mem@local\"] enabled = true in ~/.codex/config.toml",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },
