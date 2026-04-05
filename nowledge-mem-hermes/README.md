@@ -109,7 +109,7 @@ The only plugin-specific setting is request timeout, stored in `~/.hermes/nowled
 
 ```json
 {
-  "timeout": 60
+  "timeout": 30
 }
 ```
 

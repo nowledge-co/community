@@ -68,6 +68,7 @@ Place the plugin source in your repo and create a `marketplace.json` so Codex di
 
 ```bash
 git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community
+mkdir -p .agents
 cp -r /tmp/nowledge-community/nowledge-mem-codex-plugin ./.agents/nowledge-mem
 rm -rf /tmp/nowledge-community
 mkdir -p .agents/plugins

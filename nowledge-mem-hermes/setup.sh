@@ -71,7 +71,9 @@ if [ "$MODE" = "plugin" ]; then
   fi
 
   # Set memory.provider in config.yaml
-  if [ -f "$CONFIG" ] && grep -qF "provider:" "$CONFIG" && grep -qF "nowledge-mem" "$CONFIG"; then
+  # Use a single grep to avoid false positives when "provider:" and "nowledge-mem"
+  # appear in unrelated sections (e.g. mcp_servers).
+  if [ -f "$CONFIG" ] && grep -qE 'provider:.*nowledge-mem' "$CONFIG"; then
     echo "[ok] memory.provider already set in $CONFIG"
   elif [ ! -f "$CONFIG" ]; then
     cat > "$CONFIG" << 'YAML'
@@ -87,6 +89,8 @@ YAML
     echo ""
     echo '  provider: "nowledge-mem"'
     echo ""
+    echo "Plugin installed to $PLUGIN_DIR but config is incomplete."
+    exit 1
   else
     # No memory section — append it
     printf '\nmemory:\n  provider: "nowledge-mem"\n' >> "$CONFIG"

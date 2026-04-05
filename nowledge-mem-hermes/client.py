@@ -141,7 +141,9 @@ class NowledgeMemClient:
 
     def delete_many(self, memory_ids: List[str]) -> Any:
         """Delete multiple memories."""
-        return self._cli(["m", "delete"] + memory_ids + ["-f"])
+        if not memory_ids:
+            raise ValueError("memory_ids must not be empty")
+        return self._cli(["m", "delete", *memory_ids, "-f"])
 
     def thread_search(
         self,
