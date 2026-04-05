@@ -78,7 +78,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-codex-plugin",
       "legacyDirectory": "nowledge-mem-codex-prompts",
       "transport": "cli",
@@ -97,8 +97,9 @@
         "command": "nmem t save --from codex"
       },
       "install": {
-        "command": "Copy nowledge-mem-codex-plugin to ~/.codex/plugins/nowledge-mem or .agents/plugins/nowledge-mem",
-        "updateCommand": "Replace the plugin directory with the latest version from the community repo",
+        "command": "mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local && cp -r nowledge-mem-codex-plugin/* ~/.codex/plugins/cache/local/nowledge-mem/local/",
+        "updateCommand": "cp -r nowledge-mem-codex-plugin/* ~/.codex/plugins/cache/local/nowledge-mem/local/",
+        "configRequired": "[features] plugins = true AND [plugins.\"nowledge-mem@local\"] enabled = true in ~/.codex/config.toml",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },
@@ -324,31 +325,33 @@
       "id": "hermes",
       "name": "Hermes Agent",
       "category": "coding",
-      "type": "connector",
-      "version": "0.4.0",
+      "type": "plugin",
+      "version": "0.5.0",
       "directory": "nowledge-mem-hermes",
-      "transport": "mcp",
+      "transport": "cli",
       "capabilities": {
         "workingMemory": true,
         "search": true,
-        "distill": true,
-        "autoRecall": false,
+        "distill": false,
+        "autoRecall": true,
         "autoCapture": false,
-        "graphExploration": true,
+        "graphExploration": false,
         "status": false
       },
       "threadSave": {
-        "method": "mcp-tool",
-        "note": "thread_persist available via MCP; full transcript depends on client capabilities"
+        "method": "none",
+        "note": "Thread auto-persist planned for v0.6.0 when backend thread creation API is available"
       },
       "install": {
-        "command": "Add nowledge-mem MCP server to ~/.hermes/config.yaml",
+        "command": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
+        "updateCommand": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
         "detectionHint": "Running as Hermes agent; ~/.hermes/ exists",
         "docsUrl": "/docs/integrations/hermes"
       },
       "toolNaming": {
-        "convention": "mcp-backend",
-        "note": "MCP tools defined by backend (memory_search, memory_add, etc.)"
+        "convention": "provider-native",
+        "note": "Plugin mode: nmem_ prefix (nmem_search, nmem_save, etc.). MCP mode: mcp_nowledge_mem_ prefix.",
+        "tools": ["nmem_search", "nmem_save", "nmem_update", "nmem_delete", "nmem_thread_search", "nmem_thread_messages"]
       },
       "skills": [],
       "slashCommands": []

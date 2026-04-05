@@ -4,130 +4,135 @@
 
 Hermes has its own memory and learning system. Nowledge Mem complements it with knowledge that spans tools: insights from Claude Code, Cursor, Codex, Gemini, and every other environment you work in. One knowledge graph, available everywhere.
 
-## What you get
+## Install
 
-- **Start every session informed.** Hermes loads your Working Memory briefing: current priorities, recent decisions, open questions.
-- **The agent searches for you.** When past context would improve the answer, Hermes finds it through your knowledge graph without being asked.
-- **Insights stick around.** Key decisions and learnings are saved to Nowledge Mem, ready for any future session in any tool.
-- **Session handoff.** Save Hermes conversations as structured threads you can search later. What gets captured depends on Hermes' session context capabilities.
+### Plugin (recommended, Hermes v0.7.0+)
 
-## Prerequisites
-
-1. **Nowledge Mem desktop app** running (or the server accessible on port 14242)
-2. **Hermes Agent** installed and configured
-
-## Quick setup (one command)
+The plugin integrates at the memory-provider level: Working Memory loads automatically, relevant memories are recalled before every turn, and tools use clean names without the `mcp_` prefix.
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)
 ```
 
-This configures the MCP server and installs behavioral guidance. Safe to run multiple times. Restart Hermes after running.
-
-If you have the repo cloned, run directly:
+Or with the interactive setup:
 
 ```bash
-cd community/nowledge-mem-hermes && ./setup.sh
+hermes memory setup
+# Select: nowledge-mem
 ```
 
-## Manual setup
+Or manually:
 
-### Step 1: MCP server
+1. Copy plugin files to `~/.hermes/plugins/memory/nowledge-mem/`:
+   ```bash
+   mkdir -p ~/.hermes/plugins/memory/nowledge-mem
+   cd ~/.hermes/plugins/memory/nowledge-mem
+   for f in plugin.yaml __init__.py provider.py client.py; do
+     curl -sLO "https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/$f"
+   done
+   ```
+2. Set the provider in `~/.hermes/config.yaml`:
+   ```yaml
+   memory:
+     provider: "nowledge-mem"
+   ```
+3. Restart Hermes.
 
-Add the Nowledge Mem MCP server to your Hermes configuration:
+### MCP only (any Hermes version)
 
-```yaml title="~/.hermes/config.yaml"
-mcp_servers:
-  nowledge-mem:
-    url: "http://127.0.0.1:14242/mcp"
-    timeout: 120
-```
-
-### Step 2: Behavioral guidance (required)
-
-Without this step, Hermes sees the tools but does not know when to save knowledge proactively.
-
-Append the guidance to `~/.hermes/SOUL.md` (Hermes loads this file on every session):
+If you prefer the standard MCP connection or are on Hermes < v0.7.0:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/AGENTS.md >> ~/.hermes/SOUL.md
+bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh) --mcp
 ```
 
-Restart Hermes after both steps.
+This adds the MCP server to `config.yaml` and installs behavioral guidance in `~/.hermes/SOUL.md`. Tools appear with the `mcp_nowledge_mem_` prefix.
 
-> **Why SOUL.md?** Hermes discovers `HERMES.md` by walking from the current directory to the git repository root. If you place guidance at `~/HERMES.md`, it is not found when working inside any git repository. `~/.hermes/SOUL.md` is the only file Hermes loads on every session regardless of working directory.
+## Prerequisites
 
-### Project-level alternative
+1. **Nowledge Mem desktop app** running (or the server accessible on port 14242)
+2. **Hermes Agent** installed and configured
+3. **`nmem` CLI** available on PATH. If the desktop app is on the same machine, `nmem` is already bundled. Otherwise: `pip install nmem-cli`
 
-For project-specific guidance that overrides or supplements the global file, add to your project's git root:
+## What the plugin does
 
-```bash
-curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/AGENTS.md >> HERMES.md
-```
+The plugin uses Hermes' memory provider lifecycle to replace manual tool calls and behavioral guidance with deterministic hooks:
 
-Hermes walks from the current directory to the git root looking for `HERMES.md` or `.hermes.md`. Project-level guidance is loaded in addition to SOUL.md.
+| Hook | What happens | Replaces |
+|------|-------------|----------|
+| `system_prompt_block` | Working Memory injected into every session automatically | Manual `read_working_memory` call |
+| `prefetch` | Relevant memories searched before each turn | "Search proactively" guidance in SOUL.md |
+| `on_memory_write` | User profile facts from Hermes mirrored to Nowledge Mem | Nothing (new capability) |
+| `on_pre_compress` | Compressor told about external knowledge | Nothing (new capability) |
+| `get_tool_schemas` | 6 native tools with clean names | MCP tools with `mcp_nowledge_mem_` prefix |
 
-## Verify
+## Tools
 
-Start a new Hermes session and ask:
+Plugin mode exposes tools directly (no prefix):
 
-> Search my memories for recent decisions.
+| Tool | Purpose |
+|------|---------|
+| `nmem_search` | Search memories |
+| `nmem_save` | Save a decision, insight, or learning |
+| `nmem_update` | Refine an existing memory |
+| `nmem_delete` | Remove one or more memories |
+| `nmem_thread_search` | Search past conversations |
+| `nmem_thread_messages` | Fetch messages from a thread |
 
-Hermes should call `mcp_nowledge_mem_memory_search` and return results from your knowledge graph. If Mem is not running, you will see a connection error.
-
-Then test proactive save by making a decision in conversation. Hermes should save it to Nowledge Mem without being asked. If it doesn't, confirm Step 2 is complete.
-
-## Update
-
-The MCP server runs inside Nowledge Mem. When you update the desktop app, all MCP tools update automatically. No changes to your Hermes config needed.
+Graph exploration tools (`neighbors`, `evolves`, `labels`) will be added when the `nmem` CLI supports them.
 
 ## Hermes memory vs Nowledge Mem
 
-Hermes has a built-in memory system for facts within Hermes sessions. Nowledge Mem is complementary: it stores knowledge that spans tools. Use both:
+Hermes has a built-in memory system for facts within Hermes sessions. Nowledge Mem is complementary:
 
 - **Hermes memory**: Hermes-specific preferences, tool quirks, environment details
 - **Nowledge Mem**: Decisions, procedures, and learnings that future sessions in any tool should know about
 
-The behavioral guidance in AGENTS.md teaches Hermes to distinguish between the two.
+The plugin's `on_memory_write` hook automatically mirrors user profile facts from Hermes to Nowledge Mem, so cross-tool knowledge stays in sync.
 
-## MCP tools
+## Transport
 
-These tools are available to Hermes once the MCP server is connected. Hermes prefixes them as `mcp_nowledge_mem_<tool>` (see [Hermes MCP naming convention](https://hermes-agent.ai/docs/user-guide/features/overview)):
+The plugin shells out to the `nmem` CLI for all operations. The CLI handles server URL, API key, and remote access configuration. No duplicate config needed in the plugin.
 
-| Tool | Purpose |
-|------|---------|
-| `read_working_memory` | Load your daily context briefing |
-| `memory_search` | Search memories and distilled knowledge |
-| `memory_add` | Save a new memory |
-| `memory_update` | Refine an existing memory |
-| `memory_delete` | Remove a memory |
-| `thread_search` | Search past conversations |
-| `thread_fetch_messages` | Read messages from a specific thread |
-| `thread_persist` | Save a conversation thread |
-| `list_memory_labels` | Browse memory categories |
+If `nmem` is not on PATH, the plugin disables gracefully. On machines running the Nowledge Mem desktop app, `nmem` is already bundled. For remote-only setups: `pip install nmem-cli`.
 
-Additional tools for graph exploration, source analysis, and knowledge processing are available depending on your server configuration.
+## Configuration
 
-## Remote access
+**No plugin-level configuration needed.** The `nmem` CLI manages server URL and API key. Configure remote access via `nmem`:
 
-If Nowledge Mem runs on another machine, update the MCP server URL:
-
-```yaml title="~/.hermes/config.yaml"
-mcp_servers:
-  nowledge-mem:
-    url: "https://your-server:14242/mcp"
-    timeout: 120
+```bash
+nmem config set url https://your-server:14242
+nmem config set api_key your-key
 ```
 
-Ensure the remote server has API access enabled. See [Remote Access](https://mem.nowledge.co/docs/remote-access) for setup details.
+The only plugin-specific setting is request timeout, stored in `~/.hermes/nowledge-mem.json`:
+
+```json
+{
+  "timeout": 30
+}
+```
+
+## Verify
+
+Start a new Hermes session. You should see Working Memory loaded in the system prompt. Ask:
+
+> Search my memories for recent decisions.
+
+Hermes should call `nmem_search` (plugin mode) or `mcp_nowledge_mem_memory_search` (MCP mode) and return results.
 
 ## Troubleshooting
 
-- **"Cannot connect to MCP server"**: Verify the Nowledge Mem desktop app is running and the server is listening on port 14242. Check with `curl http://127.0.0.1:14242/health`.
-- **Tools not appearing**: Restart Hermes after editing `config.yaml`. Confirm the `mcp_servers` block is properly indented.
-- **Hermes recalls but never saves**: Behavioral guidance is missing from `~/.hermes/SOUL.md`. Run `bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)` and restart. Note: `~/HERMES.md` is not found inside git repositories; use SOUL.md or a project-level HERMES.md.
-- **Slow responses**: The default timeout of 120 seconds covers deep search. If searches consistently time out, check server performance or network latency for remote setups.
-- **No results from search**: Nowledge Mem may be empty. Add a few memories first through the desktop app or another integration, then try again.
+- **"Nowledge Mem server not reachable"**: Verify the desktop app is running. Check with `nmem status`.
+- **"nmem CLI not found"**: Install with `pip install nmem-cli`, or enable CLI in the desktop app: Settings > Developer Tools.
+- **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/memory/nowledge-mem/`. Restart Hermes.
+- **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
+- **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`.
+- **Slow responses**: Default timeout is 30 seconds. Increase in `nowledge-mem.json` for remote setups.
+
+## Update
+
+The MCP tools are defined by the Nowledge Mem server. When you update the desktop app, tool capabilities update automatically. For plugin updates, re-run the setup command.
 
 ## Links
 
