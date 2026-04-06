@@ -7,7 +7,7 @@
 - **Install path**: corrected to `~/.codex/plugins/cache/local/nowledge-mem/local/` to match Codex plugin store layout.
 - **Config**: added missing `[features] plugins = true` gate required by Codex to enable the plugin system.
 - **Repo-level install**: replaced incorrect `cp` to `.agents/plugins/` with proper `marketplace.json` approach.
-- **plugin.json**: removed fields Codex does not parse (`version`, `author`, `homepage`, `repository`, `license`, `keywords`).
+- **plugin.json**: removed fields Codex does not parse (`author`, `homepage`, `repository`, `license`, `keywords`); kept `version` for desktop app update detection.
 - **Troubleshooting**: added "plugin is not installed" entry for path-related failures.
 
 ## [0.1.0] - 2026-03-31
