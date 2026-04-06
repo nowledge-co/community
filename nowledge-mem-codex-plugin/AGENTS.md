@@ -2,7 +2,7 @@
 
 You have access to the user's knowledge through the `nmem` CLI and the installed plugin skills.
 
-Use plugin skills (`$nowledge-mem:read-working-memory`, `$nowledge-mem:search-memory`, `$nowledge-mem:save-thread`, `$nowledge-mem:distill-memory`, `$nowledge-mem:status`) when they match, or compose `nmem` commands directly when that's clearer.
+Use plugin skills (`$nowledge-mem:working-memory`, `$nowledge-mem:search-memory`, `$nowledge-mem:save-thread`, `$nowledge-mem:distill-memory`, `$nowledge-mem:status`) when they match, or compose `nmem` commands directly when that's clearer.
 
 ## Working Memory
 

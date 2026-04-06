@@ -1,5 +1,5 @@
 ---
-name: read-working-memory
+name: working-memory
 description: Load your current context at session start: what you were working on, active priorities, and unresolved flags. Also trigger when resuming after a break or when the user asks "what am I working on".
 ---
 
