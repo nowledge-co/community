@@ -1323,9 +1323,9 @@ export async function activate(context) {
 	let activeThreadId = null;
 
 	/** Load thread mapping from persistent storage, pruning entries older than 1 week. */
-	const loadThreadMapping = () => {
+	const loadThreadMapping = async () => {
 		try {
-			const data = context.storage?.local?.get('nowledgeMem.threadMapping', {});
+			const data = await context.storage?.local?.get('nowledgeMem.threadMapping', {});
 			if (data && typeof data === 'object') {
 				const now = Date.now();
 				let pruned = 0;
@@ -1341,7 +1341,7 @@ export async function activate(context) {
 					}
 				}
 				logger.info?.(`nowledge-mem: loaded ${nowledgeMemThreadIds.size} thread mappings from storage (pruned ${pruned})`);
-				if (pruned > 0) persistThreadMapping();
+				if (pruned > 0) await persistThreadMapping();
 			}
 		} catch (err) {
 			logger.warn?.(`nowledge-mem: failed to load thread mapping: ${err instanceof Error ? err.message : String(err)}`);
@@ -1349,10 +1349,10 @@ export async function activate(context) {
 	};
 
 	/** Persist thread mapping to storage. */
-	const persistThreadMapping = () => {
+	const persistThreadMapping = async () => {
 		try {
 			const obj = Object.fromEntries(nowledgeMemThreadIds);
-			context.storage?.local?.set('nowledgeMem.threadMapping', obj);
+			await context.storage?.local?.set('nowledgeMem.threadMapping', obj);
 		} catch (err) {
 			logger.warn?.(`nowledge-mem: failed to persist thread mapping: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -1434,7 +1434,7 @@ export async function activate(context) {
 					buf.nowledgeThreadId = createdId;
 					// Persist the mapping for cross-session continuity
 					nowledgeMemThreadIds.set(threadId, { id: createdId, ts: Date.now() });
-					persistThreadMapping();
+					await persistThreadMapping();
 				}
 			}
 			buf.savedCount = buf.messages.length;
