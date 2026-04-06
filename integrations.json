@@ -78,7 +78,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-codex-plugin",
       "legacyDirectory": "nowledge-mem-codex-prompts",
       "transport": "cli",

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2] - 2026-04-06
+
+### Fixed
+
+- **YAML frontmatter**: quoted skill descriptions containing `: ` (colon-space) to prevent `serde_yaml` parse failures that silently dropped skills from the Codex UI.
+- **Skill rename**: `read-working-memory` renamed to `working-memory`.
+
 ## [0.1.1] - 2026-04-05
 
 ### Fixed
@@ -9,7 +16,6 @@
 - **Repo-level install**: replaced incorrect `cp` to `.agents/plugins/` with proper `marketplace.json` approach.
 - **plugin.json**: removed fields Codex does not parse (`author`, `homepage`, `repository`, `license`, `keywords`); kept `version` for desktop app update detection.
 - **Troubleshooting**: added "plugin is not installed" entry for path-related failures.
-- **Skill rename**: `read-working-memory` renamed to `working-memory` to resolve Codex UI visibility issue.
 
 ## [0.1.0] - 2026-03-31
 
