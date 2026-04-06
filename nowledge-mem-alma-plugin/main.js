@@ -1317,8 +1317,47 @@ export async function activate(context) {
 	// Buffer schema: { title, messages: [{role,content}], savedCount: number,
 	//   nowledgeThreadId: string|null, flushing: boolean, timer: number|null }
 	const MAX_THREAD_BUFFERS = 20;
+	const MAX_MAPPING_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 	const threadBuffers = new Map();
+	const nowledgeMemThreadIds = new Map(); // almaThreadId → { id: nowledgeMemThreadId, ts: epoch_ms } (persisted)
 	let activeThreadId = null;
+
+	/** Load thread mapping from persistent storage, pruning entries older than 1 week. */
+	const loadThreadMapping = () => {
+		try {
+			const data = context.storage?.local?.get('nowledgeMem.threadMapping', {});
+			if (data && typeof data === 'object') {
+				const now = Date.now();
+				let pruned = 0;
+				for (const [k, v] of Object.entries(data)) {
+					if (v && typeof v === 'object' && typeof v.id === 'string' && typeof v.ts === 'number') {
+						if (now - v.ts > MAX_MAPPING_AGE_MS) {
+							pruned++;
+						} else {
+							nowledgeMemThreadIds.set(k, v);
+						}
+					} else {
+						pruned++; // legacy string format — drop
+					}
+				}
+				logger.info?.(`nowledge-mem: loaded ${nowledgeMemThreadIds.size} thread mappings from storage (pruned ${pruned})`);
+				if (pruned > 0) persistThreadMapping();
+			}
+		} catch (err) {
+			logger.warn?.(`nowledge-mem: failed to load thread mapping: ${err instanceof Error ? err.message : String(err)}`);
+		}
+	};
+
+	/** Persist thread mapping to storage. */
+	const persistThreadMapping = () => {
+		try {
+			const obj = Object.fromEntries(nowledgeMemThreadIds);
+			context.storage?.local?.set('nowledgeMem.threadMapping', obj);
+		} catch (err) {
+			logger.warn?.(`nowledge-mem: failed to persist thread mapping: ${err instanceof Error ? err.message : String(err)}`);
+		}
+	};
+	loadThreadMapping();
 
 	/** Resolve the best possible thread title via Alma APIs, falling back to first user message. */
 	const resolveTitle = async (threadId, buf) => {
@@ -1391,7 +1430,12 @@ export async function activate(context) {
 					(result && typeof result === "object")
 						? String(result.id ?? result.thread_id ?? result.thread?.thread_id ?? "")
 						: String(result ?? "");
-				if (createdId) buf.nowledgeThreadId = createdId;
+				if (createdId) {
+					buf.nowledgeThreadId = createdId;
+					// Persist the mapping for cross-session continuity
+					nowledgeMemThreadIds.set(threadId, { id: createdId, ts: Date.now() });
+					persistThreadMapping();
+				}
 			}
 			buf.savedCount = buf.messages.length;
 			logger.info?.(`nowledge-mem: thread synced (${threadId}, ${buf.messages.length} msgs)`);
@@ -1425,11 +1469,13 @@ export async function activate(context) {
 				if (evicted?.timer) clearTimeout(evicted.timer);
 				threadBuffers.delete(oldest);
 			}
+			// Check if we have a persisted mapping for this thread
+			const persistedNmId = nowledgeMemThreadIds.get(threadId)?.id || null;
 			threadBuffers.set(threadId, {
 				title: escapeForInline(`Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
 				messages: [],
 				savedCount: 0,
-				nowledgeThreadId: null,
+				nowledgeThreadId: persistedNmId,
 				flushing: false,
 				timer: null,
 			});
