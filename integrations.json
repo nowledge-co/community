@@ -78,7 +78,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-codex-plugin",
       "legacyDirectory": "nowledge-mem-codex-prompts",
       "transport": "cli",
@@ -107,7 +107,7 @@
         "convention": "cli-direct",
         "note": "Plugin skills teach agent to invoke nmem CLI progressively"
       },
-      "skills": ["read-working-memory", "search-memory", "save-thread", "distill-memory", "status"],
+      "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "status"],
       "slashCommands": []
     },
     {

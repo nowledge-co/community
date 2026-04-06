@@ -16,7 +16,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 
 | Skill | When it runs | What it does |
 |-------|-------------|-------------|
-| `read-working-memory` | Session start, "what am I working on" | Loads your daily briefing |
+| `working-memory` | Session start, "what am I working on" | Loads your daily briefing |
 | `search-memory` | Prior work, past decisions | Searches memories and conversations |
 | `save-thread` | "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory |
@@ -139,7 +139,7 @@ If you used `nowledge-mem-codex-prompts` before:
 
 | Old prompt | New skill |
 |-----------|-----------|
-| `read_working_memory` | `$nowledge-mem:read-working-memory` |
+| `read_working_memory` | `$nowledge-mem:working-memory` |
 | `search_memory` | `$nowledge-mem:search-memory` |
 | `save_session` | `$nowledge-mem:save-thread` |
 | `distill` | `$nowledge-mem:distill-memory` |
