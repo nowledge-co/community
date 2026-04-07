@@ -46,7 +46,17 @@ get_file() {
 # Plugin install
 # =========================================================================
 if [ "$MODE" = "plugin" ]; then
-  PLUGIN_DIR="$HERMES_HOME/plugins/memory/nowledge-mem"
+  PLUGIN_DIR="$HERMES_HOME/plugins/nowledge-mem"
+
+  # Migrate from old incorrect path (v0.5.0 installed to plugins/memory/nowledge-mem)
+  OLD_PLUGIN_DIR="$HERMES_HOME/plugins/memory/nowledge-mem"
+  if [ -d "$OLD_PLUGIN_DIR" ] && [ -f "$OLD_PLUGIN_DIR/plugin.yaml" ]; then
+    echo "[*] Migrating from old install path..."
+    rm -rf "$OLD_PLUGIN_DIR"
+    rmdir "$HERMES_HOME/plugins/memory" 2>/dev/null || true
+    echo "  [ok] Removed $OLD_PLUGIN_DIR"
+  fi
+
   mkdir -p "$PLUGIN_DIR"
 
   echo "[*] Installing Nowledge Mem memory provider plugin..."

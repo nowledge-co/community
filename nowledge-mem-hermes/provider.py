@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 
 from agent.memory_provider import MemoryProvider
 
-from client import NowledgeMemClient
+from .client import NowledgeMemClient
 
 logger = logging.getLogger(__name__)
 

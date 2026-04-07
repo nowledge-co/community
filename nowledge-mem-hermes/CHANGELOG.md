@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1] - 2026-04-07
+
+### Fixed
+
+- **Install path**: `setup.sh` now installs to `~/.hermes/plugins/nowledge-mem/` instead of `~/.hermes/plugins/memory/nowledge-mem/`. Hermes scans direct children of `plugins/`, so the nested `memory/` directory was invisible to the plugin loader.
+- **Python imports**: changed bare imports (`from provider import ...`, `from client import ...`) to relative imports (`from .provider`, `from .client`). Hermes loads plugins via `importlib` with namespaced modules, which requires relative imports within the package.
+
 ## [0.5.0] - 2026-04-04
 
 ### Added
