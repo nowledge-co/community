@@ -25,6 +25,7 @@ import { BASE_GUIDANCE, SESSION_CONTEXT_GUIDANCE } from "./hooks/behavioral.js";
 import {
 	appendOrCreateThread,
 	hasSkipMarker,
+	isCronCaptureSessionKey,
 	matchesExcludePattern,
 	triageAndDistill,
 } from "./hooks/capture.js";
@@ -350,6 +351,11 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 
 				// Normalize sessionKey consistently with hook handlers
 				const normalizedKey = String(sessionKey || sessionId || "");
+
+				if (isCronCaptureSessionKey(normalizedKey)) {
+					logger.debug?.(`ce: skipped cron session ${normalizedKey}`);
+					return;
+				}
 
 				// Capture exclusion: pattern-based and marker-based filters
 				if (matchesExcludePattern(normalizedKey, cfg.captureExclude)) {
