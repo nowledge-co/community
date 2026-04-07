@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.2] - 2026-04-07
+
+### Fixed
+
+- **Thread message limit was silently capped at 10.** The plugin default limit of 50 was only sent to the CLI when explicitly overridden. Since the CLI's own default is 10, all default `thread_messages` calls returned 10 messages while the plugin told the LLM it was requesting 50. The `-n` flag is now always passed.
+
 ## [0.5.1] - 2026-04-07
 
 ### Fixed

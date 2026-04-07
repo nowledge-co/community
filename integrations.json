@@ -185,7 +185,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -223,9 +223,9 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.6.13",
+      "version": "0.6.15",
       "directory": "nowledge-mem-alma-plugin",
-      "transport": "cli",
+      "transport": "http",
       "capabilities": {
         "workingMemory": true,
         "search": true,
@@ -328,7 +328,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.0",
+      "version": "0.5.2",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {

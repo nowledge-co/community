@@ -2,6 +2,13 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.1] - 2026-04-07
+
+### Fixed
+
+- **Thread provenance linking now handles API response shape.** The backend returns `source_thread` as an `{id, title}` object, but `_normalizeMemory` and `memory-get.js` assigned it directly to `sourceThreadId`, producing `[object Object]` instead of a usable thread ID. Both paths now extract the `.id` string, with fallbacks for the CLI string format and metadata `source_thread_id`.
+- **Child process env no longer leaks `"undefined"` strings.** `spawn-env.js` set `NMEM_API_URL` and `NMEM_API_KEY` to JavaScript `undefined` to clear inherited values, but Node's `child_process` stringifies that to the literal `"undefined"`. Now uses `delete` to properly remove the keys.
+
 ## [0.8.0] - 2026-04-07
 
 ### Fixed

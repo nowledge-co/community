@@ -317,11 +317,12 @@ function cliErrorResult(err, operation) {
 	const status = err && typeof err === "object" ? err.status : undefined;
 	let code = "cli_error";
 	// Order matters: most specific first, broader patterns last.
+	// "model not found" should be model_unavailable, not not_found.
 	if (normalized.includes("nmem cli not found")) code = "nmem_not_found";
 	else if (normalized.includes("invalid json")) code = "invalid_json";
 	else if (status === 403 || normalized.includes("permission")) code = "permission_denied";
-	else if (status === 404 || normalized.includes("not found")) code = "not_found";
 	else if (normalized.includes("model") || normalized.includes("embedding") || normalized.includes("download")) code = "model_unavailable";
+	else if (status === 404 || normalized.includes("not found")) code = "not_found";
 	return { ok: false, error: { code, operation, message } };
 }
 
@@ -798,7 +799,7 @@ export async function activate(context) {
 						title: title ?? String(mem.title ?? ""),
 						content: text,
 						unitType: mem.unit_type || unitType,
-						labels: mem.labels || labels,
+						labels: result?.assigned_labels || labels,
 						importance: importance ?? Number(mem.importance ?? 0.5),
 						eventStart,
 						eventEnd,

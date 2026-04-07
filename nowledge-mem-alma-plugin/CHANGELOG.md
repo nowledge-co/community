@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.15
+
+### Fix async flush race condition, error handling, and search mode
+
+- Thread sync could permanently lose messages when new turns arrived during an in-flight flush. The message count is now snapshotted before async work begins, so messages pushed by hooks during the network call are correctly saved on the next flush.
+- `dispose()` now awaits all pending flushes before tearing down, preventing data loss on plugin disable or reload.
+- Recall injection in `willSend` is now wrapped in a try/catch so a server-unreachable or search failure does not break message sending.
+- Search mode sent `"normal"` to the backend, which only accepts `"fast"` or `"deep"`. The unrecognized value silently fell through to deep mode (slower, more expensive). Now correctly sends `"fast"` as default. Tool schema updated to match.
+- Store tool response fields (`title`, `labels`, `unit_type`, `importance`) were read from the raw API response instead of the unwrapped memory object, causing them to resolve to `undefined` when the API wraps the response in `{ memory: {...} }`.
+- Error classification (`cliErrorResult`) used a cascade of `if` statements where later matches could overwrite more specific codes (e.g., "model not found" classified as `model_unavailable` instead of `not_found`). Refactored to an `else if` chain with most-specific patterns first.
+- Removed phantom `force` parameter from delete tool schemas (the API does not support forced deletion).
+- Removed phantom `input.messages` fallback in thread show tool (not in schema, never sent by LLM).
+
 ## 0.6.14
 
 ### Async HTTP transport (fixes Alma freeze on Windows)
