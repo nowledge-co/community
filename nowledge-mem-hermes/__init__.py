@@ -5,7 +5,7 @@ connection with native lifecycle hooks: automatic Working Memory
 injection, per-turn recall, user-profile mirroring, and native tools.
 """
 
-from provider import NowledgeMemProvider
+from .provider import NowledgeMemProvider
 
 
 def register(ctx) -> None:

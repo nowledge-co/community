@@ -7,12 +7,13 @@ This file is a practical continuation guide for future agent sessions working on
 
 - Plugin target: Alma local plugin system
 - Runtime: plain ESM (`main.js`), no build step
-- Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
+- Memory backend: direct HTTP to Nowledge Mem API (default `http://127.0.0.1:14242`). CLI (`nmem`) is only used for diagnostic in the status tool.
 
-## Current Status (as of v0.6.13)
+## Current Status (as of v0.6.15)
 
 - Plugin is installed/activated and registers 12 tools successfully in Alma logs.
 - Live thread sync works via three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
+- Thread IDs are deterministic: `alma-{sha1(almaThreadId)[:12]}`. Survives plugin restarts, LRU eviction, and Alma relaunches. First flush tries append (thread may exist from prior session), falls back to create.
 - All message data from hook payloads, never `context.chat.getMessages()`.
 - Titles resolved at flush time via `context.chat.getThread()` with 4-strategy fallback.
 - Hook registration: `context.events ?? context.hooks` (canonical API first).
@@ -23,7 +24,7 @@ This file is a practical continuation guide for future agent sessions working on
   - search-style: `{ ok, type, query, total, items, raw }` — items may include `sourceThreadId`
   - singleton-style: `{ ok, item, ... }` — show includes `sourceThreadId` when available
   - store: `{ ok, item, summary }` or `{ ok, skipped, reason, existingId, similarity }`
-  - delete-style: `{ ok, id, force, [cascade], notFound, item? }`
+  - delete-style: `{ ok, id, [cascade], notFound, item? }`
   - status: `{ ok, status:{ connectionMode, apiUrl, apiKeyConfigured, cliAvailable, cliCommand, serverConnected, serverError, settings } }`
   - errors: `{ ok:false, error:{ code, operation, message } }`
 
@@ -58,7 +59,6 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 - `chat.message.didReceive`: buffer AI response (from `input.response.content`) + start 7s idle timer
 - `thread.activated`: flush previous thread immediately on switch
 - Quit hooks (`app.willQuit`, `app.will-quit`, `app.beforeQuit`, `app.before-quit`): safety net flush
-- `deactivate()`: fallback if quit hooks do not fire
 
 ## Settings (manifest + `context.settings`)
 
@@ -66,7 +66,7 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 - `nowledgeMem.autoCapture` (default `true`) — enables live thread sync via willSend/didReceive/thread.activated hooks
 - `nowledgeMem.maxRecallResults` (default `5`, clamp 1-20)
 - `nowledgeMem.apiUrl` (default `""`, empty = local `http://127.0.0.1:14242`)
-- `nowledgeMem.apiKey` (default `""`, passed via env var only, never logged)
+- `nowledgeMem.apiKey` (default `""`, sent via `Authorization: Bearer` header, never logged)
 
 ## Ground Truth Debug Checklist
 
@@ -88,9 +88,8 @@ Do not assume registration failed if ToolSearch can discover names.
 ```bash
 node --check main.js
 node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8'));console.log('manifest ok')"
-nmem --version || uvx --from nmem-cli nmem --version
-nmem --json m search "alma" -n 3
-nmem --json t search "alma" -n 3
+curl -s http://127.0.0.1:14242/health | head -c 200   # Verify API is reachable
+curl -s 'http://127.0.0.1:14242/memories/search?q=alma&limit=3'   # Test search (param is `q`, not `query`)
 ```
 
 ## Reinstall / Reload in Alma
@@ -123,7 +122,7 @@ open -a Alma
 
 ## Alma Hook Availability
 
-All three hooks used by live sync are confirmed working in Alma (verified v0.6.13):
+All three hooks used by live sync are confirmed working in Alma (verified v0.6.14):
 - `chat.message.willSend` — fires before user message is sent. Input: `{threadId, content, model, providerId}`.
 - `chat.message.didReceive` — fires after AI response. Input: `{threadId, response: {content, usage?}, pricing?}`.
 - `thread.activated` — fires on thread switch. Input: `{threadId, title?}`.
@@ -142,6 +141,20 @@ Only implement if needed; verify with runtime evidence first.
 1. Add test fixture script to validate response shape per tool automatically.
 2. Add explicit telemetry fields for hook outcomes (`recallUsed`, `captureSavedThreadId`) in logs.
 3. Fix live `recallPolicy` reload by moving hook registration logic into a function that can be torn down and re-created on settings change.
+
+## HTTP API Parameter Mapping
+
+The plugin talks directly to the Nowledge Mem HTTP API. Parameter names must match exactly (FastAPI silently ignores unknown query params). Key mappings:
+
+| Operation | Plugin param | HTTP API param | Notes |
+|-----------|-------------|---------------|-------|
+| Memory search | `q` | `q` | NOT `query` (thread search uses `query`) |
+| Memory search | `labels` | `labels` | NOT `filter_labels` |
+| Memory search | `time_range` | `time_range` | Accepts `today/week/month/year`. NOT `event_date_from` (which expects `YYYY-MM-DD`) |
+| Thread search | `query` | `query` | Thread search DOES use `query` |
+| Thread append | path `{thread_id}` | `thread_id` | Human-readable ID, not UUID |
+
+When modifying API calls, always verify parameter names against the backend endpoint signatures in `nowledge-graph-py/src/nowledge_graph_server/api/routers/`.
 
 ## Cache Safety
 

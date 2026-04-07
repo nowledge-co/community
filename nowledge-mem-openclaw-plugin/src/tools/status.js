@@ -59,19 +59,32 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				lines.push(`Plugin trust: ${pluginId} (allowlisted)`);
 			}
 
-			// 0b. Memory slot check — detect misconfiguration early
+			// 0b. Memory slot check — show current mode and options
 			const memorySlot = runtimeInfo.memorySlot;
 			details.memorySlot = memorySlot ?? "(unknown)";
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {
-				lines.push(
-					`⚠ Memory slot: "${memorySlot}" — Nowledge Mem is NOT the active memory plugin.`,
-				);
-				lines.push(
-					"  Only memory_search and memory_get will work. Other tools (save, connections, timeline, etc.) are inactive.",
-				);
-				lines.push(
-					'  Fix: run "openclaw plugins install @nowledge/openclaw-nowledge-mem" or set plugins.slots.memory to "openclaw-nowledge-mem" in your config.',
-				);
+				const corpusOn = cfg.corpusSupplement === true;
+				if (corpusOn) {
+					lines.push(
+						`Memory slot: "${memorySlot}" + corpus supplement active`,
+					);
+					lines.push(
+						"  Nowledge Mem feeds into memory-core's recall and dreaming pipeline. All tools available.",
+					);
+				} else {
+					lines.push(
+						`ℹ Memory slot: "${memorySlot}"`,
+					);
+					lines.push(
+						"  Two options:",
+					);
+					lines.push(
+						'  - Full mode: set plugins.slots.memory to "openclaw-nowledge-mem" for the complete tool surface',
+					);
+					lines.push(
+						"  - Dual mode: set corpusSupplement: true to feed your cross-tool knowledge into memory-core's recall and dreaming",
+					);
+				}
 				lines.push("");
 			} else if (memorySlot === "openclaw-nowledge-mem") {
 				lines.push("Memory slot: openclaw-nowledge-mem (active)");

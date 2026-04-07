@@ -2,6 +2,37 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.1] - 2026-04-07
+
+### Fixed
+
+- **Thread provenance linking now handles API response shape.** The backend returns `source_thread` as an `{id, title}` object, but `_normalizeMemory` and `memory-get.js` assigned it directly to `sourceThreadId`, producing `[object Object]` instead of a usable thread ID. Both paths now extract the `.id` string, with fallbacks for the CLI string format and metadata `source_thread_id`.
+- **Child process env no longer leaks `"undefined"` strings.** `spawn-env.js` set `NMEM_API_URL` and `NMEM_API_KEY` to JavaScript `undefined` to clear inherited values, but Node's `child_process` stringifies that to the literal `"undefined"`. Now uses `delete` to properly remove the keys.
+
+## [0.8.0] - 2026-04-07
+
+### Fixed
+
+- **Cron and isolated-agent runs no longer sync into Mem threads by default.** OpenClaw schedules these as `agent:<agentId>:cron:...` (for example the `cron-worker` agent). They were previously captured like normal chat because `captureExclude` defaulted to empty and segment-based globs do not cover variable-depth keys. The plugin now calls OpenClaw's published `isCronSessionKey` from `openclaw/plugin-sdk/routing` (available since v2026.3.22, no duplicated parsing logic), also skips bare `cron:*` internal keys that the SDK does not classify, and applies this in hook handlers and Context Engine `afterTurn` (thread append + distillation).
+
+### Added
+
+
+- **Corpus supplement for OpenClaw dreaming.** Nowledge Mem's knowledge graph now participates in memory-core's recall pipeline and dreaming promotion. When `corpusSupplement: true` is set, memories stored in Nowledge Mem are searchable through memory-core's native `memory_search` tool and its three-phase dreaming system (light, deep, REM). Recalled Nowledge Mem content accumulates frequency, relevance, and diversity scores that feed into deep-phase promotion decisions. Cross-tool knowledge organically strengthens OpenClaw's local workspace memory.
+
+  Enable in your OpenClaw config:
+  ```json
+  { "corpusSupplement": true }
+  ```
+
+  Three new config keys control the supplement: `corpusSupplement` (boolean, default false), `corpusMaxResults` (1-20, default 5), `corpusMinScore` (0-100%, default 0).
+
+- **Duplicate recall prevention.** When the corpus supplement is active, the plugin's own search-based recall (in the hook and Context Engine) is automatically disabled. Working Memory injection continues as before. This prevents the same memories from appearing twice in the agent's context.
+
+### Changed
+
+- **Minimum OpenClaw version bumped to `>=2026.4.5`** for `registerMemoryCorpusSupplement` API support. Graceful fallback for older versions (registration silently skipped).
+
 ## [0.7.3] - 2026-03-30
 
 ### Added

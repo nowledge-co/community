@@ -7,6 +7,7 @@ import {
 } from "./commands/slash.js";
 import { isDefaultApiUrl, parseConfig } from "./config.js";
 import { createNowledgeMemContextEngineFactory } from "./context-engine.js";
+import { createNowledgeMemCorpusSupplement } from "./corpus-supplement.js";
 import { buildBehavioralHook } from "./hooks/behavioral.js";
 import {
 	buildAgentEndCaptureHandler,
@@ -80,6 +81,27 @@ export default {
 			);
 		}
 
+		// --- Corpus Supplement (when memory-core is the memory slot) ---
+		// Makes Nowledge Mem's knowledge graph searchable through memory-core's
+		// recall pipeline and dreaming promotion. Memories participate in
+		// temporal decay scoring and short-term-to-long-term promotion.
+		if (cfg.corpusSupplement) {
+			try {
+				api.registerMemoryCorpusSupplement(
+					createNowledgeMemCorpusSupplement(client, cfg, logger),
+				);
+				logger.info(
+					"nowledge-mem: registered as MemoryCorpusSupplement for memory-core recall",
+				);
+			} catch (err) {
+				// OpenClaw < corpus supplement support — fall back to normal recall
+				cfg.corpusSupplement = false;
+				logger.info?.(
+					`nowledge-mem: corpus supplement unavailable, falling back to normal recall (${err})`,
+				);
+			}
+		}
+
 		// --- Hooks (fallback when CE is not active) ---
 		// Each hook checks ceState.active and returns early when the CE handles
 		// the same lifecycle through assemble/afterTurn.
@@ -120,7 +142,7 @@ export default {
 
 		const remoteMode = !isDefaultApiUrl(cfg.apiUrl);
 		logger.info(
-			`nowledge-mem: initialized (context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
+			`nowledge-mem: initialized (context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, corpus=${cfg.corpusSupplement}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
 		);
 	},
 };

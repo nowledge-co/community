@@ -171,8 +171,7 @@ class NowledgeMemClient:
     ) -> Any:
         """Fetch messages from a thread."""
         cmd = ["t", "show", thread_id]
-        if limit != 50:
-            cmd.extend(["-n", str(limit)])
+        cmd.extend(["-n", str(limit)])
         if offset:
             cmd.extend(["--offset", str(offset)])
         return self._cli(cmd)

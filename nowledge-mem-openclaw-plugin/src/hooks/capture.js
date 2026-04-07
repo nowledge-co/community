@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { isCronSessionKey } from "openclaw/plugin-sdk/routing";
 import { ceState } from "../ce-state.js";
 
 export const DEFAULT_MAX_MESSAGE_CHARS = 800;
@@ -76,6 +77,25 @@ export function matchesExcludePattern(sessionKey, patterns) {
 	if (!Array.isArray(patterns) || patterns.length === 0) return false;
 	const key = String(sessionKey || "").toLowerCase();
 	return patterns.some((pattern) => _compileGlob(pattern).test(key));
+}
+
+/**
+ * Whether automatic thread capture should skip this OpenClaw session.
+ *
+ * - Agent-scoped cron / isolated-agent keys are classified by
+ *   `isCronSessionKey` from `openclaw/plugin-sdk/routing` (same implementation
+ *   the gateway uses). Requires OpenClaw >=2026.3.22.
+ * - Bare `cron:*` keys are still excluded: some internal paths (e.g. delivery /
+ *   failure bookkeeping) use that shape without the `agent:` prefix, and
+ *   `isCronSessionKey` only parses agent-scoped keys.
+ */
+export function isCronCaptureSessionKey(sessionKey) {
+	const raw = String(sessionKey || "")
+		.trim()
+		.toLowerCase();
+	if (!raw) return false;
+	if (raw.startsWith("cron:")) return true;
+	return isCronSessionKey(raw);
 }
 
 /**
@@ -471,8 +491,13 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		if (!event?.success) return;
 		if (ctx?.trigger === "heartbeat") return;
 
-		// Layer 1: pattern-based exclusion (e.g. cron jobs, subagent sessions)
 		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
+		if (isCronCaptureSessionKey(sessionKey)) {
+			logger.debug?.(`capture: skipped cron session ${sessionKey}`);
+			return;
+		}
+
+		// Pattern-based exclusion (e.g. subagent sessions, custom jobs)
 		if (matchesExcludePattern(sessionKey, cfg.captureExclude)) {
 			logger.debug?.(`capture: skipped excluded session ${sessionKey}`);
 			return;
@@ -515,8 +540,12 @@ export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 		if (ceState.active) return;
 		if (ctx?.trigger === "heartbeat") return;
 
-		// Layer 1: pattern-based exclusion
 		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
+		if (isCronCaptureSessionKey(sessionKey)) {
+			logger.debug?.(`capture: skipped cron session ${sessionKey}`);
+			return;
+		}
+
 		if (matchesExcludePattern(sessionKey, cfg.captureExclude)) {
 			logger.debug?.(`capture: skipped excluded session ${sessionKey}`);
 			return;

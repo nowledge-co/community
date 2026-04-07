@@ -1,12 +1,47 @@
 # Changelog
 
+## 0.6.15
+
+### Fix async flush race condition, error handling, and search mode
+
+- Thread sync could permanently lose messages when new turns arrived during an in-flight flush. The message count is now snapshotted before async work begins, so messages pushed by hooks during the network call are correctly saved on the next flush.
+- `dispose()` now awaits all pending flushes before tearing down, preventing data loss on plugin disable or reload.
+- Recall injection in `willSend` is now wrapped in a try/catch so a server-unreachable or search failure does not break message sending.
+- Search mode sent `"normal"` to the backend, which only accepts `"fast"` or `"deep"`. The unrecognized value silently fell through to deep mode (slower, more expensive). Now correctly sends `"fast"` as default. Tool schema updated to match.
+- Store tool response fields (`title`, `labels`, `unit_type`, `importance`) were read from the raw API response instead of the unwrapped memory object, causing them to resolve to `undefined` when the API wraps the response in `{ memory: {...} }`.
+- Error classification (`cliErrorResult`) used a cascade of `if` statements where later matches could overwrite more specific codes (e.g., "model not found" classified as `model_unavailable` instead of `not_found`). Refactored to an `else if` chain with most-specific patterns first.
+- Removed phantom `force` parameter from delete tool schemas (the API does not support forced deletion).
+- Removed phantom `input.messages` fallback in thread show tool (not in schema, never sent by LLM).
+
+## 0.6.14
+
+### Async HTTP transport (fixes Alma freeze on Windows)
+- All data operations now use direct HTTP `fetch()` to the Nowledge Mem API instead of shelling out to the `nmem` CLI via `spawnSync`. This eliminates the event-loop blocking that caused Alma to freeze for seconds during recall injection and thread sync, especially on Windows where Python process startup is slow.
+- The `nmem` CLI is no longer required for normal operation. The plugin connects directly to `http://127.0.0.1:14242` (or the configured remote URL). CLI availability is still checked in the status tool for diagnostic purposes.
+- API key is passed via `Authorization: Bearer` header, never as a CLI argument or environment variable.
+
+### Fix memory search, recall injection, and dedup check
+- Memory search query parameter was `query` but the HTTP API expects `q`. All memory searches silently returned recent/browse-mode results instead of semantically relevant ones. This broke recall injection (random memories instead of relevant), dedup check in store (compared against wrong memories), and the search/query tools.
+- Label filter parameter was `filter_labels` but the API expects `labels`. Label-based filtering was silently ignored.
+- Time filter sent enum values (`today`, `week`) to the `event_date_from` field which expects date strings. Corrected to use the `time_range` parameter.
+
+### Fix thread duplication on plugin restart or buffer eviction
+- Conversations now use a stable thread ID derived from Alma's internal thread ID (SHA-1 hash). Previously, each plugin restart, LRU eviction, or Alma relaunch caused the same conversation to be saved as a new thread instead of appending to the existing one.
+- First flush for a buffer now tries to append to the existing thread before falling back to create. This handles the case where the thread already exists in Nowledge Mem from a prior session.
+
+### Remove dead code and phantom parameters
+- Remove unused `saveActiveThread()`, `normalizeThreadMessages()`, `stringifyMessage()`, and `addMemory()` functions (superseded by hook-based live sync and direct HTTP calls).
+- Remove `contentLimit` parameter from show/thread_show tools (the HTTP API returns full content; truncation was a CLI-only concept). Remove misleading `truncatedContent` response field.
+- Remove unused `force` parameter from deleteMemory/deleteThread client methods (the HTTP API does not support forced deletion).
+- Fix `createThread` fallback ID prefix from `cli-` to `alma-`.
+
 ## 0.6.13
 
 ### Reliable live thread sync (complete rewrite)
 - Conversations sync during normal use — no need to quit Alma. Three hooks work together: `willSend` buffers the user message, `didReceive` buffers the AI response and starts a 7-second idle timer, `thread.activated` flushes the previous thread on switch. Quit hooks flush all buffered threads as a safety net.
 - All message data comes from hook payloads (`input.content`, `input.response.content`), never from `context.chat.getMessages()` which returns empty in `willSend` timing.
 - Thread titles resolved at flush time via `context.chat.getThread()` with 4-strategy fallback — Alma generates titles asynchronously after the first AI response, so early capture misses them.
-- Incremental sync: first flush creates a new thread; subsequent flushes append only new messages to the existing thread (no duplicate thread creation).
+- Incremental sync: first flush creates a new thread; subsequent flushes append only new messages to the existing thread. (Note: thread identity was session-scoped; cross-session dedup fixed in 0.6.14.)
 - Per-thread idle timers: multiple concurrent conversations are tracked independently.
 - Content-safe: AI responses in array-of-blocks format (Anthropic API style) are properly extracted.
 - Thread buffer LRU eviction at 20 entries with best-effort flush before eviction.

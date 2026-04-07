@@ -25,6 +25,7 @@ import { BASE_GUIDANCE, SESSION_CONTEXT_GUIDANCE } from "./hooks/behavioral.js";
 import {
 	appendOrCreateThread,
 	hasSkipMarker,
+	isCronCaptureSessionKey,
 	matchesExcludePattern,
 	triageAndDistill,
 } from "./hooks/capture.js";
@@ -170,7 +171,7 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 			info: {
 				id: "nowledge-mem",
 				name: "Nowledge Mem",
-				version: "0.7.0",
+				version: "0.8.0",
 				ownsCompaction: false,
 			},
 
@@ -235,7 +236,8 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 				}
 
 				// 3. Recalled memories (when sessionContext enabled)
-				if (cfg.sessionContext) {
+				// Skipped when corpus supplement handles search-based recall via memory-core.
+				if (cfg.sessionContext && !cfg.corpusSupplement) {
 					const query = buildAssembleSearchQuery(prompt, messages);
 					if (query) {
 						try {
@@ -349,6 +351,11 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 
 				// Normalize sessionKey consistently with hook handlers
 				const normalizedKey = String(sessionKey || sessionId || "");
+
+				if (isCronCaptureSessionKey(normalizedKey)) {
+					logger.debug?.(`ce: skipped cron session ${normalizedKey}`);
+					return;
+				}
 
 				// Capture exclusion: pattern-based and marker-based filters
 				if (matchesExcludePattern(normalizedKey, cfg.captureExclude)) {

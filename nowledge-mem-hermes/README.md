@@ -23,10 +23,10 @@ hermes memory setup
 
 Or manually:
 
-1. Copy plugin files to `~/.hermes/plugins/memory/nowledge-mem/`:
+1. Copy plugin files to `~/.hermes/plugins/nowledge-mem/`:
    ```bash
-   mkdir -p ~/.hermes/plugins/memory/nowledge-mem
-   cd ~/.hermes/plugins/memory/nowledge-mem
+   mkdir -p ~/.hermes/plugins/nowledge-mem
+   cd ~/.hermes/plugins/nowledge-mem
    for f in plugin.yaml __init__.py provider.py client.py; do
      curl -sLO "https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/$f"
    done
@@ -125,7 +125,7 @@ Hermes should call `nmem_search` (plugin mode) or `mcp_nowledge_mem_memory_searc
 
 - **"Nowledge Mem server not reachable"**: Verify the desktop app is running. Check with `nmem status`.
 - **"nmem CLI not found"**: Install with `pip install nmem-cli`, or enable CLI in the desktop app: Settings > Developer Tools.
-- **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/memory/nowledge-mem/`. Restart Hermes.
+- **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. Restart Hermes.
 - **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
 - **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`.
 - **Slow responses**: Default timeout is 30 seconds. Increase in `nowledge-mem.json` for remote setups.
