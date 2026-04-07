@@ -6,7 +6,7 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ### Fixed
 
-- **Cron and isolated-agent runs no longer sync into Mem threads by default.** OpenClaw schedules these as `agent:<agentId>:cron:...` (for example the `cron-worker` agent). They were previously captured like normal chat because `captureExclude` defaulted to empty and glob examples only match fixed segment counts. The plugin now detects the same session-key shape as OpenClaw's `isCronSessionKey`, plus bare `cron:*` keys, and skips thread append/create and distillation for those sessions (hook path and Context Engine `afterTurn`).
+- **Cron and isolated-agent runs no longer sync into Mem threads by default.** OpenClaw schedules these as `agent:<agentId>:cron:...` (for example the `cron-worker` agent). They were previously captured like normal chat because `captureExclude` defaulted to empty and segment-based globs do not cover variable-depth keys. The plugin now calls OpenClaw's published `isCronSessionKey` from `openclaw/plugin-sdk/routing` (no duplicated parsing logic), also skips bare `cron:*` internal keys that the SDK does not classify, and applies this in hook handlers and Context Engine `afterTurn` (thread append + distillation).
 
 ### Added
 
