@@ -253,6 +253,10 @@ class NowledgeMemClient {
 		return this._fetch("DELETE", `/threads/${encodeURIComponent(id)}`, { params });
 	}
 
+	async createMemory(body) {
+		return this._fetch("POST", "/memories", { body });
+	}
+
 	// --- Server health (async, for status tool) ---
 
 	async checkServerHealth() {
@@ -310,9 +314,10 @@ function validationErrorResult(operation, message) {
 function cliErrorResult(err, operation) {
 	const message = err instanceof Error ? err.message : String(err);
 	const normalized = message.toLowerCase();
+	const status = err && typeof err === "object" ? err.status : undefined;
 	let code = "cli_error";
-	if (normalized.includes("not found")) code = "not_found";
-	if (normalized.includes("permission")) code = "permission_denied";
+	if (status === 404 || normalized.includes("not found")) code = "not_found";
+	if (status === 403 || normalized.includes("permission")) code = "permission_denied";
 	if (normalized.includes("invalid json")) code = "invalid_json";
 	if (normalized.includes("nmem cli not found")) code = "nmem_not_found";
 	if (
@@ -786,7 +791,7 @@ export async function activate(context) {
 				if (eventEnd) body.event_end = eventEnd;
 				if (temporalContext) body.temporal_context = temporalContext;
 
-				const result = await client._fetch("POST", "/memories", { body });
+				const result = await client.createMemory(body);
 				const mem = result?.memory ?? result ?? {};
 				const id = String(mem.id ?? result?.memory_id ?? "");
 
