@@ -396,9 +396,11 @@ export class NowledgeMemClient {
 			eventEnd: m.event_end ?? null,
 			temporalContext: m.temporal_context ?? null,
 			// Thread provenance: links memory to the conversation it was distilled from.
-			// CLI returns `source_thread`, API metadata returns `source_thread_id`.
+			// CLI returns `source_thread` (string), API returns `source_thread: {id, title}` (object).
 			sourceThreadId:
-				m.source_thread ??
+				(typeof m.source_thread === "object" && m.source_thread?.id
+					? String(m.source_thread.id)
+					: typeof m.source_thread === "string" ? m.source_thread : null) ??
 				m.source_thread_id ??
 				m.metadata?.source_thread_id ??
 				null,

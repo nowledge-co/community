@@ -7,8 +7,8 @@ const LOCAL_API_URL = "http://127.0.0.1:14242";
  */
 export function buildNmemSpawnEnv({ apiUrl, apiKey } = {}) {
 	const env = { ...process.env };
-	env.NMEM_API_URL = undefined;
-	env.NMEM_API_KEY = undefined;
+	delete env.NMEM_API_URL;
+	delete env.NMEM_API_KEY;
 	if (apiUrl && apiUrl !== LOCAL_API_URL) {
 		env.NMEM_API_URL = apiUrl;
 	}

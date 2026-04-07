@@ -316,17 +316,12 @@ function cliErrorResult(err, operation) {
 	const normalized = message.toLowerCase();
 	const status = err && typeof err === "object" ? err.status : undefined;
 	let code = "cli_error";
-	if (status === 404 || normalized.includes("not found")) code = "not_found";
-	if (status === 403 || normalized.includes("permission")) code = "permission_denied";
-	if (normalized.includes("invalid json")) code = "invalid_json";
+	// Order matters: most specific first, broader patterns last.
 	if (normalized.includes("nmem cli not found")) code = "nmem_not_found";
-	if (
-		normalized.includes("model") ||
-		normalized.includes("embedding") ||
-		normalized.includes("download")
-	) {
-		code = "model_unavailable";
-	}
+	else if (normalized.includes("invalid json")) code = "invalid_json";
+	else if (status === 403 || normalized.includes("permission")) code = "permission_denied";
+	else if (status === 404 || normalized.includes("not found")) code = "not_found";
+	else if (normalized.includes("model") || normalized.includes("embedding") || normalized.includes("download")) code = "model_unavailable";
 	return { ok: false, error: { code, operation, message } };
 }
 
@@ -567,7 +562,7 @@ export async function activate(context) {
 				label: { type: "string" },
 				time: { type: "string", enum: ["today", "week", "month", "year"] },
 				importance: { type: "number", minimum: 0.1, maximum: 1.0 },
-				mode: { type: "string", enum: ["normal", "deep"] },
+				mode: { type: "string", enum: ["fast", "deep"], default: "fast" },
 			},
 			required: ["query"],
 		},
@@ -579,7 +574,7 @@ export async function activate(context) {
 				label: { type: "string" },
 				time: { type: "string", enum: ["today", "week", "month", "year"] },
 				importance: { type: "number", minimum: 0.1, maximum: 1.0 },
-				mode: { type: "string", enum: ["normal", "deep"] },
+				mode: { type: "string", enum: ["fast", "deep"], default: "fast" },
 			},
 			required: ["query"],
 		},
@@ -598,7 +593,7 @@ export async function activate(context) {
 					time: input.time,
 					importance:
 						typeof input.importance === "number" ? clamp(input.importance, 0.1, 1.0) : undefined,
-					mode: input.mode === "deep" ? "deep" : "normal",
+					mode: input.mode === "deep" ? "deep" : "fast",
 				});
 				const result = normalizeSearchResponse(data, query, "memory");
 				// Enrich items with sourceThreadId for thread provenance
@@ -641,7 +636,7 @@ export async function activate(context) {
 			const limit = clamp(Number(input?.limit ?? 8) || 8, 1, 20);
 
 			try {
-				const memoryResult = await client.searchMemory(query, { limit, mode: "normal" });
+				const memoryResult = await client.searchMemory(query, { limit, mode: "fast" });
 				const memoryItems = normalizeItems(memoryResult, ["memories", "results"]);
 				if (memoryItems.length > 0) {
 					// Enrich items with sourceThreadId for thread provenance
@@ -800,11 +795,11 @@ export async function activate(context) {
 					ok: true,
 					item: {
 						id,
-						title: title ?? String(result?.title ?? ""),
+						title: title ?? String(mem.title ?? ""),
 						content: text,
-						unitType: result?.unit_type || unitType,
-						labels: result?.labels || labels,
-						importance: importance ?? Number(result?.importance ?? 0.5),
+						unitType: mem.unit_type || unitType,
+						labels: mem.labels || labels,
+						importance: importance ?? Number(mem.importance ?? 0.5),
 						eventStart,
 						eventEnd,
 						temporalContext,
@@ -1080,7 +1075,7 @@ export async function activate(context) {
 			const id = String(input?.id ?? "").trim();
 			if (!id) return validationErrorResult("thread_show", "id is required");
 			try {
-				const limit = clamp(Number(input?.limit ?? input?.messages ?? 30) || 30, 1, 200);
+				const limit = clamp(Number(input?.limit ?? 30) || 30, 1, 200);
 				const offset = Math.max(0, Math.floor(Number(input?.offset ?? 0) || 0));
 				const result = await client.showThread(id, limit, offset);
 				const threadMessages = Array.isArray(result?.messages) ? result.messages : [];
@@ -1374,16 +1369,19 @@ export async function activate(context) {
 			!(recallFrequency === "thread_once" && recalledThreads.has(threadId));
 
 		if (allowAutoRecall) {
-			const wm = await client.readWorkingMemory();
-			const results = await client.search(currentContent, maxRecallResults);
-			const contextBlock = buildMemoryContextBlock(wm, results, {
-				includeCliPlaybook: injectCliPlaybook,
-			});
-			if (!contextBlock) return;
-			if (payload.setContent(`${contextBlock}\n\n${currentContent}`)) {
-				if (allowAutoRecall && recallFrequency === "thread_once") {
-					recalledThreads.add(threadId);
+			try {
+				const wm = await client.readWorkingMemory();
+				const results = await client.search(currentContent, maxRecallResults);
+				const contextBlock = buildMemoryContextBlock(wm, results, {
+					includeCliPlaybook: injectCliPlaybook,
+				});
+				if (contextBlock && payload.setContent(`${contextBlock}\n\n${currentContent}`)) {
+					if (recallFrequency === "thread_once") {
+						recalledThreads.add(threadId);
+					}
 				}
+			} catch (recallErr) {
+				logger.error?.(`nowledge-mem: recall injection failed: ${recallErr instanceof Error ? recallErr.message : String(recallErr)}`);
 			}
 		}
 	});
@@ -1459,15 +1457,21 @@ export async function activate(context) {
 	);
 
 	return {
-		dispose() {
+		async dispose() {
 			// Flush any unsynced thread buffers before tearing down.
 			// This covers plugin disable/reload paths where quit hooks may not fire.
+			const flushPromises = [];
 			for (const [threadId, buf] of threadBuffers) {
 				if (buf.messages.length > buf.savedCount && !buf.flushing) {
-					flushThread(threadId).catch((err) =>
-						logger.error?.(`nowledge-mem: dispose flush failed for ${threadId}: ${err}`),
+					flushPromises.push(
+						flushThread(threadId).catch((err) =>
+							logger.error?.(`nowledge-mem: dispose flush failed for ${threadId}: ${err}`),
+						),
 					);
 				}
+			}
+			if (flushPromises.length > 0) {
+				await Promise.allSettled(flushPromises);
 			}
 			for (const d of disposables) {
 				try { d.dispose(); } catch { /* best effort */ }

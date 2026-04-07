@@ -135,9 +135,13 @@ export function createMemoryGetTool(client, logger) {
 					safeParams.lines,
 				);
 
-				// Thread provenance: link to the source conversation
+				// Thread provenance: link to the source conversation.
+				// API returns source_thread as {id, title} object; CLI returns a string.
+				const rawSt = memory.source_thread;
 				const sourceThreadId =
-					memory.source_thread ??
+					(typeof rawSt === "object" && rawSt?.id
+						? String(rawSt.id)
+						: typeof rawSt === "string" ? rawSt : null) ??
 					memory.source_thread_id ??
 					memory.metadata?.source_thread_id ??
 					null;
