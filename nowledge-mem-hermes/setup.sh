@@ -48,13 +48,12 @@ get_file() {
 if [ "$MODE" = "plugin" ]; then
   PLUGIN_DIR="$HERMES_HOME/plugins/nowledge-mem"
 
-  # Migrate from old incorrect path (v0.5.0 installed to plugins/memory/nowledge-mem)
+  # Detect old incorrect path (v0.5.0 installed to plugins/memory/nowledge-mem)
   OLD_PLUGIN_DIR="$HERMES_HOME/plugins/memory/nowledge-mem"
+  MIGRATE_OLD=false
   if [ -d "$OLD_PLUGIN_DIR" ] && [ -f "$OLD_PLUGIN_DIR/plugin.yaml" ]; then
-    echo "[*] Migrating from old install path..."
-    rm -rf "$OLD_PLUGIN_DIR"
-    rmdir "$HERMES_HOME/plugins/memory" 2>/dev/null || true
-    echo "  [ok] Removed $OLD_PLUGIN_DIR"
+    echo "[*] Found old install path; will remove after successful install..."
+    MIGRATE_OLD=true
   fi
 
   mkdir -p "$PLUGIN_DIR"
@@ -78,6 +77,13 @@ if [ "$MODE" = "plugin" ]; then
   if ! $ALL_OK; then
     echo "[error] Some files failed to download. Check your network."
     exit 1
+  fi
+
+  # Now safe to remove old install path (download succeeded)
+  if $MIGRATE_OLD; then
+    rm -rf "$OLD_PLUGIN_DIR"
+    rmdir "$HERMES_HOME/plugins/memory" 2>/dev/null || true
+    echo "  [ok] Removed old install path $OLD_PLUGIN_DIR"
   fi
 
   # Set memory.provider in config.yaml

@@ -94,9 +94,10 @@ export default {
 					"nowledge-mem: registered as MemoryCorpusSupplement for memory-core recall",
 				);
 			} catch (err) {
-				// OpenClaw < corpus supplement support — degrade gracefully
-				logger.debug?.(
-					`nowledge-mem: corpus supplement registration unavailable (${err})`,
+				// OpenClaw < corpus supplement support — fall back to normal recall
+				cfg.corpusSupplement = false;
+				logger.info?.(
+					`nowledge-mem: corpus supplement unavailable, falling back to normal recall (${err})`,
 				);
 			}
 		}

@@ -66,7 +66,7 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 - `nowledgeMem.autoCapture` (default `true`) — enables live thread sync via willSend/didReceive/thread.activated hooks
 - `nowledgeMem.maxRecallResults` (default `5`, clamp 1-20)
 - `nowledgeMem.apiUrl` (default `""`, empty = local `http://127.0.0.1:14242`)
-- `nowledgeMem.apiKey` (default `""`, passed via env var only, never logged)
+- `nowledgeMem.apiKey` (default `""`, sent via `Authorization: Bearer` header, never logged)
 
 ## Ground Truth Debug Checklist
 

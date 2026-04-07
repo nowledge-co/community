@@ -97,7 +97,9 @@ class NowledgeMemClient {
 			});
 			if (!resp.ok) {
 				const text = await resp.text().catch(() => "");
-				throw new Error(`HTTP ${resp.status}: ${text.slice(0, 200)}`);
+				const err = new Error(`HTTP ${resp.status}: ${text.slice(0, 200)}`);
+				err.status = resp.status;
+				throw err;
 			}
 			const ct = resp.headers.get("content-type") || "";
 			return ct.includes("application/json") ? resp.json() : resp.text();
@@ -211,9 +213,6 @@ class NowledgeMemClient {
 	async createThread(title, content, messages, source = "alma", id = null) {
 		const body = { title, source };
 		if (id) body.thread_id = id;
-		if (typeof content === "string" && content.trim()) {
-			// content goes into summary-like field; messages carry the actual data
-		}
 		if (Array.isArray(messages) && messages.length > 0) {
 			body.messages = messages;
 		} else if (typeof content === "string" && content.trim()) {
@@ -1283,8 +1282,13 @@ export async function activate(context) {
 					logger.info?.(`nowledge-mem: appending ${buf.messages.length} msgs to ${buf.nowledgeThreadId} (reconnect)`);
 					await client.appendThread(buf.nowledgeThreadId, buf.messages);
 				} catch (appendErr) {
-					// Thread does not exist yet: create with stable ID
-					logger.debug?.(`nowledge-mem: append-first failed (${appendErr instanceof Error ? appendErr.message : String(appendErr)}), creating new thread`);
+					// Only fall back to create when the thread genuinely doesn't exist (404).
+					// Rethrow transient errors (5xx, timeouts) so the outer catch handles them.
+					const isNotFound =
+						appendErr?.status === 404 ||
+						/not.found/i.test(appendErr instanceof Error ? appendErr.message : "");
+					if (!isNotFound) throw appendErr;
+					logger.debug?.(`nowledge-mem: thread not found, creating ${buf.nowledgeThreadId}`);
 					const summary = buf.messages
 						.slice(-8)
 						.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
