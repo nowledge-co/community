@@ -9,10 +9,11 @@ This file is a practical continuation guide for future agent sessions working on
 - Runtime: plain ESM (`main.js`), no build step
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 
-## Current Status (as of v0.6.13)
+## Current Status (as of v0.6.14)
 
 - Plugin is installed/activated and registers 12 tools successfully in Alma logs.
 - Live thread sync works via three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
+- Thread IDs are deterministic: `alma-{sha1(almaThreadId)[:12]}`. Survives plugin restarts, LRU eviction, and Alma relaunches. First flush tries append (thread may exist from prior session), falls back to create.
 - All message data from hook payloads, never `context.chat.getMessages()`.
 - Titles resolved at flush time via `context.chat.getThread()` with 4-strategy fallback.
 - Hook registration: `context.events ?? context.hooks` (canonical API first).
@@ -123,7 +124,7 @@ open -a Alma
 
 ## Alma Hook Availability
 
-All three hooks used by live sync are confirmed working in Alma (verified v0.6.13):
+All three hooks used by live sync are confirmed working in Alma (verified v0.6.14):
 - `chat.message.willSend` — fires before user message is sent. Input: `{threadId, content, model, providerId}`.
 - `chat.message.didReceive` — fires after AI response. Input: `{threadId, response: {content, usage?}, pricing?}`.
 - `thread.activated` — fires on thread switch. Input: `{threadId, title?}`.

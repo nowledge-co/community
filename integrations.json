@@ -223,7 +223,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.6.13",
+      "version": "0.6.14",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "cli",
       "capabilities": {

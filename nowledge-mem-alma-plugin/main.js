@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 
@@ -265,8 +266,9 @@ class NowledgeMemClient {
 		return this.run(args, true);
 	}
 
-	async createThread(title, content, messages, source = "alma") {
+	async createThread(title, content, messages, source = "alma", id = null) {
 		const args = ["--json", "t", "create", "-t", title];
+		if (id) args.push("--id", id);
 		if (typeof content === "string" && content.trim()) args.push("-c", content.trim());
 		if (Array.isArray(messages) && messages.length > 0) {
 			args.push("-m", JSON.stringify(messages));
@@ -1317,47 +1319,8 @@ export async function activate(context) {
 	// Buffer schema: { title, messages: [{role,content}], savedCount: number,
 	//   nowledgeThreadId: string|null, flushing: boolean, timer: number|null }
 	const MAX_THREAD_BUFFERS = 20;
-	const MAX_MAPPING_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 	const threadBuffers = new Map();
-	const nowledgeMemThreadIds = new Map(); // almaThreadId → { id: nowledgeMemThreadId, ts: epoch_ms } (persisted)
 	let activeThreadId = null;
-
-	/** Load thread mapping from persistent storage, pruning entries older than 1 week. */
-	const loadThreadMapping = async () => {
-		try {
-			const data = await context.storage?.local?.get('nowledgeMem.threadMapping', {});
-			if (data && typeof data === 'object') {
-				const now = Date.now();
-				let pruned = 0;
-				for (const [k, v] of Object.entries(data)) {
-					if (v && typeof v === 'object' && typeof v.id === 'string' && typeof v.ts === 'number') {
-						if (now - v.ts > MAX_MAPPING_AGE_MS) {
-							pruned++;
-						} else {
-							nowledgeMemThreadIds.set(k, v);
-						}
-					} else {
-						pruned++; // legacy string format — drop
-					}
-				}
-				logger.info?.(`nowledge-mem: loaded ${nowledgeMemThreadIds.size} thread mappings from storage (pruned ${pruned})`);
-				if (pruned > 0) await persistThreadMapping();
-			}
-		} catch (err) {
-			logger.warn?.(`nowledge-mem: failed to load thread mapping: ${err instanceof Error ? err.message : String(err)}`);
-		}
-	};
-	await loadThreadMapping();
-
-	/** Persist thread mapping to storage. */
-	const persistThreadMapping = async () => {
-		try {
-			const obj = Object.fromEntries(nowledgeMemThreadIds);
-			await context.storage?.local?.set('nowledgeMem.threadMapping', obj);
-		} catch (err) {
-			logger.warn?.(`nowledge-mem: failed to persist thread mapping: ${err instanceof Error ? err.message : String(err)}`);
-		}
-	};
 
 	/** Resolve the best possible thread title via Alma APIs, falling back to first user message. */
 	const resolveTitle = async (threadId, buf) => {
@@ -1391,6 +1354,10 @@ export async function activate(context) {
 		return null;
 	};
 
+	/** Derive a stable Nowledge Mem thread ID from an Alma thread ID. */
+	const stableThreadId = (almaThreadId) =>
+		`alma-${createHash("sha1").update(String(almaThreadId)).digest("hex").slice(0, 12)}`;
+
 	/** Flush a thread buffer to Nowledge Mem if it has new messages. */
 	const flushThread = async (threadId) => {
 		const buf = threadBuffers.get(threadId);
@@ -1402,39 +1369,39 @@ export async function activate(context) {
 		// Cancel this buffer's idle timer
 		if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
 
+		// Ensure stable thread ID (survives plugin restarts and LRU eviction)
+		if (!buf.nowledgeThreadId) buf.nowledgeThreadId = stableThreadId(threadId);
+
 		try {
 			// Resolve title right before saving (Alma generates titles asynchronously)
 			const resolved = await resolveTitle(threadId, buf);
 			if (resolved) buf.title = escapeForInline(resolved, 120);
 
-			if (buf.nowledgeThreadId) {
-				// Append only new messages to existing thread
+			if (buf.savedCount > 0) {
+				// Already synced before in this session: append new messages
 				const newMessages = buf.messages.slice(buf.savedCount);
 				logger.info?.(`nowledge-mem: appending ${newMessages.length} msgs to ${buf.nowledgeThreadId}`);
 				await client.appendThread(buf.nowledgeThreadId, newMessages);
 			} else {
-				// First flush — create the thread
-				const summary = buf.messages
-					.slice(-8)
-					.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
-					.join("\n");
-				logger.info?.(`nowledge-mem: creating thread for ${threadId} (${buf.messages.length} msgs, title="${buf.title}")`);
-				const result = await client.createThread(
-					buf.title,
-					escapeForInline(summary, 1200),
-					buf.messages,
-					"alma",
-				);
-				// Extract the created thread ID from the result
-				const createdId =
-					(result && typeof result === "object")
-						? String(result.id ?? result.thread_id ?? result.thread?.thread_id ?? "")
-						: String(result ?? "");
-				if (createdId) {
-					buf.nowledgeThreadId = createdId;
-					// Persist the mapping for cross-session continuity
-					nowledgeMemThreadIds.set(threadId, { id: createdId, ts: Date.now() });
-					await persistThreadMapping();
+				// First flush for this buffer: try append (thread may exist from prior session), fall back to create
+				try {
+					logger.info?.(`nowledge-mem: appending ${buf.messages.length} msgs to ${buf.nowledgeThreadId} (reconnect)`);
+					await client.appendThread(buf.nowledgeThreadId, buf.messages);
+				} catch (appendErr) {
+					// Thread does not exist yet: create with stable ID
+					logger.debug?.(`nowledge-mem: append-first failed (${appendErr instanceof Error ? appendErr.message : String(appendErr)}), creating new thread`);
+					const summary = buf.messages
+						.slice(-8)
+						.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
+						.join("\n");
+					logger.info?.(`nowledge-mem: creating thread ${buf.nowledgeThreadId} for ${threadId} (${buf.messages.length} msgs, title="${buf.title}")`);
+					await client.createThread(
+						buf.title,
+						escapeForInline(summary, 1200),
+						buf.messages,
+						"alma",
+						buf.nowledgeThreadId,
+					);
 				}
 			}
 			buf.savedCount = buf.messages.length;
@@ -1469,13 +1436,11 @@ export async function activate(context) {
 				if (evicted?.timer) clearTimeout(evicted.timer);
 				threadBuffers.delete(oldest);
 			}
-			// Check if we have a persisted mapping for this thread
-			const persistedNmId = nowledgeMemThreadIds.get(threadId)?.id || null;
 			threadBuffers.set(threadId, {
 				title: escapeForInline(`Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
 				messages: [],
 				savedCount: 0,
-				nowledgeThreadId: persistedNmId,
+				nowledgeThreadId: null,
 				flushing: false,
 				timer: null,
 			});
