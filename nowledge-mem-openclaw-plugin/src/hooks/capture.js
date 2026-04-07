@@ -79,6 +79,25 @@ export function matchesExcludePattern(sessionKey, patterns) {
 }
 
 /**
+ * OpenClaw cron / isolated-agent sessions use store keys like
+ * `agent:<agentId>:cron:<jobId...>` (see `toAgentStoreSessionKey` + cron runner).
+ * Some code paths also emit bare `cron:<suffix>` keys (legacy / delivery).
+ *
+ * Mirrors OpenClaw `isCronSessionKey` in sessions/session-key-utils.ts, plus the
+ * bare `cron:` prefix. Always skip thread sync for these — they are automation,
+ * not user dialogue.
+ */
+export function isCronCaptureSessionKey(sessionKey) {
+	const raw = String(sessionKey || "").trim().toLowerCase();
+	if (!raw) return false;
+	if (raw.startsWith("cron:")) return true;
+	const parts = raw.split(":").filter(Boolean);
+	if (parts.length < 3 || parts[0] !== "agent") return false;
+	const rest = parts.slice(2).join(":");
+	return rest.startsWith("cron:");
+}
+
+/**
  * Check if any message contains the skip marker text.
  * Scans both raw message content and nested message objects.
  *
@@ -471,8 +490,13 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		if (!event?.success) return;
 		if (ctx?.trigger === "heartbeat") return;
 
-		// Layer 1: pattern-based exclusion (e.g. cron jobs, subagent sessions)
 		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
+		if (isCronCaptureSessionKey(sessionKey)) {
+			logger.debug?.(`capture: skipped cron session ${sessionKey}`);
+			return;
+		}
+
+		// Pattern-based exclusion (e.g. subagent sessions, custom jobs)
 		if (matchesExcludePattern(sessionKey, cfg.captureExclude)) {
 			logger.debug?.(`capture: skipped excluded session ${sessionKey}`);
 			return;
@@ -515,8 +539,12 @@ export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 		if (ceState.active) return;
 		if (ctx?.trigger === "heartbeat") return;
 
-		// Layer 1: pattern-based exclusion
 		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
+		if (isCronCaptureSessionKey(sessionKey)) {
+			logger.debug?.(`capture: skipped cron session ${sessionKey}`);
+			return;
+		}
+
 		if (matchesExcludePattern(sessionKey, cfg.captureExclude)) {
 			logger.debug?.(`capture: skipped excluded session ${sessionKey}`);
 			return;
