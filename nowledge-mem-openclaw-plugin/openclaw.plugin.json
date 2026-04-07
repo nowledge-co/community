@@ -2,7 +2,9 @@
 	"id": "openclaw-nowledge-mem",
 	"version": "0.8.0",
 	"kind": "memory",
-	"skills": ["skills/memory-guide"],
+	"skills": [
+		"skills/memory-guide"
+	],
 	"uiHints": {
 		"sessionContext": {
 			"label": "Session context injection",
@@ -30,11 +32,11 @@
 		},
 		"captureExclude": {
 			"label": "Exclude session patterns",
-			"help": "Session key glob patterns to skip during auto-capture. Use * to match within a colon-segment. Example: agent:*:cron:*"
+			"help": "Extra session key glob patterns to skip during auto-capture (* = one colon segment). Isolated cron sessions (OpenClaw `agent:*:cron:*` and bare `cron:*`) are always skipped \u2014 no config needed. Use this for subagents or other automation you want excluded."
 		},
 		"captureSkipMarker": {
 			"label": "Skip marker",
-			"help": "Text marker in messages that prevents capture for the session. Default: #nmem-skip. Note: if compaction drops the marked message, capture resumes — use captureExclude patterns for persistent filtering."
+			"help": "Text marker in messages that prevents capture for the session. Default: #nmem-skip. Note: if compaction drops the marked message, capture resumes \u2014 use captureExclude patterns for persistent filtering."
 		},
 		"corpusSupplement": {
 			"label": "Register as corpus supplement",
@@ -101,14 +103,16 @@
 			},
 			"captureExclude": {
 				"type": "array",
-				"items": { "type": "string" },
+				"items": {
+					"type": "string"
+				},
 				"default": [],
-				"description": "Session key glob patterns to exclude from auto-capture. Glob * matches within a colon-delimited segment. Example: agent:*:cron:* excludes all cron job sessions."
+				"description": "Additional glob patterns to exclude from auto-capture. Cron / isolated-agent sessions are always excluded (same rule as OpenClaw's session-key utils). Glob * matches within one colon-delimited segment."
 			},
 			"captureSkipMarker": {
 				"type": "string",
 				"default": "#nmem-skip",
-				"description": "Text marker in messages that prevents capture for the entire session. When any message contains this marker, the session is skipped. Note: compaction may drop the marked message — use captureExclude for persistent filtering."
+				"description": "Text marker in messages that prevents capture for the entire session. When any message contains this marker, the session is skipped. Note: compaction may drop the marked message \u2014 use captureExclude for persistent filtering."
 			},
 			"corpusSupplement": {
 				"type": "boolean",

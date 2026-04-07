@@ -4,7 +4,12 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## [0.8.0] - 2026-04-07
 
+### Fixed
+
+- **Cron and isolated-agent runs no longer sync into Mem threads by default.** OpenClaw schedules these as `agent:<agentId>:cron:...` (for example the `cron-worker` agent). They were previously captured like normal chat because `captureExclude` defaulted to empty and glob examples only match fixed segment counts. The plugin now detects the same session-key shape as OpenClaw's `isCronSessionKey`, plus bare `cron:*` keys, and skips thread append/create and distillation for those sessions (hook path and Context Engine `afterTurn`).
+
 ### Added
+
 
 - **Corpus supplement for OpenClaw dreaming.** Nowledge Mem's knowledge graph now participates in memory-core's recall pipeline and dreaming promotion. When `corpusSupplement: true` is set, memories stored in Nowledge Mem are searchable through memory-core's native `memory_search` tool and its three-phase dreaming system (light, deep, REM). Recalled Nowledge Mem content accumulates frequency, relevance, and diversity scores that feed into deep-phase promotion decisions. Cross-tool knowledge organically strengthens OpenClaw's local workspace memory.
 
