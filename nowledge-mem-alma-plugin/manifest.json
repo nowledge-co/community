@@ -2,7 +2,7 @@
   "id": "nowledge-mem",
   "name": "Nowledge Mem",
   "version": "0.6.14",
-  "description": "Local-first personal memory for Alma, powered by Nowledge Mem CLI",
+  "description": "Local-first personal memory for Alma, powered by Nowledge Mem",
   "author": {
     "name": "Nowledge Labs",
     "url": "https://github.com/nowledge-co"

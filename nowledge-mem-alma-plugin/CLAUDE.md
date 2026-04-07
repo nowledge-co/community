@@ -59,7 +59,6 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 - `chat.message.didReceive`: buffer AI response (from `input.response.content`) + start 7s idle timer
 - `thread.activated`: flush previous thread immediately on switch
 - Quit hooks (`app.willQuit`, `app.will-quit`, `app.beforeQuit`, `app.before-quit`): safety net flush
-- `deactivate()`: fallback if quit hooks do not fire
 
 ## Settings (manifest + `context.settings`)
 
@@ -90,7 +89,7 @@ Do not assume registration failed if ToolSearch can discover names.
 node --check main.js
 node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8'));console.log('manifest ok')"
 curl -s http://127.0.0.1:14242/health | head -c 200   # Verify API is reachable
-curl -s http://127.0.0.1:14242/memories/search?query=alma&limit=3   # Test search
+curl -s 'http://127.0.0.1:14242/memories/search?q=alma&limit=3'   # Test search (param is `q`, not `query`)
 ```
 
 ## Reinstall / Reload in Alma
@@ -142,6 +141,20 @@ Only implement if needed; verify with runtime evidence first.
 1. Add test fixture script to validate response shape per tool automatically.
 2. Add explicit telemetry fields for hook outcomes (`recallUsed`, `captureSavedThreadId`) in logs.
 3. Fix live `recallPolicy` reload by moving hook registration logic into a function that can be torn down and re-created on settings change.
+
+## HTTP API Parameter Mapping
+
+The plugin talks directly to the Nowledge Mem HTTP API. Parameter names must match exactly (FastAPI silently ignores unknown query params). Key mappings:
+
+| Operation | Plugin param | HTTP API param | Notes |
+|-----------|-------------|---------------|-------|
+| Memory search | `q` | `q` | NOT `query` (thread search uses `query`) |
+| Memory search | `labels` | `labels` | NOT `filter_labels` |
+| Memory search | `time_range` | `time_range` | Accepts `today/week/month/year`. NOT `event_date_from` (which expects `YYYY-MM-DD`) |
+| Thread search | `query` | `query` | Thread search DOES use `query` |
+| Thread append | path `{thread_id}` | `thread_id` | Human-readable ID, not UUID |
+
+When modifying API calls, always verify parameter names against the backend endpoint signatures in `nowledge-graph-py/src/nowledge_graph_server/api/routers/`.
 
 ## Cache Safety
 

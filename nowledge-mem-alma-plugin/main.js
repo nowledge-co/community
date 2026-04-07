@@ -3,8 +3,6 @@ import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 
-let quitCaptureAttempted = false;
-
 function clamp(value, min, max) {
 	return Math.min(max, Math.max(min, value));
 }
@@ -49,14 +47,6 @@ function extractText(content) {
 		if (typeof content.content === "string") return content.content;
 	}
 	return "";
-}
-
-function stringifyMessage(message) {
-	if (!message || typeof message !== "object") return "";
-	const role = typeof message.role === "string" ? message.role : "unknown";
-	const text = extractText(message.content);
-	if (!text) return "";
-	return `[${role}] ${escapeForInline(text, 400)}`;
 }
 
 class NowledgeMemClient {
@@ -134,7 +124,7 @@ class NowledgeMemClient {
 	async search(query, limit = 5) {
 		const safeLimit = clamp(Number(limit) || 5, 1, 20);
 		const data = await this._fetch("GET", "/memories/search", {
-			params: { query, limit: safeLimit },
+			params: { q: query, limit: safeLimit },
 		});
 		const memories = data.memories ?? data.results ?? [];
 		return memories.map((memory) => ({
@@ -153,10 +143,10 @@ class NowledgeMemClient {
 	}
 
 	async searchMemory(query, options = {}) {
-		const params = { query };
+		const params = { q: query };
 		if (options.limit !== undefined) params.limit = clamp(Number(options.limit) || 5, 1, 20);
-		if (typeof options.label === "string" && options.label.trim()) params.filter_labels = options.label.trim();
-		if (typeof options.time === "string" && options.time.trim()) params.event_date_from = options.time.trim();
+		if (typeof options.label === "string" && options.label.trim()) params.labels = options.label.trim();
+		if (typeof options.time === "string" && options.time.trim()) params.time_range = options.time.trim();
 		if (typeof options.importance === "number" && Number.isFinite(options.importance)) {
 			params.importance_min = clamp(options.importance, 0.1, 1.0);
 		}
@@ -164,18 +154,8 @@ class NowledgeMemClient {
 		return this._fetch("GET", "/memories/search", { params });
 	}
 
-	async showMemory(id, _contentLimit = 1200) {
+	async showMemory(id) {
 		return this._fetch("GET", `/memories/${encodeURIComponent(id)}`);
-	}
-
-	async addMemory(content, title, importance, labels = [], source) {
-		const body = { content, source: source || "alma" };
-		if (title) body.title = title;
-		if (typeof importance === "number" && Number.isFinite(importance)) {
-			body.importance = clamp(importance, 0.1, 1.0);
-		}
-		if (labels.length > 0) body.labels = labels;
-		return this._fetch("POST", "/memories", { body });
 	}
 
 	async updateMemory(id, content, title, importance) {
@@ -188,7 +168,7 @@ class NowledgeMemClient {
 		return this._fetch("PATCH", `/memories/${encodeURIComponent(id)}`, { body });
 	}
 
-	async deleteMemory(id, _force = false) {
+	async deleteMemory(id) {
 		return this._fetch("DELETE", `/memories/${encodeURIComponent(id)}`);
 	}
 
@@ -216,9 +196,9 @@ class NowledgeMemClient {
 		return this._fetch("GET", "/threads/search", { params });
 	}
 
-	async showThread(id, messages = 30, contentLimit = 1200, offset = 0) {
+	async showThread(id, limit = 30, offset = 0) {
 		const params = {
-			limit: Math.max(1, Math.floor(messages)),
+			limit: Math.max(1, Math.floor(limit)),
 			offset: Math.max(0, Math.floor(offset)),
 		};
 		return this._fetch("GET", `/threads/${encodeURIComponent(id)}`, { params });
@@ -239,7 +219,7 @@ class NowledgeMemClient {
 		if (!body.thread_id) {
 			const ts = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
 			const titleHash = createHash("md5").update(title || "").digest("hex").slice(0, 6);
-			body.thread_id = `cli-${ts}-${titleHash}`;
+			body.thread_id = `alma-${ts}-${titleHash}`;
 		}
 		const data = await this._fetch("POST", "/threads", { body, timeout: 30_000 });
 		const threadData = data.thread ?? {};
@@ -264,7 +244,7 @@ class NowledgeMemClient {
 		};
 	}
 
-	async deleteThread(id, force = false, cascade = false) {
+	async deleteThread(id, cascade = false) {
 		const params = {};
 		if (cascade) params.cascade_delete_memories = true;
 		return this._fetch("DELETE", `/threads/${encodeURIComponent(id)}`, { params });
@@ -460,63 +440,6 @@ function buildMemoryContextBlock(workingMemory, results, options = {}) {
 
 	lines.push("", "</nowledge-mem-central-context>");
 	return lines.join("\n");
-}
-
-function normalizeThreadMessages(messages) {
-	return messages
-		.map((message) => {
-			const role =
-				typeof message?.role === "string" &&
-				["user", "assistant", "system"].includes(message.role)
-					? message.role
-					: "user";
-			const content = extractText(message?.content);
-			if (!content) return null;
-			return { role, content };
-		})
-		.filter(Boolean);
-}
-
-async function saveActiveThread(context, client) {
-	const chat = context.chat;
-	if (!chat?.getActiveThread || !chat?.getMessages) {
-		return "Skipped auto-capture: chat API unavailable.";
-	}
-
-	const activeThread = await chat.getActiveThread();
-	if (!activeThread?.id) {
-		return "Skipped auto-capture: no active thread.";
-	}
-
-	const messages = await chat.getMessages(activeThread.id);
-	if (!Array.isArray(messages) || messages.length === 0) {
-		return "Skipped auto-capture: no messages.";
-	}
-
-	const normalizedMessages = normalizeThreadMessages(messages);
-	if (!normalizedMessages.length) {
-		return "Skipped auto-capture: messages had no textual content.";
-	}
-
-	const title = escapeForInline(
-		typeof activeThread.title === "string" && activeThread.title.trim()
-			? activeThread.title
-			: `Alma Thread ${new Date().toISOString().slice(0, 10)}`,
-		120,
-	);
-	const summary = normalizedMessages
-		.slice(-8)
-		.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
-		.join("\n");
-
-	const created = await client.createThread(
-		title,
-		escapeForInline(summary, 1200),
-		normalizedMessages,
-		"alma",
-	);
-	const threadId = created?.id || created?.thread_id || "unknown";
-	return `Saved active thread (${normalizedMessages.length} messages, id=${threadId}).`;
 }
 
 export async function activate(context) {
@@ -896,7 +819,6 @@ export async function activate(context) {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				contentLimit: { type: "number", minimum: 100, maximum: 10000, default: 1200 },
 			},
 			required: ["id"],
 		},
@@ -904,23 +826,19 @@ export async function activate(context) {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				contentLimit: { type: "number", minimum: 100, maximum: 10000, default: 1200 },
 			},
 			required: ["id"],
 		},
 		async execute(input) {
 			const id = String(input?.id ?? "").trim();
 			if (!id) return validationErrorResult("memory_show", "id is required");
-			const contentLimit = clamp(Number(input?.contentLimit ?? 1200) || 1200, 100, 10000);
 			try {
-				const result = await client.showMemory(id, contentLimit);
-				const content = String(result?.content ?? "");
+				const result = await client.showMemory(id);
 				const sourceThreadId =
 					result?.source_thread ?? result?.source_thread_id ?? result?.metadata?.source_thread_id ?? null;
 				const response = {
 					ok: true,
 					item: result,
-					truncated: content.length >= contentLimit,
 				};
 				if (sourceThreadId) response.sourceThreadId = sourceThreadId;
 				return response;
@@ -1001,7 +919,7 @@ export async function activate(context) {
 			if (!id) return validationErrorResult("memory_delete", "id is required");
 			const force = input?.force === true;
 			try {
-				const result = await client.deleteMemory(id, force);
+				const result = await client.deleteMemory(id);
 				return { ok: true, id, force, notFound: false, item: result };
 			} catch (err) {
 				const info = cliErrorResult(err, "memory_delete");
@@ -1136,7 +1054,6 @@ export async function activate(context) {
 				id: { type: "string", minLength: 1 },
 				limit: { type: "number", minimum: 1, maximum: 200, default: 30 },
 				offset: { type: "number", minimum: 0, default: 0 },
-				contentLimit: { type: "number", minimum: 100, maximum: 20000, default: 1200 },
 			},
 			required: ["id"],
 		},
@@ -1152,7 +1069,6 @@ export async function activate(context) {
 					type: "number", minimum: 0, default: 0,
 					description: "Skip first N messages for pagination (default 0)",
 				},
-				contentLimit: { type: "number", minimum: 100, maximum: 20000, default: 1200 },
 			},
 			required: ["id"],
 		},
@@ -1162,8 +1078,7 @@ export async function activate(context) {
 			try {
 				const limit = clamp(Number(input?.limit ?? input?.messages ?? 30) || 30, 1, 200);
 				const offset = Math.max(0, Math.floor(Number(input?.offset ?? 0) || 0));
-				const contentLimit = clamp(Number(input?.contentLimit ?? 1200) || 1200, 100, 20000);
-				const result = await client.showThread(id, limit, contentLimit, offset);
+				const result = await client.showThread(id, limit, offset);
 				const threadMessages = Array.isArray(result?.messages) ? result.messages : [];
 				const totalMessages = Number(result?.total_messages ?? result?.message_count ?? threadMessages.length);
 				const hasMore = totalMessages > 0 && offset + threadMessages.length < totalMessages;
@@ -1174,10 +1089,6 @@ export async function activate(context) {
 					offset,
 					returnedMessages: threadMessages.length,
 					hasMore,
-					truncatedContent: threadMessages.some((m) => {
-						const txt = extractText(m?.content ?? m?.text ?? "");
-						return txt.length >= contentLimit;
-					}),
 				};
 			} catch (err) {
 				const info = cliErrorResult(err, "thread_show");
@@ -1282,7 +1193,7 @@ export async function activate(context) {
 			const force = input?.force === true;
 			const cascade = input?.cascade === true;
 			try {
-				const result = await client.deleteThread(id, force, cascade);
+				const result = await client.deleteThread(id, cascade);
 				return { ok: true, id, force, cascade, notFound: false, item: result };
 			} catch (err) {
 				const info = cliErrorResult(err, "thread_delete");
@@ -1494,7 +1405,6 @@ export async function activate(context) {
 
 		// --- Quit hooks as safety net ---
 		const handleAutoCapture = async (_input, output) => {
-			quitCaptureAttempted = true;
 			try {
 				// Flush all buffers with unsaved messages
 				const flushPromises = [];
@@ -1549,24 +1459,7 @@ export async function activate(context) {
 
 export async function deactivate(context) {
 	const logger = context?.logger ?? console;
-	const autoCapture = Boolean(
-		getSetting(context?.settings, "nowledgeMem.autoCapture", true),
-	);
-	if (!autoCapture || quitCaptureAttempted) {
-		logger.info?.("nowledge-mem deactivated");
-		return;
-	}
-	try {
-		quitCaptureAttempted = true;
-		const apiUrl = getSetting(context?.settings, "nowledgeMem.apiUrl", "") || "";
-		const apiKey = getSetting(context?.settings, "nowledgeMem.apiKey", "") || "";
-		const client = new NowledgeMemClient(logger, { apiUrl, apiKey });
-		const message = await saveActiveThread(context, client);
-		logger.info?.(`nowledge-mem: auto-capture on deactivate (${message})`);
-	} catch (err) {
-		logger.error?.(
-			`nowledge-mem auto-capture on deactivate failed: ${err instanceof Error ? err.message : String(err)}`,
-		);
-	}
+	// Thread buffers are flushed by quit hooks registered in activate().
+	// deactivate() cannot access those buffers (they're scoped to activate's closure).
 	logger.info?.("nowledge-mem deactivated");
 }

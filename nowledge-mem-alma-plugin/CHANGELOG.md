@@ -7,9 +7,20 @@
 - The `nmem` CLI is no longer required for normal operation. The plugin connects directly to `http://127.0.0.1:14242` (or the configured remote URL). CLI availability is still checked in the status tool for diagnostic purposes.
 - API key is passed via `Authorization: Bearer` header, never as a CLI argument or environment variable.
 
+### Fix memory search, recall injection, and dedup check
+- Memory search query parameter was `query` but the HTTP API expects `q`. All memory searches silently returned recent/browse-mode results instead of semantically relevant ones. This broke recall injection (random memories instead of relevant), dedup check in store (compared against wrong memories), and the search/query tools.
+- Label filter parameter was `filter_labels` but the API expects `labels`. Label-based filtering was silently ignored.
+- Time filter sent enum values (`today`, `week`) to the `event_date_from` field which expects date strings. Corrected to use the `time_range` parameter.
+
 ### Fix thread duplication on plugin restart or buffer eviction
 - Conversations now use a stable thread ID derived from Alma's internal thread ID (SHA-1 hash). Previously, each plugin restart, LRU eviction, or Alma relaunch caused the same conversation to be saved as a new thread instead of appending to the existing one.
 - First flush for a buffer now tries to append to the existing thread before falling back to create. This handles the case where the thread already exists in Nowledge Mem from a prior session.
+
+### Remove dead code and phantom parameters
+- Remove unused `saveActiveThread()`, `normalizeThreadMessages()`, `stringifyMessage()`, and `addMemory()` functions (superseded by hook-based live sync and direct HTTP calls).
+- Remove `contentLimit` parameter from show/thread_show tools (the HTTP API returns full content; truncation was a CLI-only concept). Remove misleading `truncatedContent` response field.
+- Remove unused `force` parameter from deleteMemory/deleteThread client methods (the HTTP API does not support forced deletion).
+- Fix `createThread` fallback ID prefix from `cli-` to `alma-`.
 
 ## 0.6.13
 
