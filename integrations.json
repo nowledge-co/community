@@ -201,7 +201,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Plugin captures interactive sessions via hooks (agent_end, after_compaction, before_reset) and Context Engine afterTurn; persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron/session keys excluded (OpenClaw isCronSessionKey via plugin-sdk). Memory tools still use nmem CLI."
+        "note": "Plugin captures interactive sessions via hooks (agent_end, after_compaction, before_reset) and Context Engine afterTurn; persists threads via Nowledge Mem HTTP API with incremental tail sync. Cron sessions (agent:<id>:cron:... and bare cron:*) excluded automatically. Memory tools still use nmem CLI."
       },
       "install": {
         "command": "openclaw plugins install @nowledge/openclaw-nowledge-mem",
