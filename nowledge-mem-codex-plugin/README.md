@@ -45,7 +45,7 @@ Or `pip install nmem-cli`. Then verify with `nmem status`.
 ```bash
 git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community
 mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local
-cp -r /tmp/nowledge-community/nowledge-mem-codex-plugin/* \
+cp -r /tmp/nowledge-community/nowledge-mem-codex-plugin/. \
   ~/.codex/plugins/cache/local/nowledge-mem/local/
 rm -rf /tmp/nowledge-community
 ```
@@ -106,7 +106,7 @@ Start a new Codex session and ask: "What was I working on?" The agent should loa
 
 ```bash
 git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community-update
-cp -r /tmp/nowledge-community-update/nowledge-mem-codex-plugin/* \
+cp -r /tmp/nowledge-community-update/nowledge-mem-codex-plugin/. \
   ~/.codex/plugins/cache/local/nowledge-mem/local/
 rm -rf /tmp/nowledge-community-update
 ```
