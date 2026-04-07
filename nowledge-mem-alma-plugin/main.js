@@ -1347,6 +1347,7 @@ export async function activate(context) {
 			logger.warn?.(`nowledge-mem: failed to load thread mapping: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
+	await loadThreadMapping();
 
 	/** Persist thread mapping to storage. */
 	const persistThreadMapping = async () => {
@@ -1357,7 +1358,6 @@ export async function activate(context) {
 			logger.warn?.(`nowledge-mem: failed to persist thread mapping: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
-	loadThreadMapping();
 
 	/** Resolve the best possible thread title via Alma APIs, falling back to first user message. */
 	const resolveTitle = async (threadId, buf) => {
