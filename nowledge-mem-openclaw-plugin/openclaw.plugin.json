@@ -32,7 +32,7 @@
 		},
 		"captureExclude": {
 			"label": "Exclude session patterns",
-			"help": "Extra session key glob patterns to skip during auto-capture (* = one colon segment). Cron sessions (agent:<id>:cron:... and bare cron:*) are always excluded automatically. Use this list for subagents or other sessions you want to filter."
+			"help": "Extra session key glob patterns to skip during auto-capture (* = one colon segment). OpenClaw cron / isolated automation sessions are always excluded using the host's own session classification\u2014no patterns required. Use this list for subagents or other sessions you want to filter."
 		},
 		"captureSkipMarker": {
 			"label": "Skip marker",
@@ -107,7 +107,7 @@
 					"type": "string"
 				},
 				"default": [],
-				"description": "Additional glob patterns to exclude from auto-capture (* = one colon segment). Cron sessions (agent:<id>:cron:... and bare cron:*) are always excluded automatically."
+				"description": "Additional glob patterns to exclude from auto-capture (* = one colon segment). Cron and isolated automation are always excluded via OpenClaw's isCronSessionKey (plugin-sdk/routing) plus bare cron:* internal keys."
 			},
 			"captureSkipMarker": {
 				"type": "string",

@@ -1,19 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { isCronSessionKey } from "openclaw/plugin-sdk/routing";
 import { ceState } from "../ce-state.js";
-
-/**
- * Detect agent-scoped cron session keys (`agent:<id>:cron:...`).
- * Mirrors OpenClaw's internal `isCronSessionKey` (which parses the
- * `agent:<agentId>:<rest>` format and checks if `<rest>` starts with `cron:`).
- * Inlined because `openclaw/plugin-sdk/routing` is not exported in the
- * package's `exports` map (ERR_PACKAGE_PATH_NOT_EXPORTED).
- */
-function isCronSessionKey(sessionKey) {
-	const parts = String(sessionKey ?? "").trim().toLowerCase().split(":").filter(Boolean);
-	if (parts.length < 3 || parts[0] !== "agent") return false;
-	return parts.slice(2).join(":").startsWith("cron:");
-}
 
 export const DEFAULT_MAX_MESSAGE_CHARS = 800;
 export const MAX_DISTILL_MESSAGE_CHARS = 2000;
@@ -94,10 +82,12 @@ export function matchesExcludePattern(sessionKey, patterns) {
 /**
  * Whether automatic thread capture should skip this OpenClaw session.
  *
- * - Agent-scoped cron keys (`agent:<id>:cron:...`) are detected by
- *   `isCronSessionKey` (inlined from OpenClaw's session-key-utils).
- * - Bare `cron:*` keys are also excluded: some internal paths (e.g. delivery /
- *   failure bookkeeping) use that shape without the `agent:` prefix.
+ * - Agent-scoped cron / isolated-agent keys are classified by
+ *   `isCronSessionKey` from `openclaw/plugin-sdk/routing` (same implementation
+ *   the gateway uses). Requires OpenClaw >=2026.3.22.
+ * - Bare `cron:*` keys are still excluded: some internal paths (e.g. delivery /
+ *   failure bookkeeping) use that shape without the `agent:` prefix, and
+ *   `isCronSessionKey` only parses agent-scoped keys.
  */
 export function isCronCaptureSessionKey(sessionKey) {
 	const raw = String(sessionKey || "")
