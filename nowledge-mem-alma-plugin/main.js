@@ -71,89 +71,71 @@ class NowledgeMemClient {
 		this._apiKey = (credentials.apiKey || "").trim();
 	}
 
+	// --- HTTP transport (async, non-blocking) ---
+
+	/** Build common headers. API key is passed via Authorization header, never logged. */
+	_headers() {
+		const h = { "Content-Type": "application/json", Accept: "application/json" };
+		if (this._apiKey) h.Authorization = `Bearer ${this._apiKey}`;
+		return h;
+	}
+
+	/** Core async fetch with timeout. All data operations route through this. */
+	async _fetch(method, path, { body, params, timeout = 15_000 } = {}) {
+		const url = new URL(path, this._apiUrl);
+		if (params) {
+			for (const [k, v] of Object.entries(params)) {
+				if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+			}
+		}
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), timeout);
+		try {
+			const resp = await fetch(url.href, {
+				method,
+				headers: this._headers(),
+				body: body !== undefined ? JSON.stringify(body) : undefined,
+				signal: controller.signal,
+			});
+			if (!resp.ok) {
+				const text = await resp.text().catch(() => "");
+				throw new Error(`HTTP ${resp.status}: ${text.slice(0, 200)}`);
+			}
+			const ct = resp.headers.get("content-type") || "";
+			return ct.includes("application/json") ? resp.json() : resp.text();
+		} finally {
+			clearTimeout(timer);
+		}
+	}
+
+	// --- CLI diagnostic (sync, used only for status tool) ---
+
 	resolveCommand() {
 		if (this.command) return this.command;
-
-		const candidates = [
+		for (const candidate of [
 			{ cmd: "nmem", prefix: [] },
 			{ cmd: "uvx", prefix: ["--from", "nmem-cli", "nmem"] },
-		];
-
-		for (const candidate of candidates) {
-			const result = spawnSync(
-				candidate.cmd,
-				[...candidate.prefix, "--version"],
-				{
-					encoding: "utf-8",
-					timeout: 10_000,
-				},
-			);
+		]) {
+			const result = spawnSync(candidate.cmd, [...candidate.prefix, "--version"], {
+				encoding: "utf-8",
+				timeout: 10_000,
+			});
 			if (result.status === 0) {
 				this.command = candidate;
-				this.logger.info?.(
-					`nmem resolved via: ${candidate.cmd} ${candidate.prefix.join(" ")}`.trim(),
-				);
+				this.logger.info?.(`nmem resolved via: ${candidate.cmd} ${candidate.prefix.join(" ")}`.trim());
 				return candidate;
 			}
 		}
-
-		throw new Error(
-			"nmem CLI not found. Install with `pip install nmem` or use `uvx --from nmem-cli nmem`.",
-		);
+		throw new Error("nmem CLI not found. Install with `pip install nmem` or use `uvx --from nmem-cli nmem`.");
 	}
 
-	/**
-	 * Build env for child process. API key is injected here — NEVER via CLI args.
-	 */
-	_spawnEnv() {
-		const env = { ...process.env };
-		if (this._apiUrl !== "http://127.0.0.1:14242") {
-			env.NMEM_API_URL = this._apiUrl;
-		}
-		if (this._apiKey) {
-			env.NMEM_API_KEY = this._apiKey;
-		}
-		return env;
-	}
-
-	/**
-	 * Build base CLI args for remote access. --api-url is safe (not a secret).
-	 */
-	_apiUrlArgs() {
-		return this._apiUrl !== "http://127.0.0.1:14242"
-			? ["--api-url", this._apiUrl]
-			: [];
-	}
-
-	run(args, expectJson = false) {
-		const { cmd, prefix } = this.resolveCommand();
-		const finalArgs = [...prefix, ...this._apiUrlArgs(), ...args];
-		const result = spawnSync(cmd, finalArgs, {
-			encoding: "utf-8",
-			timeout: 30_000,
-			env: this._spawnEnv(),
-		});
-
-		if (result.status !== 0) {
-			const stderr = result.stderr?.trim() || "unknown error";
-			throw new Error(
-				`nmem command failed: ${cmd} ${finalArgs.join(" ")}\n${stderr}`,
-			);
-		}
-
-		const stdout = result.stdout?.trim() ?? "";
-		if (!expectJson) return stdout;
-
-		try {
-			return JSON.parse(stdout);
-		} catch {
-			throw new Error("nmem returned invalid JSON output");
-		}
-	}
+	// --- Memory operations ---
 
 	async search(query, limit = 5) {
 		const safeLimit = clamp(Number(limit) || 5, 1, 20);
-		const data = this.run(["--json", "m", "search", query, "-n", String(safeLimit)], true);
+		const data = await this._fetch("GET", "/memories/search", {
+			params: { query, limit: safeLimit },
+		});
 		const memories = data.memories ?? data.results ?? [];
 		return memories.map((memory) => ({
 			id: String(memory.id ?? ""),
@@ -171,56 +153,43 @@ class NowledgeMemClient {
 	}
 
 	async searchMemory(query, options = {}) {
-		const args = ["--json", "m", "search", query];
-		if (options.limit !== undefined) {
-			args.push("-n", String(clamp(Number(options.limit) || 5, 1, 20)));
-		}
-		if (typeof options.label === "string" && options.label.trim()) {
-			args.push("-l", options.label.trim());
-		}
-		if (typeof options.time === "string" && options.time.trim()) {
-			args.push("-t", options.time.trim());
-		}
+		const params = { query };
+		if (options.limit !== undefined) params.limit = clamp(Number(options.limit) || 5, 1, 20);
+		if (typeof options.label === "string" && options.label.trim()) params.filter_labels = options.label.trim();
+		if (typeof options.time === "string" && options.time.trim()) params.event_date_from = options.time.trim();
 		if (typeof options.importance === "number" && Number.isFinite(options.importance)) {
-			args.push("--importance", String(clamp(options.importance, 0.1, 1.0)));
+			params.importance_min = clamp(options.importance, 0.1, 1.0);
 		}
-		if (options.mode === "deep") args.push("--mode", "deep");
-		return this.run(args, true);
+		if (options.mode === "deep") params.mode = "deep";
+		return this._fetch("GET", "/memories/search", { params });
 	}
 
-	async showMemory(id, contentLimit = 1200) {
-		return this.run(
-			["--json", "m", "show", String(id), "--content-limit", String(Math.max(100, Math.floor(contentLimit)))],
-			true,
-		);
+	async showMemory(id, _contentLimit = 1200) {
+		return this._fetch("GET", `/memories/${encodeURIComponent(id)}`);
 	}
 
 	async addMemory(content, title, importance, labels = [], source) {
-		const args = ["--json", "m", "add", content];
-		if (title) args.push("-t", title);
+		const body = { content, source: source || "alma" };
+		if (title) body.title = title;
 		if (typeof importance === "number" && Number.isFinite(importance)) {
-			args.push("-i", String(clamp(importance, 0.1, 1.0)));
+			body.importance = clamp(importance, 0.1, 1.0);
 		}
-		for (const label of labels) args.push("-l", label);
-		if (source) args.push("-s", source);
-		const data = this.run(args, true);
-		return data;
+		if (labels.length > 0) body.labels = labels;
+		return this._fetch("POST", "/memories", { body });
 	}
 
 	async updateMemory(id, content, title, importance) {
-		const args = ["--json", "m", "update", String(id)];
-		if (typeof content === "string" && content.trim()) args.push("-c", content.trim());
-		if (typeof title === "string" && title.trim()) args.push("-t", title.trim());
+		const body = {};
+		if (typeof content === "string" && content.trim()) body.content = content.trim();
+		if (typeof title === "string" && title.trim()) body.title = title.trim();
 		if (typeof importance === "number" && Number.isFinite(importance)) {
-			args.push("-i", String(clamp(importance, 0.1, 1.0)));
+			body.importance = clamp(importance, 0.1, 1.0);
 		}
-		return this.run(args, true);
+		return this._fetch("PATCH", `/memories/${encodeURIComponent(id)}`, { body });
 	}
 
-	async deleteMemory(id, force = false) {
-		const args = ["--json", "m", "delete", String(id)];
-		if (force) args.push("-f");
-		return this.run(args, true);
+	async deleteMemory(id, _force = false) {
+		return this._fetch("DELETE", `/memories/${encodeURIComponent(id)}`);
 	}
 
 	async readWorkingMemory() {
@@ -239,56 +208,78 @@ class NowledgeMemClient {
 		}
 	}
 
-	async saveThread(summary) {
-		const args = ["t", "save", "--from", "alma", "--truncate"];
-		if (summary) args.push("-s", summary);
-		return this.run(args, false);
-	}
+	// --- Thread operations ---
 
 	async searchThreads(query, limit = 5, source) {
-		const args = ["--json", "t", "search", query, "-n", String(clamp(Number(limit) || 5, 1, 50))];
-		if (source) args.push("--source", String(source));
-		return this.run(args, true);
+		const params = { query, limit: clamp(Number(limit) || 5, 1, 50) };
+		if (source) params.source = String(source);
+		return this._fetch("GET", "/threads/search", { params });
 	}
 
 	async showThread(id, messages = 30, contentLimit = 1200, offset = 0) {
-		const args = [
-			"--json",
-			"t",
-			"show",
-			String(id),
-			"-n",
-			String(Math.max(1, Math.floor(messages))),
-			"--content-limit",
-			String(Math.max(100, Math.floor(contentLimit))),
-		];
-		if (offset > 0) args.push("--offset", String(Math.max(0, Math.floor(offset))));
-		return this.run(args, true);
+		const params = {
+			limit: Math.max(1, Math.floor(messages)),
+			offset: Math.max(0, Math.floor(offset)),
+		};
+		return this._fetch("GET", `/threads/${encodeURIComponent(id)}`, { params });
 	}
 
 	async createThread(title, content, messages, source = "alma", id = null) {
-		const args = ["--json", "t", "create", "-t", title];
-		if (id) args.push("--id", id);
-		if (typeof content === "string" && content.trim()) args.push("-c", content.trim());
-		if (Array.isArray(messages) && messages.length > 0) {
-			args.push("-m", JSON.stringify(messages));
+		const body = { title, source };
+		if (id) body.thread_id = id;
+		if (typeof content === "string" && content.trim()) {
+			// content goes into summary-like field; messages carry the actual data
 		}
-		if (source) args.push("-s", source);
-		return this.run(args, true);
+		if (Array.isArray(messages) && messages.length > 0) {
+			body.messages = messages;
+		} else if (typeof content === "string" && content.trim()) {
+			body.messages = [{ role: "user", content: content.trim() }];
+		}
+		// Generate thread_id if not provided (match CLI behavior)
+		if (!body.thread_id) {
+			const ts = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+			const titleHash = createHash("md5").update(title || "").digest("hex").slice(0, 6);
+			body.thread_id = `cli-${ts}-${titleHash}`;
+		}
+		const data = await this._fetch("POST", "/threads", { body, timeout: 30_000 });
+		const threadData = data.thread ?? {};
+		return {
+			success: true,
+			id: threadData.thread_id ?? body.thread_id,
+			title: threadData.title ?? title,
+			messages: (data.messages ?? []).length,
+		};
 	}
 
 	async appendThread(threadId, messages) {
-		const args = ["--json", "t", "append", String(threadId), "-m", JSON.stringify(messages)];
-		return this.run(args, true);
+		const data = await this._fetch("POST", `/threads/${encodeURIComponent(threadId)}/append`, {
+			body: { messages, deduplicate: true },
+			timeout: 30_000,
+		});
+		return {
+			success: data.success ?? true,
+			id: threadId,
+			messages_added: data.messages_added ?? 0,
+			total_messages: data.total_messages ?? 0,
+		};
 	}
 
 	async deleteThread(id, force = false, cascade = false) {
-		const args = ["--json", "t", "delete", String(id)];
-		if (force) args.push("-f");
-		if (cascade) args.push("--cascade");
-		return this.run(args, true);
+		const params = {};
+		if (cascade) params.cascade_delete_memories = true;
+		return this._fetch("DELETE", `/threads/${encodeURIComponent(id)}`, { params });
 	}
 
+	// --- Server health (async, for status tool) ---
+
+	async checkServerHealth() {
+		try {
+			await this._fetch("GET", "/health", { timeout: 5_000 });
+			return { connected: true, error: null };
+		} catch (err) {
+			return { connected: false, error: err instanceof Error ? err.message : String(err) };
+		}
+	}
 }
 
 function normalizeWillSendPayload(first, second) {
@@ -860,19 +851,18 @@ export async function activate(context) {
 			}
 
 			try {
-				const args = ["--json", "m", "add", text];
-				if (title) args.push("-t", title);
-				if (importance !== undefined && Number.isFinite(importance)) {
-					args.push("-i", String(importance));
-				}
-				if (unitType) args.push("--unit-type", unitType);
-				for (const label of labels) args.push("-l", label);
-				if (eventStart) args.push("--event-start", eventStart);
-				if (eventEnd) args.push("--event-end", eventEnd);
-				if (temporalContext) args.push("--when", temporalContext);
+				const body = { content: text, source: source || "alma" };
+				if (title) body.title = title;
+				if (importance !== undefined && Number.isFinite(importance)) body.importance = importance;
+				if (unitType) body.unit_type = unitType;
+				if (labels.length > 0) body.labels = labels;
+				if (eventStart) body.event_start = eventStart;
+				if (eventEnd) body.event_end = eventEnd;
+				if (temporalContext) body.temporal_context = temporalContext;
 
-				const result = client.run(args, true);
-				const id = String(result?.id ?? result?.memory?.id ?? result?.memory_id ?? "");
+				const result = await client._fetch("POST", "/memories", { body });
+				const mem = result?.memory ?? result ?? {};
+				const id = String(mem.id ?? result?.memory_id ?? "");
 
 				const typeLabel = unitType ? ` [${unitType}]` : "";
 				return {
@@ -1057,7 +1047,7 @@ export async function activate(context) {
 		async execute() {
 			const remoteMode = client._apiUrl !== "http://127.0.0.1:14242";
 
-			// Check CLI availability
+			// Check CLI availability (diagnostic only, not used for data operations)
 			let cliAvailable = false;
 			let cliCommand = null;
 			try {
@@ -1065,22 +1055,13 @@ export async function activate(context) {
 				cliAvailable = true;
 				cliCommand = `${resolved.cmd}${resolved.prefix.length ? ` ${resolved.prefix.join(" ")}` : ""}`;
 			} catch {
-				// CLI not found
+				// CLI not found (not required for HTTP transport)
 			}
 
-			// Check server connectivity
-			let serverConnected = false;
-			let serverError = null;
-			if (cliAvailable) {
-				try {
-					client.run(["status"], false);
-					serverConnected = true;
-				} catch (err) {
-					serverError = err instanceof Error ? err.message : String(err);
-				}
-			} else {
-				serverError = "nmem CLI not available";
-			}
+			// Check server connectivity via HTTP
+			const health = await client.checkServerHealth();
+			const serverConnected = health.connected;
+			const serverError = health.error;
 
 			return {
 				ok: true,

@@ -2,10 +2,14 @@
 
 ## 0.6.14
 
+### Async HTTP transport (fixes Alma freeze on Windows)
+- All data operations now use direct HTTP `fetch()` to the Nowledge Mem API instead of shelling out to the `nmem` CLI via `spawnSync`. This eliminates the event-loop blocking that caused Alma to freeze for seconds during recall injection and thread sync, especially on Windows where Python process startup is slow.
+- The `nmem` CLI is no longer required for normal operation. The plugin connects directly to `http://127.0.0.1:14242` (or the configured remote URL). CLI availability is still checked in the status tool for diagnostic purposes.
+- API key is passed via `Authorization: Bearer` header, never as a CLI argument or environment variable.
+
 ### Fix thread duplication on plugin restart or buffer eviction
 - Conversations now use a stable thread ID derived from Alma's internal thread ID (SHA-1 hash). Previously, each plugin restart, LRU eviction, or Alma relaunch caused the same conversation to be saved as a new thread instead of appending to the existing one.
 - First flush for a buffer now tries to append to the existing thread before falling back to create. This handles the case where the thread already exists in Nowledge Mem from a prior session.
-- `createThread()` now accepts an optional `id` parameter, passed through to `nmem t create --id`.
 
 ## 0.6.13
 

@@ -7,7 +7,7 @@ This file is a practical continuation guide for future agent sessions working on
 
 - Plugin target: Alma local plugin system
 - Runtime: plain ESM (`main.js`), no build step
-- Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
+- Memory backend: direct HTTP to Nowledge Mem API (default `http://127.0.0.1:14242`). CLI (`nmem`) is only used for diagnostic in the status tool.
 
 ## Current Status (as of v0.6.14)
 
@@ -89,9 +89,8 @@ Do not assume registration failed if ToolSearch can discover names.
 ```bash
 node --check main.js
 node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8'));console.log('manifest ok')"
-nmem --version || uvx --from nmem-cli nmem --version
-nmem --json m search "alma" -n 3
-nmem --json t search "alma" -n 3
+curl -s http://127.0.0.1:14242/health | head -c 200   # Verify API is reachable
+curl -s http://127.0.0.1:14242/memories/search?query=alma&limit=3   # Test search
 ```
 
 ## Reinstall / Reload in Alma
