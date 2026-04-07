@@ -909,7 +909,6 @@ export async function activate(context) {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				force: { type: "boolean", default: false },
 			},
 			required: ["id"],
 		},
@@ -917,20 +916,18 @@ export async function activate(context) {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				force: { type: "boolean", default: false },
 			},
 			required: ["id"],
 		},
 		async execute(input) {
 			const id = String(input?.id ?? "").trim();
 			if (!id) return validationErrorResult("memory_delete", "id is required");
-			const force = input?.force === true;
 			try {
 				const result = await client.deleteMemory(id);
-				return { ok: true, id, force, notFound: false, item: result };
+				return { ok: true, id, notFound: false, item: result };
 			} catch (err) {
 				const info = cliErrorResult(err, "memory_delete");
-				if (info.error.code === "not_found") return { ok: true, id, force, notFound: true };
+				if (info.error.code === "not_found") return { ok: true, id, notFound: true };
 				return info;
 			}
 		},
@@ -1180,7 +1177,6 @@ export async function activate(context) {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				force: { type: "boolean", default: false },
 				cascade: { type: "boolean", default: false },
 			},
 			required: ["id"],
@@ -1189,7 +1185,6 @@ export async function activate(context) {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				force: { type: "boolean", default: false },
 				cascade: { type: "boolean", default: false },
 			},
 			required: ["id"],
@@ -1197,14 +1192,13 @@ export async function activate(context) {
 		async execute(input) {
 			const id = String(input?.id ?? "").trim();
 			if (!id) return validationErrorResult("thread_delete", "id is required");
-			const force = input?.force === true;
 			const cascade = input?.cascade === true;
 			try {
 				const result = await client.deleteThread(id, cascade);
-				return { ok: true, id, force, cascade, notFound: false, item: result };
+				return { ok: true, id, cascade, notFound: false, item: result };
 			} catch (err) {
 				const info = cliErrorResult(err, "thread_delete");
-				if (info.error.code === "not_found") return { ok: true, id, force, cascade, notFound: true };
+				if (info.error.code === "not_found") return { ok: true, id, cascade, notFound: true };
 				return info;
 			}
 		},
@@ -1276,16 +1270,22 @@ export async function activate(context) {
 			const resolved = await resolveTitle(threadId, buf);
 			if (resolved) buf.title = escapeForInline(resolved, 120);
 
+			// Snapshot message count before async work. New messages may arrive
+			// via willSend/didReceive during the awaits; snapshotting prevents
+			// counting those as already saved.
+			const snapshotCount = buf.messages.length;
+
 			if (buf.savedCount > 0) {
 				// Already synced before in this session: append new messages
-				const newMessages = buf.messages.slice(buf.savedCount);
+				const newMessages = buf.messages.slice(buf.savedCount, snapshotCount);
 				logger.info?.(`nowledge-mem: appending ${newMessages.length} msgs to ${buf.nowledgeThreadId}`);
 				await client.appendThread(buf.nowledgeThreadId, newMessages);
 			} else {
 				// First flush for this buffer: try append (thread may exist from prior session), fall back to create
+				const msgsToSend = buf.messages.slice(0, snapshotCount);
 				try {
-					logger.info?.(`nowledge-mem: appending ${buf.messages.length} msgs to ${buf.nowledgeThreadId} (reconnect)`);
-					await client.appendThread(buf.nowledgeThreadId, buf.messages);
+					logger.info?.(`nowledge-mem: appending ${msgsToSend.length} msgs to ${buf.nowledgeThreadId} (reconnect)`);
+					await client.appendThread(buf.nowledgeThreadId, msgsToSend);
 				} catch (appendErr) {
 					// Only fall back to create when the thread genuinely doesn't exist (404).
 					// Rethrow transient errors (5xx, timeouts) so the outer catch handles them.
@@ -1294,21 +1294,21 @@ export async function activate(context) {
 						/not.found/i.test(appendErr instanceof Error ? appendErr.message : "");
 					if (!isNotFound) throw appendErr;
 					logger.debug?.(`nowledge-mem: thread not found, creating ${buf.nowledgeThreadId}`);
-					const summary = buf.messages
+					const summary = msgsToSend
 						.slice(-8)
 						.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
 						.join("\n");
-					logger.info?.(`nowledge-mem: creating thread ${buf.nowledgeThreadId} for ${threadId} (${buf.messages.length} msgs, title="${buf.title}")`);
+					logger.info?.(`nowledge-mem: creating thread ${buf.nowledgeThreadId} for ${threadId} (${msgsToSend.length} msgs, title="${buf.title}")`);
 					await client.createThread(
 						buf.title,
 						escapeForInline(summary, 1200),
-						buf.messages,
+						msgsToSend,
 						"alma",
 						buf.nowledgeThreadId,
 					);
 				}
 			}
-			buf.savedCount = buf.messages.length;
+			buf.savedCount = snapshotCount;
 			logger.info?.(`nowledge-mem: thread synced (${threadId}, ${buf.messages.length} msgs)`);
 		} catch (err) {
 			logger.error?.(`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -1460,6 +1460,15 @@ export async function activate(context) {
 
 	return {
 		dispose() {
+			// Flush any unsynced thread buffers before tearing down.
+			// This covers plugin disable/reload paths where quit hooks may not fire.
+			for (const [threadId, buf] of threadBuffers) {
+				if (buf.messages.length > buf.savedCount && !buf.flushing) {
+					flushThread(threadId).catch((err) =>
+						logger.error?.(`nowledge-mem: dispose flush failed for ${threadId}: ${err}`),
+					);
+				}
+			}
 			for (const d of disposables) {
 				try { d.dispose(); } catch { /* best effort */ }
 			}
@@ -1471,7 +1480,7 @@ export async function activate(context) {
 
 export async function deactivate(context) {
 	const logger = context?.logger ?? console;
-	// Thread buffers are flushed by quit hooks registered in activate().
-	// deactivate() cannot access those buffers (they're scoped to activate's closure).
+	// Thread buffers are flushed by dispose() (scoped to activate's closure).
+	// deactivate() is called externally and cannot access those buffers directly.
 	logger.info?.("nowledge-mem deactivated");
 }

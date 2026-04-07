@@ -24,7 +24,7 @@ This file is a practical continuation guide for future agent sessions working on
   - search-style: `{ ok, type, query, total, items, raw }` — items may include `sourceThreadId`
   - singleton-style: `{ ok, item, ... }` — show includes `sourceThreadId` when available
   - store: `{ ok, item, summary }` or `{ ok, skipped, reason, existingId, similarity }`
-  - delete-style: `{ ok, id, force, [cascade], notFound, item? }`
+  - delete-style: `{ ok, id, [cascade], notFound, item? }`
   - status: `{ ok, status:{ connectionMode, apiUrl, apiKeyConfigured, cliAvailable, cliCommand, serverConnected, serverError, settings } }`
   - errors: `{ ok:false, error:{ code, operation, message } }`
 
