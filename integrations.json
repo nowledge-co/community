@@ -80,6 +80,7 @@
       "type": "plugin",
       "version": "0.1.2",
       "directory": "nowledge-mem-codex-plugin",
+
       "legacyDirectory": "nowledge-mem-codex-prompts",
       "transport": "cli",
       "capabilities": {
@@ -184,7 +185,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.3",
+      "version": "0.8.0",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -195,7 +196,8 @@
         "autoCapture": true,
         "graphExploration": true,
         "status": true,
-        "contextEngine": true
+        "contextEngine": true,
+        "corpusSupplement": true
       },
       "threadSave": {
         "method": "plugin-capture",

@@ -7,7 +7,7 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 - Plugin target: OpenClaw plugin runtime (memory slot + context engine)
 - Runtime: JS ESM modules under `src/`, no TS build pipeline
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
-- OpenClaw minimum: `2026.3.7` (`appendSystemContext` / system-context guidance required)
+- OpenClaw minimum: `2026.4.5` (`registerMemoryCorpusSupplement` for dreaming integration)
 - Architecture: **CLI-first via OpenClaw runtime** - all CLI execution goes through `api.runtime.system.runCommandWithTimeout`, not direct `child_process`
 - Context engine: registered via `api.registerContextEngine("nowledge-mem", factory)`. Activated when user sets `plugins.slots.contextEngine: "nowledge-mem"`. Falls back to hooks when CE is not active.
 - Remote mode: `~/.nowledge-mem/config.json` (shared) or OpenClaw dashboard. Legacy `openclaw.json` still honored.
@@ -34,6 +34,7 @@ src/
   client.js         - CLI wrapper with API fallback; async runtime command execution; credential handling
   spawn-env.js      - env-only credential injection for the nmem runner
   config.js         - config cascade: openclaw.json (legacy) > pluginConfig > config.json (credentials) > env > defaults
+  corpus-supplement.js - MemoryCorpusSupplement for memory-core dreaming pipeline; search + get backed by nmem
   hooks/
     behavioral.js   - always-on behavioral guidance (~50 tokens/turn); no-ops when CE active
     recall.js       - before_prompt_build: inject Working Memory + recalled memories; no-ops when CE active
@@ -55,6 +56,28 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema,
 ~/.nowledge-mem/openclaw.json - legacy config file (still honored, deprecated in docs)
 ~/.nowledge-mem/config.json   - shared credentials (apiUrl/apiKey) read by all Nowledge Mem tools
 ```
+
+## Corpus Supplement (Dreaming Integration)
+
+When `corpusSupplement: true`, the plugin registers a `MemoryCorpusSupplement` via `api.registerMemoryCorpusSupplement()`. This makes Nowledge Mem's knowledge graph searchable through memory-core's recall pipeline, including its three-phase dreaming system (light, deep, REM).
+
+### How it works
+
+1. **Recall**: When memory-core's `memory_search` runs, it fans out to all registered corpus supplements. Our supplement calls `client.search()` and maps results to `MemoryCorpusSearchResult` format.
+2. **Dreaming**: Recalled Nowledge Mem content accumulates frequency, relevance, and diversity scores in memory-core's short-term recall store. High-scoring content is promoted to `MEMORY.md` during deep-phase dreaming.
+3. **Dedup**: When active, the recall hook and CE `assemble()` skip their own search-based recall (memories section only). Working Memory injection continues as before.
+
+### When to enable
+
+Enable when memory-core is the memory slot and you want cross-tool knowledge to participate in OpenClaw's native recall and dreaming. Most users have Nowledge Mem as the memory slot (default `false`).
+
+### Config keys
+
+| Key | Type | Default | Env Var | Description |
+|-----|------|---------|---------|-------------|
+| `corpusSupplement` | boolean | `false` | `NMEM_CORPUS_SUPPLEMENT` | Register as corpus supplement |
+| `corpusMaxResults` | integer 1-20 | `5` | `NMEM_CORPUS_MAX_RESULTS` | Max results per search call |
+| `corpusMinScore` | integer 0-100 | `0` | `NMEM_CORPUS_MIN_SCORE` | Min score filter (0 = include all) |
 
 ## Context Engine (CE) Architecture
 
@@ -153,6 +176,9 @@ Credentials (apiUrl/apiKey): also reads `~/.nowledge-mem/config.json` (shared wi
 | `maxThreadMessageChars` | integer 200-20000 | `800` | `NMEM_MAX_THREAD_MESSAGE_CHARS` | Max chars per captured thread message before truncation |
 | `captureExclude` | string[] | `[]` | — | Session key glob patterns to skip during auto-capture. `*` matches within a colon-segment. Example: `["agent:*:cron:*"]` |
 | `captureSkipMarker` | string | `"#nmem-skip"` | — | In-band marker: any message containing this text skips capture for the session. Not sticky across compaction |
+| `corpusSupplement` | boolean | `false` | `NMEM_CORPUS_SUPPLEMENT` | Register as MemoryCorpusSupplement for memory-core recall + dreaming |
+| `corpusMaxResults` | integer 1-20 | `5` | `NMEM_CORPUS_MAX_RESULTS` | Max results per corpus supplement search |
+| `corpusMinScore` | integer 0-100 | `0` | `NMEM_CORPUS_MIN_SCORE` | Min score for supplement results (0 = all) |
 | `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
 | `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
 

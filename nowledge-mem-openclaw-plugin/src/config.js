@@ -23,6 +23,9 @@ const ALLOWED_KEYS = new Set([
 	"maxThreadMessageChars",
 	"captureExclude",
 	"captureSkipMarker",
+	"corpusSupplement",
+	"corpusMaxResults",
+	"corpusMinScore",
 	"apiUrl",
 	"apiKey",
 	// Legacy aliases — accepted but not advertised
@@ -197,6 +200,9 @@ function firstDefined(...options) {
  *   NMEM_MAX_CONTEXT_RESULTS   — integer (1-20)
  *   NMEM_RECALL_MIN_SCORE      — integer (0-100)
  *   NMEM_MAX_THREAD_MESSAGE_CHARS — integer (200-20000)
+ *   NMEM_CORPUS_SUPPLEMENT      — true/1/yes to register as MemoryCorpusSupplement
+ *   NMEM_CORPUS_MAX_RESULTS    — integer (1-20)
+ *   NMEM_CORPUS_MIN_SCORE      — integer (0-100)
  *   NMEM_API_URL               — remote server URL
  *   NMEM_API_KEY               — API key (never logged)
  */
@@ -345,6 +351,49 @@ export function parseConfig(raw, logger) {
 	const apiKey = ak.value;
 	_sources.apiKey = ak.source;
 
+	// --- corpusSupplement: file > pluginConfig > env > default ---
+	const cs = firstDefined(
+		{ value: pickBool(resolvedFile, "corpusSupplement"), source: "file" },
+		{
+			value: pickBool(resolvedPlugin, "corpusSupplement"),
+			source: "pluginConfig",
+		},
+		{
+			value: envBool("NMEM_CORPUS_SUPPLEMENT"),
+			source: "env",
+		},
+		{ value: false, source: "default" },
+	);
+	const corpusSupplement = cs.value;
+	_sources.corpusSupplement = cs.source;
+
+	// --- corpusMaxResults: file > pluginConfig > env > default ---
+	const cmr = firstDefined(
+		{ value: pickNum(resolvedFile, "corpusMaxResults"), source: "file" },
+		{
+			value: pickNum(resolvedPlugin, "corpusMaxResults"),
+			source: "pluginConfig",
+		},
+		{ value: envInt("NMEM_CORPUS_MAX_RESULTS"), source: "env" },
+		{ value: 5, source: "default" },
+	);
+	const corpusMaxResults = Math.min(20, Math.max(1, Math.trunc(cmr.value)));
+	_sources.corpusMaxResults = cmr.source;
+
+	// --- corpusMinScore: file > pluginConfig > env > default ---
+	const cmsEnv = envInt("NMEM_CORPUS_MIN_SCORE");
+	const cms = firstDefined(
+		{ value: pickNum(resolvedFile, "corpusMinScore"), source: "file" },
+		{
+			value: pickNum(resolvedPlugin, "corpusMinScore"),
+			source: "pluginConfig",
+		},
+		{ value: cmsEnv, source: "env" },
+		{ value: 0, source: "default" },
+	);
+	const corpusMinScore = Math.min(100, Math.max(0, Math.trunc(cms.value)));
+	_sources.corpusMinScore = cms.source;
+
 	// --- captureExclude: file > pluginConfig > default ---
 	const captureExclude = (() => {
 		const fromFile = Array.isArray(resolvedFile.captureExclude)
@@ -391,6 +440,9 @@ export function parseConfig(raw, logger) {
 		maxThreadMessageChars,
 		captureExclude,
 		captureSkipMarker,
+		corpusSupplement,
+		corpusMaxResults,
+		corpusMinScore,
 		apiUrl,
 		apiKey,
 		_sources,

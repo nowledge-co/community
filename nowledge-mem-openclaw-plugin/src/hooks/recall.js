@@ -180,15 +180,18 @@ export function buildRecalledKnowledgeBlock(
 export function buildRecallHandler(client, cfg, logger) {
 	const minScore = (cfg.recallMinScore ?? 0) / 100; // config is 0-100, API is 0-1
 
+	// When corpus supplement is active, memory-core's recall pipeline searches
+	// Nowledge Mem via the supplement. We still inject Working Memory (only we
+	// know about WM), but skip our own search-based recall to avoid duplicates.
+	const skipSearchRecall = cfg.corpusSupplement;
+
 	return async (event) => {
 		if (ceState.active) return;
 
-		const searchQuery = buildSearchQuery(event);
-		if (!searchQuery) return;
-
 		const sections = [];
 
-		// 1. Working Memory — daily context, not a static profile
+		// 1. Working Memory — daily context, not a static profile.
+		// Always injected regardless of search query (WM is independent of user message).
 		try {
 			const wm = await client.readWorkingMemory();
 			if (wm.available) {
@@ -200,22 +203,26 @@ export function buildRecallHandler(client, cfg, logger) {
 			logger.error(`recall: working memory read failed: ${err}`);
 		}
 
-		// 2. Relevant memories — enriched with scoring signals and labels
-		try {
-			const results = await client.searchRich(
-				searchQuery,
-				cfg.maxContextResults,
-			);
-			// Filter by minimum score if configured
-			const filtered =
-				minScore > 0
-					? results.filter((r) => (r.score ?? 0) >= minScore)
-					: results;
-			if (filtered.length > 0) {
-				sections.push(buildRecalledKnowledgeBlock(filtered));
+		// 2. Relevant memories — enriched with scoring signals and labels.
+		// Skipped when corpus supplement handles search-based recall via memory-core.
+		const searchQuery = buildSearchQuery(event);
+		if (!skipSearchRecall && searchQuery) {
+			try {
+				const results = await client.searchRich(
+					searchQuery,
+					cfg.maxContextResults,
+				);
+				// Filter by minimum score if configured
+				const filtered =
+					minScore > 0
+						? results.filter((r) => (r.score ?? 0) >= minScore)
+						: results;
+				if (filtered.length > 0) {
+					sections.push(buildRecalledKnowledgeBlock(filtered));
+				}
+			} catch (err) {
+				logger.error(`recall: search failed: ${err}`);
 			}
-		} catch (err) {
-			logger.error(`recall: search failed: ${err}`);
 		}
 
 		if (sections.length === 0) return;

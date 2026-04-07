@@ -9,7 +9,7 @@ This is not a flat note store. Nowledge Mem links related knowledge into a graph
 ## Requirements
 
 - [Nowledge Mem](https://mem.nowledge.co) desktop app **or** `nmem` CLI
-- [OpenClaw](https://openclaw.ai) >= 2026.3.7
+- [OpenClaw](https://openclaw.ai) >= 2026.4.5 (corpus supplement requires this version; core features work on >= 2026.3.7)
 
 ## Installation
 
@@ -186,6 +186,20 @@ flowchart LR
 Two entry points:
 1. **From a memory**: `memory_search` or `memory_get` returns `sourceThreadId`, then fetch the source conversation
 2. **Direct search**: `nowledge_mem_thread_search` finds conversations by keyword, then fetch any result
+
+### Corpus Supplement (Dreaming Integration)
+
+When OpenClaw's memory-core is the primary memory slot and Nowledge Mem runs alongside it, you can enable `corpusSupplement: true`. This registers Nowledge Mem as a searchable corpus inside memory-core's recall pipeline and three-phase dreaming system (light, deep, REM).
+
+**What happens:**
+- Every time memory-core runs `memory_search`, it also searches Nowledge Mem's knowledge graph via the supplement.
+- Recalled Nowledge Mem content accumulates frequency and relevance scores in memory-core's short-term store.
+- High-scoring content is promoted to `MEMORY.md` during deep-phase dreaming (daily, 3 AM).
+- The plugin's own search-based recall is automatically disabled to avoid duplicates. Working Memory injection continues as before.
+
+**When to enable:** When memory-core is the memory slot and you want your cross-tool knowledge graph to participate in OpenClaw's native dreaming cycle. Most users have Nowledge Mem as the memory slot directly, so this defaults to `false`.
+
+Requires OpenClaw >= 2026.4.5.
 
 ### Three Modes at a Glance
 
@@ -372,6 +386,9 @@ To change settings, use the OpenClaw plugin settings UI. Changes take effect on 
 | `maxContextResults` | integer | `5` | Max memories to inject at prompt time (1-20, only used when sessionContext is enabled) |
 | `recallMinScore` | integer | `0` | Min relevance score (0-100%) to include in auto-recall. 0 = include all |
 | `maxThreadMessageChars` | integer | `800` | Maximum characters preserved per captured OpenClaw thread message before truncation |
+| `corpusSupplement` | boolean | `false` | Register as a searchable corpus inside memory-core's recall and dreaming pipeline |
+| `corpusMaxResults` | integer | `5` | Max results per corpus supplement search (1-20) |
+| `corpusMinScore` | integer | `0` | Min relevance score (0-100%) for supplement results. 0 = include all |
 | `apiUrl` | string | `""` | Remote server URL. Empty = local (`http://127.0.0.1:14242`) |
 | `apiKey` | string | `""` | API key for remote access. Injected as `NMEM_API_KEY` env var, never logged |
 
@@ -399,6 +416,9 @@ NMEM_DIGEST_MIN_INTERVAL=300
 NMEM_MAX_CONTEXT_RESULTS=5
 NMEM_RECALL_MIN_SCORE=0
 NMEM_MAX_THREAD_MESSAGE_CHARS=800
+NMEM_CORPUS_SUPPLEMENT=false
+NMEM_CORPUS_MAX_RESULTS=5
+NMEM_CORPUS_MIN_SCORE=0
 NMEM_API_URL=https://...
 NMEM_API_KEY=your-key
 ```

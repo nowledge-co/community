@@ -2,6 +2,25 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.0] - 2026-04-07
+
+### Added
+
+- **Corpus supplement for OpenClaw dreaming.** Nowledge Mem's knowledge graph now participates in memory-core's recall pipeline and dreaming promotion. When `corpusSupplement: true` is set, memories stored in Nowledge Mem are searchable through memory-core's native `memory_search` tool and its three-phase dreaming system (light, deep, REM). Recalled Nowledge Mem content accumulates frequency, relevance, and diversity scores that feed into deep-phase promotion decisions. Cross-tool knowledge organically strengthens OpenClaw's local workspace memory.
+
+  Enable in your OpenClaw config:
+  ```json
+  { "corpusSupplement": true }
+  ```
+
+  Three new config keys control the supplement: `corpusSupplement` (boolean, default false), `corpusMaxResults` (1-20, default 5), `corpusMinScore` (0-100%, default 0).
+
+- **Duplicate recall prevention.** When the corpus supplement is active, the plugin's own search-based recall (in the hook and Context Engine) is automatically disabled. Working Memory injection continues as before. This prevents the same memories from appearing twice in the agent's context.
+
+### Changed
+
+- **Minimum OpenClaw version bumped to `>=2026.4.5`** for `registerMemoryCorpusSupplement` API support. Graceful fallback for older versions (registration silently skipped).
+
 ## [0.7.3] - 2026-03-30
 
 ### Added

@@ -170,7 +170,7 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 			info: {
 				id: "nowledge-mem",
 				name: "Nowledge Mem",
-				version: "0.7.0",
+				version: "0.8.0",
 				ownsCompaction: false,
 			},
 
@@ -235,7 +235,8 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 				}
 
 				// 3. Recalled memories (when sessionContext enabled)
-				if (cfg.sessionContext) {
+				// Skipped when corpus supplement handles search-based recall via memory-core.
+				if (cfg.sessionContext && !cfg.corpusSupplement) {
 					const query = buildAssembleSearchQuery(prompt, messages);
 					if (query) {
 						try {
