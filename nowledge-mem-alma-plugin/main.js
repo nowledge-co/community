@@ -49,6 +49,14 @@ function extractText(content) {
 	return "";
 }
 
+/** Extract thread ID from a memory object, handling both string and {id, title} shapes. */
+function extractThreadId(mem) {
+	const st = mem?.source_thread;
+	if (typeof st === "string") return st;
+	if (st && typeof st === "object" && st.id) return String(st.id);
+	return mem?.source_thread_id ?? mem?.metadata?.source_thread_id ?? null;
+}
+
 class NowledgeMemClient {
 	/**
 	 * @param {object} logger
@@ -131,14 +139,10 @@ class NowledgeMemClient {
 			id: String(memory.id ?? ""),
 			title: String(memory.title ?? ""),
 			content: String(memory.content ?? ""),
-			score: Number(memory.score ?? 0),
+			score: Number(memory.relevance_score ?? memory.score ?? 0),
 			labels: Array.isArray(memory.labels) ? memory.labels : [],
 			importance: Number(memory.importance ?? memory.rating ?? 0.5),
-			sourceThreadId:
-				memory.source_thread ??
-				memory.source_thread_id ??
-				memory.metadata?.source_thread_id ??
-				null,
+			sourceThreadId: extractThreadId(memory),
 		}));
 	}
 
@@ -596,7 +600,7 @@ export async function activate(context) {
 				// Enrich items with sourceThreadId for thread provenance
 				if (result.ok && Array.isArray(result.items)) {
 					for (const item of result.items) {
-						const tid = item.source_thread ?? item.source_thread_id ?? item.metadata?.source_thread_id;
+						const tid = extractThreadId(item);
 						if (tid) item.sourceThreadId = tid;
 					}
 				}
@@ -638,7 +642,7 @@ export async function activate(context) {
 				if (memoryItems.length > 0) {
 					// Enrich items with sourceThreadId for thread provenance
 					for (const item of memoryItems) {
-						const tid = item.source_thread ?? item.source_thread_id ?? item.metadata?.source_thread_id;
+						const tid = extractThreadId(item);
 						if (tid) item.sourceThreadId = tid;
 					}
 					return {
@@ -834,8 +838,7 @@ export async function activate(context) {
 			if (!id) return validationErrorResult("memory_show", "id is required");
 			try {
 				const result = await client.showMemory(id);
-				const sourceThreadId =
-					result?.source_thread ?? result?.source_thread_id ?? result?.metadata?.source_thread_id ?? null;
+				const sourceThreadId = extractThreadId(result);
 				const response = {
 					ok: true,
 					item: result,
