@@ -19,6 +19,14 @@ openclaw plugins install @nowledge/openclaw-nowledge-mem
 
 OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. Restart OpenClaw after install to load it.
 
+If the ClawHub listing is not live yet, use a checkout plus local linking for validation:
+
+```bash
+git clone https://github.com/nowledge-co/community.git
+cd community/nowledge-mem-openclaw-plugin
+openclaw plugins install --link .
+```
+
 ### Agent-assisted setup
 
 If another AI agent is helping you install this plugin, point it at the bundled [SKILL.md](./SKILL.md).
