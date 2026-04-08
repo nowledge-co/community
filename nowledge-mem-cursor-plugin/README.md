@@ -46,6 +46,15 @@ The plugin ships a local default `mcp.json`:
 
 For remote Mem, adjust the MCP server URL and headers using Cursor's MCP configuration flow. The official Cursor plugin template expects the plugin package file to be named `mcp.json`, not `.mcp.json`.
 
+If you also want the `sessionStart` hook and `save-handoff` skill to work against remote Mem, configure the `nmem` CLI too:
+
+```bash
+nmem config set url https://your-server:14242
+nmem config set api_key your-key
+```
+
+Cursor MCP settings cover the plugin's tool calls. The `nmem` CLI config covers the terminal-side bootstrap and handoff behaviors.
+
 ## Recommended CLI For Session Bootstrap And Handoffs
 
 If Nowledge Mem is running on the same machine through the desktop app, install `nmem` from **Settings -> Preferences -> Developer Tools -> Install CLI**.
