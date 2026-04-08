@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3] - 2026-04-08
+
+### Changed
+
+- Clarified the release path: official Hermes distribution means upstreaming the provider into `NousResearch/hermes-agent`, not waiting for a separate marketplace surface.
+- Tightened the release notes and install guidance so the native provider is presented as the primary path, with MCP kept as a fallback rather than the main story.
+
 ## [0.5.2] - 2026-04-07
 
 ### Fixed

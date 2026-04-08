@@ -56,7 +56,7 @@ This adds the MCP server to `config.yaml` and installs behavioral guidance in `~
 
 ## What the plugin does
 
-The plugin uses Hermes' memory provider lifecycle to replace manual tool calls and behavioral guidance with deterministic hooks:
+The plugin uses Hermes' memory provider lifecycle to replace manual Working Memory reads and ad-hoc recall prompting with deterministic hooks:
 
 | Hook | What happens | Replaces |
 |------|-------------|----------|
@@ -65,6 +65,8 @@ The plugin uses Hermes' memory provider lifecycle to replace manual tool calls a
 | `on_memory_write` | User profile facts from Hermes mirrored to Nowledge Mem | Nothing (new capability) |
 | `on_pre_compress` | Compressor told about external knowledge | Nothing (new capability) |
 | `get_tool_schemas` | 6 native tools with clean names | MCP tools with `mcp_nowledge_mem_` prefix |
+
+Durable saves still happen through the native `nmem_` tools. The provider teaches Hermes when to use them, but it does not pretend to offer transcript-backed auto-capture or silent background distillation.
 
 ## Tools
 

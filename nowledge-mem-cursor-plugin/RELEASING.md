@@ -24,8 +24,10 @@ This validator checks:
 
 - required plugin files exist and are non-empty
 - `.cursor-plugin/plugin.json` has the core marketplace metadata
-- `.mcp.json` has a valid `nowledge-mem` server entry
+- `hooks/hooks.json` and `hooks/session-start.mjs` keep the session-start Working Memory bootstrap wired
+- `mcp.json` has a valid `nowledge-mem` server entry
 - the rule still documents honest `save-handoff` / `save-thread` semantics
+- rule and skill files keep the frontmatter Cursor's template expects
 - the repository-level `.cursor-plugin/marketplace.json` points to this package
 
 ## Manual Readiness Checks
@@ -34,6 +36,7 @@ These still require a real Cursor IDE validation pass before submission:
 
 - manually validate the package in Cursor IDE using your current internal development workflow for unpublished plugins
 - confirm the rule is applied and all four skills are discovered
+- confirm the `sessionStart` hook injects Working Memory when `nmem` is installed
 - confirm MCP connects locally
 - confirm remote MCP configuration works when URL and headers are updated
 - confirm `save-handoff` works when `nmem` is present
@@ -41,11 +44,13 @@ These still require a real Cursor IDE validation pass before submission:
 
 ## Marketplace Submission
 
-Cursor's docs say to submit the repository link at:
+The official Cursor plugin template frames submission as a repository-link
+review flow with the Cursor team. Use the current marketplace submission path
+that Cursor exposes for repository review, and make sure the repository you
+submit is public and rooted at the multi-plugin `community` checkout.
 
-- `https://cursor.com/marketplace/publish`
-
-Before submitting, confirm the repository is public and that the root `.cursor-plugin/marketplace.json` still points to `nowledge-mem-cursor-plugin`.
+Before submitting, confirm that the root `.cursor-plugin/marketplace.json`
+still points to `nowledge-mem-cursor-plugin`.
 
 ## Recommended Publish Form Values
 
@@ -67,6 +72,7 @@ Prefer the docs page over the site homepage for the website field so reviewers l
 - review `README.md` for accurate install/configuration instructions
 - confirm `plugin.json` metadata is final: name, description, author, homepage, repository, license
 - confirm the repository-level `.cursor-plugin/marketplace.json` is valid and committed
+- confirm `hooks/hooks.json` still uses only the minimal, intentional `sessionStart` automation
 - manually test in Cursor IDE with local Mem (do not rely on an undocumented public folder-loader claim)
 - manually test in Cursor IDE with remote Mem MCP configuration
 - verify that `save-handoff` is present and `save-thread` is not claimed

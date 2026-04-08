@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.3] - 2026-04-08
+
+### Added
+
+- Added a Cursor `sessionStart` hook that injects Working Memory into new sessions when `nmem` is available, with a graceful no-op fallback when it is not.
+
+### Changed
+
+- Switched the package guidance from "optional CLI for handoffs" to "recommended CLI for Working Memory bootstrap and handoffs" so the docs match the real best path.
+- Updated the rule and Working Memory skill so Cursor does not immediately duplicate a fresh session-start Working Memory injection with another `read_working_memory` call.
+- Extended the validator to require the new hook files and keep the session-start contract present for marketplace review.
+
 ## [0.1.2] - 2026-04-08
 
 ### Changed

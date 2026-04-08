@@ -7,7 +7,9 @@ Use Nowledge Mem as the primary external memory system in Cursor.
 
 ## Working Memory
 
-- Read Working Memory once near session start, resume, or when the user explicitly asks about current priorities.
+- The package may already inject Working Memory at session start through a Cursor hook when `nmem` is available.
+- If a fresh `<nowledge_working_memory>` block is already present in the session context, do not immediately call `read_working_memory` again.
+- Read Working Memory with `read_working_memory` near session start, resume, or when the user explicitly asks about current priorities if the hook did not load it or a refresh is needed.
 - After reading it, reuse that context mentally. Do not re-read on every turn unless the session context changed materially, the user asks for a refresh, or a long-running session clearly needs it.
 
 ## When To Recall Proactively

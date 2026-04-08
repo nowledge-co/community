@@ -16,13 +16,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from agent.memory_provider import MemoryProvider
-
 from .client import NowledgeMemClient
 
 logger = logging.getLogger(__name__)

@@ -78,7 +78,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -141,7 +141,7 @@
       "toolNaming": {
         "convention": "mcp-backend",
         "prefix": "memory_",
-        "note": "MCP tools defined by backend (memory_search, memory_add, etc.); skills use nmem CLI for save-handoff"
+        "note": "MCP tools defined by backend (memory_search, memory_add, etc.); a session-start hook can preload Working Memory when nmem is available; skills use nmem CLI for save-handoff"
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff"],
       "slashCommands": []
@@ -185,7 +185,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.2",
+      "version": "0.8.3",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -328,7 +328,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.2",
+      "version": "0.5.3",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
@@ -342,7 +342,7 @@
       },
       "threadSave": {
         "method": "none",
-        "note": "Thread auto-persist planned for v0.6.0 when backend thread creation API is available"
+        "note": "The native provider does not expose transcript-backed session import today. MCP fallback can still use thread_persist manually when that workflow is desired."
       },
       "install": {
         "command": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
