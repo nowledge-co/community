@@ -46,14 +46,14 @@ The plugin ships a local default `mcp.json`:
 
 For remote Mem, adjust the MCP server URL and headers using Cursor's MCP configuration flow. The official Cursor plugin template expects the plugin package file to be named `mcp.json`, not `.mcp.json`.
 
-If you also want the `sessionStart` hook and `save-handoff` skill to work against remote Mem, configure the `nmem` CLI too:
+If you also want the `sessionStart` hook and `save-handoff` skill to work against remote Mem, configure the local `nmem` client too:
 
 ```bash
-nmem config set url https://your-server:14242
-nmem config set api_key your-key
+nmem config client set url https://your-server:14242
+nmem config client set api-key your-key
 ```
 
-Cursor MCP settings cover the plugin's tool calls. The `nmem` CLI config covers the terminal-side bootstrap and handoff behaviors.
+Cursor MCP settings cover the plugin's tool calls. The local `nmem` client config covers the terminal-side bootstrap and handoff behaviors. It is separate from server-side remote-access settings on the Mem host.
 
 ## Recommended CLI For Session Bootstrap And Handoffs
 

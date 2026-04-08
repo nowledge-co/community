@@ -102,12 +102,14 @@ If `nmem` is not on PATH, the plugin disables gracefully. On machines running th
 
 ## Configuration
 
-**No plugin-level configuration needed.** The `nmem` CLI manages server URL and API key. Configure remote access via `nmem`:
+**No plugin-level configuration needed.** The `nmem` CLI manages client-side connection settings. Configure remote access for this machine via `nmem config client`:
 
 ```bash
-nmem config set url https://your-server:14242
-nmem config set api_key your-key
+nmem config client set url https://your-server:14242
+nmem config client set api-key your-key
 ```
+
+This writes the local client config that Hermes reads through `nmem`. It is separate from server-side access settings like bind host or LAN allowlists.
 
 The only plugin-specific setting is request timeout, stored in `~/.hermes/nowledge-mem.json`:
 

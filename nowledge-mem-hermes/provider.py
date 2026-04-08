@@ -258,151 +258,135 @@ class NowledgeMemProvider(MemoryProvider):
         if action != "add" or target != "user" or not content:
             return
 
-        def _save() -> None:
-            try:
-                self._client.save(
-                    content,
-                    title="Hermes user profile fact",
-                    labels=["hermes", "profile"],
-                    unit_type="fact",
-                    importance=0.6,
-                )
-            except Exception as error:
-                logger.debug("User profile mirror failed: %s", error)
+        client = self._client
 
-        thread = threading.Thread(target=_save, daemon=True)
+        def _mirror() -> None:
+            try:
+                client.save(
+                    content,
+                    title="User profile (synced from Hermes)",
+                    labels=["hermes-profile"],
+                    importance=0.5,
+                )
+                logger.debug("Mirrored user-profile write to Nowledge Mem")
+            except Exception as error:
+                logger.debug("Mirror write failed (non-fatal): %s", error)
+
+        thread = threading.Thread(target=_mirror, daemon=True, name="nmem-mirror")
         thread.start()
         self._bg_threads.append(thread)
 
-    def on_pre_compress(self) -> str:
+    def on_pre_compress(self, messages: List[Dict[str, Any]]) -> str:
         if self._cron_skipped or not self._client:
             return ""
         return (
-            "External knowledge exists in Nowledge Mem. If this session later "
-            "needs earlier decisions, procedures, or context, use nmem_search "
-            "or nmem_thread_search to recover it."
+            "Cross-session knowledge is stored in Nowledge Mem. Decisions and insights "
+            "from compressed messages can be recovered via nmem_search. Preserve references "
+            "to memory IDs if any were mentioned."
         )
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
         if self._cron_skipped:
             return []
-        return ALL_TOOL_SCHEMAS
+        return list(ALL_TOOL_SCHEMAS)
 
-    def handle_tool_call(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    def handle_tool_call(self, tool_name: str, args: Dict[str, Any], **kwargs: Any) -> str:
         if not self._client:
             return tool_error("Nowledge Mem is not connected.", success=False)
 
         try:
-            if tool_name == "nmem_search":
-                result = self._client.search(
-                    args.get("query", ""),
-                    limit=int(args.get("limit", 10)),
-                    filter_labels=self._parse_csv(args.get("filter_labels")),
-                    mode=args.get("mode"),
-                )
-            elif tool_name == "nmem_save":
-                result = self._client.save(
-                    args["content"],
-                    memory_id=args.get("id"),
-                    title=args.get("title"),
-                    importance=args.get("importance"),
-                    labels=self._parse_csv(args.get("labels")),
-                    unit_type=args.get("unit_type"),
-                    event_date=args.get("event_date"),
-                )
-            elif tool_name == "nmem_update":
-                result = self._client.update(
-                    args["memory_id"],
-                    content=args.get("content"),
-                    title=args.get("title"),
-                    importance=args.get("importance"),
-                )
-            elif tool_name == "nmem_delete":
-                memory_id = args.get("memory_id")
-                memory_ids = self._normalize_id_list(args.get("memory_ids"))
-                if memory_id and memory_ids:
-                    raise ValueError("Provide either memory_id or memory_ids, not both")
-                if memory_ids:
-                    result = self._client.delete_many(memory_ids)
-                elif memory_id:
-                    result = self._client.delete(memory_id)
-                else:
-                    raise ValueError("memory_id or memory_ids is required")
-            elif tool_name == "nmem_thread_search":
-                result = self._client.thread_search(
-                    args.get("query", ""),
-                    limit=int(args.get("limit", 10)),
-                    source=args.get("source"),
-                )
-            elif tool_name == "nmem_thread_messages":
-                result = self._client.thread_messages(
-                    args["thread_id"],
-                    limit=int(args.get("limit", 50)),
-                    offset=int(args.get("offset", 0)),
-                )
-            else:
-                raise ValueError(f"Unknown tool: {tool_name}")
-
+            result = self._dispatch(tool_name, args)
             return tool_result(self._normalize_tool_result(result))
         except Exception as error:
-            logger.debug("Tool %s failed: %s", tool_name, error)
-            return tool_error(str(error), success=False, tool=tool_name)
+            logger.error("Tool %s failed: %s", tool_name, error)
+            return tool_error(f"{tool_name} failed: {error}", success=False, tool=tool_name)
 
-    def save_config(self, config: Dict[str, Any], hermes_home: str) -> None:
-        file_path = Path(hermes_home) / "nowledge-mem.json"
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(
-            json.dumps(
-                {
-                    "timeout": int(config.get("timeout", 30)),
-                },
-                indent=2,
+    def _dispatch(self, tool_name: str, args: Dict[str, Any]) -> Any:
+        assert self._client is not None
+        client = self._client
+
+        if tool_name == "nmem_search":
+            return client.search(
+                args.get("query", ""),
+                limit=args.get("limit", 10),
+                filter_labels=self._parse_csv(args.get("filter_labels")),
+                mode=args.get("mode"),
             )
-            + "\n",
-            encoding="utf-8",
-        )
+        if tool_name == "nmem_save":
+            return client.save(
+                args["content"],
+                memory_id=args.get("id"),
+                title=args.get("title"),
+                importance=args.get("importance"),
+                labels=self._parse_csv(args.get("labels")),
+                unit_type=args.get("unit_type"),
+                event_date=args.get("event_date"),
+            )
+        if tool_name == "nmem_update":
+            return client.update(
+                args["memory_id"],
+                content=args.get("content"),
+                title=args.get("title"),
+                importance=args.get("importance"),
+            )
+        if tool_name == "nmem_delete":
+            memory_ids = self._normalize_id_list(args.get("memory_ids"))
+            if memory_ids:
+                return client.delete_many(memory_ids)
+            if args.get("memory_id"):
+                return client.delete(args["memory_id"])
+            raise ValueError("nmem_delete requires memory_id or memory_ids")
+        if tool_name == "nmem_thread_search":
+            return client.thread_search(
+                args.get("query", ""),
+                limit=args.get("limit", 10),
+                source=args.get("source"),
+            )
+        if tool_name == "nmem_thread_messages":
+            return client.thread_messages(
+                args["thread_id"],
+                limit=args.get("limit", 50),
+                offset=args.get("offset", 0),
+            )
+        raise ValueError(f"Unknown tool: {tool_name}")
 
-    @classmethod
-    def get_config_schema(cls) -> Dict[str, Any]:
-        return {
-            "provider_name": "nowledge-mem",
-            "display_name": "Nowledge Mem",
-            "description": "Cross-tool memory provider powered by the nmem CLI",
-            "fields": [
-                {
-                    "name": "timeout",
-                    "type": "number",
-                    "label": "CLI timeout (seconds)",
-                    "default": 30,
-                    "required": False,
-                }
-            ],
-        }
+    def get_config_schema(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "key": "timeout",
+                "description": "Request timeout in seconds",
+                "default": "30",
+            }
+        ]
 
-    @staticmethod
-    def _load_timeout(hermes_home: str) -> int:
-        if not hermes_home:
-            return 30
-        file_path = Path(hermes_home) / "nowledge-mem.json"
-        if not file_path.exists():
-            return 30
-        try:
-            data = json.loads(file_path.read_text(encoding="utf-8"))
-            value = int(data.get("timeout", 30))
-            return max(5, min(value, 300))
-        except Exception:
-            return 30
+    def save_config(self, values: Dict[str, Any], hermes_home: str) -> None:
+        config_path = Path(hermes_home) / "nowledge-mem.json"
+        existing: dict = {}
+        if config_path.exists():
+            try:
+                existing = json.loads(config_path.read_text())
+            except Exception:
+                pass
+        existing.update(values)
+        config_path.write_text(json.dumps(existing, indent=2))
+        logger.info("Nowledge Mem config saved to %s", config_path)
+
+    def shutdown(self) -> None:
+        for thread in self._bg_threads:
+            if thread.is_alive():
+                thread.join(timeout=3.0)
+        self._bg_threads.clear()
 
     @staticmethod
     def _parse_csv(value: Any) -> Optional[List[str]]:
         if value is None:
             return None
         if isinstance(value, str):
-            items = [item.strip() for item in value.split(",") if item.strip()]
-            return items or None
+            return [item.strip() for item in value.split(",") if item.strip()]
         if isinstance(value, (list, tuple, set)):
-            items = [str(item).strip() for item in value if str(item).strip()]
-            return items or None
+            parsed = [str(item).strip() for item in value if str(item).strip()]
+            return parsed or None
+
         text = str(value).strip()
         return [text] if text else None
 
@@ -411,56 +395,66 @@ class NowledgeMemProvider(MemoryProvider):
         if value is None:
             return None
         if isinstance(value, str):
-            text = value.strip()
-            return [text] if text else None
+            return [item.strip() for item in value.split(",") if item.strip()]
         if isinstance(value, (list, tuple, set)):
-            items = [str(item).strip() for item in value if str(item).strip()]
-            return items or None
+            parsed = [str(item).strip() for item in value if str(item).strip()]
+            return parsed or None
+
         text = str(value).strip()
         return [text] if text else None
 
     @staticmethod
-    def _normalize_tool_result(result: Any) -> Dict[str, Any]:
+    def _normalize_tool_result(result: Any) -> Any:
         if isinstance(result, dict):
-            if "success" in result or "error" in result:
-                return result
-            return {"success": True, **result}
+            if "success" not in result and "error" not in result:
+                return {"success": True, **result}
+            return result
         return {"success": True, "result": result}
 
     @staticmethod
-    def _format_working_memory(result: Dict[str, Any]) -> str:
-        content = result.get("content", "")
-        if isinstance(content, str) and content.strip():
-            return content.strip()
-        if result:
-            try:
-                return json.dumps(result, indent=2, ensure_ascii=False)
-            except Exception:
-                return str(result)
-        return ""
+    def _load_timeout(hermes_home: str) -> int:
+        if hermes_home:
+            config_path = Path(hermes_home) / "nowledge-mem.json"
+            if config_path.exists():
+                try:
+                    cfg = json.loads(config_path.read_text())
+                    return int(cfg.get("timeout", 30))
+                except Exception:
+                    pass
+        return 30
+
+    @staticmethod
+    def _format_working_memory(wm: Any) -> str:
+        if not wm:
+            return ""
+        if isinstance(wm, dict):
+            content = wm.get("content", "") or wm.get("briefing", "")
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+            return json.dumps(wm, indent=2, ensure_ascii=False)
+        if isinstance(wm, str):
+            return wm.strip()
+        return str(wm)
 
     @staticmethod
     def _format_prefetch(result: Any) -> str:
-        memories = []
-        if isinstance(result, dict):
-            if isinstance(result.get("memories"), list):
-                memories = result["memories"][:5]
-            elif isinstance(result.get("results"), list):
-                memories = result["results"][:5]
-        elif isinstance(result, list):
-            memories = result[:5]
+        if not result or not isinstance(result, dict):
+            return ""
+        memories = result.get("memories", result.get("results", []))
+        if not memories:
+            return ""
 
-        lines = []
-        for index, memory in enumerate(memories, start=1):
-            if not isinstance(memory, dict):
+        lines: List[str] = []
+        for memory in memories[:5]:
+            score = memory.get("score", memory.get("relevance_score", 0))
+            if score < 0.3:
                 continue
-            title = memory.get("title") or memory.get("id") or f"Memory {index}"
-            content = memory.get("content") or memory.get("summary") or ""
-            if content:
-                lines.append(f"{index}. {title}: {content}")
-            else:
-                lines.append(f"{index}. {title}")
+            title = memory.get("title", "Untitled")
+            content = (memory.get("content", "") or "")[:300]
+            labels = memory.get("labels", [])
+            label_str = f" [{', '.join(labels)}]" if labels else ""
+            lines.append(f"- **{title}**{label_str}: {content}")
 
         if not lines:
             return ""
-        return "Relevant knowledge from Nowledge Mem:\n" + "\n".join(lines)
+        return "## Recalled from Nowledge Mem\n" + "\n".join(lines)
