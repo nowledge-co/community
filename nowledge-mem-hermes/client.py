@@ -99,6 +99,7 @@ class NowledgeMemClient:
     ) -> Any:
         """Save a new memory, or upsert by memory_id."""
         cmd = ["m", "add", content]
+        cmd.extend(["-s", "hermes"])
         if memory_id:
             cmd.extend(["--id", memory_id])
         if title:

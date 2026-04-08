@@ -5,6 +5,7 @@
 ### Fixed
 
 - Fixed native tool registration for plugin mode. The provider now exposes its `nmem_*` tool schemas before initialization, which prevents Hermes from advertising the tools and then falling back to its built-in `memory` store with `Unknown tool` errors.
+- Native `nmem_save` writes now pass `source=hermes` instead of inheriting the CLI default, so memories render in Nowledge Mem with Hermes attribution rather than generic `cli`.
 
 ## [0.5.4] - 2026-04-08
 
