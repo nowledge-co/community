@@ -20,11 +20,9 @@ import { ceState } from "../ce-state.js";
 export const BASE_GUIDANCE = [
 	"<nowledge-mem-guidance>",
 	"You have access to the user's personal knowledge graph (Nowledge Mem).",
-	"Before answering questions about prior work, decisions, dates, people, preferences, or plans:",
-	"search with memory_search using natural language queries (not file paths).",
-	"memory_search returns memories with scores, labels, and relevant past conversation snippets.",
+	"Search proactively with memory_search when past context would improve your answer. Do not wait to be asked. Use natural language queries, not file paths.",
 	"When results include a sourceThreadId, use nowledge_mem_thread_fetch for full conversation context.",
-	"When the conversation produces a decision, preference, plan, or learning, save it with nowledge_mem_save.",
+	"Save autonomously with nowledge_mem_save when the conversation produces a decision, preference, plan, procedure, or learning. Do not wait to be asked.",
 	"</nowledge-mem-guidance>",
 ].join("\n");
 
@@ -32,10 +30,9 @@ export const SESSION_CONTEXT_GUIDANCE = [
 	"<nowledge-mem-guidance>",
 	"You have access to the user's personal knowledge graph (Nowledge Mem).",
 	"Relevant memories and your Working Memory have already been injected into this prompt.",
-	"Use memory_search when you need something specific beyond what was auto-recalled (natural language queries, not file paths).",
-	"memory_search also returns relevant past conversation snippets alongside memories.",
+	"Use memory_search for specifics beyond what was auto-recalled, or when the user references prior work not covered above. Natural language queries, not file paths.",
 	"When results include a sourceThreadId, use nowledge_mem_thread_fetch for full conversation context.",
-	"When the conversation produces a decision, preference, plan, or learning, save it with nowledge_mem_save.",
+	"Save autonomously with nowledge_mem_save when the conversation produces a decision, preference, plan, procedure, or learning. Do not wait to be asked.",
 	"</nowledge-mem-guidance>",
 ].join("\n");
 

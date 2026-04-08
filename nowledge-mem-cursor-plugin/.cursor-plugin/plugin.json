@@ -1,7 +1,7 @@
 {
   "name": "nowledge-mem",
   "description": "Bring Working Memory, memory recall, and handoff summaries into Cursor with Nowledge Mem.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2] - 2026-04-08
+
+### Changed
+
+- Strengthened proactive search guidance from conditional to assertive ("Search proactively... Do not wait for the user to ask")
+- Renamed "Writing Rules" to "Autonomous Save" with explicit "Do not wait for the user to ask" directive
+
 ## [0.1.1] - 2026-03-09
 
 ### Added

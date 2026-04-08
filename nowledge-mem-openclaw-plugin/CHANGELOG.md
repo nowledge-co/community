@@ -2,6 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.2] - 2026-04-08
+
+### Changed
+
+- **Assertive behavioral guidance replaces conditional phrasing.** The per-turn system prompt injection now uses "Search proactively... Do not wait to be asked" and "Save autonomously... Do not wait to be asked" instead of the previous "Before answering questions about prior work... search." This directly addresses reports of GPT 5.4 and Kimi K2.5 not proactively searching memories. Also trimmed redundant lines (signal examples, output-format description) to keep the injection tight (~60 tokens), restoring the "(not file paths)" hint.
+
 ## [0.8.1] - 2026-04-07
 
 ### Fixed
