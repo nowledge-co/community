@@ -184,7 +184,7 @@ class NowledgeMemClient:
             raise RuntimeError(
                 "nmem CLI not found. Install: pip install nmem-cli, "
                 "or enable CLI in Nowledge Mem: Settings > Developer Tools"
-            )
+            ) from None
         if result.returncode != 0:
             stderr = result.stderr.strip()
             raise RuntimeError(stderr or f"nmem exited with code {result.returncode}")

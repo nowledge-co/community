@@ -19,7 +19,16 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from agent.memory_provider import MemoryProvider
-from tools.registry import tool_error, tool_result
+
+try:
+    from tools.registry import tool_error as _registry_tool_error
+except ImportError:
+    _registry_tool_error = None
+
+try:
+    from tools.registry import tool_result as _registry_tool_result
+except ImportError:
+    _registry_tool_result = None
 
 from .client import NowledgeMemClient
 
@@ -175,6 +184,29 @@ ALL_TOOL_SCHEMAS = [
     _THREAD_SEARCH,
     _THREAD_MESSAGES,
 ]
+
+
+def tool_error(message: Any, **extra: Any) -> str:
+    """Return Hermes-style JSON error payloads across old and new releases."""
+    if _registry_tool_error is not None:
+        return _registry_tool_error(message, **extra)
+
+    payload = {"error": str(message)}
+    if extra:
+        payload.update(extra)
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def tool_result(data: Any = None, **kwargs: Any) -> str:
+    """Return Hermes-style JSON result payloads across old and new releases."""
+    if _registry_tool_result is not None:
+        return _registry_tool_result(data, **kwargs)
+
+    if data is not None:
+        if kwargs:
+            raise ValueError("tool_result accepts either data or kwargs, not both")
+        return json.dumps(data, ensure_ascii=False)
+    return json.dumps(kwargs, ensure_ascii=False)
 
 
 class NowledgeMemProvider(MemoryProvider):
@@ -379,19 +411,14 @@ class NowledgeMemProvider(MemoryProvider):
 
     @staticmethod
     def _parse_csv(value: Any) -> Optional[List[str]]:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        if isinstance(value, (list, tuple, set)):
-            parsed = [str(item).strip() for item in value if str(item).strip()]
-            return parsed or None
-
-        text = str(value).strip()
-        return [text] if text else None
+        return NowledgeMemProvider._to_str_list(value)
 
     @staticmethod
     def _normalize_id_list(value: Any) -> Optional[List[str]]:
+        return NowledgeMemProvider._to_str_list(value)
+
+    @staticmethod
+    def _to_str_list(value: Any) -> Optional[List[str]]:
         if value is None:
             return None
         if isinstance(value, str):
