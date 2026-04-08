@@ -102,20 +102,13 @@ Success means the backend responds correctly through `nmem`. Do not skip this st
 Default install:
 
 ```bash
-openclaw plugins install @nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 ```
 
-If the user is on mainland China or npmjs is unusually slow, prefer a one-shot mirror override instead of changing global npm config:
+If the user prefers the default resolver path, this also works:
 
 ```bash
-NPMJS_TIME="$(curl -o /dev/null -sS --connect-timeout 2 --max-time 6 -w '%{time_total}' https://registry.npmjs.org/@nowledge%2fopenclaw-nowledge-mem || echo timeout)"
-MIRROR_TIME="$(curl -o /dev/null -sS --connect-timeout 2 --max-time 6 -w '%{time_total}' https://registry.npmmirror.com/@nowledge%2fopenclaw-nowledge-mem || echo timeout)"
-
-if [ "$MIRROR_TIME" != "timeout" ] && { [ "$NPMJS_TIME" = "timeout" ] || awk "BEGIN { exit !($NPMJS_TIME > 2 && $MIRROR_TIME < $NPMJS_TIME) }"; }; then
-  NPM_CONFIG_REGISTRY=https://registry.npmmirror.com openclaw plugins install @nowledge/openclaw-nowledge-mem
-else
-  openclaw plugins install @nowledge/openclaw-nowledge-mem
-fi
+openclaw plugins install @nowledge/openclaw-nowledge-mem
 ```
 
 Important facts:
@@ -196,7 +189,7 @@ If only `memory_search` and `memory_get` tools are available (other Nowledge Mem
 }
 ```
 
-If missing, reinstall (`openclaw plugins install @nowledge/openclaw-nowledge-mem`) which sets the slot automatically. This is common after upgrading OpenClaw to 3.22+ where the default memory slot changed.
+If missing, reinstall (`openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem`) which sets the slot automatically. This is common after upgrading OpenClaw to 3.22+ where the default memory slot changed.
 
 Then verify in chat.
 

@@ -474,7 +474,7 @@ If you also use linked or workspace copies, review `plugins.load.paths` before r
 The memory slot is probably still set to the built-in `memory-core`. OpenClaw 3.22+ defaults to `memory-core` when no explicit slot is configured. Reinstall to reset the slot automatically:
 
 ```bash
-openclaw plugins install @nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 ```
 
 Or set the slot manually in `~/.openclaw/openclaw.json`:

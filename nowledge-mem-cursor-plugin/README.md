@@ -88,6 +88,11 @@ ln -s /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/l
 
 Then restart Cursor or run `Developer: Reload Window`.
 
+If Cursor still shows Claude Code wording, `save-thread`, or hooks like
+`beforeSubmitPrompt` and `stop`, Cursor is not running this package. Remove the
+older imported `nowledge-mem` package from Cursor, keep only
+`~/.cursor/plugins/local/nowledge-mem`, then reload Cursor again.
+
 Cursor loads local plugins from `~/.cursor/plugins/local/<plugin-name>` when
 `.cursor-plugin/plugin.json` is at the package root. This package already
 matches that layout, so symlinking the folder is the cleanest path for local

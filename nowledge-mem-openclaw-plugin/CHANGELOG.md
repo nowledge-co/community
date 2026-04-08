@@ -13,6 +13,7 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 - Added the external code-plugin metadata ClawHub expects in `package.json` and aligned the manifest-facing package description for official catalog review.
 - Synced the checked-in `package-lock.json` package version with the actual plugin version so pack and publish surfaces stay coherent.
 - Tightened the release validator so it now catches changelog drift, `openclaw.release` flag drift, unreadable required files, and config-schema contract changes before a ClawHub publish.
+- Updated install guidance to use ClawHub as the primary path while keeping bare package names documented as a resolver fallback.
 
 ## [0.8.2] - 2026-04-08
 

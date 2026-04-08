@@ -42,6 +42,7 @@ These still require a real Cursor IDE validation pass before submission:
 - confirm remote MCP configuration works when URL and headers are updated
 - confirm `save-handoff` works when `nmem` is present
 - confirm the package does not expose or claim `save-thread`
+- if Cursor still shows Claude-oriented hooks or `save-thread`, remove the stale imported `nowledge-mem` package and retry with only `~/.cursor/plugins/local/nowledge-mem`
 
 ## Marketplace Submission
 
