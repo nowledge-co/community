@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.5] - 2026-04-08
+
+### Fixed
+
+- Fixed native tool registration for plugin mode. The provider now exposes its `nmem_*` tool schemas before initialization, which prevents Hermes from advertising the tools and then falling back to its built-in `memory` store with `Unknown tool` errors.
+
 ## [0.5.4] - 2026-04-08
 
 ### Fixed

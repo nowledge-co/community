@@ -284,7 +284,7 @@ class NowledgeMemProvider(MemoryProvider):
         )
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
-        if self._cron_skipped or not self._client:
+        if self._cron_skipped:
             return []
         return ALL_TOOL_SCHEMAS
 

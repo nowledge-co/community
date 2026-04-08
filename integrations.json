@@ -133,8 +133,8 @@
         "note": "Cursor lacks a native transcript importer; save-handoff used instead"
       },
       "install": {
-        "command": "Link nowledge-mem-cursor-plugin into ~/.cursor/plugins/local/nowledge-mem-cursor and reload Cursor",
-        "updateCommand": "Pull the latest community changes, then reload Cursor (or replace the copied local plugin folder)",
+        "command": "Copy nowledge-mem-cursor-plugin into ~/.cursor/plugins/local/nowledge-mem-cursor and reload Cursor",
+        "updateCommand": "Replace the copied local plugin folder with the latest community version, then reload Cursor",
         "detectionHint": "Running inside Cursor IDE",
         "docsUrl": "/docs/integrations/cursor"
       },

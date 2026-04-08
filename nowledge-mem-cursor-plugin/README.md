@@ -83,7 +83,8 @@ available to your account, install this package directly:
 ```bash
 git clone https://github.com/nowledge-co/community.git
 mkdir -p ~/.cursor/plugins/local
-ln -s /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem-cursor
+rm -rf ~/.cursor/plugins/local/nowledge-mem-cursor
+cp -R /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem-cursor
 ```
 
 Then restart Cursor or run `Developer: Reload Window`.
@@ -98,14 +99,16 @@ older imported `nowledge-mem` package from Cursor, keep only
 
 Cursor loads local plugins from `~/.cursor/plugins/local/<plugin-name>` when
 `.cursor-plugin/plugin.json` is at the package root. This package already
-matches that layout, so symlinking the folder is the cleanest path for local
-users and for fast iteration.
+matches that layout.
 
-If you prefer not to symlink, copy the folder instead:
+If you want faster iteration, you can try a symlink instead:
 
 ```bash
-cp -R /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem-cursor
+ln -s /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem-cursor
 ```
+
+But Cursor currently has known symlink-resolution bugs for local plugin assets,
+so copy-first is the reliable path.
 
 ## Install From Marketplace Later
 
