@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.5.5] - 2026-04-08
+
+### Fixed
+
+- Restored compatibility with Hermes releases that expose `tools.registry` without the newer `tool_result` helper. The provider now prefers Hermes' built-in JSON helpers when available and falls back to the same payload shape when they are not.
+- Fixed native tool registration for plugin mode. The provider now exposes its `nmem_*` tool schemas before initialization, which prevents Hermes from advertising the tools and then falling back to its built-in `memory` store with `Unknown tool` errors.
+- Native `nmem_save` writes now pass `source=hermes` instead of inheriting the CLI default, so memories render in Nowledge Mem with Hermes attribution rather than generic `cli`.
+
+## [0.5.4] - 2026-04-08
+
+### Fixed
+
+- Fixed native tool calls when Hermes passes list-shaped arguments for `labels`, `filter_labels`, or `memory_ids`. Earlier builds assumed comma-separated strings and could fail immediately on valid save or search requests.
+- Normalized provider tool responses so Hermes gets structured `success: false` errors instead of an untyped immediate tool failure.
+
+## [0.5.3] - 2026-04-08
+
+### Changed
+
+- Clarified the release path: official Hermes distribution means upstreaming the provider into `NousResearch/hermes-agent`, not waiting for a separate marketplace surface.
+- Tightened the release notes and install guidance so the native provider is presented as the primary path, with MCP kept as a fallback rather than the main story.
+
 ## [0.5.2] - 2026-04-07
 
 ### Fixed

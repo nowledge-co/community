@@ -30,34 +30,30 @@ class NowledgeMemClient:
     def __init__(self, timeout: int = 30) -> None:
         self._timeout = timeout
 
-    # -- Detection -----------------------------------------------------------
-
     @staticmethod
     def is_available() -> bool:
         """Return True if ``nmem`` CLI is on PATH and responds."""
         try:
-            r = subprocess.run(
+            result = subprocess.run(
                 ["nmem", "--version"],
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
-            return r.returncode == 0
+            return result.returncode == 0
         except Exception:
             return False
-
-    # -- Domain methods ------------------------------------------------------
 
     def health(self) -> bool:
         """Check that Nowledge Mem is reachable."""
         try:
-            r = subprocess.run(
+            result = subprocess.run(
                 ["nmem", "--json", "status"],
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
-            return r.returncode == 0
+            return result.returncode == 0
         except Exception:
             return False
 
@@ -80,8 +76,8 @@ class NowledgeMemClient:
         if limit != 10:
             cmd.extend(["-n", str(limit)])
         if filter_labels:
-            for lbl in filter_labels:
-                cmd.extend(["-l", lbl])
+            for label in filter_labels:
+                cmd.extend(["-l", label])
         if mode == "deep":
             cmd.extend(["--mode", "deep"])
         return self._cli(cmd)
@@ -99,6 +95,7 @@ class NowledgeMemClient:
     ) -> Any:
         """Save a new memory, or upsert by memory_id."""
         cmd = ["m", "add", content]
+        cmd.extend(["-s", "hermes"])
         if memory_id:
             cmd.extend(["--id", memory_id])
         if title:
@@ -106,8 +103,8 @@ class NowledgeMemClient:
         if importance is not None:
             cmd.extend(["-i", str(importance)])
         if labels:
-            for lbl in labels:
-                cmd.extend(["-l", lbl])
+            for label in labels:
+                cmd.extend(["-l", label])
         if unit_type:
             cmd.extend(["--unit-type", unit_type])
         if event_date:
@@ -122,10 +119,7 @@ class NowledgeMemClient:
         title: Optional[str] = None,
         importance: Optional[float] = None,
     ) -> Any:
-        """Update an existing memory (content, title, importance).
-
-        Label changes are not supported by ``nmem m update`` yet.
-        """
+        """Update an existing memory (content, title, importance)."""
         cmd = ["m", "update", memory_id]
         if content:
             cmd.extend(["-c", content])
@@ -176,29 +170,30 @@ class NowledgeMemClient:
             cmd.extend(["--offset", str(offset)])
         return self._cli(cmd)
 
-    # -- Transport -----------------------------------------------------------
-
     def _cli(self, args: List[str]) -> Any:
         """Run ``nmem --json <args>`` and return parsed JSON."""
         cmd = ["nmem", "--json"] + args
         try:
-            r = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=self._timeout
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=self._timeout,
             )
         except FileNotFoundError:
             raise RuntimeError(
                 "nmem CLI not found. Install: pip install nmem-cli, "
                 "or enable CLI in Nowledge Mem: Settings > Developer Tools"
-            )
-        if r.returncode != 0:
-            stderr = r.stderr.strip()
-            raise RuntimeError(stderr or f"nmem exited with code {r.returncode}")
-        output = r.stdout.strip()
+            ) from None
+        if result.returncode != 0:
+            stderr = result.stderr.strip()
+            raise RuntimeError(stderr or f"nmem exited with code {result.returncode}")
+        output = result.stdout.strip()
         if not output:
             return {}
         try:
             return json.loads(output)
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError as error:
             raise RuntimeError(
                 f"nmem returned non-JSON output: {output[:200]}"
-            ) from e
+            ) from error

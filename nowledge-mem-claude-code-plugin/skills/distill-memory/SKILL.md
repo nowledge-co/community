@@ -78,6 +78,6 @@ nmem m add "Chose PostgreSQL over MongoDB for ACID compliance and complex querie
 
 If `nmem` is not in PATH: `pip install nmem-cli`
 
-For remote servers: create `~/.nowledge-mem/config.json` with `{"apiUrl": "...", "apiKey": "..."}`.
+For remote servers: run `nmem config client set url https://...` and `nmem config client set api-key ...` once on this machine.
 
 Run `/status` to check server connection.

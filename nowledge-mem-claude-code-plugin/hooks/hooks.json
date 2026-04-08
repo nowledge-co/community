@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Search past knowledge: nmem --json m search \"query\". Save insights: nmem m add \"content\" -t \"Title\" -i 0.8' || true"
+            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Search proactively when past knowledge would help: nmem --json m search \"query\". Save decisions and learnings autonomously: nmem m add \"content\" -t \"Title\" -i 0.8' || true"
           }
         ]
       }

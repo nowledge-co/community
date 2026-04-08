@@ -18,12 +18,13 @@ Only fall back to `~/ai-now/memory.md` for older local-only setups.
 
 ## Search Memory
 
-Search when:
+Search proactively when past context would improve your response. Do not wait to be asked. Key signals:
 
-- the task connects to previous work
-- the user asks why a decision was made
-- the bug or design resembles a past issue
-- durable context would improve the answer
+- the user references prior work, decisions, preferences, or plans
+- the task connects to a named feature, bug, refactor, or subsystem
+- a debugging pattern resembles something solved earlier
+- the user asks for rationale, procedures, or recurring workflow details
+- the user uses implicit recall language: "that approach", "like before", "the pattern we used"
 
 Start with:
 

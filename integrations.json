@@ -8,7 +8,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.2",
+      "version": "0.7.3",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -116,7 +116,7 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.4",
       "directory": "nowledge-mem-cursor-plugin",
       "transport": "mcp",
       "capabilities": {
@@ -133,15 +133,15 @@
         "note": "Cursor lacks a native transcript importer; save-handoff used instead"
       },
       "install": {
-        "command": "Search 'Nowledge Mem' in Cursor Marketplace and install",
-        "updateCommand": "Cursor Marketplace auto-updates extensions; uninstall and reinstall to force",
+        "command": "Copy nowledge-mem-cursor-plugin into ~/.cursor/plugins/local/nowledge-mem-cursor and reload Cursor",
+        "updateCommand": "Replace the copied local plugin folder with the latest community version, then reload Cursor",
         "detectionHint": "Running inside Cursor IDE",
         "docsUrl": "/docs/integrations/cursor"
       },
       "toolNaming": {
         "convention": "mcp-backend",
         "prefix": "memory_",
-        "note": "MCP tools defined by backend (memory_search, memory_add, etc.); skills use nmem CLI for save-handoff"
+        "note": "MCP tools defined by backend (memory_search, memory_add, etc.); a session-start hook can preload Working Memory when nmem is available; skills use nmem CLI for save-handoff"
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff"],
       "slashCommands": []
@@ -185,7 +185,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.1",
+      "version": "0.8.3",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -204,7 +204,7 @@
         "note": "Plugin captures interactive sessions via hooks (agent_end, after_compaction, before_reset) and Context Engine afterTurn; persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron/session keys excluded (OpenClaw isCronSessionKey via plugin-sdk/routing). Memory tools still use nmem CLI."
       },
       "install": {
-        "command": "openclaw plugins install @nowledge/openclaw-nowledge-mem",
+        "command": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem",
         "updateCommand": "openclaw plugins update openclaw-nowledge-mem",
         "detectionHint": "Running as OpenClaw agent; ~/.openclaw/ exists",
         "docsUrl": "/docs/integrations/openclaw"
@@ -328,7 +328,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.2",
+      "version": "0.5.5",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
@@ -342,7 +342,7 @@
       },
       "threadSave": {
         "method": "none",
-        "note": "Thread auto-persist planned for v0.6.0 when backend thread creation API is available"
+        "note": "The native provider does not expose transcript-backed session import today. MCP fallback can still use thread_persist manually when that workflow is desired."
       },
       "install": {
         "command": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",

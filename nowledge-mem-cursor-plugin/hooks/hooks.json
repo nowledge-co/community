@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node ./hooks/session-start.mjs"
+      }
+    ]
+  }
+}

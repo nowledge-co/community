@@ -4,6 +4,8 @@
 
 Hermes has its own memory and learning system. Nowledge Mem complements it with knowledge that spans tools: insights from Claude Code, Cursor, Codex, Gemini, and every other environment you work in. One knowledge graph, available everywhere.
 
+Until this provider is accepted into `NousResearch/hermes-agent`, the supported distribution path is this community package plus the install script below. The upstream PR is the official long-term home; this README keeps the pre-merge path explicit so users can install it now without waiting.
+
 ## Install
 
 ### Plugin (recommended, Hermes v0.7.0+)
@@ -56,7 +58,7 @@ This adds the MCP server to `config.yaml` and installs behavioral guidance in `~
 
 ## What the plugin does
 
-The plugin uses Hermes' memory provider lifecycle to replace manual tool calls and behavioral guidance with deterministic hooks:
+The plugin uses Hermes' memory provider lifecycle to replace manual Working Memory reads and ad-hoc recall prompting with deterministic hooks:
 
 | Hook | What happens | Replaces |
 |------|-------------|----------|
@@ -65,6 +67,8 @@ The plugin uses Hermes' memory provider lifecycle to replace manual tool calls a
 | `on_memory_write` | User profile facts from Hermes mirrored to Nowledge Mem | Nothing (new capability) |
 | `on_pre_compress` | Compressor told about external knowledge | Nothing (new capability) |
 | `get_tool_schemas` | 6 native tools with clean names | MCP tools with `mcp_nowledge_mem_` prefix |
+
+Durable saves still happen through the native `nmem_` tools. The provider teaches Hermes when to use them, but it does not pretend to offer transcript-backed auto-capture or silent background distillation.
 
 ## Tools
 
@@ -98,12 +102,14 @@ If `nmem` is not on PATH, the plugin disables gracefully. On machines running th
 
 ## Configuration
 
-**No plugin-level configuration needed.** The `nmem` CLI manages server URL and API key. Configure remote access via `nmem`:
+**No plugin-level configuration needed.** The `nmem` CLI manages client-side connection settings. Configure remote access for this machine via `nmem config client`:
 
 ```bash
-nmem config set url https://your-server:14242
-nmem config set api_key your-key
+nmem config client set url https://your-server:14242
+nmem config client set api-key your-key
 ```
+
+This writes the local client config that Hermes reads through `nmem`. It is separate from server-side access settings like bind host or LAN allowlists.
 
 The only plugin-specific setting is request timeout, stored in `~/.hermes/nowledge-mem.json`:
 
@@ -128,6 +134,7 @@ Hermes should call `nmem_search` (plugin mode) or `mcp_nowledge_mem_memory_searc
 - **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. Restart Hermes.
 - **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
 - **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`.
+- **Tool call fails immediately at 0.0s**: Update to v0.5.5 or later. Earlier builds had two separate failure modes: v0.5.3 and below could reject Hermes list-shaped tool arguments for labels or bulk IDs, and v0.5.4 could still advertise `nmem_*` tools before Hermes had actually indexed them for dispatch.
 - **Slow responses**: Default timeout is 30 seconds. Increase in `nowledge-mem.json` for remote setups.
 
 ## Update

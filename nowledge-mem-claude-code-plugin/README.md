@@ -80,16 +80,14 @@ The `Stop` hook runs `nmem t save --from claude-code` in the background after ev
 The plugin works transparently in both modes:
 
 - **Local** (Mem on same machine): Working Memory read from API or local file. Sessions captured by both the desktop app file watcher and the Stop hook (idempotent).
-- **Remote** (Mem on different machine): Create `~/.nowledge-mem/config.json` with your connection settings. The `nmem` CLI reads this automatically.
+- **Remote** (Mem on different machine): configure this machine once with:
 
-```json
-{
-  "apiUrl": "https://your-server:14242",
-  "apiKey": "your-key"
-}
+```bash
+nmem config client set url https://your-server:14242
+nmem config client set api-key your-key
 ```
 
-You can also use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`), which override the config file.
+That writes the shared local client config used by `nmem` and the plugin. You can also use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`) for temporary overrides.
 
 In remote mode, the Stop hook still reads Claude session files locally through `nmem t save --from claude-code` on the machine where Claude Code is running, then uploads the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` directory.
 

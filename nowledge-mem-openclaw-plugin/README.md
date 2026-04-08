@@ -14,10 +14,24 @@ This is not a flat note store. Nowledge Mem links related knowledge into a graph
 ## Installation
 
 ```bash
-openclaw plugins install @nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 ```
 
 OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. Restart OpenClaw after install to load it.
+
+If you prefer the default resolver path, bare package names also work because OpenClaw resolves external plugins from ClawHub first and then falls back to npm:
+
+```bash
+openclaw plugins install @nowledge/openclaw-nowledge-mem
+```
+
+If you need a pinned local checkout for validation or development, use local linking:
+
+```bash
+git clone https://github.com/nowledge-co/community.git
+cd community/nowledge-mem-openclaw-plugin
+openclaw plugins install --link .
+```
 
 ### Agent-assisted setup
 
@@ -460,7 +474,7 @@ If you also use linked or workspace copies, review `plugins.load.paths` before r
 The memory slot is probably still set to the built-in `memory-core`. OpenClaw 3.22+ defaults to `memory-core` when no explicit slot is configured. Reinstall to reset the slot automatically:
 
 ```bash
-openclaw plugins install @nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 ```
 
 Or set the slot manually in `~/.openclaw/openclaw.json`:

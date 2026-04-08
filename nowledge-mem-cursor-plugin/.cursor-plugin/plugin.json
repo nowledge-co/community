@@ -1,14 +1,14 @@
 {
-  "name": "nowledge-mem",
+  "name": "nowledge-mem-cursor",
   "description": "Bring Working Memory, memory recall, and handoff summaries into Cursor with Nowledge Mem.",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",
     "url": "https://nowledge-labs.ai"
   },
   "homepage": "https://mem.nowledge.co/docs/integrations/cursor",
-  "repository": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-cursor-plugin",
+  "repository": "https://github.com/nowledge-co/community",
   "license": "MIT",
   "keywords": [
     "cursor",
@@ -17,6 +17,6 @@
     "mcp",
     "nowledge"
   ],
-  "displayName": "Nowledge Mem",
+  "displayName": "Nowledge Mem for Cursor",
   "logo": "assets/logo.png"
 }
