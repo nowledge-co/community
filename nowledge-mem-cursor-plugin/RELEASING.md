@@ -9,7 +9,7 @@ This package lives inside the `community` repository, so Cursor Marketplace read
 
 Cursor's plugin docs support repositories that contain multiple plugins.
 
-Because `community` contains many integrations and only one Cursor plugin package today, the repository root now carries `.cursor-plugin/marketplace.json` and points `nowledge-mem` at `nowledge-mem-cursor-plugin/`.
+Because `community` contains many integrations and only one Cursor plugin package today, the repository root now carries `.cursor-plugin/marketplace.json` and points `nowledge-mem-cursor` at `nowledge-mem-cursor-plugin/`.
 
 That keeps the package clean while making the repository submission path explicit.
 
@@ -42,7 +42,7 @@ These still require a real Cursor IDE validation pass before submission:
 - confirm remote MCP configuration works when URL and headers are updated
 - confirm `save-handoff` works when `nmem` is present
 - confirm the package does not expose or claim `save-thread`
-- if Cursor still shows Claude-oriented hooks or `save-thread`, remove the stale imported `nowledge-mem` package and retry with only `~/.cursor/plugins/local/nowledge-mem`
+- if Cursor still shows Claude-oriented hooks or `save-thread`, remove the stale imported `nowledge-mem` package and retry with only `~/.cursor/plugins/local/nowledge-mem-cursor`
 
 ## Marketplace Submission
 
@@ -53,6 +53,10 @@ submit is public and rooted at the multi-plugin `community` checkout.
 
 Before submitting, confirm that the root `.cursor-plugin/marketplace.json`
 still points to `nowledge-mem-cursor-plugin`.
+
+The package id must stay `nowledge-mem-cursor`. Reusing `nowledge-mem` causes
+Cursor to collide with the imported Claude-oriented package surface and hides
+the real local Cursor package during testing.
 
 ## Recommended Publish Form Values
 

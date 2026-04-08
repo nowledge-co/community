@@ -37,7 +37,7 @@ The canonical source for this table is `community/integrations.json`.
 |-------|--------------|----------------------|------|
 | **Claude Code** | Running as Claude Code agent; `~/.claude/` exists | `claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
 | **OpenClaw** | Running as OpenClaw agent; `~/.openclaw/` exists | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/openclaw) |
-| **Cursor** | Running inside Cursor IDE | Link `nowledge-mem-cursor-plugin` into `~/.cursor/plugins/local/nowledge-mem`, then reload Cursor | [Guide](https://mem.nowledge.co/docs/integrations/cursor) |
+| **Cursor** | Running inside Cursor IDE | Link `nowledge-mem-cursor-plugin` into `~/.cursor/plugins/local/nowledge-mem-cursor`, then reload Cursor | [Guide](https://mem.nowledge.co/docs/integrations/cursor) |
 | **Gemini CLI** | Running as Gemini CLI agent; `~/.gemini/` exists | Search "Nowledge Mem" in the Gemini CLI Extensions Gallery | [Guide](https://mem.nowledge.co/docs/integrations/gemini-cli) |
 | **Alma** | Running inside Alma; `~/.config/alma/` exists | In Alma: Settings > Plugins > Marketplace, search "Nowledge Mem" | [Guide](https://mem.nowledge.co/docs/integrations/alma) |
 | **Droid** | Running inside Droid (Factory) | Add nowledge-co/community marketplace, install nowledge-mem@nowledge-community | [Guide](https://mem.nowledge.co/docs/integrations/droid) |

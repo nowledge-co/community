@@ -9,7 +9,7 @@
   },
   "plugins": [
     {
-      "name": "nowledge-mem",
+      "name": "nowledge-mem-cursor",
       "source": "./nowledge-mem-cursor-plugin",
       "description": "Bring Working Memory, memory recall, and handoff summaries into Cursor with Nowledge Mem."
     }

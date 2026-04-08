@@ -132,6 +132,7 @@ Hermes should call `nmem_search` (plugin mode) or `mcp_nowledge_mem_memory_searc
 - **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. Restart Hermes.
 - **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
 - **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`.
+- **Tool call fails immediately at 0.0s**: Update to v0.5.4 or later. Earlier builds could reject Hermes list-shaped tool arguments for labels or bulk IDs even when the request itself was valid.
 - **Slow responses**: Default timeout is 30 seconds. Increase in `nowledge-mem.json` for remote setups.
 
 ## Update

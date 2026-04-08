@@ -83,15 +83,18 @@ available to your account, install this package directly:
 ```bash
 git clone https://github.com/nowledge-co/community.git
 mkdir -p ~/.cursor/plugins/local
-ln -s /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem
+ln -s /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem-cursor
 ```
 
 Then restart Cursor or run `Developer: Reload Window`.
 
+This package intentionally uses the plugin id `nowledge-mem-cursor` so it does
+not collide with Cursor's imported Claude-oriented `nowledge-mem` package.
+
 If Cursor still shows Claude Code wording, `save-thread`, or hooks like
 `beforeSubmitPrompt` and `stop`, Cursor is not running this package. Remove the
 older imported `nowledge-mem` package from Cursor, keep only
-`~/.cursor/plugins/local/nowledge-mem`, then reload Cursor again.
+`~/.cursor/plugins/local/nowledge-mem-cursor`, then reload Cursor again.
 
 Cursor loads local plugins from `~/.cursor/plugins/local/<plugin-name>` when
 `.cursor-plugin/plugin.json` is at the package root. This package already
@@ -101,7 +104,7 @@ users and for fast iteration.
 If you prefer not to symlink, copy the folder instead:
 
 ```bash
-cp -R /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem
+cp -R /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem-cursor
 ```
 
 ## Install From Marketplace Later

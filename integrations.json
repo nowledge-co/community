@@ -78,7 +78,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -116,7 +116,7 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "directory": "nowledge-mem-cursor-plugin",
       "transport": "mcp",
       "capabilities": {
@@ -133,7 +133,7 @@
         "note": "Cursor lacks a native transcript importer; save-handoff used instead"
       },
       "install": {
-        "command": "Link nowledge-mem-cursor-plugin into ~/.cursor/plugins/local/nowledge-mem and reload Cursor",
+        "command": "Link nowledge-mem-cursor-plugin into ~/.cursor/plugins/local/nowledge-mem-cursor and reload Cursor",
         "updateCommand": "Pull the latest community changes, then reload Cursor (or replace the copied local plugin folder)",
         "detectionHint": "Running inside Cursor IDE",
         "docsUrl": "/docs/integrations/cursor"
@@ -328,7 +328,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.3",
+      "version": "0.5.4",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4] - 2026-04-08
+
+### Fixed
+
+- Changed the Cursor plugin package id from `nowledge-mem` to `nowledge-mem-cursor` so local installs do not collide with Cursor's imported Claude-oriented `nowledge-mem` package surface.
+- Updated the local install path to `~/.cursor/plugins/local/nowledge-mem-cursor` and tightened the release validator so this collision cannot silently regress.
+
 ## [0.1.3] - 2026-04-08
 
 ### Added

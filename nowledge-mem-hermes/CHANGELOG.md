@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4] - 2026-04-08
+
+### Fixed
+
+- Fixed native tool calls when Hermes passes list-shaped arguments for `labels`, `filter_labels`, or `memory_ids`. Earlier builds assumed comma-separated strings and could fail immediately on valid save or search requests.
+- Normalized provider tool responses so Hermes gets structured `success: false` errors instead of an untyped immediate tool failure.
+
 ## [0.5.3] - 2026-04-08
 
 ### Changed

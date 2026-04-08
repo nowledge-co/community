@@ -1,7 +1,7 @@
 {
-  "name": "nowledge-mem",
+  "name": "nowledge-mem-cursor",
   "description": "Bring Working Memory, memory recall, and handoff summaries into Cursor with Nowledge Mem.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",
@@ -17,6 +17,6 @@
     "mcp",
     "nowledge"
   ],
-  "displayName": "Nowledge Mem",
+  "displayName": "Nowledge Mem for Cursor",
   "logo": "assets/logo.png"
 }

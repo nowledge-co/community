@@ -92,6 +92,9 @@ async function main() {
   if (manifest.name !== manifest.name.toLowerCase() || manifest.name.includes(' ')) {
     fail('plugin.json name must be lowercase and space-free');
   }
+  if (manifest.name === 'nowledge-mem') {
+    fail('plugin.json name must not reuse nowledge-mem; use a Cursor-specific package id to avoid collisions with imported Claude-oriented packages.');
+  }
 
   if (!manifest.author || typeof manifest.author !== 'object') {
     fail('plugin.json author must be an object');
