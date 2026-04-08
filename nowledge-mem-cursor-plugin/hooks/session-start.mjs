@@ -3,17 +3,27 @@ import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+const workingMemoryArgs = ['--json', 'wm', 'read'];
+
 function emit(payload = {}) {
   process.stdout.write(JSON.stringify(payload));
 }
 
 function readWorkingMemoryFromCli() {
-  const result = spawnSync('nmem', ['--json', 'wm', 'read'], {
-    encoding: 'utf8',
-    timeout: 10000,
-  });
+  const result =
+    process.platform === 'win32'
+      ? spawnSync('nmem.cmd', workingMemoryArgs, {
+          encoding: 'utf8',
+          timeout: 10000,
+          shell: true,
+          windowsHide: true,
+        })
+      : spawnSync('nmem', workingMemoryArgs, {
+          encoding: 'utf8',
+          timeout: 10000,
+        });
 
-  if (result.status !== 0) {
+  if (result.error || result.status !== 0) {
     return '';
   }
 
@@ -32,7 +42,11 @@ function readLegacyWorkingMemoryFile() {
     return '';
   }
 
-  return readFileSync(legacyPath, 'utf8').trim();
+  try {
+    return readFileSync(legacyPath, 'utf8').trim();
+  } catch {
+    return '';
+  }
 }
 
 const workingMemory = readWorkingMemoryFromCli() || readLegacyWorkingMemoryFile();

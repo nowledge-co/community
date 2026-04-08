@@ -116,7 +116,7 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-cursor-plugin",
       "transport": "mcp",
       "capabilities": {
