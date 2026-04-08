@@ -105,7 +105,7 @@ Default install:
 openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 ```
 
-If the user prefers the default resolver path, this also works:
+Alternatively, if the user is installing from OpenClaw's default registry rather than ClawHub, this also works:
 
 ```bash
 openclaw plugins install @nowledge/openclaw-nowledge-mem

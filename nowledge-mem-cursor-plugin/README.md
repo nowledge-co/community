@@ -53,7 +53,7 @@ nmem config client set url https://your-server:14242
 nmem config client set api-key your-key
 ```
 
-Cursor MCP settings cover the plugin's tool calls. The local `nmem` client config covers the terminal-side bootstrap and handoff behaviors. It is separate from server-side remote-access settings on the Mem host.
+Cursor MCP settings cover only the plugin's tool calls. The local `nmem` client config covers the client-side `sessionStart` hook and `save-handoff` skill behaviors on this machine. Server-side remote-access settings on the Mem host are configured separately.
 
 ## Recommended CLI For Session Bootstrap And Handoffs
 

@@ -78,7 +78,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.2",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -328,7 +328,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.4",
+      "version": "0.5.5",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
