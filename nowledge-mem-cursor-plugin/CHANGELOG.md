@@ -12,6 +12,7 @@
 - Updated the rule and Working Memory skill so Cursor does not immediately duplicate a fresh session-start Working Memory injection with another `read_working_memory` call.
 - Extended the validator to require the new hook files and keep the session-start contract present for marketplace review.
 - Hardened the session-start hook so unreadable legacy files fail soft and Windows installs can bootstrap through `nmem.cmd` instead of silently skipping Working Memory.
+- Documented Cursor's local plugin installation path so users can install the package directly from `~/.cursor/plugins/local/` before Marketplace acceptance.
 
 ## [0.1.2] - 2026-04-08
 

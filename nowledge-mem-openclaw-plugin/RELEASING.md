@@ -53,6 +53,7 @@ clawhub package publish . \
 
 These still need a real OpenClaw install smoke test:
 
+- install from ClawHub with `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem`
 - install from the local folder with `openclaw plugins install --link .`
 - confirm the plugin loads without manifest or config-schema errors
 - confirm the memory slot switches to `openclaw-nowledge-mem`
@@ -67,15 +68,23 @@ These still need a real OpenClaw install smoke test:
 Dry run first:
 
 ```bash
-cd community/nowledge-mem-openclaw-plugin
-clawhub package publish . --dry-run
+cd /path/to/clawhub
+clawhub package publish /path/to/community/nowledge-mem-openclaw-plugin --dry-run
 ```
 
 Then publish the same package:
 
 ```bash
-cd community/nowledge-mem-openclaw-plugin
-clawhub package publish .
+cd /path/to/clawhub
+clawhub package publish /path/to/community/nowledge-mem-openclaw-plugin
+```
+
+If your globally installed `clawhub` CLI is older and does not support
+`package publish --dry-run`, run the newer local clone instead:
+
+```bash
+cd /path/to/clawhub
+bun clawhub package publish /path/to/community/nowledge-mem-openclaw-plugin --dry-run
 ```
 
 If you also want npm as a secondary distribution path:

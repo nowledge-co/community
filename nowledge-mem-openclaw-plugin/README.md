@@ -14,12 +14,18 @@ This is not a flat note store. Nowledge Mem links related knowledge into a graph
 ## Installation
 
 ```bash
-openclaw plugins install @nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 ```
 
 OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. Restart OpenClaw after install to load it.
 
-If the ClawHub listing is not live yet, use a checkout plus local linking for validation:
+If you prefer the default resolver path, bare package names also work because OpenClaw resolves external plugins from ClawHub first and then falls back to npm:
+
+```bash
+openclaw plugins install @nowledge/openclaw-nowledge-mem
+```
+
+If you need a pinned local checkout for validation or development, use local linking:
 
 ```bash
 git clone https://github.com/nowledge-co/community.git

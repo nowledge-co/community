@@ -34,7 +34,8 @@ This validator checks:
 
 These still require a real Cursor IDE validation pass before submission:
 
-- manually validate the package in Cursor IDE using your current internal development workflow for unpublished plugins
+- install the local package through Cursor's documented local plugin path:
+  `~/.cursor/plugins/local/<plugin-name>`
 - confirm the rule is applied and all four skills are discovered
 - confirm the `sessionStart` hook injects Working Memory when `nmem` is installed
 - confirm MCP connects locally
@@ -73,7 +74,7 @@ Prefer the docs page over the site homepage for the website field so reviewers l
 - confirm `plugin.json` metadata is final: name, description, author, homepage, repository, license
 - confirm the repository-level `.cursor-plugin/marketplace.json` is valid and committed
 - confirm `hooks/hooks.json` still uses only the minimal, intentional `sessionStart` automation
-- manually test in Cursor IDE with local Mem (do not rely on an undocumented public folder-loader claim)
+- manually test local install via `~/.cursor/plugins/local/<plugin-name>` with local Mem
 - manually test in Cursor IDE with remote Mem MCP configuration
 - verify that `save-handoff` is present and `save-thread` is not claimed
 - submit the repository link through Cursor's marketplace publish page

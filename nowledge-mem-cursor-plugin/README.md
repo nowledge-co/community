@@ -75,9 +75,35 @@ cd community/nowledge-mem-cursor-plugin
 node scripts/validate-plugin.mjs
 ```
 
-## Install
+## Install Locally Today
 
-This package is prepared for Cursor's plugin format and Cursor Marketplace review. Cursor's public docs and the official plugin template center the marketplace repository submission flow, not a stable documented local folder-loader. Treat this directory as the source-of-truth package for validation before publish, then install through the marketplace once the listing is live.
+Cursor's local plugin path is ready now. If the Marketplace listing is not
+available to your account, install this package directly:
+
+```bash
+git clone https://github.com/nowledge-co/community.git
+mkdir -p ~/.cursor/plugins/local
+ln -s /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem
+```
+
+Then restart Cursor or run `Developer: Reload Window`.
+
+Cursor loads local plugins from `~/.cursor/plugins/local/<plugin-name>` when
+`.cursor-plugin/plugin.json` is at the package root. This package already
+matches that layout, so symlinking the folder is the cleanest path for local
+users and for fast iteration.
+
+If you prefer not to symlink, copy the folder instead:
+
+```bash
+cp -R /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/local/nowledge-mem
+```
+
+## Install From Marketplace Later
+
+This package is also prepared for Cursor Marketplace review. Once the listing
+is accepted and visible, install `Nowledge Mem` from Cursor Marketplace and use
+the same package behavior.
 
 Release and submission notes live in [`RELEASING.md`](./RELEASING.md).
 
