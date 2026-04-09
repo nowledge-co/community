@@ -205,7 +205,9 @@ export function normalizeRoleMessage(
 	const extractedText = extractText(msg.content);
 	if (!extractedText) return null;
 	const cleanedText = stripInternalSenderMetadata(extractedText);
-	if (cleanedText.startsWith(SESSION_RESET_PROMPT_PREFIX)) return null;
+	if (role === "user" && cleanedText.startsWith(SESSION_RESET_PROMPT_PREFIX)) {
+		return null;
+	}
 	const text = stripOpenClawDirectiveTags(cleanedText);
 	if (!text) return null;
 	if (role === "user" && text.startsWith("/")) return null;

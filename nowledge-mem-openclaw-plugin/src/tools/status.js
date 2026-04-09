@@ -69,10 +69,11 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 					? runtimeInfo.contextEngineRegistrationError.trim()
 					: null;
 			details.memorySlot = memorySlot ?? "(unknown)";
-			details.contextEngineSlot =
+			const ceSlot =
 				contextEngineSlot && String(contextEngineSlot).trim()
-					? String(contextEngineSlot)
+					? String(contextEngineSlot).trim()
 					: "legacy";
+			details.contextEngineSlot = ceSlot;
 			details.contextEngineRegistered = contextEngineRegistered;
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {
 				const corpusOn = cfg.corpusSupplement === true;
@@ -103,10 +104,6 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			}
 
 			// 0c. Capture routing — hooks vs context engine
-			const ceSlot =
-				contextEngineSlot && String(contextEngineSlot).trim()
-					? String(contextEngineSlot).trim()
-					: "legacy";
 			const ceActive = ceSlot === "nowledge-mem" && contextEngineRegistered;
 			const captureMode = !cfg.sessionDigest
 				? "disabled"
