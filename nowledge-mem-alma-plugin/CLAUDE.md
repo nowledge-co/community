@@ -122,7 +122,7 @@ open -a Alma
 
 ## Alma Hook Availability
 
-All three hooks used by live sync are confirmed working in Alma (verified v0.6.14):
+All three hooks used by live sync are confirmed working in Alma (verified v0.6.15):
 - `chat.message.willSend` — fires before user message is sent. Input: `{threadId, content, model, providerId}`.
 - `chat.message.didReceive` — fires after AI response. Input: `{threadId, response: {content, usage?}, pricing?}`.
 - `thread.activated` — fires on thread switch. Input: `{threadId, title?}`.
