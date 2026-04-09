@@ -57,11 +57,16 @@ export default {
 
 		// Diagnostics — pass runtime config so the status tool can detect:
 		//   - plugins.allow missing or not including this plugin
-		//   - memory slot pointing elsewhere (e.g. memory-core)
+		//   - memory/context-engine slot routing for capture and recall
 		const memorySlot = api.config?.plugins?.slots?.memory;
+		const contextEngineSlot = api.config?.plugins?.slots?.contextEngine;
 		const pluginsAllow = api.config?.plugins?.allow;
 		api.registerTool(
-			createStatusTool(client, logger, cfg, { memorySlot, pluginsAllow }),
+			createStatusTool(client, logger, cfg, {
+				memorySlot,
+				contextEngineSlot,
+				pluginsAllow,
+			}),
 		);
 
 		// --- Context Engine registration ---

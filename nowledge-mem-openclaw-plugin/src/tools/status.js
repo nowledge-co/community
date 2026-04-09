@@ -61,7 +61,12 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 
 			// 0b. Memory slot check — show current mode and options
 			const memorySlot = runtimeInfo.memorySlot;
+			const contextEngineSlot = runtimeInfo.contextEngineSlot;
 			details.memorySlot = memorySlot ?? "(unknown)";
+			details.contextEngineSlot =
+				contextEngineSlot && String(contextEngineSlot).trim()
+					? String(contextEngineSlot)
+					: "legacy";
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {
 				const corpusOn = cfg.corpusSupplement === true;
 				if (corpusOn) {
@@ -90,6 +95,34 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				lines.push("Memory slot: openclaw-nowledge-mem (active)");
 			}
 
+			// 0c. Capture routing — hooks vs context engine
+			const ceSlot =
+				contextEngineSlot && String(contextEngineSlot).trim()
+					? String(contextEngineSlot).trim()
+					: "legacy";
+			const captureMode = !cfg.sessionDigest
+				? "disabled"
+				: ceSlot === "nowledge-mem" ? "context-engine" : "hooks";
+			details.captureMode = captureMode;
+			if (ceSlot === "nowledge-mem") {
+				lines.push("Context Engine slot: nowledge-mem (active)");
+				lines.push(
+					"  Thread capture runs through Context Engine afterTurn, not hook events.",
+				);
+			} else {
+				lines.push(
+					`Context Engine slot: ${ceSlot === "legacy" ? "legacy (default)" : `"${ceSlot}"`}`,
+				);
+				if (cfg.sessionDigest) {
+					lines.push(
+						"  Thread capture runs through hooks: agent_end, after_compaction, before_reset.",
+					);
+				}
+			}
+			if (!cfg.sessionDigest) {
+				lines.push("Thread capture: disabled (sessionDigest=false)");
+			}
+
 			// 1. Mode + connection target
 			const remote = !isDefaultApiUrl(cfg.apiUrl);
 			const mode = remote ? "remote" : "local";
@@ -101,6 +134,8 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				`Mode: ${remote ? `Remote (${cfg.apiUrl})` : "Local (127.0.0.1:14242)"}`,
 			);
 			lines.push(`API key: ${cfg.apiKey ? "set" : "not set"}`);
+			lines.push("Memory tools: nmem CLI");
+			lines.push("Thread sync: Mem HTTP API");
 
 			// 2. CLI resolution
 			try {
@@ -156,6 +191,9 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				} else {
 					lines.push("  Ensure the Nowledge Mem desktop app is running.");
 				}
+				lines.push(
+					"  Memory tools may still work through the CLI, but thread auto-sync will fail while the HTTP API is unreachable.",
+				);
 			}
 
 			// 4. Effective config with sources
@@ -178,6 +216,9 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			);
 			lines.push(
 				`  maxThreadMessageChars: ${cfg.maxThreadMessageChars} (${sources.maxThreadMessageChars || "?"})`,
+			);
+			lines.push(
+				`  corpusSupplement: ${cfg.corpusSupplement} (${sources.corpusSupplement || "?"})`,
 			);
 
 			details.config = {
@@ -204,6 +245,10 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				maxThreadMessageChars: {
 					value: cfg.maxThreadMessageChars,
 					source: sources.maxThreadMessageChars,
+				},
+				corpusSupplement: {
+					value: cfg.corpusSupplement,
+					source: sources.corpusSupplement,
 				},
 				apiUrl: { value: cfg.apiUrl || "(local)", source: sources.apiUrl },
 				apiKey: {

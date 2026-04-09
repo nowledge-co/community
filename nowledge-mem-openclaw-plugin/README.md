@@ -505,11 +505,22 @@ If `openclaw status` shows a CRITICAL warning about `plugins.allow`, this is the
 
 Do not list `nowledge_mem_*` tool names in `tools.allow` — OpenClaw silently strips allowlists that contain only plugin entries, so the config looks active but does nothing.
 
-**Thread auto-sync stopped right after upgrading to `0.8.3`**
+**Memory tools still work, but thread auto-sync does not**
 
-This was a packaging regression, not a Mem server regression. `0.8.3` added a host-version gate in `package.json` that could cause OpenClaw to skip loading the plugin before registration in some environments. When that happened, thread capture and distillation stopped because the plugin never attached its lifecycle hooks.
+This is usually a capture-path issue, not a search/save issue:
 
-Upgrade to `0.8.5+`, then restart OpenClaw. If you want to confirm the plugin is really loaded, run `nowledge_mem_status` in a conversation and check that the plugin tools are present.
+- memory tools use the local `nmem` CLI
+- thread auto-sync uses the Mem HTTP API
+- cron / isolated automation sessions are intentionally excluded from capture in `0.8.x`
+
+Run `nowledge_mem_status` in a conversation and check:
+
+- the plugin is loaded
+- `sessionDigest` is still `true`
+- the backend is reachable
+- which capture path is active: hook events or Context Engine `afterTurn`
+
+If the plugin is loaded on a normal interactive session, the `0.8.3` packaging metadata alone is not enough to explain missing thread sync. The meaningful runtime jump was `0.7.x -> 0.8.0`, especially the new cron / isolated-session exclusion.
 
 **Search timeouts with many concurrent agents**
 

@@ -4,10 +4,10 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## [0.8.5] - 2026-04-09
 
-### Fixed
+### Changed
 
-- **Removed the new host-version load gate that `0.8.3` introduced.** The runtime code did not change in `0.8.3`; the regression came from package metadata. Adding `openclaw.install.minHostVersion` made OpenClaw treat the package as host-gated at install and load time. When the host version could not be resolved cleanly in some environments, the plugin was skipped before registration, which made thread auto-sync disappear even though the Mem server was healthy. `openclaw.compat.pluginApi` and `openclaw.build.openclawVersion` remain for ClawHub validation, but the runtime loader no longer sees this package as load-gated.
-- **Removed the unneeded `peerDependencies.openclaw` entry.** It was not the new regression introduced in `0.8.3`, but it also did not provide user value for this standalone plugin package.
+- **Reduced loader coupling in the published package.** `openclaw.install.minHostVersion` and `peerDependencies.openclaw` have been removed. The plugin already uses runtime feature detection and graceful fallback, so those package-level host constraints were unnecessary. `openclaw.compat.pluginApi` and `openclaw.build.openclawVersion` remain for ClawHub validation.
+- **`nowledge_mem_status` now explains capture routing and transport split.** It reports whether thread capture is running through lifecycle hooks or Context Engine `afterTurn`, and makes the transport model explicit: memory tools use the `nmem` CLI, while thread auto-sync uses the Mem HTTP API. This closes the common debugging gap where search works but thread sync does not.
 
 ## [0.8.3] - 2026-04-08
 
