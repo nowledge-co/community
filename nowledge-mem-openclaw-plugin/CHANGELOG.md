@@ -2,6 +2,14 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.7] - 2026-04-09
+
+### Fixed
+
+- **One OpenClaw chat now persists as one Mem thread.** Thread identity now prefers the stable OpenClaw `sessionKey` over transient runtime `sessionId`, so Context Engine `afterTurn` capture and hook-based `agent_end` capture append to the same thread instead of creating parallel copies of the same conversation.
+- **Internal OpenClaw helper sessions no longer pollute Mem.** Temporary sessions like `temp:slug-generator` and internal subagent sessions are now excluded from thread auto-sync, keeping the thread list focused on real user conversations.
+- **Stored thread content is cleaner.** The synthetic `/new` or `/reset` startup prompt is no longer persisted as a user message, and OpenClaw control tags like `[[reply_to_current]]` / `[[reply_to:...]]` / `[[audio_as_voice]]` are stripped before capture.
+
 ## [0.8.6] - 2026-04-09
 
 ### Fixed

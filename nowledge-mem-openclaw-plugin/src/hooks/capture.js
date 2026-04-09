@@ -1,11 +1,15 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { isCronSessionKey } from "openclaw/plugin-sdk/routing";
+import { isCronSessionKey, isSubagentSessionKey } from "openclaw/plugin-sdk/routing";
 
 export const DEFAULT_MAX_MESSAGE_CHARS = 800;
 export const MAX_DISTILL_MESSAGE_CHARS = 2000;
 export const MAX_CONVERSATION_CHARS = 30_000;
 export const MIN_MESSAGES_FOR_DISTILL = 4;
+const SESSION_RESET_PROMPT_PREFIX =
+	"A new session was started via /new or /reset.";
+const OPENCLAW_DIRECTIVE_TAG_RE =
+	/\s*\[\[\s*(?:audio_as_voice|reply_to_current|reply_to\s*:\s*[^\]\n]+)\s*\]\]\s*/giu;
 
 // Per-thread triage cooldown: prevents burst triage/distillation from heartbeat.
 // Maps threadId -> timestamp (ms) of last successful triage.
@@ -112,6 +116,29 @@ export function hasSkipMarker(messages, marker) {
 	});
 }
 
+/**
+ * Internal helper / system sessions should not become user-facing Mem threads.
+ *
+ * - temp:* covers OpenClaw helper sessions such as slug generation
+ * - subagent sessions are execution internals, not first-class user chats
+ */
+export function isInternalCaptureSessionKey(sessionKey) {
+	const raw = String(sessionKey || "")
+		.trim()
+		.toLowerCase();
+	if (!raw) return false;
+	if (raw.startsWith("temp:")) return true;
+	return isSubagentSessionKey(raw);
+}
+
+function stripOpenClawDirectiveTags(text) {
+	return String(text || "")
+		.replace(OPENCLAW_DIRECTIVE_TAG_RE, " ")
+		.replace(/[ \t]+\n/g, "\n")
+		.replace(/\n{3,}/g, "\n\n")
+		.trim();
+}
+
 // ---------------------------------------------------------------------------
 // Message normalization utilities
 // ---------------------------------------------------------------------------
@@ -150,7 +177,10 @@ export function normalizeRoleMessage(
 		raw.message && typeof raw.message === "object" ? raw.message : raw;
 	const role = typeof msg.role === "string" ? msg.role : "";
 	if (role !== "user" && role !== "assistant") return null;
-	const text = extractText(msg.content);
+	const extractedText = extractText(msg.content);
+	if (!extractedText) return null;
+	if (extractedText.startsWith(SESSION_RESET_PROMPT_PREFIX)) return null;
+	const text = stripOpenClawDirectiveTags(extractedText);
 	if (!text) return null;
 	if (role === "user" && text.startsWith("/")) return null;
 
@@ -183,10 +213,9 @@ export function normalizeRoleMessage(
 	};
 }
 
-export function buildThreadTitle(ctx, reason) {
+export function buildThreadTitle(ctx) {
 	const session = ctx?.sessionKey || ctx?.sessionId || "session";
-	const reasonSuffix = reason ? ` (${reason})` : "";
-	return `OpenClaw ${session}${reasonSuffix}`;
+	return `OpenClaw ${session}`;
 }
 
 function sanitizeIdPart(input, max = 48) {
@@ -200,8 +229,8 @@ function sanitizeIdPart(input, max = 48) {
 
 export function buildStableThreadId(event, ctx) {
 	const base =
-		String(ctx?.sessionId || "").trim() ||
 		String(ctx?.sessionKey || "").trim() ||
+		String(ctx?.sessionId || "").trim() ||
 		String(event?.sessionFile || "").trim() ||
 		"session";
 	const slug = sanitizeIdPart(base);
@@ -281,7 +310,7 @@ export async function appendOrCreateThread({
 	const threadId = buildStableThreadId(event, ctx);
 	const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "session");
 	const sessionId = String(ctx?.sessionId || "").trim();
-	const title = buildThreadTitle(ctx, reason);
+	const title = buildThreadTitle(ctx);
 	const normalized = rawMessages
 		.map((message) => normalizeRoleMessage(message, maxMessageChars))
 		.filter(Boolean);
@@ -456,7 +485,7 @@ export async function triageAndDistill({
 
 		const distillResult = await client.distillThread({
 			threadId: captureResult.threadId,
-			title: buildThreadTitle(ctx, "distilled"),
+			title: buildThreadTitle(ctx),
 			content: conversationText,
 		});
 
@@ -493,6 +522,10 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
 		if (isCronCaptureSessionKey(sessionKey)) {
 			logger.debug?.(`capture: skipped cron session ${sessionKey}`);
+			return;
+		}
+		if (isInternalCaptureSessionKey(sessionKey)) {
+			logger.debug?.(`capture: skipped internal session ${sessionKey}`);
 			return;
 		}
 
@@ -541,6 +574,10 @@ export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
 		if (isCronCaptureSessionKey(sessionKey)) {
 			logger.debug?.(`capture: skipped cron session ${sessionKey}`);
+			return;
+		}
+		if (isInternalCaptureSessionKey(sessionKey)) {
+			logger.debug?.(`capture: skipped internal session ${sessionKey}`);
 			return;
 		}
 

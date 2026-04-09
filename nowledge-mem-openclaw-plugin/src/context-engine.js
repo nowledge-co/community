@@ -27,6 +27,7 @@ import { BASE_GUIDANCE, SESSION_CONTEXT_GUIDANCE } from "./hooks/behavioral.js";
 import {
 	appendOrCreateThread,
 	hasSkipMarker,
+	isInternalCaptureSessionKey,
 	isCronCaptureSessionKey,
 	matchesExcludePattern,
 	triageAndDistill,
@@ -356,6 +357,10 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 
 				if (isCronCaptureSessionKey(normalizedKey)) {
 					logger.debug?.(`ce: skipped cron session ${normalizedKey}`);
+					return;
+				}
+				if (isInternalCaptureSessionKey(normalizedKey)) {
+					logger.debug?.(`ce: skipped internal session ${normalizedKey}`);
 					return;
 				}
 
