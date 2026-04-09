@@ -519,11 +519,14 @@ Run `nowledge_mem_status` in a conversation and check, in this order:
 - `sessionDigest` is still `true`
 - the backend is reachable
 - which capture path is active: hook events, or Context Engine `afterTurn` with hook fallback
+- whether you changed plugin settings recently without restarting OpenClaw yet
 
 If your config enables `plugins.slots.contextEngine: "nowledge-mem"`:
 
 - on `0.8.6+`, Context Engine capture stays active and hooks remain enabled as a safety net
 - on `0.8.5` and earlier, temporarily removing the `contextEngine` slot is a valid isolation step if thread sync stops while tools still work
+
+Remember: OpenClaw applies plugin setting changes after restart. If you turned `sessionDigest` off earlier but had not restarted yet, thread sync could appear to keep working until the next restart, then stop.
 
 What healthy OpenClaw thread sync looks like:
 
