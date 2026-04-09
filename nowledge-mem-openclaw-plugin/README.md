@@ -513,16 +513,17 @@ This is usually a capture-path issue, not a search/save issue:
 - thread auto-sync uses the Mem HTTP API
 - cron / isolated automation sessions are intentionally excluded from capture in `0.8.x`
 
-Run `nowledge_mem_status` in a conversation and check:
+Run `nowledge_mem_status` in a conversation and check, in this order:
 
 - the plugin is loaded
 - `sessionDigest` is still `true`
 - the backend is reachable
-- which capture path is active: hook events or Context Engine `afterTurn`
+- which capture path is active: hook events, or Context Engine `afterTurn` with hook fallback
 
-If the plugin is loaded on a normal interactive session, the `0.8.3` packaging metadata alone is not enough to explain missing thread sync. The meaningful runtime jump was `0.7.x -> 0.8.0`, especially the new cron / isolated-session exclusion.
+If your config enables `plugins.slots.contextEngine: "nowledge-mem"`:
 
-If your config enables `plugins.slots.contextEngine: "nowledge-mem"`, that session uses the Context Engine capture path first. In `0.8.6+`, capture hooks stay enabled as a safety net as well. On `0.8.5` and earlier, temporarily removing the `contextEngine` slot is a valid isolation step if thread sync stops while tools still work.
+- on `0.8.6+`, Context Engine capture stays active and hooks remain enabled as a safety net
+- on `0.8.5` and earlier, temporarily removing the `contextEngine` slot is a valid isolation step if thread sync stops while tools still work
 
 **Search timeouts with many concurrent agents**
 

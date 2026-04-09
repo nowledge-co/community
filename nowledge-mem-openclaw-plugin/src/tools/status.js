@@ -62,11 +62,18 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			// 0b. Memory slot check — show current mode and options
 			const memorySlot = runtimeInfo.memorySlot;
 			const contextEngineSlot = runtimeInfo.contextEngineSlot;
+			const contextEngineRegistered = runtimeInfo.contextEngineRegistered === true;
+			const contextEngineRegistrationError =
+				typeof runtimeInfo.contextEngineRegistrationError === "string" &&
+				runtimeInfo.contextEngineRegistrationError.trim()
+					? runtimeInfo.contextEngineRegistrationError.trim()
+					: null;
 			details.memorySlot = memorySlot ?? "(unknown)";
 			details.contextEngineSlot =
 				contextEngineSlot && String(contextEngineSlot).trim()
 					? String(contextEngineSlot)
 					: "legacy";
+			details.contextEngineRegistered = contextEngineRegistered;
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {
 				const corpusOn = cfg.corpusSupplement === true;
 				if (corpusOn) {
@@ -100,15 +107,24 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				contextEngineSlot && String(contextEngineSlot).trim()
 					? String(contextEngineSlot).trim()
 					: "legacy";
+			const ceActive = ceSlot === "nowledge-mem" && contextEngineRegistered;
 			const captureMode = !cfg.sessionDigest
 				? "disabled"
-				: ceSlot === "nowledge-mem" ? "context-engine+hooks" : "hooks";
+				: ceActive ? "context-engine+hooks" : "hooks";
 			details.captureMode = captureMode;
-			if (ceSlot === "nowledge-mem") {
+			if (ceActive) {
 				lines.push("Context Engine slot: nowledge-mem (active)");
 				lines.push(
 					"  Thread capture runs through Context Engine afterTurn with hook fallback (agent_end, after_compaction, before_reset).",
 				);
+			} else if (ceSlot === "nowledge-mem") {
+				lines.push("Context Engine slot: nowledge-mem (configured, fallback to hooks)");
+				lines.push(
+					"  The slot points to Nowledge Mem, but Context Engine registration is not active in this runtime. Thread capture is using hooks only.",
+				);
+				if (contextEngineRegistrationError) {
+					lines.push(`  CE registration detail: ${contextEngineRegistrationError}`);
+				}
 			} else {
 				lines.push(
 					`Context Engine slot: ${ceSlot === "legacy" ? "legacy (default)" : `"${ceSlot}"`}`,

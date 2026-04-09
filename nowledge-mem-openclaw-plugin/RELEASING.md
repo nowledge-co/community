@@ -99,7 +99,7 @@ npm publish --access public
 - bump `version` in `package.json` and `openclaw.plugin.json`
 - update `CHANGELOG.md`
 - keep `package.json` `openclaw.install.npmSpec`, `openclaw.compat`, and `openclaw.build` aligned with the tested OpenClaw baseline
-- do not add `openclaw.install.minHostVersion` unless the runtime truly hard-requires a host floor with no graceful fallback
+- keep `openclaw.install.minHostVersion` omitted for this plugin; `scripts/validate-plugin.mjs` enforces this and is the source of truth if the policy ever changes
 - run `node scripts/validate-plugin.mjs`
 - run `npm pack --dry-run`
 - run `clawhub package publish . --dry-run`

@@ -61,13 +61,8 @@ export default {
 		const memorySlot = api.config?.plugins?.slots?.memory;
 		const contextEngineSlot = api.config?.plugins?.slots?.contextEngine;
 		const pluginsAllow = api.config?.plugins?.allow;
-		api.registerTool(
-			createStatusTool(client, logger, cfg, {
-				memorySlot,
-				contextEngineSlot,
-				pluginsAllow,
-			}),
-		);
+		let contextEngineRegistered = false;
+		let contextEngineRegistrationError = null;
 
 		// --- Context Engine registration ---
 		// When the user sets `plugins.slots.contextEngine: "nowledge-mem"`,
@@ -80,12 +75,24 @@ export default {
 				"nowledge-mem",
 				createNowledgeMemContextEngineFactory(client, cfg, logger),
 			);
+			contextEngineRegistered = true;
 		} catch (err) {
 			// OpenClaw < CE support — degrade gracefully to hooks-only mode
+			contextEngineRegistrationError = String(err);
 			logger.debug?.(
 				`nowledge-mem: context engine registration unavailable (${err}), using hooks`,
 			);
 		}
+
+		api.registerTool(
+			createStatusTool(client, logger, cfg, {
+				memorySlot,
+				contextEngineSlot,
+				pluginsAllow,
+				contextEngineRegistered,
+				contextEngineRegistrationError,
+			}),
+		);
 
 		// --- Corpus Supplement (when memory-core is the memory slot) ---
 		// Makes Nowledge Mem's knowledge graph searchable through memory-core's

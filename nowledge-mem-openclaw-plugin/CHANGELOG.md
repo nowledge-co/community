@@ -11,6 +11,7 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 ### Changed
 
 - **Troubleshooting now distinguishes sandbox mode from capture mode.** A `session_status` label like `direct/non-main` reflects OpenClaw sandbox configuration, not a cron or non-interactive session. The OpenClaw main session key `agent:main:main` remains a normal interactive capture target.
+- **Status now reports Context Engine activity precisely.** `nowledge_mem_status` only reports Context Engine capture as active when registration actually succeeded in the current runtime. If the slot points to `nowledge-mem` but the runtime falls back to hooks-only mode, the status output now says so directly.
 
 ## [0.8.5] - 2026-04-09
 
