@@ -2,6 +2,38 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.8] - 2026-04-09
+
+### Fixed
+
+- **Internal OpenClaw control sender wrappers no longer leak into saved thread content.** Messages wrapped with `Sender (untrusted metadata)` for the internal `openclaw-control-ui` source now persist only the user-visible message body, instead of storing the control metadata block in Mem.
+
+## [0.8.7] - 2026-04-09
+
+### Fixed
+
+- **One OpenClaw chat now persists as one Mem thread.** Thread identity now prefers the stable OpenClaw `sessionKey` over transient runtime `sessionId`, so Context Engine `afterTurn` capture and hook-based `agent_end` capture append to the same thread instead of creating parallel copies of the same conversation.
+- **Internal OpenClaw helper sessions no longer pollute Mem.** Temporary sessions like `temp:slug-generator` and internal subagent sessions are now excluded from thread auto-sync, keeping the thread list focused on real user conversations.
+- **Stored thread content is cleaner.** The synthetic `/new` or `/reset` startup prompt is no longer persisted as a user message, and OpenClaw control tags like `[[reply_to_current]]` / `[[reply_to:...]]` / `[[audio_as_voice]]` are stripped before capture.
+
+## [0.8.6] - 2026-04-09
+
+### Fixed
+
+- **Thread capture no longer depends entirely on the Context Engine path.** When `plugins.slots.contextEngine` points to `nowledge-mem`, behavioral and recall prompt injection still defer to the Context Engine, but capture hooks now remain active as a safety net. Thread append/create is already tail-synced and idempotent, so this backstop avoids missed syncs on sessions where the Context Engine lifecycle does not fire as expected without reintroducing duplicate threads.
+
+### Changed
+
+- **Troubleshooting now distinguishes sandbox mode from capture mode.** A `session_status` label like `direct/non-main` reflects OpenClaw sandbox configuration, not a cron or non-interactive session. The OpenClaw main session key `agent:main:main` remains a normal interactive capture target.
+- **Status now reports Context Engine activity precisely.** `nowledge_mem_status` only reports Context Engine capture as active when registration actually succeeded in the current runtime. If the slot points to `nowledge-mem` but the runtime falls back to hooks-only mode, the status output now says so directly.
+
+## [0.8.5] - 2026-04-09
+
+### Changed
+
+- **Reduced loader coupling in the published package.** `openclaw.install.minHostVersion` and `peerDependencies.openclaw` have been removed. The plugin already uses runtime feature detection and graceful fallback, so those package-level host constraints were unnecessary. `openclaw.compat.pluginApi` and `openclaw.build.openclawVersion` remain for ClawHub validation.
+- **`nowledge_mem_status` now explains capture routing and transport split.** It reports whether thread capture is running through lifecycle hooks or Context Engine `afterTurn`, and makes the transport model explicit: memory tools use the `nmem` CLI, while thread auto-sync uses the Mem HTTP API. This closes the common debugging gap where search works but thread sync does not.
+
 ## [0.8.3] - 2026-04-08
 
 ### Added

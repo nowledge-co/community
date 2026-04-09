@@ -94,7 +94,7 @@ A shared `ceState.active` flag (in `ce-state.js`) coordinates the two paths:
 |-----------|-----------|---------------------|
 | Behavioral guidance | `assemble()` → `systemPromptAddition` | `before_prompt_build` → `appendSystemContext` |
 | Memory recall | `assemble()` → `systemPromptAddition` | `before_prompt_build` → `appendSystemContext` |
-| Thread capture | `afterTurn()` (every turn) | `agent_end` / `after_compaction` / `before_reset` |
+| Thread capture | `afterTurn()` (every turn) + hook fallback | `agent_end` / `after_compaction` / `before_reset` |
 | Triage + distill | `afterTurn()` | `agent_end` only |
 | Compaction | `compact()` with memory-aware instructions | None (OpenClaw legacy) |
 | Subagent context | `prepareSubagentSpawn()` + `onSubagentEnded()` | None |

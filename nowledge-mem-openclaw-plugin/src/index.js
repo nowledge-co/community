@@ -57,29 +57,42 @@ export default {
 
 		// Diagnostics — pass runtime config so the status tool can detect:
 		//   - plugins.allow missing or not including this plugin
-		//   - memory slot pointing elsewhere (e.g. memory-core)
+		//   - memory/context-engine slot routing for capture and recall
 		const memorySlot = api.config?.plugins?.slots?.memory;
+		const contextEngineSlot = api.config?.plugins?.slots?.contextEngine;
 		const pluginsAllow = api.config?.plugins?.allow;
-		api.registerTool(
-			createStatusTool(client, logger, cfg, { memorySlot, pluginsAllow }),
-		);
+		let contextEngineRegistered = false;
+		let contextEngineRegistrationError = null;
 
 		// --- Context Engine registration ---
 		// When the user sets `plugins.slots.contextEngine: "nowledge-mem"`,
-		// this CE takes over from the hooks below (assemble replaces behavioral
-		// + recall; afterTurn replaces agent_end + capture hooks). When the CE
-		// slot points elsewhere, hooks continue working as before.
+		// this CE takes over prompt assembly from the hooks below (assemble
+		// replaces behavioral + recall prompt injection). Capture hooks remain
+		// enabled as a reliability backstop because thread sync is idempotent.
+		// When the CE slot points elsewhere, hooks continue working as before.
 		try {
 			api.registerContextEngine(
 				"nowledge-mem",
 				createNowledgeMemContextEngineFactory(client, cfg, logger),
 			);
+			contextEngineRegistered = true;
 		} catch (err) {
 			// OpenClaw < CE support — degrade gracefully to hooks-only mode
+			contextEngineRegistrationError = String(err);
 			logger.debug?.(
 				`nowledge-mem: context engine registration unavailable (${err}), using hooks`,
 			);
 		}
+
+		api.registerTool(
+			createStatusTool(client, logger, cfg, {
+				memorySlot,
+				contextEngineSlot,
+				pluginsAllow,
+				contextEngineRegistered,
+				contextEngineRegistrationError,
+			}),
+		);
 
 		// --- Corpus Supplement (when memory-core is the memory slot) ---
 		// Makes Nowledge Mem's knowledge graph searchable through memory-core's
@@ -102,9 +115,10 @@ export default {
 			}
 		}
 
-		// --- Hooks (fallback when CE is not active) ---
-		// Each hook checks ceState.active and returns early when the CE handles
-		// the same lifecycle through assemble/afterTurn.
+		// --- Hooks ---
+		// Behavioral + recall hooks defer to the active CE to avoid duplicate
+		// prompt injection. Capture hooks remain enabled as a backstop because
+		// thread append/create is tail-synced and idempotent.
 
 		// Always-on: behavioral guidance so the agent proactively saves and searches.
 		// Fires every turn via before_prompt_build — ~50 tokens, negligible cost.

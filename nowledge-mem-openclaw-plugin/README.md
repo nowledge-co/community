@@ -365,7 +365,7 @@ The behavioral guidance adjusts when `sessionContext` is enabled. Instead of "se
 
 **What happens to conversations I don't explicitly save?**
 
-With `sessionDigest` enabled (the default), every conversation is saved as a searchable thread. You can find it later with `nowledge_mem_thread_search`. On top of that, a lightweight LLM triage checks if the conversation contained decisions, insights, or preferences worth keeping as structured memories. If yes, they're extracted with proper types, labels, and temporal context. If the conversation was routine ("fix this typo"), nothing extra is saved.
+With `sessionDigest` enabled (the default), every conversation is saved as a searchable thread. One OpenClaw chat becomes one Mem thread: capture uses the stable OpenClaw `sessionKey`, not transient runtime ids, so Context Engine capture and hook-based capture append to the same conversation. Internal helper sessions like `temp:*` and subagent runs are excluded, so your recent threads stay focused on real chats. On top of thread capture, a lightweight LLM triage checks if the conversation contained decisions, insights, or preferences worth keeping as structured memories. If yes, they're extracted with proper types, labels, and temporal context. If the conversation was routine ("fix this typo"), nothing extra is saved.
 
 **Can memories be wrong or outdated?**
 
@@ -408,14 +408,14 @@ To change settings, use the OpenClaw plugin settings UI. Changes take effect on 
 
 ### Remote access
 
-Create `~/.nowledge-mem/config.json` with your credentials. This file is shared by all Nowledge Mem integrations (nmem CLI, Bub, Claude Code, etc.) so one file connects everything:
+Configure this machine once:
 
-```json
-{
-  "apiUrl": "https://<your-url>",
-  "apiKey": "nmem_..."
-}
+```bash
+nmem config client set url https://<your-url>
+nmem config client set api-key nmem_...
 ```
+
+That writes the shared local client config used by `nmem`, OpenClaw, Bub, Claude Code, and other integrations on this machine. You can still set **Server URL** and **API key** in the OpenClaw dashboard if you want plugin-specific overrides.
 
 See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access).
 
@@ -449,7 +449,7 @@ Credentials (apiUrl, apiKey):
 openclaw.json (legacy) > OpenClaw dashboard > config.json (shared) > env vars > defaults
 ```
 
-`~/.nowledge-mem/openclaw.json` is still honored for backward compatibility but is no longer the recommended path. New users should configure plugin-specific settings via the OpenClaw dashboard and shared credentials via `~/.nowledge-mem/config.json`.
+`~/.nowledge-mem/openclaw.json` is still honored for backward compatibility but is no longer the recommended path. New users should configure plugin-specific settings via the OpenClaw dashboard and shared credentials via `nmem config client ...`.
 
 Use `nowledge_mem_status` (or `openclaw nowledge-mem status`) to see where each value comes from.
 
@@ -505,6 +505,41 @@ If `openclaw status` shows a CRITICAL warning about `plugins.allow`, this is the
 
 Do not list `nowledge_mem_*` tool names in `tools.allow` — OpenClaw silently strips allowlists that contain only plugin entries, so the config looks active but does nothing.
 
+**Memory tools still work, but thread auto-sync does not**
+
+This is usually a capture-path issue, not a search/save issue:
+
+- memory tools use the local `nmem` CLI
+- thread auto-sync uses the Mem HTTP API
+- cron / isolated automation sessions are intentionally excluded from capture in `0.8.x`
+
+Run `nowledge_mem_status` in a conversation and check, in this order:
+
+- the plugin is loaded
+- `sessionDigest` is still `true`
+- the backend is reachable
+- which capture path is active: hook events, or Context Engine `afterTurn` with hook fallback
+- whether you changed plugin settings recently without restarting OpenClaw yet
+
+If your config enables `plugins.slots.contextEngine: "nowledge-mem"`:
+
+- on `0.8.6+`, Context Engine capture stays active and hooks remain enabled as a safety net
+- on `0.8.5` and earlier, temporarily removing the `contextEngine` slot is a valid isolation step if thread sync stops while tools still work
+
+Remember: OpenClaw applies plugin setting changes after restart. If you turned `sessionDigest` off earlier but had not restarted yet, thread sync could appear to keep working until the next restart, then stop.
+
+What healthy OpenClaw thread sync looks like:
+
+- one visible chat becomes one Mem thread
+- helper sessions like `temp:slug-generator` do not appear
+- the synthetic `/new` / `/reset` startup prompt is not stored as the first user message
+
+To inspect the recent synced threads directly, run:
+
+```bash
+nmem t list --source openclaw -n 20
+```
+
 **Search timeouts with many concurrent agents**
 
 When running many agents in parallel, all searches share a single database connection. Upgrade to Nowledge Mem v0.6.12+ (backend) so scoring writes no longer block search responses.
@@ -515,7 +550,7 @@ The Nowledge Mem backend is not running. Start it from the desktop app, or run t
 
 **Remote mode not connecting**
 
-Check `~/.nowledge-mem/config.json` credentials. Run `nmem --json --api-url "$URL" status` to verify the server is reachable.
+Run `nmem config client show` and confirm the effective URL and API key state. Then run `nmem --json --api-url "$URL" status` to verify the server is reachable.
 
 ## What Makes This Different
 

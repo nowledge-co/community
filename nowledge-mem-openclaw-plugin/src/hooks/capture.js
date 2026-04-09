@@ -1,12 +1,17 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { isCronSessionKey } from "openclaw/plugin-sdk/routing";
-import { ceState } from "../ce-state.js";
+import { isCronSessionKey, isSubagentSessionKey } from "openclaw/plugin-sdk/routing";
 
 export const DEFAULT_MAX_MESSAGE_CHARS = 800;
 export const MAX_DISTILL_MESSAGE_CHARS = 2000;
 export const MAX_CONVERSATION_CHARS = 30_000;
 export const MIN_MESSAGES_FOR_DISTILL = 4;
+const SESSION_RESET_PROMPT_PREFIX =
+	"A new session was started via /new or /reset.";
+const OPENCLAW_DIRECTIVE_TAG_RE =
+	/\s*\[\[\s*(?:audio_as_voice|reply_to_current|reply_to\s*:\s*[^\]\n]+)\s*\]\]\s*/giu;
+const OPENCLAW_INTERNAL_SENDER_BLOCK_RE =
+	/^Sender \(untrusted metadata\):\s*```json\s*([\s\S]*?)\s*```\s*([\s\S]*)$/iu;
 
 // Per-thread triage cooldown: prevents burst triage/distillation from heartbeat.
 // Maps threadId -> timestamp (ms) of last successful triage.
@@ -113,6 +118,52 @@ export function hasSkipMarker(messages, marker) {
 	});
 }
 
+/**
+ * Internal helper / system sessions should not become user-facing Mem threads.
+ *
+ * - temp:* covers OpenClaw helper sessions such as slug generation
+ * - subagent sessions are execution internals, not first-class user chats
+ */
+export function isInternalCaptureSessionKey(sessionKey) {
+	const raw = String(sessionKey || "")
+		.trim()
+		.toLowerCase();
+	if (!raw) return false;
+	if (raw.startsWith("temp:")) return true;
+	return isSubagentSessionKey(raw);
+}
+
+function stripOpenClawDirectiveTags(text) {
+	return String(text || "")
+		.replace(OPENCLAW_DIRECTIVE_TAG_RE, " ")
+		.replace(/[ \t]+\n/g, "\n")
+		.replace(/\n{3,}/g, "\n\n")
+		.trim();
+}
+
+function stripInternalSenderMetadata(text) {
+	const raw = String(text || "").trim();
+	if (!raw.startsWith("Sender (untrusted metadata):")) return raw;
+	const match = raw.match(OPENCLAW_INTERNAL_SENDER_BLOCK_RE);
+	if (!match) return raw;
+	const [, jsonBlock, remainder] = match;
+	try {
+		const parsed = JSON.parse(jsonBlock);
+		const label = String(parsed?.label || "")
+			.trim()
+			.toLowerCase();
+		const id = String(parsed?.id || "")
+			.trim()
+			.toLowerCase();
+		if (label === "openclaw-control-ui" || id === "openclaw-control-ui") {
+			return String(remainder || "").trim();
+		}
+	} catch {
+		return raw;
+	}
+	return raw;
+}
+
 // ---------------------------------------------------------------------------
 // Message normalization utilities
 // ---------------------------------------------------------------------------
@@ -151,7 +202,13 @@ export function normalizeRoleMessage(
 		raw.message && typeof raw.message === "object" ? raw.message : raw;
 	const role = typeof msg.role === "string" ? msg.role : "";
 	if (role !== "user" && role !== "assistant") return null;
-	const text = extractText(msg.content);
+	const extractedText = extractText(msg.content);
+	if (!extractedText) return null;
+	const cleanedText = stripInternalSenderMetadata(extractedText);
+	if (role === "user" && cleanedText.startsWith(SESSION_RESET_PROMPT_PREFIX)) {
+		return null;
+	}
+	const text = stripOpenClawDirectiveTags(cleanedText);
 	if (!text) return null;
 	if (role === "user" && text.startsWith("/")) return null;
 
@@ -184,10 +241,9 @@ export function normalizeRoleMessage(
 	};
 }
 
-export function buildThreadTitle(ctx, reason) {
+export function buildThreadTitle(ctx) {
 	const session = ctx?.sessionKey || ctx?.sessionId || "session";
-	const reasonSuffix = reason ? ` (${reason})` : "";
-	return `OpenClaw ${session}${reasonSuffix}`;
+	return `OpenClaw ${session}`;
 }
 
 function sanitizeIdPart(input, max = 48) {
@@ -201,8 +257,8 @@ function sanitizeIdPart(input, max = 48) {
 
 export function buildStableThreadId(event, ctx) {
 	const base =
-		String(ctx?.sessionId || "").trim() ||
 		String(ctx?.sessionKey || "").trim() ||
+		String(ctx?.sessionId || "").trim() ||
 		String(event?.sessionFile || "").trim() ||
 		"session";
 	const slug = sanitizeIdPart(base);
@@ -282,7 +338,7 @@ export async function appendOrCreateThread({
 	const threadId = buildStableThreadId(event, ctx);
 	const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "session");
 	const sessionId = String(ctx?.sessionId || "").trim();
-	const title = buildThreadTitle(ctx, reason);
+	const title = buildThreadTitle(ctx);
 	const normalized = rawMessages
 		.map((message) => normalizeRoleMessage(message, maxMessageChars))
 		.filter(Boolean);
@@ -457,7 +513,7 @@ export async function triageAndDistill({
 
 		const distillResult = await client.distillThread({
 			threadId: captureResult.threadId,
-			title: buildThreadTitle(ctx, "distilled"),
+			title: buildThreadTitle(ctx),
 			content: conversationText,
 		});
 
@@ -477,8 +533,9 @@ export async function triageAndDistill({
 /**
  * Capture thread + LLM-based distillation after a successful agent run.
  *
- * When the context engine is active, this hook is a no-op — afterTurn
- * handles capture and distillation through the CE lifecycle.
+ * Even when the context engine is active, this hook remains as a safety net.
+ * Thread append/create is already idempotent, so the hook path can safely
+ * backstop CE afterTurn without duplicating stored messages.
  *
  * Heartbeat sessions (ctx.trigger === "heartbeat") are skipped — they
  * produce repetitive status pings that aren't worth preserving.
@@ -487,13 +544,16 @@ export async function triageAndDistill({
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
-		if (ceState.active) return;
 		if (!event?.success) return;
 		if (ctx?.trigger === "heartbeat") return;
 
 		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
 		if (isCronCaptureSessionKey(sessionKey)) {
 			logger.debug?.(`capture: skipped cron session ${sessionKey}`);
+			return;
+		}
+		if (isInternalCaptureSessionKey(sessionKey)) {
+			logger.debug?.(`capture: skipped internal session ${sessionKey}`);
 			return;
 		}
 
@@ -530,19 +590,22 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
  * Capture thread messages before reset or after compaction.
  * Thread-only (no distillation) — these are lifecycle checkpoints.
  *
- * When the context engine is active, this hook is a no-op — afterTurn
- * handles capture through the CE lifecycle.
+ * This hook also stays enabled when the context engine is active.
+ * The shared tail-sync dedup keeps the fallback path cheap and safe.
  *
  * Heartbeat sessions are skipped (same rationale as agent_end).
  */
 export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
-		if (ceState.active) return;
 		if (ctx?.trigger === "heartbeat") return;
 
 		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");
 		if (isCronCaptureSessionKey(sessionKey)) {
 			logger.debug?.(`capture: skipped cron session ${sessionKey}`);
+			return;
+		}
+		if (isInternalCaptureSessionKey(sessionKey)) {
+			logger.debug?.(`capture: skipped internal session ${sessionKey}`);
 			return;
 		}
 

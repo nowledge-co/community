@@ -97,7 +97,6 @@ async function main() {
   }
 
   assertString(openclaw.install?.npmSpec, "package.json openclaw.install.npmSpec");
-  assertVersionFloor(openclaw.install?.minHostVersion, "package.json openclaw.install.minHostVersion");
   assertVersionFloor(openclaw.compat?.pluginApi, "package.json openclaw.compat.pluginApi");
   assertString(openclaw.build?.openclawVersion, "package.json openclaw.build.openclawVersion");
   assertBoolean(openclaw.release?.publishToClawHub, "package.json openclaw.release.publishToClawHub");
@@ -107,9 +106,16 @@ async function main() {
     fail("package.json openclaw.install.npmSpec must match package.json name");
   }
 
-  if (pkg.peerDependencies?.openclaw !== openclaw.install.minHostVersion) {
-    fail("peerDependencies.openclaw must match openclaw.install.minHostVersion");
+  if ("minHostVersion" in (openclaw.install ?? {})) {
+    fail(
+      "package.json openclaw.install.minHostVersion must be omitted for this plugin; rely on runtime feature detection and openclaw.compat.pluginApi instead",
+    );
   }
+
+  // peerDependencies and openclaw.install.minHostVersion are intentionally
+  // omitted. The ClawHub contract only requires openclaw.compat.pluginApi and
+  // openclaw.build.openclawVersion, while OpenClaw's runtime loader treats
+  // minHostVersion as a hard install/load gate.
 
   if (manifest.id !== "openclaw-nowledge-mem") {
     fail("openclaw.plugin.json id must stay openclaw-nowledge-mem");

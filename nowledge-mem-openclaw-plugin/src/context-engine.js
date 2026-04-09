@@ -2,8 +2,8 @@
  * Nowledge Mem Context Engine for OpenClaw.
  *
  * Registers alongside the memory slot (kind: "memory"). When users activate
- * this CE via `plugins.slots.contextEngine: "nowledge-mem"`, it replaces the
- * hook-based approach with the richer CE lifecycle:
+ * this CE via `plugins.slots.contextEngine: "nowledge-mem"`, it takes over
+ * prompt assembly and adds richer lifecycle behavior:
  *
  *   assemble()              — behavioral guidance + recalled memories via systemPromptAddition
  *   afterTurn()             — continuous thread capture + triage/distillation (every turn)
@@ -12,7 +12,9 @@
  *   bootstrap()             — pre-warm Working Memory for first assemble
  *
  * When not activated, the existing hooks (behavioral, recall, capture) work
- * as before — full backward compatibility.
+ * as before. When activated, behavioral + recall hooks defer to the CE to
+ * avoid duplicate prompt context, while capture hooks remain as a safe
+ * fallback if a CE post-turn lifecycle is missed.
  *
  * Design:
  * - ownsCompaction: false — we enhance compaction instructions, not the algorithm
@@ -25,6 +27,7 @@ import { BASE_GUIDANCE, SESSION_CONTEXT_GUIDANCE } from "./hooks/behavioral.js";
 import {
 	appendOrCreateThread,
 	hasSkipMarker,
+	isInternalCaptureSessionKey,
 	isCronCaptureSessionKey,
 	matchesExcludePattern,
 	triageAndDistill,
@@ -354,6 +357,10 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 
 				if (isCronCaptureSessionKey(normalizedKey)) {
 					logger.debug?.(`ce: skipped cron session ${normalizedKey}`);
+					return;
+				}
+				if (isInternalCaptureSessionKey(normalizedKey)) {
+					logger.debug?.(`ce: skipped internal session ${normalizedKey}`);
 					return;
 				}
 
