@@ -2,6 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.8] - 2026-04-09
+
+### Fixed
+
+- **Internal OpenClaw control sender wrappers no longer leak into saved thread content.** Messages wrapped with `Sender (untrusted metadata)` for the internal `openclaw-control-ui` source now persist only the user-visible message body, instead of storing the control metadata block in Mem.
+
 ## [0.8.7] - 2026-04-09
 
 ### Fixed

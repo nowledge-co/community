@@ -10,6 +10,8 @@ const SESSION_RESET_PROMPT_PREFIX =
 	"A new session was started via /new or /reset.";
 const OPENCLAW_DIRECTIVE_TAG_RE =
 	/\s*\[\[\s*(?:audio_as_voice|reply_to_current|reply_to\s*:\s*[^\]\n]+)\s*\]\]\s*/giu;
+const OPENCLAW_INTERNAL_SENDER_BLOCK_RE =
+	/^Sender \(untrusted metadata\):\s*```json\s*([\s\S]*?)\s*```\s*([\s\S]*)$/iu;
 
 // Per-thread triage cooldown: prevents burst triage/distillation from heartbeat.
 // Maps threadId -> timestamp (ms) of last successful triage.
@@ -139,6 +141,29 @@ function stripOpenClawDirectiveTags(text) {
 		.trim();
 }
 
+function stripInternalSenderMetadata(text) {
+	const raw = String(text || "").trim();
+	if (!raw.startsWith("Sender (untrusted metadata):")) return raw;
+	const match = raw.match(OPENCLAW_INTERNAL_SENDER_BLOCK_RE);
+	if (!match) return raw;
+	const [, jsonBlock, remainder] = match;
+	try {
+		const parsed = JSON.parse(jsonBlock);
+		const label = String(parsed?.label || "")
+			.trim()
+			.toLowerCase();
+		const id = String(parsed?.id || "")
+			.trim()
+			.toLowerCase();
+		if (label === "openclaw-control-ui" || id === "openclaw-control-ui") {
+			return String(remainder || "").trim();
+		}
+	} catch {
+		return raw;
+	}
+	return raw;
+}
+
 // ---------------------------------------------------------------------------
 // Message normalization utilities
 // ---------------------------------------------------------------------------
@@ -179,8 +204,9 @@ export function normalizeRoleMessage(
 	if (role !== "user" && role !== "assistant") return null;
 	const extractedText = extractText(msg.content);
 	if (!extractedText) return null;
-	if (extractedText.startsWith(SESSION_RESET_PROMPT_PREFIX)) return null;
-	const text = stripOpenClawDirectiveTags(extractedText);
+	const cleanedText = stripInternalSenderMetadata(extractedText);
+	if (cleanedText.startsWith(SESSION_RESET_PROMPT_PREFIX)) return null;
+	const text = stripOpenClawDirectiveTags(cleanedText);
 	if (!text) return null;
 	if (role === "user" && text.startsWith("/")) return null;
 
