@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isCronSessionKey } from "openclaw/plugin-sdk/routing";
-import { ceState } from "../ce-state.js";
 
 export const DEFAULT_MAX_MESSAGE_CHARS = 800;
 export const MAX_DISTILL_MESSAGE_CHARS = 2000;
@@ -477,8 +476,9 @@ export async function triageAndDistill({
 /**
  * Capture thread + LLM-based distillation after a successful agent run.
  *
- * When the context engine is active, this hook is a no-op — afterTurn
- * handles capture and distillation through the CE lifecycle.
+ * Even when the context engine is active, this hook remains as a safety net.
+ * Thread append/create is already idempotent, so the hook path can safely
+ * backstop CE afterTurn without duplicating stored messages.
  *
  * Heartbeat sessions (ctx.trigger === "heartbeat") are skipped — they
  * produce repetitive status pings that aren't worth preserving.
@@ -487,7 +487,6 @@ export async function triageAndDistill({
  */
 export function buildAgentEndCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
-		if (ceState.active) return;
 		if (!event?.success) return;
 		if (ctx?.trigger === "heartbeat") return;
 
@@ -530,14 +529,13 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
  * Capture thread messages before reset or after compaction.
  * Thread-only (no distillation) — these are lifecycle checkpoints.
  *
- * When the context engine is active, this hook is a no-op — afterTurn
- * handles capture through the CE lifecycle.
+ * This hook also stays enabled when the context engine is active.
+ * The shared tail-sync dedup keeps the fallback path cheap and safe.
  *
  * Heartbeat sessions are skipped (same rationale as agent_end).
  */
 export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 	return async (event, ctx) => {
-		if (ceState.active) return;
 		if (ctx?.trigger === "heartbeat") return;
 
 		const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "");

@@ -522,6 +522,8 @@ Run `nowledge_mem_status` in a conversation and check:
 
 If the plugin is loaded on a normal interactive session, the `0.8.3` packaging metadata alone is not enough to explain missing thread sync. The meaningful runtime jump was `0.7.x -> 0.8.0`, especially the new cron / isolated-session exclusion.
 
+If your config enables `plugins.slots.contextEngine: "nowledge-mem"`, that session uses the Context Engine capture path instead of relying only on lifecycle hooks. In `0.8.6+`, capture hooks stay enabled as a safety net as well. On `0.8.5` and earlier, temporarily removing the `contextEngine` slot is a valid isolation step if thread sync stops while tools still work.
+
 **Search timeouts with many concurrent agents**
 
 When running many agents in parallel, all searches share a single database connection. Upgrade to Nowledge Mem v0.6.12+ (backend) so scoring writes no longer block search responses.

@@ -102,12 +102,12 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 					: "legacy";
 			const captureMode = !cfg.sessionDigest
 				? "disabled"
-				: ceSlot === "nowledge-mem" ? "context-engine" : "hooks";
+				: ceSlot === "nowledge-mem" ? "context-engine+hooks" : "hooks";
 			details.captureMode = captureMode;
 			if (ceSlot === "nowledge-mem") {
 				lines.push("Context Engine slot: nowledge-mem (active)");
 				lines.push(
-					"  Thread capture runs through Context Engine afterTurn, not hook events.",
+					"  Thread capture runs through Context Engine afterTurn with hook fallback (agent_end, after_compaction, before_reset).",
 				);
 			} else {
 				lines.push(

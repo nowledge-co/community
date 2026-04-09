@@ -2,6 +2,16 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.6] - 2026-04-09
+
+### Fixed
+
+- **Thread capture no longer depends entirely on the Context Engine path.** When `plugins.slots.contextEngine` points to `nowledge-mem`, behavioral and recall prompt injection still defer to the Context Engine, but capture hooks now remain active as a safety net. Thread append/create is already tail-synced and idempotent, so this backstop avoids missed syncs on sessions where the Context Engine lifecycle does not fire as expected without reintroducing duplicate threads.
+
+### Changed
+
+- **Troubleshooting now distinguishes sandbox mode from capture mode.** A `session_status` label like `direct/non-main` reflects OpenClaw sandbox configuration, not a cron or non-interactive session. The OpenClaw main session key `agent:main:main` remains a normal interactive capture target.
+
 ## [0.8.5] - 2026-04-09
 
 ### Changed

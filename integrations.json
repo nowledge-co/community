@@ -185,7 +185,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.5",
+      "version": "0.8.6",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -201,7 +201,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Plugin captures interactive sessions via hooks (agent_end, after_compaction, before_reset) and Context Engine afterTurn; persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron/session keys excluded (OpenClaw isCronSessionKey via plugin-sdk/routing). Memory tools still use nmem CLI."
+        "note": "Plugin captures interactive sessions via hooks (agent_end, after_compaction, before_reset) and Context Engine afterTurn; hook capture remains a safety net even when the Context Engine slot is active. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron/session keys excluded (OpenClaw isCronSessionKey via plugin-sdk/routing). Memory tools still use nmem CLI."
       },
       "install": {
         "command": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem",

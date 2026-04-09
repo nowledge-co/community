@@ -107,9 +107,10 @@ export default {
 			}
 		}
 
-		// --- Hooks (fallback when CE is not active) ---
-		// Each hook checks ceState.active and returns early when the CE handles
-		// the same lifecycle through assemble/afterTurn.
+		// --- Hooks ---
+		// Behavioral + recall hooks defer to the active CE to avoid duplicate
+		// prompt injection. Capture hooks remain enabled as a backstop because
+		// thread append/create is tail-synced and idempotent.
 
 		// Always-on: behavioral guidance so the agent proactively saves and searches.
 		// Fires every turn via before_prompt_build — ~50 tokens, negligible cost.
