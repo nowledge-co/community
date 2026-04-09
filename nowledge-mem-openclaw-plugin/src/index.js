@@ -71,9 +71,10 @@ export default {
 
 		// --- Context Engine registration ---
 		// When the user sets `plugins.slots.contextEngine: "nowledge-mem"`,
-		// this CE takes over from the hooks below (assemble replaces behavioral
-		// + recall; afterTurn replaces agent_end + capture hooks). When the CE
-		// slot points elsewhere, hooks continue working as before.
+		// this CE takes over prompt assembly from the hooks below (assemble
+		// replaces behavioral + recall prompt injection). Capture hooks remain
+		// enabled as a reliability backstop because thread sync is idempotent.
+		// When the CE slot points elsewhere, hooks continue working as before.
 		try {
 			api.registerContextEngine(
 				"nowledge-mem",
