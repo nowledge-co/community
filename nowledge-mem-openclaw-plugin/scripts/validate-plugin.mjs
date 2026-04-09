@@ -107,9 +107,9 @@ async function main() {
     fail("package.json openclaw.install.npmSpec must match package.json name");
   }
 
-  if (pkg.peerDependencies?.openclaw !== openclaw.install.minHostVersion) {
-    fail("peerDependencies.openclaw must match openclaw.install.minHostVersion");
-  }
+  // peerDependencies removed: OpenClaw's plugin loader may enforce them at
+  // load time, silently blocking the plugin for users on older host versions.
+  // The openclaw.compat.pluginApi field is sufficient for ClawHub validation.
 
   if (manifest.id !== "openclaw-nowledge-mem") {
     fail("openclaw.plugin.json id must stay openclaw-nowledge-mem");

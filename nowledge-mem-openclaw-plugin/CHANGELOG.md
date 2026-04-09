@@ -2,6 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.4] - 2026-04-09
+
+### Fixed
+
+- **Removed `peerDependencies` that could block plugin loading on older OpenClaw hosts.** The 0.8.3 release added `peerDependencies: { "openclaw": ">=2026.4.5" }` for ClawHub publication. OpenClaw's plugin loader may enforce this at install or load time, silently preventing the plugin from registering on hosts below that version. This broke thread auto-sync (and all other plugin functionality) for affected users. The `openclaw.compat.pluginApi` metadata is retained for ClawHub validation only.
+
 ## [0.8.3] - 2026-04-08
 
 ### Added

@@ -1,7 +1,7 @@
 {
 	"name": "@nowledge/openclaw-nowledge-mem",
 	"displayName": "Nowledge Mem for OpenClaw",
-	"version": "0.8.3",
+	"version": "0.8.4",
 	"type": "module",
 	"description": "Nowledge Mem memory plugin for OpenClaw, local-first personal knowledge base",
 	"author": {
@@ -46,9 +46,6 @@
 		"validate": "node scripts/validate-plugin.mjs",
 		"lint": "biome check .",
 		"format": "biome format --write ."
-	},
-	"peerDependencies": {
-		"openclaw": ">=2026.4.5"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.0"
