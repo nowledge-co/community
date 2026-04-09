@@ -2,11 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
-## [0.8.4] - 2026-04-09
+## [0.8.5] - 2026-04-09
 
 ### Fixed
 
-- **Removed `peerDependencies` that could block plugin loading on older OpenClaw hosts.** The 0.8.3 release added `peerDependencies: { "openclaw": ">=2026.4.5" }` for ClawHub publication. OpenClaw's plugin loader may enforce this at install or load time, silently preventing the plugin from registering on hosts below that version. This broke thread auto-sync (and all other plugin functionality) for affected users. The `openclaw.compat.pluginApi` metadata is retained for ClawHub validation only.
+- **Removed the new host-version load gate that `0.8.3` introduced.** The runtime code did not change in `0.8.3`; the regression came from package metadata. Adding `openclaw.install.minHostVersion` made OpenClaw treat the package as host-gated at install and load time. When the host version could not be resolved cleanly in some environments, the plugin was skipped before registration, which made thread auto-sync disappear even though the Mem server was healthy. `openclaw.compat.pluginApi` and `openclaw.build.openclawVersion` remain for ClawHub validation, but the runtime loader no longer sees this package as load-gated.
+- **Removed the unneeded `peerDependencies.openclaw` entry.** It was not the new regression introduced in `0.8.3`, but it also did not provide user value for this standalone plugin package.
 
 ## [0.8.3] - 2026-04-08
 

@@ -505,6 +505,12 @@ If `openclaw status` shows a CRITICAL warning about `plugins.allow`, this is the
 
 Do not list `nowledge_mem_*` tool names in `tools.allow` — OpenClaw silently strips allowlists that contain only plugin entries, so the config looks active but does nothing.
 
+**Thread auto-sync stopped right after upgrading to `0.8.3`**
+
+This was a packaging regression, not a Mem server regression. `0.8.3` added a host-version gate in `package.json` that could cause OpenClaw to skip loading the plugin before registration in some environments. When that happened, thread capture and distillation stopped because the plugin never attached its lifecycle hooks.
+
+Upgrade to `0.8.5+`, then restart OpenClaw. If you want to confirm the plugin is really loaded, run `nowledge_mem_status` in a conversation and check that the plugin tools are present.
+
 **Search timeouts with many concurrent agents**
 
 When running many agents in parallel, all searches share a single database connection. Upgrade to Nowledge Mem v0.6.12+ (backend) so scoring writes no longer block search responses.
