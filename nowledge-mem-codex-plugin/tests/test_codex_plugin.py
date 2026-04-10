@@ -235,6 +235,27 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn('[projects."/tmp/demo"]\ncodex_hooks = false', updated)
         self.assertIn("[features]\napps = true\ncodex_hooks = true", updated)
 
+    def test_ensure_codex_hooks_enabled_replaces_indented_key_without_duplication(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "\n".join(
+                [
+                    "[features]",
+                    "  codex_hooks = false",
+                    "apps = true",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        self.module.ensure_codex_hooks_enabled()
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+
+        self.assertEqual(updated.count("codex_hooks = true"), 1)
+        self.assertNotIn("codex_hooks = false", updated)
+        self.assertIn("[features]\ncodex_hooks = true\napps = true\n", updated)
+
 
 if __name__ == "__main__":
     unittest.main()
