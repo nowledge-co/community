@@ -85,6 +85,11 @@ Search your knowledge base proactively when past insights would improve the resp
 - If the deployment uses many agent or project spaces, provision them out of band with `nmem spaces ...` or the `/spaces` API. Do not create ad-hoc space IDs inside prompts or tool-call text.
 - If a space has profile instructions or shared-space links, treat them as retrieval guidance for that lane, not as a replacement for the user's direct request.
 - A host may choose one ambient space per session. It should not silently switch lanes mid-task without telling the user.
+- Read the profile fields literally:
+  - `strict` means “search only here”
+  - `shared` means “search here, then the listed shared spaces”
+  - `all` means “search across everything”
+  - `instructions` means “adjust how this lane searches and explains,” not “store somewhere else”
 
 ---
 

@@ -2,6 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.10] - 2026-04-10
+
+### Changed
+
+- Clarified OpenClaw's ambient space model. `NMEM_SPACE` now remains the single session lane across CLI-backed memory calls and API-backed thread/feed fallbacks, while shared spaces, default retrieval, and agent guidance stay in Mem's shared `/spaces` profile.
+
 ## [0.8.9] - 2026-04-10
 
 ### Fixed

@@ -83,6 +83,25 @@ NMEM_SPACE="Research Agent"
 
 CLI-based integrations then inherit that lane automatically. HTTP- or MCP-based integrations should pass `space_id` explicitly when their host/runtime can do so. The storage boundary is still one hidden shared key, but humans and agents should normally work with the space name instead. Legacy `NMEM_SPACE_ID` still works for older setups.
 
+### Space behavior by integration
+
+Use one ambient space only when the host already has a real lane, such as one agent identity, one project, or one workspace.
+
+| Integration | Ambient space today | Best user setup |
+|-------------|---------------------|-----------------|
+| Claude Code, Codex, Droid, Bub, Pi, Gemini CLI, Alma | Full ambient lane through `NMEM_SPACE` or per-command `--space` because the runtime is CLI-first | Set one `NMEM_SPACE` when the whole session belongs to one lane. Otherwise stay on `Default`. |
+| Hermes | Full ambient lane through `NMEM_SPACE`, provider `space`, or `space_template` | Use `space` for one stable lane, `space_template` for one lane per Hermes identity. |
+| OpenClaw | Full ambient lane through `NMEM_SPACE`, preserved across CLI memory calls and API-backed thread/feed paths | Set one `NMEM_SPACE` when one OpenClaw process belongs to one project or agent lane. |
+| OpenCode | Full ambient lane through `NMEM_SPACE`, preserved across CLI memory calls and HTTP session save | Set one `NMEM_SPACE` when the OpenCode process belongs to one real lane. |
+| Cursor | Partial today | `sessionStart` and handoff flows can follow `NMEM_SPACE`, but MCP tool calls still need Cursor/runtime support to forward `space_id`. |
+| Raycast, browser extension, generic MCP-only hosts | Usually default lane only today | Keep using `Default` unless the host can explicitly pass `space_id`. |
+
+What the space profile means is the same everywhere:
+
+- **When this space searches** decides how far automatic recall expands before the agent starts answering.
+- **Also search these spaces** adds reusable context lanes for retrieval only. It does not move or merge records.
+- **Agent guidance** is read by AI Now and built-in/background agents working in that lane. It changes retrieval and explanation style, not storage.
+
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs)

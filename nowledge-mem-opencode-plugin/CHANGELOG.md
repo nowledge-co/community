@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-04-10
+
+### Changed
+
+- Clarified OpenCode's ambient space model. `NMEM_SPACE` chooses one human-facing lane for Working Memory, search, save, and session-save flows, while shared spaces, default retrieval, and agent guidance remain in Mem's shared `/spaces` profile.
+
 ## [0.3.0] - 2026-04-02
 
 ### Added

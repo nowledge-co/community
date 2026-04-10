@@ -91,6 +91,18 @@ That writes the shared local client config used by `nmem` and the plugin. You ca
 
 In remote mode, the Stop hook still reads Claude session files locally through `nmem t save --from claude-code` on the machine where Claude Code is running, then uploads the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` directory.
 
+## Spaces
+
+Spaces are optional. If one Claude Code process naturally belongs to one project or agent lane, launch Claude Code with:
+
+```bash
+NMEM_SPACE="Research Agent"
+```
+
+The session-start Working Memory read, per-turn guidance, slash-command flows, and background `nmem t save --from claude-code` capture will then stay in that lane automatically.
+
+Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. Claude Code does not need a second plugin-local space config.
+
 ## Update
 
 ```bash

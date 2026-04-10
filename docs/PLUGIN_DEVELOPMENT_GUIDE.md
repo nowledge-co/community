@@ -47,6 +47,25 @@ Spaces are optional. Treat them as ambient context, not required setup.
 - The host should not make up a new space just because a prompt mentions a new topic.
 - If a space profile includes instructions, retrieval mode, or shared-space links, treat those as lane defaults. They should influence retrieval behavior, not replace the user's own instructions.
 
+### Space profile semantics
+
+- `defaultRetrievalMode=strict`: automatic recall stays inside the active space.
+- `defaultRetrievalMode=shared`: automatic recall starts in the active space, then also searches the listed shared spaces.
+- `defaultRetrievalMode=all`: automatic recall can search across the whole memory graph by default.
+- `sharedSpaceIds`: retrieval-only links. They do not change where new memories, threads, or sources are stored.
+- `instructions`: lane-specific guidance for AI Now and built-in/background agents. Plugins should not reinterpret this as a second system prompt owned by the host.
+
+### Resolution order
+
+When a host supports multiple ways to choose a lane, prefer one clear precedence chain:
+
+1. explicit tool-call override
+2. plugin/provider config (for example `space` or `space_template`)
+3. session env/context such as `NMEM_SPACE`
+4. `Default`
+
+Humans should usually work with the visible space name. Only storage and compatibility surfaces need the hidden key.
+
 ---
 
 ## Tool Naming

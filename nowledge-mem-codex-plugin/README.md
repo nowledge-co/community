@@ -126,6 +126,18 @@ If Nowledge Mem runs on another machine, save your credentials once:
 
 See [Remote Access](https://mem.nowledge.co/docs/remote-access) for details.
 
+## Spaces
+
+Spaces are optional. If one Codex session naturally belongs to one project or agent lane, launch Codex with:
+
+```bash
+NMEM_SPACE="Research Agent"
+```
+
+The Working Memory bootstrap, search-memory skill, save-thread skill, distill-memory skill, and direct `nmem` fallbacks will then stay in that lane automatically.
+
+Shared spaces, default retrieval, and agent guidance come from Mem's own space profile. Codex should choose the ambient lane, not redefine what the space means.
+
 ## Project guidance
 
 Copy `AGENTS.md` into your project root for stronger memory behavior in that repo. If you already have an `AGENTS.md`, merge the Nowledge section.

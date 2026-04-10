@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.6] - 2026-04-10
+
+### Changed
+
+- Clarified Hermes' space model around the provider-level lane. `NMEM_SPACE`, `space`, and `space_template` all choose the ambient space by human-facing name, while shared-space retrieval, default retrieval mode, and agent guidance remain owned by Mem's shared `/spaces` profile.
+
 ## [0.5.5] - 2026-04-08
 
 ### Fixed

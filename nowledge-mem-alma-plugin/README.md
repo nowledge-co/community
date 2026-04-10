@@ -172,6 +172,18 @@ Startup log shows `mode=remote` or `mode=local` to confirm which mode is active.
 
 See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access) for full setup instructions.
 
+## Spaces
+
+Spaces are optional. If one Alma runtime naturally belongs to one project or agent lane, launch Alma with:
+
+```bash
+NMEM_SPACE="Research Agent"
+```
+
+The hook-based Working Memory bootstrap, proactive recall, `nowledge_mem_store`, and automatic thread flushes will then stay in that lane automatically.
+
+Shared spaces, default retrieval, and agent guidance are still owned by Mem's space profile. Alma should pick the lane, not duplicate the profile model.
+
 ## Runtime Defaults
 
 The plugin currently uses these defaults:
