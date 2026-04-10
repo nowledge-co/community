@@ -34,6 +34,16 @@ Spaces are optional. Treat them as ambient context, not required setup.
 - If the host has no natural ambient lane, keep using the default space and stay silent about spaces in the default UX.
 - Do not invent a second “vault”, “project memory”, or “tenant” abstraction on top of `space_id`.
 - Cross-space retrieval should be explicit. Do not silently mix a shared lane into the default recall path.
+- Provisioning the roster is now a first-class shared surface:
+  - CLI: `nmem spaces ...`
+  - HTTP API: `/spaces`
+- The host should derive ambient space from context it already owns, such as:
+  - workspace or project path
+  - agent identity / persona slot
+  - selected project or repository
+  - explicit user choice in the host UI
+- The host should not make up a new space just because a prompt mentions a new topic.
+- If a space profile includes instructions, retrieval mode, or shared-space links, treat those as lane defaults. They should influence retrieval behavior, not replace the user's own instructions.
 
 ---
 
@@ -107,6 +117,7 @@ Optional capabilities (require platform support):
 - [ ] **Graph exploration** — connections, evolution chains, entity relationships
 - [ ] **Thread save** — real transcript import (only if parser exists)
 - [ ] **Slash commands** — quick access to common operations
+- [ ] **Space profile support** — can pass one ambient `space_id`, and can optionally provision/show spaces when the host has a real multi-lane workflow
 
 ---
 
