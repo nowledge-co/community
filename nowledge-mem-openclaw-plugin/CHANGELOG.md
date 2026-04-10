@@ -2,6 +2,17 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.9] - 2026-04-10
+
+### Fixed
+
+- **`/new` once again starts a fresh Mem thread.** Thread identity now follows OpenClaw's session lifecycle instead of collapsing everything under the channel-level `sessionKey`. Explicit `/new`, `/reset`, idle rollovers, and daily rollovers create a new Mem thread as users expect.
+- **Compaction still stays inside the same Mem thread.** When OpenClaw rotates the underlying transcript during compaction, the plugin now carries the existing conversation root forward so compaction does not fork a second thread for the same chat.
+
+### Changed
+
+- **Capture now uses lifecycle-aware conversation roots.** `session_end` and `session_start` hooks teach the plugin when a new chat begins and when a transcript rotation is only internal maintenance. Context Engine capture and hook-based capture still converge on the same thread, but `/new` is no longer merged into the prior conversation.
+
 ## [0.8.8] - 2026-04-09
 
 ### Fixed

@@ -69,10 +69,7 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 					? runtimeInfo.contextEngineRegistrationError.trim()
 					: null;
 			details.memorySlot = memorySlot ?? "(unknown)";
-			const ceSlot =
-				contextEngineSlot && String(contextEngineSlot).trim()
-					? String(contextEngineSlot).trim()
-					: "legacy";
+			const ceSlot = details.contextEngineSlot;
 			details.contextEngineSlot = ceSlot;
 			details.contextEngineRegistered = contextEngineRegistered;
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {
@@ -134,6 +131,10 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			}
 			if (!cfg.sessionDigest) {
 				lines.push("Thread capture: disabled (sessionDigest=false)");
+			} else {
+				lines.push(
+					"  Thread identity follows OpenClaw session lifecycle: /new or /reset starts a fresh thread, while compaction stays in the same thread.",
+				);
 			}
 
 			// 1. Mode + connection target

@@ -12,6 +12,8 @@ import { buildBehavioralHook } from "./hooks/behavioral.js";
 import {
 	buildAgentEndCaptureHandler,
 	buildBeforeResetCaptureHandler,
+	registerSessionEndConversation,
+	registerSessionStartConversation,
 } from "./hooks/capture.js";
 import { buildRecallHandler } from "./hooks/recall.js";
 import { createConnectionsTool } from "./tools/connections.js";
@@ -137,6 +139,8 @@ export default {
 				cfg,
 				logger,
 			);
+			api.on("session_start", registerSessionStartConversation);
+			api.on("session_end", registerSessionEndConversation);
 			api.on("agent_end", buildAgentEndCaptureHandler(client, cfg, logger));
 			api.on("after_compaction", (event, ctx) =>
 				threadCaptureHandler({ ...event, reason: "compaction" }, ctx),

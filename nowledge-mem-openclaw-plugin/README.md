@@ -365,7 +365,7 @@ The behavioral guidance adjusts when `sessionContext` is enabled. Instead of "se
 
 **What happens to conversations I don't explicitly save?**
 
-With `sessionDigest` enabled (the default), every conversation is saved as a searchable thread. One OpenClaw chat becomes one Mem thread: capture uses the stable OpenClaw `sessionKey`, not transient runtime ids, so Context Engine capture and hook-based capture append to the same conversation. Internal helper sessions like `temp:*` and subagent runs are excluded, so your recent threads stay focused on real chats. On top of thread capture, a lightweight LLM triage checks if the conversation contained decisions, insights, or preferences worth keeping as structured memories. If yes, they're extracted with proper types, labels, and temporal context. If the conversation was routine ("fix this typo"), nothing extra is saved.
+With `sessionDigest` enabled (the default), every conversation is saved as a searchable thread. The boundary follows OpenClaw's own session lifecycle: one active chat becomes one Mem thread, `/new` or `/reset` starts a fresh thread, and internal compaction keeps appending to the same thread instead of forking a duplicate. Context Engine capture and hook-based capture still converge on the same conversation. Internal helper sessions like `temp:*` and subagent runs are excluded, so your recent threads stay focused on real chats. On top of thread capture, a lightweight LLM triage checks if the conversation contained decisions, insights, or preferences worth keeping as structured memories. If yes, they're extracted with proper types, labels, and temporal context. If the conversation was routine ("fix this typo"), nothing extra is saved.
 
 **Can memories be wrong or outdated?**
 
@@ -530,7 +530,9 @@ Remember: OpenClaw applies plugin setting changes after restart. If you turned `
 
 What healthy OpenClaw thread sync looks like:
 
-- one visible chat becomes one Mem thread
+- one active OpenClaw chat becomes one Mem thread
+- running `/new` or `/reset` starts a fresh Mem thread
+- compaction does not fork a second thread for the same chat
 - helper sessions like `temp:slug-generator` do not appear
 - the synthetic `/new` / `/reset` startup prompt is not stored as the first user message
 
