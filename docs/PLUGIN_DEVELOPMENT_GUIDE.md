@@ -23,6 +23,18 @@ Use `nmem` CLI as the execution layer for memory operations.
 - API URL via `--api-url` flag or `NMEM_API_URL` environment variable
 - Shared config file: `~/.nowledge-mem/config.json` (`apiUrl`, `apiKey`)
 
+## Space-aware execution
+
+Spaces are optional. Treat them as ambient context, not required setup.
+
+- If the host/runtime has a real ambient lane, pass it through:
+  - CLI: `nmem ... --space <space_id>`
+  - MCP: `space_id`
+  - HTTP API: `space_id`
+- If the host has no natural ambient lane, keep using the default space and stay silent about spaces in the default UX.
+- Do not invent a second “vault”, “project memory”, or “tenant” abstraction on top of `space_id`.
+- Cross-space retrieval should be explicit. Do not silently mix a shared lane into the default recall path.
+
 ---
 
 ## Tool Naming

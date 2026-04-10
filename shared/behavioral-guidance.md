@@ -12,6 +12,12 @@ Read your Working Memory briefing once near the start of each session to underst
 nmem --json wm read
 ```
 
+If the host/runtime already knows an ambient space, keep the read in that lane:
+
+```bash
+nmem --json wm read --space <space_id>
+```
+
 **When to read:**
 - Beginning of a new conversation
 - Returning to a project after a break
@@ -61,6 +67,13 @@ Search your knowledge base proactively when past insights would improve the resp
 4. Prefer the smallest retrieval surface that answers the question — do not over-fetch.
 5. If initial results are weak or conceptual, try `--mode deep` for broader matching.
 
+### Space-aware routing
+
+- If the host has a real ambient space, add `--space <space_id>` to Working Memory, memory search, thread search, and save commands.
+- If the host does not have a natural ambient space, stay on the default lane and do not invent one.
+- Shared or cross-space recall should be explicit, not automatic.
+- `space_id` is the storage boundary. Labels, dates, and provenance are secondary filters layered on top.
+
 ---
 
 ## 4. Autonomous Save
@@ -90,6 +103,7 @@ Good candidates:
 - Use structured saves: `--unit-type` (decision, procedure, learning, preference, event), `-l` labels, `-i` importance
 - Atomic, standalone memories with strong titles and clear meaning
 - Focus on what was learned or decided, not routine activity
+- If the host has a real ambient space, write with `--space <space_id>` so the new memory lands in the correct lane.
 
 ---
 
