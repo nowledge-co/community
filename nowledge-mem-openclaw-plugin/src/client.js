@@ -70,7 +70,7 @@ export class NowledgeMemClient {
 	/**
 	 * @param {object} logger
 	 * @param {object} runtimeSystem
-	 * @param {{ apiUrl?: string; apiKey?: string; spaceId?: string }} [credentials]
+	 * @param {{ apiUrl?: string; apiKey?: string; space?: string; spaceId?: string }} [credentials]
 	 */
 	constructor(logger, runtimeSystem, credentials = {}) {
 		this.logger = logger;
@@ -82,7 +82,13 @@ export class NowledgeMemClient {
 			(credentials.apiUrl || "").trim() || "http://127.0.0.1:14242"
 		).replace(/\/+$/, "");
 		this._apiKey = (credentials.apiKey || "").trim();
-		this._spaceId = (credentials.spaceId || process.env.NMEM_SPACE_ID || "").trim();
+		this._spaceRef = (
+			credentials.space ||
+			credentials.spaceId ||
+			process.env.NMEM_SPACE ||
+			process.env.NMEM_SPACE_ID ||
+			""
+		).trim();
 	}
 
 	// ── API helpers (fallback path and direct operations) ─────────────────────
@@ -101,24 +107,24 @@ export class NowledgeMemClient {
 	}
 
 	_withSpaceQuery(path) {
-		if (!this._spaceId) return path;
+		if (!this._spaceRef) return path;
 		const [pathname, rawQuery = ""] = String(path).split("?", 2);
 		const query = new URLSearchParams(rawQuery);
 		if (!query.has("space_id")) {
-			query.set("space_id", this._spaceId);
+			query.set("space_id", this._spaceRef);
 		}
 		const rendered = query.toString();
 		return rendered ? `${pathname}?${rendered}` : pathname;
 	}
 
 	_withSpaceBody(body) {
-		if (!this._spaceId || body == null || Array.isArray(body)) {
+		if (!this._spaceRef || body == null || Array.isArray(body)) {
 			return body;
 		}
 		if (Object.prototype.hasOwnProperty.call(body, "space_id")) {
 			return body;
 		}
-		return { ...body, space_id: this._spaceId };
+		return { ...body, space_id: this._spaceRef };
 	}
 
 	async apiJson(method, path, body, timeout = 30_000) {
@@ -206,7 +212,7 @@ export class NowledgeMemClient {
 		return buildNmemSpawnEnv({
 			apiUrl: this._apiUrl,
 			apiKey: this._apiKey,
-			spaceId: this._spaceId || undefined,
+			spaceId: this._spaceRef || undefined,
 		});
 	}
 

@@ -127,7 +127,7 @@ For temporary overrides, launch Droid from a shell where the environment variabl
 Spaces are optional. If one Droid runtime naturally belongs to one project or agent lane, launch Droid with:
 
 ```bash
-NMEM_SPACE_ID=<space_id>
+NMEM_SPACE="Research Agent"
 ```
 
 The bundled `nmem`-backed Working Memory, search, save, and handoff flows will then stay in that lane automatically.

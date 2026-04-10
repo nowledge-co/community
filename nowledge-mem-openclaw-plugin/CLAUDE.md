@@ -11,7 +11,7 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 - Architecture: **CLI-first via OpenClaw runtime** - all CLI execution goes through `api.runtime.system.runCommandWithTimeout`, not direct `child_process`
 - Context engine: registered via `api.registerContextEngine("nowledge-mem", factory)`. Activated when user sets `plugins.slots.contextEngine: "nowledge-mem"`. Falls back to hooks when CE is not active.
 - Remote mode: `~/.nowledge-mem/config.json` (shared) or OpenClaw dashboard. Legacy `openclaw.json` still honored.
-- Ambient space lane: inherited from `NMEM_SPACE_ID` when the host launches OpenClaw in one stable lane. CLI and API fallback paths should preserve it.
+- Ambient space lane: inherited from `NMEM_SPACE` when the host launches OpenClaw in one stable lane. CLI and API fallback paths should preserve it. Legacy `NMEM_SPACE_ID` still works for older setups.
 
 ## Design Philosophy
 
@@ -166,7 +166,7 @@ When `contextEngine` points elsewhere (or is absent), hooks handle everything. N
 
 Plugin settings: OpenClaw dashboard (pluginConfig). Legacy `~/.nowledge-mem/openclaw.json` still honored.
 Credentials (apiUrl/apiKey): also reads `~/.nowledge-mem/config.json` (shared with all Nowledge Mem tools).
-Ambient space: inherit `NMEM_SPACE_ID` when the OpenClaw process already belongs to one real lane. Do not introduce a second plugin-local vault concept.
+Ambient space: inherit `NMEM_SPACE` when the OpenClaw process already belongs to one real lane. Do not introduce a second plugin-local vault concept. Legacy `NMEM_SPACE_ID` remains compatibility-only.
 
 | Key | Type | Default | Env Var | Description |
 |-----|------|---------|---------|-------------|

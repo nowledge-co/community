@@ -224,7 +224,7 @@ Use Nowledge Mem as your external memory system.
 At session start:
 - Run `nmem --json wm read` once to load current priorities and recent context.
 - Do not re-read it on every turn unless the user asks or the session context changed materially.
-- If the host already knows a project or agent lane, add `--space <space_id>`.
+- If the host already knows a project or agent lane, add `--space "<space name>"`.
 
 Search proactively when:
 - the user references previous work, a prior fix, or an earlier decision

@@ -14,7 +14,7 @@ nmem --json wm read
 
 If it returns `exists: false`, say there is no briefing yet and continue normally.
 
-If this runtime already knows a project or agent lane, add `--space <space_id>`.
+If this runtime already knows a project or agent lane, add `--space "<space name>"`.
 
 Only fall back to `~/ai-now/memory.md` for older local-only **Default-space** setups.
 
@@ -34,7 +34,7 @@ Start with:
 nmem --json m search "query"
 ```
 
-If the runtime already has an ambient lane, add `--space <space_id>` to Working Memory, memory search, thread search, and save commands.
+If the runtime already has an ambient lane, add `--space "<space name>"` to Working Memory, memory search, thread search, and save commands.
 
 Use `--mode deep` when the need is conceptual, historical, or the first pass is weak.
 

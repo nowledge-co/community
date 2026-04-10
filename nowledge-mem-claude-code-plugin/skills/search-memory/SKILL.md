@@ -45,7 +45,7 @@ nmem --json m search "authentication" -l backend -l security
 nmem --json m search "meeting notes" -t week
 ```
 
-If the runtime already knows the active project or agent lane, add `--space <space_id>`.
+If the runtime already knows the active project or agent lane, add `--space "<space name>"`.
 
 **Query:** Extract semantic core, preserve terminology, multi-language aware
 

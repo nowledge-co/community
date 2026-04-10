@@ -35,7 +35,7 @@ Read Working Memory via nmem CLI (works for both local and remote):
 nmem wm read
 ```
 
-If the runtime already knows the current project or agent lane, add `--space <space_id>`.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`.
 
 Fallback for local-only (when nmem is not installed):
 

@@ -57,7 +57,8 @@ export default {
 
     const apiUrl = process.env.NMEM_API_URL || "http://127.0.0.1:14242"
     const apiKey = process.env.NMEM_API_KEY
-    const ambientSpaceId = process.env.NMEM_SPACE_ID?.trim() || undefined
+    const ambientSpaceId =
+      process.env.NMEM_SPACE?.trim() || process.env.NMEM_SPACE_ID?.trim() || undefined
 
     function withAmbientSpace(body: unknown): unknown {
       if (!ambientSpaceId || body == null || typeof body !== "object" || Array.isArray(body)) {

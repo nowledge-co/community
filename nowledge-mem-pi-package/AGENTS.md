@@ -12,7 +12,7 @@ nmem --json wm read
 
 If it returns `exists: false`, mention there's no briefing yet and continue. Don't re-read during the same session unless the user asks.
 
-If this runtime already knows a project or agent lane, add `--space <space_id>`.
+If this runtime already knows a project or agent lane, add `--space "<space name>"`.
 
 ## Proactive Search
 
@@ -22,7 +22,7 @@ Search when the task connects to prior work, the user references a past decision
 nmem --json m search "query"
 ```
 
-If the runtime already has an ambient lane, add `--space <space_id>` to Working Memory, memory search, thread search, and save commands.
+If the runtime already has an ambient lane, add `--space "<space name>"` to Working Memory, memory search, thread search, and save commands.
 
 Use `--mode deep` when the first pass returns weak results or the query is conceptual.
 

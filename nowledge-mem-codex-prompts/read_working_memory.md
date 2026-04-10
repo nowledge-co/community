@@ -14,7 +14,7 @@ nmem --json wm read
 
 If the command succeeds but reports `exists: false`, say there is no Working Memory briefing yet.
 
-If the runtime already knows the current project or agent lane, add `--space <space_id>`.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`.
 
 Only if `nmem` is unavailable in an older local-only setup, fall back to:
 

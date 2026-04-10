@@ -11,7 +11,7 @@ Start with what matters. Working Memory is a daily briefing of your active focus
 nmem --json wm read
 ```
 
-If the runtime already knows the current project or agent lane, add `--space <space_id>`.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`.
 
 ## What you'll find
 

@@ -33,7 +33,7 @@ Start every session with context. Your Working Memory is a daily briefing synthe
 nmem --json wm read
 ```
 
-If the runtime already knows the current project or agent lane, add `--space <space_id>`.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`.
 
 ### What You'll Find
 

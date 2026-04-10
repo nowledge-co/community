@@ -37,7 +37,7 @@ nmem --json wm read
 
 If it succeeds but reports `exists: false`, say there is no Working Memory briefing yet.
 
-If the host already knows a project or agent lane, add `--space <space_id>`.
+If the host already knows a project or agent lane, add `--space "<space name>"`.
 
 Only fall back to `~/ai-now/memory.md` for older local-only **Default-space** setups.
 

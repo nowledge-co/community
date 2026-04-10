@@ -17,5 +17,5 @@ If the response says no briefing exists yet, say that clearly and continue norma
 ## Notes
 
 - Prefer this near session start, resume, or when recent priorities matter.
-- If the runtime already knows the current project or agent lane, add `--space <space_id>`.
+- If the runtime already knows the current project or agent lane, add `--space "<space name>"`.
 - Use `~/ai-now/memory.md` only as a fallback for older local-only **Default-space** setups.

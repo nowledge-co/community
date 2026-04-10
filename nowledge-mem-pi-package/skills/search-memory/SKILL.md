@@ -36,7 +36,7 @@ description: "Search your knowledge base when past decisions, preferences, or pr
 nmem --json m search "3-7 word semantic query"
 ```
 
-If the runtime already knows the active project or agent lane, add `--space <space_id>`.
+If the runtime already knows the active project or agent lane, add `--space "<space name>"`.
 
 ### 2. Search threads (past conversations)
 

@@ -102,10 +102,10 @@ The resolved `apiUrl` and `apiKey` are reused across the plugin: CLI-backed memo
 Spaces are optional. If one OpenClaw process naturally belongs to one project or agent lane, launch OpenClaw with:
 
 ```bash
-NMEM_SPACE_ID=<space_id>
+NMEM_SPACE="Research Agent"
 ```
 
-Nowledge Mem's CLI-backed Working Memory, memory search/save, and the plugin's API-backed thread/feed fallbacks will then stay in that lane together. There is no second OpenClaw-only vault setting; `space_id` remains the shared Mem boundary.
+Nowledge Mem's CLI-backed Working Memory, memory search/save, and the plugin's API-backed thread/feed fallbacks will then stay in that lane together. There is no second OpenClaw-only vault setting; the shared Mem boundary is still one hidden space key, but humans and agents should normally work with the space name instead.
 
 ### Configure via WebUI of OpenClaw
 
