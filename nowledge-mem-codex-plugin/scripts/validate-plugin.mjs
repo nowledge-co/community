@@ -18,6 +18,32 @@ const ok = (message) => {
   console.log(`OK: ${message}`);
 };
 
+const readTextIfPresent = (fullPath, label) => {
+  if (!existsSync(fullPath)) {
+    fail(`missing ${label}`);
+    return null;
+  }
+  try {
+    return readFileSync(fullPath, "utf8");
+  } catch (error) {
+    fail(`failed to read ${label}: ${error.message}`);
+    return null;
+  }
+};
+
+const parseJsonIfPresent = (fullPath, label) => {
+  const text = readTextIfPresent(fullPath, label);
+  if (text === null) {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    fail(`failed to parse ${label}: ${error.message}`);
+    return null;
+  }
+};
+
 const requireFile = (relativePath) => {
   const fullPath = path.join(pluginRoot, relativePath);
   if (!existsSync(fullPath)) {
@@ -50,63 +76,70 @@ for (const file of [
   requireFile(file);
 }
 
-const manifest = JSON.parse(
-  readFileSync(path.join(pluginRoot, ".codex-plugin/plugin.json"), "utf8"),
+const manifest = parseJsonIfPresent(
+  path.join(pluginRoot, ".codex-plugin/plugin.json"),
+  ".codex-plugin/plugin.json",
 );
-if (manifest.name !== "nowledge-mem") {
-  fail(`unexpected plugin name: ${manifest.name}`);
-} else {
-  ok("plugin manifest name");
-}
-if (manifest.version !== "0.1.3") {
-  fail(`expected version 0.1.3, got ${manifest.version}`);
-} else {
-  ok("plugin manifest version");
-}
-
-const changelog = readFileSync(path.join(pluginRoot, "CHANGELOG.md"), "utf8");
-if (!changelog.includes("## [0.1.3]")) {
-  fail("CHANGELOG must contain a 0.1.3 entry");
-} else {
-  ok("CHANGELOG version entry");
-}
-
-const readme = readFileSync(path.join(pluginRoot, "README.md"), "utf8");
-for (const phrase of [
-  "scripts/install_hooks.py",
-  "~/.codex/hooks.json",
-  "codex_hooks = true",
-  "host-level",
-]) {
-  if (!readme.includes(phrase)) {
-    fail(`README must mention ${phrase}`);
+if (manifest) {
+  if (manifest.name !== "nowledge-mem") {
+    fail(`unexpected plugin name: ${manifest.name}`);
   } else {
-    ok(`README mentions ${phrase}`);
+    ok("plugin manifest name");
+  }
+  if (manifest.version !== "0.1.3") {
+    fail(`expected version 0.1.3, got ${manifest.version}`);
+  } else {
+    ok("plugin manifest version");
   }
 }
 
-const integrationsDoc = JSON.parse(
-  readFileSync(path.join(repoRoot, "integrations.json"), "utf8"),
-);
-const codexEntry = integrationsDoc.integrations?.find((entry) => entry.id === "codex-cli");
-if (!codexEntry) {
-  fail("integrations.json missing codex-cli entry");
-} else {
-  ok("integrations.json codex-cli entry");
-  if (codexEntry.version !== "0.1.3") {
-    fail(`integrations.json codex-cli version must be 0.1.3, got ${codexEntry.version}`);
+const changelog = readTextIfPresent(path.join(pluginRoot, "CHANGELOG.md"), "CHANGELOG.md");
+if (changelog !== null) {
+  if (!changelog.includes("## [0.1.3]")) {
+    fail("CHANGELOG must contain a 0.1.3 entry");
   } else {
-    ok("integrations.json codex-cli version");
+    ok("CHANGELOG version entry");
   }
-  if (!codexEntry.install?.command?.includes("nowledge-mem-codex-plugin/.")) {
-    fail("integrations.json install.command must copy nowledge-mem-codex-plugin/. so hidden files are preserved");
-  } else {
-    ok("integrations.json install.command copies hidden files");
+}
+
+const readme = readTextIfPresent(path.join(pluginRoot, "README.md"), "README.md");
+if (readme !== null) {
+  for (const phrase of [
+    "scripts/install_hooks.py",
+    "~/.codex/hooks.json",
+    "codex_hooks = true",
+    "host-level",
+  ]) {
+    if (!readme.includes(phrase)) {
+      fail(`README must mention ${phrase}`);
+    } else {
+      ok(`README mentions ${phrase}`);
+    }
   }
-  if (!codexEntry.install?.updateCommand?.includes("nowledge-mem-codex-plugin/.")) {
-    fail("integrations.json install.updateCommand must copy nowledge-mem-codex-plugin/. so hidden files are preserved");
+}
+
+const integrationsDoc = parseJsonIfPresent(path.join(repoRoot, "integrations.json"), "integrations.json");
+if (integrationsDoc) {
+  const codexEntry = integrationsDoc.integrations?.find((entry) => entry.id === "codex-cli");
+  if (!codexEntry) {
+    fail("integrations.json missing codex-cli entry");
   } else {
-    ok("integrations.json updateCommand copies hidden files");
+    ok("integrations.json codex-cli entry");
+    if (codexEntry.version !== "0.1.3") {
+      fail(`integrations.json codex-cli version must be 0.1.3, got ${codexEntry.version}`);
+    } else {
+      ok("integrations.json codex-cli version");
+    }
+    if (!codexEntry.install?.command?.includes("nowledge-mem-codex-plugin/.")) {
+      fail("integrations.json install.command must copy nowledge-mem-codex-plugin/. so hidden files are preserved");
+    } else {
+      ok("integrations.json install.command copies hidden files");
+    }
+    if (!codexEntry.install?.updateCommand?.includes("nowledge-mem-codex-plugin/.")) {
+      fail("integrations.json install.updateCommand must copy nowledge-mem-codex-plugin/. so hidden files are preserved");
+    } else {
+      ok("integrations.json updateCommand copies hidden files");
+    }
   }
 }
 

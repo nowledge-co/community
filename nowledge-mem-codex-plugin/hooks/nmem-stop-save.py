@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -16,6 +17,7 @@ HOME = Path.home()
 CODEX_DIR = HOME / ".codex"
 LOG_FILE = CODEX_DIR / "log" / "nowledge-mem-stop-hook.log"
 STATE_FILE = CODEX_DIR / "nowledge_mem_codex_hook_state.json"
+IMPORT_TIMEOUT_SECONDS = 30
 
 
 def ensure_parent(path: Path) -> None:
@@ -54,20 +56,105 @@ def configure_nmem_env() -> None:
         os.environ["NMEM_API_KEY"] = str(api_key)
 
 
+def shorten_title(text: str, limit: int = 60) -> str:
+    normalized = text.replace("\n", " ").strip()
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[:limit].rstrip() + "..."
+
+
+def is_agents_preamble(text: str) -> bool:
+    stripped = text.strip()
+    return (
+        stripped.startswith("# AGENTS.md instructions for ")
+        or (
+            stripped.startswith("# AGENTS.md")
+            and (
+                "<INSTRUCTIONS>" in stripped
+                or "\n## Purpose" in stripped
+                or "\n## nmem" in stripped
+            )
+        )
+    )
+
+
+def is_environment_context(text: str) -> bool:
+    stripped = text.strip()
+    return stripped.startswith("<environment_context>") and stripped.endswith("</environment_context>")
+
+
+def extract_files_request(text: str) -> str | None:
+    marker = "## My request for Codex"
+    if marker not in text:
+        return None
+    tail = text.split(marker, 1)[1]
+    tail = re.sub(r"^[:：\s]+", "", tail)
+    return tail.strip() or None
+
+
+def summarize_user_message(text: str) -> str:
+    normalized = text.replace("\n", " ").strip()
+    normalized = re.sub(
+        r"^codex://threads/[0-9a-fA-F-]+[\s,，:：-]*",
+        "",
+        normalized,
+    )
+    normalized = re.sub(
+        r"^(请帮我|请你|请|麻烦你|麻烦|帮我看看|你看看|帮我看下|帮我看一下|帮我|看下|看一下)\s*",
+        "",
+        normalized,
+    )
+    normalized = re.sub(
+        r"^(can you|could you|please|help me|take a look at|look into)\s+",
+        "",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = normalized.replace("是不是", "是否").replace("能不能", "是否能")
+    normalized = normalized.strip(" \t\r\n?？!！。")
+    normalized = re.sub(r"\s+", " ", normalized)
+    return shorten_title(normalized or text)
+
+
+def derive_thread_title(parsed: dict, cwd: str) -> str:
+    for message in parsed.get("messages", []):
+        if message.get("role") != "user":
+            continue
+        content = (message.get("content") or "").strip()
+        if not content or is_agents_preamble(content) or is_environment_context(content):
+            continue
+        files_request = extract_files_request(content)
+        if files_request:
+            return summarize_user_message(files_request)
+        return summarize_user_message(content)
+
+    workspace = cwd or parsed.get("workspace") or ""
+    if workspace:
+        return f"Codex: {Path(workspace).name}"
+
+    parsed_title = (parsed.get("title") or "").strip()
+    if parsed_title and not is_agents_preamble(parsed_title):
+        return shorten_title(parsed_title)
+
+    return "Codex Session"
+
+
 def import_current_transcript(payload: dict) -> tuple[int, str]:
     session_id = payload.get("session_id") or ""
-    transcript_path = Path(payload.get("transcript_path") or "")
+    raw_transcript_path = payload.get("transcript_path") or ""
     cwd = payload.get("cwd") or ""
     hook_event_name = payload.get("hook_event_name") or "unknown"
 
     log(f"start event={hook_event_name} session={session_id or 'missing'} cwd={cwd or 'missing'}")
-    if transcript_path:
-        log(f"transcript={transcript_path}")
-
     if not session_id:
         return 0, "skip: missing session_id"
-    if not transcript_path or not transcript_path.exists():
+    if not raw_transcript_path:
         return 0, f"skip: transcript_path missing or unreadable for session={session_id}"
+
+    transcript_path = Path(raw_transcript_path)
+    if not (transcript_path.exists() and transcript_path.is_file()):
+        return 0, f"skip: transcript_path missing or unreadable for session={session_id}"
+    log(f"transcript={transcript_path}")
 
     nmem_bin = shutil.which("nmem") or shutil.which("nmem.cmd")
     if not nmem_bin:
@@ -105,7 +192,7 @@ def import_current_transcript(payload: dict) -> tuple[int, str]:
         return 0, f"skip: unchanged transcript for session={session_id}"
 
     import_payload = {
-        "title": parsed.get("title"),
+        "title": derive_thread_title(parsed, cwd),
         "messages": messages,
     }
 
@@ -115,7 +202,15 @@ def import_current_transcript(payload: dict) -> tuple[int, str]:
 
     try:
         command = [nmem_bin, "--json", "t", "import", "-f", str(temp_path), "--id", thread_id, "-s", "codex"]
-        result = subprocess.run(command, capture_output=True, text=True, env=os.environ.copy())
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+            timeout=IMPORT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return 0, f"skip: nmem import timed out after {IMPORT_TIMEOUT_SECONDS}s for thread={thread_id}"
     finally:
         try:
             temp_path.unlink(missing_ok=True)

@@ -19,6 +19,8 @@ node nowledge-mem-codex-plugin/scripts/validate-plugin.mjs
 
 - bump `.codex-plugin/plugin.json` version
 - add a top entry to `CHANGELOG.md`
+- bump `integrations.json` -> `integrations[id="codex-cli"].version`
+- update expected version checks in `scripts/validate-plugin.mjs`
 - keep install examples on `cp -r .../. ...` so `.codex-plugin/` is copied
 - keep `scripts/install_hooks.py` idempotent
 - keep `hooks/nmem-stop-save.py` focused on direct transcript import via `transcript_path`

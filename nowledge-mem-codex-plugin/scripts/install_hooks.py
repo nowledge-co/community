@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import json
-import re
 import shutil
 import stat
+import sys
+import tomllib
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -21,7 +23,13 @@ INSTALLED_HOOK = HOOKS_DIR / "nowledge-mem-stop-save.py"
 def load_json(path: Path) -> dict:
     if not path.exists():
         return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        backup = path.with_name(f"{path.name}.{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.bak")
+        shutil.move(path, backup)
+        print(f"warning: moved malformed JSON to {backup}", file=sys.stderr)
+        return {}
 
 
 def save_json(path: Path, payload: dict) -> None:
@@ -39,7 +47,7 @@ def install_runtime_hook() -> None:
 def merge_hooks_json() -> None:
     if GLOBAL_HOOKS_FILE.exists():
         hooks_doc = load_json(GLOBAL_HOOKS_FILE)
-        backup = GLOBAL_HOOKS_FILE.with_suffix(f".json.bak")
+        backup = GLOBAL_HOOKS_FILE.with_suffix(".json.bak")
         if not backup.exists():
             shutil.copy2(GLOBAL_HOOKS_FILE, backup)
     else:
@@ -77,15 +85,45 @@ def merge_hooks_json() -> None:
 def ensure_codex_hooks_enabled() -> None:
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
+    if text.strip():
+        tomllib.loads(text)
 
-    if re.search(r"(?m)^codex_hooks\s*=\s*(true|false)\s*$", text):
-        updated = re.sub(r"(?m)^codex_hooks\s*=\s*(true|false)\s*$", "codex_hooks = true", text, count=1)
-    elif re.search(r"(?m)^\[features\]\s*$", text):
-        updated = re.sub(r"(?m)^\[features\]\s*$", "[features]\ncodex_hooks = true", text, count=1)
+    lines = text.splitlines()
+    section_header = "[features]"
+    target_key = "codex_hooks"
+    features_start = None
+    features_end = len(lines)
+
+    for index, line in enumerate(lines):
+        if line.strip() == section_header:
+            features_start = index
+            break
+
+    if features_start is None:
+        if lines and lines[-1] != "":
+            lines.append("")
+        lines.extend([section_header, "codex_hooks = true"])
     else:
-        suffix = "" if text.endswith("\n") or text == "" else "\n"
-        updated = f"{text}{suffix}\n[features]\ncodex_hooks = true\n"
+        for index in range(features_start + 1, len(lines)):
+            stripped = lines[index].strip()
+            if stripped.startswith("[") and stripped.endswith("]"):
+                features_end = index
+                break
 
+        replaced = False
+        for index in range(features_start + 1, features_end):
+            stripped = lines[index].strip()
+            if stripped.startswith(f"{target_key} "):
+                lines[index] = "codex_hooks = true"
+                replaced = True
+                break
+
+        if not replaced:
+            lines.insert(features_end, "codex_hooks = true")
+
+    updated = "\n".join(lines)
+    if updated and not updated.endswith("\n"):
+        updated += "\n"
     CONFIG_FILE.write_text(updated, encoding="utf-8")
 
 
