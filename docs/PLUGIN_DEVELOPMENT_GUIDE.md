@@ -28,7 +28,7 @@ Use `nmem` CLI as the execution layer for memory operations.
 Spaces are optional. Treat them as ambient context, not required setup.
 
 - If the host/runtime has a real ambient lane, pass it through:
-  - CLI: `nmem ... --space <space_id>` or ambient `NMEM_SPACE_ID=<space_id>`
+  - CLI: `nmem ... --space "<space name>"` or ambient `NMEM_SPACE="<space name>"`
   - MCP: `space_id`
   - HTTP API: `space_id`
 - If the host has no natural ambient lane, keep using the default space and stay silent about spaces in the default UX.
@@ -43,7 +43,7 @@ Spaces are optional. Treat them as ambient context, not required setup.
   - agent identity / persona slot
   - selected project or repository
   - explicit user choice in the host UI
-- For CLI-first hosts, prefer one ambient session lane via `NMEM_SPACE_ID` when the whole session naturally belongs to one space. Use per-call `--space` when only some actions need an override.
+- For CLI-first hosts, prefer one ambient session lane via `NMEM_SPACE` when the whole session naturally belongs to one space. Legacy `NMEM_SPACE_ID` remains compatibility-only. Use per-call `--space` when only some actions need an override.
 - The host should not make up a new space just because a prompt mentions a new topic.
 - If a space profile includes instructions, retrieval mode, or shared-space links, treat those as lane defaults. They should influence retrieval behavior, not replace the user's own instructions.
 
@@ -119,7 +119,7 @@ Optional capabilities (require platform support):
 - [ ] **Graph exploration** — connections, evolution chains, entity relationships
 - [ ] **Thread save** — real transcript import (only if parser exists)
 - [ ] **Slash commands** — quick access to common operations
-- [ ] **Space profile support** — can pass one ambient `space_id`, and can optionally provision/show spaces when the host has a real multi-lane workflow
+- [ ] **Space profile support** — can pass one ambient space name, and can optionally provision/show spaces when the host has a real multi-lane workflow
 
 ---
 

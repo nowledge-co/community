@@ -15,13 +15,13 @@ nmem --json wm read
 If the host/runtime already knows an ambient space, keep the read in that lane:
 
 ```bash
-nmem --json wm read --space <space_id>
+nmem --json wm read --space "Research Agent"
 ```
 
 For CLI-first hosts that already own one stable lane for the whole session, prefer one ambient env var instead of repeating the flag on every command:
 
 ```bash
-NMEM_SPACE_ID=<space_id> nmem --json wm read
+NMEM_SPACE="Research Agent" nmem --json wm read
 ```
 
 **When to read:**
@@ -77,11 +77,11 @@ Search your knowledge base proactively when past insights would improve the resp
 ### Space-aware routing
 
 - If the host has a real ambient space, either:
-  - pass `--space <space_id>` on the relevant commands, or
-  - set `NMEM_SPACE_ID=<space_id>` once for the session when the integration is CLI-first.
+  - pass `--space "<space name>"` on the relevant commands, or
+  - set `NMEM_SPACE="<space name>"` once for the session when the integration is CLI-first.
 - If the host does not have a natural ambient space, stay on the default lane and do not invent one.
 - Shared or cross-space recall should be explicit, not automatic.
-- `space_id` is the storage boundary. Labels, dates, and provenance are secondary filters layered on top.
+- The storage boundary is a hidden space key. Humans and agents should normally work with the space name instead.
 - If the deployment uses many agent or project spaces, provision them out of band with `nmem spaces ...` or the `/spaces` API. Do not create ad-hoc space IDs inside prompts or tool-call text.
 - If a space has profile instructions or shared-space links, treat them as retrieval guidance for that lane, not as a replacement for the user's direct request.
 - A host may choose one ambient space per session. It should not silently switch lanes mid-task without telling the user.
@@ -115,7 +115,7 @@ Good candidates:
 - Use structured saves: `--unit-type` (decision, procedure, learning, preference, event), `-l` labels, `-i` importance
 - Atomic, standalone memories with strong titles and clear meaning
 - Focus on what was learned or decided, not routine activity
-- If the host has a real ambient space, write with `--space <space_id>` so the new memory lands in the correct lane.
+- If the host has a real ambient space, write with `--space "<space name>"` so the new memory lands in the correct lane.
 
 ---
 
