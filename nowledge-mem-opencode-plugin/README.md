@@ -116,6 +116,16 @@ The plugin also reads `~/.nowledge-mem/config.json` (shared with all Nowledge Me
 
 See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access).
 
+### Spaces
+
+Spaces are optional. If one OpenCode process naturally belongs to one project or agent lane, launch OpenCode with:
+
+```bash
+NMEM_SPACE_ID=<space_id>
+```
+
+The plugin's `nmem` calls and full-session thread save path will follow that lane. If you do not have a real ambient lane, stay on `Default`.
+
 ## Troubleshooting
 
 - **nmem not found.** Install with `pip install nmem-cli`, then run `nmem status` to verify.

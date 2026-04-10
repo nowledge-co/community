@@ -71,6 +71,18 @@ See [mcp.json](mcp.json) for the reference config.
 nmem status   # verify Nowledge Mem is running
 ```
 
+## Spaces
+
+Spaces are optional. Most integrations can stay on `Default` and never mention them.
+
+If a host already knows one real project or agent lane for the session, prefer one ambient export:
+
+```bash
+NMEM_SPACE_ID=<space_id>
+```
+
+CLI-based integrations then inherit that lane automatically. HTTP- or MCP-based integrations should pass `space_id` explicitly when their host/runtime can do so. Do not invent plugin-local “vault” or “tenant” abstractions on top of the shared `space_id` contract.
+
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs)

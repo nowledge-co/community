@@ -97,6 +97,16 @@ Legacy `~/.nowledge-mem/openclaw.json` is still honored first for backward compa
 
 The resolved `apiUrl` and `apiKey` are reused across the plugin: CLI-backed memory tools and API-backed thread sync both talk to the same backend. The `apiKey` is never passed as a CLI argument and is never logged.
 
+### Spaces
+
+Spaces are optional. If one OpenClaw process naturally belongs to one project or agent lane, launch OpenClaw with:
+
+```bash
+NMEM_SPACE_ID=<space_id>
+```
+
+Nowledge Mem's CLI-backed Working Memory, memory search/save, and the plugin's API-backed thread/feed fallbacks will then stay in that lane together. There is no second OpenClaw-only vault setting; `space_id` remains the shared Mem boundary.
+
 ### Configure via WebUI of OpenClaw
 
 <img width="1192" height="2007" alt="openclaw-config" src="https://github.com/user-attachments/assets/a4abd855-db56-4a1f-b0ac-0114909d0c20" />

@@ -25,7 +25,7 @@ Read Working Memory via `nmem`:
 nmem wm read
 ```
 
-If the runtime already knows the current project or agent lane, add `--space <space_id>`.
+If the runtime already knows the current project or agent lane, either add `--space <space_id>` or launch the whole session with `NMEM_SPACE_ID=<space_id>`.
 
 Fallback for older local-only setups:
 

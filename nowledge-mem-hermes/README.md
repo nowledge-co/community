@@ -111,6 +111,16 @@ nmem config client set api-key your-key
 
 This writes the local client config that Hermes reads through `nmem`. It is separate from server-side access settings like bind host or LAN allowlists.
 
+### Spaces
+
+Spaces are optional. If one Hermes process naturally belongs to one project or agent lane, launch Hermes with:
+
+```bash
+NMEM_SPACE_ID=<space_id>
+```
+
+Plugin-mode Working Memory reads, searches, saves, and thread tools then stay in that lane automatically. If you do not have a real ambient lane, stay on `Default`.
+
 The only plugin-specific setting is request timeout, stored in `~/.hermes/nowledge-mem.json`:
 
 ```json

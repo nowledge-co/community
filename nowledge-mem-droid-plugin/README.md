@@ -122,6 +122,16 @@ Save that to:
 
 For temporary overrides, launch Droid from a shell where the environment variables are already exported.
 
+### Spaces
+
+Spaces are optional. If one Droid runtime naturally belongs to one project or agent lane, launch Droid with:
+
+```bash
+NMEM_SPACE_ID=<space_id>
+```
+
+The bundled `nmem`-backed Working Memory, search, save, and handoff flows will then stay in that lane automatically.
+
 ## Direct `nmem` Use Is Always Allowed
 
 The plugin commands and skills are convenience surfaces, not a cage. Droid can still compose direct `nmem` commands when that is clearer.

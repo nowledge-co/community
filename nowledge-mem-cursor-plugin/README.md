@@ -66,6 +66,15 @@ That enables two important package behaviors:
 
 If `nmem` is unavailable, the MCP tools still work. Only the automatic Working Memory bootstrap and handoff creation are affected.
 
+## Spaces
+
+Spaces are optional. Cursor does not yet expose one shared ambient `space_id` across all MCP calls in this package, so the current split is:
+
+- `sessionStart` Working Memory bootstrap and `save-handoff` can follow `NMEM_SPACE_ID=<space_id>` when Cursor is launched in a stable lane.
+- MCP tool calls stay on their normal backend lane unless Cursor/runtime support is extended to pass `space_id`.
+
+If you do not have a real ambient lane, stay on `Default`.
+
 ## Why The Rules Matter
 
 Cursor can see the tools, but the bundled rules and skills tell it when to use them:

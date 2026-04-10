@@ -18,6 +18,12 @@ If the host/runtime already knows an ambient space, keep the read in that lane:
 nmem --json wm read --space <space_id>
 ```
 
+For CLI-first hosts that already own one stable lane for the whole session, prefer one ambient env var instead of repeating the flag on every command:
+
+```bash
+NMEM_SPACE_ID=<space_id> nmem --json wm read
+```
+
 **When to read:**
 - Beginning of a new conversation
 - Returning to a project after a break
@@ -70,7 +76,9 @@ Search your knowledge base proactively when past insights would improve the resp
 
 ### Space-aware routing
 
-- If the host has a real ambient space, add `--space <space_id>` to Working Memory, memory search, thread search, and save commands.
+- If the host has a real ambient space, either:
+  - pass `--space <space_id>` on the relevant commands, or
+  - set `NMEM_SPACE_ID=<space_id>` once for the session when the integration is CLI-first.
 - If the host does not have a natural ambient space, stay on the default lane and do not invent one.
 - Shared or cross-space recall should be explicit, not automatic.
 - `space_id` is the storage boundary. Labels, dates, and provenance are secondary filters layered on top.

@@ -10,6 +10,8 @@ You have access to the user's cross-tool knowledge graph through six tools. In p
 
 At session start, load the user's current context. The plugin injects this automatically via the system prompt. If it's empty, note there is no briefing yet and continue.
 
+If Hermes is launched with `NMEM_SPACE_ID=<space_id>`, treat that lane as the ambient default for Working Memory, search, save, and thread tools.
+
 Do not re-read unless the user asks or the session context changes materially.
 
 ## Proactive Search

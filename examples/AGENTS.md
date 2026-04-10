@@ -44,6 +44,15 @@ nmem --json m search "authentication patterns"
 nmem --json m search "API design" --importance 0.8 --label architecture
 ```
 
+If your runtime already knows a stable project or agent lane, prefer one ambient session export:
+
+```bash
+export NMEM_SPACE_ID=research-agent
+nmem --json m search "authentication patterns"
+```
+
+Or add `--space <space_id>` per command when only some operations need an override.
+
 **Thread Operations:**
 
 ```bash
