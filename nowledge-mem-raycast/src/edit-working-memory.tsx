@@ -5,8 +5,18 @@ import { existsSync } from "fs";
 import { getConnectionConfig, isLocalConnection } from "./api";
 
 export default async function EditWorkingMemory() {
+  const { baseUrl, space } = getConnectionConfig();
+
+  if (space && space.toLowerCase() !== "default") {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: "Default Space Only",
+      message: `This shortcut edits ~/ai-now/memory.md. Use the Mem app or API to edit Working Memory for "${space}".`,
+    });
+    return;
+  }
+
   if (!isLocalConnection()) {
-    const { baseUrl } = getConnectionConfig();
     await showToast({
       style: Toast.Style.Failure,
       title: "Local File Editing Only",

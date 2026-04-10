@@ -101,15 +101,7 @@ The resolved `apiUrl` and `apiKey` are reused across the plugin: CLI-backed memo
 
 Spaces are optional. OpenClaw should choose one ambient lane only when the profile or process already belongs to one real project or agent lane.
 
-If one OpenClaw process naturally belongs to one lane, launch it with:
-
-```bash
-NMEM_SPACE="Research Agent"
-```
-
-Nowledge Mem's CLI-backed Working Memory, memory search/save, and the plugin's API-backed thread/feed fallbacks will then stay in that lane together. There is no second OpenClaw-only vault setting; the shared Mem boundary is still one hidden space key, but humans and agents should normally work with the space name instead.
-
-The OpenClaw plugin settings can also own that lane directly:
+The OpenClaw plugin settings can own that lane directly:
 
 ```json
 {
@@ -119,6 +111,14 @@ The OpenClaw plugin settings can also own that lane directly:
 ```
 
 Use `space` when one OpenClaw profile belongs to one stable lane. Use `spaceTemplate` only when your launcher or host environment already sets a trustworthy variable that identifies the lane. If your OpenClaw runtime does not expose per-agent identity to plugins, do not fake it. Use one profile/process per lane or stay on `Default`.
+
+If you are running OpenClaw from a launcher or script with no richer config surface, you can still set one session-wide fallback lane with:
+
+```bash
+NMEM_SPACE="Research Agent"
+```
+
+Nowledge Mem's CLI-backed Working Memory, memory search/save, and the plugin's API-backed thread/feed fallbacks will then stay in that lane together. There is no second OpenClaw-only vault setting; the shared Mem boundary is still one hidden space key, but humans and agents should normally work with the space name instead.
 
 Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. OpenClaw chooses the lane and preserves it across transports; it should not duplicate the profile semantics.
 

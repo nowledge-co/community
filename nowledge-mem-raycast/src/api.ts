@@ -6,11 +6,13 @@ import { join } from "path";
 interface ConfigFile {
   apiUrl?: string;
   apiKey?: string;
+  space?: string;
 }
 
 export interface ConnectionConfig {
   baseUrl: string;
   apiKey?: string;
+  space?: string;
 }
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:14242";
@@ -29,19 +31,26 @@ function readConfigFile(): ConfigFile {
     return {
       apiUrl: normalizeUrl(raw.apiUrl),
       apiKey: raw.apiKey?.trim() || undefined,
+      space: normalizeSpace(raw.space),
     };
   } catch {
     return {};
   }
 }
 
+function normalizeSpace(space?: string): string | undefined {
+  const trimmed = space?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export function getConnectionConfig(): ConnectionConfig {
-  const { serverUrl, apiKey } = getPreferenceValues<Preferences>();
+  const { serverUrl, apiKey, space } = getPreferenceValues<Preferences>();
   const config = readConfigFile();
 
   return {
     baseUrl: normalizeUrl(serverUrl) || config.apiUrl || DEFAULT_BASE_URL,
     apiKey: apiKey?.trim() || config.apiKey,
+    space: normalizeSpace(space) || config.space,
   };
 }
 
@@ -94,6 +103,14 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return res;
 }
 
+function appendSpaceQuery(path: string, space?: string): string {
+  if (!space) {
+    return path;
+  }
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}space_id=${encodeURIComponent(space)}`;
+}
+
 /** Memory as returned by the search endpoint. */
 export interface SearchMemory {
   id: string;
@@ -136,17 +153,19 @@ export async function searchMemories(
   query: string,
   limit = 10,
 ): Promise<SearchResult[]> {
+  const { space } = getConnectionConfig();
   const res = await apiFetch("/memories/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, limit, mode: "fast" }),
+    body: JSON.stringify({ query, limit, mode: "fast", space_id: space }),
   });
 
   return (await res.json()) as SearchResult[];
 }
 
 export async function listMemories(limit = 20): Promise<ListMemory[]> {
-  const res = await apiFetch(`/memories?limit=${limit}`);
+  const { space } = getConnectionConfig();
+  const res = await apiFetch(appendSpaceQuery(`/memories?limit=${limit}`, space));
   const data = (await res.json()) as { memories: ListMemory[] };
   return data.memories;
 }
@@ -161,16 +180,21 @@ export interface CreateMemoryRequest {
 export async function createMemory(
   req: CreateMemoryRequest,
 ): Promise<SearchMemory> {
+  const { space } = getConnectionConfig();
   const res = await apiFetch("/memories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
+    body: JSON.stringify({
+      ...req,
+      space_id: space,
+    }),
   });
 
   return (await res.json()) as SearchMemory;
 }
 
 export async function readWorkingMemory(): Promise<WorkingMemoryResponse> {
-  const res = await apiFetch("/agent/working-memory");
+  const { space } = getConnectionConfig();
+  const res = await apiFetch(appendSpaceQuery("/agent/working-memory", space));
   return (await res.json()) as WorkingMemoryResponse;
 }

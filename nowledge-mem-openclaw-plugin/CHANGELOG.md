@@ -2,6 +2,12 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.12] - 2026-04-10
+
+### Changed
+
+- OpenClaw's space settings and setup guidance now lead with profile-owned config (`space`, `spaceTemplate`) and keep `NMEM_SPACE` as a fallback for launcher-driven sessions without a richer config surface.
+
 ## [0.8.11] - 2026-04-10
 
 ### Added

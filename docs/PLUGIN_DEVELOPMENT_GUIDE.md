@@ -28,7 +28,8 @@ Use `nmem` CLI as the execution layer for memory operations.
 Spaces are optional. Treat them as ambient context, not required setup.
 
 - If the host/runtime has a real ambient lane, pass it through:
-  - CLI: `nmem ... --space "<space name>"` or ambient `NMEM_SPACE="<space name>"`
+  - Host/plugin config first: `space`, `spaceTemplate`, `space_by_identity`, or the platform's own equivalent
+  - CLI fallback: `nmem ... --space "<space name>"` or ambient `NMEM_SPACE="<space name>"`
   - MCP: `space_id`
   - HTTP API: `space_id`
 - If the host has no natural ambient lane, keep using the default space and stay silent about spaces in the default UX.
@@ -43,7 +44,7 @@ Spaces are optional. Treat them as ambient context, not required setup.
   - agent identity / persona slot
   - selected project or repository
   - explicit user choice in the host UI
-- For CLI-first hosts, prefer one ambient session lane via `NMEM_SPACE` when the whole session naturally belongs to one space. Legacy `NMEM_SPACE_ID` remains compatibility-only. Use per-call `--space` when only some actions need an override.
+- For CLI-first hosts, prefer one ambient session lane via `NMEM_SPACE` only when the whole session naturally belongs to one space and the host has no better native config surface. Legacy `NMEM_SPACE_ID` remains compatibility-only. Use per-call `--space` when only some actions need an override.
 - The host should not make up a new space just because a prompt mentions a new topic.
 - If a space profile includes instructions, retrieval mode, or shared-space links, treat those as lane defaults. They should influence retrieval behavior, not replace the user's own instructions.
 
@@ -53,7 +54,7 @@ Different hosts can support different levels of space routing. Keep the abstract
 
 - `fixed lane`
   - One profile or process always belongs to one space.
-  - Example config: `space = "Research Agent"` or `NMEM_SPACE="Research Agent"`.
+  - Example config: `space = "Research Agent"`. Use `NMEM_SPACE="Research Agent"` only when the host is CLI-first and lacks a richer config surface.
 - `derived lane`
   - The host exposes a trustworthy identity or workspace signal and the plugin derives the space from it.
   - Example config: `spaceTemplate = "agent-${AGENT_NAME}"` or Hermes `space_template = "agent-{identity}"`.
@@ -76,7 +77,7 @@ If the runtime does not expose identity cleanly, do not fake per-agent mapping. 
 When a host supports multiple ways to choose a lane, prefer one clear precedence chain:
 
 1. explicit tool-call override
-2. plugin/provider config (for example `space` or `space_template`)
+2. plugin/provider config (for example `space`, `space_by_identity`, or `space_template`)
 3. session env/context such as `NMEM_SPACE`
 4. `Default`
 

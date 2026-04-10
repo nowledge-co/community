@@ -437,10 +437,10 @@
       "capabilities": {
         "workingMemory": true,
         "search": true,
-        "distill": true,
+        "distill": false,
         "autoRecall": false,
         "autoCapture": false,
-        "graphExploration": true,
+        "graphExploration": false,
         "status": false
       },
       "threadSave": {

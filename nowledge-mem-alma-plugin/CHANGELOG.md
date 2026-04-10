@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.17
+
+### Changed
+
+- Alma's space settings and docs now lead with plugin-owned lane config (`nowledgeMem.space`, `nowledgeMem.spaceTemplate`) and keep `NMEM_SPACE` as a fallback for shell- or launcher-driven sessions without a richer config surface.
+
 ## 0.6.16
 
 ### Fixed

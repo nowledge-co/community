@@ -1,7 +1,7 @@
 {
   "id": "nowledge-mem",
   "name": "Nowledge Mem",
-  "version": "0.6.16",
+  "version": "0.6.17",
   "description": "Local-first personal memory for Alma, powered by Nowledge Mem",
   "author": {
     "name": "Nowledge Labs",
@@ -118,12 +118,12 @@
         "nowledgeMem.space": {
           "type": "string",
           "default": "",
-          "description": "Optional fixed space name for this Alma profile or agent lane."
+          "description": "Optional fixed space name for this Alma profile or agent lane. Leave empty to stay on Default."
         },
         "nowledgeMem.spaceTemplate": {
           "type": "string",
           "default": "",
-          "description": "Optional template with ${ENV_VAR} placeholders. Used only when Space is empty."
+          "description": "Optional template with ${ENV_VAR} placeholders. Use only when Space is empty and Alma already has a trustworthy lane signal."
         }
       }
     }

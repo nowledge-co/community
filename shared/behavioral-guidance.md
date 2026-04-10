@@ -77,10 +77,11 @@ Search your knowledge base proactively when past insights would improve the resp
 ### Space-aware routing
 
 - If the host has a real ambient space, either:
+  - use the host's own profile/provider config to choose the lane, or
   - pass `--space "<space name>"` on the relevant commands, or
-  - set `NMEM_SPACE="<space name>"` once for the session when the integration is CLI-first.
+  - set `NMEM_SPACE="<space name>"` once for the session only when the integration is CLI-first and lacks a better config surface.
 - If the host does not have a natural ambient space, stay on the default lane and do not invent one.
-- If the host supports profile-owned routing, prefer that over process env. A configured `space` or host-owned mapping should beat inherited `NMEM_SPACE`.
+- If the host supports profile-owned routing, prefer that over process env. A configured `space`, `spaceTemplate`, or host-owned mapping should beat inherited `NMEM_SPACE`.
 - If the host exposes a stable identity or workspace signal, derive the lane from that signal. If it does not, keep one fixed lane per profile/process.
 - Shared or cross-space recall should be explicit, not automatic.
 - The storage boundary is a hidden space key. Humans and agents should normally work with the space name instead.

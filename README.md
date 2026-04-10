@@ -75,13 +75,13 @@ nmem status   # verify Nowledge Mem is running
 
 Spaces are optional. Most integrations can stay on `Default` and never mention them.
 
-If a host already knows one real project or agent lane for the session, prefer one ambient export:
+If a host already has its own profile or provider config, choose the lane there first:
 
-```bash
-NMEM_SPACE="Research Agent"
-```
+- plugin/provider setting such as `space = "Research Agent"`
+- a derived mapping such as `spaceTemplate = "agent-${AGENT_NAME}"`
+- an exact identity map such as `space_by_identity = {"research":"Research Agent"}`
 
-CLI-based integrations then inherit that lane automatically. HTTP- or MCP-based integrations should pass `space_id` explicitly when their host/runtime can do so. The storage boundary is still one hidden shared key, but humans and agents should normally work with the space name instead. Legacy `NMEM_SPACE_ID` still works for older setups.
+Use `NMEM_SPACE="Research Agent"` only for CLI-first hosts or runtimes that do not expose a better config surface. HTTP- or MCP-based integrations should pass `space_id` explicitly when their host/runtime can do so. The storage boundary is still one hidden shared key, but humans and agents should normally work with the space name instead. Legacy `NMEM_SPACE_ID` still works for older setups.
 
 For agent harnesses, the rule is simple:
 
@@ -95,14 +95,16 @@ Use one ambient space only when the host already has a real lane, such as one ag
 
 | Integration | Ambient space today | Best user setup |
 |-------------|---------------------|-----------------|
-| Claude Code, Codex, Droid, Pi, Gemini CLI | Full ambient lane through `NMEM_SPACE` or per-command `--space` | Set one `NMEM_SPACE` when the whole session belongs to one lane. Otherwise stay on `Default`. |
-| Hermes | Full ambient lane through `NMEM_SPACE`, provider `space`, `space_by_identity`, or `space_template` | Use `space` for one stable lane, `space_by_identity` for a small explicit map, `space_template` for one lane per Hermes identity. |
-| Alma | Full ambient lane through plugin `nowledgeMem.space`, plugin `nowledgeMem.spaceTemplate`, or `NMEM_SPACE` | Use `space` for one Alma profile per lane. Use `spaceTemplate` only when your launcher already exports a trustworthy lane variable. |
+| Claude Code, Codex, Droid, Pi, Gemini CLI | Full ambient lane through `NMEM_SPACE` or per-command `--space` | Set one `NMEM_SPACE` only when the whole session truly belongs to one lane. Otherwise stay on `Default`. |
+| Hermes | Full ambient lane through provider `space`, `space_by_identity`, `space_template`, or fallback `NMEM_SPACE` | Use `space` for one stable lane, `space_by_identity` for a small explicit map, `space_template` for one lane per Hermes identity. |
+| Alma | Full ambient lane through plugin `nowledgeMem.space`, plugin `nowledgeMem.spaceTemplate`, or fallback `NMEM_SPACE` | Use `space` for one Alma profile per lane. Use `spaceTemplate` only when your launcher already exports a trustworthy lane variable. |
 | Bub | Full ambient lane through `NMEM_SPACE` | Treat Bub as one process-wide lane. If you need separate lanes, run separate Bub processes or profiles. |
-| OpenClaw | Full ambient lane through plugin `space`, plugin `spaceTemplate`, or `NMEM_SPACE`, preserved across CLI memory calls and API-backed thread/feed paths | Use `space` for one stable profile. Use `spaceTemplate` only when the launcher already exports the lane signal. Do not fake per-agent routing if the runtime does not expose identity. |
+| OpenClaw | Full ambient lane through plugin `space`, plugin `spaceTemplate`, or fallback `NMEM_SPACE`, preserved across CLI memory calls and API-backed thread/feed paths | Use `space` for one stable profile. Use `spaceTemplate` only when the launcher already exports the lane signal. Do not fake per-agent routing if the runtime does not expose identity. |
 | OpenCode | Full ambient lane through `NMEM_SPACE`, preserved across CLI memory calls and HTTP session save | Set one `NMEM_SPACE` when the OpenCode process belongs to one real lane. |
 | Cursor | Partial today | `sessionStart` and handoff flows can follow `NMEM_SPACE`, but MCP tool calls still need Cursor/runtime support to forward `space_id`. |
-| Raycast, browser extension, generic MCP-only hosts | Usually default lane only today | Keep using `Default` unless the host can explicitly pass `space_id`. |
+| Raycast | One fixed lane through Raycast preferences or shared config | Use one named space when that launcher profile always belongs to one lane. Leave it empty to stay on `Default`. |
+| Browser extension | One fixed lane through extension settings | Use one named space when that browser profile always belongs to one lane. Leave it empty to stay on `Default`. |
+| Generic MCP-only hosts | Usually default lane only today | Keep using `Default` unless the host can explicitly pass `space_id`. |
 
 What the space profile means is the same everywhere:
 

@@ -10,7 +10,7 @@ You have access to the user's cross-tool knowledge graph through six tools. In p
 
 At session start, load the user's current context. The plugin injects this automatically via the system prompt. If it's empty, note there is no briefing yet and continue.
 
-If Hermes is launched with `NMEM_SPACE="<space name>"`, or the provider config sets `space`, `space_by_identity`, or `space_template`, treat that lane as the ambient default for Working Memory, search, save, and thread tools. Legacy `NMEM_SPACE_ID` still works for older setups.
+If the provider config sets `space`, `space_by_identity`, or `space_template`, treat that lane as the ambient default for Working Memory, search, save, and thread tools. Use `NMEM_SPACE="<space name>"` only as a fallback when Hermes is launched through a CLI-style wrapper with no better provider-owned config surface. Legacy `NMEM_SPACE_ID` still works for older setups.
 
 Do not re-read unless the user asks or the session context changes materially.
 

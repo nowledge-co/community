@@ -11,7 +11,7 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 - Architecture: **CLI-first via OpenClaw runtime** - all CLI execution goes through `api.runtime.system.runCommandWithTimeout`, not direct `child_process`
 - Context engine: registered via `api.registerContextEngine("nowledge-mem", factory)`. Activated when user sets `plugins.slots.contextEngine: "nowledge-mem"`. Falls back to hooks when CE is not active.
 - Remote mode: `~/.nowledge-mem/config.json` (shared) or OpenClaw dashboard. Legacy `openclaw.json` still honored.
-- Ambient space lane: inherited from `NMEM_SPACE` when the host launches OpenClaw in one stable lane. CLI and API fallback paths should preserve it. Legacy `NMEM_SPACE_ID` still works for older setups.
+- Ambient space lane: prefer plugin config `space` or `spaceTemplate`. Use `NMEM_SPACE` only when OpenClaw is launched in one stable lane and there is no better profile-owned config surface. Legacy `NMEM_SPACE_ID` still works for older setups.
 
 ## Design Philosophy
 
@@ -166,7 +166,7 @@ When `contextEngine` points elsewhere (or is absent), hooks handle everything. N
 
 Plugin settings: OpenClaw dashboard (pluginConfig). Legacy `~/.nowledge-mem/openclaw.json` still honored.
 Credentials (apiUrl/apiKey): also reads `~/.nowledge-mem/config.json` (shared with all Nowledge Mem tools).
-Ambient space: choose one real lane through plugin config `space`, plugin config `spaceTemplate`, or `NMEM_SPACE` when the OpenClaw process already belongs to one real lane. Do not introduce a second plugin-local vault concept. Legacy `NMEM_SPACE_ID` remains compatibility-only.
+Ambient space: choose one real lane through plugin config `space` or `spaceTemplate` first. Use `NMEM_SPACE` only as the fallback for launcher-driven sessions that already belong to one real lane. Do not introduce a second plugin-local vault concept. Legacy `NMEM_SPACE_ID` remains compatibility-only.
 
 | Key | Type | Default | Env Var | Description |
 |-----|------|---------|---------|-------------|
@@ -183,7 +183,7 @@ Ambient space: choose one real lane through plugin config `space`, plugin config
 | `corpusMinScore` | integer 0-100 | `0` | `NMEM_CORPUS_MIN_SCORE` | Min score for supplement results (0 = all) |
 | `apiUrl` | string | `""` | `NMEM_API_URL` | Remote server URL. Empty = local (127.0.0.1:14242) |
 | `apiKey` | string | `""` | `NMEM_API_KEY` | API key. Never logged. |
-| `space` | string | `""` | `NMEM_SPACE` | Fixed ambient space name for this OpenClaw profile or agent lane |
+| `space` | string | `""` | `NMEM_SPACE` (fallback only) | Fixed ambient space name for this OpenClaw profile or agent lane |
 | `spaceTemplate` | string | `""` | — | Template with `${ENV_VAR}` placeholders, used only when `space` is empty |
 
 **Priority** (plugin-specific keys): `openclaw.json` (legacy) > pluginConfig > env var > default.

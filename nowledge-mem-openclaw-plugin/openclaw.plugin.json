@@ -2,7 +2,7 @@
 	"id": "openclaw-nowledge-mem",
 	"name": "Nowledge Mem",
 	"description": "Cross-tool knowledge graph memory for OpenClaw with Working Memory, graph search, and session distillation.",
-	"version": "0.8.11",
+	"version": "0.8.12",
 	"kind": "memory",
 	"skills": [
 		"skills/memory-guide"
@@ -63,11 +63,11 @@
 		},
 		"space": {
 			"label": "Ambient space",
-			"help": "Optional fixed space name for this OpenClaw profile or agent lane. Leave empty to stay on Default unless NMEM_SPACE is set."
+			"help": "Optional fixed space name for this OpenClaw profile or agent lane. Leave empty to stay on Default."
 		},
 		"spaceTemplate": {
 			"label": "Ambient space template",
-			"help": "Optional template with ${ENV_VAR} placeholders, used only when Ambient space is empty. Example: agent-${OPENCLAW_AGENT_NAME}."
+			"help": "Optional template with ${ENV_VAR} placeholders, used only when Ambient space is empty and your launcher already exports a trustworthy lane signal. Example: agent-${OPENCLAW_AGENT_NAME}."
 		}
 	},
 	"configSchema": {

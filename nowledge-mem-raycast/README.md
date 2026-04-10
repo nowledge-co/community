@@ -9,13 +9,15 @@ Search and browse your personal knowledge base from Raycast. Find memories, save
 3. Choose one connection path:
    - **Local default**: leave settings alone and use the local Mem server at `http://127.0.0.1:14242`
    - **Remote Mem**: set **Server URL** and **API Key** in Raycast preferences, or configure `~/.nowledge-mem/config.json`
+4. Optional: set **Space** in Raycast preferences if this profile should stay in one named memory lane
 
 The extension now supports the same remote auth shape used across other Nowledge integrations.
 
 ```json
 {
   "apiUrl": "https://mem.example.com",
-  "apiKey": "nmem_your_key"
+  "apiKey": "nmem_your_key",
+  "space": "Research Agent"
 }
 ```
 
@@ -23,9 +25,9 @@ The extension now supports the same remote auth shape used across other Nowledge
 
 | Command | Description |
 |---------|-------------|
-| **Search Memories** | Search your knowledge base with natural language. Shows results ranked by relevance. When empty, shows recent memories. |
-| **Add Memory** | Save a quick memory with title, content, and importance level. |
-| **Read Working Memory** | Read today's Working Memory briefing from the Mem API. |
+| **Search Memories** | Search your knowledge base with natural language. Shows results ranked by relevance. When empty, shows recent memories from the configured space. |
+| **Add Memory** | Save a quick memory with title, content, and importance level into the configured space. |
+| **Read Working Memory** | Read today's Working Memory briefing from the Mem API, following the configured space if one is set. |
 | **Edit Working Memory** | Open the Default Working Memory file in your default editor for quick local edits. |
 
 ### Actions
@@ -51,11 +53,23 @@ Each morning, Nowledge Mem generates a Working Memory briefing summarizing what 
 |---|---|---|
 | Server URL | `http://127.0.0.1:14242` | Nowledge Mem server address. Leave as local default, or point it at your remote Mem URL. |
 | API Key | empty | Optional remote Mem API key. Sent as `Authorization: Bearer ...` and `X-NMEM-API-Key`. |
+| Space | empty | Optional fixed space name for this Raycast profile. Leave empty to stay in `Default`. |
 
-If preferences are empty, the extension also checks `~/.nowledge-mem/config.json` for `apiUrl` and `apiKey`.
+If preferences are empty, the extension also checks `~/.nowledge-mem/config.json` for `apiUrl`, `apiKey`, and `space`.
+
+## Spaces
+
+Raycast is a launcher, not a multi-agent harness. The right model here is one optional fixed lane:
+
+- Leave **Space** empty if you want Raycast to stay on **Default**
+- Set **Space** when this Raycast profile always belongs to one stable lane, such as `Research Agent` or `Personal`
+- Do not expect Raycast to derive per-agent routing on its own
+
+`Edit Working Memory` remains a local convenience command for the **Default** file at `~/ai-now/memory.md`. If you configure another space, read it through the API-backed command and edit it in the Mem app.
 
 ## Notes
 
 - **Remote support**: search, add memory, and read Working Memory all support authenticated remote Mem access.
+- **Space-aware recall**: Search, Add Memory, and Read Working Memory follow the optional fixed space from Raycast preferences or `~/.nowledge-mem/config.json`.
 - **Edit Working Memory** remains a local-file convenience command for the Default space. For remote-only setups, or for other spaces, edit through the Nowledge Mem app or API instead.
 - **Graph visualization** is available through the desktop app and MCP-native hosts (Claude Code, Codex) which support interactive canvas rendering. Raycast's UI model does not support embedded web views, so graph exploration is not included in this extension.
