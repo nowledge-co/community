@@ -931,7 +931,7 @@ export async function activate(context) {
 
 	registerTool("nowledge_mem_working_memory", {
 		description:
-			"Read your daily Working Memory briefing from ~/ai-now/memory.md.",
+			"Read your daily Working Memory briefing. The local file is only the Default-space fallback.",
 		inputSchema: { type: "object", properties: {} },
 		parameters: { type: "object", properties: {} },
 		async execute() {

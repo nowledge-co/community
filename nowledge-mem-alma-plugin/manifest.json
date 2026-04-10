@@ -56,7 +56,7 @@
       {
         "id": "nowledge_mem_working_memory",
         "name": "Read Working Memory",
-        "description": "Read your daily Working Memory briefing from ~/ai-now/memory.md."
+        "description": "Read your daily Working Memory briefing. The local file is only the Default-space fallback."
       },
       {
         "id": "nowledge_mem_status",

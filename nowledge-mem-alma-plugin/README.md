@@ -49,7 +49,7 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
 | `nowledge_mem_show` | Show full memory details. Returns `sourceThreadId` when available. |
 | `nowledge_mem_update` | Update memory content/title/importance |
 | `nowledge_mem_delete` | Delete memory |
-| `nowledge_mem_working_memory` | Read daily Working Memory (`~/ai-now/memory.md`) |
+| `nowledge_mem_working_memory` | Read daily Working Memory. The local file is only the Default-space compatibility fallback. |
 | `nowledge_mem_thread_search` | Search conversation threads with optional `source` filter |
 | `nowledge_mem_thread_show` | Fetch thread messages with pagination (`offset`/`limit`). Returns `hasMore`. |
 | `nowledge_mem_thread_create` | Create thread from content/messages |

@@ -26,7 +26,7 @@ The extension now supports the same remote auth shape used across other Nowledge
 | **Search Memories** | Search your knowledge base with natural language. Shows results ranked by relevance. When empty, shows recent memories. |
 | **Add Memory** | Save a quick memory with title, content, and importance level. |
 | **Read Working Memory** | Read today's Working Memory briefing from the Mem API. |
-| **Edit Working Memory** | Open `~/ai-now/memory.md` in your default editor for quick local edits. |
+| **Edit Working Memory** | Open the Default Working Memory file in your default editor for quick local edits. |
 
 ### Actions
 
@@ -43,7 +43,7 @@ The Working Memory view supports:
 
 ## What Is Working Memory?
 
-Each morning, Nowledge Mem generates a briefing at `~/ai-now/memory.md` summarizing what you're focused on, what needs attention, and what changed. Connected tools can read it through the API or MCP so your assistant knows your context before you type a word.
+Each morning, Nowledge Mem generates a Working Memory briefing summarizing what you're focused on, what needs attention, and what changed. The Default space keeps `~/ai-now/memory.md`; connected tools read the right briefing through the API or MCP when they know the active lane.
 
 ## Configuration
 
@@ -57,5 +57,5 @@ If preferences are empty, the extension also checks `~/.nowledge-mem/config.json
 ## Notes
 
 - **Remote support**: search, add memory, and read Working Memory all support authenticated remote Mem access.
-- **Edit Working Memory** remains a local-file convenience command. For remote-only setups, edit through the Nowledge Mem app or API instead.
+- **Edit Working Memory** remains a local-file convenience command for the Default space. For remote-only setups, or for other spaces, edit through the Nowledge Mem app or API instead.
 - **Graph visualization** is available through the desktop app and MCP-native hosts (Claude Code, Codex) which support interactive canvas rendering. Raycast's UI model does not support embedded web views, so graph exploration is not included in this extension.

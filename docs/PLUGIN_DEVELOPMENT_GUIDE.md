@@ -37,6 +37,7 @@ Spaces are optional. Treat them as ambient context, not required setup.
 - Provisioning the roster is now a first-class shared surface:
   - CLI: `nmem spaces ...`
   - HTTP API: `/spaces`
+- The old local file `~/ai-now/memory.md` is only the Default-space compatibility path. Treat it as a fallback, not as the canonical model for every space.
 - The host should derive ambient space from context it already owns, such as:
   - workspace or project path
   - agent identity / persona slot

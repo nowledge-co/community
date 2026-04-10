@@ -35,6 +35,8 @@ Find what the user already knows. Search their memories and past conversations f
 3. If a result includes `source_thread`, inspect it progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 4. Prefer the smallest retrieval that answers the question. Do not over-fetch.
 
+If the runtime already knows the active project or agent lane, add `--space <space_id>` to these commands.
+
 ## Deep mode
 
 If results are weak or the need is conceptual/historical, try deeper matching:

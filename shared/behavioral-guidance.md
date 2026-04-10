@@ -32,6 +32,7 @@ nmem --json wm read --space <space_id>
 - Reference naturally — mention relevant context when it connects to the current task
 - Share only the parts relevant to what the user is working on
 - Do not re-read unless the user asks or the session context changes materially
+- Legacy local file fallback (`~/ai-now/memory.md`) is only the Default-space compatibility path. Do not describe it as the full Working Memory model.
 
 ---
 

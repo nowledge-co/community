@@ -35,11 +35,15 @@ Read Working Memory via nmem CLI (works for both local and remote):
 nmem wm read
 ```
 
+If the runtime already knows the current project or agent lane, add `--space <space_id>`.
+
 Fallback for local-only (when nmem is not installed):
 
 ```bash
 cat ~/ai-now/memory.md
 ```
+
+This fallback is only for older local-only **Default-space** setups.
 
 ### What You'll Find
 

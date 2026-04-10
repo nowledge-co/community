@@ -10,7 +10,7 @@ export default async function EditWorkingMemory() {
     await showToast({
       style: Toast.Style.Failure,
       title: "Local File Editing Only",
-      message: `This command edits ~/ai-now/memory.md on the local machine. Current connection: ${baseUrl}`,
+      message: `This command edits the Default Working Memory file on the local machine. Current connection: ${baseUrl}`,
     });
     return;
   }
@@ -22,7 +22,7 @@ export default async function EditWorkingMemory() {
       style: Toast.Style.Failure,
       title: "Working Memory Not Found",
       message:
-        "Enable Background Intelligence in Nowledge Mem to generate your daily briefing.",
+        "Enable Background Intelligence in Nowledge Mem to generate the Default-space daily briefing.",
     });
     return;
   }
