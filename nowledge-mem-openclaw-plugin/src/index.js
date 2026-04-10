@@ -40,6 +40,7 @@ export default {
 		const client = new NowledgeMemClient(logger, api.runtime.system, {
 			apiUrl: cfg.apiUrl,
 			apiKey: cfg.apiKey,
+			space: cfg.space,
 		});
 
 		// OpenClaw memory-slot compatibility (required for system prompt activation)

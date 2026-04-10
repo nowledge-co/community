@@ -2,6 +2,16 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## [0.8.11] - 2026-04-10
+
+### Added
+
+- OpenClaw profiles can now own one ambient space directly through plugin config `space` or `spaceTemplate`, instead of relying only on the process-wide `NMEM_SPACE` environment variable.
+
+### Changed
+
+- `nowledge_mem_status` now reports the effective ambient space and where it came from.
+
 ## [0.8.10] - 2026-04-10
 
 ### Changed

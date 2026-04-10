@@ -47,6 +47,22 @@ Spaces are optional. Treat them as ambient context, not required setup.
 - The host should not make up a new space just because a prompt mentions a new topic.
 - If a space profile includes instructions, retrieval mode, or shared-space links, treat those as lane defaults. They should influence retrieval behavior, not replace the user's own instructions.
 
+### Mapping levels
+
+Different hosts can support different levels of space routing. Keep the abstraction honest:
+
+- `fixed lane`
+  - One profile or process always belongs to one space.
+  - Example config: `space = "Research Agent"` or `NMEM_SPACE="Research Agent"`.
+- `derived lane`
+  - The host exposes a trustworthy identity or workspace signal and the plugin derives the space from it.
+  - Example config: `spaceTemplate = "agent-${AGENT_NAME}"` or Hermes `space_template = "agent-{identity}"`.
+- `explicit map`
+  - The host exposes a stable identity and the plugin can map a small known set of identities to named spaces.
+  - Example config: `space_by_identity = {"research":"Research Agent","ops":"Operations Agent"}`.
+
+If the runtime does not expose identity cleanly, do not fake per-agent mapping. Stay with one fixed lane per profile/process or use `Default`.
+
 ### Space profile semantics
 
 - `defaultRetrievalMode=strict`: automatic recall stays inside the active space.

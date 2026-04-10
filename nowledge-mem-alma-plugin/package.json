@@ -1,6 +1,6 @@
 {
 	"name": "@nowledge/alma-nowledge-mem",
-	"version": "0.6.15",
+	"version": "0.6.16",
 	"type": "module",
 	"description": "Nowledge Mem plugin for Alma, local-first personal knowledge base",
 	"author": {
@@ -16,6 +16,7 @@
 	},
 	"main": "main.js",
 	"scripts": {
+		"test": "node --test tests/*.test.mjs",
 		"lint": "biome check .",
 		"format": "biome format --write ."
 	},

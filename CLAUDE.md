@@ -17,6 +17,8 @@ The desktop app fetches this file at runtime from `https://raw.githubusercontent
 
 Ambient space rule:
 - CLI-first integrations should honor `NMEM_SPACE` for one session-wide lane when the host already knows it. Legacy `NMEM_SPACE_ID` remains compatibility-only.
+- Profile- or provider-owned space config should beat inherited `NMEM_SPACE` when the host supports both.
+- General harness agents should support fixed, derived, or explicitly mapped lanes only when the host exposes that context truthfully.
 - MCP/HTTP integrations should pass `space_id` directly when their runtime can do so.
 - Do not add a second plugin-local “vault” abstraction.
 

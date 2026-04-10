@@ -404,6 +404,11 @@ class NowledgeMemProvider(MemoryProvider):
                 "default": "",
             },
             {
+                "key": "space_by_identity",
+                "description": 'Optional JSON object mapping Hermes identities to space names, for example {"research":"Research Agent"}',
+                "default": "",
+            },
+            {
                 "key": "space_template",
                 "description": "Optional template like research-{identity}; used when space is empty",
                 "default": "",
@@ -473,6 +478,29 @@ class NowledgeMemProvider(MemoryProvider):
 
     @staticmethod
     def _resolve_space(config: Dict[str, Any], kwargs: Dict[str, Any]) -> str | None:
+        configured_space = str(config.get("space") or "").strip()
+        if configured_space:
+            return configured_space
+
+        identity = str(kwargs.get("agent_identity", "default") or "default").strip()
+        identity_map = config.get("space_by_identity")
+        if isinstance(identity_map, str):
+            try:
+                identity_map = json.loads(identity_map)
+            except Exception:
+                identity_map = None
+        if isinstance(identity_map, dict):
+            mapped = identity_map.get(identity)
+            if isinstance(mapped, str) and mapped.strip():
+                return mapped.strip()
+
+        template = str(config.get("space_template") or "").strip()
+        if template:
+            resolved = template.replace("{identity}", identity)
+            resolved = " ".join(resolved.split()).strip()
+            if resolved:
+                return resolved
+
         env_space = (os.environ.get("NMEM_SPACE") or "").strip()
         if env_space:
             return env_space
@@ -480,18 +508,6 @@ class NowledgeMemProvider(MemoryProvider):
         legacy_env_space = (os.environ.get("NMEM_SPACE_ID") or "").strip()
         if legacy_env_space:
             return legacy_env_space
-
-        configured_space = str(config.get("space") or "").strip()
-        if configured_space:
-            return configured_space
-
-        template = str(config.get("space_template") or "").strip()
-        if template:
-            identity = str(kwargs.get("agent_identity", "default") or "default").strip()
-            resolved = template.replace("{identity}", identity)
-            resolved = " ".join(resolved.split()).strip()
-            if resolved:
-                return resolved
 
         return None
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.16
+
+### Fixed
+
+- Ambient spaces are now real for Alma's HTTP transport. Earlier builds documented `NMEM_SPACE`, but the plugin's HTTP client still sent memory, thread, source, and Working Memory requests without a lane. The client now injects the resolved space into both query and body paths, and non-default Working Memory reads no longer fall back to the Default-space file.
+
+### Changed
+
+- Alma now supports one profile-owned ambient lane through `nowledgeMem.space` and `nowledgeMem.spaceTemplate`, with `NMEM_SPACE` still available for launch-time routing.
+- Status output now reports the effective ambient space and where it came from.
+
 ## 0.6.15
 
 ### Fix async flush race condition, error handling, and search mode

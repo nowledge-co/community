@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.7] - 2026-04-10
+
+### Fixed
+
+- Provider-level lane resolution now matches the shared contract: Hermes config wins over ambient `NMEM_SPACE`, instead of the environment silently overriding the provider's configured lane.
+
+### Changed
+
+- Added `space_by_identity` for exact Hermes identity → space mapping, alongside the existing fixed `space` and derived `space_template` options.
+
 ## [0.5.6] - 2026-04-10
 
 ### Changed

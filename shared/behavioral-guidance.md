@@ -80,6 +80,8 @@ Search your knowledge base proactively when past insights would improve the resp
   - pass `--space "<space name>"` on the relevant commands, or
   - set `NMEM_SPACE="<space name>"` once for the session when the integration is CLI-first.
 - If the host does not have a natural ambient space, stay on the default lane and do not invent one.
+- If the host supports profile-owned routing, prefer that over process env. A configured `space` or host-owned mapping should beat inherited `NMEM_SPACE`.
+- If the host exposes a stable identity or workspace signal, derive the lane from that signal. If it does not, keep one fixed lane per profile/process.
 - Shared or cross-space recall should be explicit, not automatic.
 - The storage boundary is a hidden space key. Humans and agents should normally work with the space name instead.
 - If the deployment uses many agent or project spaces, provision them out of band with `nmem spaces ...` or the `/spaces` API. Do not create ad-hoc space IDs inside prompts or tool-call text.

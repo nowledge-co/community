@@ -102,7 +102,7 @@ If `nmem` is not on PATH, the plugin disables gracefully. On machines running th
 
 ## Configuration
 
-**No plugin-level configuration needed.** The `nmem` CLI manages client-side connection settings. Configure remote access for this machine via `nmem config client`:
+**No plugin-level network configuration needed.** The `nmem` CLI manages client-side connection settings. Configure remote access for this machine via `nmem config client`:
 
 ```bash
 nmem config client set url https://your-server:14242
@@ -121,7 +121,7 @@ NMEM_SPACE="Research Agent"
 
 Plugin-mode Working Memory reads, searches, saves, and thread tools then stay in that lane automatically. If you do not have a real ambient lane, stay on `Default`.
 
-Legacy `NMEM_SPACE_ID` still works, but `NMEM_SPACE` is the preferred human-facing contract.
+Legacy `NMEM_SPACE_ID` still works, but `NMEM_SPACE` is the preferred human-facing contract when the provider config does not already choose a lane.
 
 The provider can also own the ambient lane directly in `~/.hermes/nowledge-mem.json`:
 
@@ -129,11 +129,15 @@ The provider can also own the ambient lane directly in `~/.hermes/nowledge-mem.j
 {
   "timeout": 30,
   "space": "Research Agent",
+  "space_by_identity": {
+    "research": "Research Agent",
+    "ops": "Operations Agent"
+  },
   "space_template": "agent-{identity}"
 }
 ```
 
-Use `space` when one Hermes profile always belongs to one lane. Use `space_template` when Hermes already has a stable identity and you want one lane per identity.
+Use `space` when one Hermes profile always belongs to one lane. Use `space_by_identity` when a few Hermes identities map to named lanes. Use `space_template` when Hermes already has a stable identity and you want one lane per identity.
 
 Those settings choose the ambient lane only. Shared spaces, default retrieval, and agent guidance still come from Mem's own space profile, so Hermes does not need a second memory-container model on top.
 

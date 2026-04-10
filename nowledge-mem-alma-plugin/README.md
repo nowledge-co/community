@@ -174,13 +174,26 @@ See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access) for full s
 
 ## Spaces
 
-Spaces are optional. If one Alma runtime naturally belongs to one project or agent lane, launch Alma with:
+Spaces are optional. Alma should choose one ambient lane only when the profile really belongs to one project or agent lane.
+
+If you already launch Alma inside one stable lane, set:
 
 ```bash
 NMEM_SPACE="Research Agent"
 ```
 
 The hook-based Working Memory bootstrap, proactive recall, `nowledge_mem_store`, and automatic thread flushes will then stay in that lane automatically.
+
+The plugin settings can also own that lane directly:
+
+```json
+{
+  "nowledgeMem.space": "Research Agent",
+  "nowledgeMem.spaceTemplate": "agent-${ALMA_AGENT_NAME}"
+}
+```
+
+Use `nowledgeMem.space` when this Alma profile always belongs to one lane. Use `nowledgeMem.spaceTemplate` only when Alma is launched with a real host-owned environment variable that already identifies the lane. If Alma does not know a real agent identity, stay on `Default` or run separate Alma profiles for separate lanes.
 
 Shared spaces, default retrieval, and agent guidance are still owned by Mem's space profile. Alma should pick the lane, not duplicate the profile model.
 

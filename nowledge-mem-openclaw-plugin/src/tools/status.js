@@ -143,11 +143,16 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			details.mode = mode;
 			details.apiUrl = cfg.apiUrl || "http://127.0.0.1:14242";
 			details.apiKeySet = Boolean(cfg.apiKey);
+			details.space = cfg.space || null;
+			details.spaceSource = sources.space || "default";
 
 			lines.push(
 				`Mode: ${remote ? `Remote (${cfg.apiUrl})` : "Local (127.0.0.1:14242)"}`,
 			);
 			lines.push(`API key: ${cfg.apiKey ? "set" : "not set"}`);
+			lines.push(
+				`Ambient space: ${cfg.space ? `${cfg.space} (${details.spaceSource})` : "Default"}`,
+			);
 			lines.push("Memory tools: nmem CLI");
 			lines.push("Thread sync: Mem HTTP API");
 

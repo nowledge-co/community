@@ -28,6 +28,8 @@ const ALLOWED_KEYS = new Set([
 	"corpusMinScore",
 	"apiUrl",
 	"apiKey",
+	"space",
+	"spaceTemplate",
 	// Legacy aliases — accepted but not advertised
 	"autoRecall",
 	"autoCapture",
@@ -128,6 +130,24 @@ function envInt(name) {
 	return Number.isFinite(n) ? n : undefined;
 }
 
+function pickStr(obj, key) {
+	if (typeof obj[key] !== "string") return undefined;
+	const trimmed = obj[key].trim();
+	return trimmed || undefined;
+}
+
+function resolveEnvTemplate(value) {
+	return value.replace(/\$\{([^}]+)\}/g, (_, envVar) => {
+		const envValue = process.env[envVar];
+		if (typeof envValue !== "string" || !envValue.trim()) {
+			throw new Error(
+				`nowledge-mem: environment variable ${envVar} is required by spaceTemplate`,
+			);
+		}
+		return envValue.trim();
+	});
+}
+
 // --- helpers to read a boolean/number from resolved sources --------------
 
 function pickBool(obj, key) {
@@ -185,7 +205,8 @@ function firstDefined(...options) {
  * but is no longer the recommended path.
  *
  * Canonical keys: sessionContext, sessionDigest, digestMinInterval,
- *                 maxContextResults, recallMinScore, maxThreadMessageChars, apiUrl, apiKey
+ *                 maxContextResults, recallMinScore, maxThreadMessageChars,
+ *                 apiUrl, apiKey, space, spaceTemplate
  *
  * Legacy aliases (accepted from all sources; never shown in docs):
  *   autoRecall → sessionContext
@@ -205,6 +226,7 @@ function firstDefined(...options) {
  *   NMEM_CORPUS_MIN_SCORE      — integer (0-100)
  *   NMEM_API_URL               — remote server URL
  *   NMEM_API_KEY               — API key (never logged)
+ *   NMEM_SPACE                 — ambient space name (legacy: NMEM_SPACE_ID)
  */
 export function parseConfig(raw, logger) {
 	const pluginCfg = raw && typeof raw === "object" ? raw : {};
@@ -351,6 +373,31 @@ export function parseConfig(raw, logger) {
 	const apiKey = ak.value;
 	_sources.apiKey = ak.source;
 
+	// --- space: file (legacy) > pluginConfig > template > env > default ---
+	const fs = pickStr(resolvedFile, "space");
+	const ps = pickStr(resolvedPlugin, "space");
+	const fst = pickStr(resolvedFile, "spaceTemplate");
+	const pst = pickStr(resolvedPlugin, "spaceTemplate");
+	const spaceChoice = firstDefined(
+		{ value: fs, source: "file" },
+		{ value: ps, source: "pluginConfig" },
+		{
+			value: fst ? resolveEnvTemplate(fst) : undefined,
+			source: "file:template",
+		},
+		{
+			value: pst ? resolveEnvTemplate(pst) : undefined,
+			source: "pluginConfig:template",
+		},
+		{
+			value: envStr("NMEM_SPACE") ?? envStr("NMEM_SPACE_ID"),
+			source: "env",
+		},
+		{ value: "", source: "default" },
+	);
+	const space = spaceChoice.value || "";
+	_sources.space = spaceChoice.source;
+
 	// --- corpusSupplement: file > pluginConfig > env > default ---
 	const cs = firstDefined(
 		{ value: pickBool(resolvedFile, "corpusSupplement"), source: "file" },
@@ -445,6 +492,7 @@ export function parseConfig(raw, logger) {
 		corpusMinScore,
 		apiUrl,
 		apiKey,
+		space,
 		_sources,
 	};
 }

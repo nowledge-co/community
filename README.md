@@ -83,15 +83,23 @@ NMEM_SPACE="Research Agent"
 
 CLI-based integrations then inherit that lane automatically. HTTP- or MCP-based integrations should pass `space_id` explicitly when their host/runtime can do so. The storage boundary is still one hidden shared key, but humans and agents should normally work with the space name instead. Legacy `NMEM_SPACE_ID` still works for older setups.
 
+For agent harnesses, the rule is simple:
+
+- If the host can only promise one lane per process or profile, support one fixed ambient space.
+- If the host exposes a stable identity or workspace signal, support a derived mapping (`spaceTemplate` or exact identity mapping).
+- If the host does not expose identity cleanly, do not fake per-agent routing.
+
 ### Space behavior by integration
 
 Use one ambient space only when the host already has a real lane, such as one agent identity, one project, or one workspace.
 
 | Integration | Ambient space today | Best user setup |
 |-------------|---------------------|-----------------|
-| Claude Code, Codex, Droid, Bub, Pi, Gemini CLI, Alma | Full ambient lane through `NMEM_SPACE` or per-command `--space` because the runtime is CLI-first | Set one `NMEM_SPACE` when the whole session belongs to one lane. Otherwise stay on `Default`. |
-| Hermes | Full ambient lane through `NMEM_SPACE`, provider `space`, or `space_template` | Use `space` for one stable lane, `space_template` for one lane per Hermes identity. |
-| OpenClaw | Full ambient lane through `NMEM_SPACE`, preserved across CLI memory calls and API-backed thread/feed paths | Set one `NMEM_SPACE` when one OpenClaw process belongs to one project or agent lane. |
+| Claude Code, Codex, Droid, Pi, Gemini CLI | Full ambient lane through `NMEM_SPACE` or per-command `--space` | Set one `NMEM_SPACE` when the whole session belongs to one lane. Otherwise stay on `Default`. |
+| Hermes | Full ambient lane through `NMEM_SPACE`, provider `space`, `space_by_identity`, or `space_template` | Use `space` for one stable lane, `space_by_identity` for a small explicit map, `space_template` for one lane per Hermes identity. |
+| Alma | Full ambient lane through plugin `nowledgeMem.space`, plugin `nowledgeMem.spaceTemplate`, or `NMEM_SPACE` | Use `space` for one Alma profile per lane. Use `spaceTemplate` only when your launcher already exports a trustworthy lane variable. |
+| Bub | Full ambient lane through `NMEM_SPACE` | Treat Bub as one process-wide lane. If you need separate lanes, run separate Bub processes or profiles. |
+| OpenClaw | Full ambient lane through plugin `space`, plugin `spaceTemplate`, or `NMEM_SPACE`, preserved across CLI memory calls and API-backed thread/feed paths | Use `space` for one stable profile. Use `spaceTemplate` only when the launcher already exports the lane signal. Do not fake per-agent routing if the runtime does not expose identity. |
 | OpenCode | Full ambient lane through `NMEM_SPACE`, preserved across CLI memory calls and HTTP session save | Set one `NMEM_SPACE` when the OpenCode process belongs to one real lane. |
 | Cursor | Partial today | `sessionStart` and handoff flows can follow `NMEM_SPACE`, but MCP tool calls still need Cursor/runtime support to forward `space_id`. |
 | Raycast, browser extension, generic MCP-only hosts | Usually default lane only today | Keep using `Default` unless the host can explicitly pass `space_id`. |
