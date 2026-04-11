@@ -2,10 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+	_resetConversationRoots,
 	buildStableThreadId,
 	registerSessionEndConversation,
 	registerSessionStartConversation,
 } from "../src/hooks/capture.js";
+
+test.beforeEach(() => {
+	_resetConversationRoots();
+});
 
 test("explicit /new starts a fresh Mem thread for the same OpenClaw sessionKey", () => {
 	const oldCtx = {

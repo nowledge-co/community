@@ -182,7 +182,8 @@ function resolveAliases(obj) {
  */
 function firstDefined(...options) {
 	for (const opt of options) {
-		if (opt.value !== undefined) return opt;
+		const value = typeof opt.resolve === "function" ? opt.resolve() : opt.value;
+		if (value !== undefined) return { ...opt, value };
 	}
 	return options[options.length - 1];
 }
@@ -382,11 +383,11 @@ export function parseConfig(raw, logger) {
 		{ value: fs, source: "file" },
 		{ value: ps, source: "pluginConfig" },
 		{
-			value: fst ? resolveEnvTemplate(fst) : undefined,
+			resolve: () => (fst ? resolveEnvTemplate(fst) : undefined),
 			source: "file:template",
 		},
 		{
-			value: pst ? resolveEnvTemplate(pst) : undefined,
+			resolve: () => (pst ? resolveEnvTemplate(pst) : undefined),
 			source: "pluginConfig:template",
 		},
 		{

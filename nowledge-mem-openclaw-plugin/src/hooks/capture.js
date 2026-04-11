@@ -415,6 +415,11 @@ async function loadMessagesFromSessionFile(sessionFile) {
 	}
 }
 
+export function _resetConversationRoots() {
+	_conversationRootsBySessionId.clear();
+	_activeConversationRootsBySessionKey.clear();
+}
+
 export async function resolveHookMessages(event) {
 	if (Array.isArray(event?.messages) && event.messages.length > 0) {
 		return event.messages;

@@ -2,6 +2,19 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- OpenClaw now preserves an explicit empty `space` setting as a real choice to stay on `Default`, instead of silently falling through to ambient `NMEM_SPACE`.
+- Fallback HTTP requests now carry the ambient lane through one shared path, so direct API calls stay aligned with CLI-backed memory operations.
+- `nowledge_mem_status` now reports the configured Context Engine slot correctly instead of reading from an unset field.
+
+### Changed
+
+- Lower-priority `spaceTemplate` values are now evaluated lazily. A broken template no longer overrides a higher-priority concrete `space` value.
+- Thread-identity tests now reset conversation-root state between cases, so the suite matches real runtime boundaries more closely.
+
 ## [0.8.12] - 2026-04-10
 
 ### Changed

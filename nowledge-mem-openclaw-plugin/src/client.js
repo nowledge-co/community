@@ -82,13 +82,17 @@ export class NowledgeMemClient {
 			(credentials.apiUrl || "").trim() || "http://127.0.0.1:14242"
 		).replace(/\/+$/, "");
 		this._apiKey = (credentials.apiKey || "").trim();
-		this._spaceRef = (
-			credentials.space ||
-			credentials.spaceId ||
-			process.env.NMEM_SPACE ||
-			process.env.NMEM_SPACE_ID ||
-			""
-		).trim();
+		const hasSpace = Object.prototype.hasOwnProperty.call(credentials, "space");
+		const hasSpaceId = Object.prototype.hasOwnProperty.call(
+			credentials,
+			"spaceId",
+		);
+		const resolvedSpace = hasSpace
+			? credentials.space
+			: hasSpaceId
+				? credentials.spaceId
+				: process.env.NMEM_SPACE ?? process.env.NMEM_SPACE_ID ?? "";
+		this._spaceRef = String(resolvedSpace ?? "").trim();
 	}
 
 	// ── API helpers (fallback path and direct operations) ─────────────────────
@@ -130,12 +134,15 @@ export class NowledgeMemClient {
 	async apiJson(method, path, body, timeout = 30_000) {
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), timeout);
-		const url = `${this.getApiBaseUrl()}${path}`;
+		const scopedPath = this._withSpaceQuery(path);
+		const scopedBody = this._withSpaceBody(body);
+		const url = `${this.getApiBaseUrl()}${scopedPath}`;
 		try {
 			const response = await fetch(url, {
 				method,
 				headers: this.getApiHeaders(),
-				body: body === undefined ? undefined : JSON.stringify(body),
+				body:
+					scopedBody === undefined ? undefined : JSON.stringify(scopedBody),
 				signal: controller.signal,
 			});
 

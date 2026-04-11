@@ -40,6 +40,23 @@ test("parseConfig resolves spaceTemplate with env interpolation", () => {
 	}
 });
 
+test("parseConfig does not evaluate lower-priority templates eagerly", () => {
+	try {
+		delete process.env.MISSING_OPENCLAW_SPACE;
+		const cfg = parseConfig(
+			{
+				space: "Configured Space",
+				spaceTemplate: "agent-${MISSING_OPENCLAW_SPACE}",
+			},
+			logger,
+		);
+		assert.equal(cfg.space, "Configured Space");
+		assert.equal(cfg._sources.space, "pluginConfig");
+	} finally {
+		delete process.env.MISSING_OPENCLAW_SPACE;
+	}
+});
+
 test("client injects ambient space into API query and body paths", () => {
 	const client = new NowledgeMemClient(
 		logger,
@@ -55,4 +72,46 @@ test("client injects ambient space into API query and body paths", () => {
 		title: "hello",
 		space_id: "Research Agent",
 	});
+});
+
+test("client preserves explicit default-space choice over ambient env", () => {
+	const previous = process.env.NMEM_SPACE;
+	process.env.NMEM_SPACE = "Env Space";
+	try {
+		const client = new NowledgeMemClient(
+			logger,
+			{ runCommandWithTimeout: async () => ({ code: 0 }) },
+			{ apiUrl: "http://127.0.0.1:14242", space: "" },
+		);
+		assert.equal(client._spaceRef, "");
+	} finally {
+		if (previous === undefined) delete process.env.NMEM_SPACE;
+		else process.env.NMEM_SPACE = previous;
+	}
+});
+
+test("apiJson injects ambient space into fallback HTTP requests", async () => {
+	const previousFetch = globalThis.fetch;
+	const client = new NowledgeMemClient(
+		logger,
+		{ runCommandWithTimeout: async () => ({ code: 0 }) },
+		{ apiUrl: "http://127.0.0.1:14242", space: "Research Agent" },
+	);
+	try {
+		globalThis.fetch = async (url, init) => ({
+			ok: true,
+			text: async () => JSON.stringify({ url, body: init?.body ?? null }),
+		});
+		const response = await client.apiJson("POST", "/memories/search", { q: "hello" });
+		assert.equal(
+			response.url,
+			"http://127.0.0.1:14242/memories/search?space_id=Research+Agent",
+		);
+		assert.deepEqual(JSON.parse(response.body), {
+			q: "hello",
+			space_id: "Research Agent",
+		});
+	} finally {
+		globalThis.fetch = previousFetch;
+	}
 });
