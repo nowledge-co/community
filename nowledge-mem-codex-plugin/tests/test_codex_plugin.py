@@ -393,6 +393,33 @@ class InstallHookTests(unittest.TestCase):
         backups = list(self.module.GLOBAL_HOOKS_FILE.parent.glob("hooks.json.*.bak"))
         self.assertEqual(len(backups), 1)
 
+    def test_load_json_recovers_from_non_object_json(self):
+        self.module.GLOBAL_HOOKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.GLOBAL_HOOKS_FILE.write_text('["not-an-object"]', encoding="utf-8")
+
+        payload = self.module.load_json(self.module.GLOBAL_HOOKS_FILE)
+
+        self.assertEqual(payload, {})
+        backups = list(self.module.GLOBAL_HOOKS_FILE.parent.glob("hooks.json.*.bak"))
+        self.assertEqual(len(backups), 1)
+
+    def test_merge_hooks_json_normalizes_malformed_stop_section(self):
+        self.module.GLOBAL_HOOKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.GLOBAL_HOOKS_FILE.write_text(
+            '{"hooks": {"Stop": {"matcher": ".*"}}}',
+            encoding="utf-8",
+        )
+
+        self.module.merge_hooks_json()
+        payload = self.module.load_json(self.module.GLOBAL_HOOKS_FILE)
+
+        self.assertIsInstance(payload["hooks"]["Stop"], list)
+        self.assertEqual(len(payload["hooks"]["Stop"]), 1)
+        self.assertEqual(
+            payload["hooks"]["Stop"][0]["hooks"][0]["command"],
+            str(self.module.INSTALLED_HOOK),
+        )
+
     def test_ensure_codex_hooks_enabled_only_changes_features_section(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.module.CONFIG_FILE.write_text(
@@ -437,6 +464,19 @@ class InstallHookTests(unittest.TestCase):
         self.assertNotIn("codex_hooks = false", updated)
         self.assertIn("[features]\ncodex_hooks = true\napps = true\n", updated)
 
+    def test_install_runtime_hook_rewrites_shebang_to_current_python(self):
+        self.module.install_runtime_hook()
+
+        installed = self.module.INSTALLED_HOOK.read_text(encoding="utf-8")
+        self.assertTrue(installed.startswith(f"#!{self.module.sys.executable}\n"))
+
+    def test_ensure_nmem_cli_runtime_ready_exits_when_missing(self):
+        with mock.patch.object(self.module.importlib.util, "find_spec", return_value=None):
+            with self.assertRaises(SystemExit) as exc:
+                self.module.ensure_nmem_cli_runtime_ready()
+
+        self.assertIn("nmem_cli", str(exc.exception))
+
 
 class RefreshThreadTitleTests(unittest.TestCase):
     def setUp(self):
@@ -471,6 +511,37 @@ class RefreshThreadTitleTests(unittest.TestCase):
             restore_payload["messages"],
             [{"role": "user", "content": "old"}],
         )
+
+    def test_main_counts_generic_refresh_errors(self):
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        rollout_path = Path(temp_dir.name) / "rollout-1.jsonl"
+        rollout_path.write_text("placeholder", encoding="utf-8")
+
+        self.module.parse_codex_session_streaming = mock.Mock(
+            return_value={
+                "thread_id": "codex-thread-1",
+                "messages": [{"role": "user", "content": "real request"}],
+                "workspace": "/tmp/project",
+            }
+        )
+        self.module.cli = mock.Mock()
+
+        with mock.patch.object(self.module, "iter_codex_rollouts", return_value=[rollout_path]), \
+             mock.patch.object(
+                 self.module,
+                 "get_thread",
+                 return_value={"thread": {"title": f"{self.module.AGENTS_PREFIX}/tmp/project"}},
+             ), \
+             mock.patch.object(self.module, "refresh_thread", side_effect=RuntimeError("boom")), \
+             mock.patch("sys.argv", ["refresh_thread_titles.py"]), \
+             mock.patch("builtins.print") as print_mock:
+            result = self.module.main()
+
+        self.assertEqual(result, 0)
+        printed_lines = [" ".join(str(arg) for arg in call.args) for call in print_mock.call_args_list]
+        self.assertTrue(any("ERROR refresh codex-thread-1: boom" in line for line in printed_lines))
+        self.assertTrue(any('"errors": 1' in line for line in printed_lines))
 
 
 if __name__ == "__main__":

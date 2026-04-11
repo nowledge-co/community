@@ -7,14 +7,12 @@ import json
 from pathlib import Path
 from urllib.parse import quote
 
-from nmem_cli import cli
-from nmem_cli.session_import import parse_codex_session_streaming
-
-
 SESSIONS_ROOT = Path.home() / ".codex" / "sessions"
 AGENTS_PREFIX = "# AGENTS.md instructions for "
 GET_TIMEOUT_SECONDS = 10.0
 IMPORT_TIMEOUT_SECONDS = 120.0
+cli = None
+parse_codex_session_streaming = None
 
 
 def load_hook_module():
@@ -30,8 +28,20 @@ def iter_codex_rollouts() -> list[Path]:
     return sorted(SESSIONS_ROOT.rglob("rollout-*.jsonl"))
 
 
+def ensure_nmem_modules() -> tuple[object, object]:
+    global cli, parse_codex_session_streaming
+    if cli is None or parse_codex_session_streaming is None:
+        from nmem_cli import cli as cli_module
+        from nmem_cli.session_import import parse_codex_session_streaming as parser
+
+        cli = cli_module
+        parse_codex_session_streaming = parser
+    return cli, parse_codex_session_streaming
+
+
 def get_thread(thread_id: str) -> dict | None:
-    return cli.api_get_optional(
+    cli_module, _ = ensure_nmem_modules()
+    return cli_module.api_get_optional(
         f"/threads/{quote(thread_id, safe='')}",
         timeout=GET_TIMEOUT_SECONDS,
     )
@@ -101,13 +111,14 @@ def main() -> int:
     args = parser.parse_args()
 
     hook_module = load_hook_module()
+    _, parse_codex = ensure_nmem_modules()
     checked = 0
     refreshed = 0
     errors = 0
 
     for rollout_path in iter_codex_rollouts():
         try:
-            parsed = parse_codex_session_streaming(rollout_path, truncate_large_content=True)
+            parsed = parse_codex(rollout_path, truncate_large_content=True)
             thread_id = parsed["thread_id"]
         except Exception as exc:
             errors += 1
@@ -156,6 +167,9 @@ def main() -> int:
         except SystemExit as exc:
             errors += 1
             print(f"ERROR refresh {thread_id}: exited {exc.code}", flush=True)
+        except Exception as exc:
+            errors += 1
+            print(f"ERROR refresh {thread_id}: {exc}", flush=True)
 
     print(
         json.dumps(

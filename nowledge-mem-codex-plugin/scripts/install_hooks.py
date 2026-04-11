@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import importlib.util
 import json
+import re
 import shutil
 import stat
 import sys
@@ -18,19 +20,76 @@ GLOBAL_HOOKS_FILE = CODEX_DIR / "hooks.json"
 CONFIG_FILE = CODEX_DIR / "config.toml"
 SOURCE_HOOK = PLUGIN_ROOT / "hooks" / "nmem-stop-save.py"
 INSTALLED_HOOK = HOOKS_DIR / "nowledge-mem-stop-save.py"
+CODEX_HOOKS_KEY_RE = re.compile(r"^\s*codex_hooks\s*=")
+
+
+def backup_invalid_json(path: Path, *, reason: str) -> dict:
+    backup = path.with_name(f"{path.name}.{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.bak")
+    shutil.move(path, backup)
+    print(f"warning: moved {reason} to {backup}", file=sys.stderr)
+    return {}
 
 
 def load_json(path: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        backup = path.with_name(f"{path.name}.{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.bak")
-        shutil.move(path, backup)
-        print(f"warning: moved malformed JSON to {backup}", file=sys.stderr)
-        return {}
+        return backup_invalid_json(path, reason="malformed JSON")
+    if not isinstance(payload, dict):
+        return backup_invalid_json(path, reason="non-object JSON")
+    return payload
 
+
+def ensure_nmem_cli_runtime_ready() -> None:
+    required_modules = ("nmem_cli", "nmem_cli.session_import")
+    missing = [name for name in required_modules if importlib.util.find_spec(name) is None]
+    if not missing:
+        return
+    missing_text = ", ".join(missing)
+    raise SystemExit(
+        "This installer must be run with a Python interpreter that can import "
+        f"{missing_text}. Install nmem-cli into that interpreter, then rerun "
+        "scripts/install_hooks.py with the same python3."
+    )
+
+
+def normalize_hooks_doc(hooks_doc: dict) -> tuple[dict, list[dict]]:
+    hooks = hooks_doc.get("hooks")
+    if not isinstance(hooks, dict):
+        hooks = {}
+        hooks_doc["hooks"] = hooks
+
+    stop_hooks = hooks.get("Stop")
+    if not isinstance(stop_hooks, list):
+        stop_hooks = []
+
+    normalized_stop_hooks: list[dict] = []
+    for entry in stop_hooks:
+        if not isinstance(entry, dict):
+            continue
+        normalized_entry = dict(entry)
+        if not isinstance(normalized_entry.get("hooks"), list):
+            normalized_entry["hooks"] = []
+        normalized_stop_hooks.append(normalized_entry)
+
+    hooks["Stop"] = normalized_stop_hooks
+    return hooks_doc, normalized_stop_hooks
+
+
+def rewrite_hook_shebang(path: Path) -> None:
+    original = path.read_text(encoding="utf-8")
+    lines = original.splitlines()
+    desired = f"#!{sys.executable}"
+    if lines and lines[0].startswith("#!"):
+        lines[0] = desired
+    else:
+        lines.insert(0, desired)
+    updated = "\n".join(lines)
+    if original.endswith("\n"):
+        updated += "\n"
+    path.write_text(updated, encoding="utf-8")
 
 def save_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -40,6 +99,7 @@ def save_json(path: Path, payload: dict) -> None:
 def install_runtime_hook() -> None:
     HOOKS_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy2(SOURCE_HOOK, INSTALLED_HOOK)
+    rewrite_hook_shebang(INSTALLED_HOOK)
     mode = INSTALLED_HOOK.stat().st_mode
     INSTALLED_HOOK.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
@@ -53,8 +113,7 @@ def merge_hooks_json() -> None:
     else:
         hooks_doc = {}
 
-    hooks = hooks_doc.setdefault("hooks", {})
-    stop_hooks = hooks.setdefault("Stop", [])
+    hooks_doc, stop_hooks = normalize_hooks_doc(hooks_doc)
 
     desired = {
         "matcher": ".*",
@@ -68,7 +127,9 @@ def merge_hooks_json() -> None:
 
     replaced = False
     for index, entry in enumerate(stop_hooks):
-        for hook in entry.get("hooks", []):
+        for hook in entry["hooks"]:
+            if not isinstance(hook, dict):
+                continue
             if hook.get("command") == str(INSTALLED_HOOK):
                 stop_hooks[index] = desired
                 replaced = True
@@ -113,7 +174,7 @@ def ensure_codex_hooks_enabled() -> None:
         replaced = False
         for index in range(features_start + 1, features_end):
             stripped = lines[index].strip()
-            if stripped.startswith(f"{target_key} "):
+            if CODEX_HOOKS_KEY_RE.match(stripped):
                 lines[index] = "codex_hooks = true"
                 replaced = True
                 break
@@ -128,6 +189,7 @@ def ensure_codex_hooks_enabled() -> None:
 
 
 def main() -> int:
+    ensure_nmem_cli_runtime_ready()
     install_runtime_hook()
     merge_hooks_json()
     ensure_codex_hooks_enabled()

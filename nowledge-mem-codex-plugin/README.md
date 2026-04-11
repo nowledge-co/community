@@ -27,9 +27,9 @@ Codex does not give this package hard lifecycle hooks like Claude Code or OpenCl
 
 ## Prerequisites
 
-For day-to-day skill usage, `nmem` must be on your PATH.
+For day-to-day skill usage, put `nmem` on your PATH.
 
-For automatic `Stop`-hook capture, the Python interpreter that runs `scripts/install_hooks.py` must also be able to import `nmem_cli`. `uvx --from nmem-cli nmem` is enough for interactive CLI commands, but it does not make `nmem_cli` importable to Codex's hook runtime by itself.
+For automatic `Stop`-hook capture, the Python interpreter that runs `scripts/install_hooks.py` must be able to import `nmem_cli`. `uvx --from nmem-cli nmem` is enough for interactive CLI commands, but it does not make `nmem_cli` importable to Codex's hook runtime by itself.
 
 **Quickest path** (if the Nowledge Mem desktop app is running):
 Settings > Preferences > Developer Tools > Install CLI
@@ -67,7 +67,7 @@ plugins = true
 enabled = true
 ```
 
-Install the bundled Codex hook helper with the same Python interpreter you want Codex to use for the hook runtime:
+Install the bundled Codex hook helper with the same Python you want Codex to use for the hook runtime:
 
 ```bash
 python3 ~/.codex/plugins/cache/local/nowledge-mem/local/scripts/install_hooks.py
@@ -216,7 +216,7 @@ If you used `nowledge-mem-codex-prompts` before:
 - **"plugin is not installed"**: Check that the plugin files are at `~/.codex/plugins/cache/local/nowledge-mem/local/` and that `.codex-plugin/plugin.json` exists inside that directory.
 - **Hooks do not fire**: Run `python3 ~/.codex/plugins/cache/local/nowledge-mem/local/scripts/install_hooks.py` again, then confirm `~/.codex/hooks.json` exists and `codex_hooks = true` is present under `[features]` in `~/.codex/config.toml`.
 - **Installer says `nmem_cli` is missing**: Run `python3 -m pip install nmem-cli`, then verify `python3 -c "import nmem_cli, nmem_cli.session_import"` succeeds before rerunning `scripts/install_hooks.py`.
-- **No auto-save after a response**: Inspect `~/.codex/log/nowledge-mem-stop-hook.log`. If the log shows repeated skips, check that the installed hook starts with the same `#!python` you used for `scripts/install_hooks.py`, and that `python3 -c "import nmem_cli, nmem_cli.session_import"` succeeds in that interpreter.
+- **No auto-save after a response**: Inspect `~/.codex/log/nowledge-mem-stop-hook.log`. The hook imports directly from Codex's `transcript_path`; if the log shows repeated skips, check that the installed hook starts with the same `#!python` you used for `scripts/install_hooks.py`, and that `python3 -c "import nmem_cli, nmem_cli.session_import"` succeeds in that interpreter.
 - **Only Working Memory runs, but search/distill never show up**: this package is skill-guided, not hook-driven. Merge the package `AGENTS.md` into the project root for stronger repo-specific behavior, and verify you are asking a continuation-style question rather than a fresh isolated one.
 
 ## Links

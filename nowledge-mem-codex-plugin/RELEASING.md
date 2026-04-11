@@ -23,6 +23,8 @@ node nowledge-mem-codex-plugin/scripts/validate-plugin.mjs
 - update expected version checks in `scripts/validate-plugin.mjs`
 - keep install examples on `cp -r .../. ...` so `.codex-plugin/` is copied
 - keep `scripts/install_hooks.py` idempotent
+- keep the installer enforcing a Python runtime that can `import nmem_cli`
+- keep the copied hook pinned to the installer interpreter (`sys.executable`)
 - keep `hooks/nmem-stop-save.py` focused on direct transcript import via `transcript_path`
 - re-run `node nowledge-mem-codex-plugin/scripts/validate-plugin.mjs`
 
@@ -31,6 +33,7 @@ node nowledge-mem-codex-plugin/scripts/validate-plugin.mjs
 After copying the plugin into `~/.codex/plugins/cache/local/nowledge-mem/local/`:
 
 ```bash
+python3 -c "import nmem_cli, nmem_cli.session_import"
 python3 ~/.codex/plugins/cache/local/nowledge-mem/local/scripts/install_hooks.py
 codex exec -C . "Reply with exactly OK and nothing else."
 tail -n 20 ~/.codex/log/nowledge-mem-stop-hook.log

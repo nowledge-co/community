@@ -109,6 +109,7 @@ if (readme !== null) {
     "~/.codex/hooks.json",
     "codex_hooks = true",
     "host-level",
+    "nmem_cli",
   ]) {
     if (!readme.includes(phrase)) {
       fail(`README must mention ${phrase}`);
