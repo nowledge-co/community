@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.3] - 2026-04-11
+
+### Improved
+
+- **Codex guidance**: Working Memory now explicitly hands off to search on continuation-style tasks such as reviews, regressions, release prep, and integration debugging.
+- **Distillation policy**: Codex guidance now tells the agent to do an explicit end-of-task review for durable memories instead of treating distillation as a vague optional behavior.
+- **Remote setup**: docs now lead with `nmem config client ...` instead of manual JSON editing.
+
+### Fixed
+
+- **Install copy command**: Codex install/update instructions now preserve hidden files such as `.codex-plugin/plugin.json`.
+- **Docs honesty**: removed wording that implied Codex has lifecycle-hook automation comparable to hosts like Claude Code or OpenClaw.
+
 ## [0.1.2] - 2026-04-06
 
 ### Fixed

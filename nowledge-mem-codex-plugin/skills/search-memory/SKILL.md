@@ -5,12 +5,15 @@ description: Search past decisions, procedures, learnings, or context relevant t
 
 Find what the user already knows. Search their memories and past conversations for decisions, procedures, and context that make the current task sharper.
 
+For continuation-style engineering work, search near the start of the task. Do not wait for the user to literally say "search memory".
+
 ## When to use
 
 **Strong signals (search when):**
 
 - The user references previous work, a prior fix, or an earlier decision
 - The task resumes a named feature, bug, refactor, incident, or subsystem
+- The task is a review, regression, release, docs-alignment, or integration-behavior question
 - A debugging pattern resembles something solved earlier
 - The user asks for rationale, preferences, procedures, or recurring workflow details
 - The user uses implicit recall language: "that approach", "like before", "the pattern we used"

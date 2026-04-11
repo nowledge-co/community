@@ -1,16 +1,18 @@
 # Nowledge Mem for Codex
 
-> Your Codex agent remembers what you've worked on, across every AI tool you use.
+> Your Codex agent can start from current context, search prior work when it matters, and save what is worth keeping.
 
 Switch between Claude Code, Gemini, Cursor, and Codex without losing context. Decisions you made last week, procedures you discovered yesterday, the architecture rationale from three months ago: it's all there when you need it.
 
 ## What you get
 
-- **Pick up where you left off.** Every session starts with what matters: your current priorities, recent decisions, and unresolved questions.
-- **The agent searches for you.** When past context would improve the answer, the agent finds it without you asking.
-- **Insights stick around.** Key decisions and learnings are saved automatically, ready for any future session in any tool.
+- **Pick up where you left off.** Every session can start from your current priorities, recent decisions, and unresolved questions.
+- **Search when prior work matters.** The plugin teaches Codex when to search memories and threads, especially on continuation-style tasks.
+- **Insights stick around.** The plugin teaches Codex to distill durable decisions and learnings when they emerge.
 - **Real session history.** Save the full Codex transcript, not just a summary.
 - **Quick diagnostics.** One command to verify everything is connected.
+
+Codex does not give this package hard lifecycle hooks like Claude Code or OpenClaw. The reliable bootstrap is Working Memory. Search and distill are still skill-guided behaviors that Codex chooses when the task calls for them. For stronger repo-specific behavior, merge this package's `AGENTS.md` into your project root.
 
 ## Skills
 
@@ -45,7 +47,7 @@ Or `pip install nmem-cli`. Then verify with `nmem status`.
 ```bash
 git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community
 mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local
-cp -r /tmp/nowledge-community/nowledge-mem-codex-plugin/. \
+cp -R /tmp/nowledge-community/nowledge-mem-codex-plugin/. \
   ~/.codex/plugins/cache/local/nowledge-mem/local/
 rm -rf /tmp/nowledge-community
 ```
@@ -100,13 +102,17 @@ You still need the feature gate and plugin entry in `~/.codex/config.toml` (see 
 
 ## Verify
 
-Start a new Codex session and ask: "What was I working on?" The agent should load your Working Memory briefing. If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
+Start a new Codex session and ask: "What was I working on?" The agent should load your Working Memory briefing.
+
+Then test one continuation-style prompt such as "What did we decide before about the OpenClaw release path?" or "Search prior work about this regression." On a healthy setup, Codex should use `search-memory` or direct `nmem` search, not stop at the briefing alone.
+
+If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 
 ## Update
 
 ```bash
 git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community-update
-cp -r /tmp/nowledge-community-update/nowledge-mem-codex-plugin/. \
+cp -R /tmp/nowledge-community-update/nowledge-mem-codex-plugin/. \
   ~/.codex/plugins/cache/local/nowledge-mem/local/
 rm -rf /tmp/nowledge-community-update
 ```
@@ -117,11 +123,9 @@ Restart Codex after updating.
 
 If Nowledge Mem runs on another machine, save your credentials once:
 
-```json title="~/.nowledge-mem/config.json"
-{
-  "apiUrl": "https://mem.example.com",
-  "apiKey": "nmem_your_key"
-}
+```bash
+nmem config client set url https://mem.example.com
+nmem config client set api-key nmem_your_key
 ```
 
 See [Remote Access](https://mem.nowledge.co/docs/remote-access) for details.
@@ -163,6 +167,7 @@ If you used `nowledge-mem-codex-prompts` before:
 - **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
 - **Skills not appearing**: Restart Codex after installing. Verify both `[features] plugins = true` and `[plugins."nowledge-mem@local"] enabled = true` are in `~/.codex/config.toml`.
 - **"plugin is not installed"**: Check that the plugin files are at `~/.codex/plugins/cache/local/nowledge-mem/local/` and that `.codex-plugin/plugin.json` exists inside that directory.
+- **Only Working Memory runs, but search/distill never show up**: this package is skill-guided, not hook-driven. Merge the package `AGENTS.md` into the project root for stronger repo-specific behavior, and verify you are asking a continuation-style question rather than a fresh isolated one.
 
 ## Links
 

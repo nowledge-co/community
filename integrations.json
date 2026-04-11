@@ -78,7 +78,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -98,15 +98,15 @@
         "command": "nmem t save --from codex"
       },
       "install": {
-        "command": "mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local && cp -r nowledge-mem-codex-plugin/* ~/.codex/plugins/cache/local/nowledge-mem/local/",
-        "updateCommand": "cp -r nowledge-mem-codex-plugin/* ~/.codex/plugins/cache/local/nowledge-mem/local/",
+        "command": "mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local && cp -R nowledge-mem-codex-plugin/. ~/.codex/plugins/cache/local/nowledge-mem/local/",
+        "updateCommand": "cp -R nowledge-mem-codex-plugin/. ~/.codex/plugins/cache/local/nowledge-mem/local/",
         "configRequired": "[features] plugins = true AND [plugins.\"nowledge-mem@local\"] enabled = true in ~/.codex/config.toml",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "Plugin skills teach agent to invoke nmem CLI progressively"
+        "note": "Packaged Codex skills teach the agent to invoke nmem CLI progressively. Working Memory is the reliable bootstrap; search and distill remain model-driven unless repo guidance tightens policy."
       },
       "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "status"],
       "slashCommands": []
