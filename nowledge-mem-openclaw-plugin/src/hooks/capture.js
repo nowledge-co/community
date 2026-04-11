@@ -1,6 +1,15 @@
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { isCronSessionKey, isSubagentSessionKey } from "openclaw/plugin-sdk/routing";
+import {
+	buildStableThreadId,
+} from "./thread-identity.js";
+export {
+	_resetConversationRoots,
+	buildStableThreadId,
+	registerSessionEndConversation,
+	registerSessionStartConversation,
+} from "./thread-identity.js";
 
 export const DEFAULT_MAX_MESSAGE_CHARS = 800;
 export const MAX_DISTILL_MESSAGE_CHARS = 2000;
@@ -20,7 +29,6 @@ const _lastCaptureAt = new Map();
 const _MAX_COOLDOWN_ENTRIES = 200;
 const _syncedMessageCounts = new Map();
 const _MAX_SYNC_CURSOR_ENTRIES = 500;
-
 function _setLastCapture(threadId, now) {
 	_lastCaptureAt.set(threadId, now);
 	// Opportunistic eviction: sweep stale entries when map grows large
@@ -253,17 +261,6 @@ function sanitizeIdPart(input, max = 48) {
 		.replace(/^-+|-+$/g, "");
 	if (!normalized) return "session";
 	return normalized.slice(0, max);
-}
-
-export function buildStableThreadId(event, ctx) {
-	const base =
-		String(ctx?.sessionKey || "").trim() ||
-		String(ctx?.sessionId || "").trim() ||
-		String(event?.sessionFile || "").trim() ||
-		"session";
-	const slug = sanitizeIdPart(base);
-	const digest = createHash("sha1").update(base).digest("hex").slice(0, 10);
-	return `openclaw-${slug}-${digest}`;
 }
 
 function buildExternalId({ normalized, index, threadId, sessionKey }) {

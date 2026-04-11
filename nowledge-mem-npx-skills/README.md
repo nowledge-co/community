@@ -224,6 +224,7 @@ Use Nowledge Mem as your external memory system.
 At session start:
 - Run `nmem --json wm read` once to load current priorities and recent context.
 - Do not re-read it on every turn unless the user asks or the session context changed materially.
+- If the host already knows a project or agent lane, add `--space "<space name>"`.
 
 Search proactively when:
 - the user references previous work, a prior fix, or an earlier decision
@@ -235,6 +236,7 @@ Retrieval routing:
 - Start with `nmem --json m search` for durable knowledge.
 - Use `nmem --json t search` when the user is asking about a prior discussion or exact conversation history.
 - If a memory result includes `source_thread`, inspect that conversation progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
+- If the host does not know a lane, stay in the default space. Do not invent one in the prompt.
 
 When preserving knowledge:
 - Use `nmem --json m add` for genuinely new durable knowledge.

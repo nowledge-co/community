@@ -5,12 +5,15 @@ description: Search past decisions, procedures, learnings, or context relevant t
 
 Find what the user already knows. Search their memories and past conversations for decisions, procedures, and context that make the current task sharper.
 
+For continuation-style engineering work, search near the start of the task. Do not wait for the user to literally say "search memory".
+
 ## When to use
 
 **Strong signals (search when):**
 
 - The user references previous work, a prior fix, or an earlier decision
 - The task resumes a named feature, bug, refactor, incident, or subsystem
+- The task is a review, regression, release, docs-alignment, or integration-behavior question
 - A debugging pattern resembles something solved earlier
 - The user asks for rationale, preferences, procedures, or recurring workflow details
 - The user uses implicit recall language: "that approach", "like before", "the pattern we used"
@@ -34,6 +37,8 @@ Find what the user already knows. Search their memories and past conversations f
 2. Use `nmem --json t search "query" --limit 5` when the user is asking about a prior conversation or exact session history.
 3. If a result includes `source_thread`, inspect it progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 4. Prefer the smallest retrieval that answers the question. Do not over-fetch.
+
+If the runtime already knows the active project or agent lane, add `--space "<space name>"` to these commands.
 
 ## Deep mode
 

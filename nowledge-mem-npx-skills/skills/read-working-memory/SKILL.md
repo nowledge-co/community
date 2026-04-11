@@ -35,7 +35,11 @@ Read Working Memory with `nmem` first:
 nmem --json wm read
 ```
 
-If it succeeds but reports `exists: false`, say there is no Working Memory briefing yet. Only fall back to `~/ai-now/memory.md` for older local-only setups.
+If it succeeds but reports `exists: false`, say there is no Working Memory briefing yet.
+
+If the host already knows a project or agent lane, add `--space "<space name>"`.
+
+Only fall back to `~/ai-now/memory.md` for older local-only **Default-space** setups.
 
 ### What You'll Find
 
@@ -51,8 +55,9 @@ The Working Memory briefing contains:
 
 1. **Read once at session start** — don't re-read unless asked
 2. **Reference naturally** — mention relevant context when it connects to the current task
-3. **Don't overwhelm** — share only the parts relevant to what the user is working on
-4. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Codex) appear here
+3. **Continuation handoff** — if the task looks like a review, regression, release, resume, or prior-decision question, move straight into `search-memory` after the briefing instead of stopping here
+4. **Don't overwhelm** — share only the parts relevant to what the user is working on
+5. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Codex) appear here
 
 ## Examples
 
@@ -70,7 +75,7 @@ Working Memory is generated daily by Nowledge Mem's Background Intelligence. It 
 
 **Updated daily** at your configured briefing time (default: 8 AM local time).
 
-**Shared across tools** — the same file is read by Claude Code, Cursor, Codex, and any other connected agent. Save an insight in one tool, and tomorrow's briefing reflects it for all tools.
+**Shared across tools** — connected tools read the same lane's briefing. Save an insight in one tool, and that lane's next briefing reflects it for the others.
 
 ## Links
 

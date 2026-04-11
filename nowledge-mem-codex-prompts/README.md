@@ -1,6 +1,6 @@
 # Nowledge Mem for Codex CLI
 
-> **Deprecated**: This custom prompts package has been superseded by the **[Codex Plugin](../nowledge-mem-codex-plugin/)**. The plugin provides the same capabilities as composable Codex skills with proper plugin lifecycle support. See the [migration guide](https://mem.nowledge.co/docs/integrations/codex-cli#migrating-from-custom-prompts) for details.
+> **Deprecated**: This custom prompts package has been superseded by the **[Codex Plugin](../nowledge-mem-codex-plugin/)**. The plugin ships the same Codex-facing memory behaviors as packaged skills with a cleaner install/update path. See the [migration guide](https://mem.nowledge.co/docs/integrations/codex-cli#migrating-from-custom-prompts) for details.
 
 > Memory-aware custom prompts for Codex CLI, with an optional project `AGENTS.md` companion for stronger default behavior.
 
@@ -75,22 +75,14 @@ nmem status
 
 Preferred long-term remote setup:
 
-```json
-{
-  "apiUrl": "https://mem.example.com",
-  "apiKey": "nmem_your_key"
-}
-```
-
-Save it to:
-
-```text
-~/.nowledge-mem/config.json
+```bash
+nmem config client set url https://mem.example.com
+nmem config client set api-key nmem_your_key
 ```
 
 `nmem` resolves connection settings in this order:
 
-1. `--api-url`
+1. `--api-url` / `--api-key`
 2. `NMEM_API_URL` / `NMEM_API_KEY`
 3. `~/.nowledge-mem/config.json`
 4. defaults

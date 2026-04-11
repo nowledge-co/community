@@ -24,6 +24,7 @@ Skip routine fixes with no generalizable lesson, work in progress that will chan
 
 - Use `nmem --json m add` when the insight is genuinely new.
 - If an existing memory already captures the same decision, workflow, or preference and the new information refines it, use `nmem m update <id> ...` instead of creating a duplicate.
+- At the end of a substantial task, explicitly check whether one durable memory should be added or updated.
 
 Prefer atomic, standalone memories with strong titles and clear meaning. Focus on what was learned or decided, not routine chatter.
 

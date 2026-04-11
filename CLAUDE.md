@@ -15,6 +15,13 @@ The desktop app fetches this file at runtime from `https://raw.githubusercontent
 
 [`shared/behavioral-guidance.md`](shared/behavioral-guidance.md) defines when plugins should search, save, read Working Memory, and distill. All plugins should align with this shared guidance.
 
+Ambient space rule:
+- Profile- or provider-owned space config should be the primary lane control when the host supports it.
+- CLI-first integrations should honor `NMEM_SPACE` for one session-wide lane only when the host does not expose a better config surface. Legacy `NMEM_SPACE_ID` remains compatibility-only.
+- General harness agents should support fixed, derived, or explicitly mapped lanes only when the host exposes that context truthfully.
+- MCP/HTTP integrations should pass `space_id` directly when their runtime can do so.
+- Do not add a second plugin-local “vault” abstraction.
+
 ## Plugin Development
 
 See [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md) for authoring rules, directory layout, and testing expectations.

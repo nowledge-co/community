@@ -11,6 +11,7 @@ description: Search memory and thread history when past knowledge would material
 
 - the current task connects to prior work
 - the bug or design resembles something solved earlier
+- the task is a review, regression, release, docs-alignment, or integration-behavior question
 - the user asks why a decision was made
 - a previous discussion or session likely contains the missing context
 - the user uses implicit recall language: "that approach", "like before"
@@ -54,3 +55,4 @@ Increase `--offset` only when more messages are actually needed.
 - Be explicit when you relied on recalled knowledge
 - Prefer the smallest retrieval surface that answers the question
 - Suggest distillation only if the current discussion produced new durable knowledge
+- For continuation-heavy engineering work, search near the start of the task rather than waiting for an explicit recall request

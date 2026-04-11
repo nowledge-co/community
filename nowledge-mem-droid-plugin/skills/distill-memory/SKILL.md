@@ -42,3 +42,4 @@ nmem m update <id> -t "Updated title"
 - Actionable
 - Understandable without the original conversation
 - Focused on the outcome, not the chat transcript
+- Explicitly review whether one durable memory should be added or updated at the end of substantial work

@@ -13,6 +13,8 @@ Search Nowledge Mem for the current task.
 nmem --json m search "best query here"
 ```
 
+If the runtime already knows the active project or agent lane, add `--space "<space name>"`.
+
 3. If the need is conceptual, historical, or the first search is weak, try a second pass with:
 
 ```bash

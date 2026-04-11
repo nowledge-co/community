@@ -23,5 +23,6 @@ Skip routine fixes, work in progress, simple Q&A, and generic information.
 
 - Use `memory_add` when the insight is genuinely new.
 - If recall already surfaced the same decision, workflow, or preference and the new information refines it, use `memory_update` instead of creating a duplicate.
+- At the end of substantial work, explicitly review whether one durable memory should be added or updated.
 
 Prefer atomic, standalone memories with strong titles and clear meaning. Focus on what was learned or decided, not routine chatter.

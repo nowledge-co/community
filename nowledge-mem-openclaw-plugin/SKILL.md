@@ -63,6 +63,7 @@ Explain the difference plainly:
 
 - Local mode: OpenClaw talks to the local Nowledge Mem app/server through `nmem`
 - Remote mode: OpenClaw talks to a remote Nowledge Mem server through `nmem --api-url ...`; add `apiKey` when that server has auth enabled
+- If the user wants one agent-specific lane, use plugin config `space` first, plugin config `spaceTemplate` only when the launcher already exposes a trustworthy lane signal, and `NMEM_SPACE="<space name>"` only as the fallback for CLI-style launches instead of inventing a second OpenClaw-only memory namespace
 
 ### Step 1 — Verify `nmem`
 

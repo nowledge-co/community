@@ -16,9 +16,17 @@
 
 ## Registry
 
-The canonical source of truth for all integrations is [`integrations.json`](integrations.json). Capabilities, install commands, transport, tool naming, and thread save methods are tracked there. Update the registry first when adding or modifying integrations.
+The canonical source of truth for all integrations is [`integrations.json`](integrations.json). Capabilities, install commands, transport, tool naming, thread save methods, and the user-facing autonomy contract are tracked there. Update the registry first when adding or modifying integrations.
 
-For behavioral guidance (when to search, save, read Working Memory), see [`shared/behavioral-guidance.md`](shared/behavioral-guidance.md). For plugin authoring rules, see [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md).
+The autonomy contract uses one shared language across integrations:
+
+- `automatic`: the host/plugin enforces it through hooks or lifecycle wiring
+- `guided`: the package/rules/skills strongly teach it, but the model still decides
+- `manual`: it only happens when the user or agent asks directly
+
+This keeps one critical distinction honest for fresh users: having tools available is not the same thing as getting autonomous memory behavior.
+
+For behavioral guidance (when to search, save, read Working Memory, and route ambient spaces), see [`shared/behavioral-guidance.md`](shared/behavioral-guidance.md). For plugin authoring rules, see [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md).
 
 ## Integrations
 
@@ -33,7 +41,7 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[Antigravity Trajectory Extractor](https://github.com/jijiamoer/antigravity-trajectory-extractor)** | `git clone https://github.com/jijiamoer/antigravity-trajectory-extractor.git` | Live RPC extraction for Antigravity conversation trajectories. |
 | **[Windsurf Trajectory Extractor](https://github.com/jijiamoer/windsurf-trajectory-extractor)** | `git clone https://github.com/jijiamoer/windsurf-trajectory-extractor.git` | Offline protobuf extraction for Windsurf Cascade conversation history. |
 | **[Cursor Plugin](nowledge-mem-cursor-plugin)** | Link `nowledge-mem-cursor-plugin` into `~/.cursor/plugins/local/nowledge-mem-cursor` | Cursor-native plugin package with a session-start Working Memory hook, bundled MCP config, rules, and honest `save-handoff` semantics. |
-| **[Codex Plugin](nowledge-mem-codex-plugin)** | Copy plugin to `~/.codex/plugins/cache/local/nowledge-mem/local/` and enable it in `~/.codex/config.toml` | Native Codex plugin with five composable skills for Working Memory, routed recall, real session save, and distillation. |
+| **[Codex Plugin](nowledge-mem-codex-plugin)** | Copy the full plugin directory, including `.codex-plugin`, to `~/.codex/plugins/cache/local/nowledge-mem/local/` and enable it in `~/.codex/config.toml` | Packaged Codex skills for Working Memory bootstrap, proactive recall guidance, real session save, and distillation. |
 | **[OpenClaw Plugin](nowledge-mem-openclaw-plugin)** | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | Full memory lifecycle with memory tools, thread tools, automatic capture, and distillation. |
 | **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with Working Memory, thread-aware recall, structured saves, and optional auto-capture. |
 | **[Bub Plugin](nowledge-mem-bub-plugin)** | `pip install nowledge-mem-bub` | Bub-native plugin: cross-tool knowledge, auto-capture via save_state, Working Memory, and graph exploration. |
@@ -70,6 +78,47 @@ See [mcp.json](mcp.json) for the reference config.
 ```bash
 nmem status   # verify Nowledge Mem is running
 ```
+
+## Spaces
+
+Spaces are optional. Most integrations can stay on `Default` and never mention them.
+
+If a host already has its own profile or provider config, choose the lane there first:
+
+- plugin/provider setting such as `space = "Research Agent"`
+- a derived mapping such as `spaceTemplate = "agent-${AGENT_NAME}"`
+- an exact identity map such as `space_by_identity = {"research":"Research Agent"}`
+
+Use `NMEM_SPACE="Research Agent"` only for CLI-first hosts or runtimes that do not expose a better config surface. HTTP- or MCP-based integrations should pass `space_id` explicitly when their host/runtime can do so. The storage boundary is still one hidden shared key, but humans and agents should normally work with the space name instead. Legacy `NMEM_SPACE_ID` still works for older setups.
+
+For agent harnesses, the rule is simple:
+
+- If the host can only promise one lane per process or profile, support one fixed ambient space.
+- If the host exposes a stable identity or workspace signal, support a derived mapping (`spaceTemplate` or exact identity mapping).
+- If the host does not expose identity cleanly, do not fake per-agent routing.
+
+### Space behavior by integration
+
+Use one ambient space only when the host already has a real lane, such as one agent identity, one project, or one workspace.
+
+| Integration | Ambient space today | Best user setup |
+|-------------|---------------------|-----------------|
+| Claude Code, Codex, Droid, Pi, Gemini CLI | Full ambient lane through `NMEM_SPACE` or per-command `--space` | Set one `NMEM_SPACE` only when the whole session truly belongs to one lane. Otherwise stay on `Default`. |
+| Hermes | Full ambient lane through provider `space`, `space_by_identity`, `space_template`, or fallback `NMEM_SPACE` | Use `space` for one stable lane, `space_by_identity` for a small explicit map, `space_template` for one lane per Hermes identity. |
+| Alma | Full ambient lane through plugin `nowledgeMem.space`, plugin `nowledgeMem.spaceTemplate`, or fallback `NMEM_SPACE` | Use `space` for one Alma profile per lane. Use `spaceTemplate` only when your launcher already exports a trustworthy lane variable. |
+| Bub | Full ambient lane through `NMEM_SPACE` | Treat Bub as one process-wide lane. If you need separate lanes, run separate Bub processes or profiles. |
+| OpenClaw | Full ambient lane through plugin `space`, plugin `spaceTemplate`, or fallback `NMEM_SPACE`, preserved across CLI memory calls and API-backed thread/feed paths | Use `space` for one stable profile. Use `spaceTemplate` only when the launcher already exports the lane signal. Do not fake per-agent routing if the runtime does not expose identity. |
+| OpenCode | Full ambient lane through `NMEM_SPACE`, preserved across CLI memory calls and HTTP session save | Set one `NMEM_SPACE` when the OpenCode process belongs to one real lane. |
+| Cursor | Partial today | `sessionStart` and handoff flows can follow `NMEM_SPACE`, but MCP tool calls still need Cursor/runtime support to forward `space_id`. |
+| Raycast | One fixed lane through Raycast preferences or shared config | Use one named space when that launcher profile always belongs to one lane. Leave it empty to stay on `Default`. |
+| Browser extension | One fixed lane through extension settings | Use one named space when that browser profile always belongs to one lane. Leave it empty to stay on `Default`. |
+| Generic MCP-only hosts | Usually default lane only today | Keep using `Default` unless the host can explicitly pass `space_id`. |
+
+What the space profile means is the same everywhere:
+
+- **When this space searches** decides how far automatic recall expands before the agent starts answering.
+- **Also search these spaces** adds reusable context lanes for retrieval only. It does not move or merge records.
+- **Agent guidance** is read by AI Now and built-in/background agents working in that lane. It changes retrieval and explanation style, not storage.
 
 ## Links
 

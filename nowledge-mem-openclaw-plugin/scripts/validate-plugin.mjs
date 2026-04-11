@@ -159,6 +159,8 @@ async function main() {
     corpusMinScore: { type: "integer", default: 0, minimum: 0, maximum: 100 },
     apiUrl: { type: "string", default: "" },
     apiKey: { type: "string", default: "" },
+    space: { type: "string", default: "" },
+    spaceTemplate: { type: "string", default: "" },
   };
 
   for (const key of Object.keys(configSchema)) {

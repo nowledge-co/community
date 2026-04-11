@@ -17,6 +17,79 @@ function getSetting(settingsApi, key, fallbackValue) {
 	}
 }
 
+function normalizeSpaceRef(raw) {
+	if (typeof raw !== "string") return "";
+	return raw.trim().replace(/\s+/g, " ");
+}
+
+function resolveSpaceTemplate(template, logger) {
+	const raw = normalizeSpaceRef(template);
+	if (!raw) return "";
+	try {
+		return raw.replace(/\$\{([^}]+)\}/g, (_, envVar) => {
+			const envValue = process.env[envVar];
+			if (typeof envValue !== "string" || !envValue.trim()) {
+				throw new Error(`environment variable ${envVar} is not set`);
+			}
+			return envValue.trim();
+		});
+	} catch (error) {
+		logger?.warn?.(
+			`nowledge-mem: could not resolve space template: ${error instanceof Error ? error.message : String(error)}`,
+		);
+		return "";
+	}
+}
+
+export function resolveAmbientSpace(settingsApi, logger = console) {
+	const rawConfiguredSpace = getSetting(settingsApi, "nowledgeMem.space", undefined);
+	if (typeof rawConfiguredSpace === "string") {
+		const normalizedSpace = normalizeSpaceRef(rawConfiguredSpace);
+		if (normalizedSpace || rawConfiguredSpace.length > 0) {
+			return {
+				space: normalizedSpace,
+				source: "settings",
+			};
+		}
+	}
+
+	const rawConfiguredTemplate = getSetting(
+		settingsApi,
+		"nowledgeMem.spaceTemplate",
+		undefined,
+	);
+	if (typeof rawConfiguredTemplate === "string") {
+		const resolved = normalizeSpaceRef(
+			resolveSpaceTemplate(rawConfiguredTemplate, logger),
+		);
+		if (resolved) {
+			return { space: resolved, source: "settings:template" };
+		}
+	}
+
+	const envSpace = normalizeSpaceRef(
+		process.env.NMEM_SPACE || process.env.NMEM_SPACE_ID || "",
+	);
+	if (envSpace) {
+		return { space: envSpace, source: "env" };
+	}
+
+	return { space: "", source: "default" };
+}
+
+export function resolveWorkingMemoryToolPath(spaceRef, wm) {
+	if (typeof wm?.path === "string" && wm.path.trim()) {
+		return wm.path;
+	}
+	if (!wm?.available) {
+		return null;
+	}
+	if (!spaceRef || spaceRef.toLowerCase() === "default") {
+		return `${homedir()}/ai-now/memory.md`;
+	}
+	return null;
+}
+
 function escapeForInline(text, maxLength = 220) {
 	const normalized = String(text ?? "")
 		.replace(/\s+/g, " ")
@@ -57,16 +130,17 @@ function extractThreadId(mem) {
 	return mem?.source_thread_id ?? mem?.metadata?.source_thread_id ?? null;
 }
 
-class NowledgeMemClient {
+export class NowledgeMemClient {
 	/**
 	 * @param {object} logger
-	 * @param {{ apiUrl?: string; apiKey?: string }} [credentials]
+	 * @param {{ apiUrl?: string; apiKey?: string; space?: string }} [credentials]
 	 */
 	constructor(logger, credentials = {}) {
 		this.logger = logger;
 		this.command = null;
 		this._apiUrl = (credentials.apiUrl || "").trim() || "http://127.0.0.1:14242";
 		this._apiKey = (credentials.apiKey || "").trim();
+		this._spaceRef = normalizeSpaceRef(credentials.space || "");
 	}
 
 	// --- HTTP transport (async, non-blocking) ---
@@ -78,21 +152,41 @@ class NowledgeMemClient {
 		return h;
 	}
 
+	_withSpaceQuery(params) {
+		const query = { ...(params || {}) };
+		if (this._spaceRef && query.space_id === undefined && query.spaceId === undefined) {
+			query.space_id = this._spaceRef;
+		}
+		return query;
+	}
+
+	_withSpaceBody(body) {
+		if (!this._spaceRef || body == null || Array.isArray(body)) {
+			return body;
+		}
+		if ("space_id" in body || "spaceId" in body) {
+			return body;
+		}
+		return { ...body, space_id: this._spaceRef };
+	}
+
 	/** Core async fetch with timeout. All data operations route through this. */
 	async _fetch(method, path, { body, params, timeout = 15_000 } = {}) {
 		const url = new URL(path, this._apiUrl);
-		if (params) {
-			for (const [k, v] of Object.entries(params)) {
+		const resolvedParams = this._withSpaceQuery(params);
+		if (resolvedParams) {
+			for (const [k, v] of Object.entries(resolvedParams)) {
 				if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
 			}
 		}
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), timeout);
+		const resolvedBody = this._withSpaceBody(body);
 		try {
 			const resp = await fetch(url.href, {
 				method,
 				headers: this._headers(),
-				body: body !== undefined ? JSON.stringify(body) : undefined,
+				body: resolvedBody !== undefined ? JSON.stringify(resolvedBody) : undefined,
 				signal: controller.signal,
 			});
 			if (!resp.ok) {
@@ -179,6 +273,24 @@ class NowledgeMemClient {
 	}
 
 	async readWorkingMemory() {
+		try {
+			const data = await this._fetch("GET", "/agent/working-memory");
+			const content = typeof data?.content === "string" ? data.content.trim() : "";
+			return {
+				available: content.length > 0,
+				content,
+				path: data?.path,
+				lastModified: data?.lastModified ?? data?.last_modified ?? null,
+			};
+		} catch (err) {
+			if (this._spaceRef && this._spaceRef.toLowerCase() !== "default") {
+				if (err && typeof err === "object" && err.status === 404) {
+					return { available: false, content: "" };
+				}
+				throw err;
+			}
+		}
+
 		try {
 			const path = `${homedir()}/ai-now/memory.md`;
 			const text = readFileSync(path, "utf-8").trim();
@@ -451,7 +563,12 @@ export async function activate(context) {
 
 	let apiUrl = getSetting(context.settings, "nowledgeMem.apiUrl", "") || "";
 	let apiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
-	let client = new NowledgeMemClient(logger, { apiUrl, apiKey });
+	let ambientSpace = resolveAmbientSpace(context.settings, logger);
+	let client = new NowledgeMemClient(logger, {
+		apiUrl,
+		apiKey,
+		space: ambientSpace.space,
+	});
 	const recalledThreads = new Set();
 
 	let recallPolicy = resolveRecallPolicy(context.settings, logger);
@@ -473,13 +590,24 @@ export async function activate(context) {
 			const settingsDisposable = context.settings.onDidChange(() => {
 				const newApiUrl = getSetting(context.settings, "nowledgeMem.apiUrl", "") || "";
 				const newApiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
-				if (newApiUrl !== apiUrl || newApiKey !== apiKey) {
+				const nextAmbientSpace = resolveAmbientSpace(context.settings, logger);
+				if (
+					newApiUrl !== apiUrl ||
+					newApiKey !== apiKey ||
+					nextAmbientSpace.space !== ambientSpace.space ||
+					nextAmbientSpace.source !== ambientSpace.source
+				) {
 					apiUrl = newApiUrl;
 					apiKey = newApiKey;
-					client = new NowledgeMemClient(logger, { apiUrl, apiKey });
+					ambientSpace = nextAmbientSpace;
+					client = new NowledgeMemClient(logger, {
+						apiUrl,
+						apiKey,
+						space: ambientSpace.space,
+					});
 					const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
 					logger.info?.(
-						`nowledge-mem: credentials updated, mode=${remoteMode ? `remote → ${apiUrl}` : "local"}`,
+						`nowledge-mem: settings updated, mode=${remoteMode ? `remote → ${apiUrl}` : "local"}, space=${ambientSpace.space || "Default"}`,
 					);
 				}
 				recallPolicy = resolveRecallPolicy(context.settings, logger);
@@ -931,27 +1059,32 @@ export async function activate(context) {
 
 	registerTool("nowledge_mem_working_memory", {
 		description:
-			"Read your daily Working Memory briefing from ~/ai-now/memory.md.",
+			"Read your daily Working Memory briefing. The local file is only the Default-space fallback.",
 		inputSchema: { type: "object", properties: {} },
 		parameters: { type: "object", properties: {} },
 		async execute() {
-			const wm = await client.readWorkingMemory();
-			if (!wm.available) {
+			try {
+				const wm = await client.readWorkingMemory();
+				const path = resolveWorkingMemoryToolPath(client._spaceRef, wm);
+				if (!wm.available) {
+					return {
+						ok: true,
+						available: false,
+						content: "",
+						path,
+						lastModified: wm.lastModified ?? null,
+					};
+				}
 				return {
 					ok: true,
-					available: false,
-					content: "",
-					path: wm.path ?? `${homedir()}/ai-now/memory.md`,
+					available: true,
+					content: wm.content,
+					path,
 					lastModified: wm.lastModified ?? null,
 				};
+			} catch (err) {
+				return cliErrorResult(err, "working_memory");
 			}
-			return {
-				ok: true,
-				available: true,
-				content: wm.content,
-				path: wm.path ?? `${homedir()}/ai-now/memory.md`,
-				lastModified: wm.lastModified ?? null,
-			};
 		},
 	});
 
@@ -987,6 +1120,8 @@ export async function activate(context) {
 					connectionMode: remoteMode ? "remote" : "local",
 					apiUrl: client._apiUrl,
 					apiKeyConfigured: Boolean(client._apiKey),
+					ambientSpace: client._spaceRef || "Default",
+					ambientSpaceSource: ambientSpace.source,
 					cliAvailable,
 					cliCommand,
 					serverConnected,
@@ -1454,7 +1589,7 @@ export async function activate(context) {
 
 	const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
 	logger.info?.(
-		`nowledge-mem activated for Alma (recallPolicy=${recallPolicy}, recallInjectionEnabled=${recallInjectionEnabled}, recallFrequency=${recallFrequency}, injectCliPlaybook=${injectCliPlaybook}, autoCapture=${autoCapture}, maxRecallResults=${maxRecallResults}, mode=${remoteMode ? `remote → ${apiUrl}` : "local"})`,
+		`nowledge-mem activated for Alma (recallPolicy=${recallPolicy}, recallInjectionEnabled=${recallInjectionEnabled}, recallFrequency=${recallFrequency}, injectCliPlaybook=${injectCliPlaybook}, autoCapture=${autoCapture}, maxRecallResults=${maxRecallResults}, mode=${remoteMode ? `remote → ${apiUrl}` : "local"}, space=${ambientSpace.space || "Default"})`,
 	);
 
 	return {

@@ -71,7 +71,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
 | `Stop` | Model finishes responding | Captures session to knowledge graph (async) |
 
-The `SessionStart` hook tries `nmem wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` directly.
+The `SessionStart` hook tries `nmem wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
 The `Stop` hook runs `nmem t save --from claude-code` in the background after every response. This is idempotent -- it only appends new messages, so repeated runs are cheap and safe.
 
@@ -79,7 +79,7 @@ The `Stop` hook runs `nmem t save --from claude-code` in the background after ev
 
 The plugin works transparently in both modes:
 
-- **Local** (Mem on same machine): Working Memory read from API or local file. Sessions captured by both the desktop app file watcher and the Stop hook (idempotent).
+- **Local** (Mem on same machine): Working Memory read from Mem, with the local file kept only as the Default-space fallback. Sessions are captured by both the desktop app file watcher and the Stop hook (idempotent).
 - **Remote** (Mem on different machine): configure this machine once with:
 
 ```bash
@@ -90,6 +90,18 @@ nmem config client set api-key your-key
 That writes the shared local client config used by `nmem` and the plugin. You can also use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`) for temporary overrides.
 
 In remote mode, the Stop hook still reads Claude session files locally through `nmem t save --from claude-code` on the machine where Claude Code is running, then uploads the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` directory.
+
+## Spaces
+
+Spaces are optional. If one Claude Code process naturally belongs to one project or agent lane, launch Claude Code with:
+
+```bash
+NMEM_SPACE="Research Agent"
+```
+
+The session-start Working Memory read, per-turn guidance, slash-command flows, and background `nmem t save --from claude-code` capture will then stay in that lane automatically.
+
+Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. Claude Code does not need a second plugin-local space config.
 
 ## Update
 

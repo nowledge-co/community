@@ -25,9 +25,29 @@ If this fails, Nowledge Mem is not installed or not running. Guide the user:
 - Install: https://mem.nowledge.co/docs/installation
 - Start: open the Nowledge Mem desktop app, or run the server
 
-## Step 2: Detect Agent and Recommend Native Plugin
+## Step 2: Detect Agent and Recommend The Best Path
 
-These skills work in any agent via CLI. But native plugins provide richer features: auto-recall at prompt time, auto-capture at session end, graph exploration tools, and Working Memory injection.
+Do not only answer "install X". Explain the behavior contract the user will get:
+
+1. what starts automatically
+2. what is only guided by skills/rules and still model-driven
+3. whether threads are captured automatically, saved explicitly, or only supported as handoff summaries
+
+Use this priority order:
+
+1. **Native integration first** when the host has one
+2. **Reusable package** when the host supports shared skills/prompts but has no native integration
+3. **Direct MCP** only when there is no better package path
+
+Fresh users care about outcome, not transport. Tell them what they will actually get after setup.
+
+### Autonomy levels
+
+| Path | What usually happens | What it does not guarantee |
+|------|----------------------|----------------------------|
+| **Native integration** | Strongest setup: session bootstrap is often automatic; some hosts also add auto-capture or hook-driven recall | Exact proactive recall/distill timing can still be host-specific |
+| **Reusable package** | Working Memory, recall, and distill are guided by rules/skills | The host may still ignore the guidance unless prompts and project guidance are strong |
+| **Direct MCP** | Tools are available; with the recommended prompt block, the agent can use them proactively | MCP alone does not create host-enforced autonomy |
 
 Check which agent you're running in and recommend the native plugin if available.
 
@@ -45,9 +65,14 @@ The canonical source for this table is `community/integrations.json`.
 | **Bub** | Running inside Bub | `pip install nowledge-mem-bub` | [Guide](https://mem.nowledge.co/docs/integrations/bub) |
 | **Pi** | Running as Pi agent; `~/.pi/` exists | `pi install npm:nowledge-mem-pi` | [Guide](https://mem.nowledge.co/docs/integrations/pi) |
 | **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | Add `"opencode-nowledge-mem"` to `opencode.json` plugin array | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
-| **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Add MCP server to `~/.hermes/config.yaml` | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
+| **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Install the native Hermes provider (or use MCP only as fallback) | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
 
-If the agent is not listed above, the npx skills you already have are the best option. They work everywhere via the `nmem` CLI.
+If the agent is not listed above:
+
+- use the shared `npx skills` package when the host supports it
+- otherwise use direct MCP plus the recommended prompt block
+
+Do not describe raw MCP as equivalent to a native integration.
 
 ## Step 3: Verify
 
@@ -59,16 +84,32 @@ nmem --json m search "test" -n 1
 
 If this returns results (or an empty list with no error), the integration is working.
 
+Then state the expected outcome in plain language:
+
+- **Working Memory**: automatic, guided, or manual
+- **Recall**: automatic, guided, or manual
+- **Distill**: automatic, guided, or manual
+- **Threads**: automatic capture, explicit save, handoff-only, or none
+
+If the path is only `guided`, say what strengthens it:
+
+- keep `nmem` available locally
+- restart the host after install
+- merge the package `AGENTS.md` or equivalent repo guidance when recommended
+- configure the local `nmem` client in remote mode
+
 ## What Native Plugins Add
 
-Skills give you CLI-based memory access. Native plugins add:
+Skills give you CLI-based memory access. Native plugins usually add:
 
 - **Auto-recall**: relevant memories injected before each response (no manual search needed)
 - **Auto-capture**: conversations saved as searchable threads at session end
 - **LLM distillation**: key decisions and insights extracted automatically
 - **Graph tools**: explore connections, evolution chains, and entity relationships
-- **Working Memory**: daily briefing injected at session start
+- **Working Memory**: daily briefing loaded or injected at session start
 - **Slash commands**: `/remember`, `/recall`, `/forget` (where supported)
+
+Do not promise all of these on every host. Match the actual path the user is setting up.
 
 ## Links
 

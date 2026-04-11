@@ -52,6 +52,7 @@ No config needed for local use. The plugin reads `~/.nowledge-mem/config.json` a
 |----------|---------|-------------|
 | `NMEM_SESSION_CONTEXT` | `false` | Inject Working Memory + recalled knowledge each turn |
 | `NMEM_SESSION_DIGEST` | `true` | Feed Bub conversations into Mem for other tools to find |
+| `NMEM_SPACE` | *(unset)* | Ambient space lane for this Bub process |
 | `NMEM_API_URL` | *(local)* | Remote Nowledge Mem server URL |
 | `NMEM_API_KEY` | *(none)* | API key for remote access |
 
@@ -75,6 +76,10 @@ Or use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`), which override th
 | **Session context** | `NMEM_SESSION_CONTEXT=1` | Working Memory and relevant knowledge injected automatically each turn. |
 
 Most users should start with the default.
+
+If one Bub process naturally belongs to one project or agent lane, set `NMEM_SPACE="Research Agent"` before launch. All CLI-backed Working Memory, search, save, and thread commands will then stay in that lane. Legacy `NMEM_SPACE_ID` still works for older setups.
+
+Bub is process-scoped today: if you run multiple Bub agents that need different memory lanes, give each process its own `NMEM_SPACE` (or keep them on `Default`). Shared spaces, default retrieval, and agent guidance still come from Mem's shared `/spaces` profile.
 
 ## Troubleshooting
 

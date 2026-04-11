@@ -2,6 +2,56 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- OpenClaw now preserves an explicit empty `space` setting as a real choice to stay on `Default`, instead of silently falling through to ambient `NMEM_SPACE`.
+- CLI-backed OpenClaw operations now honor that same explicit Default-space choice. Earlier builds could still inherit `NMEM_SPACE` in child `nmem` processes, which split CLI-backed reads and writes away from HTTP-backed thread sync.
+- Fallback HTTP requests now carry the ambient lane through one shared path, so direct API calls stay aligned with CLI-backed memory operations.
+- `nowledge_mem_status` now reports the configured Context Engine slot correctly instead of reading from an unset field.
+- `nowledge_mem_status` now reports `legacy` when no Context Engine slot is configured, instead of surfacing `undefined` in default OpenClaw setups.
+- Legacy `~/.nowledge-mem/openclaw.json` now gets the same strict key validation as dashboard config, so typoed or unsupported keys fail loudly instead of silently altering runtime behavior.
+- Thread capture no longer fails at runtime after the thread-identity refactor. The crypto import used by external IDs and append idempotency keys is restored, so `sessionDigest` capture keeps creating and appending threads normally.
+
+### Changed
+
+- Lower-priority `spaceTemplate` values are now evaluated lazily. A broken template no longer overrides a higher-priority concrete `space` value.
+- Thread-identity tests now reset conversation-root state between cases, so the suite matches real runtime boundaries more closely.
+
+## [0.8.12] - 2026-04-10
+
+### Changed
+
+- OpenClaw's space settings and setup guidance now lead with profile-owned config (`space`, `spaceTemplate`) and keep `NMEM_SPACE` as a fallback for launcher-driven sessions without a richer config surface.
+
+## [0.8.11] - 2026-04-10
+
+### Added
+
+- OpenClaw profiles can now own one ambient space directly through plugin config `space` or `spaceTemplate`, instead of relying only on the process-wide `NMEM_SPACE` environment variable.
+
+### Changed
+
+- `nowledge_mem_status` now reports the effective ambient space and where it came from.
+
+## [0.8.10] - 2026-04-10
+
+### Changed
+
+- Clarified OpenClaw's ambient space model. `NMEM_SPACE` now remains the single session lane across CLI-backed memory calls and API-backed thread/feed fallbacks, while shared spaces, default retrieval, and agent guidance stay in Mem's shared `/spaces` profile.
+
+## [0.8.9] - 2026-04-10
+
+### Fixed
+
+- **`/new` once again starts a fresh Mem thread.** Thread identity now follows OpenClaw's session lifecycle instead of collapsing everything under the channel-level `sessionKey`. Explicit `/new`, `/reset`, idle rollovers, and daily rollovers create a new Mem thread as users expect.
+- **Compaction still stays inside the same Mem thread.** When OpenClaw rotates the underlying transcript during compaction, the plugin now carries the existing conversation root forward so compaction does not fork a second thread for the same chat.
+
+### Changed
+
+- **Capture now uses lifecycle-aware conversation roots.** `session_end` and `session_start` hooks teach the plugin when a new chat begins and when a transcript rotation is only internal maintenance. Context Engine capture and hook-based capture still converge on the same thread, but `/new` is no longer merged into the prior conversation.
+
 ## [0.8.8] - 2026-04-09
 
 ### Fixed

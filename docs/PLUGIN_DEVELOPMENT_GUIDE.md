@@ -23,6 +23,66 @@ Use `nmem` CLI as the execution layer for memory operations.
 - API URL via `--api-url` flag or `NMEM_API_URL` environment variable
 - Shared config file: `~/.nowledge-mem/config.json` (`apiUrl`, `apiKey`)
 
+## Space-aware execution
+
+Spaces are optional. Treat them as ambient context, not required setup.
+
+- If the host/runtime has a real ambient lane, pass it through:
+  - Host/plugin config first: `space`, `spaceTemplate`, `space_by_identity`, or the platform's own equivalent
+  - CLI fallback: `nmem ... --space "<space name>"` or ambient `NMEM_SPACE="<space name>"`
+  - MCP: `space_id`
+  - HTTP API: `space_id`
+- If the host has no natural ambient lane, keep using the default space and stay silent about spaces in the default UX.
+- Do not invent a second “vault”, “project memory”, or “tenant” abstraction on top of `space_id`.
+- Cross-space retrieval should be explicit. Do not silently mix a shared lane into the default recall path.
+- Provisioning the roster is now a first-class shared surface:
+  - CLI: `nmem spaces ...`
+  - HTTP API: `/spaces`
+- The old local file `~/ai-now/memory.md` is only the Default-space compatibility path. Treat it as a fallback, not as the canonical model for every space.
+- The host should derive ambient space from context it already owns, such as:
+  - workspace or project path
+  - agent identity / persona slot
+  - selected project or repository
+  - explicit user choice in the host UI
+- For CLI-first hosts, prefer one ambient session lane via `NMEM_SPACE` only when the whole session naturally belongs to one space and the host has no better native config surface. Legacy `NMEM_SPACE_ID` remains compatibility-only. Use per-call `--space` when only some actions need an override.
+- The host should not make up a new space just because a prompt mentions a new topic.
+- If a space profile includes instructions, retrieval mode, or shared-space links, treat those as lane defaults. They should influence retrieval behavior, not replace the user's own instructions.
+
+### Mapping levels
+
+Different hosts can support different levels of space routing. Keep the abstraction honest:
+
+- `fixed lane`
+  - One profile or process always belongs to one space.
+  - Example config: `space = "Research Agent"`. Use `NMEM_SPACE="Research Agent"` only when the host is CLI-first and lacks a richer config surface.
+- `derived lane`
+  - The host exposes a trustworthy identity or workspace signal and the plugin derives the space from it.
+  - Example config: `spaceTemplate = "agent-${AGENT_NAME}"` or Hermes `space_template = "agent-{identity}"`.
+- `explicit map`
+  - The host exposes a stable identity and the plugin can map a small known set of identities to named spaces.
+  - Example config: `space_by_identity = {"research":"Research Agent","ops":"Operations Agent"}`.
+
+If the runtime does not expose identity cleanly, do not fake per-agent mapping. Stay with one fixed lane per profile/process or use `Default`.
+
+### Space profile semantics
+
+- `defaultRetrievalMode=strict`: automatic recall stays inside the active space.
+- `defaultRetrievalMode=shared`: automatic recall starts in the active space, then also searches the listed shared spaces.
+- `defaultRetrievalMode=all`: automatic recall can search across the whole memory graph by default.
+- `sharedSpaceIds`: retrieval-only links. They do not change where new memories, threads, or sources are stored.
+- `instructions`: lane-specific guidance for AI Now and built-in/background agents. Plugins should not reinterpret this as a second system prompt owned by the host.
+
+### Resolution order
+
+When a host supports multiple ways to choose a lane, prefer one clear precedence chain:
+
+1. explicit tool-call override
+2. plugin/provider config (for example `space`, `space_by_identity`, or `space_template`)
+3. session env/context such as `NMEM_SPACE`
+4. `Default`
+
+Humans should usually work with the visible space name. Only storage and compatibility surfaces need the hidden key.
+
 ---
 
 ## Tool Naming
@@ -95,6 +155,7 @@ Optional capabilities (require platform support):
 - [ ] **Graph exploration** — connections, evolution chains, entity relationships
 - [ ] **Thread save** — real transcript import (only if parser exists)
 - [ ] **Slash commands** — quick access to common operations
+- [ ] **Space profile support** — can pass one ambient space name, and can optionally provision/show spaces when the host has a real multi-lane workflow
 
 ---
 

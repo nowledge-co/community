@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.7.0
+
+### Fixed
+
+- Alma now lets blank host-default settings fall through to `NMEM_SPACE`, instead of pinning every untouched profile to `Default`.
+- Empty `nowledgeMem.spaceTemplate` resolution now falls through to `NMEM_SPACE` / `Default` instead of short-circuiting Alma onto an unintended blank lane.
+- Non-default Working Memory reads now surface real backend failures such as auth or connectivity errors instead of quietly pretending there is no briefing.
+- Live settings reload now refreshes the reported ambient-space source as well as the space value itself, so status stays truthful after switching between plugin-owned and inherited lanes.
+- Alma's Working Memory tool no longer fabricates the local `~/ai-now/memory.md` path for non-default spaces when no briefing is available there.
+- Alma's Working Memory tool now returns a structured tool error when a non-default Working Memory request fails upstream, instead of crashing the command handler.
+- Alma now treats a blank `nowledgeMem.space` as “no plugin-owned lane” because Alma's settings API does not distinguish an untouched default from an explicit empty string. That keeps launcher-owned `NMEM_SPACE` usable without forcing users to duplicate the same lane in Alma settings.
+
+## 0.6.17
+
+### Changed
+
+- Alma's space settings and docs now lead with plugin-owned lane config (`nowledgeMem.space`, `nowledgeMem.spaceTemplate`) and keep `NMEM_SPACE` as a fallback for shell- or launcher-driven sessions without a richer config surface.
+
+## 0.6.16
+
+### Fixed
+
+- Ambient spaces are now real for Alma's HTTP transport. Earlier builds documented `NMEM_SPACE`, but the plugin's HTTP client still sent memory, thread, source, and Working Memory requests without a lane. The client now injects the resolved space into both query and body paths, and non-default Working Memory reads no longer fall back to the Default-space file.
+
+### Changed
+
+- Alma now supports one profile-owned ambient lane through `nowledgeMem.space` and `nowledgeMem.spaceTemplate`, with `NMEM_SPACE` still available for launch-time routing.
+- Status output now reports the effective ambient space and where it came from.
+
 ## 0.6.15
 
 ### Fix async flush race condition, error handling, and search mode

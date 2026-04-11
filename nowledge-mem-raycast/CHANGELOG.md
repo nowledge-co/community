@@ -1,6 +1,17 @@
 # Changelog
 
-## [Remote Access Support] - {PR_MERGE_DATE}
+## Unreleased
+
+- **Blank Raycast Space now follows shared config again**: leaving Raycast's `Space` preference empty now falls back to `~/.nowledge-mem/config.json` when it defines a lane, and only stays on `Default` when no shared lane is configured.
+- **POST commands now match GET commands for Default space**: Raycast no longer serializes `space_id: ""` on search and create requests, so empty `Space` behaves consistently across all commands.
+
+## [Fixed Space Lane] - 2026-04-10
+
+- **Optional fixed space**: Raycast can now stay in one named Mem space through the new `Space` preference or `~/.nowledge-mem/config.json`
+- **Space-aware commands**: Search, Add Memory, and Read Working Memory now follow that configured lane instead of silently falling back to `Default`
+- **Safer local editing contract**: `Edit Working Memory` now stays explicitly Default-only and tells you to use the Mem app for non-default spaces
+
+## [Remote Access Support] - 2026-03-11
 
 - **Remote Working Memory**: the Working Memory command now reads from the Mem API, so remote Mem setups work correctly
 - **Safer local editing contract**: `Edit Working Memory` now refuses remote connections and stays explicitly local-only

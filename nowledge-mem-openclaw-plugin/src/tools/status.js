@@ -63,18 +63,18 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			const memorySlot = runtimeInfo.memorySlot;
 			const contextEngineSlot = runtimeInfo.contextEngineSlot;
 			const contextEngineRegistered = runtimeInfo.contextEngineRegistered === true;
-			const contextEngineRegistrationError =
-				typeof runtimeInfo.contextEngineRegistrationError === "string" &&
-				runtimeInfo.contextEngineRegistrationError.trim()
-					? runtimeInfo.contextEngineRegistrationError.trim()
-					: null;
-			details.memorySlot = memorySlot ?? "(unknown)";
-			const ceSlot =
-				contextEngineSlot && String(contextEngineSlot).trim()
-					? String(contextEngineSlot).trim()
-					: "legacy";
-			details.contextEngineSlot = ceSlot;
-			details.contextEngineRegistered = contextEngineRegistered;
+				const contextEngineRegistrationError =
+					typeof runtimeInfo.contextEngineRegistrationError === "string" &&
+					runtimeInfo.contextEngineRegistrationError.trim()
+						? runtimeInfo.contextEngineRegistrationError.trim()
+						: null;
+				details.memorySlot = memorySlot ?? "(unknown)";
+				const ceSlot =
+					typeof contextEngineSlot === "string" && contextEngineSlot.trim()
+						? contextEngineSlot.trim()
+						: "legacy";
+				details.contextEngineSlot = ceSlot;
+				details.contextEngineRegistered = contextEngineRegistered;
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {
 				const corpusOn = cfg.corpusSupplement === true;
 				if (corpusOn) {
@@ -134,6 +134,10 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			}
 			if (!cfg.sessionDigest) {
 				lines.push("Thread capture: disabled (sessionDigest=false)");
+			} else {
+				lines.push(
+					"  Thread identity follows OpenClaw session lifecycle: /new or /reset starts a fresh thread, while compaction stays in the same thread.",
+				);
 			}
 
 			// 1. Mode + connection target
@@ -142,11 +146,16 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			details.mode = mode;
 			details.apiUrl = cfg.apiUrl || "http://127.0.0.1:14242";
 			details.apiKeySet = Boolean(cfg.apiKey);
+			details.space = cfg.space || null;
+			details.spaceSource = sources.space || "default";
 
 			lines.push(
 				`Mode: ${remote ? `Remote (${cfg.apiUrl})` : "Local (127.0.0.1:14242)"}`,
 			);
 			lines.push(`API key: ${cfg.apiKey ? "set" : "not set"}`);
+			lines.push(
+				`Ambient space: ${cfg.space ? `${cfg.space} (${details.spaceSource})` : "Default"}`,
+			);
 			lines.push("Memory tools: nmem CLI");
 			lines.push("Thread sync: Mem HTTP API");
 

@@ -1,7 +1,7 @@
 {
   "id": "nowledge-mem",
   "name": "Nowledge Mem",
-  "version": "0.6.15",
+  "version": "0.7.0",
   "description": "Local-first personal memory for Alma, powered by Nowledge Mem",
   "author": {
     "name": "Nowledge Labs",
@@ -56,7 +56,7 @@
       {
         "id": "nowledge_mem_working_memory",
         "name": "Read Working Memory",
-        "description": "Read your daily Working Memory briefing from ~/ai-now/memory.md."
+        "description": "Read your daily Working Memory briefing. The local file is only the Default-space fallback."
       },
       {
         "id": "nowledge_mem_status",
@@ -114,6 +114,16 @@
           "type": "string",
           "default": "",
           "description": "Mem API key for remote access (nmem_...). Passed via env var only, never logged."
+        },
+        "nowledgeMem.space": {
+          "type": "string",
+          "default": "",
+          "description": "Optional fixed space name for this Alma profile or agent lane. Leave empty to inherit NMEM_SPACE when present, or stay on Default otherwise."
+        },
+        "nowledgeMem.spaceTemplate": {
+          "type": "string",
+          "default": "",
+          "description": "Optional template with ${ENV_VAR} placeholders. Use only when Space is empty and Alma already has a trustworthy lane signal."
         }
       }
     }

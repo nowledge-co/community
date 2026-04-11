@@ -102,7 +102,7 @@ If `nmem` is not on PATH, the plugin disables gracefully. On machines running th
 
 ## Configuration
 
-**No plugin-level configuration needed.** The `nmem` CLI manages client-side connection settings. Configure remote access for this machine via `nmem config client`:
+**No plugin-level network configuration needed.** The `nmem` CLI manages client-side connection settings. Configure remote access for this machine via `nmem config client`:
 
 ```bash
 nmem config client set url https://your-server:14242
@@ -111,13 +111,35 @@ nmem config client set api-key your-key
 
 This writes the local client config that Hermes reads through `nmem`. It is separate from server-side access settings like bind host or LAN allowlists.
 
-The only plugin-specific setting is request timeout, stored in `~/.hermes/nowledge-mem.json`:
+### Spaces
+
+Spaces are optional. The Hermes provider should usually own the ambient lane directly in `~/.hermes/nowledge-mem.json`:
 
 ```json
 {
-  "timeout": 30
+  "timeout": 30,
+  "space": "Research Agent",
+  "space_by_identity": {
+    "research": "Research Agent",
+    "ops": "Operations Agent"
+  },
+  "space_template": "agent-{identity}"
 }
 ```
+
+Use `space` when one Hermes profile always belongs to one lane. Use `space_by_identity` when a few Hermes identities map to named lanes. Use `space_template` when Hermes already has a stable identity and you want one lane per identity.
+
+If you are launching Hermes through a CLI-style wrapper with no provider config of its own, you can still set one session-wide fallback lane with:
+
+```bash
+NMEM_SPACE="Research Agent" hermes
+```
+
+Plugin-mode Working Memory reads, searches, saves, and thread tools then stay in that lane automatically. If you do not have a real ambient lane, stay on `Default`.
+
+Legacy `NMEM_SPACE_ID` still works, but `NMEM_SPACE` is the preferred human-facing contract when the provider config does not already choose a lane.
+
+Those settings choose the ambient lane only. Shared spaces, default retrieval, and agent guidance still come from Mem's own space profile, so Hermes does not need a second memory-container model on top.
 
 ## Verify
 
@@ -134,7 +156,7 @@ Hermes should call `nmem_search` (plugin mode) or `mcp_nowledge_mem_memory_searc
 - **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. Restart Hermes.
 - **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
 - **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`.
-- **Tool call fails immediately at 0.0s**: Update to v0.5.5 or later. Earlier builds had two separate failure modes: v0.5.3 and below could reject Hermes list-shaped tool arguments for labels or bulk IDs, and v0.5.4 could still advertise `nmem_*` tools before Hermes had actually indexed them for dispatch.
+- **Tool call fails immediately at 0.0s**: Update to v0.5.6 or later. Earlier builds had two separate failure modes: v0.5.3 and below could reject Hermes list-shaped tool arguments for labels or bulk IDs, and v0.5.4 could still advertise `nmem_*` tools before Hermes had actually indexed them for dispatch.
 - **Slow responses**: Default timeout is 30 seconds. Increase in `nowledge-mem.json` for remote setups.
 
 ## Update

@@ -6,6 +6,8 @@ You have Nowledge Mem tools registered as `nowledge_mem_*` for cross-tool knowle
 
 At session start, call `nowledge_mem_working_memory` to load your daily context briefing: current priorities, recent decisions, and open questions.
 
+If OpenCode is launched with `NMEM_SPACE="<space name>"`, that lane is the ambient default for Working Memory, search, save, and session-save flows. Legacy `NMEM_SPACE_ID` still works for older setups.
+
 Reference relevant parts naturally as the conversation progresses. Do not re-read unless the user asks or the session context changes materially.
 
 ## Proactive Search

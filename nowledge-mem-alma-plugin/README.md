@@ -49,7 +49,7 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
 | `nowledge_mem_show` | Show full memory details. Returns `sourceThreadId` when available. |
 | `nowledge_mem_update` | Update memory content/title/importance |
 | `nowledge_mem_delete` | Delete memory |
-| `nowledge_mem_working_memory` | Read daily Working Memory (`~/ai-now/memory.md`) |
+| `nowledge_mem_working_memory` | Read daily Working Memory. The local file is only the Default-space compatibility fallback. |
 | `nowledge_mem_thread_search` | Search conversation threads with optional `source` filter |
 | `nowledge_mem_thread_show` | Fetch thread messages with pagination (`offset`/`limit`). Returns `hasMore`. |
 | `nowledge_mem_thread_create` | Create thread from content/messages |
@@ -171,6 +171,31 @@ Alternatively, set `NMEM_API_URL` and `NMEM_API_KEY` as environment variables be
 Startup log shows `mode=remote` or `mode=local` to confirm which mode is active.
 
 See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access) for full setup instructions.
+
+## Spaces
+
+Spaces are optional. Alma should choose one ambient lane only when the profile really belongs to one project or agent lane.
+
+The Alma plugin settings can own that lane directly:
+
+```json
+{
+  "nowledgeMem.space": "Research Agent",
+  "nowledgeMem.spaceTemplate": "agent-${ALMA_AGENT_NAME}"
+}
+```
+
+Use `nowledgeMem.space` when this Alma profile always belongs to one lane. Leave it empty when you want Alma to inherit `NMEM_SPACE` from the launcher, or stay on `Default` if no ambient lane exists. Use `nowledgeMem.spaceTemplate` only when Alma is launched with a real host-owned environment variable that already identifies the lane. If Alma does not know a real agent identity, stay on `Default` or run separate Alma profiles for separate lanes.
+
+If you are launching Alma from a shell or launcher with no richer settings surface, you can still set one session-wide fallback lane with:
+
+```bash
+NMEM_SPACE="Research Agent"
+```
+
+The hook-based Working Memory bootstrap, proactive recall, `nowledge_mem_store`, and automatic thread flushes will then stay in that lane automatically.
+
+Shared spaces, default retrieval, and agent guidance are still owned by Mem's space profile. Alma should pick the lane, not duplicate the profile model.
 
 ## Runtime Defaults
 

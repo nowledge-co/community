@@ -12,6 +12,18 @@ Read your Working Memory briefing once near the start of each session to underst
 nmem --json wm read
 ```
 
+If the host/runtime already knows an ambient space, keep the read in that lane:
+
+```bash
+nmem --json wm read --space "Research Agent"
+```
+
+For CLI-first hosts that already own one stable lane for the whole session, prefer one ambient env var instead of repeating the flag on every command:
+
+```bash
+NMEM_SPACE="Research Agent" nmem --json wm read
+```
+
 **When to read:**
 - Beginning of a new conversation
 - Returning to a project after a break
@@ -25,7 +37,9 @@ nmem --json wm read
 **How to use:**
 - Reference naturally — mention relevant context when it connects to the current task
 - Share only the parts relevant to what the user is working on
+- For continuation-style work, treat Working Memory as the opening move, not the whole workflow. If the task looks like a resume/review/debug/release/history question, do one targeted search right after the briefing.
 - Do not re-read unless the user asks or the session context changes materially
+- Legacy local file fallback (`~/ai-now/memory.md`) is only the Default-space compatibility path. Do not describe it as the full Working Memory model.
 
 ---
 
@@ -61,6 +75,26 @@ Search your knowledge base proactively when past insights would improve the resp
 4. Prefer the smallest retrieval surface that answers the question — do not over-fetch.
 5. If initial results are weak or conceptual, try `--mode deep` for broader matching.
 
+### Space-aware routing
+
+- If the host has a real ambient space, either:
+  - use the host's own profile/provider config to choose the lane, or
+  - pass `--space "<space name>"` on the relevant commands, or
+  - set `NMEM_SPACE="<space name>"` once for the session only when the integration is CLI-first and lacks a better config surface.
+- If the host does not have a natural ambient space, stay on the default lane and do not invent one.
+- If the host supports profile-owned routing, prefer that over process env. A configured `space`, `spaceTemplate`, or host-owned mapping should beat inherited `NMEM_SPACE`.
+- If the host exposes a stable identity or workspace signal, derive the lane from that signal. If it does not, keep one fixed lane per profile/process.
+- Shared or cross-space recall should be explicit, not automatic.
+- The storage boundary is a hidden space key. Humans and agents should normally work with the space name instead.
+- If the deployment uses many agent or project spaces, provision them out of band with `nmem spaces ...` or the `/spaces` API. Do not create ad-hoc space IDs inside prompts or tool-call text.
+- If a space has profile instructions or shared-space links, treat them as retrieval guidance for that lane, not as a replacement for the user's direct request.
+- A host may choose one ambient space per session. It should not silently switch lanes mid-task without telling the user.
+- Read the profile fields literally:
+  - `strict` means “search only here”
+  - `shared` means “search here, then the listed shared spaces”
+  - `all` means “search across everything”
+  - `instructions` means “adjust how this lane searches and explains,” not “store somewhere else”
+
 ---
 
 ## 4. Autonomous Save
@@ -90,6 +124,7 @@ Good candidates:
 - Use structured saves: `--unit-type` (decision, procedure, learning, preference, event), `-l` labels, `-i` importance
 - Atomic, standalone memories with strong titles and clear meaning
 - Focus on what was learned or decided, not routine activity
+- If the host has a real ambient space, write with `--space "<space name>"` so the new memory lands in the correct lane.
 
 ---
 

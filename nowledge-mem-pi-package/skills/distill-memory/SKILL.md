@@ -68,6 +68,8 @@ nmem --json m update <memory_id> -c "updated content"
 
 One strong memory is better than three weak ones.
 
+At the end of a substantial task, explicitly review whether one durable memory should be added or updated.
+
 ## Memory Quality
 
 **Good (atomic, actionable):**

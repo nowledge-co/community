@@ -97,6 +97,31 @@ Legacy `~/.nowledge-mem/openclaw.json` is still honored first for backward compa
 
 The resolved `apiUrl` and `apiKey` are reused across the plugin: CLI-backed memory tools and API-backed thread sync both talk to the same backend. The `apiKey` is never passed as a CLI argument and is never logged.
 
+### Spaces
+
+Spaces are optional. OpenClaw should choose one ambient lane only when the profile or process already belongs to one real project or agent lane.
+
+The OpenClaw plugin settings can own that lane directly:
+
+```json
+{
+  "space": "Research Agent",
+  "spaceTemplate": "agent-${OPENCLAW_AGENT_NAME}"
+}
+```
+
+Use `space` when one OpenClaw profile belongs to one stable lane. Use `spaceTemplate` only when your launcher or host environment already sets a trustworthy variable that identifies the lane. If your OpenClaw runtime does not expose per-agent identity to plugins, do not fake it. Use one profile/process per lane or stay on `Default`.
+
+If you are running OpenClaw from a launcher or script with no richer config surface, you can still set one session-wide fallback lane with:
+
+```bash
+NMEM_SPACE="Research Agent"
+```
+
+Nowledge Mem's CLI-backed Working Memory, memory search/save, and the plugin's API-backed thread/feed fallbacks will then stay in that lane together. There is no second OpenClaw-only vault setting; the shared Mem boundary is still one hidden space key, but humans and agents should normally work with the space name instead.
+
+Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. OpenClaw chooses the lane and preserves it across transports; it should not duplicate the profile semantics.
+
 ### Configure via WebUI of OpenClaw
 
 <img width="1192" height="2007" alt="openclaw-config" src="https://github.com/user-attachments/assets/a4abd855-db56-4a1f-b0ac-0114909d0c20" />
@@ -365,7 +390,7 @@ The behavioral guidance adjusts when `sessionContext` is enabled. Instead of "se
 
 **What happens to conversations I don't explicitly save?**
 
-With `sessionDigest` enabled (the default), every conversation is saved as a searchable thread. One OpenClaw chat becomes one Mem thread: capture uses the stable OpenClaw `sessionKey`, not transient runtime ids, so Context Engine capture and hook-based capture append to the same conversation. Internal helper sessions like `temp:*` and subagent runs are excluded, so your recent threads stay focused on real chats. On top of thread capture, a lightweight LLM triage checks if the conversation contained decisions, insights, or preferences worth keeping as structured memories. If yes, they're extracted with proper types, labels, and temporal context. If the conversation was routine ("fix this typo"), nothing extra is saved.
+With `sessionDigest` enabled (the default), every conversation is saved as a searchable thread. The boundary follows OpenClaw's own session lifecycle: one active chat becomes one Mem thread, `/new` or `/reset` starts a fresh thread, and internal compaction keeps appending to the same thread instead of forking a duplicate. Context Engine capture and hook-based capture still converge on the same conversation. Internal helper sessions like `temp:*` and subagent runs are excluded, so your recent threads stay focused on real chats. On top of thread capture, a lightweight LLM triage checks if the conversation contained decisions, insights, or preferences worth keeping as structured memories. If yes, they're extracted with proper types, labels, and temporal context. If the conversation was routine ("fix this typo"), nothing extra is saved.
 
 **Can memories be wrong or outdated?**
 
@@ -530,7 +555,9 @@ Remember: OpenClaw applies plugin setting changes after restart. If you turned `
 
 What healthy OpenClaw thread sync looks like:
 
-- one visible chat becomes one Mem thread
+- one active OpenClaw chat becomes one Mem thread
+- running `/new` or `/reset` starts a fresh Mem thread
+- compaction does not fork a second thread for the same chat
 - helper sessions like `temp:slug-generator` do not appear
 - the synthetic `/new` / `/reset` startup prompt is not stored as the first user message
 

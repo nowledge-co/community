@@ -33,6 +33,8 @@ Start every session with context. Your Working Memory is a daily briefing synthe
 nmem --json wm read
 ```
 
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`.
+
 ### What You'll Find
 
 - **Active Focus Areas**: Topics you're currently engaged with, ranked by recent activity
@@ -44,9 +46,10 @@ nmem --json wm read
 ### How to Use This Context
 
 1. Read once at session start. Don't re-read unless asked.
-2. Reference naturally when it connects to the current task.
-3. Share only the parts relevant to what the user is working on.
-4. Insights saved in other tools (Claude Code, Cursor, Codex) appear here automatically.
+2. If the task is clearly a continuation, review, regression, release, or prior-decision question, move directly into `search-memory` after the briefing.
+3. Reference naturally when it connects to the current task.
+4. Share only the parts relevant to what the user is working on.
+5. Insights saved in other tools (Claude Code, Cursor, Codex) appear here automatically.
 
 If the response includes `exists: false`, mention there's no briefing yet and continue.
 

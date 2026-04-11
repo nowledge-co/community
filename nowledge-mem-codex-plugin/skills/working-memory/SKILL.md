@@ -11,6 +11,8 @@ Start with what matters. Working Memory is a daily briefing of your active focus
 nmem --json wm read
 ```
 
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`.
+
 ## What you'll find
 
 - **Focus areas**: what you're actively working on, ranked by recent activity
@@ -21,6 +23,7 @@ nmem --json wm read
 ## How to use it
 
 - Summarize key focus areas and any unresolved flags briefly (2-3 sentences), then work informed by this context.
+- If the task is clearly a continuation, review, release, regression, integration, or prior-decision question, move directly into `search-memory` after the briefing instead of stopping here.
 - If `exists: false` or the command fails, say there is no briefing yet and continue normally.
 - Share only the parts relevant to what the user is doing now.
 

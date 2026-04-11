@@ -57,6 +57,18 @@ export default {
 
     const apiUrl = process.env.NMEM_API_URL || "http://127.0.0.1:14242"
     const apiKey = process.env.NMEM_API_KEY
+    const ambientSpaceId =
+      process.env.NMEM_SPACE?.trim() || process.env.NMEM_SPACE_ID?.trim() || undefined
+
+    function withAmbientSpace(body: unknown): unknown {
+      if (!ambientSpaceId || body == null || typeof body !== "object" || Array.isArray(body)) {
+        return body
+      }
+      if ("space_id" in body) {
+        return body
+      }
+      return { ...body, space_id: ambientSpaceId }
+    }
 
     async function nmemApi(
       path: string,
@@ -70,7 +82,7 @@ export default {
         const res = await fetch(`${apiUrl}${path}`, {
           method: "POST",
           headers,
-          body: JSON.stringify(body),
+          body: JSON.stringify(withAmbientSpace(body)),
           signal: controller.signal,
         })
         const data = await res.json().catch(() => null)

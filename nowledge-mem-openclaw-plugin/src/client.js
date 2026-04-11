@@ -70,7 +70,7 @@ export class NowledgeMemClient {
 	/**
 	 * @param {object} logger
 	 * @param {object} runtimeSystem
-	 * @param {{ apiUrl?: string; apiKey?: string }} [credentials]
+	 * @param {{ apiUrl?: string; apiKey?: string; space?: string; spaceId?: string }} [credentials]
 	 */
 	constructor(logger, runtimeSystem, credentials = {}) {
 		this.logger = logger;
@@ -82,6 +82,18 @@ export class NowledgeMemClient {
 			(credentials.apiUrl || "").trim() || "http://127.0.0.1:14242"
 		).replace(/\/+$/, "");
 		this._apiKey = (credentials.apiKey || "").trim();
+		const hasSpace = Object.prototype.hasOwnProperty.call(credentials, "space");
+		const hasSpaceId = Object.prototype.hasOwnProperty.call(
+			credentials,
+			"spaceId",
+		);
+		this._hasExplicitSpace = hasSpace || hasSpaceId;
+		const resolvedSpace = hasSpace
+			? credentials.space
+			: hasSpaceId
+				? credentials.spaceId
+				: process.env.NMEM_SPACE ?? process.env.NMEM_SPACE_ID ?? "";
+		this._spaceRef = String(resolvedSpace ?? "").trim();
 	}
 
 	// ── API helpers (fallback path and direct operations) ─────────────────────
@@ -99,15 +111,39 @@ export class NowledgeMemClient {
 		return headers;
 	}
 
+	_withSpaceQuery(path) {
+		if (!this._spaceRef) return path;
+		const [pathname, rawQuery = ""] = String(path).split("?", 2);
+		const query = new URLSearchParams(rawQuery);
+		if (!query.has("space_id")) {
+			query.set("space_id", this._spaceRef);
+		}
+		const rendered = query.toString();
+		return rendered ? `${pathname}?${rendered}` : pathname;
+	}
+
+	_withSpaceBody(body) {
+		if (!this._spaceRef || body == null || Array.isArray(body)) {
+			return body;
+		}
+		if (Object.prototype.hasOwnProperty.call(body, "space_id")) {
+			return body;
+		}
+		return { ...body, space_id: this._spaceRef };
+	}
+
 	async apiJson(method, path, body, timeout = 30_000) {
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), timeout);
-		const url = `${this.getApiBaseUrl()}${path}`;
+		const scopedPath = this._withSpaceQuery(path);
+		const scopedBody = this._withSpaceBody(body);
+		const url = `${this.getApiBaseUrl()}${scopedPath}`;
 		try {
 			const response = await fetch(url, {
 				method,
 				headers: this.getApiHeaders(),
-				body: body === undefined ? undefined : JSON.stringify(body),
+				body:
+					scopedBody === undefined ? undefined : JSON.stringify(scopedBody),
 				signal: controller.signal,
 			});
 
@@ -184,6 +220,8 @@ export class NowledgeMemClient {
 		return buildNmemSpawnEnv({
 			apiUrl: this._apiUrl,
 			apiKey: this._apiKey,
+			spaceId: this._spaceRef,
+			hasExplicitSpace: this._hasExplicitSpace,
 		});
 	}
 
@@ -557,12 +595,16 @@ export class NowledgeMemClient {
 			throw new Error("createThread requires at least one message");
 		}
 
-		const data = await this.apiJson("POST", "/threads", {
-			...(threadId ? { thread_id: String(threadId) } : {}),
-			title: normalizedTitle,
-			source: String(source),
-			messages,
-		});
+		const data = await this.apiJson(
+			"POST",
+			"/threads",
+			{
+				...(threadId ? { thread_id: String(threadId) } : {}),
+				title: normalizedTitle,
+				source: String(source),
+				messages,
+			},
+		);
 
 		return String(
 			data.id ?? data.thread?.thread_id ?? data.thread_id ?? "created",
@@ -692,7 +734,11 @@ export class NowledgeMemClient {
 			});
 			if (updated === null) throw new Error(`Section not found: ${heading}`);
 
-			return this.apiJson("PUT", "/agent/working-memory", { content: updated });
+			return this.apiJson(
+				"PUT",
+				"/agent/working-memory",
+				{ content: updated },
+			);
 		}
 	}
 

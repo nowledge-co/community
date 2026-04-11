@@ -2,7 +2,7 @@
 	"id": "openclaw-nowledge-mem",
 	"name": "Nowledge Mem",
 	"description": "Cross-tool knowledge graph memory for OpenClaw with Working Memory, graph search, and session distillation.",
-	"version": "0.8.8",
+	"version": "0.8.12",
 	"kind": "memory",
 	"skills": [
 		"skills/memory-guide"
@@ -60,6 +60,14 @@
 			"label": "API key (remote mode)",
 			"help": "Required when connecting to a remote server. Never logged or passed as a CLI argument. Injected as NMEM_API_KEY env var only.",
 			"sensitive": true
+		},
+		"space": {
+			"label": "Ambient space",
+			"help": "Optional fixed space name for this OpenClaw profile or agent lane. Leave empty to stay on Default."
+		},
+		"spaceTemplate": {
+			"label": "Ambient space template",
+			"help": "Optional template with ${ENV_VAR} placeholders, used only when Ambient space is empty and your launcher already exports a trustworthy lane signal. Example: agent-${OPENCLAW_AGENT_NAME}."
 		}
 	},
 	"configSchema": {
@@ -144,6 +152,16 @@
 				"type": "string",
 				"default": "",
 				"description": "API key for remote access. Stored in plugin config, injected as NMEM_API_KEY env var. Never logged."
+			},
+			"space": {
+				"type": "string",
+				"default": "",
+				"description": "Optional fixed space name for this OpenClaw profile or agent lane."
+			},
+			"spaceTemplate": {
+				"type": "string",
+				"default": "",
+				"description": "Optional template with ${ENV_VAR} placeholders. Used only when space is empty."
 			}
 		}
 	}

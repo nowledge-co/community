@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Invalid `timeout` values in `~/.hermes/nowledge-mem.json` no longer crash the provider. Hermes now falls back to the default timeout and keeps the provider available.
+- An explicit empty `space` in Hermes config now stays on `Default` instead of falling through to ambient `NMEM_SPACE`.
+- Hermes CLI calls now honor that explicit Default-space choice end to end. Earlier builds still inherited `NMEM_SPACE` from the host process even after config resolved `space: ""`.
+- Hermes' subprocess routing tests now cover both sides of the contract: explicit empty clears inherited lane env, and explicit non-empty space propagates the chosen lane.
+- Hermes no longer synthesizes identity-derived lanes when the host never provided a real `agent_identity`.
+- Invalid non-string `space` values in Hermes config now fall through to `space_by_identity`, `space_template`, and ambient env resolution instead of silently blocking the rest of the precedence chain.
+
+### Changed
+
+- The fallback `NMEM_SPACE` example now shows the real launcher form (`NMEM_SPACE="Research Agent" hermes`) so users can run it directly.
+
+## [0.5.7] - 2026-04-10
+
+### Fixed
+
+- Provider-level lane resolution now matches the shared contract: Hermes config wins over ambient `NMEM_SPACE`, instead of the environment silently overriding the provider's configured lane.
+
+### Changed
+
+- Added `space_by_identity` for exact Hermes identity → space mapping, alongside the existing fixed `space` and derived `space_template` options.
+
+## [0.5.6] - 2026-04-10
+
+### Changed
+
+- Clarified Hermes' space model around the provider-level lane. `NMEM_SPACE`, `space`, and `space_template` all choose the ambient space by human-facing name, while shared-space retrieval, default retrieval mode, and agent guidance remain owned by Mem's shared `/spaces` profile.
+
 ## [0.5.5] - 2026-04-08
 
 ### Fixed
