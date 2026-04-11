@@ -382,7 +382,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "skills",
-      "version": "0.1.0",
+      "version": "0.7.0",
       "directory": "nowledge-mem-pi-package",
       "transport": "cli",
       "capabilities": {
