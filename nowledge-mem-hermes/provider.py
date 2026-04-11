@@ -242,7 +242,17 @@ class NowledgeMemProvider(MemoryProvider):
             return
 
         config = self._load_config(kwargs.get("hermes_home", ""))
-        timeout = int(config.get("timeout", 30) or 30)
+        raw_timeout = config.get("timeout", 30)
+        try:
+            timeout = int(raw_timeout or 30)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Invalid timeout in nowledge-mem.json: %r; falling back to 30s",
+                raw_timeout,
+            )
+            timeout = 30
+        if timeout <= 0:
+            timeout = 30
         self._resolved_space = self._resolve_space(config, kwargs)
         self._client = NowledgeMemClient(timeout=timeout, space=self._resolved_space)
 

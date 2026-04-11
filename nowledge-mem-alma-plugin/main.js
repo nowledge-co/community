@@ -42,21 +42,24 @@ function resolveSpaceTemplate(template, logger) {
 }
 
 export function resolveAmbientSpace(settingsApi, logger = console) {
-	const configuredSpace = normalizeSpaceRef(
-		getSetting(settingsApi, "nowledgeMem.space", ""),
-	);
-	if (configuredSpace) {
-		return { space: configuredSpace, source: "settings" };
+	const rawConfiguredSpace = getSetting(settingsApi, "nowledgeMem.space", undefined);
+	if (typeof rawConfiguredSpace === "string") {
+		return {
+			space: normalizeSpaceRef(rawConfiguredSpace),
+			source: "settings",
+		};
 	}
 
-	const configuredTemplate = normalizeSpaceRef(
-		getSetting(settingsApi, "nowledgeMem.spaceTemplate", ""),
+	const rawConfiguredTemplate = getSetting(
+		settingsApi,
+		"nowledgeMem.spaceTemplate",
+		undefined,
 	);
-	if (configuredTemplate) {
-		const resolved = normalizeSpaceRef(resolveSpaceTemplate(configuredTemplate, logger));
-		if (resolved) {
-			return { space: resolved, source: "settings:template" };
-		}
+	if (typeof rawConfiguredTemplate === "string") {
+		const resolved = normalizeSpaceRef(
+			resolveSpaceTemplate(rawConfiguredTemplate, logger),
+		);
+		return { space: resolved, source: "settings:template" };
 	}
 
 	const envSpace = normalizeSpaceRef(
@@ -261,9 +264,12 @@ export class NowledgeMemClient {
 				path: data?.path,
 				lastModified: data?.lastModified ?? data?.last_modified ?? null,
 			};
-		} catch {
+		} catch (err) {
 			if (this._spaceRef && this._spaceRef.toLowerCase() !== "default") {
-				return { available: false, content: "" };
+				if (err && typeof err === "object" && err.status === 404) {
+					return { available: false, content: "" };
+				}
+				throw err;
 			}
 		}
 

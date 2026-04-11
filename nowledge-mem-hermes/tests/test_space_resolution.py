@@ -78,6 +78,31 @@ class SpaceResolutionTests(unittest.TestCase):
         )
         self.assertEqual(resolved, "agent-ops")
 
+    def test_initialize_falls_back_on_invalid_timeout(self):
+        captured: dict[str, object] = {}
+
+        class _FakeClient:
+            def __init__(self, timeout: int, space: str | None = None):
+                captured["timeout"] = timeout
+                captured["space"] = space
+
+            def health(self):
+                return True
+
+            def working_memory(self):
+                return {}
+
+        original_client = provider.NowledgeMemClient
+        try:
+            provider.NowledgeMemClient = _FakeClient
+            instance = provider.NowledgeMemProvider()
+            instance._load_config = lambda _home: {"timeout": "abc", "space": "Research Agent"}
+            instance.initialize("session-1", hermes_home="", platform="cli")
+            self.assertEqual(captured["timeout"], 30)
+            self.assertEqual(captured["space"], "Research Agent")
+        finally:
+            provider.NowledgeMemClient = original_client
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -121,7 +121,7 @@ See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access).
 Spaces are optional. If one OpenCode process naturally belongs to one project or agent lane, launch OpenCode with:
 
 ```bash
-NMEM_SPACE="Research Agent"
+NMEM_SPACE="Research Agent" opencode
 ```
 
 The plugin's `nmem` calls and full-session thread save path will follow that lane. If you do not have a real ambient lane, stay on `Default`.

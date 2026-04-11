@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Alma now treats an explicit empty `nowledgeMem.space` as a real choice to stay on `Default`, instead of silently falling through to `NMEM_SPACE`.
+- Non-default Working Memory reads now surface real backend failures such as auth or connectivity errors instead of quietly pretending there is no briefing.
+
 ## 0.6.17
 
 ### Changed

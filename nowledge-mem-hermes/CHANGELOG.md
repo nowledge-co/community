@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Invalid `timeout` values in `~/.hermes/nowledge-mem.json` no longer crash the provider. Hermes now falls back to the default timeout and keeps the provider available.
+
+### Changed
+
+- The fallback `NMEM_SPACE` example now shows the real launcher form (`NMEM_SPACE="Research Agent" hermes`) so users can run it directly.
+
 ## [0.5.7] - 2026-04-10
 
 ### Fixed

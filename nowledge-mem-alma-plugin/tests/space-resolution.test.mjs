@@ -54,6 +54,24 @@ test("resolveAmbientSpace resolves configured template", () => {
 	}
 });
 
+test("resolveAmbientSpace preserves explicit empty settings over environment", () => {
+	const previous = process.env.NMEM_SPACE;
+	process.env.NMEM_SPACE = "Env Space";
+	try {
+		const resolved = resolveAmbientSpace(
+			settings({ "nowledgeMem.space": "" }),
+			logger,
+		);
+		assert.deepEqual(resolved, {
+			space: "",
+			source: "settings",
+		});
+	} finally {
+		if (previous === undefined) delete process.env.NMEM_SPACE;
+		else process.env.NMEM_SPACE = previous;
+	}
+});
+
 test("NowledgeMemClient injects ambient space into HTTP requests", () => {
 	const client = new NowledgeMemClient(logger, {
 		apiUrl: "http://127.0.0.1:14242",
@@ -68,4 +86,18 @@ test("NowledgeMemClient injects ambient space into HTTP requests", () => {
 		title: "hello",
 		space_id: "Research Agent",
 	});
+});
+
+test("readWorkingMemory rethrows backend errors for non-default spaces", async () => {
+	const client = new NowledgeMemClient(logger, {
+		apiUrl: "http://127.0.0.1:14242",
+		space: "Research Agent",
+	});
+	client._fetch = async () => {
+		const err = new Error("HTTP 401");
+		err.status = 401;
+		throw err;
+	};
+
+	await assert.rejects(() => client.readWorkingMemory(), /HTTP 401/);
 });

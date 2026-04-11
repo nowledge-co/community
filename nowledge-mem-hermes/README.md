@@ -132,7 +132,7 @@ Use `space` when one Hermes profile always belongs to one lane. Use `space_by_id
 If you are launching Hermes through a CLI-style wrapper with no provider config of its own, you can still set one session-wide fallback lane with:
 
 ```bash
-NMEM_SPACE="Research Agent"
+NMEM_SPACE="Research Agent" hermes
 ```
 
 Plugin-mode Working Memory reads, searches, saves, and thread tools then stay in that lane automatically. If you do not have a real ambient lane, stay on `Default`.
