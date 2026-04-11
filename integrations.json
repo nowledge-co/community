@@ -240,7 +240,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.11",
+      "version": "0.8.12",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -289,7 +289,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.6.16",
+      "version": "0.6.17",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {

@@ -121,6 +121,19 @@ function appendSpaceQuery(path: string, space?: string): string {
   return `${path}${separator}space_id=${encodeURIComponent(space)}`;
 }
 
+function withOptionalSpaceId<T extends Record<string, unknown>>(
+  body: T,
+  space?: string,
+): T & { space_id?: string } {
+  if (!space) {
+    return body;
+  }
+  return {
+    ...body,
+    space_id: space,
+  };
+}
+
 /** Memory as returned by the search endpoint. */
 export interface SearchMemory {
   id: string;
@@ -167,7 +180,7 @@ export async function searchMemories(
   const res = await apiFetch("/memories/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, limit, mode: "fast", space_id: space }),
+    body: JSON.stringify(withOptionalSpaceId({ query, limit, mode: "fast" }, space)),
   });
 
   return (await res.json()) as SearchResult[];
@@ -194,10 +207,7 @@ export async function createMemory(
   const res = await apiFetch("/memories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      ...req,
-      space_id: space,
-    }),
+    body: JSON.stringify(withOptionalSpaceId({ ...req }, space)),
   });
 
   return (await res.json()) as SearchMemory;

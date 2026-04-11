@@ -120,14 +120,28 @@ class SpaceResolutionTests(unittest.TestCase):
                 os.environ["NMEM_SPACE"] = previous
 
     def test_missing_identity_does_not_synthesize_space(self):
-        resolved = provider.NowledgeMemProvider._resolve_space(
-            {
-                "space_by_identity": {"default": "Default Agent"},
-                "space_template": "agent-{identity}",
-            },
-            {},
-        )
-        self.assertIsNone(resolved)
+        previous_space = os.environ.get("NMEM_SPACE")
+        previous_space_id = os.environ.get("NMEM_SPACE_ID")
+        os.environ.pop("NMEM_SPACE", None)
+        os.environ.pop("NMEM_SPACE_ID", None)
+        try:
+            resolved = provider.NowledgeMemProvider._resolve_space(
+                {
+                    "space_by_identity": {"default": "Default Agent"},
+                    "space_template": "agent-{identity}",
+                },
+                {},
+            )
+            self.assertIsNone(resolved)
+        finally:
+            if previous_space is None:
+                os.environ.pop("NMEM_SPACE", None)
+            else:
+                os.environ["NMEM_SPACE"] = previous_space
+            if previous_space_id is None:
+                os.environ.pop("NMEM_SPACE_ID", None)
+            else:
+                os.environ["NMEM_SPACE_ID"] = previous_space_id
 
     def test_client_explicit_empty_space_clears_inherited_environment(self):
         captured: dict[str, object] = {}

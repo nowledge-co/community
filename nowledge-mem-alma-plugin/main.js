@@ -59,7 +59,9 @@ export function resolveAmbientSpace(settingsApi, logger = console) {
 		const resolved = normalizeSpaceRef(
 			resolveSpaceTemplate(rawConfiguredTemplate, logger),
 		);
-		return { space: resolved, source: "settings:template" };
+		if (resolved) {
+			return { space: resolved, source: "settings:template" };
+		}
 	}
 
 	const envSpace = normalizeSpaceRef(
