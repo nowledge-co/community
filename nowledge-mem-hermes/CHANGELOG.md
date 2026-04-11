@@ -7,6 +7,7 @@
 - Invalid `timeout` values in `~/.hermes/nowledge-mem.json` no longer crash the provider. Hermes now falls back to the default timeout and keeps the provider available.
 - An explicit empty `space` in Hermes config now stays on `Default` instead of falling through to ambient `NMEM_SPACE`.
 - Hermes CLI calls now honor that explicit Default-space choice end to end. Earlier builds still inherited `NMEM_SPACE` from the host process even after config resolved `space: ""`.
+- Hermes' subprocess routing tests now cover both sides of the contract: explicit empty clears inherited lane env, and explicit non-empty space propagates the chosen lane.
 - Hermes no longer synthesizes identity-derived lanes when the host never provided a real `agent_identity`.
 
 ### Changed

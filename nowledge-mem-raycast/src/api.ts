@@ -43,6 +43,16 @@ function normalizeSpace(space?: string): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function resolveConfiguredSpacePreference(
+  preferenceSpace: string | undefined,
+  configSpace: string | undefined,
+): string | undefined {
+  if (typeof preferenceSpace === "string") {
+    return normalizeSpace(preferenceSpace) ?? "";
+  }
+  return configSpace;
+}
+
 export function getConnectionConfig(): ConnectionConfig {
   const { serverUrl, apiKey, space } = getPreferenceValues<Preferences>();
   const config = readConfigFile();
@@ -50,7 +60,7 @@ export function getConnectionConfig(): ConnectionConfig {
   return {
     baseUrl: normalizeUrl(serverUrl) || config.apiUrl || DEFAULT_BASE_URL,
     apiKey: apiKey?.trim() || config.apiKey,
-    space: normalizeSpace(space) || config.space,
+    space: resolveConfiguredSpacePreference(space, config.space),
   };
 }
 

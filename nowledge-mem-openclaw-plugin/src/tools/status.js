@@ -69,7 +69,10 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 						? runtimeInfo.contextEngineRegistrationError.trim()
 						: null;
 				details.memorySlot = memorySlot ?? "(unknown)";
-				const ceSlot = contextEngineSlot;
+				const ceSlot =
+					typeof contextEngineSlot === "string" && contextEngineSlot.trim()
+						? contextEngineSlot.trim()
+						: "legacy";
 				details.contextEngineSlot = ceSlot;
 				details.contextEngineRegistered = contextEngineRegistered;
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {

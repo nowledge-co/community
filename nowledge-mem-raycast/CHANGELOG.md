@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Empty Space preference now really means Default**: leaving Raycast's `Space` preference empty no longer falls through to `~/.nowledge-mem/config.json`. Raycast now stays on `Default` unless you explicitly choose a named lane.
+
 ## [Fixed Space Lane] - 2026-04-10
 
 - **Optional fixed space**: Raycast can now stay in one named Mem space through the new `Space` preference or `~/.nowledge-mem/config.json`

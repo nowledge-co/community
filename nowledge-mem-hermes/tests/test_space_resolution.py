@@ -165,6 +165,42 @@ class SpaceResolutionTests(unittest.TestCase):
             else:
                 os.environ["NMEM_SPACE_ID"] = previous_space_id
 
+    def test_client_explicit_space_sets_subprocess_environment(self):
+        captured: dict[str, object] = {}
+        original_run = client_module.subprocess.run
+        previous_space = os.environ.get("NMEM_SPACE")
+        previous_space_id = os.environ.get("NMEM_SPACE_ID")
+        os.environ["NMEM_SPACE"] = "Env Space"
+        os.environ["NMEM_SPACE_ID"] = "Env Space"
+
+        def _fake_run(cmd, **kwargs):
+            captured["env"] = kwargs.get("env", {})
+
+            class _Result:
+                returncode = 0
+                stdout = "{}"
+                stderr = ""
+
+            return _Result()
+
+        try:
+            client_module.subprocess.run = _fake_run
+            client = client_module.NowledgeMemClient(space="Research Agent")
+            client.working_memory()
+            env = captured["env"]
+            self.assertEqual(env.get("NMEM_SPACE"), "Research Agent")
+            self.assertEqual(env.get("NMEM_SPACE_ID"), "Research Agent")
+        finally:
+            client_module.subprocess.run = original_run
+            if previous_space is None:
+                os.environ.pop("NMEM_SPACE", None)
+            else:
+                os.environ["NMEM_SPACE"] = previous_space
+            if previous_space_id is None:
+                os.environ.pop("NMEM_SPACE_ID", None)
+            else:
+                os.environ["NMEM_SPACE_ID"] = previous_space_id
+
 
 if __name__ == "__main__":
     unittest.main()
