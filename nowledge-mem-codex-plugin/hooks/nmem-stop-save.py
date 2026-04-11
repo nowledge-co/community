@@ -56,6 +56,18 @@ def configure_nmem_env() -> None:
         os.environ["NMEM_API_KEY"] = str(api_key)
 
 
+def resolve_nmem_command() -> list[str] | None:
+    nmem_bin = shutil.which("nmem") or shutil.which("nmem.cmd")
+    if nmem_bin:
+        return [nmem_bin]
+
+    uvx_bin = shutil.which("uvx") or shutil.which("uvx.cmd")
+    if uvx_bin:
+        return [uvx_bin, "--from", "nmem-cli", "nmem"]
+
+    return None
+
+
 def shorten_title(text: str, limit: int = 60) -> str:
     normalized = text.replace("\n", " ").strip()
     if len(normalized) <= limit:
@@ -156,9 +168,9 @@ def import_current_transcript(payload: dict) -> tuple[int, str]:
         return 0, f"skip: transcript_path missing or unreadable for session={session_id}"
     log(f"transcript={transcript_path}")
 
-    nmem_bin = shutil.which("nmem") or shutil.which("nmem.cmd")
-    if not nmem_bin:
-        return 0, "skip: nmem not found in PATH"
+    nmem_command = resolve_nmem_command()
+    if not nmem_command:
+        return 0, "skip: neither nmem nor uvx was found in PATH"
 
     try:
         from nmem_cli.session_import import parse_codex_session_streaming
@@ -191,9 +203,23 @@ def import_current_transcript(payload: dict) -> tuple[int, str]:
     ):
         return 0, f"skip: unchanged transcript for session={session_id}"
 
+    import_messages = messages
+    previous_count = previous.get("message_count")
+    if (
+        isinstance(previous_count, int)
+        and previous_count > 0
+        and previous_count < message_count
+        and previous.get("thread_id") == thread_id
+        and previous.get("source_file") == str(transcript_path)
+    ):
+        import_messages = messages[previous_count:]
+
+    if not import_messages:
+        return 0, f"skip: no new messages for session={session_id}"
+
     import_payload = {
         "title": derive_thread_title(parsed, cwd),
-        "messages": messages,
+        "messages": import_messages,
     }
 
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as handle:
@@ -201,7 +227,7 @@ def import_current_transcript(payload: dict) -> tuple[int, str]:
         temp_path = Path(handle.name)
 
     try:
-        command = [nmem_bin, "--json", "t", "import", "-f", str(temp_path), "--id", thread_id, "-s", "codex"]
+        command = [*nmem_command, "--json", "t", "import", "-f", str(temp_path), "--id", thread_id, "-s", "codex"]
         result = subprocess.run(
             command,
             capture_output=True,

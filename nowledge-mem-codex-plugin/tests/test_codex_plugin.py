@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from types import SimpleNamespace
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
@@ -87,6 +88,73 @@ class HookTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("timed out", output)
         self.assertFalse(self.module.STATE_FILE.exists())
+
+    def test_resolve_nmem_command_falls_back_to_uvx(self):
+        with mock.patch.object(
+            self.module.shutil,
+            "which",
+            side_effect=[None, None, "/usr/bin/uvx", None],
+        ):
+            command = self.module.resolve_nmem_command()
+
+        self.assertEqual(command, ["/usr/bin/uvx", "--from", "nmem-cli", "nmem"])
+
+    def test_subsequent_import_only_sends_delta_messages(self):
+        transcript_path = Path(self.temp_dir.name) / "rollout.jsonl"
+        transcript_path.write_text("placeholder", encoding="utf-8")
+
+        parsed_first = {
+            "thread_id": "codex-delta-thread",
+            "title": "Delta thread",
+            "messages": [
+                {"role": "user", "content": "u1"},
+                {"role": "assistant", "content": "a1"},
+            ],
+        }
+        parsed_second = {
+            "thread_id": "codex-delta-thread",
+            "title": "Delta thread",
+            "messages": [
+                {"role": "user", "content": "u1"},
+                {"role": "assistant", "content": "a1"},
+                {"role": "user", "content": "u2"},
+            ],
+        }
+
+        captured_payloads = []
+
+        def fake_run(command, capture_output, text, env, timeout):
+            payload_path = Path(command[command.index("-f") + 1])
+            captured_payloads.append(json.loads(payload_path.read_text(encoding="utf-8")))
+            return SimpleNamespace(returncode=0, stdout='{"success": true}', stderr="")
+
+        parser_mock = mock.Mock(side_effect=[parsed_first, parsed_second])
+        with mock.patch.object(self.module.shutil, "which", return_value="/usr/bin/nmem"), \
+             mock.patch.dict("sys.modules", {"nmem_cli.session_import": mock.Mock(parse_codex_session_streaming=parser_mock)}), \
+             mock.patch.object(self.module.subprocess, "run", side_effect=fake_run):
+            first_status, _ = self.module.import_current_transcript(
+                {
+                    "session_id": "session-delta",
+                    "cwd": "/tmp/project",
+                    "hook_event_name": "Stop",
+                    "transcript_path": str(transcript_path),
+                }
+            )
+            second_status, _ = self.module.import_current_transcript(
+                {
+                    "session_id": "session-delta",
+                    "cwd": "/tmp/project",
+                    "hook_event_name": "Stop",
+                    "transcript_path": str(transcript_path),
+                }
+            )
+
+        self.assertEqual(first_status, 0)
+        self.assertEqual(second_status, 0)
+        self.assertEqual(len(captured_payloads[0]["messages"]), 2)
+        self.assertEqual(captured_payloads[0]["messages"][0]["content"], "u1")
+        self.assertEqual(len(captured_payloads[1]["messages"]), 1)
+        self.assertEqual(captured_payloads[1]["messages"][0]["content"], "u2")
 
     def test_title_skips_agents_preamble_and_uses_first_real_user_message(self):
         parsed = {

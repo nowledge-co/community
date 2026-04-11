@@ -135,10 +135,25 @@ if (integrationsDoc) {
     } else {
       ok("integrations.json install.command copies hidden files");
     }
+    if (!codexEntry.install?.command?.includes("install_hooks.py")) {
+      fail("integrations.json install.command must run scripts/install_hooks.py so Codex auto-capture is actually enabled");
+    } else {
+      ok("integrations.json install.command runs install_hooks.py");
+    }
     if (!codexEntry.install?.updateCommand?.includes("nowledge-mem-codex-plugin/.")) {
       fail("integrations.json install.updateCommand must copy nowledge-mem-codex-plugin/. so hidden files are preserved");
     } else {
       ok("integrations.json updateCommand copies hidden files");
+    }
+    if (!codexEntry.install?.updateCommand?.includes("install_hooks.py")) {
+      fail("integrations.json install.updateCommand must rerun scripts/install_hooks.py so hook config stays current");
+    } else {
+      ok("integrations.json updateCommand runs install_hooks.py");
+    }
+    if (codexEntry.capabilities?.autoCapture !== true) {
+      fail(`integrations.json codex-cli autoCapture must be true, got ${codexEntry.capabilities?.autoCapture}`);
+    } else {
+      ok("integrations.json codex-cli autoCapture");
     }
   }
 }
