@@ -185,7 +185,7 @@ The Alma plugin settings can own that lane directly:
 }
 ```
 
-Use `nowledgeMem.space` when this Alma profile always belongs to one lane. Use `nowledgeMem.spaceTemplate` only when Alma is launched with a real host-owned environment variable that already identifies the lane. If Alma does not know a real agent identity, stay on `Default` or run separate Alma profiles for separate lanes.
+Use `nowledgeMem.space` when this Alma profile always belongs to one lane. Leave it empty when you want Alma to inherit `NMEM_SPACE` from the launcher, or stay on `Default` if no ambient lane exists. Use `nowledgeMem.spaceTemplate` only when Alma is launched with a real host-owned environment variable that already identifies the lane. If Alma does not know a real agent identity, stay on `Default` or run separate Alma profiles for separate lanes.
 
 If you are launching Alma from a shell or launcher with no richer settings surface, you can still set one session-wide fallback lane with:
 

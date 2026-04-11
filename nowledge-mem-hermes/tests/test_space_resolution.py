@@ -119,6 +119,16 @@ class SpaceResolutionTests(unittest.TestCase):
             else:
                 os.environ["NMEM_SPACE"] = previous
 
+    def test_non_string_space_falls_through_to_identity_resolution(self):
+        resolved = provider.NowledgeMemProvider._resolve_space(
+            {
+                "space": None,
+                "space_by_identity": {"research": "Research Agent"},
+            },
+            {"agent_identity": "research"},
+        )
+        self.assertEqual(resolved, "Research Agent")
+
     def test_missing_identity_does_not_synthesize_space(self):
         previous_space = os.environ.get("NMEM_SPACE")
         previous_space_id = os.environ.get("NMEM_SPACE_ID")

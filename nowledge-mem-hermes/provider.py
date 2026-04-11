@@ -497,7 +497,6 @@ class NowledgeMemProvider(MemoryProvider):
             raw_space = config.get("space")
             if isinstance(raw_space, str):
                 return raw_space.strip()
-            return None
 
         raw_identity = kwargs.get("agent_identity")
         identity = str(raw_identity or "").strip()

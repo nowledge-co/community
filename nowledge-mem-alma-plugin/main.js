@@ -44,10 +44,13 @@ function resolveSpaceTemplate(template, logger) {
 export function resolveAmbientSpace(settingsApi, logger = console) {
 	const rawConfiguredSpace = getSetting(settingsApi, "nowledgeMem.space", undefined);
 	if (typeof rawConfiguredSpace === "string") {
-		return {
-			space: normalizeSpaceRef(rawConfiguredSpace),
-			source: "settings",
-		};
+		const normalizedSpace = normalizeSpaceRef(rawConfiguredSpace);
+		if (normalizedSpace || rawConfiguredSpace.length > 0) {
+			return {
+				space: normalizedSpace,
+				source: "settings",
+			};
+		}
 	}
 
 	const rawConfiguredTemplate = getSetting(

@@ -118,7 +118,7 @@
         "nowledgeMem.space": {
           "type": "string",
           "default": "",
-          "description": "Optional fixed space name for this Alma profile or agent lane. Leave empty to stay on Default."
+          "description": "Optional fixed space name for this Alma profile or agent lane. Leave empty to inherit NMEM_SPACE when present, or stay on Default otherwise."
         },
         "nowledgeMem.spaceTemplate": {
           "type": "string",

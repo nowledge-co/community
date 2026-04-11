@@ -12,6 +12,7 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 - `nowledge_mem_status` now reports the configured Context Engine slot correctly instead of reading from an unset field.
 - `nowledge_mem_status` now reports `legacy` when no Context Engine slot is configured, instead of surfacing `undefined` in default OpenClaw setups.
 - Legacy `~/.nowledge-mem/openclaw.json` now gets the same strict key validation as dashboard config, so typoed or unsupported keys fail loudly instead of silently altering runtime behavior.
+- Thread capture no longer fails at runtime after the thread-identity refactor. The crypto import used by external IDs and append idempotency keys is restored, so `sessionDigest` capture keeps creating and appending threads normally.
 
 ### Changed
 

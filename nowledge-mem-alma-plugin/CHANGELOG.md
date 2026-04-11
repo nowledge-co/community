@@ -4,12 +4,13 @@
 
 ### Fixed
 
-- Alma now treats an explicit empty `nowledgeMem.space` as a real choice to stay on `Default`, instead of silently falling through to `NMEM_SPACE`.
+- Alma now lets blank host-default settings fall through to `NMEM_SPACE`, instead of pinning every untouched profile to `Default`.
 - Empty `nowledgeMem.spaceTemplate` resolution now falls through to `NMEM_SPACE` / `Default` instead of short-circuiting Alma onto an unintended blank lane.
 - Non-default Working Memory reads now surface real backend failures such as auth or connectivity errors instead of quietly pretending there is no briefing.
 - Live settings reload now refreshes the reported ambient-space source as well as the space value itself, so status stays truthful after switching between plugin-owned and inherited lanes.
 - Alma's Working Memory tool no longer fabricates the local `~/ai-now/memory.md` path for non-default spaces when no briefing is available there.
 - Alma's Working Memory tool now returns a structured tool error when a non-default Working Memory request fails upstream, instead of crashing the command handler.
+- Alma now treats a blank `nowledgeMem.space` as “no plugin-owned lane” because Alma's settings API does not distinguish an untouched default from an explicit empty string. That keeps launcher-owned `NMEM_SPACE` usable without forcing users to duplicate the same lane in Alma settings.
 
 ## 0.6.17
 

@@ -58,7 +58,7 @@ test("resolveAmbientSpace resolves configured template", () => {
 	}
 });
 
-test("resolveAmbientSpace preserves explicit empty settings over environment", () => {
+test("resolveAmbientSpace lets blank settings fall back to environment", () => {
 	const previous = process.env.NMEM_SPACE;
 	process.env.NMEM_SPACE = "Env Space";
 	try {
@@ -67,12 +67,61 @@ test("resolveAmbientSpace preserves explicit empty settings over environment", (
 			logger,
 		);
 		assert.deepEqual(resolved, {
-			space: "",
-			source: "settings",
+			space: "Env Space",
+			source: "env",
 		});
 	} finally {
 		if (previous === undefined) delete process.env.NMEM_SPACE;
 		else process.env.NMEM_SPACE = previous;
+	}
+});
+
+test("resolveAmbientSpace falls back to environment when Alma returns default blank settings", () => {
+	const previousSpace = process.env.NMEM_SPACE;
+	const previousTemplateVar = process.env.ALMA_AGENT_NAME;
+	process.env.NMEM_SPACE = "Env Space";
+	delete process.env.ALMA_AGENT_NAME;
+	try {
+		const resolved = resolveAmbientSpace(
+			settings({
+				"nowledgeMem.space": "",
+				"nowledgeMem.spaceTemplate": "",
+			}),
+			logger,
+		);
+		assert.deepEqual(resolved, {
+			space: "Env Space",
+			source: "env",
+		});
+	} finally {
+		if (previousSpace === undefined) delete process.env.NMEM_SPACE;
+		else process.env.NMEM_SPACE = previousSpace;
+		if (previousTemplateVar === undefined) delete process.env.ALMA_AGENT_NAME;
+		else process.env.ALMA_AGENT_NAME = previousTemplateVar;
+	}
+});
+
+test("resolveAmbientSpace falls back to environment when configured template resolves empty", () => {
+	const previousSpace = process.env.NMEM_SPACE;
+	const previousTemplateVar = process.env.ALMA_AGENT_NAME;
+	process.env.NMEM_SPACE = "Env Space";
+	delete process.env.ALMA_AGENT_NAME;
+	try {
+		const resolved = resolveAmbientSpace(
+			settings({
+				"nowledgeMem.spaceTemplate": "agent-${ALMA_AGENT_NAME}",
+			}),
+			logger,
+		);
+		assert.deepEqual(resolved, {
+			space: "Env Space",
+			source: "env",
+		});
+	} finally {
+		if (previousSpace === undefined) delete process.env.NMEM_SPACE;
+		else process.env.NMEM_SPACE = previousSpace;
+		if (previousTemplateVar === undefined) delete process.env.ALMA_AGENT_NAME;
+		else process.env.ALMA_AGENT_NAME = previousTemplateVar;
 	}
 });
 

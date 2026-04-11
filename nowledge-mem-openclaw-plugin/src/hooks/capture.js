@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { isCronSessionKey, isSubagentSessionKey } from "openclaw/plugin-sdk/routing";
 import {
 	buildStableThreadId,
