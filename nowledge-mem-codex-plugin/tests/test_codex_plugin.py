@@ -1,16 +1,15 @@
 import importlib.util
-import json
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from types import ModuleType
 from unittest import mock
-from types import SimpleNamespace
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 HOOK_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem-stop-save.py"
 INSTALL_MODULE_PATH = PLUGIN_ROOT / "scripts" / "install_hooks.py"
+REFRESH_MODULE_PATH = PLUGIN_ROOT / "scripts" / "refresh_thread_titles.py"
 
 
 def load_module(module_name: str, module_path: Path):
@@ -31,6 +30,22 @@ class HookTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp_dir.cleanup()
+
+    def patch_nmem_modules(self, *, parser, api_get_optional=None, api_post=None):
+        package = ModuleType("nmem_cli")
+        cli_module = ModuleType("nmem_cli.cli")
+        cli_module.api_get_optional = api_get_optional or mock.Mock(return_value=None)
+        cli_module.api_post = api_post or mock.Mock()
+        session_module = ModuleType("nmem_cli.session_import")
+        session_module.parse_codex_session_streaming = parser
+        return mock.patch.dict(
+            "sys.modules",
+            {
+                "nmem_cli": package,
+                "nmem_cli.cli": cli_module,
+                "nmem_cli.session_import": session_module,
+            },
+        )
 
     def test_missing_transcript_path_skips_before_path_construction(self):
         status, output = self.module.import_current_transcript(
@@ -59,23 +74,23 @@ class HookTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("transcript_path missing or unreadable", output)
 
-    def test_timeout_from_nmem_is_reported_and_state_not_written(self):
+    def test_api_sync_failure_is_reported_and_state_not_written(self):
         transcript_path = Path(self.temp_dir.name) / "rollout.jsonl"
         transcript_path.write_text("placeholder", encoding="utf-8")
 
         parsed = {
-            "thread_id": "codex-timeout-thread",
-            "title": "Timeout thread",
+            "thread_id": "codex-error-thread",
+            "title": "Error thread",
             "messages": [{"role": "user", "content": "hi"}],
         }
 
-        with mock.patch.object(self.module.shutil, "which", return_value="/usr/bin/nmem"), \
-             mock.patch.dict("sys.modules", {"nmem_cli.session_import": mock.Mock(parse_codex_session_streaming=mock.Mock(return_value=parsed))}), \
-             mock.patch.object(
-                 self.module.subprocess,
-                 "run",
-                 side_effect=subprocess.TimeoutExpired(["nmem"], timeout=5),
-             ):
+        parser_mock = mock.Mock(return_value=parsed)
+        api_post = mock.Mock(side_effect=RuntimeError("boom"))
+        with self.patch_nmem_modules(
+            parser=parser_mock,
+            api_get_optional=mock.Mock(return_value=None),
+            api_post=api_post,
+        ):
             status, output = self.module.import_current_transcript(
                 {
                     "session_id": "session-3",
@@ -86,18 +101,16 @@ class HookTests(unittest.TestCase):
             )
 
         self.assertEqual(status, 0)
-        self.assertIn("timed out", output)
+        self.assertIn("failed to sync", output)
         self.assertFalse(self.module.STATE_FILE.exists())
 
-    def test_resolve_nmem_command_falls_back_to_uvx(self):
-        with mock.patch.object(
-            self.module.shutil,
-            "which",
-            side_effect=[None, None, "/usr/bin/uvx", None],
-        ):
-            command = self.module.resolve_nmem_command()
+    def test_load_json_returns_empty_dict_for_non_object_json(self):
+        payload_path = Path(self.temp_dir.name) / "payload.json"
+        payload_path.write_text('["not", "a", "dict"]', encoding="utf-8")
 
-        self.assertEqual(command, ["/usr/bin/uvx", "--from", "nmem-cli", "nmem"])
+        payload = self.module.load_json(payload_path)
+
+        self.assertEqual(payload, {})
 
     def test_subsequent_import_only_sends_delta_messages(self):
         transcript_path = Path(self.temp_dir.name) / "rollout.jsonl"
@@ -121,17 +134,14 @@ class HookTests(unittest.TestCase):
             ],
         }
 
-        captured_payloads = []
-
-        def fake_run(command, capture_output, text, env, timeout):
-            payload_path = Path(command[command.index("-f") + 1])
-            captured_payloads.append(json.loads(payload_path.read_text(encoding="utf-8")))
-            return SimpleNamespace(returncode=0, stdout='{"success": true}', stderr="")
-
         parser_mock = mock.Mock(side_effect=[parsed_first, parsed_second])
-        with mock.patch.object(self.module.shutil, "which", return_value="/usr/bin/nmem"), \
-             mock.patch.dict("sys.modules", {"nmem_cli.session_import": mock.Mock(parse_codex_session_streaming=parser_mock)}), \
-             mock.patch.object(self.module.subprocess, "run", side_effect=fake_run):
+        api_get_optional = mock.Mock(side_effect=[None, {"thread": {"thread_id": "codex-delta-thread"}}])
+        api_post = mock.Mock()
+        with self.patch_nmem_modules(
+            parser=parser_mock,
+            api_get_optional=api_get_optional,
+            api_post=api_post,
+        ):
             first_status, _ = self.module.import_current_transcript(
                 {
                     "session_id": "session-delta",
@@ -151,10 +161,113 @@ class HookTests(unittest.TestCase):
 
         self.assertEqual(first_status, 0)
         self.assertEqual(second_status, 0)
-        self.assertEqual(len(captured_payloads[0]["messages"]), 2)
-        self.assertEqual(captured_payloads[0]["messages"][0]["content"], "u1")
-        self.assertEqual(len(captured_payloads[1]["messages"]), 1)
-        self.assertEqual(captured_payloads[1]["messages"][0]["content"], "u2")
+        self.assertEqual(api_post.call_count, 2)
+
+        create_endpoint, create_payload = api_post.call_args_list[0].args
+        self.assertEqual(create_endpoint, "/threads")
+        self.assertEqual(len(create_payload["messages"]), 2)
+        self.assertEqual(create_payload["messages"][0]["content"], "u1")
+
+        append_endpoint, append_payload = api_post.call_args_list[1].args
+        self.assertEqual(append_endpoint, "/threads/codex-delta-thread/append")
+        self.assertTrue(append_payload["deduplicate"])
+        self.assertEqual(len(append_payload["messages"]), 1)
+        self.assertEqual(append_payload["messages"][0]["content"], "u2")
+
+    def test_malformed_messages_are_filtered_before_sync(self):
+        transcript_path = Path(self.temp_dir.name) / "rollout.jsonl"
+        transcript_path.write_text("placeholder", encoding="utf-8")
+
+        parsed = {
+            "thread_id": "codex-filter-thread",
+            "title": "Filter thread",
+            "messages": [
+                {"role": "user", "content": "u1"},
+                {"content": "missing-role"},
+                "bad-entry",
+                {"role": "assistant", "content": "a1"},
+            ],
+        }
+
+        api_post = mock.Mock()
+        with self.patch_nmem_modules(
+            parser=mock.Mock(return_value=parsed),
+            api_get_optional=mock.Mock(return_value=None),
+            api_post=api_post,
+        ):
+            status, _ = self.module.import_current_transcript(
+                {
+                    "session_id": "session-filter",
+                    "cwd": "/tmp/project",
+                    "hook_event_name": "Stop",
+                    "transcript_path": str(transcript_path),
+                }
+            )
+
+        self.assertEqual(status, 0)
+        _, payload = api_post.call_args.args
+        self.assertEqual(
+            payload["messages"],
+            [
+                {"role": "user", "content": "u1"},
+                {"role": "assistant", "content": "a1"},
+            ],
+        )
+
+    def test_state_lock_times_out_when_contended(self):
+        with mock.patch.object(self.module.fcntl, "flock", side_effect=BlockingIOError), \
+             mock.patch.object(
+                 self.module.time,
+                 "monotonic",
+                 side_effect=[0.0, 0.0, 0.2, 0.4],
+             ), \
+             mock.patch.object(self.module.time, "sleep"):
+            with self.assertRaises(TimeoutError):
+                with self.module.state_lock(timeout_seconds=0.3):
+                    self.fail("lock should not be acquired")
+
+    def test_missing_remote_thread_recreates_full_transcript(self):
+        transcript_path = Path(self.temp_dir.name) / "rollout.jsonl"
+        transcript_path.write_text("placeholder", encoding="utf-8")
+
+        parsed = {
+            "thread_id": "codex-recreate-thread",
+            "title": "Recreate thread",
+            "messages": [
+                {"role": "user", "content": "u1"},
+                {"role": "assistant", "content": "a1"},
+                {"role": "user", "content": "u2"},
+            ],
+        }
+
+        state = {
+            "session-recreate": {
+                "thread_id": "codex-recreate-thread",
+                "message_count": 2,
+                "source_file": str(transcript_path),
+            }
+        }
+        self.module.save_json(self.module.STATE_FILE, state)
+
+        api_post = mock.Mock()
+        with self.patch_nmem_modules(
+            parser=mock.Mock(return_value=parsed),
+            api_get_optional=mock.Mock(return_value=None),
+            api_post=api_post,
+        ):
+            status, _ = self.module.import_current_transcript(
+                {
+                    "session_id": "session-recreate",
+                    "cwd": "/tmp/project",
+                    "hook_event_name": "Stop",
+                    "transcript_path": str(transcript_path),
+                }
+            )
+
+        self.assertEqual(status, 0)
+        endpoint, payload = api_post.call_args.args
+        self.assertEqual(endpoint, "/threads")
+        self.assertEqual(len(payload["messages"]), 3)
 
     def test_title_skips_agents_preamble_and_uses_first_real_user_message(self):
         parsed = {
@@ -323,6 +436,41 @@ class InstallHookTests(unittest.TestCase):
         self.assertEqual(updated.count("codex_hooks = true"), 1)
         self.assertNotIn("codex_hooks = false", updated)
         self.assertIn("[features]\ncodex_hooks = true\napps = true\n", updated)
+
+
+class RefreshThreadTitleTests(unittest.TestCase):
+    def setUp(self):
+        self.module = load_module("refresh_thread_titles", REFRESH_MODULE_PATH)
+
+    def test_refresh_thread_restores_original_messages_on_failure(self):
+        cli_mock = mock.Mock()
+        cli_mock.api_post.side_effect = [RuntimeError("create failed"), None]
+
+        with mock.patch.object(self.module, "cli", cli_mock):
+            with self.assertRaises(RuntimeError):
+                self.module.refresh_thread(
+                    thread_id="codex-thread-1",
+                    title="New title",
+                    messages=[{"role": "user", "content": "new"}],
+                    dry_run=False,
+                    original_title="Old title",
+                    original_messages=[{"role": "user", "content": "old"}],
+                )
+
+        self.assertEqual(cli_mock.api_delete.call_count, 1)
+        self.assertEqual(cli_mock.api_post.call_count, 2)
+
+        first_endpoint, first_payload = cli_mock.api_post.call_args_list[0].args
+        self.assertEqual(first_endpoint, "/threads")
+        self.assertEqual(first_payload["title"], "New title")
+
+        restore_endpoint, restore_payload = cli_mock.api_post.call_args_list[1].args
+        self.assertEqual(restore_endpoint, "/threads")
+        self.assertEqual(restore_payload["title"], "Old title")
+        self.assertEqual(
+            restore_payload["messages"],
+            [{"role": "user", "content": "old"}],
+        )
 
 
 if __name__ == "__main__":

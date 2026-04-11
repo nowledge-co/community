@@ -37,22 +37,59 @@ def get_thread(thread_id: str) -> dict | None:
     )
 
 
-def refresh_thread(thread_id: str, title: str, messages: list[dict], dry_run: bool) -> None:
+def build_thread_payload(
+    thread_id: str,
+    title: str,
+    messages: list[dict],
+    thread: dict | None = None,
+) -> dict:
+    thread = thread or {}
+    return {
+        "thread_id": thread_id,
+        "title": title,
+        "source": thread.get("source") or "codex",
+        "project": thread.get("project"),
+        "workspace": thread.get("workspace"),
+        "metadata": thread.get("metadata") or {},
+        "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
+    }
+
+
+def refresh_thread(
+    thread_id: str,
+    title: str,
+    messages: list[dict],
+    dry_run: bool,
+    original_title: str | None = None,
+    original_messages: list[dict] | None = None,
+    thread: dict | None = None,
+) -> None:
     if dry_run:
         print(f"DRY RUN refresh {thread_id} -> {title}", flush=True)
         return
 
-    cli.api_delete(f"/threads/{quote(thread_id, safe='')}")
-    cli.api_post(
-        "/threads/import",
-        {
-            "thread_id": thread_id,
-            "title": title,
-            "source": "codex",
-            "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
-        },
-        timeout=IMPORT_TIMEOUT_SECONDS,
-    )
+    encoded_thread_id = quote(thread_id, safe='')
+    replacement_payload = build_thread_payload(thread_id, title, messages, thread=thread)
+    cli.api_delete(f"/threads/{encoded_thread_id}")
+    try:
+        cli.api_post(
+            "/threads",
+            replacement_payload,
+            timeout=IMPORT_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        if original_title is not None and original_messages is not None:
+            cli.api_post(
+                "/threads",
+                build_thread_payload(
+                    thread_id,
+                    original_title,
+                    original_messages,
+                    thread=thread,
+                ),
+                timeout=IMPORT_TIMEOUT_SECONDS,
+            )
+        raise
     print(f"REFRESHED {thread_id} -> {title}", flush=True)
 
 
@@ -106,7 +143,15 @@ def main() -> int:
             continue
 
         try:
-            refresh_thread(thread_id, desired_title, parsed.get("messages", []), args.dry_run)
+            refresh_thread(
+                thread_id,
+                desired_title,
+                parsed.get("messages", []),
+                args.dry_run,
+                original_title=current_title,
+                original_messages=thread_payload.get("messages", []),
+                thread=thread,
+            )
             refreshed += 1
         except SystemExit as exc:
             errors += 1

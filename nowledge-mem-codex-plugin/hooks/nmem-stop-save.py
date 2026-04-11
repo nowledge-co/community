@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 import tempfile
+import time
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 
 HOME = Path.home()
 CODEX_DIR = HOME / ".codex"
 LOG_FILE = CODEX_DIR / "log" / "nowledge-mem-stop-hook.log"
 STATE_FILE = CODEX_DIR / "nowledge_mem_codex_hook_state.json"
-IMPORT_TIMEOUT_SECONDS = 30
+STATE_LOCK_FILE = CODEX_DIR / "nowledge_mem_codex_hook_state.lock"
+LOCK_TIMEOUT_SECONDS = 2.0
 
 
 def ensure_parent(path: Path) -> None:
@@ -35,14 +38,51 @@ def load_json(path: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else {}
     except Exception:
         return {}
 
 
 def save_json(path: Path, payload: dict) -> None:
     ensure_parent(path)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            delete=False,
+            dir=path.parent,
+            encoding="utf-8",
+        ) as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            temp_path = Path(handle.name)
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+
+
+@contextmanager
+def state_lock(
+    lock_path: Path = STATE_LOCK_FILE,
+    timeout_seconds: float = LOCK_TIMEOUT_SECONDS,
+):
+    ensure_parent(lock_path)
+    with lock_path.open("a+", encoding="utf-8") as handle:
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"timed out waiting for lock {lock_path}")
+                time.sleep(0.05)
+
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def configure_nmem_env() -> None:
@@ -54,18 +94,6 @@ def configure_nmem_env() -> None:
         os.environ["NMEM_API_URL"] = str(api_url)
     if api_key and "NMEM_API_KEY" not in os.environ:
         os.environ["NMEM_API_KEY"] = str(api_key)
-
-
-def resolve_nmem_command() -> list[str] | None:
-    nmem_bin = shutil.which("nmem") or shutil.which("nmem.cmd")
-    if nmem_bin:
-        return [nmem_bin]
-
-    uvx_bin = shutil.which("uvx") or shutil.which("uvx.cmd")
-    if uvx_bin:
-        return [uvx_bin, "--from", "nmem-cli", "nmem"]
-
-    return None
 
 
 def shorten_title(text: str, limit: int = 60) -> str:
@@ -168,14 +196,12 @@ def import_current_transcript(payload: dict) -> tuple[int, str]:
         return 0, f"skip: transcript_path missing or unreadable for session={session_id}"
     log(f"transcript={transcript_path}")
 
-    nmem_command = resolve_nmem_command()
-    if not nmem_command:
-        return 0, "skip: neither nmem nor uvx was found in PATH"
-
+    configure_nmem_env()
     try:
+        from nmem_cli.cli import api_get_optional, api_post
         from nmem_cli.session_import import parse_codex_session_streaming
     except Exception as exc:
-        return 0, f"skip: failed to import nmem_cli parser: {exc}"
+        return 0, f"skip: failed to import nmem_cli modules: {exc}"
 
     try:
         parsed = parse_codex_session_streaming(transcript_path, truncate_large_content=True)
@@ -183,8 +209,9 @@ def import_current_transcript(payload: dict) -> tuple[int, str]:
         return 0, f"skip: failed to parse codex rollout: {exc}"
 
     messages = [
-        {"role": message.get("role"), "content": message.get("content", "")}
+        {"role": message["role"], "content": message.get("content", "")}
         for message in parsed.get("messages", [])
+        if isinstance(message, dict) and message.get("role")
     ]
     if not messages:
         return 0, f"skip: parsed zero messages for session={session_id}"
@@ -195,66 +222,80 @@ def import_current_transcript(payload: dict) -> tuple[int, str]:
         json.dumps(messages, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()
 
-    state = load_json(STATE_FILE)
-    previous = state.get(session_id, {})
-    if (
-        previous.get("content_hash") == content_hash
-        and previous.get("message_count") == message_count
-    ):
-        return 0, f"skip: unchanged transcript for session={session_id}"
-
-    import_messages = messages
-    previous_count = previous.get("message_count")
-    if (
-        isinstance(previous_count, int)
-        and previous_count > 0
-        and previous_count < message_count
-        and previous.get("thread_id") == thread_id
-        and previous.get("source_file") == str(transcript_path)
-    ):
-        import_messages = messages[previous_count:]
-
-    if not import_messages:
-        return 0, f"skip: no new messages for session={session_id}"
-
-    import_payload = {
-        "title": derive_thread_title(parsed, cwd),
-        "messages": import_messages,
-    }
-
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as handle:
-        json.dump(import_payload, handle, ensure_ascii=False)
-        temp_path = Path(handle.name)
+    title = derive_thread_title(parsed, cwd)
+    workspace = parsed.get("workspace") or cwd or None
+    project = Path(cwd).name if cwd else None
+    metadata = parsed.get("metadata") or {}
 
     try:
-        command = [*nmem_command, "--json", "t", "import", "-f", str(temp_path), "--id", thread_id, "-s", "codex"]
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            env=os.environ.copy(),
-            timeout=IMPORT_TIMEOUT_SECONDS,
-        )
-    except subprocess.TimeoutExpired:
-        return 0, f"skip: nmem import timed out after {IMPORT_TIMEOUT_SECONDS}s for thread={thread_id}"
-    finally:
-        try:
-            temp_path.unlink(missing_ok=True)
-        except Exception:
-            pass
+        with state_lock():
+            state = load_json(STATE_FILE)
+            previous = state.get(session_id, {})
+            if (
+                previous.get("content_hash") == content_hash
+                and previous.get("message_count") == message_count
+            ):
+                return 0, f"skip: unchanged transcript for session={session_id}"
 
-    output = (result.stdout or "") + (result.stderr or "")
-    if result.returncode == 0:
-        state[session_id] = {
-            "content_hash": content_hash,
-            "message_count": message_count,
-            "thread_id": thread_id,
-            "source_file": str(transcript_path),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
-        save_json(STATE_FILE, state)
+            import_messages = messages
+            previous_count = previous.get("message_count")
+            if (
+                isinstance(previous_count, int)
+                and previous_count > 0
+                and previous_count < message_count
+                and previous.get("thread_id") == thread_id
+                and previous.get("source_file") == str(transcript_path)
+            ):
+                import_messages = messages[previous_count:]
 
-    return result.returncode, output.strip()
+            if not import_messages:
+                return 0, f"skip: no new messages for session={session_id}"
+
+        encoded_thread_id = quote(thread_id, safe='')
+        existing_thread = api_get_optional(f"/threads/{encoded_thread_id}")
+
+        if existing_thread is None:
+            api_post(
+                "/threads",
+                {
+                    "thread_id": thread_id,
+                    "title": title,
+                    "messages": messages,
+                    "source": "codex",
+                    "project": project,
+                    "workspace": workspace,
+                    "metadata": metadata,
+                },
+            )
+            action = "created"
+            synced_messages = len(messages)
+        else:
+            api_post(
+                f"/threads/{encoded_thread_id}/append",
+                {
+                    "messages": import_messages,
+                    "deduplicate": True,
+                },
+            )
+            action = "appended"
+            synced_messages = len(import_messages)
+
+        with state_lock():
+            state = load_json(STATE_FILE)
+            state[session_id] = {
+                "content_hash": content_hash,
+                "message_count": message_count,
+                "thread_id": thread_id,
+                "source_file": str(transcript_path),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            save_json(STATE_FILE, state)
+    except TimeoutError as exc:
+        return 0, f"skip: failed to lock state file for session={session_id}: {exc}"
+    except Exception as exc:
+        return 0, f"skip: failed to sync thread={thread_id}: {exc}"
+
+    return 0, f"{action}: thread={thread_id} synced_messages={synced_messages} total_messages={message_count}"
 
 
 def main() -> int:
