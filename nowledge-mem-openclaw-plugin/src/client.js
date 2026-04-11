@@ -87,6 +87,7 @@ export class NowledgeMemClient {
 			credentials,
 			"spaceId",
 		);
+		this._hasExplicitSpace = hasSpace || hasSpaceId;
 		const resolvedSpace = hasSpace
 			? credentials.space
 			: hasSpaceId
@@ -219,7 +220,8 @@ export class NowledgeMemClient {
 		return buildNmemSpawnEnv({
 			apiUrl: this._apiUrl,
 			apiKey: this._apiKey,
-			spaceId: this._spaceRef || undefined,
+			spaceId: this._spaceRef,
+			hasExplicitSpace: this._hasExplicitSpace,
 		});
 	}
 

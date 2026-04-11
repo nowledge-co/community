@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 
 import { parseConfig } from "../src/config.js";
 import { NowledgeMemClient } from "../src/client.js";
+import { buildNmemSpawnEnv } from "../src/spawn-env.js";
 
 const logger = {
 	info() {},
@@ -128,6 +129,27 @@ test("client preserves explicit default-space choice over ambient env", () => {
 	} finally {
 		if (previous === undefined) delete process.env.NMEM_SPACE;
 		else process.env.NMEM_SPACE = previous;
+	}
+});
+
+test("spawn env clears inherited ambient lane for explicit default-space override", () => {
+	const previousSpace = process.env.NMEM_SPACE;
+	const previousSpaceId = process.env.NMEM_SPACE_ID;
+	process.env.NMEM_SPACE = "Env Space";
+	process.env.NMEM_SPACE_ID = "Env Space";
+	try {
+		const env = buildNmemSpawnEnv({
+			apiUrl: "http://127.0.0.1:14242",
+			hasExplicitSpace: true,
+			spaceId: "",
+		});
+		assert.equal(env.NMEM_SPACE, undefined);
+		assert.equal(env.NMEM_SPACE_ID, undefined);
+	} finally {
+		if (previousSpace === undefined) delete process.env.NMEM_SPACE;
+		else process.env.NMEM_SPACE = previousSpace;
+		if (previousSpaceId === undefined) delete process.env.NMEM_SPACE_ID;
+		else process.env.NMEM_SPACE_ID = previousSpaceId;
 	}
 });
 

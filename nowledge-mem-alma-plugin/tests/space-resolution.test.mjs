@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { NowledgeMemClient, resolveAmbientSpace } from "../main.js";
+import {
+	NowledgeMemClient,
+	resolveAmbientSpace,
+	resolveWorkingMemoryToolPath,
+} from "../main.js";
 
 const logger = {
 	info() {},
@@ -100,4 +104,23 @@ test("readWorkingMemory rethrows backend errors for non-default spaces", async (
 	};
 
 	await assert.rejects(() => client.readWorkingMemory(), /HTTP 401/);
+});
+
+test("Working Memory tool path only falls back locally for Default space", () => {
+	assert.equal(
+		resolveWorkingMemoryToolPath("Research Agent", {
+			available: false,
+			content: "",
+			path: null,
+		}),
+		null,
+	);
+	assert.match(
+		resolveWorkingMemoryToolPath("", {
+			available: true,
+			content: "hello",
+			path: null,
+		}),
+		/\/ai-now\/memory\.md$/,
+	);
 });

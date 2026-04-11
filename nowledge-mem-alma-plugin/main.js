@@ -72,6 +72,19 @@ export function resolveAmbientSpace(settingsApi, logger = console) {
 	return { space: "", source: "default" };
 }
 
+export function resolveWorkingMemoryToolPath(spaceRef, wm) {
+	if (typeof wm?.path === "string" && wm.path.trim()) {
+		return wm.path;
+	}
+	if (!wm?.available) {
+		return null;
+	}
+	if (!spaceRef || spaceRef.toLowerCase() === "default") {
+		return `${homedir()}/ai-now/memory.md`;
+	}
+	return null;
+}
+
 function escapeForInline(text, maxLength = 220) {
 	const normalized = String(text ?? "")
 		.replace(/\s+/g, " ")
@@ -1046,12 +1059,13 @@ export async function activate(context) {
 		parameters: { type: "object", properties: {} },
 		async execute() {
 			const wm = await client.readWorkingMemory();
+			const path = resolveWorkingMemoryToolPath(client._spaceRef, wm);
 			if (!wm.available) {
 				return {
 					ok: true,
 					available: false,
 					content: "",
-					path: wm.path ?? `${homedir()}/ai-now/memory.md`,
+					path,
 					lastModified: wm.lastModified ?? null,
 				};
 			}
@@ -1059,7 +1073,7 @@ export async function activate(context) {
 				ok: true,
 				available: true,
 				content: wm.content,
-				path: wm.path ?? `${homedir()}/ai-now/memory.md`,
+				path,
 				lastModified: wm.lastModified ?? null,
 			};
 		},

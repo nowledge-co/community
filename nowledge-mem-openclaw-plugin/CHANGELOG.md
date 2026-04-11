@@ -7,6 +7,7 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 ### Fixed
 
 - OpenClaw now preserves an explicit empty `space` setting as a real choice to stay on `Default`, instead of silently falling through to ambient `NMEM_SPACE`.
+- CLI-backed OpenClaw operations now honor that same explicit Default-space choice. Earlier builds could still inherit `NMEM_SPACE` in child `nmem` processes, which split CLI-backed reads and writes away from HTTP-backed thread sync.
 - Fallback HTTP requests now carry the ambient lane through one shared path, so direct API calls stay aligned with CLI-backed memory operations.
 - `nowledge_mem_status` now reports the configured Context Engine slot correctly instead of reading from an unset field.
 - Legacy `~/.nowledge-mem/openclaw.json` now gets the same strict key validation as dashboard config, so typoed or unsupported keys fail loudly instead of silently altering runtime behavior.
