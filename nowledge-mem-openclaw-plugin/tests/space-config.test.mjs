@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -177,4 +177,10 @@ test("apiJson injects ambient space into fallback HTTP requests", async () => {
 	} finally {
 		globalThis.fetch = previousFetch;
 	}
+});
+
+test("client source avoids the OpenClaw env-plus-fetch security scan pattern", () => {
+	const source = readFileSync(new URL("../src/client.js", import.meta.url), "utf8");
+	assert.match(source, /\bfetch\s*\(/);
+	assert.doesNotMatch(source, /process\.env/);
 });
