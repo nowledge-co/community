@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Empty Space preference now really means Default**: leaving Raycast's `Space` preference empty no longer falls through to `~/.nowledge-mem/config.json`. Raycast now stays on `Default` unless you explicitly choose a named lane.
+- **Blank Raycast Space now follows shared config again**: leaving Raycast's `Space` preference empty now falls back to `~/.nowledge-mem/config.json` when it defines a lane, and only stays on `Default` when no shared lane is configured.
 - **POST commands now match GET commands for Default space**: Raycast no longer serializes `space_id: ""` on search and create requests, so empty `Space` behaves consistently across all commands.
 
 ## [Fixed Space Lane] - 2026-04-10

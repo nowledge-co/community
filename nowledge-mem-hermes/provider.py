@@ -482,8 +482,13 @@ class NowledgeMemProvider(MemoryProvider):
                     cfg = json.loads(config_path.read_text())
                     if isinstance(cfg, dict):
                         return cfg
-                except Exception:
-                    pass
+                except Exception as err:
+                    logger.debug(
+                        "Failed to parse nowledge-mem config %s under hermes_home=%s: %s",
+                        config_path,
+                        hermes_home,
+                        err,
+                    )
         return {}
 
     @staticmethod

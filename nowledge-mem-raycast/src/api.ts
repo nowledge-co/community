@@ -47,8 +47,9 @@ function resolveConfiguredSpacePreference(
   preferenceSpace: string | undefined,
   configSpace: string | undefined,
 ): string | undefined {
-  if (typeof preferenceSpace === "string") {
-    return normalizeSpace(preferenceSpace) ?? "";
+  const normalizedPreference = normalizeSpace(preferenceSpace);
+  if (normalizedPreference) {
+    return normalizedPreference;
   }
   return configSpace;
 }

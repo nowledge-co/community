@@ -9,6 +9,7 @@
 - Non-default Working Memory reads now surface real backend failures such as auth or connectivity errors instead of quietly pretending there is no briefing.
 - Live settings reload now refreshes the reported ambient-space source as well as the space value itself, so status stays truthful after switching between plugin-owned and inherited lanes.
 - Alma's Working Memory tool no longer fabricates the local `~/ai-now/memory.md` path for non-default spaces when no briefing is available there.
+- Alma's Working Memory tool now returns a structured tool error when a non-default Working Memory request fails upstream, instead of crashing the command handler.
 
 ## 0.6.17
 

@@ -6,7 +6,7 @@ import {
 	buildStableThreadId,
 	registerSessionEndConversation,
 	registerSessionStartConversation,
-} from "../src/hooks/capture.js";
+} from "../src/hooks/thread-identity.js";
 
 test.beforeEach(() => {
 	_resetConversationRoots();

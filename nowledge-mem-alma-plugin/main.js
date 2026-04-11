@@ -1060,24 +1060,28 @@ export async function activate(context) {
 		inputSchema: { type: "object", properties: {} },
 		parameters: { type: "object", properties: {} },
 		async execute() {
-			const wm = await client.readWorkingMemory();
-			const path = resolveWorkingMemoryToolPath(client._spaceRef, wm);
-			if (!wm.available) {
+			try {
+				const wm = await client.readWorkingMemory();
+				const path = resolveWorkingMemoryToolPath(client._spaceRef, wm);
+				if (!wm.available) {
+					return {
+						ok: true,
+						available: false,
+						content: "",
+						path,
+						lastModified: wm.lastModified ?? null,
+					};
+				}
 				return {
 					ok: true,
-					available: false,
-					content: "",
+					available: true,
+					content: wm.content,
 					path,
 					lastModified: wm.lastModified ?? null,
 				};
+			} catch (err) {
+				return cliErrorResult(err, "working_memory");
 			}
-			return {
-				ok: true,
-				available: true,
-				content: wm.content,
-				path,
-				lastModified: wm.lastModified ?? null,
-			};
 		},
 	});
 

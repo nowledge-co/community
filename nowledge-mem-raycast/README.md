@@ -53,7 +53,7 @@ Each morning, Nowledge Mem generates a Working Memory briefing summarizing what 
 |---|---|---|
 | Server URL | `http://127.0.0.1:14242` | Nowledge Mem server address. Leave as local default, or point it at your remote Mem URL. |
 | API Key | empty | Optional remote Mem API key. Sent as `Authorization: Bearer ...` and `X-NMEM-API-Key`. |
-| Space | empty | Optional fixed space name for this Raycast profile. Leave empty to stay in `Default`. |
+| Space | empty | Optional fixed space name for this Raycast profile. Leave empty to use `~/.nowledge-mem/config.json` if it defines a space, or `Default` if it does not. |
 
 If preferences are empty, the extension also checks `~/.nowledge-mem/config.json` for `apiUrl`, `apiKey`, and `space`.
 
@@ -61,7 +61,7 @@ If preferences are empty, the extension also checks `~/.nowledge-mem/config.json
 
 Raycast is a launcher, not a multi-agent harness. The right model here is one optional fixed lane:
 
-- Leave **Space** empty if you want Raycast to stay on **Default**
+- Leave **Space** empty to follow `~/.nowledge-mem/config.json` when it defines a lane, or `Default` when it does not
 - Set **Space** when this Raycast profile always belongs to one stable lane, such as `Research Agent` or `Personal`
 - Do not expect Raycast to derive per-agent routing on its own
 

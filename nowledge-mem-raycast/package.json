@@ -88,7 +88,7 @@
     {
       "name": "space",
       "title": "Space",
-      "description": "Optional fixed memory space name for this Raycast profile. Leave empty to stay in Default.",
+      "description": "Optional fixed memory space name for this Raycast profile. Leave empty to use shared nmem config, or Default if none is configured.",
       "type": "textfield",
       "required": false
     }

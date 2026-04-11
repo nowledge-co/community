@@ -568,7 +568,7 @@ export class NowledgeMemClient {
 			if (dateTo) qs.set("date_to", String(dateTo));
 			const data = await this.apiJson(
 				"GET",
-				this._withSpaceQuery(`/agent/feed/events?${qs.toString()}`),
+				`/agent/feed/events?${qs.toString()}`,
 			);
 			return Array.isArray(data) ? data : (data.events ?? []);
 		}
@@ -598,12 +598,12 @@ export class NowledgeMemClient {
 		const data = await this.apiJson(
 			"POST",
 			"/threads",
-			this._withSpaceBody({
+			{
 				...(threadId ? { thread_id: String(threadId) } : {}),
 				title: normalizedTitle,
 				source: String(source),
 				messages,
-			}),
+			},
 		);
 
 		return String(
@@ -628,13 +628,13 @@ export class NowledgeMemClient {
 		const data = await this.apiJson(
 			"POST",
 			`/threads/${encodeURIComponent(normalizedThreadId)}/append`,
-			this._withSpaceBody({
+			{
 				messages,
 				deduplicate,
 				...(idempotencyKey
 					? { idempotency_key: String(idempotencyKey) }
 					: {}),
-			}),
+			},
 		);
 		return {
 			messagesAdded: Number(data.messages_added ?? 0),
@@ -651,9 +651,7 @@ export class NowledgeMemClient {
 		try {
 			const data = await this.apiJson(
 				"GET",
-				this._withSpaceQuery(
-					`/threads/${encodeURIComponent(normalizedThreadId)}?limit=1`,
-				),
+				`/threads/${encodeURIComponent(normalizedThreadId)}?limit=1`,
 				undefined,
 				15_000,
 			);
@@ -739,7 +737,7 @@ export class NowledgeMemClient {
 			return this.apiJson(
 				"PUT",
 				"/agent/working-memory",
-				this._withSpaceBody({ content: updated }),
+				{ content: updated },
 			);
 		}
 	}
@@ -804,7 +802,7 @@ export class NowledgeMemClient {
 		try {
 			const data = await this.apiJson(
 				"GET",
-				this._withSpaceQuery(`/threads/search?${qs.toString()}`),
+				`/threads/search?${qs.toString()}`,
 			);
 			return {
 				threads: data.threads ?? [],
@@ -869,7 +867,7 @@ export class NowledgeMemClient {
 			if (source) qs.set("source", String(source));
 			const data = await this.apiJson(
 				"GET",
-				this._withSpaceQuery(`/threads/search?${qs.toString()}`),
+				`/threads/search?${qs.toString()}`,
 			);
 			return {
 				threads: data.threads ?? [],
@@ -933,9 +931,7 @@ export class NowledgeMemClient {
 			}
 			const data = await this.apiJson(
 				"GET",
-				this._withSpaceQuery(
-					`/threads/${encodeURIComponent(id)}?${qs.toString()}`,
-				),
+				`/threads/${encodeURIComponent(id)}?${qs.toString()}`,
 			);
 			return {
 				threadId: data.thread_id ?? data.id ?? id,
