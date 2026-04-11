@@ -488,24 +488,27 @@ class NowledgeMemProvider(MemoryProvider):
 
     @staticmethod
     def _resolve_space(config: Dict[str, Any], kwargs: Dict[str, Any]) -> str | None:
-        configured_space = str(config.get("space") or "").strip()
-        if configured_space:
-            return configured_space
+        if "space" in config:
+            raw_space = config.get("space")
+            if isinstance(raw_space, str):
+                return raw_space.strip()
+            return None
 
-        identity = str(kwargs.get("agent_identity", "default") or "default").strip()
+        raw_identity = kwargs.get("agent_identity")
+        identity = str(raw_identity or "").strip()
         identity_map = config.get("space_by_identity")
         if isinstance(identity_map, str):
             try:
                 identity_map = json.loads(identity_map)
             except Exception:
                 identity_map = None
-        if isinstance(identity_map, dict):
+        if identity and isinstance(identity_map, dict):
             mapped = identity_map.get(identity)
             if isinstance(mapped, str) and mapped.strip():
                 return mapped.strip()
 
         template = str(config.get("space_template") or "").strip()
-        if template:
+        if identity and template:
             resolved = template.replace("{identity}", identity)
             resolved = " ".join(resolved.split()).strip()
             if resolved:

@@ -136,6 +136,12 @@ function pickStr(obj, key) {
 	return trimmed || undefined;
 }
 
+function pickPresentString(obj, key) {
+	if (!Object.prototype.hasOwnProperty.call(obj, key)) return undefined;
+	if (typeof obj[key] !== "string") return undefined;
+	return obj[key].trim();
+}
+
 function resolveEnvTemplate(value) {
 	return value.replace(/\$\{([^}]+)\}/g, (_, envVar) => {
 		const envValue = process.env[envVar];
@@ -238,16 +244,19 @@ export function parseConfig(raw, logger) {
 	const resolvedPlugin = resolveAliases(pluginCfg);
 	const resolvedFile = resolveAliases(fileCfg);
 
-	// Strict: reject unknown keys in pluginConfig (typo catcher).
-	const unknownKeys = Object.keys(resolvedPlugin).filter(
-		(k) => !ALLOWED_KEYS.has(k),
-	);
-	if (unknownKeys.length > 0) {
-		throw new Error(
-			`nowledge-mem: unknown config key${unknownKeys.length > 1 ? "s" : ""}: ${unknownKeys.join(", ")}. ` +
-				`Allowed keys: ${[...ALLOWED_KEYS].filter((k) => !Object.keys(ALIAS_KEYS).includes(k)).join(", ")}`,
-		);
-	}
+	const validateKnownKeys = (obj, sourceLabel) => {
+		const unknownKeys = Object.keys(obj).filter((k) => !ALLOWED_KEYS.has(k));
+		if (unknownKeys.length > 0) {
+			throw new Error(
+				`nowledge-mem: unknown config key${unknownKeys.length > 1 ? "s" : ""} in ${sourceLabel}: ${unknownKeys.join(", ")}. ` +
+					`Allowed keys: ${[...ALLOWED_KEYS].filter((k) => !Object.keys(ALIAS_KEYS).includes(k)).join(", ")}`,
+			);
+		}
+	};
+
+	// Strict: reject unknown keys in both legacy file config and dashboard config.
+	validateKnownKeys(resolvedFile, "~/.nowledge-mem/openclaw.json");
+	validateKnownKeys(resolvedPlugin, "plugin config");
 
 	const _sources = {};
 
@@ -375,8 +384,8 @@ export function parseConfig(raw, logger) {
 	_sources.apiKey = ak.source;
 
 	// --- space: file (legacy) > pluginConfig > template > env > default ---
-	const fs = pickStr(resolvedFile, "space");
-	const ps = pickStr(resolvedPlugin, "space");
+	const fs = pickPresentString(resolvedFile, "space");
+	const ps = pickPresentString(resolvedPlugin, "space");
 	const fst = pickStr(resolvedFile, "spaceTemplate");
 	const pst = pickStr(resolvedPlugin, "spaceTemplate");
 	const spaceChoice = firstDefined(

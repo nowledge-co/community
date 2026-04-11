@@ -135,7 +135,8 @@ See [Remote Access](https://mem.nowledge.co/docs/remote-access) for details.
 Spaces are optional. If one Codex session naturally belongs to one project or agent lane, launch Codex with:
 
 ```bash
-NMEM_SPACE="Research Agent"
+export NMEM_SPACE="Research Agent"
+codex
 ```
 
 The Working Memory bootstrap, search-memory skill, save-thread skill, distill-memory skill, and direct `nmem` fallbacks will then stay in that lane automatically.

@@ -50,5 +50,8 @@ test("status tool reports the configured context engine slot", async () => {
 
 	assert.equal(result.details.contextEngineSlot, "nowledge-mem");
 	assert.equal(result.details.captureMode, "context-engine+hooks");
+	assert.equal(result.details.space, null);
+	assert.equal(result.details.spaceSource, "default");
 	assert.match(result.content[0].text, /Context Engine slot: nowledge-mem \(active\)/);
+	assert.match(result.content[0].text, /Ambient space:/);
 });

@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 
 import { parseConfig } from "../src/config.js";
 import { NowledgeMemClient } from "../src/client.js";
@@ -55,6 +59,43 @@ test("parseConfig does not evaluate lower-priority templates eagerly", () => {
 	} finally {
 		delete process.env.MISSING_OPENCLAW_SPACE;
 	}
+});
+
+test("parseConfig preserves explicit empty space over ambient env", () => {
+	const previous = process.env.NMEM_SPACE;
+	process.env.NMEM_SPACE = "Env Space";
+	try {
+		const cfg = parseConfig({ space: "" }, logger);
+		assert.equal(cfg.space, "");
+		assert.equal(cfg._sources.space, "pluginConfig");
+	} finally {
+		if (previous === undefined) delete process.env.NMEM_SPACE;
+		else process.env.NMEM_SPACE = previous;
+	}
+});
+
+test("parseConfig rejects unknown keys in legacy file config", () => {
+	const tempHome = mkdtempSync(join(tmpdir(), "nmem-openclaw-home-"));
+	mkdirSync(join(tempHome, ".nowledge-mem"), { recursive: true });
+	writeFileSync(
+		join(tempHome, ".nowledge-mem", "openclaw.json"),
+		JSON.stringify({ space: "Research Agent", typoKey: true }),
+		"utf8",
+	);
+	const result = spawnSync(
+		process.execPath,
+		[
+			"--input-type=module",
+			"-e",
+			`import { parseConfig } from ${JSON.stringify(new URL("../src/config.js", import.meta.url).pathname)}; parseConfig({}, console);`,
+		],
+		{
+			env: { ...process.env, HOME: tempHome },
+			encoding: "utf8",
+		},
+	);
+	assert.notEqual(result.status, 0);
+	assert.match(result.stderr, /unknown config key.*openclaw\.json/i);
 });
 
 test("client injects ambient space into API query and body paths", () => {

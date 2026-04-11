@@ -493,7 +493,7 @@
         "bootstrap": "guided",
         "recall": "guided",
         "distill": "guided",
-        "threads": "automatic-capture",
+        "threads": "explicit-save",
         "bestResultRequires": [
           "Install the native OpenCode plugin",
           "Use local mode for real session auto-sync",

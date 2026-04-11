@@ -576,7 +576,8 @@ export async function activate(context) {
 				if (
 					newApiUrl !== apiUrl ||
 					newApiKey !== apiKey ||
-					nextAmbientSpace.space !== ambientSpace.space
+					nextAmbientSpace.space !== ambientSpace.space ||
+					nextAmbientSpace.source !== ambientSpace.source
 				) {
 					apiUrl = newApiUrl;
 					apiKey = newApiKey;

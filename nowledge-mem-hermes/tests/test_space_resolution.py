@@ -103,6 +103,31 @@ class SpaceResolutionTests(unittest.TestCase):
         finally:
             provider.NowledgeMemClient = original_client
 
+    def test_explicit_empty_space_beats_environment(self):
+        previous = os.environ.get("NMEM_SPACE")
+        os.environ["NMEM_SPACE"] = "Env Space"
+        try:
+            resolved = provider.NowledgeMemProvider._resolve_space(
+                {"space": ""},
+                {},
+            )
+            self.assertEqual(resolved, "")
+        finally:
+            if previous is None:
+                os.environ.pop("NMEM_SPACE", None)
+            else:
+                os.environ["NMEM_SPACE"] = previous
+
+    def test_missing_identity_does_not_synthesize_space(self):
+        resolved = provider.NowledgeMemProvider._resolve_space(
+            {
+                "space_by_identity": {"default": "Default Agent"},
+                "space_template": "agent-{identity}",
+            },
+            {},
+        )
+        self.assertIsNone(resolved)
+
 
 if __name__ == "__main__":
     unittest.main()
