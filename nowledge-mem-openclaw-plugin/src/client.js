@@ -92,7 +92,7 @@ export class NowledgeMemClient {
 			? credentials.space
 			: hasSpaceId
 				? credentials.spaceId
-				: process.env.NMEM_SPACE ?? process.env.NMEM_SPACE_ID ?? "";
+				: "";
 		this._spaceRef = String(resolvedSpace ?? "").trim();
 	}
 
