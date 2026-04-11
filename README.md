@@ -16,7 +16,15 @@
 
 ## Registry
 
-The canonical source of truth for all integrations is [`integrations.json`](integrations.json). Capabilities, install commands, transport, tool naming, and thread save methods are tracked there. Update the registry first when adding or modifying integrations.
+The canonical source of truth for all integrations is [`integrations.json`](integrations.json). Capabilities, install commands, transport, tool naming, thread save methods, and the user-facing autonomy contract are tracked there. Update the registry first when adding or modifying integrations.
+
+The autonomy contract uses one shared language across integrations:
+
+- `automatic`: the host/plugin enforces it through hooks or lifecycle wiring
+- `guided`: the package/rules/skills strongly teach it, but the model still decides
+- `manual`: it only happens when the user or agent asks directly
+
+This keeps one critical distinction honest for fresh users: having tools available is not the same thing as getting autonomous memory behavior.
 
 For behavioral guidance (when to search, save, read Working Memory, and route ambient spaces), see [`shared/behavioral-guidance.md`](shared/behavioral-guidance.md). For plugin authoring rules, see [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md).
 

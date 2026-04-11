@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth — other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file.",
+  "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth — other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none.",
   "version": "1.0.0",
   "integrations": [
     {
@@ -24,6 +24,17 @@
         "method": "cli-native",
         "runtime": "claude-code",
         "command": "nmem t save --from claude-code"
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the native plugin",
+          "Keep nmem available on this machine",
+          "Restart Claude Code after install or update"
+        ]
       },
       "install": {
         "command": "claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
@@ -59,6 +70,17 @@
         "method": "cli-native",
         "runtime": "gemini-cli",
         "command": "nmem t save --from gemini-cli"
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the Gemini extension",
+          "Keep nmem available on this machine",
+          "Start a fresh Gemini CLI session after install"
+        ]
       },
       "install": {
         "command": "Search 'Nowledge Mem' in the Gemini CLI Extensions Gallery and install",
@@ -97,6 +119,17 @@
         "runtime": "codex",
         "command": "nmem t save --from codex"
       },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "explicit-save",
+        "bestResultRequires": [
+          "Install the Codex package and enable plugins in ~/.codex/config.toml",
+          "Keep nmem available on this machine",
+          "Merge the package AGENTS.md into the project for stronger follow-through"
+        ]
+      },
       "install": {
         "command": "mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local && cp -R nowledge-mem-codex-plugin/. ~/.codex/plugins/cache/local/nowledge-mem/local/",
         "updateCommand": "cp -R nowledge-mem-codex-plugin/. ~/.codex/plugins/cache/local/nowledge-mem/local/",
@@ -132,6 +165,17 @@
         "method": "none",
         "note": "Cursor lacks a native transcript importer; save-handoff used instead"
       },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "handoff-only",
+        "bestResultRequires": [
+          "Copy the local Cursor plugin and reload Cursor",
+          "Keep nmem available for session-start bootstrap and handoff",
+          "If Mem is remote, configure both Cursor MCP and the local nmem client"
+        ]
+      },
       "install": {
         "command": "Copy nowledge-mem-cursor-plugin into ~/.cursor/plugins/local/nowledge-mem-cursor and reload Cursor",
         "updateCommand": "Replace the copied local plugin folder with the latest community version, then reload Cursor",
@@ -166,6 +210,17 @@
       "threadSave": {
         "method": "none",
         "note": "Droid lacks a native transcript importer; save-handoff used instead"
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "handoff-only",
+        "bestResultRequires": [
+          "Install the native Droid plugin",
+          "Keep nmem available on this machine",
+          "Start a fresh Droid session after install"
+        ]
       },
       "install": {
         "command": "droid plugin marketplace add https://github.com/nowledge-co/community && droid plugin install nowledge-mem@nowledge-community",
@@ -203,6 +258,17 @@
         "method": "plugin-capture",
         "note": "Plugin captures interactive sessions via hooks (agent_end, after_compaction, before_reset) and Context Engine afterTurn; hook capture remains a safety net even when the Context Engine slot is active. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron/session keys excluded (OpenClaw isCronSessionKey via plugin-sdk/routing). Memory tools still use nmem CLI."
       },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the native OpenClaw plugin",
+          "Keep nmem available on this machine",
+          "Restart OpenClaw after install or config changes"
+        ]
+      },
       "install": {
         "command": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem",
         "updateCommand": "openclaw plugins update openclaw-nowledge-mem",
@@ -239,6 +305,17 @@
         "method": "plugin-capture",
         "note": "Plugin captures threads live via idle timer, thread switch, and quit hooks; sends via nmem CLI"
       },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "automatic",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the Alma marketplace plugin",
+          "Keep nmem available on this machine",
+          "Leave autoCapture enabled unless you intentionally want manual thread handling"
+        ]
+      },
       "install": {
         "command": "In Alma: Settings > Plugins > Marketplace, search 'Nowledge Mem', click Install",
         "updateCommand": "In Alma: Settings > Plugins > Marketplace, find Nowledge Mem, click Update",
@@ -273,6 +350,17 @@
       "threadSave": {
         "method": "plugin-capture",
         "note": "Plugin captures Bub conversations via save_state hook; sends via nmem CLI"
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the Bub plugin",
+          "Keep nmem available in the Bub runtime",
+          "Use one real ambient lane only if the whole Bub process belongs to it"
+        ]
       },
       "install": {
         "command": "python3 -m pip install nowledge-mem-bub",
@@ -310,6 +398,17 @@
         "method": "handoff-only",
         "note": "Pi does not have a native transcript importer; save-thread creates a structured handoff summary"
       },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "handoff-only",
+        "bestResultRequires": [
+          "Install the Pi package",
+          "Keep nmem available on this machine",
+          "Treat save-thread in Pi as a handoff summary, not transcript import"
+        ]
+      },
       "install": {
         "command": "pi install npm:nowledge-mem-pi",
         "updateCommand": "pi install npm:nowledge-mem-pi@latest",
@@ -343,6 +442,17 @@
       "threadSave": {
         "method": "none",
         "note": "The native provider does not expose transcript-backed session import today. MCP fallback can still use thread_persist manually when that workflow is desired."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "automatic",
+        "distill": "guided",
+        "threads": "handoff-only",
+        "bestResultRequires": [
+          "Install the native Hermes provider or configure the MCP fallback",
+          "Point the local nmem client at Mem when using remote mode",
+          "Use Hermes for recall and durable memory save, not transcript-backed session import"
+        ]
       },
       "install": {
         "command": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
@@ -379,6 +489,17 @@
         "method": "sdk-extract",
         "note": "save_thread reads session messages via OpenCode SDK and posts to Nowledge Mem thread API over HTTP; save_handoff available as lighter alternative"
       },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the native OpenCode plugin",
+          "Use local mode for real session auto-sync",
+          "Keep nmem available for memory operations and handoff flows"
+        ]
+      },
       "install": {
         "command": "Add \"opencode-nowledge-mem\" to plugin array in opencode.json",
         "detectionHint": "Running as OpenCode agent; ~/.config/opencode/ or .opencode/ exists",
@@ -414,6 +535,17 @@
         "method": "handoff-only",
         "note": "Generic skill environments cannot guarantee real transcript import; save-handoff creates a structured summary"
       },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "handoff-only",
+        "bestResultRequires": [
+          "Install the shared skills package",
+          "Keep nmem available on this machine",
+          "Use a native integration instead when your host has one"
+        ]
+      },
       "install": {
         "command": "npx skills add nowledge-co/community/nowledge-mem-npx-skills",
         "detectionHint": "Any agent that supports npx skills",
@@ -446,6 +578,17 @@
       "threadSave": {
         "method": "none"
       },
+      "autonomy": {
+        "bootstrap": "manual",
+        "recall": "manual",
+        "distill": "manual",
+        "threads": "none",
+        "bestResultRequires": [
+          "Install the Raycast extension",
+          "Use one optional fixed lane only if this launcher always belongs to it",
+          "Treat Raycast as a quick lookup surface, not an autonomous agent runtime"
+        ]
+      },
       "install": {
         "command": "Install from Raycast Store: search 'Nowledge Mem'",
         "docsUrl": "/docs/integrations/raycast"
@@ -477,6 +620,17 @@
       },
       "threadSave": {
         "method": "none"
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Install the Claude Desktop extension",
+          "Add the provided system prompt guidance if you want proactive memory use",
+          "Do not expect transcript-backed session capture from this path"
+        ]
       },
       "install": {
         "command": "Download from nowled.ge/claude-dxt, double-click .mcpb file",
@@ -511,6 +665,17 @@
         "method": "plugin-capture",
         "note": "Extension captures browser AI conversations via DOM extraction and sends via HTTP API"
       },
+      "autonomy": {
+        "bootstrap": "manual",
+        "recall": "manual",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the browser extension",
+          "Connect it to Mem from the side panel",
+          "Use the extension for the current web conversation, not as a generic agent runtime"
+        ]
+      },
       "install": {
         "command": "Install from Chrome Web Store: search 'Nowledge Memory Exchange'",
         "docsUrl": "/docs/integrations/browser-extension"
@@ -543,6 +708,17 @@
       "threadSave": {
         "method": "manual-export",
         "note": "CLI tool extracts Antigravity conversations via local RPC; outputs Markdown/JSON files for manual import into Nowledge Mem"
+      },
+      "autonomy": {
+        "bootstrap": "manual",
+        "recall": "manual",
+        "distill": "manual",
+        "threads": "import-only",
+        "bestResultRequires": [
+          "Run the extractor separately",
+          "Import the extracted files into Mem",
+          "Treat this as a migration path, not a live integration"
+        ]
       },
       "install": {
         "command": "git clone https://github.com/jijiamoer/antigravity-trajectory-extractor.git",
@@ -577,6 +753,17 @@
         "method": "manual-export",
         "note": "CLI tool decodes Windsurf Cascade protobuf history; outputs JSONL files for manual import into Nowledge Mem"
       },
+      "autonomy": {
+        "bootstrap": "manual",
+        "recall": "manual",
+        "distill": "manual",
+        "threads": "import-only",
+        "bestResultRequires": [
+          "Run the extractor separately",
+          "Import the extracted files into Mem",
+          "Treat this as a migration path, not a live integration"
+        ]
+      },
       "install": {
         "command": "git clone https://github.com/jijiamoer/windsurf-trajectory-extractor.git",
         "docsUrl": "https://github.com/jijiamoer/windsurf-trajectory-extractor#readme"
@@ -608,6 +795,17 @@
       "threadSave": {
         "method": "none",
         "note": "Depends on client capabilities"
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Add the Nowledge Mem MCP server",
+          "Add the provided system prompt or AGENTS.md guidance",
+          "Prefer a native integration when one exists for your host"
+        ]
       },
       "install": {
         "command": "Point your MCP client at http://127.0.0.1:14242/mcp",
