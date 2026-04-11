@@ -11,6 +11,7 @@ description: "Search your knowledge base when past decisions, preferences, or pr
 
 - References prior work: "the approach we used", "like last time"
 - Resumes a named feature, project, or migration
+- Review, regression, release, docs-alignment, or integration-behavior task
 - Debugging resembles a past fix or known root cause
 - Asks for rationale: "why did we choose X?"
 - Recurring theme discussed in earlier sessions
@@ -55,6 +56,8 @@ nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
 Increase `--offset` only when more messages are actually needed.
+
+For continuation-heavy engineering work, search near the start of the task rather than waiting for an explicit recall request.
 
 ## Key Flags
 

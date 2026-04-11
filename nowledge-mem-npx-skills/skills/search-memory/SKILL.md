@@ -13,6 +13,7 @@ description: Search your personal knowledge base when past insights would improv
 
 - the user references previous work, a prior fix, or an earlier decision
 - the task resumes a named feature, bug, refactor, incident, or subsystem
+- the task is a review, regression, release, docs-alignment, or integration-behavior question
 - a debugging pattern resembles something solved earlier
 - the user asks for rationale, preferences, procedures, or recurring workflow details
 - the user uses implicit recall language: "that approach", "like before", "the pattern we used"
@@ -30,6 +31,8 @@ description: Search your personal knowledge base when past insights would improv
 2. Use `nmem --json t search` when the user is really asking about a prior conversation or exact session history.
 3. If a result includes `source_thread`, inspect it progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 4. Prefer the smallest retrieval surface that answers the question.
+
+For continuation-heavy engineering work, search near the start of the task. Do not wait for the user to literally ask for memory search.
 
 If the host already knows the active project or agent lane, add `--space "<space name>"` to these commands.
 

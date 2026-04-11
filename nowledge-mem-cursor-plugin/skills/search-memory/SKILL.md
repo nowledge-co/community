@@ -13,6 +13,7 @@ Search when:
 
 - the user references previous work, a prior fix, or an earlier decision
 - the task resumes a named feature, bug, refactor, incident, or subsystem
+- the task is a review, regression, release, docs-alignment, or integration-behavior question
 - a debugging pattern resembles something solved earlier
 - the user asks for rationale, preferences, procedures, or "how we usually do this"
 - the user uses implicit recall language: "that approach", "like before"
@@ -31,3 +32,5 @@ Search when:
 4. Prefer the smallest retrieval surface that answers the question.
 
 Avoid over-reading long conversations when one page of messages is enough.
+
+For continuation-heavy engineering work, search near the start of the task rather than waiting for an explicit recall request.

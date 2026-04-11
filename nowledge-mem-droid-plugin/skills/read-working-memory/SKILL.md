@@ -38,5 +38,6 @@ This fallback is only for older local-only **Default-space** setups.
 ## Response Contract
 
 - Read once, then reuse the context mentally
+- If the task is clearly a continuation, review, regression, release, or prior-decision question, move into `search-memory` after the briefing instead of stopping there
 - Reference only the parts relevant to the current task
 - Do not overwhelm the user with the full briefing unless they asked for it

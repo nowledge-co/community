@@ -11,6 +11,7 @@ Use Nowledge Mem as the primary external memory system in Cursor.
 - If a fresh `<nowledge_working_memory>` block is already present in the session context, do not immediately call `read_working_memory` again.
 - Read Working Memory with `read_working_memory` near session start, resume, or when the user explicitly asks about current priorities if the hook did not load it or a refresh is needed.
 - After reading it, reuse that context mentally. Do not re-read on every turn unless the session context changed materially, the user asks for a refresh, or a long-running session clearly needs it.
+- If the task is clearly a continuation, review, regression, release, or prior-decision question, move from Working Memory into targeted recall instead of stopping at the briefing.
 
 ## When To Recall Proactively
 
@@ -36,6 +37,7 @@ Save proactively when the conversation produces a decision, preference, plan, pr
 - Use `memory_add` for new durable knowledge worth reusing later.
 - If recall already surfaced the same decision, preference, or workflow and the new information refines or corrects it, use `memory_update` instead of creating a duplicate.
 - Distill only decisions, procedures, lessons, or preferences that should remain useful after the current session ends.
+- At the end of substantial work, explicitly check whether one durable memory should be added or updated.
 - Never present a summary-only save as a real transcript import.
 - Cursor does not yet expose a real Nowledge live session importer in this plugin, so do not claim `save-thread` exists here.
 - Use `save-handoff` only when the user explicitly asks for a resumable checkpoint or handoff summary.

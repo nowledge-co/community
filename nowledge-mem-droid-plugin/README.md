@@ -66,7 +66,7 @@ nmem status
 **Automatic lifecycle behavior**
 
 - Working Memory loads at session start, resume, clear, and after compaction
-- Per-turn guidance nudges Droid to search before answering and distill valuable outcomes
+- Per-turn guidance nudges Droid to search before answering and to review durable distillation opportunities before substantial work ends
 
 **Slash commands**
 
@@ -98,24 +98,16 @@ If Droid later gains a real transcript-backed importer, the package can add a tr
 
 By default, `nmem` connects to the local Mem server at `http://127.0.0.1:14242`.
 
-For remote Mem, prefer:
+For remote Mem, configure the local client once:
 
-```json
-{
-  "apiUrl": "https://mem.example.com",
-  "apiKey": "nmem_your_key"
-}
-```
-
-Save that to:
-
-```text
-~/.nowledge-mem/config.json
+```bash
+nmem config client set url https://mem.example.com
+nmem config client set api-key nmem_your_key
 ```
 
 `nmem` loads connection settings with this priority:
 
-- `--api-url` flag
+- `--api-url` / `--api-key` flags
 - `NMEM_API_URL` / `NMEM_API_KEY`
 - `~/.nowledge-mem/config.json`
 - defaults

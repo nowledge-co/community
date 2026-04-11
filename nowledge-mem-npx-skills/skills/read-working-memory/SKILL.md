@@ -55,8 +55,9 @@ The Working Memory briefing contains:
 
 1. **Read once at session start** — don't re-read unless asked
 2. **Reference naturally** — mention relevant context when it connects to the current task
-3. **Don't overwhelm** — share only the parts relevant to what the user is working on
-4. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Codex) appear here
+3. **Continuation handoff** — if the task looks like a review, regression, release, resume, or prior-decision question, move straight into `search-memory` after the briefing instead of stopping here
+4. **Don't overwhelm** — share only the parts relevant to what the user is working on
+5. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Codex) appear here
 
 ## Examples
 
