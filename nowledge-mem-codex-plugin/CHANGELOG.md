@@ -1,6 +1,11 @@
 # Changelog
 
 ## [0.1.3] - 2026-04-11
+### Added
+
+- **Bundled Codex hook installer**: added `scripts/install_hooks.py` to install a native Codex `Stop` hook into `~/.codex/hooks.json`, copy the runtime hook into `~/.codex/hooks/`, and enable `codex_hooks = true` in `~/.codex/config.toml`.
+- **Host-level Stop hook runtime**: added `hooks/nmem-stop-save.py`, which reads Codex's `transcript_path`, parses the rollout directly with `nmem_cli.session_import.parse_codex_session_streaming`, and imports the current thread into Mem without relying on `nmem t save --from codex` session discovery.
+- **Plugin validation and release notes**: added `scripts/validate-plugin.mjs` and `RELEASING.md` so the Codex package now has the same explicit release contract as the other maintained integrations in this repo.
 
 ### Improved
 
@@ -11,7 +16,9 @@
 ### Fixed
 
 - **Install copy command**: Codex install/update instructions now preserve hidden files such as `.codex-plugin/plugin.json`.
-- **Docs honesty**: removed wording that implied Codex has lifecycle-hook automation comparable to hosts like Claude Code or OpenClaw.
+- **Hook runtime now uses the installer interpreter**: `scripts/install_hooks.py` now pins the copied `Stop` hook to the same Python interpreter that ran the installer, and it fails fast if that interpreter cannot import `nmem_cli`.
+- **Refresh helper no longer crashes on import**: `scripts/refresh_thread_titles.py` now lazily loads `nmem_cli` and counts generic refresh failures instead of aborting the full run.
+- **Docs honesty**: clarify that Codex memory search and distill remain skill-guided, while automatic transcript capture comes from the optional host-level hook installer.
 
 ## [0.1.2] - 2026-04-06
 
