@@ -38,7 +38,7 @@
       },
       "install": {
         "command": "claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
+        "updateCommand": "claude plugin marketplace update && claude plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running as Claude Code agent; ~/.claude/ exists",
         "docsUrl": "/docs/integrations/claude-code"
       },
@@ -84,7 +84,7 @@
       },
       "install": {
         "command": "Search 'Nowledge Mem' in the Gemini CLI Extensions Gallery and install",
-        "updateCommand": "Reinstall from the Gemini CLI Extensions Gallery to get the latest version",
+        "updateCommand": "gemini extensions update nowledge-mem-gemini-cli",
         "detectionHint": "Running as Gemini CLI agent; ~/.gemini/ exists",
         "docsUrl": "/docs/integrations/gemini-cli"
       },
@@ -411,7 +411,7 @@
       },
       "install": {
         "command": "pi install npm:nowledge-mem-pi",
-        "updateCommand": "pi install npm:nowledge-mem-pi@latest",
+        "updateCommand": "pi update",
         "detectionHint": "Running as Pi agent; ~/.pi/ exists",
         "docsUrl": "/docs/integrations/pi"
       },
