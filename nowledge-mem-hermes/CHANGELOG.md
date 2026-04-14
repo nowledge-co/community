@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## [0.5.9] - 2026-04-15
+
+### Added
+
+- Hermes sessions now auto-save cleaned `user` / `assistant` transcript turns into Mem threads on session end via the native provider hook. First flush uses `nmem t import`; later flushes append only the delta with `nmem t append`.
+- The plugin manifest now declares `on_session_end`, so Hermes can trigger thread capture through its normal session-boundary lifecycle.
+
+### Fixed
+
+- Hermes shutdown paths can now recover the final transcript from SessionDB when the in-memory conversation history is missing, which prevents gateway/session-expiry flows from silently dropping thread capture.
+
 ## [0.5.8] - 2026-04-14
 
 ### Fixed
