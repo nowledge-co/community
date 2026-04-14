@@ -420,6 +420,41 @@ class InstallHookTests(unittest.TestCase):
             str(self.module.INSTALLED_HOOK),
         )
 
+    def test_merge_hooks_json_preserves_existing_stop_entry_shape(self):
+        self.module.GLOBAL_HOOKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "hooks": {
+                "Stop": [
+                    {
+                        "matcher": "workspace-1",
+                        "hooks": [
+                            {"type": "command", "command": str(self.module.INSTALLED_HOOK)},
+                            {"type": "command", "command": "/usr/bin/other-hook"},
+                        ],
+                    }
+                ]
+            }
+        }
+        self.module.save_json(self.module.GLOBAL_HOOKS_FILE, payload)
+
+        self.module.merge_hooks_json()
+        updated = self.module.load_json(self.module.GLOBAL_HOOKS_FILE)
+
+        stop_entry = updated["hooks"]["Stop"][0]
+        self.assertEqual(stop_entry["matcher"], "workspace-1")
+        self.assertEqual(len(stop_entry["hooks"]), 2)
+        self.assertEqual(stop_entry["hooks"][1]["command"], "/usr/bin/other-hook")
+
+    def test_merge_hooks_json_copies_backup_before_invalid_payload_is_rotated(self):
+        self.module.GLOBAL_HOOKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.GLOBAL_HOOKS_FILE.write_text("{not-json", encoding="utf-8")
+
+        self.module.merge_hooks_json()
+
+        self.assertTrue(self.module.GLOBAL_HOOKS_FILE.with_suffix(".json.bak").exists())
+        rotated = list(self.module.GLOBAL_HOOKS_FILE.parent.glob("hooks.json.*.bak"))
+        self.assertEqual(len(rotated), 1)
+
     def test_ensure_codex_hooks_enabled_only_changes_features_section(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.module.CONFIG_FILE.write_text(
@@ -469,6 +504,7 @@ class InstallHookTests(unittest.TestCase):
 
         installed = self.module.INSTALLED_HOOK.read_text(encoding="utf-8")
         self.assertTrue(installed.startswith(f"#!{self.module.sys.executable}\n"))
+        self.assertNotEqual(self.module.INSTALLED_HOOK.stat().st_mode & 0o111, 0)
 
     def test_ensure_nmem_cli_runtime_ready_exits_when_missing(self):
         with mock.patch.object(self.module.importlib.util, "find_spec", return_value=None):
@@ -512,6 +548,41 @@ class RefreshThreadTitleTests(unittest.TestCase):
             [{"role": "user", "content": "old"}],
         )
 
+    def test_build_thread_payload_filters_malformed_messages(self):
+        payload = self.module.build_thread_payload(
+            "thread-1",
+            "Title",
+            [
+                {"role": "user", "content": "ok"},
+                {"content": "missing-role"},
+                "bad-entry",
+                {"role": "assistant"},
+            ],
+        )
+
+        self.assertEqual(
+            payload["messages"],
+            [
+                {"role": "user", "content": "ok"},
+                {"role": "assistant", "content": ""},
+            ],
+        )
+
+    def test_main_configures_nmem_env_before_importing_modules(self):
+        hook_module = mock.Mock()
+        hook_module.derive_thread_title.return_value = "ignored"
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+
+        with mock.patch.object(self.module, "load_hook_module", return_value=hook_module), \
+             mock.patch.object(self.module, "ensure_nmem_modules", return_value=(mock.Mock(), mock.Mock())), \
+             mock.patch.object(self.module, "iter_codex_rollouts", return_value=[]), \
+             mock.patch("sys.argv", ["refresh_thread_titles.py"]):
+            result = self.module.main()
+
+        self.assertEqual(result, 0)
+        hook_module.configure_nmem_env.assert_called_once_with()
+
     def test_main_counts_generic_refresh_errors(self):
         temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(temp_dir.cleanup)
@@ -538,7 +609,7 @@ class RefreshThreadTitleTests(unittest.TestCase):
              mock.patch("builtins.print") as print_mock:
             result = self.module.main()
 
-        self.assertEqual(result, 0)
+        self.assertNotEqual(result, 0)
         printed_lines = [" ".join(str(arg) for arg in call.args) for call in print_mock.call_args_list]
         self.assertTrue(any("ERROR refresh codex-thread-1: boom" in line for line in printed_lines))
         self.assertTrue(any('"errors": 1' in line for line in printed_lines))

@@ -151,7 +151,7 @@ codex exec -C . "Reply with exactly OK and nothing else."
 tail -n 20 ~/.codex/log/nowledge-mem-stop-hook.log
 ```
 
-You should see `hook: Stop`, `hook: Stop Completed`, and a successful import entry in the hook log.
+You should see `start event=Stop`, `nmem_exit=0`, and a `created thread=...`, `appended thread=...`, or `skip: ...` outcome entry in the hook log.
 
 ## Update
 

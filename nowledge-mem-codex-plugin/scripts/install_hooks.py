@@ -106,10 +106,10 @@ def install_runtime_hook() -> None:
 
 def merge_hooks_json() -> None:
     if GLOBAL_HOOKS_FILE.exists():
-        hooks_doc = load_json(GLOBAL_HOOKS_FILE)
         backup = GLOBAL_HOOKS_FILE.with_suffix(".json.bak")
         if not backup.exists():
             shutil.copy2(GLOBAL_HOOKS_FILE, backup)
+        hooks_doc = load_json(GLOBAL_HOOKS_FILE)
     else:
         hooks_doc = {}
 
@@ -126,12 +126,12 @@ def merge_hooks_json() -> None:
     }
 
     replaced = False
-    for index, entry in enumerate(stop_hooks):
-        for hook in entry["hooks"]:
+    for entry in stop_hooks:
+        for hook_index, hook in enumerate(entry["hooks"]):
             if not isinstance(hook, dict):
                 continue
             if hook.get("command") == str(INSTALLED_HOOK):
-                stop_hooks[index] = desired
+                entry["hooks"][hook_index] = dict(desired["hooks"][0])
                 replaced = True
                 break
         if replaced:

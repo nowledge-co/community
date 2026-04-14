@@ -18,8 +18,11 @@ parse_codex_session_streaming = None
 def load_hook_module():
     hook_path = Path(__file__).resolve().parent.parent / "hooks" / "nmem-stop-save.py"
     spec = importlib.util.spec_from_file_location("nmem_stop_save", hook_path)
+    if spec is None:
+        raise RuntimeError(f"Failed to create import spec for {hook_path}")
+    if spec.loader is None:
+        raise RuntimeError(f"Failed to load hook module from {hook_path}: missing loader")
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
 
@@ -54,6 +57,15 @@ def build_thread_payload(
     thread: dict | None = None,
 ) -> dict:
     thread = thread or {}
+    normalized_messages = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        role = message.get("role")
+        if not role:
+            continue
+        normalized_messages.append({"role": role, "content": message.get("content", "")})
+
     return {
         "thread_id": thread_id,
         "title": title,
@@ -61,7 +73,7 @@ def build_thread_payload(
         "project": thread.get("project"),
         "workspace": thread.get("workspace"),
         "metadata": thread.get("metadata") or {},
-        "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
+        "messages": normalized_messages,
     }
 
 
@@ -111,6 +123,7 @@ def main() -> int:
     args = parser.parse_args()
 
     hook_module = load_hook_module()
+    hook_module.configure_nmem_env()
     _, parse_codex = ensure_nmem_modules()
     checked = 0
     refreshed = 0
@@ -183,7 +196,7 @@ def main() -> int:
         ),
         flush=True,
     )
-    return 0
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":

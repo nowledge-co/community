@@ -41,6 +41,6 @@ tail -n 20 ~/.codex/log/nowledge-mem-stop-hook.log
 
 Expect:
 
-- `hook: Stop`
-- `hook: Stop Completed`
-- a successful `nmem t import` result in the hook log
+- `start event=Stop`
+- `nmem_exit=0`
+- a `created thread=...`, `appended thread=...`, or `skip: ...` outcome line in the hook log
