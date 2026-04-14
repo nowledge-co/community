@@ -1,0 +1,16 @@
+{
+  "session_id": "ai-1775888498-61737",
+  "ccb_project_id": "ea66bbb87cd797287d668bb57a8ab9762f0509c76e37e90cb1e0536d75ec7b72",
+  "work_dir": "/Users/hansonmei/Projects/nowledge-community",
+  "work_dir_norm": "/Users/hansonmei/Projects/nowledge-community",
+  "start_dir": "/Users/hansonmei/Projects/nowledge-community",
+  "terminal": "tmux",
+  "active": false,
+  "started_at": "2026-04-11 14:21:38",
+  "updated_at": "2026-04-13 14:04:31",
+  "pane_id": "%7",
+  "pane_title_marker": "CCB-Claude-ea66bbb8",
+  "claude_session_path": "/Users/hansonmei/.claude/projects/-Users-hansonmei-Projects-nowledge-community/3d8de919-0380-474d-9fef-24b3612d1289.jsonl",
+  "claude_session_id": "3d8de919-0380-474d-9fef-24b3612d1289",
+  "ended_at": "2026-04-13 14:04:31"
+}
