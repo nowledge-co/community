@@ -157,6 +157,7 @@ async function main() {
     corpusSupplement: { type: "boolean", default: false },
     corpusMaxResults: { type: "integer", default: 5, minimum: 1, maximum: 20 },
     corpusMinScore: { type: "integer", default: 0, minimum: 0, maximum: 100 },
+    dreaming: { type: "object" },
     apiUrl: { type: "string", default: "" },
     apiKey: { type: "string", default: "" },
     space: { type: "string", default: "" },
@@ -177,7 +178,11 @@ async function main() {
     if (property.type !== spec.type) {
       fail(`configSchema.properties.${key}.type must be ${spec.type}`);
     }
-    assertSameJsonValue(property.default, spec.default, `configSchema.properties.${key}.default`);
+    if (Object.prototype.hasOwnProperty.call(spec, "default")) {
+      assertSameJsonValue(property.default, spec.default, `configSchema.properties.${key}.default`);
+    } else if (Object.prototype.hasOwnProperty.call(property, "default")) {
+      fail(`configSchema.properties.${key}.default should be omitted`);
+    }
     if (spec.type === "integer") {
       if (property.minimum !== spec.minimum) {
         fail(`configSchema.properties.${key}.minimum must be ${spec.minimum}`);

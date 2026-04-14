@@ -4,6 +4,16 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.14] - 2026-04-14
+
+### Fixed
+
+- OpenClaw-native `dreaming` config no longer crashes plugin registration when Nowledge Mem owns the memory slot. The plugin now accepts that host-managed config object instead of rejecting it as an unknown key, so memory-core can keep running the dreaming engine alongside Nowledge Mem.
+
+### Changed
+
+- The OpenClaw manifest, validator, and docs now explicitly treat `dreaming` as a host-owned pass-through config key for memory-slot compatibility.
+
 ## [0.8.13] - 2026-04-11
 
 ### Fixed
