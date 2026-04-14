@@ -16,6 +16,8 @@ The plugin integrates at the memory-provider level: Working Memory loads automat
 bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)
 ```
 
+The installer is idempotent. If `~/.hermes/config.yaml` already has a `memory:` block, it now fills a missing or empty `provider` automatically. It still stops and explains the change when `memory.provider` already points at a different non-empty provider.
+
 Or with the interactive setup:
 
 ```bash
