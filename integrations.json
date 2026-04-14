@@ -54,7 +54,7 @@
       "name": "Gemini CLI",
       "category": "coding",
       "type": "extension",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-gemini-cli",
       "transport": "cli",
       "capabilities": {
