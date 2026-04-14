@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.5.8] - 2026-04-14
+
+### Fixed
+
+- `setup.sh` now repairs an existing `memory:` block when `provider` is missing or set to an empty string. Earlier builds installed the plugin files correctly but still exited with code `1`, which left users with a half-successful setup until they edited `config.yaml` by hand.
+- The installer still refuses to overwrite a different non-empty `memory.provider` silently. It now explains that conflict directly instead of treating every non-ready `memory:` block as the same generic failure.
+
 ### Fixed
 
 - Invalid `timeout` values in `~/.hermes/nowledge-mem.json` no longer crash the provider. Hermes now falls back to the default timeout and keeps the provider available.

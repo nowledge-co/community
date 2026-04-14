@@ -2,7 +2,7 @@
 	"id": "openclaw-nowledge-mem",
 	"name": "Nowledge Mem",
 	"description": "Cross-tool knowledge graph memory for OpenClaw with Working Memory, graph search, and session distillation.",
-	"version": "0.8.13",
+	"version": "0.8.14",
 	"kind": "memory",
 	"skills": [
 		"skills/memory-guide"
@@ -51,6 +51,10 @@
 		"corpusMinScore": {
 			"label": "Corpus supplement min score (%)",
 			"help": "Minimum relevance score (0-100%) for corpus supplement results. Set to 0 to include all. Only used when corpusSupplement is enabled."
+		},
+		"dreaming": {
+			"label": "Dreaming",
+			"help": "Optional OpenClaw dreaming config consumed by the host when this plugin owns the memory slot. This plugin accepts and preserves the setting; memory-core still provides the dreaming engine."
 		},
 		"apiUrl": {
 			"label": "Server URL (remote mode)",
@@ -142,6 +146,10 @@
 				"minimum": 0,
 				"maximum": 100,
 				"description": "Minimum relevance score (0-100%) for corpus supplement results (only used when corpusSupplement is enabled)"
+			},
+			"dreaming": {
+				"type": "object",
+				"description": "Optional OpenClaw native dreaming config. Accepted and preserved when this plugin owns the memory slot."
 			},
 			"apiUrl": {
 				"type": "string",

@@ -75,6 +75,20 @@ test("parseConfig preserves explicit empty space over ambient env", () => {
 	}
 });
 
+test("parseConfig accepts OpenClaw host-owned dreaming config", () => {
+	const cfg = parseConfig(
+		{
+			dreaming: {
+				enabled: true,
+				frequency: "0 3 * * *",
+			},
+		},
+		logger,
+	);
+	assert.equal(cfg.sessionDigest, true);
+	assert.equal(cfg.corpusSupplement, false);
+});
+
 test("parseConfig rejects unknown keys in legacy file config", () => {
 	const tempHome = mkdtempSync(join(tmpdir(), "nmem-openclaw-home-"));
 	mkdirSync(join(tempHome, ".nowledge-mem"), { recursive: true });

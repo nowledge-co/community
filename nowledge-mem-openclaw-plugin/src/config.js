@@ -26,6 +26,7 @@ const ALLOWED_KEYS = new Set([
 	"corpusSupplement",
 	"corpusMaxResults",
 	"corpusMinScore",
+	"dreaming",
 	"apiUrl",
 	"apiKey",
 	"space",
@@ -213,7 +214,7 @@ function firstDefined(...options) {
  *
  * Canonical keys: sessionContext, sessionDigest, digestMinInterval,
  *                 maxContextResults, recallMinScore, maxThreadMessageChars,
- *                 apiUrl, apiKey, space, spaceTemplate
+ *                 apiUrl, apiKey, space, spaceTemplate, dreaming
  *
  * Legacy aliases (accepted from all sources; never shown in docs):
  *   autoRecall → sessionContext
@@ -234,6 +235,12 @@ function firstDefined(...options) {
  *   NMEM_API_URL               — remote server URL
  *   NMEM_API_KEY               — API key (never logged)
  *   NMEM_SPACE                 — ambient space name (legacy: NMEM_SPACE_ID)
+ *
+ * Host-owned pass-through key:
+ *   dreaming                   — OpenClaw's native dreaming config object.
+ *                                This plugin does not interpret it, but must
+ *                                tolerate it when OpenClaw stores dreaming
+ *                                settings on the selected memory-slot owner.
  */
 export function parseConfig(raw, logger) {
 	const pluginCfg = raw && typeof raw === "object" ? raw : {};

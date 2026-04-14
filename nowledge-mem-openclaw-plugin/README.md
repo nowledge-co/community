@@ -240,6 +240,8 @@ When OpenClaw's memory-core is the primary memory slot and Nowledge Mem runs alo
 
 Requires OpenClaw >= 2026.4.5.
 
+If OpenClaw stores a top-level `dreaming` object on this plugin while it owns the memory slot, that is expected. Dreaming remains OpenClaw-native host config; this plugin accepts it so memory-core can run the dreaming engine alongside Nowledge Mem without registration errors.
+
 ### Three Modes at a Glance
 
 ```mermaid
@@ -428,6 +430,7 @@ To change settings, use the OpenClaw plugin settings UI. Changes take effect on 
 | `corpusSupplement` | boolean | `false` | Register as a searchable corpus inside memory-core's recall and dreaming pipeline |
 | `corpusMaxResults` | integer | `5` | Max results per corpus supplement search (1-20) |
 | `corpusMinScore` | integer | `0` | Min relevance score (0-100%) for supplement results. 0 = include all |
+| `dreaming` | object | — | Optional OpenClaw-native dreaming config accepted when this plugin owns the memory slot. The host consumes it; this plugin only tolerates and preserves it |
 | `apiUrl` | string | `""` | Remote server URL. Empty = local (`http://127.0.0.1:14242`) |
 | `apiKey` | string | `""` | API key for remote access. Injected as `NMEM_API_KEY` env var, never logged |
 

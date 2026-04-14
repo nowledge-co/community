@@ -42,6 +42,80 @@ get_file() {
   fi
 }
 
+ensure_memory_provider() {
+  local config_path="$1"
+  python3 - "$config_path" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+config_path = Path(sys.argv[1])
+if not config_path.exists():
+    print("missing-file")
+    raise SystemExit(0)
+
+text = config_path.read_text(encoding="utf-8")
+lines = text.splitlines()
+
+memory_idx = None
+for idx, line in enumerate(lines):
+    if re.match(r"^memory:\s*(#.*)?$", line):
+        memory_idx = idx
+        break
+
+if memory_idx is None:
+    print("missing-memory")
+    raise SystemExit(0)
+
+block_end = len(lines)
+for idx in range(memory_idx + 1, len(lines)):
+    line = lines[idx]
+    stripped = line.strip()
+    if not stripped:
+        continue
+    if line.lstrip().startswith("#"):
+        continue
+    if not line.startswith((" ", "\t")):
+        block_end = idx
+        break
+
+child_indent = "  "
+for idx in range(memory_idx + 1, block_end):
+    line = lines[idx]
+    stripped = line.strip()
+    if not stripped or line.lstrip().startswith("#"):
+        continue
+    match = re.match(r"^(\s+)", line)
+    if match:
+        child_indent = match.group(1)
+        break
+
+for idx in range(memory_idx + 1, block_end):
+    line = lines[idx]
+    match = re.match(r"^(\s*)provider:\s*(.*?)\s*(#.*)?$", line)
+    if not match:
+        continue
+    indent = match.group(1) or child_indent
+    raw_value = (match.group(2) or "").strip()
+    if raw_value in ('"nowledge-mem"', "'nowledge-mem'", "nowledge-mem"):
+        print("already")
+        raise SystemExit(0)
+    if raw_value in ("", '""', "''"):
+        lines[idx] = f'{indent}provider: "nowledge-mem"'
+        trailing_newline = "\n" if text.endswith("\n") else ""
+        config_path.write_text("\n".join(lines) + trailing_newline, encoding="utf-8")
+        print("updated-empty")
+        raise SystemExit(0)
+    print(f"conflict:{raw_value}")
+    raise SystemExit(0)
+
+lines.insert(memory_idx + 1, f'{child_indent}provider: "nowledge-mem"')
+trailing_newline = "\n" if text.endswith("\n") else ""
+config_path.write_text("\n".join(lines) + trailing_newline, encoding="utf-8")
+print("inserted")
+PY
+}
+
 # =========================================================================
 # Plugin install
 # =========================================================================
@@ -86,31 +160,45 @@ if [ "$MODE" = "plugin" ]; then
     echo "  [ok] Removed old install path $OLD_PLUGIN_DIR"
   fi
 
-  # Set memory.provider in config.yaml
-  # Use a single grep to avoid false positives when "provider:" and "nowledge-mem"
-  # appear in unrelated sections (e.g. mcp_servers).
-  if [ -f "$CONFIG" ] && grep -qE 'provider:.*nowledge-mem' "$CONFIG"; then
-    echo "[ok] memory.provider already set in $CONFIG"
-  elif [ ! -f "$CONFIG" ]; then
+  # Set memory.provider in config.yaml.
+  if [ ! -f "$CONFIG" ]; then
     cat > "$CONFIG" << 'YAML'
 memory:
   provider: "nowledge-mem"
 YAML
     echo "[ok] Created $CONFIG with memory.provider: nowledge-mem"
-  elif grep -qF "memory:" "$CONFIG"; then
-    # memory section exists but provider not set — inform user
-    echo ""
-    echo "[action needed] $CONFIG has a memory: section but provider is not set."
-    echo "Add the following under your memory: block:"
-    echo ""
-    echo '  provider: "nowledge-mem"'
-    echo ""
-    echo "Plugin installed to $PLUGIN_DIR but config is incomplete."
-    exit 1
   else
-    # No memory section — append it
-    printf '\nmemory:\n  provider: "nowledge-mem"\n' >> "$CONFIG"
-    echo "[ok] Added memory.provider to $CONFIG"
+    MEMORY_PROVIDER_STATUS="$(ensure_memory_provider "$CONFIG")"
+    case "$MEMORY_PROVIDER_STATUS" in
+      already)
+        echo "[ok] memory.provider already set in $CONFIG"
+        ;;
+      updated-empty)
+        echo "[ok] Filled empty memory.provider in $CONFIG"
+        ;;
+      inserted)
+        echo "[ok] Added memory.provider under existing memory: block in $CONFIG"
+        ;;
+      missing-memory)
+        printf '\nmemory:\n  provider: "nowledge-mem"\n' >> "$CONFIG"
+        echo "[ok] Added memory.provider to $CONFIG"
+        ;;
+      conflict:*)
+        EXISTING_PROVIDER="${MEMORY_PROVIDER_STATUS#conflict:}"
+        echo ""
+        echo "[action needed] $CONFIG already sets memory.provider to $EXISTING_PROVIDER."
+        echo "If you want Hermes to use this plugin, change it to:"
+        echo ""
+        echo '  provider: "nowledge-mem"'
+        echo ""
+        echo "Plugin installed to $PLUGIN_DIR but config still points at another provider."
+        exit 1
+        ;;
+      *)
+        echo "[error] Could not update memory.provider in $CONFIG"
+        exit 1
+        ;;
+    esac
   fi
 
   # Remove MCP server config if present (plugin replaces it)

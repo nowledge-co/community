@@ -240,7 +240,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.13",
+      "version": "0.8.14",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -427,7 +427,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.7",
+      "version": "0.5.8",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
