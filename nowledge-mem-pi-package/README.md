@@ -59,7 +59,7 @@ Pi should run `nmem --json status` and report the server connection.
 ## Update
 
 ```bash
-pi install npm:nowledge-mem-pi@latest
+pi update
 ```
 
 ## Project Guidance

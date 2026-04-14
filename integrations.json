@@ -84,7 +84,7 @@
       },
       "install": {
         "command": "Search 'Nowledge Mem' in the Gemini CLI Extensions Gallery and install",
-        "updateCommand": "Reinstall from the Gemini CLI Extensions Gallery to get the latest version",
+        "updateCommand": "gemini extensions update nowledge-mem-gemini-cli",
         "detectionHint": "Running as Gemini CLI agent; ~/.gemini/ exists",
         "docsUrl": "/docs/integrations/gemini-cli"
       },
@@ -411,7 +411,7 @@
       },
       "install": {
         "command": "pi install npm:nowledge-mem-pi",
-        "updateCommand": "pi install npm:nowledge-mem-pi@latest",
+        "updateCommand": "pi update",
         "detectionHint": "Running as Pi agent; ~/.pi/ exists",
         "docsUrl": "/docs/integrations/pi"
       },
