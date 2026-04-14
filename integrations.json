@@ -38,7 +38,7 @@
       },
       "install": {
         "command": "claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
+        "updateCommand": "claude plugin marketplace update && claude plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running as Claude Code agent; ~/.claude/ exists",
         "docsUrl": "/docs/integrations/claude-code"
       },
