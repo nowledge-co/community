@@ -98,7 +98,7 @@ def test_on_session_end_imports_clean_messages_then_appends_delta():
     ]
     assert instance._client.append_calls == []
 
-    next_messages = first_messages + [{"role": "user", "content": "next step"}]
+    next_messages = [*first_messages, {"role": "user", "content": "next step"}]
     instance.on_session_end(next_messages)
 
     assert instance._client.append_calls == [
