@@ -133,8 +133,14 @@ async function main() {
   if (changelogVersionMatch[1] !== pkg.version) {
     fail("CHANGELOG.md top release version must match package.json and openclaw.plugin.json");
   }
-  if (manifest.kind !== "memory") {
-    fail("openclaw.plugin.json kind must be memory");
+  const expectedKinds = ["memory", "context-engine"];
+  if (
+    !Array.isArray(manifest.kind) ||
+    JSON.stringify(manifest.kind) !== JSON.stringify(expectedKinds)
+  ) {
+    fail(
+      `openclaw.plugin.json kind must be ${JSON.stringify(expectedKinds)} so the plugin can stay active beside memory-core while still owning the context-engine role`,
+    );
   }
   if (!Array.isArray(manifest.skills) || !manifest.skills.includes("skills/memory-guide")) {
     fail("openclaw.plugin.json must expose skills/memory-guide");
