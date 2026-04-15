@@ -357,19 +357,35 @@ class NowledgeMemProvider(MemoryProvider):
 
         if saved_count <= 0:
             title = self._build_thread_title(cleaned_messages)
-            self._client.import_thread(
-                session_id,
-                cleaned_messages,
-                title=title or None,
-                source="hermes",
-            )
+            try:
+                self._client.import_thread(
+                    session_id,
+                    cleaned_messages,
+                    title=title or None,
+                    source="hermes",
+                )
+            except Exception as error:
+                logger.warning(
+                    "Nowledge Mem session import failed for %s: %s",
+                    session_id,
+                    error,
+                )
+                return
             self._saved_message_count = len(cleaned_messages)
             return
 
         delta = cleaned_messages[saved_count:]
         if not delta:
             return
-        self._client.append_thread(session_id, delta)
+        try:
+            self._client.append_thread(session_id, delta)
+        except Exception as error:
+            logger.warning(
+                "Nowledge Mem session append failed for %s: %s",
+                session_id,
+                error,
+            )
+            return
         self._saved_message_count = len(cleaned_messages)
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
@@ -606,6 +622,8 @@ class NowledgeMemProvider(MemoryProvider):
     def _clean_session_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         cleaned: List[Dict[str, str]] = []
         for message in messages or []:
+            if not isinstance(message, dict):
+                continue
             role = str(message.get("role") or "").strip()
             if role not in {"user", "assistant"}:
                 continue

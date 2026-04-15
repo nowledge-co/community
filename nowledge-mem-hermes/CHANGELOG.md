@@ -6,7 +6,7 @@
 
 ### Added
 
-- Hermes sessions now auto-save cleaned `user` / `assistant` transcript turns into Mem threads on session end via the native provider hook. First flush uses `nmem t import`; later flushes append only the delta with `nmem t append`.
+- Hermes sessions now capture cleaned `user` / `assistant` transcript turns into Mem threads at real session boundaries through the native provider hook. The first flush uses `nmem t import`; later flushes in the same live Hermes session append only the delta with `nmem t append`.
 - The plugin manifest now declares `on_session_end`, so Hermes can trigger thread capture through its normal session-boundary lifecycle.
 
 ### Fixed

@@ -68,10 +68,10 @@ The plugin uses Hermes' memory provider lifecycle to replace manual Working Memo
 | `prefetch` | Relevant memories searched before each turn | "Search proactively" guidance in SOUL.md |
 | `on_memory_write` | User profile facts from Hermes mirrored to Nowledge Mem | Nothing (new capability) |
 | `on_pre_compress` | Compressor told about external knowledge | Nothing (new capability) |
-| `on_session_end` | Cleaned Hermes transcript imported/appended as a Mem thread | Manual handoff-only thread save |
+| `on_session_end` | Cleaned Hermes transcript captured as a Mem thread when the session actually ends | Manual handoff-only thread save |
 | `get_tool_schemas` | 6 native tools with clean names | MCP tools with `mcp_nowledge_mem_` prefix |
 
-Durable knowledge saves still happen through the native `nmem_` tools. In addition, the provider now auto-captures cleaned Hermes session transcripts on session end using `nmem t import` for the first save and `nmem t append` for later deltas in the same session.
+Durable knowledge saves still happen through the native `nmem_` tools. In addition, the provider now captures cleaned Hermes session transcripts at real session boundaries such as clean exit, `/new`, `/reset`, and gateway session expiry. The first flush uses `nmem t import`; later flushes in the same live Hermes session append only the delta with `nmem t append`.
 
 ## Tools
 

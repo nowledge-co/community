@@ -440,18 +440,18 @@
         "status": false
       },
       "threadSave": {
-        "method": "cli-import-append",
-        "note": "The native provider imports a cleaned transcript on first session end, then appends deltas on later shutdown/finalize paths using `nmem t import` + `nmem t append`."
+        "method": "cli-native",
+        "note": "The native provider captures cleaned Hermes transcripts at real session boundaries using `nmem t import` for the first save and `nmem t append` for later deltas in the same session."
       },
       "autonomy": {
         "bootstrap": "automatic",
         "recall": "automatic",
         "distill": "guided",
-        "threads": "automatic",
+        "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the native Hermes provider or configure the MCP fallback",
           "Point the local nmem client at Mem when using remote mode",
-          "Use the native provider to get automatic Hermes thread capture on session end"
+          "Use the native provider and let Hermes end or reset the session cleanly so the session-boundary hook can flush the transcript"
         ]
       },
       "install": {

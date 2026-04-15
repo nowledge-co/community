@@ -44,8 +44,12 @@ class FakeClient:
     def __init__(self):
         self.import_calls = []
         self.append_calls = []
+        self.fail_import = False
+        self.fail_append = False
 
     def import_thread(self, thread_id, messages, *, title=None, source="hermes"):
+        if self.fail_import:
+            raise RuntimeError("import failed")
         self.import_calls.append(
             {
                 "thread_id": thread_id,
@@ -57,6 +61,8 @@ class FakeClient:
         return {"success": True, "thread_id": thread_id}
 
     def append_thread(self, thread_id, messages):
+        if self.fail_append:
+            raise RuntimeError("append failed")
         self.append_calls.append({"thread_id": thread_id, "messages": messages})
         return {"success": True, "thread_id": thread_id}
 
@@ -101,3 +107,43 @@ def test_on_session_end_imports_clean_messages_then_appends_delta():
             "messages": [{"role": "user", "content": "next step"}],
         }
     ]
+
+
+def test_on_session_end_skips_malformed_messages_and_failed_import_does_not_advance_count():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-2"
+    instance._saved_message_count = 0
+    instance._client.fail_import = True
+
+    messages = [
+        "bad",
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": {"content": "world"}},
+    ]
+
+    instance.on_session_end(messages)
+
+    assert instance._saved_message_count == 0
+    assert instance._client.import_calls == []
+
+
+def test_on_session_end_failed_append_does_not_advance_count():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-3"
+    instance._saved_message_count = 2
+    instance._client.fail_append = True
+
+    messages = [
+        {"role": "user", "content": "hello"},
+        {"role": "assistant", "content": "world"},
+        {"role": "user", "content": "next step"},
+    ]
+
+    instance.on_session_end(messages)
+
+    assert instance._saved_message_count == 2
+    assert instance._client.append_calls == []
