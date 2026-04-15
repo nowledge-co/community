@@ -82,7 +82,7 @@ Enable when memory-core is the memory slot and you want cross-tool knowledge to 
 
 ## Context Engine (CE) Architecture
 
-The plugin registers both a **memory slot** (`kind: "memory"`) and a **context engine** (`api.registerContextEngine`). These are independent registrations:
+The plugin is published as a dual-role OpenClaw plugin (`kind: ["memory", "context-engine"]`). These roles remain independent at runtime:
 
 - **Memory slot**: provides `memory_search` + `memory_get`, activates OpenClaw's "Memory Recall" system prompt section. Always active.
 - **Context engine**: activated when user sets `plugins.slots.contextEngine: "nowledge-mem"`. Replaces hooks with richer CE lifecycle.

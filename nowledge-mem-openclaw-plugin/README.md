@@ -240,6 +240,8 @@ When OpenClaw's memory-core is the primary memory slot and Nowledge Mem runs alo
 
 Requires OpenClaw >= 2026.4.5.
 
+As of `0.8.15`, this works without local source edits. The plugin now stays active beside `memory-core` for supplement mode, while leaving `memory-core`'s own `memory_search` / `memory_get` pair in place.
+
 If OpenClaw stores a top-level `dreaming` object on this plugin while it owns the memory slot, that is expected. Dreaming remains OpenClaw-native host config; this plugin accepts it so memory-core can run the dreaming engine alongside Nowledge Mem without registration errors.
 
 ### Three Modes at a Glance
@@ -528,6 +530,10 @@ All 10 plugin tools register automatically when the plugin loads. No tool-level 
   }
 }
 ```
+
+**`corpusSupplement: true` is set, but startup still logs `corpus=false`**
+
+Update to `0.8.15` or newer. Older builds could disable the plugin too early when `memory-core` owned the memory slot, which made supplement mode look unavailable even on new OpenClaw builds.
 
 If `openclaw status` shows a CRITICAL warning about `plugins.allow`, this is the fix. Run `nowledge_mem_status` inside a conversation to check both plugin trust and memory slot status.
 
