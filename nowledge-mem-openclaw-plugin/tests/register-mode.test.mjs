@@ -14,6 +14,16 @@ test("supplement mode keeps compatibility tools off when memory-core owns the sl
 	assert.equal(mode.registerMemoryCompatTools, false);
 });
 
+test("defaults to memory-core mode when configuredMemorySlot is omitted", () => {
+	const mode = resolveRegistrationMode({
+		pluginId: "openclaw-nowledge-mem",
+	});
+
+	assert.equal(mode.memorySlot, "memory-core");
+	assert.equal(mode.memorySlotSelected, false);
+	assert.equal(mode.registerMemoryCompatTools, false);
+});
+
 test("full memory mode registers compatibility tools when Nowledge Mem owns the slot", () => {
 	const mode = resolveRegistrationMode({
 		pluginId: "openclaw-nowledge-mem",

@@ -44,7 +44,7 @@ export default {
 			space: cfg.space,
 		});
 
-		const { memorySlotSelected } = resolveRegistrationMode({
+		const { memorySlot, memorySlotSelected } = resolveRegistrationMode({
 			pluginId: api.id,
 			configuredMemorySlot: api.config?.plugins?.slots?.memory,
 		});

@@ -4,6 +4,13 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.16] - 2026-04-15
+
+### Fixed
+
+- Fixed a regression in `0.8.15` where supplement-mode startup could fail during plugin registration because the status tool was passed an undefined `memorySlot` variable. This could block the plugin before corpus supplement or native tools became available.
+- Added coverage for the implicit default path where OpenClaw leaves the memory slot on `memory-core`.
+
 ## [0.8.15] - 2026-04-15
 
 ### Fixed
