@@ -1,13 +1,14 @@
-"""CLI-only client for Nowledge Mem.
+"""Small Nowledge Mem client used by the Hermes provider.
 
-Shells out to ``nmem --json <args>``. The CLI handles server URL, API key,
-and remote access configuration, so this client has zero config surface.
+Most operations shell out to ``nmem --json <args>`` so the CLI owns server
+URL, API key, and remote access configuration. Thread transcript capture posts
+JSON directly to the Mem API so long sessions are not packed into argv.
 
 If ``nmem`` is not installed, ``is_available`` returns False and the
 provider gracefully disables tools. On machines running the Nowledge Mem
 desktop app, ``nmem`` is already bundled. Otherwise: ``pip install nmem-cli``.
 
-No external dependencies: stdlib only (subprocess, json).
+No external dependencies: stdlib only.
 """
 
 from __future__ import annotations
@@ -17,15 +18,22 @@ import logging
 import os
 import subprocess
 from typing import Any, Dict, List, Optional
+from urllib import error as urlerror
+from urllib import parse as urlparse
+from urllib import request as urlrequest
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_API_URL = "http://127.0.0.1:14242"
+CONFIG_PATH = os.path.expanduser("~/.nowledge-mem/config.json")
+
 
 class NowledgeMemClient:
-    """Thin wrapper around the ``nmem`` CLI.
+    """Minimal client for ``nmem`` tools plus large transcript uploads.
 
-    Every domain method builds CLI args and calls ``nmem --json <args>``.
-    The CLI owns auth, server URL, and remote config.
+    Memory and lookup methods call ``nmem --json <args>``. Thread import/append
+    uses the same shared Mem config but sends JSON over HTTP to avoid OS
+    argument-length limits on real transcripts.
     """
 
     def __init__(self, timeout: int = 30, *, space: Optional[str] = None) -> None:
@@ -173,6 +181,36 @@ class NowledgeMemClient:
             cmd.extend(["--offset", str(offset)])
         return self._cli(cmd)
 
+    def import_thread(
+        self,
+        thread_id: str,
+        messages: List[Dict[str, Any]],
+        *,
+        title: Optional[str] = None,
+        source: str = "hermes",
+    ) -> Any:
+        """Create or replace a thread from a cleaned transcript batch."""
+        if not messages:
+            return {"success": True, "thread_id": thread_id, "imported": 0}
+        payload: Dict[str, Any] = {
+            "thread_id": thread_id,
+            "messages": messages,
+        }
+        if title:
+            payload["title"] = title
+        if source:
+            payload["source"] = source
+        if self._has_explicit_space and self._space:
+            payload["metadata"] = {"space_id": self._space}
+        return self._api_post("/threads/import", payload)
+
+    def append_thread(self, thread_id: str, messages: List[Dict[str, Any]]) -> Any:
+        """Append cleaned transcript messages to an existing thread."""
+        if not messages:
+            return {"success": True, "thread_id": thread_id, "appended": 0}
+        path = f"/threads/{urlparse.quote(thread_id, safe='')}/append"
+        return self._api_post(path, {"messages": messages, "deduplicate": True})
+
     def _cli(self, args: List[str]) -> Any:
         """Run ``nmem --json <args>`` and return parsed JSON."""
         cmd = ["nmem", "--json"] + args
@@ -208,3 +246,116 @@ class NowledgeMemClient:
             raise RuntimeError(
                 f"nmem returned non-JSON output: {output[:200]}"
             ) from error
+
+    def _api_post(self, path: str, payload: Dict[str, Any]) -> Any:
+        """POST JSON directly to Mem for large transcript payloads.
+
+        Regular memory tools continue to use ``nmem``. Transcript capture uses
+        HTTP so long sessions are not serialized into a single argv token.
+        """
+        api_url = self._api_url().rstrip("/")
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        api_key = self._api_key()
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+            headers["X-NMEM-API-Key"] = api_key
+
+        url = f"{api_url}{path}"
+        try:
+            return self._request_json(url, body, headers)
+        except RuntimeError as first_error:
+            if not api_key:
+                raise
+
+            # Match nmem's proxy compatibility behavior: if a proxy strips
+            # auth headers, retry with the key in the query string; if the
+            # configured URL still includes /remote-api, retry once at root.
+            for retry_url in self._retry_urls(url, api_key):
+                try:
+                    return self._request_json(retry_url, body, headers)
+                except RuntimeError:
+                    continue
+            raise first_error
+
+    def _request_json(
+        self,
+        url: str,
+        body: bytes,
+        headers: Dict[str, str],
+    ) -> Any:
+        request = urlrequest.Request(url, data=body, headers=headers, method="POST")
+        try:
+            with urlrequest.urlopen(request, timeout=self._timeout) as response:
+                raw = response.read().decode("utf-8")
+        except urlerror.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"Mem API error {error.code}: {detail[:300]}"
+            ) from error
+        except urlerror.URLError as error:
+            raise RuntimeError(f"Cannot connect to Mem API: {error}") from error
+
+        if not raw.strip():
+            return {}
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as error:
+            raise RuntimeError(f"Mem API returned non-JSON output: {raw[:200]}") from error
+
+    @staticmethod
+    def _load_cli_config() -> Dict[str, Any]:
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as handle:
+                parsed = json.load(handle)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+
+    @classmethod
+    def _api_url(cls) -> str:
+        env_url = os.environ.get("NMEM_API_URL")
+        if env_url:
+            return env_url.strip().rstrip("/")
+        config = cls._load_cli_config()
+        configured = config.get("apiUrl") or config.get("api_url")
+        return str(configured or DEFAULT_API_URL).strip().rstrip("/")
+
+    @classmethod
+    def _api_key(cls) -> str:
+        env_key = os.environ.get("NMEM_API_KEY")
+        if env_key is not None:
+            return env_key.strip()
+        config = cls._load_cli_config()
+        return str(config.get("apiKey") or config.get("api_key") or "").strip()
+
+    @staticmethod
+    def _retry_urls(url: str, api_key: str) -> List[str]:
+        urls: List[str] = []
+
+        def add(candidate: str) -> None:
+            if candidate not in urls:
+                urls.append(candidate)
+
+        parsed = urlparse.urlsplit(url)
+        query = urlparse.parse_qsl(parsed.query, keep_blank_values=True)
+        if not any(key.lower() == "nmem_api_key" for key, _ in query):
+            query.append(("nmem_api_key", api_key))
+            add(urlparse.urlunsplit(parsed._replace(query=urlparse.urlencode(query))))
+
+        path = parsed.path or ""
+        if path == "/remote-api":
+            stripped_path = "/"
+        elif path.startswith("/remote-api/"):
+            stripped_path = path[len("/remote-api") :]
+        else:
+            stripped_path = ""
+        if stripped_path:
+            stripped = parsed._replace(path=stripped_path)
+            add(urlparse.urlunsplit(stripped))
+            stripped_query = urlparse.parse_qsl(stripped.query, keep_blank_values=True)
+            if not any(key.lower() == "nmem_api_key" for key, _ in stripped_query):
+                stripped_query.append(("nmem_api_key", api_key))
+                add(urlparse.urlunsplit(stripped._replace(query=urlparse.urlencode(stripped_query))))
+
+        return urls

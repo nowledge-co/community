@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## [0.5.9] - 2026-04-15
+
+### Added
+
+- Hermes sessions now capture cleaned `user` / `assistant` transcript turns into Mem threads at real session boundaries through the native provider hook. The first flush imports the transcript; later flushes in the same live Hermes session append only the delta.
+- The plugin manifest now declares `on_session_end`, so Hermes can trigger thread capture through its normal session-boundary lifecycle.
+
+### Fixed
+
+- Transcript persistence is now failure-safe inside the provider. Malformed transcript items are skipped, import/append failures stay non-fatal, and the provider only advances its local delta pointer after a successful write.
+- Transcript payloads are sent through the Mem HTTP API instead of a single CLI argument, so long Hermes sessions do not hit OS argument-length limits.
+
 ## [0.5.8] - 2026-04-14
 
 ### Fixed

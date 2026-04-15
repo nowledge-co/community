@@ -427,7 +427,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.8",
+      "version": "0.5.9",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
@@ -435,23 +435,23 @@
         "search": true,
         "distill": false,
         "autoRecall": true,
-        "autoCapture": false,
+        "autoCapture": true,
         "graphExploration": false,
         "status": false
       },
       "threadSave": {
-        "method": "none",
-        "note": "The native provider does not expose transcript-backed session import today. MCP fallback can still use thread_persist manually when that workflow is desired."
+        "method": "cli-native",
+        "note": "The native provider captures cleaned Hermes transcripts at real session boundaries. The first save imports the thread; later saves in the same live session append only the delta through the Mem API."
       },
       "autonomy": {
         "bootstrap": "automatic",
         "recall": "automatic",
         "distill": "guided",
-        "threads": "handoff-only",
+        "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the native Hermes provider or configure the MCP fallback",
           "Point the local nmem client at Mem when using remote mode",
-          "Use Hermes for recall and durable memory save, not transcript-backed session import"
+          "Use the native provider and let Hermes end or reset the session cleanly so the session-boundary hook can flush the transcript"
         ]
       },
       "install": {
