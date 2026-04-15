@@ -1,7 +1,8 @@
 /**
  * Nowledge Mem Context Engine for OpenClaw.
  *
- * Registers alongside the memory slot (kind: "memory"). When users activate
+ * Registers alongside the memory slot (plugin kind includes both "memory" and
+ * "context-engine"). When users activate
  * this CE via `plugins.slots.contextEngine: "nowledge-mem"`, it takes over
  * prompt assembly and adds richer lifecycle behavior:
  *

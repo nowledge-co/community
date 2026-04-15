@@ -26,13 +26,14 @@ import { createStatusTool } from "./tools/status.js";
 import { createThreadFetchTool } from "./tools/thread-fetch.js";
 import { createThreadSearchTool } from "./tools/thread-search.js";
 import { createTimelineTool } from "./tools/timeline.js";
+import { resolveRegistrationMode } from "./register-mode.js";
 
 export default {
 	id: "openclaw-nowledge-mem",
 	name: "Nowledge Mem",
 	description:
 		"Local-first knowledge graph memory for AI agents — cross-AI continuity, powered by Nowledge Mem",
-	kind: "memory",
+	kind: ["memory", "context-engine"],
 
 	register(api) {
 		const logger = api.logger;
@@ -43,9 +44,19 @@ export default {
 			space: cfg.space,
 		});
 
-		// OpenClaw memory-slot compatibility (required for system prompt activation)
-		api.registerTool(createMemorySearchTool(client, logger));
-		api.registerTool(createMemoryGetTool(client, logger));
+		const { memorySlot, memorySlotSelected } = resolveRegistrationMode({
+			pluginId: api.id,
+			configuredMemorySlot: api.config?.plugins?.slots?.memory,
+		});
+
+		// Only the active memory slot should provide the OpenClaw-compatible
+		// memory_search / memory_get pair. When memory-core owns the slot, this
+		// plugin can still stay loaded for corpus supplement, thread sync, and
+		// native Nowledge Mem tools without shadowing memory-core's tools.
+		if (memorySlotSelected) {
+			api.registerTool(createMemorySearchTool(client, logger));
+			api.registerTool(createMemoryGetTool(client, logger));
+		}
 
 		// Nowledge Mem native tools (our differentiators)
 		api.registerTool(createSaveTool(client, logger));
@@ -61,7 +72,6 @@ export default {
 		// Diagnostics — pass runtime config so the status tool can detect:
 		//   - plugins.allow missing or not including this plugin
 		//   - memory/context-engine slot routing for capture and recall
-		const memorySlot = api.config?.plugins?.slots?.memory;
 		const contextEngineSlot = api.config?.plugins?.slots?.contextEngine;
 		const pluginsAllow = api.config?.plugins?.allow;
 		let contextEngineRegistered = false;
@@ -161,7 +171,7 @@ export default {
 
 		const remoteMode = !isDefaultApiUrl(cfg.apiUrl);
 		logger.info(
-			`nowledge-mem: initialized (context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, corpus=${cfg.corpusSupplement}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
+			`nowledge-mem: initialized (memorySlotSelected=${memorySlotSelected}, context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, corpus=${cfg.corpusSupplement}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
 		);
 	},
 };

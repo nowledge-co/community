@@ -4,6 +4,25 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.16] - 2026-04-15
+
+### Fixed
+
+- Fixed a regression in `0.8.15` where supplement-mode startup could fail during plugin registration because the status tool was passed an undefined `memorySlot` variable. This could block the plugin before corpus supplement or native tools became available.
+- Added coverage for the implicit default path where OpenClaw leaves the memory slot on `memory-core`.
+
+## [0.8.15] - 2026-04-15
+
+### Fixed
+
+- **Corpus supplement now works cleanly while `memory-core` stays on the memory slot.** The plugin is now published as a dual-role OpenClaw plugin, so it can remain loaded for corpus supplement and native Nowledge Mem tools even when `memory-core` owns the primary memory slot.
+- **Supplement mode no longer shadows `memory-core`'s own `memory_search` / `memory_get` tools.** Those compatibility tools now register only when Nowledge Mem itself owns the memory slot.
+- **No local source patch should be needed for dreaming integration.** Earlier builds could fall into a broken topology where the plugin was disabled before supplement registration ever mattered, which made users patch local plugin source to keep corpus mode alive.
+
+### Changed
+
+- The OpenClaw manifest and runtime export now declare the plugin as `["memory", "context-engine"]`, which matches its real capabilities and keeps supplement mode alive beside `memory-core`.
+
 ## [0.8.14] - 2026-04-14
 
 ### Fixed
