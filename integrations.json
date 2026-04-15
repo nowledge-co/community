@@ -441,7 +441,7 @@
       },
       "threadSave": {
         "method": "cli-native",
-        "note": "The native provider captures cleaned Hermes transcripts at real session boundaries using `nmem t import` for the first save and `nmem t append` for later deltas in the same session."
+        "note": "The native provider captures cleaned Hermes transcripts at real session boundaries. The first save imports the thread; later saves in the same live session append only the delta through the Mem API."
       },
       "autonomy": {
         "bootstrap": "automatic",

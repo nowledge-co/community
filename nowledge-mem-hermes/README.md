@@ -71,7 +71,7 @@ The plugin uses Hermes' memory provider lifecycle to replace manual Working Memo
 | `on_session_end` | Cleaned Hermes transcript captured as a Mem thread when the session actually ends | Manual handoff-only thread save |
 | `get_tool_schemas` | 6 native tools with clean names | MCP tools with `mcp_nowledge_mem_` prefix |
 
-Durable knowledge saves still happen through the native `nmem_` tools. In addition, the provider now captures cleaned Hermes session transcripts at real session boundaries such as clean exit, `/new`, `/reset`, and gateway session expiry. The first flush uses `nmem t import`; later flushes in the same live Hermes session append only the delta with `nmem t append`.
+Durable knowledge saves still happen through the native `nmem_` tools. In addition, the provider now captures cleaned Hermes session transcripts at real session boundaries such as clean exit, `/new`, `/reset`, and gateway session expiry. The first flush imports the transcript; later flushes in the same live Hermes session append only the delta. Transcript payloads use the Mem API directly so long sessions are not squeezed into shell arguments.
 
 ## Tools
 
