@@ -38,10 +38,16 @@ sudo apt-get install nowledge-mem
 
 ## Automatic Updates
 
-Once installed via the APT repository, Nowledge Mem will be updated automatically when you run:
+Once installed via the APT repository, system-wide upgrades can bring Mem forward when you run:
 
 ```bash
 sudo apt-get update && sudo apt-get upgrade
+```
+
+If you want to update only Nowledge Mem from the CLI, use:
+
+```bash
+sudo apt-get update && sudo apt-get install --only-upgrade nowledge-mem
 ```
 
 If your system has `unattended-upgrades` configured, updates will be applied automatically.
