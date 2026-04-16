@@ -17,7 +17,7 @@ Before release:
    - Working Memory loads at session start
    - Per-turn nudge appears
    - Stop hook captures sessions (check `~/.copilot/nowledge-mem-hooks/hook-log.jsonl`)
-   - Slash commands work (`/save`, `/search`, `/sum`, `/status`)
+   - Bundled command docs still match actual behavior (`commands/save.md`, `search.md`, `sum.md`, `status.md`) and do not imply unsupported interactive slash commands
 
 ## Release
 

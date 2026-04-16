@@ -40,4 +40,4 @@ Thread ID: {thread_id from nmem output}
 
 If `nmem` is not in PATH: `pip install nmem-cli`
 
-Run `/status` to check server connection.
+Run `nmem status` to check server connection.

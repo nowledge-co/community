@@ -97,4 +97,4 @@ If `nmem` is not in PATH: `pip install nmem-cli`
 
 For remote servers: run `nmem config client set url https://...` and `nmem config client set api-key ...` once on this machine.
 
-Run `/status` to check server connection.
+Run `nmem status` to check server connection.

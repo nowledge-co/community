@@ -45,14 +45,16 @@ nmem --json t search "query" --limit 5
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-### Slash Commands
+### Bundled Command References
+
+These command docs ship with the plugin, but Copilot CLI does not currently expose them as interactive slash commands.
 
 | Command | Purpose |
 |---------|---------|
-| `/save` | Explicit session save |
-| `/search <query>` | Search knowledge base |
-| `/sum` | Distill insights from conversation |
-| `/status` | Check Nowledge Mem connection |
+| `save` | Explicit session save |
+| `search <query>` | Search knowledge base |
+| `sum` | Distill insights from conversation |
+| `status` | Check Nowledge Mem connection |
 
 ### Quality Standards
 
