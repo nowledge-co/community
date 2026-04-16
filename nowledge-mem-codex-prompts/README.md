@@ -1,6 +1,6 @@
 # Nowledge Mem for Codex CLI
 
-> **Deprecated**: This custom prompts package has been superseded by the **[Codex Plugin](../nowledge-mem-codex-plugin/)**. The plugin ships the same Codex-facing memory behaviors as packaged skills with a cleaner install/update path. See the [migration guide](https://mem.nowledge.co/docs/integrations/codex-cli#migrating-from-custom-prompts) for details.
+> **Deprecated**: This custom prompts package has been superseded by the **[Codex Plugin](../nowledge-mem-codex-plugin/)**. The plugin ships the same Codex-facing memory behaviors as packaged skills with a cleaner install/update path, plus an optional host-level hook installer for automatic transcript capture after you run it. See the [migration guide](https://mem.nowledge.co/docs/integrations/codex-cli#migrating-from-custom-prompts) for details.
 
 > Memory-aware custom prompts for Codex CLI, with an optional project `AGENTS.md` companion for stronger default behavior.
 

@@ -119,7 +119,7 @@ All behavioral heuristics (when to search, when to save, when to read Working Me
 
 ### Skill naming
 
-Skill names use kebab-case and are consistent across all plugins:
+Skill names use kebab-case. Prefer the shared names below for new integrations, but preserve published compatibility exceptions:
 
 | Skill | Purpose |
 |-------|---------|
@@ -130,6 +130,9 @@ Skill names use kebab-case and are consistent across all plugins:
 | `save-thread` | Real session capture (only when supported) |
 | `check-integration` | Detect agent, verify setup, guide plugin installation |
 | `status` | Connection and configuration diagnostics |
+
+Published exception:
+- Codex already shipped `working-memory`; keep that name for Codex unless and until a compatible alias is introduced.
 
 ### Autonomous save is required
 

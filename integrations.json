@@ -110,7 +110,7 @@
         "search": true,
         "distill": true,
         "autoRecall": false,
-        "autoCapture": false,
+        "autoCapture": true,
         "graphExploration": false,
         "status": true
       },
@@ -123,23 +123,24 @@
         "bootstrap": "guided",
         "recall": "guided",
         "distill": "guided",
-        "threads": "explicit-save",
+        "threads": "automatic-capture",
         "bestResultRequires": [
-          "Install the Codex package and enable plugins in ~/.codex/config.toml",
+          "Install the Codex package, enable plugins in ~/.codex/config.toml, then run the bundled hook installer",
           "Keep nmem available on this machine",
+          "Run the hook installer with a Python interpreter that can import nmem_cli",
           "Merge the package AGENTS.md into the project for stronger follow-through"
         ]
       },
       "install": {
-        "command": "mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local && cp -R nowledge-mem-codex-plugin/. ~/.codex/plugins/cache/local/nowledge-mem/local/",
-        "updateCommand": "cp -R nowledge-mem-codex-plugin/. ~/.codex/plugins/cache/local/nowledge-mem/local/",
+        "command": "mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local && cp -R nowledge-mem-codex-plugin/. ~/.codex/plugins/cache/local/nowledge-mem/local/ && python3 ~/.codex/plugins/cache/local/nowledge-mem/local/scripts/install_hooks.py",
+        "updateCommand": "cp -R nowledge-mem-codex-plugin/. ~/.codex/plugins/cache/local/nowledge-mem/local/ && python3 ~/.codex/plugins/cache/local/nowledge-mem/local/scripts/install_hooks.py",
         "configRequired": "[features] plugins = true AND [plugins.\"nowledge-mem@local\"] enabled = true in ~/.codex/config.toml",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "Packaged Codex skills teach the agent to invoke nmem CLI progressively. Working Memory is the reliable bootstrap; search and distill remain model-driven unless repo guidance tightens policy."
+        "note": "Packaged Codex skills teach the agent to invoke nmem CLI progressively. Working Memory is the reliable bootstrap; search and distill remain model-driven unless repo guidance tightens policy. The bundled host-level Stop hook installer adds automatic transcript capture once installed."
       },
       "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "status"],
       "slashCommands": []
