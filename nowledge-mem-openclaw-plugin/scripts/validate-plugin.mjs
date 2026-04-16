@@ -60,6 +60,13 @@ async function main() {
   const pkg = await readJson("package.json");
   const manifest = await readJson("openclaw.plugin.json");
   const changelog = await assertNonEmpty("CHANGELOG.md");
+  const clawhubIgnore = await assertNonEmpty(".clawhubignore");
+  const clawhubIgnoreEntries = new Set(
+    clawhubIgnore
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
+  );
 
   for (const relPath of [
     "package.json",
@@ -82,6 +89,12 @@ async function main() {
   assertString(pkg.description, "package.json description");
   assertString(pkg.repository?.url, "package.json repository.url");
   assertString(pkg.repository?.directory, "package.json repository.directory");
+
+  for (const requiredPattern of ["tests/", "scripts/", "package-lock.json"]) {
+    if (!clawhubIgnoreEntries.has(requiredPattern)) {
+      fail(`.clawhubignore must exclude ${requiredPattern} so ClawHub artifacts do not ship test or build-only files`);
+    }
+  }
 
   if (pkg.name !== "@nowledge/openclaw-nowledge-mem") {
     fail("package.json name must stay @nowledge/openclaw-nowledge-mem");

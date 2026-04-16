@@ -30,6 +30,11 @@ node scripts/validate-plugin.mjs
 npm pack --dry-run
 ```
 
+`npm pack` is not enough on its own. ClawHub publishes the plugin from the
+working tree and honors `.clawhubignore`, not npm's `files` whitelist. Keep the
+two release surfaces aligned so test and build-only files do not leak into the
+published code plugin.
+
 Then verify the ClawHub publish contract from a machine with `clawhub` installed:
 
 ```bash
@@ -100,6 +105,7 @@ npm publish --access public
 - update `CHANGELOG.md`
 - keep `package.json` `openclaw.install.npmSpec`, `openclaw.compat`, and `openclaw.build` aligned with the tested OpenClaw baseline
 - keep `openclaw.install.minHostVersion` omitted for this plugin; `scripts/validate-plugin.mjs` enforces this and is the source of truth if the policy ever changes
+- keep `.clawhubignore` aligned with the npm package surface so ClawHub releases do not ship tests or build-only files
 - run `node scripts/validate-plugin.mjs`
 - run `npm pack --dry-run`
 - run `clawhub package publish . --dry-run`

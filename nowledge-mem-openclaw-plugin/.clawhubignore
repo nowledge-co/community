@@ -1,0 +1,5 @@
+tests/
+scripts/
+package-lock.json
+RELEASING.md
+.gitignore

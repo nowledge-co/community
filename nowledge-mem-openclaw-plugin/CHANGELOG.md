@@ -4,6 +4,12 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.17] - 2026-04-16
+
+### Fixed
+
+- ClawHub installs no longer ship the plugin test suite inside the published code-plugin artifact. The package now uses an explicit `.clawhubignore`, so OpenClaw's security scanner no longer blocks install or update on harmless test-only `child_process` and `process.env + fetch` patterns.
+
 ## [0.8.16] - 2026-04-15
 
 ### Fixed

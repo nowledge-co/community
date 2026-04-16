@@ -19,6 +19,11 @@ openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 
 OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. Restart OpenClaw after install to load it.
 
+If OpenClaw previously blocked the ClawHub package with a warning about
+`dangerous code patterns detected`, update to `0.8.17+`. That release removes
+test-only files from the published ClawHub artifact, so the installer no longer
+scans harmless development fixtures as if they were runtime plugin code.
+
 If you prefer the default resolver path, bare package names also work because OpenClaw resolves external plugins from ClawHub first and then falls back to npm:
 
 ```bash
