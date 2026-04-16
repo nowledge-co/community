@@ -1,0 +1,43 @@
+---
+name: save-thread
+description: Save a summary of the Copilot CLI session on explicit user request. The Stop hook already captures full transcripts automatically — this skill creates a concise summary thread.
+---
+
+# Save Thread
+
+## When to Save
+
+**Only when user explicitly says:**
+"Save this session" | "Checkpoint this" | "Record conversation"
+
+The Stop hook captures full session transcripts automatically after each response. This skill is for on-demand summary saves.
+
+## Tool Usage
+
+Create a summary thread via `nmem t create`:
+
+```bash
+nmem t create "A concise summary of this session: what was discussed, what was built, and key decisions made" \
+  --title "Copilot CLI: <short title from first user message>" \
+  -s copilot-cli
+```
+
+**Important:** Write the summary yourself from the current conversation context. Do NOT try to invoke the stop hook script directly — it requires hook payload from Copilot CLI internals.
+
+## Thread vs Memory
+
+Thread = real session messages | Memory = distilled insights (different purposes, can do both)
+
+## Response
+
+```
+✓ Thread saved
+Summary: {summary}
+Thread ID: {thread_id from nmem output}
+```
+
+## Troubleshooting
+
+If `nmem` is not in PATH: `pip install nmem-cli`
+
+Run `/status` to check server connection.
