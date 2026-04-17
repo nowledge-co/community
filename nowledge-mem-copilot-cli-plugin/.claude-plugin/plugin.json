@@ -1,0 +1,25 @@
+{
+  "name": "nowledge-mem",
+  "description": "Personal knowledge graph for GitHub Copilot CLI — remembers decisions, searches past work, captures sessions",
+  "version": "0.1.0",
+  "author": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai",
+    "url": "https://nowledge-labs.ai"
+  },
+  "homepage": "https://mem.nowledge.co/",
+  "repository": "https://github.com/nowledge-co/community.git",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "knowledge-base",
+    "semantic-search",
+    "ai-tools",
+    "personal-knowledge",
+    "conversation-persistence",
+    "context-management",
+    "ai-assistant",
+    "knowledge-management",
+    "copilot-cli"
+  ]
+}

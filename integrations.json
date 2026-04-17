@@ -50,6 +50,52 @@
       "slashCommands": ["/save", "/search", "/sum", "/status"]
     },
     {
+      "id": "copilot-cli",
+      "name": "Copilot CLI",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-copilot-cli-plugin",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "plugin-capture",
+        "runtime": "copilot-cli",
+        "note": "Python script reads Copilot CLI transcript events via stdin, creates threads via nmem t import. No native nmem parser exists for copilot-cli."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the native plugin",
+          "Keep nmem available on this machine",
+          "Run install-hooks.sh after install to set up session capture"
+        ]
+      },
+      "install": {
+        "command": "copilot plugin marketplace add nowledge-co/community && copilot plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem@nowledge-community",
+        "detectionHint": "Running as GitHub Copilot CLI agent; ~/.copilot/ exists",
+        "docsUrl": "/docs/integrations/copilot-cli"
+      },
+      "toolNaming": {
+        "convention": "cli-direct",
+        "note": "Lifecycle hooks run automatically; skills teach Copilot to invoke nmem CLI directly when needed"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
+      "slashCommands": []
+    },
+    {
       "id": "gemini-cli",
       "name": "Gemini CLI",
       "category": "coding",
