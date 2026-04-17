@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **UserPromptSubmit hook** — per-turn behavioral nudge with search/save syntax (~35 tokens)
 - **Stop hook** — Python-based session capture script reads transcript events, filters secrets, creates threads via `nmem t import`, auto-distills valuable sessions
 - **4 skills**: read-working-memory, search-memory, distill-memory, save-thread
-- **4 bundled command docs**: `save`, `search`, `sum`, `status` (shipped with the plugin; current Copilot CLI does not expose them as interactive slash commands)
+- **Skill-only surface** — no separate command docs are shipped for Copilot CLI, which avoids duplicated command/skill entries
 - **Session capture script** (`copilot-stop-save.py`):
   - Stable per-session thread ID: `copilot-{session_id}`
   - Secret filtering (6 redaction patterns + 10 skip patterns)

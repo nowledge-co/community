@@ -45,16 +45,18 @@ nmem --json t search "query" --limit 5
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-### Bundled Command References
+### Copilot Skills
 
-These command docs ship with the plugin, but Copilot CLI does not currently expose them as interactive slash commands.
+This plugin is intentionally skill-only. Do not assume a separate command-doc surface. These skills are model-mediated: Copilot interprets the skill instructions, then invokes `nmem` as needed.
 
-| Command | Purpose |
-|---------|---------|
-| `save` | Explicit session save |
-| `search <query>` | Search knowledge base |
-| `sum` | Distill insights from conversation |
-| `status` | Check Nowledge Mem connection |
+| Skill | Purpose |
+|-------|---------|
+| `read-working-memory` | Load current working context |
+| `search-memory` | Search the knowledge base and prior threads |
+| `distill-memory` | Distill conversation insights into memories |
+| `save-thread` | Save a summary thread for the current session |
+
+For a direct connection check outside the skill surface, run `nmem status` in the terminal.
 
 ### Quality Standards
 

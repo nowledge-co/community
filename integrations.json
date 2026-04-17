@@ -79,10 +79,10 @@
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "Declarative skills and slash commands invoke nmem CLI directly"
+        "note": "Lifecycle hooks run automatically; skills teach Copilot to invoke nmem CLI directly when needed"
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
-      "slashCommands": ["/save", "/search", "/sum", "/status"]
+      "slashCommands": []
     },
     {
       "id": "gemini-cli",

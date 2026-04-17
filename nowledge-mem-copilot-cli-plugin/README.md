@@ -48,20 +48,14 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 - Session conversations captured to your knowledge graph on each response
 - Context recovered after compaction events
 
-**Autonomous skills (Copilot acts on its own):**
+**Skills (model-mediated; Copilot may expose them as namespaced entries):**
 
+- **Read Working Memory** — loads your daily context briefing
 - **Search Memory** — searches both distilled memories and prior sessions when continuity matters
 - **Distill Memory** — suggests saving breakthroughs and decisions
-- **Read Working Memory** — loads your daily context briefing
+- **Save Thread** — saves a concise summary thread when the user explicitly asks to save/checkpoint the session
 
-**Bundled command docs (the plugin ships these command definitions, but Copilot CLI does not currently expose them as interactive slash commands):**
-
-| Command | What it does |
-|---------|-------------|
-| `save` | Save this session to Nowledge Mem |
-| `search <query>` | Search your knowledge base |
-| `sum` | Distill insights from this conversation |
-| `status` | Check connection and server status |
+The plugin no longer ships separate command docs. Skills are still interpreted by the model and then invoke `nmem` as needed; they are not host-native direct shell commands. For direct terminal checks outside the skill surface, run the `nmem` CLI yourself (for example `nmem status`).
 
 ## How It Works
 
@@ -110,7 +104,7 @@ Spaces are optional. If one Copilot CLI process naturally belongs to one project
 NMEM_SPACE="Research Agent"
 ```
 
-The session-start Working Memory read, per-turn guidance, command documentation, and background capture will then stay in that lane automatically.
+The session-start Working Memory read, per-turn guidance, skills, and background capture will then stay in that lane automatically.
 
 ## Update
 
