@@ -6,6 +6,11 @@
  * Shows where each config value comes from (file, pluginConfig, env, default).
  */
 import { isDefaultApiUrl } from "../config.js";
+import {
+	NOWLEDGE_MEM_CONTEXT_ENGINE_COMPAT_ALIAS,
+	NOWLEDGE_MEM_CONTEXT_ENGINE_ID,
+	isNowledgeMemContextEngineSlot,
+} from "../context-engine-ids.js";
 
 export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 	return {
@@ -104,18 +109,39 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			}
 
 			// 0c. Capture routing — hooks vs context engine
-			const ceActive = ceSlot === "nowledge-mem" && contextEngineRegistered;
+			const ceActive =
+				isNowledgeMemContextEngineSlot(ceSlot) && contextEngineRegistered;
 			const captureMode = !cfg.sessionDigest
 				? "disabled"
 				: ceActive ? "context-engine+hooks" : "hooks";
 			details.captureMode = captureMode;
 			if (ceActive) {
-				lines.push("Context Engine slot: nowledge-mem (active)");
+				if (ceSlot === NOWLEDGE_MEM_CONTEXT_ENGINE_COMPAT_ALIAS) {
+					lines.push(
+						`Context Engine slot: ${NOWLEDGE_MEM_CONTEXT_ENGINE_COMPAT_ALIAS} (active via compatibility alias)`,
+					);
+					lines.push(
+						`  OpenClaw selected the plugin id for the context-engine slot. ${NOWLEDGE_MEM_CONTEXT_ENGINE_ID} remains the canonical manual setting.`,
+					);
+				} else {
+					lines.push(`Context Engine slot: ${NOWLEDGE_MEM_CONTEXT_ENGINE_ID} (active)`);
+				}
 				lines.push(
 					"  Thread capture runs through Context Engine afterTurn with hook fallback (agent_end, after_compaction, before_reset).",
 				);
-			} else if (ceSlot === "nowledge-mem") {
-				lines.push("Context Engine slot: nowledge-mem (configured, fallback to hooks)");
+			} else if (isNowledgeMemContextEngineSlot(ceSlot)) {
+				if (ceSlot === NOWLEDGE_MEM_CONTEXT_ENGINE_COMPAT_ALIAS) {
+					lines.push(
+						`Context Engine slot: ${NOWLEDGE_MEM_CONTEXT_ENGINE_COMPAT_ALIAS} (compatibility alias, fallback to hooks)`,
+					);
+					lines.push(
+						`  OpenClaw selected the plugin id for the context-engine slot. ${NOWLEDGE_MEM_CONTEXT_ENGINE_ID} remains the canonical manual setting.`,
+					);
+				} else {
+					lines.push(
+						`Context Engine slot: ${NOWLEDGE_MEM_CONTEXT_ENGINE_ID} (configured, fallback to hooks)`,
+					);
+				}
 				lines.push(
 					"  The slot points to Nowledge Mem, but Context Engine registration is not active in this runtime. Thread capture is using hooks only.",
 				);

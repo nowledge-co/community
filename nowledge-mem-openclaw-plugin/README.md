@@ -17,7 +17,9 @@ This is not a flat note store. Nowledge Mem links related knowledge into a graph
 openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 ```
 
-OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. Restart OpenClaw after install to load it.
+OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. On current OpenClaw builds, that same install flow may also set `plugins.slots.contextEngine` to `openclaw-nowledge-mem`. Plugin `0.8.18+` accepts that automatically as a compatibility alias, so you do not need to hand-edit the file after install. If you manage config manually, keep using the canonical context engine id `nowledge-mem`.
+
+Restart OpenClaw after install to load it.
 
 If OpenClaw previously blocked the ClawHub package with a warning about
 `dangerous code patterns detected`, update to `0.8.17+`. That release removes
@@ -564,6 +566,8 @@ If your config enables `plugins.slots.contextEngine: "nowledge-mem"`:
 
 - on `0.8.6+`, Context Engine capture stays active and hooks remain enabled as a safety net
 - on `0.8.5` and earlier, temporarily removing the `contextEngine` slot is a valid isolation step if thread sync stops while tools still work
+
+If OpenClaw selected `plugins.slots.contextEngine: "openclaw-nowledge-mem"` during install, plugin `0.8.18+` treats that as the same engine. You only need to rewrite it to `"nowledge-mem"` if you want the config to use the canonical manual id.
 
 Remember: OpenClaw applies plugin setting changes after restart. If you turned `sessionDigest` off earlier but had not restarted yet, thread sync could appear to keep working until the next restart, then stop.
 

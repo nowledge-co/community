@@ -4,6 +4,16 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.18] - 2026-04-20
+
+### Fixed
+
+- OpenClaw installs no longer break when the installer writes `plugins.slots.contextEngine: "openclaw-nowledge-mem"` instead of the canonical manual id `nowledge-mem`. The plugin now registers a compatibility alias for that slot value, so users do not need to patch local config after install just to activate the Context Engine.
+
+### Changed
+
+- `nowledge_mem_status` now explains when OpenClaw selected the plugin id as a context-engine compatibility alias, while still treating `nowledge-mem` as the canonical manual config value.
+
 ## [0.8.17] - 2026-04-16
 
 ### Fixed

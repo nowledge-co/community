@@ -3,7 +3,9 @@
  *
  * Registers alongside the memory slot (plugin kind includes both "memory" and
  * "context-engine"). When users activate
- * this CE via `plugins.slots.contextEngine: "nowledge-mem"`, it takes over
+ * this CE via `plugins.slots.contextEngine: "nowledge-mem"` (or the
+ * compatibility alias `openclaw-nowledge-mem` written by current installer
+ * builds), it takes over
  * prompt assembly and adds richer lifecycle behavior:
  *
  *   assemble()              — behavioral guidance + recalled memories via systemPromptAddition

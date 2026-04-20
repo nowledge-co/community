@@ -6,6 +6,10 @@ import {
 	createRememberCommand,
 } from "./commands/slash.js";
 import { isDefaultApiUrl, parseConfig } from "./config.js";
+import {
+	NOWLEDGE_MEM_CONTEXT_ENGINE_ID,
+	NOWLEDGE_MEM_CONTEXT_ENGINE_IDS,
+} from "./context-engine-ids.js";
 import { createNowledgeMemContextEngineFactory } from "./context-engine.js";
 import { createNowledgeMemCorpusSupplement } from "./corpus-supplement.js";
 import { buildBehavioralHook } from "./hooks/behavioral.js";
@@ -78,16 +82,22 @@ export default {
 		let contextEngineRegistrationError = null;
 
 		// --- Context Engine registration ---
-		// When the user sets `plugins.slots.contextEngine: "nowledge-mem"`,
-		// this CE takes over prompt assembly from the hooks below (assemble
-		// replaces behavioral + recall prompt injection). Capture hooks remain
-		// enabled as a reliability backstop because thread sync is idempotent.
-		// When the CE slot points elsewhere, hooks continue working as before.
+		// When the user sets `plugins.slots.contextEngine: "nowledge-mem"` —
+		// or OpenClaw auto-selects the plugin id compatibility alias
+		// `openclaw-nowledge-mem` during install — this CE takes over prompt
+		// assembly from the hooks below (assemble replaces behavioral + recall
+		// prompt injection). Capture hooks remain enabled as a reliability
+		// backstop because thread sync is idempotent. When the CE slot points
+		// elsewhere, hooks continue working as before.
 		try {
-			api.registerContextEngine(
-				"nowledge-mem",
-				createNowledgeMemContextEngineFactory(client, cfg, logger),
+			const contextEngineFactory = createNowledgeMemContextEngineFactory(
+				client,
+				cfg,
+				logger,
 			);
+			for (const contextEngineId of NOWLEDGE_MEM_CONTEXT_ENGINE_IDS) {
+				api.registerContextEngine(contextEngineId, contextEngineFactory);
+			}
 			contextEngineRegistered = true;
 		} catch (err) {
 			// OpenClaw < CE support — degrade gracefully to hooks-only mode
@@ -101,6 +111,7 @@ export default {
 			createStatusTool(client, logger, cfg, {
 				memorySlot,
 				contextEngineSlot,
+				contextEngineIds: NOWLEDGE_MEM_CONTEXT_ENGINE_IDS,
 				pluginsAllow,
 				contextEngineRegistered,
 				contextEngineRegistrationError,
@@ -171,7 +182,7 @@ export default {
 
 		const remoteMode = !isDefaultApiUrl(cfg.apiUrl);
 		logger.info(
-			`nowledge-mem: initialized (memorySlotSelected=${memorySlotSelected}, context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, corpus=${cfg.corpusSupplement}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"})`,
+			`nowledge-mem: initialized (memorySlotSelected=${memorySlotSelected}, context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, corpus=${cfg.corpusSupplement}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"}, contextEngineIds=${NOWLEDGE_MEM_CONTEXT_ENGINE_ID}|${api.id})`,
 		);
 	},
 };

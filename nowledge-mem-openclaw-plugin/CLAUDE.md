@@ -9,7 +9,7 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
 - OpenClaw minimum: `2026.4.5` (`registerMemoryCorpusSupplement` for dreaming integration)
 - Architecture: **CLI-first via OpenClaw runtime** - all CLI execution goes through `api.runtime.system.runCommandWithTimeout`, not direct `child_process`
-- Context engine: registered via `api.registerContextEngine("nowledge-mem", factory)`. Activated when user sets `plugins.slots.contextEngine: "nowledge-mem"`. Falls back to hooks when CE is not active.
+- Context engine: registered under the canonical id `nowledge-mem` plus the compatibility alias `openclaw-nowledge-mem`. Activated when OpenClaw sets either value in `plugins.slots.contextEngine`. Manual config should still prefer `nowledge-mem`. Falls back to hooks when CE is not active.
 - Remote mode: `~/.nowledge-mem/config.json` (shared) or OpenClaw dashboard. Legacy `openclaw.json` still honored.
 - Ambient space lane: prefer plugin config `space` or `spaceTemplate`. Use `NMEM_SPACE` only when OpenClaw is launched in one stable lane and there is no better profile-owned config surface. Legacy `NMEM_SPACE_ID` still works for older setups.
 
@@ -85,7 +85,7 @@ Enable when memory-core is the memory slot and you want cross-tool knowledge to 
 The plugin is published as a dual-role OpenClaw plugin (`kind: ["memory", "context-engine"]`). These roles remain independent at runtime:
 
 - **Memory slot**: provides `memory_search` + `memory_get` and activates OpenClaw's "Memory Recall" system prompt section only when `plugins.slots.memory = "openclaw-nowledge-mem"`. In supplement mode with `memory-core`, these compatibility tools stay off so memory-core keeps owning that surface.
-- **Context engine**: activated when user sets `plugins.slots.contextEngine: "nowledge-mem"`. Replaces hooks with richer CE lifecycle.
+- **Context engine**: activated when OpenClaw sets `plugins.slots.contextEngine` to `nowledge-mem` or the compatibility alias `openclaw-nowledge-mem`. Manual config should still use `nowledge-mem`. Replaces hooks with richer CE lifecycle.
 
 ### CE vs Hooks (dual-path design)
 
