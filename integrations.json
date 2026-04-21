@@ -146,11 +146,11 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
-      "transport": "cli",
+      "transport": "cli+mcp",
       "capabilities": {
         "workingMemory": true,
         "search": true,
@@ -172,6 +172,7 @@
         "threads": "explicit-save",
         "bestResultRequires": [
           "Install the Codex package and enable plugins in ~/.codex/config.toml",
+          "Add the Nowledge Mem MCP server in ~/.codex/config.toml for stronger retrieval and memory writes",
           "Keep nmem available on this machine",
           "Merge the package AGENTS.md into the project for stronger follow-through"
         ]
@@ -179,13 +180,13 @@
       "install": {
         "command": "codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
         "updateCommand": "codex plugin marketplace update nowledge-community || codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
-        "configRequired": "After marketplace add, install nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml",
+        "configRequired": "After marketplace add, install nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true, [plugins.\"nowledge-mem@nowledge-community\"] enabled = true, and add [mcp_servers.nowledge-mem] to ~/.codex/config.toml",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },
       "toolNaming": {
-        "convention": "cli-direct",
-        "note": "Packaged Codex skills teach the agent to invoke nmem CLI progressively. Working Memory is the reliable bootstrap; search and distill remain model-driven unless repo guidance tightens policy."
+        "convention": "hybrid-cli+mcp",
+        "note": "Prefer MCP tools for retrieval and memory writes when the Nowledge Mem server is configured in Codex; plugin skills and direct nmem remain the Working Memory, real thread-save, status, and fallback surfaces."
       },
       "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "status"],
       "slashCommands": []

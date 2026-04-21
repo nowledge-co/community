@@ -5,7 +5,11 @@ description: "Load your current context at session start. Shows what you were wo
 
 Start with what matters. Working Memory is a daily briefing of your active focus areas, priorities, and recent knowledge changes, kept up to date across every AI tool you use.
 
-## Command
+## Preferred path
+
+If this session exposes the Nowledge Mem MCP server, prefer `read_working_memory`.
+
+Otherwise use:
 
 ```bash
 nmem --json wm read

@@ -28,6 +28,8 @@ This keeps one critical distinction honest for fresh users: having tools availab
 
 For behavioral guidance (when to search, save, read Working Memory, and route ambient spaces), see [`shared/behavioral-guidance.md`](shared/behavioral-guidance.md). For plugin authoring rules, see [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md).
 
+For end-user customization that survives updates, see [`docs/USER_OVERRIDE_GUIDE.md`](docs/USER_OVERRIDE_GUIDE.md). The short version: do not edit installed plugin files; use the host's own instruction files when that host supports them.
+
 ## Integrations
 
 Each directory is a standalone integration. Pick the one that matches your tool.
@@ -41,7 +43,7 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[Antigravity Trajectory Extractor](https://github.com/jijiamoer/antigravity-trajectory-extractor)** | `git clone https://github.com/jijiamoer/antigravity-trajectory-extractor.git` | Live RPC extraction for Antigravity conversation trajectories. |
 | **[Windsurf Trajectory Extractor](https://github.com/jijiamoer/windsurf-trajectory-extractor)** | `git clone https://github.com/jijiamoer/windsurf-trajectory-extractor.git` | Offline protobuf extraction for Windsurf Cascade conversation history. |
 | **[Cursor Plugin](nowledge-mem-cursor-plugin)** | Link `nowledge-mem-cursor-plugin` into `~/.cursor/plugins/local/nowledge-mem-cursor` | Cursor-native plugin package with a session-start Working Memory hook, bundled MCP config, rules, and honest `save-handoff` semantics. |
-| **[Codex Plugin](nowledge-mem-codex-plugin)** | Copy the full plugin directory, including `.codex-plugin`, to `~/.codex/plugins/cache/local/nowledge-mem/local/` and enable it in `~/.codex/config.toml` | Packaged Codex skills for Working Memory bootstrap, proactive recall guidance, real session save, and distillation. |
+| **[Codex Plugin](nowledge-mem-codex-plugin)** | `codex plugin marketplace add nowledge-co/community`, install `nowledge-mem@nowledge-community` from Codex `/plugins`, then add the plugin block plus the Nowledge Mem MCP server to `~/.codex/config.toml` | Hybrid Codex path: plugin package for Working Memory guidance and real session save, MCP for stronger retrieval and memory writes, `nmem` as fallback. |
 | **[OpenClaw Plugin](nowledge-mem-openclaw-plugin)** | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | Full memory lifecycle with memory tools, thread tools, automatic capture, and distillation. |
 | **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with Working Memory, thread-aware recall, structured saves, and optional auto-capture. |
 | **[Bub Plugin](nowledge-mem-bub-plugin)** | `pip install nowledge-mem-bub` | Bub-native plugin: cross-tool knowledge, auto-capture via save_state, Working Memory, and graph exploration. |

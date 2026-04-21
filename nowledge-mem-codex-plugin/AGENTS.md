@@ -1,15 +1,16 @@
 # Nowledge Mem for Codex
 
-You have access to the user's knowledge through the `nmem` CLI and the installed plugin skills.
+You have access to the user's knowledge through the installed plugin skills, the `nmem` CLI, and, when configured, the Nowledge Mem MCP server.
 
-Use plugin skills (`$nowledge-mem:working-memory`, `$nowledge-mem:search-memory`, `$nowledge-mem:save-thread`, `$nowledge-mem:distill-memory`, `$nowledge-mem:status`) when they match, or compose `nmem` commands directly when that's clearer.
+If this session exposes Nowledge Mem MCP tools, prefer them for retrieval and memory writes. Use the plugin skills and direct `nmem` commands for Codex-specific guidance, status checks, real transcript save, and CLI fallback.
 
 ## Operating Model
 
-This Codex package is skill-driven, not hook-driven.
+This Codex package is hybrid-aware, but still not hook-driven.
 
+- Best modern setup: Codex plugin + Nowledge Mem MCP.
 - Reliable bootstrap: read Working Memory once near session start.
-- Guided follow-through: search and distill when the task calls for it.
+- Stronger retrieval and memory updates: use Nowledge Mem MCP tools when available.
 - Explicit only: save the real Codex thread only when the user asks.
 
 Do not stop at the Working Memory briefing if the task clearly resumes prior work.
@@ -17,6 +18,10 @@ Do not stop at the Working Memory briefing if the task clearly resumes prior wor
 ## Working Memory
 
 At session start, load the user's current context:
+
+Prefer the Nowledge Mem MCP `read_working_memory` tool when it is available in this session.
+
+Otherwise use:
 
 ```bash
 nmem --json wm read
@@ -40,6 +45,14 @@ In engineering repos, assume search is usually warranted for:
 - docs or changelog alignment
 - repeated subsystem work
 
+Prefer Nowledge Mem MCP retrieval tools when they are available in this session:
+
+- `memory_search` for durable knowledge
+- `thread_search` for prior conversation lookup
+- `thread_fetch_messages` for progressive thread inspection
+
+Otherwise use:
+
 ```bash
 nmem --json m search "query"
 ```
@@ -58,6 +71,10 @@ nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ## Distill
 
 Save proactively when the conversation produces a decision, procedure, learning, or important context. Don't wait to be asked.
+
+Prefer `memory_add` and `memory_update` through the Nowledge Mem MCP server when they are available in this session.
+
+Otherwise use:
 
 ```bash
 nmem --json m add "content" -t "Title" --unit-type decision -l "label" -s codex -i 0.8

@@ -111,6 +111,16 @@ claude plugin update nowledge-mem@nowledge-community
 # Restart Claude Code to apply changes
 ```
 
+## Customize without editing the plugin
+
+Claude Code already has a clean override surface.
+
+- Put shared repo rules in `CLAUDE.md`.
+- Put your personal local tweaks in `CLAUDE.local.md`.
+- Do not edit the installed Nowledge Mem plugin files under Claude's plugin directory.
+
+Use `CLAUDE.local.md` for small personal memory-behavior changes such as "prefer saving Chinese notes" or "be more aggressive about searching prior release work" without forcing that rule on the whole team.
+
 ## Troubleshooting
 
 **nmem not found:** Install with `pip install nmem-cli` or `pipx install nmem-cli`. If you're in WSL, see the [WSL setup](#wsl-setup) above.

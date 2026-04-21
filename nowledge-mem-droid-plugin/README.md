@@ -145,6 +145,14 @@ droid plugin marketplace update nowledge-community
 droid plugin update nowledge-mem@nowledge-community
 ```
 
+## Customize without editing the plugin
+
+Droid does not currently have a separate packaged override file in this integration.
+
+- Use Droid's own prompt or instruction surface for extra behavior guidance.
+- Keep connection and lane behavior in `nmem` config or environment variables.
+- Do not patch the installed plugin files under the Droid plugin directory.
+
 ## Validate Locally
 
 From the `community/` checkout root:

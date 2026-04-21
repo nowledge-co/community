@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.5] - 2026-04-21
+
+### Improved
+
+- **Hybrid Codex setup**: the package now explicitly recommends `plugin + MCP` as the best modern Codex setup. The plugin package remains responsible for Working Memory guidance, `nmem` fallback, and real `save-thread`; MCP is now documented as the stronger retrieval and memory-write path when available.
+- **Copy-paste config**: added a bundled `codex.config.example.toml` with the combined plugin + MCP block for local and remote Mem setups.
+- **Package guidance**: `AGENTS.md` and the Codex skills now teach a hybrid operating model: prefer Nowledge Mem MCP tools for retrieval and memory writes when present, fall back to `nmem`, and keep `nmem t save --from codex` as the honest transcript-save path.
+
 ## [0.1.4] - 2026-04-21
 
 ### Improved

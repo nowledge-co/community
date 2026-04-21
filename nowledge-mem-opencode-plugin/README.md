@@ -94,6 +94,17 @@ The plugin uses two OpenCode hooks:
 
 For project-specific behavioral guidance, add to your `AGENTS.md` or OpenCode instructions. The included `AGENTS.md` in this package serves as a reference.
 
+## Customize without editing the plugin
+
+OpenCode already gives you a proper instruction layer.
+
+- Shared repo rules: `AGENTS.md`
+- Personal global rules: `~/.config/opencode/AGENTS.md`
+- Reusable extra files: list them in `opencode.json` `instructions`
+- Do not edit the installed plugin bundle directly
+
+Treat the package `AGENTS.md` as reference text and keep your real overrides in OpenCode's own instruction files.
+
 ## Configuration
 
 No config needed for local use.
