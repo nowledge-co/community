@@ -152,6 +152,16 @@ Start a new Hermes session. You should see Working Memory loaded in the system p
 
 Hermes should call `nmem_search` (plugin mode) or `mcp_nowledge_mem_memory_search` (MCP mode) and return results.
 
+## Customize without editing the plugin
+
+Hermes already has two clean user-owned instruction layers.
+
+- Global personal rules: `~/.hermes/SOUL.md`
+- Repo-level rules: `HERMES.md`
+- Do not edit the installed plugin files under `~/.hermes/plugins/nowledge-mem/`
+
+Use `SOUL.md` for your own durable memory preferences and `HERMES.md` for repo-specific expectations.
+
 ## Troubleshooting
 
 - **"Nowledge Mem server not reachable"**: Verify the desktop app is running. Check with `nmem status`.

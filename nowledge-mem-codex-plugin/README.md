@@ -194,6 +194,16 @@ Shared spaces, default retrieval, and agent guidance come from Mem's own space p
 
 Copy `AGENTS.md` into your project root for stronger memory behavior in that repo. If you already have an `AGENTS.md`, merge the Nowledge section.
 
+## Customize without editing the plugin
+
+Treat your repo's `AGENTS.md` as the durable override layer for Codex.
+
+- Do not edit the installed package files under the Codex plugin cache.
+- Use the package `AGENTS.md` as reference text, then copy or merge only the parts you want into your repo's own `AGENTS.md`.
+- Keep the plugin package for defaults and updates; keep your behavior tweaks in the repo you actually work in.
+
+See [`../docs/USER_OVERRIDE_GUIDE.md`](../docs/USER_OVERRIDE_GUIDE.md) for the cross-host policy.
+
 ## Migrating from custom prompts
 
 If you used `nowledge-mem-codex-prompts` before:

@@ -85,6 +85,16 @@ Cursor can see the tools, but the bundled rules and skills tell it when to use t
 - search threads only when exact prior conversation history matters
 - update an existing memory instead of duplicating it when the same decision evolves
 
+## Customize without editing the plugin
+
+Cursor already has a real rule surface.
+
+- Add your own project rule in `.cursor/rules/*.mdc` or `.cursorrules`
+- Keep the packaged `rules/nowledge-mem.mdc` intact as the default
+- Do not patch the installed plugin files under `~/.cursor/plugins/...`
+
+That keeps your local or repo-specific memory behavior durable across plugin updates.
+
 ## Validate Locally
 
 Run the package validator before manual Cursor testing or marketplace submission:

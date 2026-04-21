@@ -28,6 +28,8 @@ This keeps one critical distinction honest for fresh users: having tools availab
 
 For behavioral guidance (when to search, save, read Working Memory, and route ambient spaces), see [`shared/behavioral-guidance.md`](shared/behavioral-guidance.md). For plugin authoring rules, see [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md).
 
+For end-user customization that survives updates, see [`docs/USER_OVERRIDE_GUIDE.md`](docs/USER_OVERRIDE_GUIDE.md). The short version: do not edit installed plugin files; use the host's own instruction files when that host supports them.
+
 ## Integrations
 
 Each directory is a standalone integration. Pick the one that matches your tool.

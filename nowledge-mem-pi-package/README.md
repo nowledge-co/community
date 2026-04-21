@@ -66,6 +66,16 @@ pi update
 
 For behavioral guidance that shapes how Pi uses these skills (when to search, when to save, retrieval routing), see [AGENTS.md](AGENTS.md). Place it alongside your project configuration so Pi follows it automatically.
 
+## Customize without editing the package
+
+Use your project's own `AGENTS.md` as the override layer for Pi.
+
+- Keep the package skills as shipped defaults
+- Copy or merge the package `AGENTS.md` into your project config area
+- Do not patch installed package files under the Pi package cache
+
+That keeps your custom behavior durable across package updates.
+
 ## Troubleshooting
 
 **nmem not found:** Install with `pip install nmem-cli` or `pipx install nmem-cli`.

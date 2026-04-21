@@ -104,6 +104,14 @@ For deeper tool-usage guidance (execution order, query heuristics, write heurist
 
 Note: Alma does not have a programmatic skill registration API. The skill file must be loaded manually into Alma's settings. The plugin already injects core behavioral guidance via the `chat.message.willSend` hook, so the skill file is supplementary — it adds more detailed instructions for power users.
 
+## Customize without editing the plugin
+
+Alma does not currently have a separate packaged override file in this integration.
+
+- Use Alma's own settings and manually loaded skill prompt for extra behavior guidance.
+- Keep plugin-level behavior changes in Alma settings such as recall policy, capture policy, remote settings, and space selection.
+- Do not patch the installed plugin bundle under `~/.config/alma/plugins/nowledge-mem`.
+
 ## How It Works
 
 The plugin provides two tiers of memory:

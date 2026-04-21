@@ -123,6 +123,16 @@ bash "$HOME/.copilot/installed-plugins/nowledge-community/nowledge-mem/scripts/i
 # Restart Copilot CLI to apply changes
 ```
 
+## Customize without editing the plugin
+
+Copilot CLI already has a native instruction layer. Use that as your override path.
+
+- Shared repo rules: `.github/instructions/*.instructions.md`
+- Personal rules across repos: `~/.copilot/instructions/*.instructions.md`
+- Do not edit installed plugin hooks or scripts under `~/.copilot/installed-plugins/...`
+
+Keep the plugin for lifecycle hooks and capture. Put your custom memory behavior in Copilot instruction files so updates do not wipe it out.
+
 ## Troubleshooting
 
 **nmem not found:** Install with `pip install nmem-cli` or `pipx install nmem-cli`. If you're in WSL, see the [WSL setup](#wsl-setup) above.

@@ -48,6 +48,14 @@ All tools work as Bub comma commands too: `,mem.search query=...`
 
 No config needed for local use. The plugin reads `~/.nowledge-mem/config.json` and environment variables automatically.
 
+## Customize without editing the plugin
+
+Bub does not currently expose a dedicated user-owned instruction file through this package.
+
+- Use Bub's own runtime prompt or configuration surface if you need extra behavior guidance.
+- Keep connection and lane behavior in shared config or env vars.
+- Do not patch the installed Bub plugin files directly.
+
 | Variable | Default | What it does |
 |----------|---------|-------------|
 | `NMEM_SESSION_CONTEXT` | `false` | Inject Working Memory + recalled knowledge each turn |

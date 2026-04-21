@@ -428,6 +428,14 @@ No config is required for a normal npm install. The defaults work for local mode
 
 To change settings, use the OpenClaw plugin settings UI. Changes take effect on restart.
 
+## Customize without editing the plugin
+
+OpenClaw does not currently have a separate user-owned instruction file in this integration contract.
+
+- Use the OpenClaw plugin settings UI for supported behavior changes such as `sessionContext`, digest controls, remote credentials, and space selection.
+- If you need additional behavioral guidance, customize OpenClaw's own prompt or agent configuration surface.
+- Do not patch the installed plugin source under the OpenClaw extensions directory.
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `sessionContext` | boolean | `false` | Inject Working Memory + relevant memories at prompt time |

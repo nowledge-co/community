@@ -139,6 +139,38 @@ Every integration's distill/save guidance MUST include proactive save encouragem
 
 ---
 
+## User override model
+
+Users need a customization path that survives updates.
+
+### Rules
+
+1. **Never require edits inside the installed plugin directory.**
+   - Do not tell users to patch bundled skills, hooks, scripts, or packaged `AGENTS.md` files under a marketplace cache or plugin install root.
+2. **Prefer the host's own instruction surface.**
+   - Project `AGENTS.md`
+   - `CLAUDE.local.md` / `CLAUDE.md`
+   - `.github/instructions/*.instructions.md`
+   - `.cursor/rules/*.mdc`
+   - `GEMINI.md`
+   - `HERMES.md` / `SOUL.md`
+3. **Document the honest fallback when no such surface exists.**
+   - If the host only exposes config toggles or a custom system prompt field, say that directly.
+   - Do not invent a pseudo-standard filename the host will not load.
+
+### Packaging guidance
+
+- Bundled behavioral files inside a package are **reference defaults**.
+- README files should include a short `Customize without forking` section whenever the host has a real override-capable abstraction.
+- If the host supports both shared and personal instruction layers, explain both:
+  - shared/team rule file
+  - personal/local rule file
+- If the host does not support a first-class rule file, point users to host config or system prompt customization instead.
+
+For the current host mapping, see [`USER_OVERRIDE_GUIDE.md`](./USER_OVERRIDE_GUIDE.md).
+
+---
+
 ## Capabilities Checklist
 
 Every integration should provide at minimum:
