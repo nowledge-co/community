@@ -1,6 +1,6 @@
 # Nowledge Mem — Copilot CLI Plugin
 
-> Your personal knowledge graph, built into GitHub Copilot CLI. Copilot remembers your decisions, searches past work, and captures sessions — without you asking.
+> Your personal knowledge graph, built into GitHub Copilot CLI. Copilot loads your Working Memory, nudges for recall, and captures sessions automatically.
 
 ## Install
 
@@ -31,8 +31,13 @@ On Windows/Linux with the Nowledge Mem desktop app, `nmem` is already bundled.
 ```bash
 mkdir -p ~/.local/bin && cat > ~/.local/bin/nmem << 'SHIMEOF'
 #!/bin/bash
-q=""; for a in "$@"; do q="$q \"$a\""; done
-cmd.exe /s /c "\"nmem.cmd\"$q"
+python3 - "$@" <<'PY'
+import subprocess
+import sys
+
+cmd = subprocess.list2cmdline(["nmem.cmd", *sys.argv[1:]])
+raise SystemExit(subprocess.run(["cmd.exe", "/s", "/c", cmd]).returncode)
+PY
 SHIMEOF
 chmod +x ~/.local/bin/nmem
 ```
@@ -63,12 +68,12 @@ The plugin no longer ships separate command docs. Skills are still interpreted b
 
 | Event | Trigger | Action |
 |-------|---------|--------|
-| `SessionStart` | New, resume, or clear | Loads Working Memory via `nmem wm read` |
+| `SessionStart` | New, resume, or clear | Loads Working Memory via `nmem --json wm read` |
 | `SessionStart` | After compaction | Re-loads Working Memory + checkpoint prompt |
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
 | `Stop` | Model finishes responding | Captures session to knowledge graph (async) |
 
-The `SessionStart` hook tries `nmem wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` only as the **Default-space** compatibility path.
+The `SessionStart` hook tries `nmem --json wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
 The `Stop` hook runs a Python capture script in the background after every response. It reads the Copilot CLI transcript, extracts messages, filters secrets, and creates threads via `nmem t import`. This is idempotent — repeated runs only append new content.
 

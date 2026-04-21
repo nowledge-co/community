@@ -32,7 +32,7 @@ description: Read your daily Working Memory briefing to understand current conte
 Read Working Memory via nmem CLI (works for both local and remote):
 
 ```bash
-nmem wm read
+nmem --json wm read
 ```
 
 If the runtime already knows the current project or agent lane, add `--space "<space name>"`.

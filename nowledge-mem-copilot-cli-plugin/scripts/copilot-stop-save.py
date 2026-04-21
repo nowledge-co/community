@@ -239,7 +239,7 @@ def run_json(args: list[str]) -> dict:
 
 def load_state(session_id: str) -> tuple[Path, dict]:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    path = STATE_DIR / f"{session_id}.json"
+    path = STATE_DIR / f"{state_token(session_id)}.json"
     if not path.exists():
         return path, {
             "active_start_event_id": None,
@@ -284,6 +284,11 @@ def content_hash(messages: list[dict]) -> str:
     return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
+def state_token(session_id: str) -> str:
+    """Map a session id to a filesystem-safe, deterministic token."""
+    return hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:32]
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -311,13 +316,16 @@ def main() -> int:
         log({"session_id": session_id, "action": "skip", "reason": "nmem_missing"})
         return 0
 
-    lock_path = STATE_DIR / f"{session_id}.lock"
+    lock_path = STATE_DIR / f"{state_token(session_id)}.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    with lock_path.open("w", encoding="utf-8") as lock_fh:
+    with lock_path.open("w+", encoding="utf-8") as lock_fh:
         if fcntl:
             fcntl.flock(lock_fh, fcntl.LOCK_EX)
         else:
             import msvcrt
+            lock_fh.write("\0")
+            lock_fh.flush()
+            lock_fh.seek(0)
             msvcrt.locking(lock_fh.fileno(), msvcrt.LK_LOCK, 1)
 
         state_path, state = load_state(session_id)

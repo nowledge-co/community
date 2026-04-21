@@ -2,8 +2,8 @@
 
 ## Version Bump
 
-1. Update `version` in `.claude-plugin/plugin.json`
-2. Update `version` for the `copilot-cli` entry in `integrations.json` (repo root)
+1. Update `version` for the `copilot-cli` entry in `integrations.json` (repo root)
+2. Update `version` in `.claude-plugin/plugin.json`
 3. Add a new section to `CHANGELOG.md`
 
 ## Testing
@@ -12,7 +12,7 @@ Before release:
 
 1. Verify `integrations.json` is valid JSON: `python3 -m json.tool integrations.json > /dev/null`
 2. Verify `hooks/hooks.json` is valid JSON: `python3 -m json.tool hooks/hooks.json > /dev/null`
-3. Run fixture tests: `python3 -m pytest tests/ -v`
+3. Run fixture tests: `uv run --with pytest pytest tests/ -v`
 4. Install the plugin locally and verify:
    - Working Memory loads at session start
    - Per-turn nudge appears

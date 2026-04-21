@@ -151,21 +151,25 @@ class TestSecretFiltering:
     def test_redacts_github_token(self):
         text = "Use token ghp_1234567890abcdefghijklmn"
         result = copilot_stop_save.redact(text)
-        assert "ghp_" not in result or "[REDACTED]" in result
+        assert "ghp_1234567890abcdefghijklmn" not in result
+        assert "[REDACTED]" in result
 
     def test_redacts_github_pat(self):
         text = "Token: github_pat_1234567890abcdefghijklmn"
         result = copilot_stop_save.redact(text)
-        assert "github_pat_" not in result or "[REDACTED]" in result
+        assert "github_pat_1234567890abcdefghijklmn" not in result
+        assert "[REDACTED]" in result
 
     def test_redacts_openai_key(self):
         text = "API key is sk-1234567890abcdefgh"
         result = copilot_stop_save.redact(text)
-        assert "sk-" not in result or "[REDACTED]" in result
+        assert "sk-1234567890abcdefgh" not in result
+        assert "[REDACTED]" in result
 
     def test_redacts_bearer_token(self):
         text = "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.test"
         result = copilot_stop_save.redact(text)
+        assert "Bearer eyJhbGciOiJIUzI1NiJ9.test" not in result
         assert "[REDACTED]" in result
 
     def test_preserves_normal_text(self):
@@ -323,26 +327,32 @@ class TestContentHash:
 class TestStateManagement:
     def test_load_state_new_session(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            copilot_stop_save.STATE_DIR = Path(tmpdir)
-            path, state = copilot_stop_save.load_state("new-session")
-            assert state["active_start_event_id"] is None
-            assert state["last_saved_turn_end_id"] is None
-            assert state["last_distill_ts"] == 0
-            assert state["last_content_hash"] is None
+            with patch.object(copilot_stop_save, "STATE_DIR", Path(tmpdir)):
+                _path, state = copilot_stop_save.load_state("new-session")
+                assert state["active_start_event_id"] is None
+                assert state["last_saved_turn_end_id"] is None
+                assert state["last_distill_ts"] == 0
+                assert state["last_content_hash"] is None
 
     def test_save_and_load_state(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            copilot_stop_save.STATE_DIR = Path(tmpdir)
-            path, state = copilot_stop_save.load_state("test-session")
-            state["last_saved_turn_end_id"] = "e4"
-            state["last_distill_ts"] = 1000
-            state["last_content_hash"] = "abc123"
-            copilot_stop_save.save_state(path, state)
+            with patch.object(copilot_stop_save, "STATE_DIR", Path(tmpdir)):
+                path, state = copilot_stop_save.load_state("test-session")
+                state["last_saved_turn_end_id"] = "e4"
+                state["last_distill_ts"] = 1000
+                state["last_content_hash"] = "abc123"
+                copilot_stop_save.save_state(path, state)
 
-            path2, state2 = copilot_stop_save.load_state("test-session")
-            assert state2["last_saved_turn_end_id"] == "e4"
-            assert state2["last_distill_ts"] == 1000
-            assert state2["last_content_hash"] == "abc123"
+                _path2, state2 = copilot_stop_save.load_state("test-session")
+                assert state2["last_saved_turn_end_id"] == "e4"
+                assert state2["last_distill_ts"] == 1000
+                assert state2["last_content_hash"] == "abc123"
+
+    def test_state_token_is_filesystem_safe(self):
+        token = copilot_stop_save.state_token("../nested/session")
+        assert "/" not in token
+        assert "." not in token
+        assert len(token) == 32
 
 
 # ---------------------------------------------------------------------------
@@ -386,9 +396,11 @@ class TestTranscriptLoading:
             for event in events:
                 f.write(json.dumps(event) + "\n")
             f.flush()
+        try:
             loaded = copilot_stop_save.load_events(f.name)
             assert len(loaded) == len(events)
             assert loaded[0]["type"] == "user.message"
+        finally:
             os.unlink(f.name)
 
 

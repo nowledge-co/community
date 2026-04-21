@@ -5,12 +5,12 @@ All notable changes to the Nowledge Mem Copilot CLI plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-07-14
+## [0.1.0] - Unreleased
 
 ### Added
 
 - **Initial release** of the Nowledge Mem plugin for GitHub Copilot CLI
-- **SessionStart hook** — loads Working Memory via `nmem wm read` on startup, resume, and clear; re-loads with checkpoint prompt on compaction
+- **SessionStart hook** — loads Working Memory via `nmem --json wm read` on startup, resume, and clear; re-loads with checkpoint prompt on compaction
 - **UserPromptSubmit hook** — per-turn behavioral nudge with search/save syntax (~35 tokens)
 - **Stop hook** — Python-based session capture script reads transcript events, filters secrets, creates threads via `nmem t import`, auto-distills valuable sessions
 - **4 skills**: read-working-memory, search-memory, distill-memory, save-thread

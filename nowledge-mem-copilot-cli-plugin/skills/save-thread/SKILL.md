@@ -30,7 +30,7 @@ Thread = real session messages | Memory = distilled insights (different purposes
 
 ## Response
 
-```
+```text
 ✓ Thread saved
 Summary: {summary}
 Thread ID: {thread_id from nmem output}
