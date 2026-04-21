@@ -115,7 +115,7 @@ The session-start Working Memory read, per-turn guidance, skills, and background
 
 ```bash
 copilot plugin marketplace update nowledge-community
-copilot plugin update nowledge-mem@nowledge-community
+copilot plugin update nowledge-mem
 
 # Re-run install-hooks.sh to update the capture script
 bash "$HOME/.copilot/installed-plugins/nowledge-community/nowledge-mem/scripts/install-hooks.sh"

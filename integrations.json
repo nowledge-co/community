@@ -73,7 +73,7 @@
       },
       "install": {
         "command": "copilot plugin marketplace add nowledge-co/community && copilot plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem@nowledge-community",
+        "updateCommand": "copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem",
         "detectionHint": "Running as GitHub Copilot CLI agent; ~/.copilot/ exists",
         "docsUrl": "/docs/integrations/copilot-cli"
       },
