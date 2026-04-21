@@ -96,6 +96,9 @@ export default {
 				client,
 				cfg,
 				logger,
+				{
+					isCorpusSupplementActive: () => corpusSupplementActive,
+				},
 			);
 			for (const contextEngineId of NOWLEDGE_MEM_CONTEXT_ENGINE_IDS) {
 				api.registerContextEngine(contextEngineId, contextEngineFactory);

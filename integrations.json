@@ -132,8 +132,8 @@
       },
       "install": {
         "command": "codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
-        "updateCommand": "codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
-        "configRequired": "[features] plugins = true AND [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml",
+        "updateCommand": "codex plugin marketplace update nowledge-community || codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
+        "configRequired": "After marketplace add, install nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },

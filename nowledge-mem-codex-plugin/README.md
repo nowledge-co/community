@@ -56,6 +56,8 @@ If your Codex build still uses the legacy top-level subcommand:
 codex marketplace add nowledge-co/community
 ```
 
+Install `nowledge-mem@nowledge-community` from Codex `/plugins`.
+
 Enable plugins and this package in `~/.codex/config.toml`:
 
 ```toml
@@ -122,10 +124,16 @@ If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 ## Update
 
 ```bash
+codex plugin marketplace update nowledge-community
+```
+
+If your Codex build does not support `plugin marketplace update`, run:
+
+```bash
 codex plugin marketplace upgrade nowledge-community
 ```
 
-If your Codex build does not support `plugin marketplace upgrade`, run:
+If neither update command exists, re-add the marketplace source:
 
 ```bash
 codex marketplace add nowledge-co/community
@@ -182,7 +190,7 @@ If you used `nowledge-mem-codex-prompts` before:
 - **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
 - **Skills not appearing**: Restart Codex after installing. Verify both `[features] plugins = true` and `[plugins."nowledge-mem@nowledge-community"] enabled = true` are in `~/.codex/config.toml`. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
 - **Only `codex marketplace` exists, not `codex plugin marketplace`**: use `codex marketplace add nowledge-co/community`. This is a host-version difference, not a plugin issue.
-- **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community` (or `codex marketplace add nowledge-co/community` on legacy Codex), then re-check your `~/.codex/config.toml` plugin key.
+- **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community` (or `codex marketplace add nowledge-co/community` on legacy Codex), install `nowledge-mem@nowledge-community` from `/plugins`, then re-check your `~/.codex/config.toml` plugin key.
 - **Only Working Memory runs, but search/distill never show up**: this package is skill-guided, not hook-driven. Merge the package `AGENTS.md` into the project root for stronger repo-specific behavior, and verify you are asking a continuation-style question rather than a fresh isolated one.
 
 ## Links
