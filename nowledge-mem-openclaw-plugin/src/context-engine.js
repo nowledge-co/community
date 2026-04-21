@@ -166,9 +166,15 @@ function getSessionState(key) {
  * @param {import('./client.js').NowledgeMemClient} client
  * @param {object} cfg  Parsed plugin config
  * @param {object} logger  OpenClaw logger
+ * @param {object} runtime Runtime state helpers supplied by register()
  * @returns {() => object}  Factory that creates the engine instance
  */
-export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
+export function createNowledgeMemContextEngineFactory(
+	client,
+	cfg,
+	logger,
+	runtime = {},
+) {
 	return () => {
 		ceState.active = true;
 		logger.info("nowledge-mem: context engine activated");
@@ -242,8 +248,12 @@ export function createNowledgeMemContextEngineFactory(client, cfg, logger) {
 				}
 
 				// 3. Recalled memories (when sessionContext enabled)
-				// Skipped when corpus supplement handles search-based recall via memory-core.
-				if (cfg.sessionContext && !cfg.corpusSupplement) {
+				// Skip only when corpus supplement is actually active at runtime.
+				const corpusSupplementActive =
+					typeof runtime.isCorpusSupplementActive === "function"
+						? runtime.isCorpusSupplementActive() === true
+						: cfg.corpusSupplement === true;
+				if (cfg.sessionContext && !corpusSupplementActive) {
 					const query = buildAssembleSearchQuery(prompt, messages);
 					if (query) {
 						try {

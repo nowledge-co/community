@@ -80,6 +80,8 @@ export default {
 		const pluginsAllow = api.config?.plugins?.allow;
 		let contextEngineRegistered = false;
 		let contextEngineRegistrationError = null;
+		let corpusSupplementActive = false;
+		let corpusSupplementRegistrationError = null;
 
 		// --- Context Engine registration ---
 		// When the user sets `plugins.slots.contextEngine: "nowledge-mem"` —
@@ -94,6 +96,9 @@ export default {
 				client,
 				cfg,
 				logger,
+				{
+					isCorpusSupplementActive: () => corpusSupplementActive,
+				},
 			);
 			for (const contextEngineId of NOWLEDGE_MEM_CONTEXT_ENGINE_IDS) {
 				api.registerContextEngine(contextEngineId, contextEngineFactory);
@@ -107,17 +112,6 @@ export default {
 			);
 		}
 
-		api.registerTool(
-			createStatusTool(client, logger, cfg, {
-				memorySlot,
-				contextEngineSlot,
-				contextEngineIds: NOWLEDGE_MEM_CONTEXT_ENGINE_IDS,
-				pluginsAllow,
-				contextEngineRegistered,
-				contextEngineRegistrationError,
-			}),
-		);
-
 		// --- Corpus Supplement (when memory-core is the memory slot) ---
 		// Makes Nowledge Mem's knowledge graph searchable through memory-core's
 		// recall pipeline and dreaming promotion. Memories participate in
@@ -127,17 +121,31 @@ export default {
 				api.registerMemoryCorpusSupplement(
 					createNowledgeMemCorpusSupplement(client, cfg, logger),
 				);
+				corpusSupplementActive = true;
 				logger.info(
 					"nowledge-mem: registered as MemoryCorpusSupplement for memory-core recall",
 				);
 			} catch (err) {
 				// OpenClaw < corpus supplement support — fall back to normal recall
-				cfg.corpusSupplement = false;
+				corpusSupplementRegistrationError = String(err);
 				logger.info?.(
 					`nowledge-mem: corpus supplement unavailable, falling back to normal recall (${err})`,
 				);
 			}
 		}
+
+		api.registerTool(
+			createStatusTool(client, logger, cfg, {
+				memorySlot,
+				contextEngineSlot,
+				contextEngineIds: NOWLEDGE_MEM_CONTEXT_ENGINE_IDS,
+				pluginsAllow,
+				contextEngineRegistered,
+				contextEngineRegistrationError,
+				corpusSupplementActive,
+				corpusSupplementRegistrationError,
+			}),
+		);
 
 		// --- Hooks ---
 		// Behavioral + recall hooks defer to the active CE to avoid duplicate
@@ -151,7 +159,12 @@ export default {
 
 		// Session context: inject Working Memory + recalled memories at prompt time.
 		if (cfg.sessionContext) {
-			api.on("before_prompt_build", buildRecallHandler(client, cfg, logger));
+			api.on(
+				"before_prompt_build",
+				buildRecallHandler(client, cfg, logger, {
+					skipSearchRecall: corpusSupplementActive,
+				}),
+			);
 		}
 
 		// Session digest: capture threads + LLM distillation at lifecycle events.
@@ -182,7 +195,7 @@ export default {
 
 		const remoteMode = !isDefaultApiUrl(cfg.apiUrl);
 		logger.info(
-			`nowledge-mem: initialized (memorySlotSelected=${memorySlotSelected}, context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, corpus=${cfg.corpusSupplement}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"}, contextEngineIds=${NOWLEDGE_MEM_CONTEXT_ENGINE_ID}|${api.id})`,
+			`nowledge-mem: initialized (memorySlotSelected=${memorySlotSelected}, context=${cfg.sessionContext}, digest=${cfg.sessionDigest}, corpusConfigured=${cfg.corpusSupplement}, corpusActive=${corpusSupplementActive}, mode=${remoteMode ? `remote → ${cfg.apiUrl}` : "local"}, contextEngineIds=${NOWLEDGE_MEM_CONTEXT_ENGINE_ID}|${api.id})`,
 		);
 	},
 };

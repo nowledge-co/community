@@ -67,35 +67,62 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			// 0b. Memory slot check — show current mode and options
 			const memorySlot = runtimeInfo.memorySlot;
 			const contextEngineSlot = runtimeInfo.contextEngineSlot;
-			const contextEngineRegistered = runtimeInfo.contextEngineRegistered === true;
-				const contextEngineRegistrationError =
-					typeof runtimeInfo.contextEngineRegistrationError === "string" &&
-					runtimeInfo.contextEngineRegistrationError.trim()
-						? runtimeInfo.contextEngineRegistrationError.trim()
-						: null;
-				details.memorySlot = memorySlot ?? "(unknown)";
-				const ceSlot =
-					typeof contextEngineSlot === "string" && contextEngineSlot.trim()
-						? contextEngineSlot.trim()
-						: "legacy";
-				details.contextEngineSlot = ceSlot;
-				details.contextEngineRegistered = contextEngineRegistered;
+			const contextEngineRegistered =
+				runtimeInfo.contextEngineRegistered === true;
+			const contextEngineRegistrationError =
+				typeof runtimeInfo.contextEngineRegistrationError === "string" &&
+				runtimeInfo.contextEngineRegistrationError.trim()
+					? runtimeInfo.contextEngineRegistrationError.trim()
+					: null;
+			const corpusSupplementConfigured = cfg.corpusSupplement === true;
+			const corpusSupplementActive =
+				runtimeInfo.corpusSupplementActive === true;
+			const corpusSupplementRegistrationError =
+				typeof runtimeInfo.corpusSupplementRegistrationError === "string" &&
+				runtimeInfo.corpusSupplementRegistrationError.trim()
+					? runtimeInfo.corpusSupplementRegistrationError.trim()
+					: null;
+			details.memorySlot = memorySlot ?? "(unknown)";
+			details.corpusSupplementConfigured = corpusSupplementConfigured;
+			details.corpusSupplementActive = corpusSupplementActive;
+			if (corpusSupplementRegistrationError) {
+				details.corpusSupplementRegistrationError =
+					corpusSupplementRegistrationError;
+			}
+			const ceSlot =
+				typeof contextEngineSlot === "string" && contextEngineSlot.trim()
+					? contextEngineSlot.trim()
+					: "legacy";
+			details.contextEngineSlot = ceSlot;
+			details.contextEngineRegistered = contextEngineRegistered;
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {
-				const corpusOn = cfg.corpusSupplement === true;
-				if (corpusOn) {
-					lines.push(
-						`Memory slot: "${memorySlot}" + corpus supplement active`,
-					);
+				if (corpusSupplementConfigured && corpusSupplementActive) {
+					lines.push(`Memory slot: "${memorySlot}" + corpus supplement active`);
 					lines.push(
 						"  Nowledge Mem feeds into memory-core's recall and dreaming pipeline. All tools available.",
 					);
+				} else if (corpusSupplementConfigured && !corpusSupplementActive) {
+					lines.push(`ℹ Memory slot: "${memorySlot}"`);
+					lines.push(
+						"  corpusSupplement is configured, but host registration is unavailable in this runtime.",
+					);
+					if (cfg.sessionContext) {
+						lines.push(
+							"  Fallback active: Nowledge Mem still injects Working Memory and uses its own recall path.",
+						);
+					} else {
+						lines.push(
+							"  Fallback: Nowledge Mem tools remain available. Enable sessionContext for prompt-time Working Memory and recall.",
+						);
+					}
+					if (corpusSupplementRegistrationError) {
+						lines.push(
+							`  Supplement registration detail: ${corpusSupplementRegistrationError}`,
+						);
+					}
 				} else {
-					lines.push(
-						`ℹ Memory slot: "${memorySlot}"`,
-					);
-					lines.push(
-						"  Two options:",
-					);
+					lines.push(`ℹ Memory slot: "${memorySlot}"`);
+					lines.push("  Two options:");
 					lines.push(
 						'  - Full mode: set plugins.slots.memory to "openclaw-nowledge-mem" for the complete tool surface',
 					);
@@ -113,7 +140,9 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				isNowledgeMemContextEngineSlot(ceSlot) && contextEngineRegistered;
 			const captureMode = !cfg.sessionDigest
 				? "disabled"
-				: ceActive ? "context-engine+hooks" : "hooks";
+				: ceActive
+					? "context-engine+hooks"
+					: "hooks";
 			details.captureMode = captureMode;
 			if (ceActive) {
 				if (ceSlot === NOWLEDGE_MEM_CONTEXT_ENGINE_COMPAT_ALIAS) {
@@ -124,7 +153,9 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 						`  OpenClaw selected the plugin id for the context-engine slot. ${NOWLEDGE_MEM_CONTEXT_ENGINE_ID} remains the canonical manual setting.`,
 					);
 				} else {
-					lines.push(`Context Engine slot: ${NOWLEDGE_MEM_CONTEXT_ENGINE_ID} (active)`);
+					lines.push(
+						`Context Engine slot: ${NOWLEDGE_MEM_CONTEXT_ENGINE_ID} (active)`,
+					);
 				}
 				lines.push(
 					"  Thread capture runs through Context Engine afterTurn with hook fallback (agent_end, after_compaction, before_reset).",
@@ -146,7 +177,9 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 					"  The slot points to Nowledge Mem, but Context Engine registration is not active in this runtime. Thread capture is using hooks only.",
 				);
 				if (contextEngineRegistrationError) {
-					lines.push(`  CE registration detail: ${contextEngineRegistrationError}`);
+					lines.push(
+						`  CE registration detail: ${contextEngineRegistrationError}`,
+					);
 				}
 			} else {
 				lines.push(
@@ -268,6 +301,14 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			lines.push(
 				`  corpusSupplement: ${cfg.corpusSupplement} (${sources.corpusSupplement || "?"})`,
 			);
+			if (corpusSupplementConfigured) {
+				const fallbackText = cfg.sessionContext
+					? "configured but unavailable (fallback to plugin recall)"
+					: "configured but unavailable (sessionContext disabled)";
+				lines.push(
+					`  corpusSupplement runtime: ${corpusSupplementActive ? "active" : fallbackText}`,
+				);
+			}
 
 			details.config = {
 				sessionContext: {
@@ -297,6 +338,7 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				corpusSupplement: {
 					value: cfg.corpusSupplement,
 					source: sources.corpusSupplement,
+					active: corpusSupplementActive,
 				},
 				apiUrl: { value: cfg.apiUrl || "(local)", source: sources.apiUrl },
 				apiKey: {

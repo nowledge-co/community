@@ -1,0 +1,16 @@
+{
+  "name": "nowledge-community",
+  "interface": {
+    "displayName": "Nowledge Community"
+  },
+  "plugins": [
+    {
+      "name": "nowledge-mem",
+      "source": {
+        "source": "local",
+        "path": "./nowledge-mem-codex-plugin"
+      },
+      "category": "productivity"
+    }
+  ]
+}

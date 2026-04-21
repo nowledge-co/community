@@ -44,21 +44,27 @@ Or `pip install nmem-cli`. Then verify with `nmem status`.
 
 ### Home-level (all projects)
 
+Add the Nowledge marketplace:
+
 ```bash
-git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community
-mkdir -p ~/.codex/plugins/cache/local/nowledge-mem/local
-cp -R /tmp/nowledge-community/nowledge-mem-codex-plugin/. \
-  ~/.codex/plugins/cache/local/nowledge-mem/local/
-rm -rf /tmp/nowledge-community
+codex plugin marketplace add nowledge-co/community
 ```
 
-Add both entries to `~/.codex/config.toml`:
+If your Codex build still uses the legacy top-level subcommand:
+
+```bash
+codex marketplace add nowledge-co/community
+```
+
+Install `nowledge-mem@nowledge-community` from Codex `/plugins`.
+
+Enable plugins and this package in `~/.codex/config.toml`:
 
 ```toml
 [features]
 plugins = true
 
-[plugins."nowledge-mem@local"]
+[plugins."nowledge-mem@nowledge-community"]
 enabled = true
 ```
 
@@ -66,7 +72,7 @@ Restart Codex after installation.
 
 ### Repo-level (this project only)
 
-Place the plugin source in your repo and create a `marketplace.json` so Codex discovers it:
+If you want a repo-pinned local package instead of the shared marketplace source, place the plugin in your repo and create a `marketplace.json`:
 
 ```bash
 git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community
@@ -98,7 +104,14 @@ Create `.agents/plugins/marketplace.json`:
 
 The path is relative to the repo root, not to the `marketplace.json` file.
 
-You still need the feature gate and plugin entry in `~/.codex/config.toml` (see Home-level above). Codex will discover the marketplace on startup and load the plugin from the repo-local source.
+You still need the feature gate and plugin entry in `~/.codex/config.toml` (see Home-level above). For this local repo path, the plugin key is:
+
+```toml
+[plugins."nowledge-mem@local"]
+enabled = true
+```
+
+Codex discovers repo-level marketplaces on startup and loads the plugin from that source.
 
 ## Verify
 
@@ -111,13 +124,22 @@ If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 ## Update
 
 ```bash
-git clone https://github.com/nowledge-co/community.git /tmp/nowledge-community-update
-cp -R /tmp/nowledge-community-update/nowledge-mem-codex-plugin/. \
-  ~/.codex/plugins/cache/local/nowledge-mem/local/
-rm -rf /tmp/nowledge-community-update
+codex plugin marketplace update nowledge-community
 ```
 
-Restart Codex after updating.
+If your Codex build does not support `plugin marketplace update`, run:
+
+```bash
+codex plugin marketplace upgrade nowledge-community
+```
+
+If neither update command exists, re-add the marketplace source:
+
+```bash
+codex marketplace add nowledge-co/community
+```
+
+Restart Codex after updating. If you are on a repo-local `@local` setup, update the local source path instead.
 
 ## Remote setup
 
@@ -166,8 +188,9 @@ If you used `nowledge-mem-codex-prompts` before:
 
 - **"Command not found: nmem"**: `pip install nmem-cli` or use `uvx --from nmem-cli nmem`. See [Getting Started](https://mem.nowledge.co/docs/installation).
 - **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
-- **Skills not appearing**: Restart Codex after installing. Verify both `[features] plugins = true` and `[plugins."nowledge-mem@local"] enabled = true` are in `~/.codex/config.toml`.
-- **"plugin is not installed"**: Check that the plugin files are at `~/.codex/plugins/cache/local/nowledge-mem/local/` and that `.codex-plugin/plugin.json` exists inside that directory.
+- **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed from `/plugins`, and both `[features] plugins = true` and `[plugins."nowledge-mem@nowledge-community"] enabled = true` are in `~/.codex/config.toml`. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
+- **Only `codex marketplace` exists, not `codex plugin marketplace`**: use `codex marketplace add nowledge-co/community`. This is a host-version difference, not a plugin issue.
+- **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community` (or `codex marketplace add nowledge-co/community` on legacy Codex), install `nowledge-mem@nowledge-community` from `/plugins`, then re-check your `~/.codex/config.toml` plugin key.
 - **Only Working Memory runs, but search/distill never show up**: this package is skill-guided, not hook-driven. Merge the package `AGENTS.md` into the project root for stronger repo-specific behavior, and verify you are asking a continuation-style question rather than a fresh isolated one.
 
 ## Links

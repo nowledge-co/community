@@ -4,6 +4,15 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.19] - 2026-04-21
+
+### Fixed
+
+- `corpusSupplement` fallback now preserves the user's configured intent when host registration is unavailable. The plugin keeps its own recall path active instead of silently mutating config state.
+- `nowledge_mem_status` now reports `corpusSupplement` as configured vs runtime-active, including fallback reason details when OpenClaw does not expose supplement registration in the current runtime.
+- Context Engine recall now follows **runtime supplement activation** instead of static config. If `corpusSupplement` is configured but host registration fails, prompt-time recall no longer gets skipped.
+- `nowledge_mem_status` no longer claims prompt-time fallback recall when `sessionContext=false`; status text now reflects the real runtime path.
+
 ## [0.8.18] - 2026-04-20
 
 ### Fixed
