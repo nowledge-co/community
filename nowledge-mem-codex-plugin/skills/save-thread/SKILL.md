@@ -5,6 +5,8 @@ description: Save the current Codex session so the user can find it later or res
 
 Save the actual Codex session transcript, not a summary, so it can be searched, resumed, or referenced from any connected tool.
 
+MCP retrieval and memory-write tools do not replace this path. Real Codex thread import still goes through `nmem t save --from codex`.
+
 ## Command
 
 ```bash

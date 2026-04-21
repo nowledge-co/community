@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Your Codex agent remembers past decisions, finds relevant context, and learns from every session, across all your AI tools.",
   "skills": "./skills/",
   "interface": {

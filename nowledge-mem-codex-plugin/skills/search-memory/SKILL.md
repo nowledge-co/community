@@ -33,10 +33,19 @@ For continuation-style engineering work, search near the start of the task. Do n
 
 ## Retrieval routing
 
+If this session already exposes the Nowledge Mem MCP server, prefer:
+
+1. `memory_search` for durable knowledge (decisions, insights, procedures).
+2. `thread_search` when the user is asking about a prior conversation or exact session history.
+3. `thread_fetch_messages` for progressive inspection of the matching thread.
+
+Otherwise:
+
 1. Start with `nmem --json m search "query"` for durable knowledge (decisions, insights, procedures).
 2. Use `nmem --json t search "query" --limit 5` when the user is asking about a prior conversation or exact session history.
 3. If a result includes `source_thread`, inspect it progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
-4. Prefer the smallest retrieval that answers the question. Do not over-fetch.
+
+Prefer the smallest retrieval that answers the question. Do not over-fetch.
 
 If the runtime already knows the active project or agent lane, add `--space "<space name>"` to these commands.
 

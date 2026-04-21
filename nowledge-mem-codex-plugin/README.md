@@ -1,27 +1,31 @@
 # Nowledge Mem for Codex
 
-> Your Codex agent can start from current context, search prior work when it matters, and save what is worth keeping.
+> Your Codex agent can start from current context, retrieve past work proactively, and save what is worth keeping.
 
 Switch between Claude Code, Gemini, Cursor, and Codex without losing context. Decisions you made last week, procedures you discovered yesterday, the architecture rationale from three months ago: it's all there when you need it.
 
 ## What you get
 
 - **Pick up where you left off.** Every session can start from your current priorities, recent decisions, and unresolved questions.
-- **Search when prior work matters.** The plugin teaches Codex when to search memories and threads, especially on continuation-style tasks.
-- **Insights stick around.** The plugin teaches Codex to distill durable decisions and learnings when they emerge.
+- **Stronger retrieval on modern Codex.** Pair the plugin with the Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
+- **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
 - **Real session history.** Save the full Codex transcript, not just a summary.
 - **Quick diagnostics.** One command to verify everything is connected.
 
-Codex does not give this package hard lifecycle hooks like Claude Code or OpenClaw. The reliable bootstrap is Working Memory. Search and distill are still skill-guided behaviors that Codex chooses when the task calls for them. For stronger repo-specific behavior, merge this package's `AGENTS.md` into your project root.
+Codex does not give this package hard lifecycle hooks like Claude Code or OpenClaw. The reliable bootstrap is still Working Memory. On modern Codex, the best setup is:
+
+- plugin package for Working Memory guidance, `nmem` fallback, status, and real `save-thread`
+- Nowledge Mem MCP for stronger retrieval and memory writes
+- project `AGENTS.md` for repo-specific follow-through
 
 ## Skills
 
 | Skill | When it runs | What it does |
 |-------|-------------|-------------|
-| `working-memory` | Session start, "what am I working on" | Loads your daily briefing |
-| `search-memory` | Prior work, past decisions | Searches memories and conversations |
+| `working-memory` | Session start, "what am I working on" | Loads your daily briefing and prefers MCP `read_working_memory` when present |
+| `search-memory` | Prior work, past decisions | Searches memories and conversations, preferring MCP retrieval when present |
 | `save-thread` | "Save this session" | Imports the real Codex transcript |
-| `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory |
+| `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
 | `status` | "Is Mem working?", errors | Checks connectivity |
 
 ## Prerequisites
@@ -58,7 +62,7 @@ codex marketplace add nowledge-co/community
 
 Install `nowledge-mem@nowledge-community` from Codex `/plugins`.
 
-Enable plugins and this package in `~/.codex/config.toml`:
+Then put this in `~/.codex/config.toml` for the recommended local setup:
 
 ```toml
 [features]
@@ -66,9 +70,28 @@ plugins = true
 
 [plugins."nowledge-mem@nowledge-community"]
 enabled = true
+
+[mcp_servers.nowledge-mem]
+url = "http://127.0.0.1:14242/mcp/"
+
+[mcp_servers.nowledge-mem.http_headers]
+APP = "Codex"
 ```
 
 Restart Codex after installation.
+
+If you prefer to copy a bundled example, see [`codex.config.example.toml`](./codex.config.example.toml).
+
+For remote Mem, keep the same plugin block and point MCP at your server instead:
+
+```toml
+[mcp_servers.nowledge-mem]
+url = "https://mem.example.com/mcp/"
+
+[mcp_servers.nowledge-mem.http_headers]
+APP = "Codex"
+Authorization = "Bearer nmem_your_key"
+```
 
 ### Repo-level (this project only)
 
@@ -117,7 +140,7 @@ Codex discovers repo-level marketplaces on startup and loads the plugin from tha
 
 Start a new Codex session and ask: "What was I working on?" The agent should load your Working Memory briefing.
 
-Then test one continuation-style prompt such as "What did we decide before about the OpenClaw release path?" or "Search prior work about this regression." On a healthy setup, Codex should use `search-memory` or direct `nmem` search, not stop at the briefing alone.
+Then test one continuation-style prompt such as "What did we decide before about the OpenClaw release path?" or "Search prior work about this regression." On a healthy plugin + MCP setup, Codex should move beyond the briefing and call Nowledge Mem retrieval tools or the equivalent direct `nmem` search, not stop at the briefing alone.
 
 If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 
@@ -151,6 +174,8 @@ nmem config client set api-key nmem_your_key
 ```
 
 See [Remote Access](https://mem.nowledge.co/docs/remote-access) for details.
+
+This shared local client config powers the package's direct `nmem` commands, including real `save-thread`. The MCP block in `~/.codex/config.toml` is separate and should point to the same remote Mem server.
 
 ## Spaces
 
@@ -191,7 +216,7 @@ If you used `nowledge-mem-codex-prompts` before:
 - **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed from `/plugins`, and both `[features] plugins = true` and `[plugins."nowledge-mem@nowledge-community"] enabled = true` are in `~/.codex/config.toml`. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
 - **Only `codex marketplace` exists, not `codex plugin marketplace`**: use `codex marketplace add nowledge-co/community`. This is a host-version difference, not a plugin issue.
 - **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community` (or `codex marketplace add nowledge-co/community` on legacy Codex), install `nowledge-mem@nowledge-community` from `/plugins`, then re-check your `~/.codex/config.toml` plugin key.
-- **Only Working Memory runs, but search/distill never show up**: this package is skill-guided, not hook-driven. Merge the package `AGENTS.md` into the project root for stronger repo-specific behavior, and verify you are asking a continuation-style question rather than a fresh isolated one.
+- **Only Working Memory runs, but search/distill never show up**: install the Nowledge Mem MCP server in `~/.codex/config.toml`, then merge the package `AGENTS.md` into the project root for stronger repo-specific behavior. Plugin-only Codex setups rely more heavily on skill intent and usually show weaker proactive follow-through.
 
 ## Links
 

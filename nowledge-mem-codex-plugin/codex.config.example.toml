@@ -1,0 +1,22 @@
+# Recommended local setup for Codex: plugin + MCP.
+
+[features]
+plugins = true
+
+[plugins."nowledge-mem@nowledge-community"]
+enabled = true
+
+[mcp_servers.nowledge-mem]
+url = "http://127.0.0.1:14242/mcp/"
+
+[mcp_servers.nowledge-mem.http_headers]
+APP = "Codex"
+
+# Remote Mem example:
+#
+# [mcp_servers.nowledge-mem]
+# url = "https://mem.example.com/mcp/"
+#
+# [mcp_servers.nowledge-mem.http_headers]
+# APP = "Codex"
+# Authorization = "Bearer nmem_your_key"

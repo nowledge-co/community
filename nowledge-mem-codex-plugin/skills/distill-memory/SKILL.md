@@ -23,6 +23,14 @@ Capture what matters before the session ends. Save decisions, procedures, and le
 
 ## Workflow
 
+If this session already exposes the Nowledge Mem MCP server:
+
+1. Search first with `memory_search` to avoid duplicates.
+2. If an existing memory captures the same concept, use `memory_update`.
+3. Otherwise, create it with `memory_add`.
+
+Otherwise:
+
 1. Search first to avoid duplicates: `nmem --json m search "concept"`
 2. If an existing memory captures the same concept, update it:
    ```bash
@@ -32,7 +40,8 @@ Capture what matters before the session ends. Save decisions, procedures, and le
    ```bash
    nmem --json m add "content" -t "Title" --unit-type decision -l "label" -s codex -i 0.8
    ```
-4. At the end of a substantial task, explicitly check whether one durable memory should be added or updated. Do not skip that review just because the user did not ask.
+
+At the end of a substantial task, explicitly check whether one durable memory should be added or updated. Do not skip that review just because the user did not ask.
 
 ## Unit types
 
