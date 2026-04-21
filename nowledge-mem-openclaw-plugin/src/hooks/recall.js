@@ -177,13 +177,16 @@ export function buildRecalledKnowledgeBlock(
  * When the context engine is active, this hook is a no-op —
  * assemble() handles recall via systemPromptAddition.
  */
-export function buildRecallHandler(client, cfg, logger) {
+export function buildRecallHandler(client, cfg, logger, runtime = {}) {
 	const minScore = (cfg.recallMinScore ?? 0) / 100; // config is 0-100, API is 0-1
 
 	// When corpus supplement is active, memory-core's recall pipeline searches
 	// Nowledge Mem via the supplement. We still inject Working Memory (only we
 	// know about WM), but skip our own search-based recall to avoid duplicates.
-	const skipSearchRecall = cfg.corpusSupplement;
+	const skipSearchRecall =
+		typeof runtime.skipSearchRecall === "boolean"
+			? runtime.skipSearchRecall
+			: cfg.corpusSupplement;
 
 	return async (event) => {
 		if (ceState.active) return;

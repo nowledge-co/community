@@ -68,27 +68,52 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			const memorySlot = runtimeInfo.memorySlot;
 			const contextEngineSlot = runtimeInfo.contextEngineSlot;
 			const contextEngineRegistered = runtimeInfo.contextEngineRegistered === true;
-				const contextEngineRegistrationError =
-					typeof runtimeInfo.contextEngineRegistrationError === "string" &&
-					runtimeInfo.contextEngineRegistrationError.trim()
-						? runtimeInfo.contextEngineRegistrationError.trim()
-						: null;
-				details.memorySlot = memorySlot ?? "(unknown)";
-				const ceSlot =
-					typeof contextEngineSlot === "string" && contextEngineSlot.trim()
-						? contextEngineSlot.trim()
-						: "legacy";
-				details.contextEngineSlot = ceSlot;
-				details.contextEngineRegistered = contextEngineRegistered;
+			const contextEngineRegistrationError =
+				typeof runtimeInfo.contextEngineRegistrationError === "string" &&
+				runtimeInfo.contextEngineRegistrationError.trim()
+					? runtimeInfo.contextEngineRegistrationError.trim()
+					: null;
+			const corpusSupplementConfigured = cfg.corpusSupplement === true;
+			const corpusSupplementActive = runtimeInfo.corpusSupplementActive === true;
+			const corpusSupplementRegistrationError =
+				typeof runtimeInfo.corpusSupplementRegistrationError === "string" &&
+				runtimeInfo.corpusSupplementRegistrationError.trim()
+					? runtimeInfo.corpusSupplementRegistrationError.trim()
+					: null;
+			details.memorySlot = memorySlot ?? "(unknown)";
+			details.corpusSupplementConfigured = corpusSupplementConfigured;
+			details.corpusSupplementActive = corpusSupplementActive;
+			if (corpusSupplementRegistrationError) {
+				details.corpusSupplementRegistrationError =
+					corpusSupplementRegistrationError;
+			}
+			const ceSlot =
+				typeof contextEngineSlot === "string" && contextEngineSlot.trim()
+					? contextEngineSlot.trim()
+					: "legacy";
+			details.contextEngineSlot = ceSlot;
+			details.contextEngineRegistered = contextEngineRegistered;
 			if (memorySlot && memorySlot !== "openclaw-nowledge-mem") {
-				const corpusOn = cfg.corpusSupplement === true;
-				if (corpusOn) {
+				if (corpusSupplementConfigured && corpusSupplementActive) {
 					lines.push(
 						`Memory slot: "${memorySlot}" + corpus supplement active`,
 					);
 					lines.push(
 						"  Nowledge Mem feeds into memory-core's recall and dreaming pipeline. All tools available.",
 					);
+				} else if (corpusSupplementConfigured && !corpusSupplementActive) {
+					lines.push(`ℹ Memory slot: "${memorySlot}"`);
+					lines.push(
+						"  corpusSupplement is configured, but host registration is unavailable in this runtime.",
+					);
+					lines.push(
+						"  Fallback active: Nowledge Mem still injects Working Memory and uses its own recall path.",
+					);
+					if (corpusSupplementRegistrationError) {
+						lines.push(
+							`  Supplement registration detail: ${corpusSupplementRegistrationError}`,
+						);
+					}
 				} else {
 					lines.push(
 						`ℹ Memory slot: "${memorySlot}"`,
@@ -268,6 +293,11 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			lines.push(
 				`  corpusSupplement: ${cfg.corpusSupplement} (${sources.corpusSupplement || "?"})`,
 			);
+			if (corpusSupplementConfigured) {
+				lines.push(
+					`  corpusSupplement runtime: ${corpusSupplementActive ? "active" : "configured but unavailable (fallback to plugin recall)"}`,
+				);
+			}
 
 			details.config = {
 				sessionContext: {
@@ -297,6 +327,7 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				corpusSupplement: {
 					value: cfg.corpusSupplement,
 					source: sources.corpusSupplement,
+					active: corpusSupplementActive,
 				},
 				apiUrl: { value: cfg.apiUrl || "(local)", source: sources.apiUrl },
 				apiKey: {

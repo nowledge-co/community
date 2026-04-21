@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.4] - 2026-04-21
+
+### Improved
+
+- **Marketplace-first install path**: home-level setup now uses `codex plugin marketplace add nowledge-co/community` as the primary flow.
+- **Marketplace update path**: update guidance now uses `codex plugin marketplace upgrade nowledge-community` for managed installs.
+- **Legacy Codex compatibility**: docs now include fallback commands for builds that still expose only `codex marketplace ...`.
+- **Config key clarity**: docs now distinguish `nowledge-mem@nowledge-community` (managed marketplace) from `nowledge-mem@local` (repo-pinned local source).
+
 ## [0.1.3] - 2026-04-11
 
 ### Improved
