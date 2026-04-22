@@ -38,12 +38,12 @@ _spec.loader.exec_module(copilot_stop_save)
 def test_packaged_hook_runtime_matches_compatibility_copy():
     repo_root = Path(__file__).parent.parent
     assert (
-        (repo_root / "hooks" / "copilot-stop-save.py").read_text(encoding="utf-8")
-        == (repo_root / "scripts" / "copilot-stop-save.py").read_text(encoding="utf-8")
+        (repo_root / "hooks" / "copilot-stop-save.py").read_bytes()
+        == (repo_root / "scripts" / "copilot-stop-save.py").read_bytes()
     )
     assert (
-        (repo_root / "hooks" / "copilot-stop-save.sh").read_text(encoding="utf-8")
-        == (repo_root / "scripts" / "copilot-stop-save.sh").read_text(encoding="utf-8")
+        (repo_root / "hooks" / "copilot-stop-save.sh").read_bytes()
+        == (repo_root / "scripts" / "copilot-stop-save.sh").read_bytes()
     )
 
 

@@ -34,6 +34,7 @@ MIN_SAVE_CHARS = 24
 MIN_DISTILL_CHARS = 320
 MIN_DISTILL_ASSISTANT_CHARS = 220
 DISTILL_COOLDOWN_SECS = 120
+NMEM_TIMEOUT_SECS = 30
 
 INCOMPLETE_RE = re.compile(
     r"(请确认|请选择|请告诉我|告诉我继续|完成后告诉我|需要你|你希望|你想让我|请提供|方便的话|要不要|"
@@ -228,7 +229,21 @@ def collect_messages(events: list[dict]) -> list[dict]:
 
 
 def run_json(args: list[str]) -> dict:
-    proc = subprocess.run(args, capture_output=True, text=True)
+    try:
+        proc = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=NMEM_TIMEOUT_SECS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = (exc.stdout or "").strip() if isinstance(exc.stdout, str) else ""
+        stderr = (exc.stderr or "").strip() if isinstance(exc.stderr, str) else ""
+        raise RuntimeError(
+            stderr
+            or stdout
+            or f"command timed out after {NMEM_TIMEOUT_SECS}s"
+        ) from exc
     if proc.returncode != 0:
         raise RuntimeError(
             proc.stderr.strip() or proc.stdout.strip() or "command failed"
@@ -272,11 +287,31 @@ def title_from_messages(messages: list[dict]) -> str:
 
 def event_timestamp_ms(event: dict) -> int | None:
     raw = event.get("timestamp")
-    if not raw:
+    return normalize_timestamp_ms(raw)
+
+
+def normalize_timestamp_ms(raw: object) -> int | None:
+    if raw is None:
         return None
-    return int(
-        datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp() * 1000
-    )
+    if isinstance(raw, (int, float)):
+        value = float(raw)
+        return int(value if value >= 1_000_000_000_000 else value * 1000)
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return None
+        try:
+            value = float(text)
+        except ValueError:
+            try:
+                return int(
+                    datetime.fromisoformat(text.replace("Z", "+00:00")).timestamp()
+                    * 1000
+                )
+            except ValueError:
+                return None
+        return int(value if value >= 1_000_000_000_000 else value * 1000)
+    return None
 
 
 def content_hash(messages: list[dict]) -> str:
@@ -304,7 +339,7 @@ def main() -> int:
     session_id = hook_input.get("sessionId")
     transcript_path = hook_input.get("transcriptPath")
     stop_reason = hook_input.get("stopReason")
-    hook_timestamp = hook_input.get("timestamp")
+    hook_timestamp_ms = normalize_timestamp_ms(hook_input.get("timestamp"))
 
     if not session_id or not transcript_path or stop_reason != "end_turn":
         return 0
@@ -341,10 +376,10 @@ def main() -> int:
             (
                 event
                 for event in reversed(turn_end_events)
-                if hook_timestamp is None
+                if hook_timestamp_ms is None
                 or (
                     event_timestamp_ms(event) is not None
-                    and event_timestamp_ms(event) <= hook_timestamp
+                    and event_timestamp_ms(event) <= hook_timestamp_ms
                 )
             ),
             turn_end_events[-1],
@@ -579,24 +614,34 @@ def main() -> int:
         triage = None
         distill_attempted = False
         if should_try_distill:
-            triage = run_json(
-                build_nmem_command(
-                    nmem_bin, "--json", "t", "triage", thread_id
-                )
-            )
-            if triage.get("should_distill"):
-                distill_attempted = True
-                run_json(
+            try:
+                triage = run_json(
                     build_nmem_command(
-                        nmem_bin,
-                        "--json",
-                        "t",
-                        "distill",
-                        thread_id,
-                        "--triage",
+                        nmem_bin, "--json", "t", "triage", thread_id
                     )
                 )
-                state["last_distill_ts"] = now_ts
+                if triage.get("should_distill"):
+                    distill_attempted = True
+                    run_json(
+                        build_nmem_command(
+                            nmem_bin,
+                            "--json",
+                            "t",
+                            "distill",
+                            thread_id,
+                            "--triage",
+                        )
+                    )
+                    state["last_distill_ts"] = now_ts
+            except Exception as exc:
+                log(
+                    {
+                        "session_id": session_id,
+                        "action": "distill_error",
+                        "thread_id": thread_id,
+                        "error": str(exc),
+                    }
+                )
 
         state["active_start_event_id"] = None
         state["last_saved_turn_end_id"] = current_turn_end_id

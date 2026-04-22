@@ -8,8 +8,31 @@
 set -euo pipefail
 
 HOOK_DIR="${HOME}/.copilot/nowledge-mem-hooks"
-PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"
+if command -v realpath >/dev/null 2>&1; then
+  SCRIPT_PATH="$(realpath "${SCRIPT_SOURCE}")"
+elif command -v readlink >/dev/null 2>&1; then
+  RESOLVED="$(readlink "${SCRIPT_SOURCE}" 2>/dev/null || true)"
+  if [[ -n "${RESOLVED}" ]]; then
+    if [[ "${RESOLVED}" = /* ]]; then
+      SCRIPT_PATH="${RESOLVED}"
+    else
+      SCRIPT_PATH="$(cd "$(dirname "${SCRIPT_SOURCE}")" && cd "$(dirname "${RESOLVED}")" && pwd)/$(basename "${RESOLVED}")"
+    fi
+  else
+    SCRIPT_PATH="$(cd "$(dirname "${SCRIPT_SOURCE}")" && pwd)/$(basename "${SCRIPT_SOURCE}")"
+  fi
+else
+  SCRIPT_PATH="$(cd "$(dirname "${SCRIPT_SOURCE}")" && pwd)/$(basename "${SCRIPT_SOURCE}")"
+fi
+
+PLUGIN_ROOT="$(cd "$(dirname "${SCRIPT_PATH}")/.." && pwd)"
 SOURCE_DIR="${PLUGIN_ROOT}/hooks"
+
+if [[ ! -f "${SOURCE_DIR}/copilot-stop-save.py" || ! -f "${SOURCE_DIR}/copilot-stop-save.sh" ]]; then
+  echo "ERROR: Expected hook sources under ${SOURCE_DIR}. Run this script from the plugin's scripts/ directory." >&2
+  exit 1
+fi
 
 echo "Installing compatibility copy of Nowledge Mem Copilot CLI hooks..."
 
