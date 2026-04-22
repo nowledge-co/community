@@ -54,7 +54,7 @@
       "name": "Copilot CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-copilot-cli-plugin",
       "transport": "cli",
       "capabilities": {
@@ -79,7 +79,7 @@
         "bestResultRequires": [
           "Install the native plugin",
           "Keep nmem available on this machine",
-          "Run install-hooks.sh after install to set up session capture"
+          "Restart Copilot CLI after install so hooks reload"
         ]
       },
       "install": {

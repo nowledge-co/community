@@ -10,9 +10,6 @@ copilot plugin marketplace add nowledge-co/community
 
 # Install the plugin
 copilot plugin install nowledge-mem@nowledge-community
-
-# Set up session capture hooks
-bash "$HOME/.copilot/installed-plugins/nowledge-community/nowledge-mem/scripts/install-hooks.sh"
 ```
 
 **Prerequisite:** `nmem` CLI must be in your PATH:
@@ -75,7 +72,7 @@ The plugin no longer ships separate command docs. Skills are still interpreted b
 
 The `SessionStart` hook tries `nmem --json wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
-The `Stop` hook runs a Python capture script in the background after every response. It reads the Copilot CLI transcript, extracts messages, filters secrets, and creates threads via `nmem t import`. This is idempotent — repeated runs only append new content.
+The `Stop` hook runs a Python capture script from the plugin's own `hooks/` directory in the background after every response. For older installs, it still falls back to `~/.copilot/nowledge-mem-hooks/` if that compatibility copy exists. It reads the Copilot CLI transcript, extracts messages, filters secrets, and creates threads via `nmem t import`. This is idempotent — repeated runs only append new content.
 
 ### Session Capture Details
 
@@ -116,12 +113,9 @@ The session-start Working Memory read, per-turn guidance, skills, and background
 ```bash
 copilot plugin marketplace update nowledge-community
 copilot plugin update nowledge-mem
-
-# Re-run install-hooks.sh to update the capture script
-bash "$HOME/.copilot/installed-plugins/nowledge-community/nowledge-mem/scripts/install-hooks.sh"
-
-# Restart Copilot CLI to apply changes
 ```
+
+Restart Copilot CLI to apply changes.
 
 ## Customize without editing the plugin
 
@@ -139,7 +133,7 @@ Keep the plugin for lifecycle hooks and capture. Put your custom memory behavior
 
 **Server not running:** Start the Nowledge Mem desktop app, or run `nmem serve` on your server
 
-**Session capture not working:** Run `install-hooks.sh` again — it's idempotent. Check `~/.copilot/nowledge-mem-hooks/hook-log.jsonl` for diagnostics.
+**Session capture not working:** Restart Copilot CLI first. If capture still does not run, check `~/.copilot/nowledge-mem-hooks/hook-log.jsonl` for diagnostics. For older installs or local-development setups, you can still run `scripts/install-hooks.sh` from the source checkout as a compatibility fallback.
 
 **Check status:** Run `nmem status` to see connection details
 

@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK_DIR=\"${HOME}/.copilot/nowledge-mem-hooks\"; [ -f \"${HOOK_DIR}/copilot-stop-save.py\" ] && python3 \"${HOOK_DIR}/copilot-stop-save.py\" || true",
+            "command": "PLUGIN_HOOK_DIR=\"${COPILOT_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/hooks\"; FALLBACK_HOOK_DIR=\"${HOME}/.copilot/nowledge-mem-hooks\"; if [ -f \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" || true; elif [ -f \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" || true; else true; fi",
             "async": true
           }
         ]

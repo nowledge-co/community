@@ -5,7 +5,15 @@ All notable changes to the Nowledge Mem Copilot CLI plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - Unreleased
+## [0.1.1] - Unreleased
+
+### Fixed
+
+- **Marketplace install compatibility** — session capture now runs from packaged files in `hooks/`, so Copilot marketplace installs no longer depend on a missing `scripts/` directory
+- **Stop hook fallback chain** — capture prefers the packaged runtime under `COPILOT_PLUGIN_ROOT/hooks/`, then falls back to `~/.copilot/nowledge-mem-hooks/` for older installs
+- **Docs and release guidance** — no longer tell users to run a marketplace path that Copilot does not install
+
+## [0.1.0] - 2026-04-21
 
 ### Added
 
@@ -21,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Incomplete turn detection (questions, background tasks, ask_user)
   - File locking for concurrent session safety
   - Auto-distill with guardrails (cooldown, content hash dedup, minimum thresholds)
-- **Idempotent installer** (`install-hooks.sh`) — copies capture scripts to `~/.copilot/nowledge-mem-hooks/`
+- **Idempotent installer** (`install-hooks.sh`) — compatibility fallback that copies capture scripts to `~/.copilot/nowledge-mem-hooks/`
 - **Cross-platform support** — Windows `nmem.cmd` fallback in hooks, Python runtime as primary
 - **Space support** via `NMEM_SPACE` environment variable
 - Registered in `integrations.json` as `copilot-cli` with `plugin-capture` thread save method
