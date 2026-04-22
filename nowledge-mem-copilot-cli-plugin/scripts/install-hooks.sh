@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# install-hooks.sh — Idempotent installer for Copilot CLI session capture hooks.
+# install-hooks.sh — optional compatibility installer for Copilot CLI session capture hooks.
 #
-# Copies the Python capture script and shell launcher to
-# ~/.copilot/nowledge-mem-hooks/ so the hooks.json Stop event can find them.
-# Safe to run multiple times (idempotent).
+# Current Copilot marketplace installs should execute the capture runtime directly from
+# the plugin's hooks/ directory via COPILOT_PLUGIN_ROOT. This script remains as an
+# idempotent fallback for older installs or local development flows that still want a
+# compatibility copy in ~/.copilot/nowledge-mem-hooks/.
 set -euo pipefail
 
 HOOK_DIR="${HOME}/.copilot/nowledge-mem-hooks"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SOURCE_DIR="${PLUGIN_ROOT}/hooks"
 
-echo "Installing Nowledge Mem Copilot CLI hooks..."
+echo "Installing compatibility copy of Nowledge Mem Copilot CLI hooks..."
 
 # Create directories
 mkdir -p "${HOOK_DIR}/state"
 
 # Copy scripts
-cp -f "${SCRIPT_DIR}/copilot-stop-save.py" "${HOOK_DIR}/copilot-stop-save.py"
-cp -f "${SCRIPT_DIR}/copilot-stop-save.sh" "${HOOK_DIR}/copilot-stop-save.sh"
+cp -f "${SOURCE_DIR}/copilot-stop-save.py" "${HOOK_DIR}/copilot-stop-save.py"
+cp -f "${SOURCE_DIR}/copilot-stop-save.sh" "${HOOK_DIR}/copilot-stop-save.sh"
 
 # Ensure executable
 chmod +x "${HOOK_DIR}/copilot-stop-save.sh"
@@ -36,9 +38,12 @@ else
   echo "WARNING: nmem not found in PATH. Install with: pip install nmem-cli"
 fi
 
-echo "✓ Hooks installed to ${HOOK_DIR}"
+echo "✓ Compatibility hooks installed to ${HOOK_DIR}"
 echo ""
-echo "The Stop hook is configured in hooks/hooks.json to run:"
-echo "  python3 ${HOOK_DIR}/copilot-stop-save.py"
+echo "Modern marketplace installs should run directly from:"
+echo "  ${SOURCE_DIR}/copilot-stop-save.py"
+echo ""
+echo "This fallback copy remains available at:"
+echo "  ${HOOK_DIR}/copilot-stop-save.py"
 echo ""
 echo "Session capture is now active. Restart Copilot CLI to apply."
