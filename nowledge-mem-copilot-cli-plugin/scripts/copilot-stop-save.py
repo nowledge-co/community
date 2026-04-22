@@ -71,7 +71,7 @@ SENSITIVE_SKIP_PATTERNS = [
         r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9._-]{8,}\.[A-Za-z0-9._-]{8,}\b"
     ),
     re.compile(
-        r"\b(?:postgres|postgresql|mysql|mongodb(?:\\+srv)?|redis|amqp|kafka)://\S+",
+        r"\b(?:postgres|postgresql|mysql|mongodb(?:\+srv)?|redis|amqp|kafka)://\S+",
         re.IGNORECASE,
     ),
     re.compile(r"\b(?:cookie|set-cookie)\s*[:=]", re.IGNORECASE),
@@ -237,8 +237,15 @@ def run_json(args: list[str]) -> dict:
             timeout=NMEM_TIMEOUT_SECS,
         )
     except subprocess.TimeoutExpired as exc:
-        stdout = (exc.stdout or "").strip() if isinstance(exc.stdout, str) else ""
-        stderr = (exc.stderr or "").strip() if isinstance(exc.stderr, str) else ""
+        def _decode_timeout_output(value: object) -> str:
+            if value is None:
+                return ""
+            if isinstance(value, bytes):
+                return value.decode("utf-8", errors="replace").strip()
+            return str(value).strip()
+
+        stdout = _decode_timeout_output(exc.stdout)
+        stderr = _decode_timeout_output(exc.stderr)
         raise RuntimeError(
             stderr
             or stdout
