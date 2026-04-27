@@ -140,24 +140,19 @@ export class NowledgeMemClient {
 		try {
 			const requestBody =
 				scopedBody === undefined ? undefined : JSON.stringify(scopedBody);
-			const request = async (requestPath) => {
-				const response = await fetch(`${this.getApiBaseUrl()}${requestPath}`, {
-					method,
-					headers: this.getApiHeaders(),
-					body: requestBody,
-					signal: controller.signal,
-				});
-				const text = await response.text();
-				let data = {};
-				try {
-					data = text ? JSON.parse(text) : {};
-				} catch {
-					data = { raw: text };
-				}
-				return { response, data };
-			};
-
-			let { response, data } = await request(scopedPath);
+			const response = await fetch(`${this.getApiBaseUrl()}${scopedPath}`, {
+				method,
+				headers: this.getApiHeaders(),
+				body: requestBody,
+				signal: controller.signal,
+			});
+			const text = await response.text();
+			let data = {};
+			try {
+				data = text ? JSON.parse(text) : {};
+			} catch {
+				data = { raw: text };
+			}
 			if (!response.ok) {
 				const detail =
 					typeof data?.detail === "string"

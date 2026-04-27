@@ -45,6 +45,21 @@ def test_script_compatibility_launchers_delegate_to_packaged_hook():
     assert "../hooks/copilot-stop-save.sh" in shell_launcher
 
 
+def test_boundary_capture_hooks_are_synchronous():
+    repo_root = Path(__file__).parent.parent
+    hooks = json.loads((repo_root / "hooks" / "hooks.json").read_text())["hooks"]
+
+    stop = hooks["Stop"][0]["hooks"][0]
+    precompact = hooks["PreCompact"][0]["hooks"][0]
+    session_end = hooks["SessionEnd"][0]["hooks"][0]
+
+    assert stop.get("async") is True
+    assert precompact.get("async") is not True
+    assert precompact.get("timeout") == 35
+    assert session_end.get("async") is not True
+    assert session_end.get("timeout") == 35
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
