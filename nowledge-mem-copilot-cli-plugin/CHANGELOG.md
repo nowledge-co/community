@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stop hook fallback chain** — capture prefers the packaged runtime under `COPILOT_PLUGIN_ROOT/hooks/`, then falls back to `~/.copilot/nowledge-mem-hooks/` for older installs
 - **Hook payload compatibility** — capture now accepts both camelCase and snake_case Copilot hook payloads, so newer Copilot CLI builds continue passing session and transcript identifiers correctly
 - **Docs and release guidance** — no longer tell users to run a marketplace path that Copilot does not install
+- **Capture runtime maintenance** — `scripts/` launchers now delegate to the packaged `hooks/` runtime instead of carrying a second copy that can drift
 
 ## [0.1.0] - 2026-04-21
 

@@ -193,9 +193,9 @@ test("apiJson injects ambient space into fallback HTTP requests", async () => {
 	}
 });
 
-test("apiJson retries auth failure with query-key fallback", async () => {
+test("apiJson never places API keys in URL query strings", async () => {
 	const previousFetch = globalThis.fetch;
-	const urls = [];
+	const requests = [];
 	const client = new NowledgeMemClient(
 		logger,
 		{ runCommandWithTimeout: async () => ({ code: 0 }) },
@@ -206,27 +206,25 @@ test("apiJson retries auth failure with query-key fallback", async () => {
 		},
 	);
 	try {
-		globalThis.fetch = async (url) => {
-			urls.push(url);
-			if (urls.length === 1) {
-				return {
-					ok: false,
-					status: 403,
-					text: async () => JSON.stringify({ detail: "forbidden" }),
-				};
-			}
+		globalThis.fetch = async (url, init) => {
+			requests.push({ url, init });
 			return {
-				ok: true,
-				status: 200,
-				text: async () => JSON.stringify({ ok: true }),
+				ok: false,
+				status: 403,
+				text: async () => JSON.stringify({ detail: "forbidden" }),
 			};
 		};
-		const response = await client.apiJson("POST", "/remote-api/threads", {});
-		assert.deepEqual(response, { ok: true });
-		assert.equal(
-			urls[1],
-			"https://mem.example.com/remote-api/threads?space_id=Research+Agent&nmem_api_key=secret-token",
+		await assert.rejects(
+			() => client.apiJson("POST", "/remote-api/threads", {}),
+			/forbidden/,
 		);
+		assert.equal(requests.length, 1);
+		assert.equal(
+			requests[0].url,
+			"https://mem.example.com/remote-api/threads?space_id=Research+Agent",
+		);
+		assert.equal(requests[0].init.headers.authorization, "Bearer secret-token");
+		assert.equal(requests[0].init.headers["x-nmem-api-key"], "secret-token");
 	} finally {
 		globalThis.fetch = previousFetch;
 	}

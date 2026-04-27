@@ -9,7 +9,7 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 ### Fixed
 
 - ClawHub packages now exclude local `node_modules/`, preventing unpublished development artifacts from entering the security scan.
-- Remote HTTP fallback requests retry with `nmem_api_key` in the query string when a proxy strips auth headers, matching Mem's Access Anywhere compatibility path.
+- Remote HTTP requests no longer place API keys in URL query strings. The plugin keeps credentials in `Authorization` and `X-NMEM-API-Key` headers only.
 
 ## [0.8.19] - 2026-04-21
 

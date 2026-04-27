@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Shell launcher for copilot-stop-save.py
-# Called by hooks.json capture events — receives JSON via stdin.
+# Compatibility launcher for the packaged Copilot capture hook.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-exec python3 "${SCRIPT_DIR}/copilot-stop-save.py" "$@"
+exec "${SCRIPT_DIR}/../hooks/copilot-stop-save.sh" "$@"

@@ -21,31 +21,28 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add scripts/ to path so we can import the capture module
+# Add hooks/ to path so we can import the packaged capture module
 sys.path.insert(
-    0, str(Path(__file__).parent.parent / "scripts")
+    0, str(Path(__file__).parent.parent / "hooks")
 )
 
 # Rename the module for import (Python doesn't like hyphens in module names)
 import importlib.util
 _spec = importlib.util.spec_from_file_location(
     "copilot_stop_save",
-    Path(__file__).parent.parent / "scripts" / "copilot-stop-save.py",
+    Path(__file__).parent.parent / "hooks" / "copilot-stop-save.py",
 )
 copilot_stop_save = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(copilot_stop_save)
 
 
-def test_packaged_hook_runtime_matches_compatibility_copy():
+def test_script_compatibility_launchers_delegate_to_packaged_hook():
     repo_root = Path(__file__).parent.parent
-    assert (
-        (repo_root / "hooks" / "copilot-stop-save.py").read_bytes()
-        == (repo_root / "scripts" / "copilot-stop-save.py").read_bytes()
-    )
-    assert (
-        (repo_root / "hooks" / "copilot-stop-save.sh").read_bytes()
-        == (repo_root / "scripts" / "copilot-stop-save.sh").read_bytes()
-    )
+    python_launcher = (repo_root / "scripts" / "copilot-stop-save.py").read_text()
+    shell_launcher = (repo_root / "scripts" / "copilot-stop-save.sh").read_text()
+
+    assert "hooks\" / \"copilot-stop-save.py" in python_launcher
+    assert "../hooks/copilot-stop-save.sh" in shell_launcher
 
 
 # ---------------------------------------------------------------------------

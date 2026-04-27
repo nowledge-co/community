@@ -122,17 +122,6 @@ export class NowledgeMemClient {
 		return rendered ? `${pathname}?${rendered}` : pathname;
 	}
 
-	_withApiKeyQuery(path) {
-		if (!this._apiKey) return path;
-		const [pathname, rawQuery = ""] = String(path).split("?", 2);
-		const query = new URLSearchParams(rawQuery);
-		if (!query.has("nmem_api_key")) {
-			query.set("nmem_api_key", this._apiKey);
-		}
-		const rendered = query.toString();
-		return rendered ? `${pathname}?${rendered}` : pathname;
-	}
-
 	_withSpaceBody(body) {
 		if (!this._spaceRef || body == null || Array.isArray(body)) {
 			return body;
@@ -169,14 +158,6 @@ export class NowledgeMemClient {
 			};
 
 			let { response, data } = await request(scopedPath);
-			if (
-				!response.ok &&
-				this._apiKey &&
-				(response.status === 401 || response.status === 403)
-			) {
-				({ response, data } = await request(this._withApiKeyQuery(scopedPath)));
-			}
-
 			if (!response.ok) {
 				const detail =
 					typeof data?.detail === "string"
