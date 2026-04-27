@@ -198,6 +198,40 @@ Optional capabilities (require platform support):
 
 ---
 
+## Integration Testing
+
+Use `tests/plugin_e2e` for the key plugin smoke path. The static tests are
+cheap and should pass without credentials:
+
+```bash
+uv run --with pytest pytest tests/plugin_e2e -q
+```
+
+Before release, run live host smoke for any key plugin you changed:
+
+```bash
+NMEM_PLUGIN_E2E=1 NMEM_PLUGIN_E2E_HOSTS=claude,codex,openclaw,hermes \
+  uv run --with pytest pytest tests/plugin_e2e -q
+```
+
+Live smoke must prove user-visible behavior through Mem state, not just command
+success. The harness sends a unique marker through the host, then verifies a
+saved thread in a temporary Mem space.
+
+Rules for adding live coverage:
+
+- Do not pass Mem API keys as command-line arguments. Use `NMEM_API_KEY`,
+  `NMEM_E2E_API_KEY`, or shared `nmem config client` state.
+- Prefer a dedicated temporary space and delete it at teardown.
+- Assert through `nmem t search` / `nmem t show` so the test covers capture,
+  upload, indexing, and source metadata.
+- Keep LLM provider/model selection configurable by env. The repo must not
+  hard-code paid provider secrets or expensive default models.
+- If a host lacks real lifecycle hooks, test the honest fallback surface instead
+  of pretending it has automatic thread capture.
+
+---
+
 ## Thread Save Decision
 
 Before adding thread save to a new integration:
