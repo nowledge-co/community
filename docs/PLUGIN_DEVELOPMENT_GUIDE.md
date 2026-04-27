@@ -6,12 +6,12 @@
 
 ## Transport
 
-Use `nmem` CLI as the execution layer for memory operations.
+Use `nmem` CLI as the universal fallback and the real transcript-import path. When a host can load package-bundled MCP servers and has a verified user/workspace override path, ship MCP as the direct retrieval/write layer too.
 
 | Transport | When to use | Examples |
 |-----------|------------|----------|
-| **nmem CLI** | Agent plugins that can spawn subprocesses | OpenClaw, Alma, Bub, Droid, Claude Code, Gemini CLI |
-| **MCP** | Declarative runtimes that natively speak MCP and connect to the backend MCP server | Cursor |
+| **nmem CLI** | Agent plugins that can spawn subprocesses, especially for diagnostics, hooks, and real thread import | OpenClaw, Alma, Bub, Droid, Claude Code, Gemini CLI, Codex |
+| **MCP** | Runtimes that natively speak MCP and can connect to the backend MCP server; bundle it only when remote/custom endpoint overrides are verified | Cursor, Codex, Gemini CLI |
 | **HTTP API** | UI extensions where subprocess spawning is inappropriate | Raycast, browser extension |
 
 **CLI resolution order:**
@@ -22,6 +22,7 @@ Use `nmem` CLI as the execution layer for memory operations.
 - API key via `NMEM_API_KEY` environment variable only — never as a CLI argument or in logs
 - API URL via `--api-url` flag or `NMEM_API_URL` environment variable
 - Shared config file: `~/.nowledge-mem/config.json` (`apiUrl`, `apiKey`)
+- For bundled MCP, default to the local desktop endpoint only when user/workspace MCP config can override the same server name. Do not ship a local-only MCP server into a plugin where remote users cannot cleanly override it.
 
 ## Space-aware execution
 

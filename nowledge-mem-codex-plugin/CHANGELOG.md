@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6] - 2026-04-27
+
+### Improved
+
+- **Bundled local MCP**: the Codex plugin now ships a local Nowledge Mem MCP server definition, so a normal same-machine setup only needs the plugin enabled. Codex config still wins when users define their own `mcp_servers.nowledge-mem`, which keeps remote Mem and custom deployments explicit.
+- **Setup clarity**: install docs now separate the required plugin enablement from the optional MCP override used for remote Mem or custom local endpoints.
+
 ## [0.1.5] - 2026-04-21
 
 ### Improved

@@ -1,4 +1,8 @@
-# Recommended local setup for Codex: plugin + MCP.
+# Recommended local setup for Codex.
+#
+# The plugin package already bundles a local Nowledge Mem MCP server at
+# http://127.0.0.1:14242/mcp/. Add an mcp_servers.nowledge-mem block only when
+# you need to override that default, for example remote Mem or a custom port.
 
 [features]
 plugins = true
@@ -6,13 +10,7 @@ plugins = true
 [plugins."nowledge-mem@nowledge-community"]
 enabled = true
 
-[mcp_servers.nowledge-mem]
-url = "http://127.0.0.1:14242/mcp/"
-
-[mcp_servers.nowledge-mem.http_headers]
-APP = "Codex"
-
-# Remote Mem example:
+# Remote/custom Mem override example:
 #
 # [mcp_servers.nowledge-mem]
 # url = "https://mem.example.com/mcp/"
