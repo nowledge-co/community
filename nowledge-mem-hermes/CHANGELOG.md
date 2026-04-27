@@ -2,10 +2,13 @@
 
 ## Unreleased
 
+## [0.5.11] - 2026-04-27
+
 ### Fixed
 
 - Clarified the provider transport boundary: memory operations use `nmem`, while long transcript payloads use the Mem API directly.
 - Reduced lifecycle wording around compression and gateway cleanup to match the current Hermes host behavior.
+- Remote transcript upload retry keeps Mem API keys in headers only. The provider still retries a misconfigured `/remote-api` path at the root endpoint, but no longer puts `nmem_api_key` into request URLs.
 
 ## [0.5.10] - 2026-04-27
 
