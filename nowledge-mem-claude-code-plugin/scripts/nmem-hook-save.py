@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -27,6 +28,7 @@ def _read_hook_input() -> dict[str, Any]:
 
 
 def _nmem_command() -> str | None:
+    # Windows shims are wrapped by _build_nmem_command before execution.
     return shutil.which("nmem") or shutil.which("nmem.cmd")
 
 
@@ -42,6 +44,26 @@ def _cmd_exe_path(path: str) -> str:
         return f"{parts[2].upper()}:\\" + "\\".join(parts[3:])
     if len(path) >= 3 and path[1] == ":" and path[2] in ("\\", "/"):
         return path.replace("/", "\\")
+    if normalized.startswith("/"):
+        wslpath = shutil.which("wslpath")
+        if wslpath:
+            try:
+                proc = subprocess.run(
+                    [wslpath, "-w", path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                    timeout=2,
+                    check=False,
+                )
+                converted = proc.stdout.strip()
+                if proc.returncode == 0 and converted:
+                    return converted
+            except Exception:
+                pass
+        distro = os.environ.get("WSL_DISTRO_NAME")
+        if distro:
+            return "\\\\wsl.localhost\\" + distro + normalized.replace("/", "\\")
     return "nmem.cmd" if Path(path).name.lower() == "nmem.cmd" else path
 
 
@@ -65,7 +87,10 @@ def _build_command(nmem: str, payload: dict[str, Any]) -> list[str]:
 
     cwd = payload.get("cwd")
     if isinstance(cwd, str) and cwd.strip():
-        args.extend(["--project", str(Path(cwd).expanduser())])
+        project = str(Path(cwd).expanduser())
+        if nmem.lower().endswith(".cmd"):
+            project = _cmd_exe_path(project)
+        args.extend(["--project", project])
 
     return _build_nmem_command(nmem, *args)
 

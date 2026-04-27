@@ -486,7 +486,7 @@ def main() -> int:
                 cycle_tools.append(name)
                 if name == "task_complete":
                     used_task_complete = True
-                if name == "ask_user":
+                if name == "ask_user" and not boundary_event:
                     state["active_start_event_id"] = state.get(
                         "active_start_event_id"
                     ) or slice_events[0].get("id")

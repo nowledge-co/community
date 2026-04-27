@@ -500,6 +500,48 @@ class TestMainCaptureEntrypoint:
             finally:
                 os.unlink(transcript_path)
 
+    def test_precompact_saves_even_when_latest_cycle_used_ask_user(self):
+        events = [
+            make_event(
+                "user.message",
+                content="Please save this thread before compaction if I am away.",
+                event_id="e1",
+            ),
+            make_event("assistant.turn_start", event_id="e2"),
+            make_event(
+                "assistant.message",
+                content="I can save it. Do you want me to include the last decision?",
+                event_id="e3",
+            ),
+            make_event(
+                "tool.execution_start",
+                tool_name="ask_user",
+                arguments={"question": "Include the last decision?"},
+                tool_call_id="tool-1",
+                event_id="e4",
+            ),
+            make_event("assistant.turn_end", event_id="e5", turn_id="turn-1"),
+        ]
+        transcript_path = self._write_transcript(events)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload = {
+                "session_id": "precompact-ask-user-session",
+                "transcript_path": transcript_path,
+                "hook_event_name": "PreCompact",
+                "timestamp": "2026-04-27T10:00:00Z",
+            }
+            try:
+                with patch.object(copilot_stop_save, "STATE_DIR", Path(tmpdir) / "state"), \
+                    patch.object(copilot_stop_save, "LOG_FILE", Path(tmpdir) / "hook-log.jsonl"), \
+                    patch("shutil.which", return_value="nmem"), \
+                    patch.object(copilot_stop_save, "run_json", return_value={}) as run_json, \
+                    patch.object(sys, "stdin", io.StringIO(json.dumps(payload))), \
+                    patch.object(sys, "argv", ["copilot-stop-save.py", "--event", "pre-compact"]):
+                    assert copilot_stop_save.main() == 0
+                    assert run_json.called
+            finally:
+                os.unlink(transcript_path)
+
 
 # ---------------------------------------------------------------------------
 # Tests: Signal Detection
