@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Hooks now use `python3` or `python`, whichever is available, instead of assuming a `python3` binary exists.
+- Stop and PreCompact capture now preserve WSL bridge installs where only Windows `nmem.cmd` is available.
 
 ## [0.7.4] - 2026-04-27
 
