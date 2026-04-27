@@ -1,0 +1,19 @@
+{
+  "name": "nowledge-community",
+  "owner": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai"
+  },
+  "metadata": {
+    "description": "Official Nowledge Community plugin marketplace for GitHub Copilot CLI",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "nowledge-mem",
+      "description": "Personal knowledge graph for GitHub Copilot CLI — remembers decisions, searches past work, captures sessions",
+      "version": "0.1.1",
+      "source": "./nowledge-mem-copilot-cli-plugin"
+    }
+  ]
+}

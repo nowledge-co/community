@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1] - Unreleased
 
+### Added
+
+- **PreCompact capture** — captures the current Copilot transcript before context compaction, not only after model turns
+- **SessionEnd capture backstop** — runs the same idempotent capture path when Copilot exits or clears a session
+
 ### Fixed
 
 - **Marketplace install compatibility** — session capture now runs from packaged files in `hooks/`, so Copilot marketplace installs no longer depend on a missing `scripts/` directory
 - **Stop hook fallback chain** — capture prefers the packaged runtime under `COPILOT_PLUGIN_ROOT/hooks/`, then falls back to `~/.copilot/nowledge-mem-hooks/` for older installs
+- **Hook payload compatibility** — capture now accepts both camelCase and snake_case Copilot hook payloads, so newer Copilot CLI builds continue passing session and transcript identifiers correctly
 - **Docs and release guidance** — no longer tell users to run a marketplace path that Copilot does not install
 
 ## [0.1.0] - 2026-04-21

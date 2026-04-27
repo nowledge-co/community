@@ -69,7 +69,7 @@
       "threadSave": {
         "method": "plugin-capture",
         "runtime": "copilot-cli",
-        "note": "Python script reads Copilot CLI transcript events via stdin, creates threads via nmem t import. No native nmem parser exists for copilot-cli."
+        "note": "Python script reads Copilot CLI transcript events from Stop, PreCompact, and SessionEnd hooks, creates threads via nmem t import. No native nmem parser exists for copilot-cli."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -100,7 +100,7 @@
       "name": "Gemini CLI",
       "category": "coding",
       "type": "extension",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-gemini-cli",
       "transport": "cli",
       "capabilities": {

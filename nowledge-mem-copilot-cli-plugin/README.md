@@ -48,7 +48,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 - Working Memory briefing loaded at every session start, resume, and clear
 - Per-turn behavioral nudge with memory search and save syntax
 - Session conversations captured to your knowledge graph on each response
-- Context recovered after compaction events
+- Current transcript captured before compaction, then Working Memory recovered after compaction events
 
 **Skills (model-mediated; Copilot may expose them as namespaced entries):**
 
@@ -69,10 +69,12 @@ The plugin no longer ships separate command docs. Skills are still interpreted b
 | `SessionStart` | After compaction | Re-loads Working Memory + checkpoint prompt |
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
 | `Stop` | Model finishes responding | Captures session to knowledge graph (async) |
+| `PreCompact` | Before context compaction | Captures the current transcript before context is compressed |
+| `SessionEnd` | Session exits or clears | Runs the same idempotent capture path as a final backstop |
 
 The `SessionStart` hook tries `nmem --json wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
-The `Stop` hook runs a Python capture script from the plugin's own `hooks/` directory in the background after every response. For older installs, it still falls back to `~/.copilot/nowledge-mem-hooks/` if that compatibility copy exists. It reads the Copilot CLI transcript, extracts messages, filters secrets, and creates threads via `nmem t import`. This is idempotent — repeated runs only append new content.
+The `Stop`, `PreCompact`, and `SessionEnd` hooks run the same Python capture script from the plugin's own `hooks/` directory. For older installs, it still falls back to `~/.copilot/nowledge-mem-hooks/` if that compatibility copy exists. It reads the Copilot CLI transcript, extracts messages, filters secrets, and creates threads via `nmem t import`. This is idempotent — repeated runs only append new content.
 
 ### Session Capture Details
 

@@ -184,6 +184,7 @@ Optional capabilities (require platform support):
 
 - [ ] **Auto-recall** — inject relevant memories before each response
 - [ ] **Auto-capture** — save session as searchable thread at session end
+- [ ] **Pre-compaction capture** — when the host exposes a pre-compression hook and a real transcript path, save the thread before context is compressed
 - [ ] **Graph exploration** — connections, evolution chains, entity relationships
 - [ ] **Thread save** — real transcript import (only if parser exists)
 - [ ] **Slash commands** — quick access to common operations
@@ -201,6 +202,15 @@ Before adding thread save to a new integration:
 
 **Never fake `save-thread`** in a runtime that doesn't support real transcript import.
 
+### Compaction boundary rule
+
+Treat compaction as a possible data-loss boundary.
+
+- If the host provides both a pre-compaction/pre-compression hook and a transcript path, register capture there as well as at normal session end.
+- If the host only provides post-compaction recovery, use it for Working Memory reload and recall, but do not describe that as pre-compaction transcript capture.
+- If the host does not expose a transcript-backed importer, use `save-handoff` language. Do not imply a hook can preserve the full thread.
+- Pre-compaction capture should be idempotent and should pass the host session id and working directory through to `nmem` or the plugin capture API.
+
 ---
 
 ## Registry Checklist
@@ -212,7 +222,7 @@ When shipping a new integration:
 3. [ ] Use `nowledge_mem_*` tool naming (or document platform convention)
 4. [ ] Update `community/README.md` integration table
 5. [ ] Verify `nowledge-labs-website/nowledge-mem/data/integrations.ts` alignment
-6. [ ] Add marketplace entry if applicable (`.claude-plugin/`, `.cursor-plugin/`, `.factory-plugin/`)
+6. [ ] Add marketplace entry if applicable (`.claude-plugin/`, `.github/plugin/`, `.cursor-plugin/`, `.factory-plugin/`)
 7. [ ] Update `nowledge-mem-npx-skills/skills/check-integration/SKILL.md` detection table
 8. [ ] Add integration docs page to website (EN + ZH)
 
@@ -221,6 +231,15 @@ When bumping a plugin **version**:
 1. [ ] Update `version` field in `community/integrations.json`
 2. [ ] Verify `nowledge-labs-website/nowledge-mem/data/integrations.ts` alignment
 3. [ ] Add marketplace entry version bump if applicable
+
+### Host-specific marketplace files
+
+Do not assume one marketplace file serves every host correctly.
+
+- Claude Code reads `.claude-plugin/marketplace.json`.
+- GitHub Copilot CLI reads `.github/plugin/marketplace.json` and also accepts `.claude-plugin/marketplace.json` for compatibility.
+- When the same plugin name should install different host-specific packages, keep separate marketplace files so each host resolves the name to its own package.
+- Validate that each marketplace source points at the host-specific directory, not a similarly named package for another runtime.
 
 ### Runtime Consumers
 

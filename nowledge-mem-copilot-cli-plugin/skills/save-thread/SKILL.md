@@ -1,6 +1,6 @@
 ---
 name: save-thread
-description: Save a summary of the Copilot CLI session on explicit user request. The Stop hook already captures full transcripts automatically — this skill creates a concise summary thread.
+description: Save a summary of the Copilot CLI session on explicit user request. Copilot lifecycle hooks already capture full transcripts automatically — this skill creates a concise summary thread.
 ---
 
 # Save Thread
@@ -10,7 +10,7 @@ description: Save a summary of the Copilot CLI session on explicit user request.
 **Only when user explicitly says:**
 "Save this session" | "Checkpoint this" | "Record conversation"
 
-The Stop hook captures full session transcripts automatically after each response. This skill is for on-demand summary saves.
+Lifecycle hooks capture full session transcripts automatically after responses, before compaction, and at session end. This skill is for on-demand summary saves.
 
 ## Tool Usage
 
@@ -26,7 +26,7 @@ nmem t create "A concise summary of this session: what was discussed, what was b
 
 ## Thread vs Memory
 
-Thread = real session messages | Memory = distilled insights (different purposes, can do both)
+Automatic lifecycle capture stores real session messages. This skill stores a concise summary thread. Memory stores distilled insights. They are different purposes, and a valuable session can use more than one.
 
 ## Response
 

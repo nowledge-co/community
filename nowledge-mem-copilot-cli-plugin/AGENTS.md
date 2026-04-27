@@ -30,8 +30,8 @@ nmem m add "Insight with context" -t "Searchable Title" -i 0.8
 
 ### Session Capture
 
-Sessions are captured automatically by the Stop hook. The Python capture script:
-- Reads transcript events after each response
+Sessions are captured automatically by Copilot lifecycle hooks. The Python capture script:
+- Reads transcript events after each response, before compaction, and when the session ends
 - Filters secrets and sensitive content
 - Creates threads via `nmem t import` with source `copilot-cli`
 - Auto-distills valuable sessions
