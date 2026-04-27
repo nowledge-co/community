@@ -23,6 +23,11 @@ Use `nmem` CLI as the universal fallback and the real transcript-import path. Wh
 - API URL via `--api-url` flag or `NMEM_API_URL` environment variable
 - Shared config file: `~/.nowledge-mem/config.json` (`apiUrl`, `apiKey`)
 - For bundled MCP, default to the local desktop endpoint only when user/workspace MCP config can override the same server name. Do not ship a local-only MCP server into a plugin where remote users cannot cleanly override it.
+- Direct HTTP MCP clients do not inherit the shared config file. User-facing remote docs should point to `nmem config mcp show --host <host>` so users paste a host-owned MCP block with the same URL/key instead of editing package files.
+
+**Transcript boundary:**
+- Real transcript save runs beside the host session files. Use `nmem t save --from <runtime>` or a host SDK capture path on the client machine, then upload through API create/append.
+- Do not expose transcript capture as an MCP tool. MCP may search/read saved threads, but local transcript discovery belongs to `nmem` or the host-native capture path.
 
 ## Space-aware execution
 

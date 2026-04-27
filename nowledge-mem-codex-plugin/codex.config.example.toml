@@ -11,6 +11,8 @@ plugins = true
 enabled = true
 
 # Remote/custom Mem override example:
+# Generate this block from your saved nmem client config with:
+# nmem config mcp show --host codex
 #
 # [mcp_servers.nowledge-mem]
 # url = "https://mem.example.com/mcp/"

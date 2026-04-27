@@ -56,7 +56,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.1"]
+  "plugin": ["opencode-nowledge-mem@0.3.2"]
 }
 ```
 
@@ -124,6 +124,8 @@ The plugin also reads `~/.nowledge-mem/config.json` (shared with all Nowledge Me
   "apiKey": "your-key"
 }
 ```
+
+That shared config is used by both the `nmem` command paths and the HTTP session-save path.
 
 See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access).
 

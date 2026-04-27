@@ -232,7 +232,7 @@ elif [ ! -f "$CONFIG" ]; then
   cat > "$CONFIG" << 'YAML'
 mcp_servers:
   nowledge-mem:
-    url: "http://127.0.0.1:14242/mcp"
+    url: "http://127.0.0.1:14242/mcp/"
     timeout: 120
 YAML
   echo "[ok] Created $CONFIG with Nowledge Mem MCP server"
@@ -243,7 +243,7 @@ else
   echo "Add the following under your existing mcp_servers: block:"
   echo ""
   echo "    nowledge-mem:"
-  echo '      url: "http://127.0.0.1:14242/mcp"'
+  echo '      url: "http://127.0.0.1:14242/mcp/"'
   echo "      timeout: 120"
   echo ""
 fi

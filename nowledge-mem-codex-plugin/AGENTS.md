@@ -112,3 +112,11 @@ nmem config client set api-key nmem_your_key
 ```
 
 Use `NMEM_API_URL` / `NMEM_API_KEY` only for temporary overrides.
+
+If Codex also needs the MCP tools against remote Mem, generate a host-owned MCP config block with:
+
+```bash
+nmem config mcp show --host codex
+```
+
+Paste that into `~/.codex/config.toml`. Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically.

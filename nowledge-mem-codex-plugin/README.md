@@ -80,14 +80,13 @@ If you prefer to copy a bundled example, see [`codex.config.example.toml`](./cod
 
 For remote Mem, keep the plugin block and override the bundled MCP server with your server:
 
-```toml
-[mcp_servers.nowledge-mem]
-url = "https://mem.example.com/mcp/"
-
-[mcp_servers.nowledge-mem.http_headers]
-APP = "Codex"
-Authorization = "Bearer nmem_your_key"
+```bash
+nmem config client set url https://mem.example.com
+nmem config client set api-key nmem_your_key
+nmem config mcp show --host codex
 ```
+
+Paste the generated TOML into `~/.codex/config.toml`. Direct MCP clients do not read `~/.nowledge-mem/config.json` by themselves; the generated block gives Codex the same URL and key that `nmem` already uses.
 
 ### Repo-level (this project only)
 
@@ -172,6 +171,12 @@ nmem config client set api-key nmem_your_key
 See [Remote Access](https://mem.nowledge.co/docs/remote-access) for details.
 
 This shared local client config powers the package's direct `nmem` commands, including real `save-thread`. If you override the bundled MCP server in `~/.codex/config.toml`, point it to the same remote Mem server.
+
+To generate the override block without hand-copying credentials:
+
+```bash
+nmem config mcp show --host codex
+```
 
 ## Spaces
 

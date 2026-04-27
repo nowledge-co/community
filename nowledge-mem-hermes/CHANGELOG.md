@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## [0.5.10] - 2026-04-27
+
+### Fixed
+
+- MCP fallback setup now writes the exact local endpoint with the trailing slash (`http://127.0.0.1:14242/mcp/`), matching the current Mem server and remote-access docs.
+
 ## [0.5.9] - 2026-04-15
 
 ### Added

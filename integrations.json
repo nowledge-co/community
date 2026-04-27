@@ -100,7 +100,7 @@
       "name": "Gemini CLI",
       "category": "coding",
       "type": "extension",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "directory": "nowledge-mem-gemini-cli",
       "transport": "cli+mcp",
       "capabilities": {
@@ -124,7 +124,7 @@
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the Gemini extension",
-          "Keep the bundled MCP endpoint local, or override mcpServers.nowledge-mem in Gemini settings for remote Mem",
+          "Keep the bundled MCP endpoint local, or use nmem config mcp show --host gemini-cli to override mcpServers.nowledge-mem for remote Mem",
           "Keep nmem available on this machine",
           "Start a fresh Gemini CLI session after install"
         ]
@@ -147,7 +147,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -173,7 +173,7 @@
         "threads": "explicit-save",
         "bestResultRequires": [
           "Install the Codex package and enable plugins in ~/.codex/config.toml",
-          "Use the bundled local MCP server, or override mcp_servers.nowledge-mem in ~/.codex/config.toml for remote Mem",
+          "Use the bundled local MCP server, or use nmem config mcp show --host codex to override mcp_servers.nowledge-mem for remote Mem",
           "Keep nmem available on this machine",
           "Merge the package AGENTS.md into the project for stronger follow-through"
         ]
@@ -475,7 +475,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.9",
+      "version": "0.5.10",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
@@ -521,7 +521,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -545,7 +545,8 @@
         "bestResultRequires": [
           "Install the native OpenCode plugin",
           "Use local mode for real session auto-sync",
-          "Keep nmem available for memory operations and handoff flows"
+          "Keep nmem available for memory operations and handoff flows",
+          "Run nmem config client set url/api-key once when Mem is remote"
         ]
       },
       "install": {
@@ -852,11 +853,12 @@
         "bestResultRequires": [
           "Add the Nowledge Mem MCP server",
           "Add the provided system prompt or AGENTS.md guidance",
+          "Use nmem config mcp show --host <host> for remote Mem credentials",
           "Prefer a native integration when one exists for your host"
         ]
       },
       "install": {
-        "command": "Point your MCP client at http://127.0.0.1:14242/mcp",
+        "command": "Point your MCP client at http://127.0.0.1:14242/mcp/",
         "docsUrl": "/docs/integrations#model-context-protocol-mcp"
       },
       "toolNaming": {

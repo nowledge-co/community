@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7] - 2026-04-27
+
+### Improved
+
+- **Remote MCP setup**: remote Codex users can now generate the exact `~/.codex/config.toml` MCP override with `nmem config mcp show --host codex`, using the same shared client credentials as direct `nmem` commands.
+- **Credential boundary clarity**: package guidance now says plainly that direct MCP clients do not read `~/.nowledge-mem/config.json` automatically; Codex needs a host-owned MCP block for remote Mem.
+
 ## [0.1.6] - 2026-04-27
 
 ### Improved

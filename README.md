@@ -64,7 +64,7 @@ Add to your tool's MCP settings:
 {
   "mcpServers": {
     "nowledge-mem": {
-      "url": "http://127.0.0.1:14242/mcp",
+      "url": "http://127.0.0.1:14242/mcp/",
       "type": "streamableHttp"
     }
   }
@@ -72,6 +72,16 @@ Add to your tool's MCP settings:
 ```
 
 See [mcp.json](mcp.json) for the reference config.
+
+For remote Mem, configure this machine once with `nmem config client set url ...` and `nmem config client set api-key ...`, then generate the exact host config:
+
+```bash
+nmem config mcp show --host cursor
+nmem config mcp show --host codex
+nmem config mcp show --host gemini-cli
+```
+
+Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically; paste the generated block into the host's own MCP settings.
 
 ## Requirements
 

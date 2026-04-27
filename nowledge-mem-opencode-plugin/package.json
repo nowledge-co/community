@@ -1,6 +1,6 @@
 {
   "name": "opencode-nowledge-mem",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Nowledge Mem plugin for OpenCode. Cross-tool knowledge: search, save, Working Memory, and distillation.",
   "type": "module",
   "main": "src/index.ts",
