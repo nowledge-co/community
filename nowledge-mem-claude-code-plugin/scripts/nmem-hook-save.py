@@ -27,6 +27,24 @@ def _read_hook_input() -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _payload_value(payload: dict[str, Any], *keys: str) -> str | None:
+    containers: list[dict[str, Any]] = [payload]
+    for outer_key in ("input", "data"):
+        nested = payload.get(outer_key)
+        if isinstance(nested, dict):
+            containers.append(nested)
+            nested_input = nested.get("input")
+            if isinstance(nested_input, dict):
+                containers.append(nested_input)
+
+    for container in containers:
+        for key in keys:
+            value = container.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return None
+
+
 def _nmem_command() -> str | None:
     # Windows shims are wrapped by _build_nmem_command before execution.
     return shutil.which("nmem") or shutil.which("nmem.cmd")
@@ -81,12 +99,12 @@ def _build_nmem_command(nmem: str, *args: str) -> list[str]:
 def _build_command(nmem: str, payload: dict[str, Any]) -> list[str]:
     args = ["t", "save", "--from", "claude-code", "--truncate"]
 
-    session_id = payload.get("session_id")
-    if isinstance(session_id, str) and session_id.strip():
-        args.extend(["--session-id", session_id.strip()])
+    session_id = _payload_value(payload, "session_id", "sessionId")
+    if session_id:
+        args.extend(["--session-id", session_id])
 
-    cwd = payload.get("cwd")
-    if isinstance(cwd, str) and cwd.strip():
+    cwd = _payload_value(payload, "cwd")
+    if cwd:
         project = str(Path(cwd).expanduser())
         if nmem.lower().endswith(".cmd"):
             project = _cmd_exe_path(project)

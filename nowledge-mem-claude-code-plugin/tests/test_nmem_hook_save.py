@@ -31,6 +31,30 @@ def test_build_command_uses_unix_nmem_directly(tmp_path):
     ]
 
 
+def test_build_command_accepts_camel_case_claude_hook_payload(tmp_path):
+    command = nmem_hook_save._build_command(
+        "/usr/local/bin/nmem",
+        {"sessionId": " camel-session ", "cwd": str(tmp_path)},
+    )
+
+    assert "--session-id" in command
+    assert command[command.index("--session-id") + 1] == "camel-session"
+    assert "--project" in command
+    assert command[command.index("--project") + 1] == str(tmp_path)
+
+
+def test_build_command_accepts_nested_claude_hook_payload(tmp_path):
+    command = nmem_hook_save._build_command(
+        "/usr/local/bin/nmem",
+        {"data": {"input": {"sessionId": "nested-session", "cwd": str(tmp_path)}}},
+    )
+
+    assert "--session-id" in command
+    assert command[command.index("--session-id") + 1] == "nested-session"
+    assert "--project" in command
+    assert command[command.index("--project") + 1] == str(tmp_path)
+
+
 def test_build_command_wraps_windows_cmd_for_wsl_bridge():
     command = nmem_hook_save._build_command(
         "/mnt/c/Users/Alice/AppData/Roaming/npm/nmem.cmd",

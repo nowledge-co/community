@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Hooks now use `python3` or `python`, whichever is available, instead of assuming a `python3` binary exists.
 - Stop and PreCompact capture now preserve WSL bridge installs where only Windows `nmem.cmd` is available, including WSL project paths passed to `nmem`.
+- Stop and PreCompact capture now accept both `session_id` and `sessionId` hook payload keys, so current Claude Code payloads still avoid latest-session guessing.
 
 ## [0.7.4] - 2026-04-27
 
