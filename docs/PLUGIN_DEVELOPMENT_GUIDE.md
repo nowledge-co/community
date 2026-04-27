@@ -156,7 +156,7 @@ Users need a customization path that survives updates.
 2. **Prefer the host's own instruction surface.**
    - Project `AGENTS.md`
    - `CLAUDE.local.md` / `CLAUDE.md`
-   - `.github/instructions/*.instructions.md`
+   - `.github/copilot-instructions.md` or `.github/instructions/*.instructions.md`
    - `.cursor/rules/*.mdc`
    - `GEMINI.md`
    - `HERMES.md` / `SOUL.md`

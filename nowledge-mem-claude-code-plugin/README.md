@@ -12,7 +12,7 @@ claude plugin marketplace add nowledge-co/community
 claude plugin install nowledge-mem@nowledge-community
 ```
 
-**Prerequisite:** `nmem` CLI must be in your PATH:
+**Prerequisite:** `nmem` CLI must be in your PATH. Hook capture also needs `python3` or `python` available on the same machine:
 
 ```bash
 pip install nmem-cli    # or: pipx install nmem-cli
@@ -85,7 +85,7 @@ The plugin works transparently in both modes:
 - **Remote** (Mem on different machine): configure this machine once with:
 
 ```bash
-nmem config client set url https://your-server:14242
+nmem config client set url https://your-server
 nmem config client set api-key your-key
 ```
 

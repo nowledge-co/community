@@ -113,8 +113,10 @@ Create `.agents/plugins/marketplace.json`:
         "path": "./.agents/nowledge-mem"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
-      }
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
     }
   ]
 }
@@ -142,19 +144,13 @@ If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 ## Update
 
 ```bash
-codex plugin marketplace update nowledge-community
-```
-
-If your Codex build does not support `plugin marketplace update`, run:
-
-```bash
 codex plugin marketplace upgrade nowledge-community
 ```
 
-If neither update command exists, re-add the marketplace source:
+If the marketplace is not registered yet, run:
 
 ```bash
-codex marketplace add nowledge-co/community
+codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community
 ```
 
 Restart Codex after updating. If you are on a repo-local `@local` setup, update the local source path instead.

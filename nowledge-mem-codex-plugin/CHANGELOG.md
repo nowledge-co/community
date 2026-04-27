@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8] - 2026-04-27
+
+### Fixed
+
+- Declared the packaged `.mcp.json` in the Codex plugin manifest so bundled MCP is loaded by the host instead of existing only as a repo file.
+- Updated marketplace guidance to use the current `codex plugin marketplace upgrade` command.
+
 ## [0.1.7] - 2026-04-27
 
 ### Improved
@@ -27,7 +34,7 @@
 ### Improved
 
 - **Marketplace-first install path**: home-level setup now uses `codex plugin marketplace add nowledge-co/community` as the primary flow.
-- **Marketplace update path**: update guidance now leads with `codex plugin marketplace update nowledge-community`, then falls back to `upgrade` and legacy `codex marketplace add` where needed.
+- **Marketplace update path**: update guidance now leads with `codex plugin marketplace upgrade nowledge-community`, then falls back to adding the marketplace for first-time or legacy installs.
 - **Legacy Codex compatibility**: docs now include fallback commands for builds that still expose only `codex marketplace ...`.
 - **Config key clarity**: docs now distinguish `nowledge-mem@nowledge-community` (managed marketplace) from `nowledge-mem@local` (repo-pinned local source).
 - **Install expectation clarity**: docs now state the required `/plugins` install step before enabling `nowledge-mem@nowledge-community` in config.

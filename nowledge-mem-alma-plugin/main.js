@@ -1523,69 +1523,73 @@ export async function activate(context) {
 	});
 
 	// --- Hook: didReceive (capture AI response + start idle timer) ---
-	if (autoCapture) {
-		registerEvent("chat.message.didReceive", (input, _output) => {
-			const threadId = input?.threadId;
-			// Use extractText to handle both string and array-of-blocks content
-			const aiContent = extractText(input?.response?.content);
-			logger.debug?.(`nowledge-mem: didReceive fired, threadId=${threadId}, hasContent=${!!aiContent}`);
-			if (!threadId || !aiContent) return;
+	registerEvent("chat.message.didReceive", (input, _output) => {
+		if (!autoCapture) return;
+		const threadId = input?.threadId;
+		// Use extractText to handle both string and array-of-blocks content
+		const aiContent = extractText(input?.response?.content);
+		logger.debug?.(`nowledge-mem: didReceive fired, threadId=${threadId}, hasContent=${!!aiContent}`);
+		if (!threadId || !aiContent) return;
 
-			const buf = ensureBuffer(threadId);
-			buf.messages.push({ role: "assistant", content: aiContent });
-			activeThreadId = threadId;
-			logger.debug?.(`nowledge-mem: buffered AI msg for ${threadId} (${buf.messages.length} total)`);
-			resetIdleTimer(threadId);
-		});
+		const buf = ensureBuffer(threadId);
+		buf.messages.push({ role: "assistant", content: aiContent });
+		activeThreadId = threadId;
+		logger.debug?.(`nowledge-mem: buffered AI msg for ${threadId} (${buf.messages.length} total)`);
+		resetIdleTimer(threadId);
+	});
 
-		// --- Hook: thread.activated (flush on thread switch) ---
-		registerEvent("thread.activated", async (input, _output) => {
-			const newThreadId = input?.threadId;
-			logger.debug?.(`nowledge-mem: thread.activated fired, threadId=${newThreadId}`);
-			// Flush the previous thread (await to avoid race with new thread's hooks)
-			if (activeThreadId && activeThreadId !== newThreadId) {
-				await flushThread(activeThreadId);
-			}
-			if (newThreadId) activeThreadId = newThreadId;
-		});
+	// --- Hook: thread.activated (flush on thread switch) ---
+	registerEvent("thread.activated", async (input, _output) => {
+		if (!autoCapture) return;
+		const newThreadId = input?.threadId;
+		logger.debug?.(`nowledge-mem: thread.activated fired, threadId=${newThreadId}`);
+		// Flush the previous thread (await to avoid race with new thread's hooks)
+		if (activeThreadId && activeThreadId !== newThreadId) {
+			await flushThread(activeThreadId);
+		}
+		if (newThreadId) activeThreadId = newThreadId;
+	});
 
-		// --- Quit hooks as safety net ---
-		const handleAutoCapture = async (_input, output) => {
-			try {
-				// Flush all buffers with unsaved messages
-				const flushPromises = [];
-				for (const [tid, buf] of threadBuffers) {
-					if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
-					if (buf.messages.length >= 2 && buf.messages.length > buf.savedCount) {
-						flushPromises.push(flushThread(tid));
-					}
+	// --- Quit hooks as safety net ---
+	const handleAutoCapture = async (_input, output) => {
+		if (!autoCapture) {
+			if (output && typeof output === "object") output.cancel = false;
+			return;
+		}
+		try {
+			// Flush all buffers with unsaved messages
+			const flushPromises = [];
+			for (const [tid, buf] of threadBuffers) {
+				if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
+				if (buf.messages.length >= 2 && buf.messages.length > buf.savedCount) {
+					flushPromises.push(flushThread(tid));
 				}
-				await Promise.allSettled(flushPromises);
-				logger.info?.(`nowledge-mem: auto-capture on quit (flushed ${flushPromises.length} threads)`);
-			} catch (err) {
-				logger.error?.(
-					`nowledge-mem auto-capture failed: ${err instanceof Error ? err.message : String(err)}`,
-				);
 			}
-			if (output && typeof output === "object") {
-				output.cancel = false;
-			}
-		};
-		// Alma event naming can vary across versions.
-		registerEvent("app.willQuit", handleAutoCapture);
-		registerEvent("app.will-quit", handleAutoCapture);
-		registerEvent("app.beforeQuit", handleAutoCapture);
-		registerEvent("app.before-quit", handleAutoCapture);
+			await Promise.allSettled(flushPromises);
+			logger.info?.(`nowledge-mem: auto-capture on quit (flushed ${flushPromises.length} threads)`);
+		} catch (err) {
+			logger.error?.(
+				`nowledge-mem auto-capture failed: ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
+		if (output && typeof output === "object") {
+			output.cancel = false;
+		}
+	};
+	// Alma event naming can vary across versions.
+	registerEvent("app.willQuit", handleAutoCapture);
+	registerEvent("app.will-quit", handleAutoCapture);
+	registerEvent("app.beforeQuit", handleAutoCapture);
+	registerEvent("app.before-quit", handleAutoCapture);
 
-		// Cleanup disposable for all idle timers
-		disposables.push({
-			dispose() {
-				for (const buf of threadBuffers.values()) {
-					if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
-				}
-			},
-		});
-	}
+	// Cleanup disposable for all idle timers
+	disposables.push({
+		dispose() {
+			for (const buf of threadBuffers.values()) {
+				if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
+			}
+		},
+	});
 
 	const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
 	logger.info?.(
@@ -1598,7 +1602,7 @@ export async function activate(context) {
 			// This covers plugin disable/reload paths where quit hooks may not fire.
 			const flushPromises = [];
 			for (const [threadId, buf] of threadBuffers) {
-				if (buf.messages.length > buf.savedCount && !buf.flushing) {
+				if (autoCapture && buf.messages.length > buf.savedCount && !buf.flushing) {
 					flushPromises.push(
 						flushThread(threadId).catch((err) =>
 							logger.error?.(`nowledge-mem: dispose flush failed for ${threadId}: ${err}`),

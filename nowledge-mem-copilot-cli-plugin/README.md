@@ -94,7 +94,7 @@ The plugin works transparently in both modes:
 - **Remote** (Mem on different machine): configure this machine once with:
 
 ```bash
-nmem config client set url https://your-server:14242
+nmem config client set url https://your-server
 nmem config client set api-key your-key
 ```
 
@@ -123,8 +123,8 @@ Restart Copilot CLI to apply changes.
 
 Copilot CLI already has a native instruction layer. Use that as your override path.
 
-- Shared repo rules: `.github/instructions/*.instructions.md`
-- Personal rules across repos: `~/.copilot/instructions/*.instructions.md`
+- Shared repo rules: `.github/copilot-instructions.md` or `.github/instructions/*.instructions.md`
+- Personal rules across repos: `~/.copilot/copilot-instructions.md`
 - Do not edit installed plugin hooks or scripts under `~/.copilot/installed-plugins/...`
 
 Keep the plugin for lifecycle hooks and capture. Put your custom memory behavior in Copilot instruction files so updates do not wipe it out.

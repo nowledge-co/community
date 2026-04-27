@@ -8,7 +8,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.4",
+      "version": "0.7.5",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -147,7 +147,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -180,7 +180,7 @@
       },
       "install": {
         "command": "codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
-        "updateCommand": "codex plugin marketplace update nowledge-community || codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
+        "updateCommand": "codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
         "configRequired": "After marketplace add, install nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. Add [mcp_servers.nowledge-mem] only to override the bundled local MCP endpoint.",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
@@ -288,7 +288,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.19",
+      "version": "0.8.20",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -337,7 +337,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.0",
+      "version": "0.7.1",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {
@@ -351,7 +351,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Plugin captures threads live via idle timer, thread switch, and quit hooks; sends via nmem CLI"
+        "note": "Plugin captures threads live via idle timer, thread switch, and quit hooks; sends via the Nowledge Mem HTTP API"
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -360,7 +360,6 @@
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the Alma marketplace plugin",
-          "Keep nmem available on this machine",
           "Leave autoCapture enabled unless you intentionally want manual thread handling"
         ]
       },

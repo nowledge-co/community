@@ -14,7 +14,7 @@ Use the host's own user-owned instruction surface instead. That is the only over
 |------|-------------------------------|-----------------------------------|-------|
 | Codex | `AGENTS.md` | same `AGENTS.md` in the repo you care about | The package `AGENTS.md` is source text to merge, not a file to patch under the installed plugin. |
 | Claude Code | `CLAUDE.md` | `CLAUDE.local.md` | Prefer `CLAUDE.local.md` for your own memory-behavior tweaks that should not enter git. |
-| Copilot CLI | `.github/instructions/*.instructions.md` | `~/.copilot/instructions/*.instructions.md` | Use Copilot's native instruction picker and file discovery instead of editing plugin hooks. |
+| Copilot CLI | `.github/copilot-instructions.md` or `.github/instructions/*.instructions.md` | `~/.copilot/copilot-instructions.md` | Use Copilot's native instruction picker and file discovery instead of editing plugin hooks. |
 | Cursor | `.cursor/rules/*.mdc` or `.cursorrules` | repo-local rule files | Keep the plugin's bundled rule as the default. Add your own rule file beside it. |
 | Gemini CLI | `GEMINI.md` in the repo root | `~/.gemini/GEMINI.md` | Use `@file.md` imports to keep large customizations modular. |
 | Hermes | `HERMES.md` | `~/.hermes/SOUL.md` | SOUL is the reliable always-loaded personal layer. |

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Clarified the provider transport boundary: memory operations use `nmem`, while long transcript payloads use the Mem API directly.
+- Reduced lifecycle wording around compression and gateway cleanup to match the current Hermes host behavior.
+
 ## [0.5.10] - 2026-04-27
 
 ### Fixed
@@ -99,10 +104,10 @@
 - **Automatic Working Memory injection** via `system_prompt_block()`. No manual `read_working_memory` tool call needed.
 - **Per-turn proactive recall** via `prefetch()`. Relevant memories are searched and injected as context before every LLM call, without relying on SOUL.md guidance compliance.
 - **User profile mirroring** via `on_memory_write()`. When Hermes writes a user fact to its built-in USER.md, the fact is also saved to Nowledge Mem for cross-tool availability.
-- **Compression awareness** via `on_pre_compress()`. The context compressor is told that external knowledge exists and can be recovered via search.
+- **Compression awareness** via `on_pre_compress()`. The provider returns a recovery hint for Hermes builds that consume provider compression output.
 - **6 native tools** with clean `nmem_` prefix (e.g. `nmem_search` instead of `mcp_nowledge_mem_memory_search`). Graph tools (neighbors, evolves, labels) deferred until `nmem` CLI adds those commands.
 - **`hermes memory setup` integration** via `get_config_schema()` and `save_config()`.
-- **CLI-only client** (`client.py`) using only stdlib (subprocess + json). Shells out to `nmem` CLI, which handles server URL, API key, and remote access. No duplicate HTTP transport or config surface.
+- **CLI-first client** (`client.py`) using only stdlib. Memory operations shell out to `nmem`, while long transcript payloads can use the Mem API directly.
 - **Upsert by ID** on `nmem_save`: pass a stable `id` to create-or-update in one call. Eliminates the search-then-update dance for agents that track their own memory keys.
 
 ### Changed

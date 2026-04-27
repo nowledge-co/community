@@ -67,11 +67,11 @@ The plugin uses Hermes' memory provider lifecycle to replace manual Working Memo
 | `system_prompt_block` | Working Memory injected into every session automatically | Manual `read_working_memory` call |
 | `prefetch` | Relevant memories searched before each turn | "Search proactively" guidance in SOUL.md |
 | `on_memory_write` | User profile facts from Hermes mirrored to Nowledge Mem | Nothing (new capability) |
-| `on_pre_compress` | Compressor told about external knowledge | Nothing (new capability) |
+| `on_pre_compress` | Provides a best-effort recovery hint on Hermes builds that consume provider compression output | Manual compression notes |
 | `on_session_end` | Cleaned Hermes transcript captured as a Mem thread when the session actually ends | Manual handoff-only thread save |
 | `get_tool_schemas` | 6 native tools with clean names | MCP tools with `mcp_nowledge_mem_` prefix |
 
-Durable knowledge saves still happen through the native `nmem_` tools. In addition, the provider now captures cleaned Hermes session transcripts at real session boundaries such as clean exit, `/new`, `/reset`, and gateway session expiry. The first flush imports the transcript; later flushes in the same live Hermes session append only the delta. Transcript payloads use the Mem API directly so long sessions are not squeezed into shell arguments.
+Durable knowledge saves still happen through the native `nmem_` tools. In addition, the provider now captures cleaned Hermes session transcripts at real session boundaries such as clean exit, `/new`, and `/reset`. The first flush imports the transcript; later flushes in the same live Hermes session append only the delta. Transcript payloads use the Mem API directly so long sessions are not squeezed into shell arguments.
 
 ## Tools
 
@@ -99,7 +99,7 @@ The plugin's `on_memory_write` hook automatically mirrors user profile facts fro
 
 ## Transport
 
-The plugin shells out to the `nmem` CLI for all operations. The CLI handles server URL, API key, and remote access configuration. No duplicate config needed in the plugin.
+The plugin shells out to the `nmem` CLI for normal memory operations and posts large transcript payloads directly to the Mem API. The shared `nmem` client config still handles server URL, API key, and remote access configuration. No duplicate network config is needed in the plugin.
 
 If `nmem` is not on PATH, the plugin disables gracefully. On machines running the Nowledge Mem desktop app, `nmem` is already bundled. For remote-only setups: `pip install nmem-cli`.
 
@@ -108,7 +108,7 @@ If `nmem` is not on PATH, the plugin disables gracefully. On machines running th
 **No plugin-level network configuration needed.** The `nmem` CLI manages client-side connection settings. Configure remote access for this machine via `nmem config client`:
 
 ```bash
-nmem config client set url https://your-server:14242
+nmem config client set url https://your-server
 nmem config client set api-key your-key
 ```
 

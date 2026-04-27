@@ -90,7 +90,7 @@ async function main() {
   assertString(pkg.repository?.url, "package.json repository.url");
   assertString(pkg.repository?.directory, "package.json repository.directory");
 
-  for (const requiredPattern of ["tests/", "scripts/", "package-lock.json"]) {
+  for (const requiredPattern of ["node_modules/", "tests/", "scripts/", "package-lock.json"]) {
     if (!clawhubIgnoreEntries.has(requiredPattern)) {
       fail(`.clawhubignore must exclude ${requiredPattern} so ClawHub artifacts do not ship test or build-only files`);
     }

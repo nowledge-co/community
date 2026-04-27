@@ -122,6 +122,17 @@ export class NowledgeMemClient {
 		return rendered ? `${pathname}?${rendered}` : pathname;
 	}
 
+	_withApiKeyQuery(path) {
+		if (!this._apiKey) return path;
+		const [pathname, rawQuery = ""] = String(path).split("?", 2);
+		const query = new URLSearchParams(rawQuery);
+		if (!query.has("nmem_api_key")) {
+			query.set("nmem_api_key", this._apiKey);
+		}
+		const rendered = query.toString();
+		return rendered ? `${pathname}?${rendered}` : pathname;
+	}
+
 	_withSpaceBody(body) {
 		if (!this._spaceRef || body == null || Array.isArray(body)) {
 			return body;
@@ -137,22 +148,33 @@ export class NowledgeMemClient {
 		const timer = setTimeout(() => controller.abort(), timeout);
 		const scopedPath = this._withSpaceQuery(path);
 		const scopedBody = this._withSpaceBody(body);
-		const url = `${this.getApiBaseUrl()}${scopedPath}`;
 		try {
-			const response = await fetch(url, {
-				method,
-				headers: this.getApiHeaders(),
-				body:
-					scopedBody === undefined ? undefined : JSON.stringify(scopedBody),
-				signal: controller.signal,
-			});
+			const requestBody =
+				scopedBody === undefined ? undefined : JSON.stringify(scopedBody);
+			const request = async (requestPath) => {
+				const response = await fetch(`${this.getApiBaseUrl()}${requestPath}`, {
+					method,
+					headers: this.getApiHeaders(),
+					body: requestBody,
+					signal: controller.signal,
+				});
+				const text = await response.text();
+				let data = {};
+				try {
+					data = text ? JSON.parse(text) : {};
+				} catch {
+					data = { raw: text };
+				}
+				return { response, data };
+			};
 
-			const text = await response.text();
-			let data = {};
-			try {
-				data = text ? JSON.parse(text) : {};
-			} catch {
-				data = { raw: text };
+			let { response, data } = await request(scopedPath);
+			if (
+				!response.ok &&
+				this._apiKey &&
+				(response.status === 401 || response.status === 403)
+			) {
+				({ response, data } = await request(this._withApiKeyQuery(scopedPath)));
 			}
 
 			if (!response.ok) {

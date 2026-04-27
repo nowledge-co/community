@@ -193,6 +193,45 @@ test("apiJson injects ambient space into fallback HTTP requests", async () => {
 	}
 });
 
+test("apiJson retries auth failure with query-key fallback", async () => {
+	const previousFetch = globalThis.fetch;
+	const urls = [];
+	const client = new NowledgeMemClient(
+		logger,
+		{ runCommandWithTimeout: async () => ({ code: 0 }) },
+		{
+			apiUrl: "https://mem.example.com",
+			apiKey: "secret-token",
+			space: "Research Agent",
+		},
+	);
+	try {
+		globalThis.fetch = async (url) => {
+			urls.push(url);
+			if (urls.length === 1) {
+				return {
+					ok: false,
+					status: 403,
+					text: async () => JSON.stringify({ detail: "forbidden" }),
+				};
+			}
+			return {
+				ok: true,
+				status: 200,
+				text: async () => JSON.stringify({ ok: true }),
+			};
+		};
+		const response = await client.apiJson("POST", "/remote-api/threads", {});
+		assert.deepEqual(response, { ok: true });
+		assert.equal(
+			urls[1],
+			"https://mem.example.com/remote-api/threads?space_id=Research+Agent&nmem_api_key=secret-token",
+		);
+	} finally {
+		globalThis.fetch = previousFetch;
+	}
+});
+
 test("client source avoids the OpenClaw env-plus-fetch security scan pattern", () => {
 	const source = readFileSync(new URL("../src/client.js", import.meta.url), "utf8");
 	assert.match(source, /\bfetch\s*\(/);

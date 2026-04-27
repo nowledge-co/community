@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true"
+            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; PY=\"$(command -v python3 || command -v python || true)\"; { [ -n \"$PY\" ] && nmem --json wm read 2>/dev/null | \"$PY\" -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null; } || cat ~/ai-now/memory.md 2>/dev/null || true"
           }
         ]
       },
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; { nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
+            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; PY=\"$(command -v python3 || command -v python || true)\"; { { [ -n \"$PY\" ] && nmem --json wm read 2>/dev/null | \"$PY\" -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null; } || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-save.py\"; [ -f \"$SCRIPT\" ] && python3 \"$SCRIPT\" --event pre-compact || true",
+            "command": "PY=\"$(command -v python3 || command -v python || true)\"; SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-save.py\"; [ -n \"$PY\" ] && [ -f \"$SCRIPT\" ] && \"$PY\" \"$SCRIPT\" --event pre-compact || true",
             "statusMessage": "Saving Claude Code thread before compaction...",
             "timeout": 35
           }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-save.py\"; [ -f \"$SCRIPT\" ] && python3 \"$SCRIPT\" --event stop || true",
+            "command": "PY=\"$(command -v python3 || command -v python || true)\"; SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-save.py\"; [ -n \"$PY\" ] && [ -f \"$SCRIPT\" ] && \"$PY\" \"$SCRIPT\" --event stop || true",
             "async": true
           }
         ]
