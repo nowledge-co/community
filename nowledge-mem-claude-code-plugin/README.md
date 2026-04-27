@@ -43,6 +43,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 - Working Memory briefing loaded at every session start, resume, and clear
 - Per-turn behavioral nudge with memory search, thread search, and save syntax
 - Session conversations captured to your knowledge graph on each response
+- Session conversations captured again before context compaction
 - Context recovered after compaction events
 
 **Autonomous skills (Claude acts on its own):**
@@ -69,17 +70,18 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 | `SessionStart` | New, resume, or clear | Loads Working Memory via `nmem wm read` |
 | `SessionStart` | After compaction | Re-loads Working Memory + checkpoint prompt |
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
+| `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code session by hook `session_id` before context is compressed |
 | `Stop` | Model finishes responding | Captures session to knowledge graph (async) |
 
 The `SessionStart` hook tries `nmem wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
-The `Stop` hook runs `nmem t save --from claude-code` in the background after every response. This is idempotent -- it only appends new messages, so repeated runs are cheap and safe.
+The `PreCompact` hook runs the same client-side thread save before Claude Code compresses the context. The `Stop` hook runs it again in the background after every response. Both paths pass Claude's hook `session_id` into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
 
 ### Local vs Remote
 
 The plugin works transparently in both modes:
 
-- **Local** (Mem on same machine): Working Memory read from Mem, with the local file kept only as the Default-space fallback. Sessions are captured by both the desktop app file watcher and the Stop hook (idempotent).
+- **Local** (Mem on same machine): Working Memory read from Mem, with the local file kept only as the Default-space fallback. Sessions are captured by the desktop app file watcher, the Stop hook, and the PreCompact hook before context compression.
 - **Remote** (Mem on different machine): configure this machine once with:
 
 ```bash
@@ -89,7 +91,7 @@ nmem config client set api-key your-key
 
 That writes the shared local client config used by `nmem` and the plugin. You can also use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`) for temporary overrides.
 
-In remote mode, the Stop hook still reads Claude session files locally through `nmem t save --from claude-code` on the machine where Claude Code is running, then uploads the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` directory.
+In remote mode, the Stop and PreCompact hooks still read Claude session files locally through `nmem t save --from claude-code` on the machine where Claude Code is running, then upload the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` directory.
 
 ## Spaces
 

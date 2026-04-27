@@ -31,12 +31,24 @@
         ]
       }
     ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-save.py\"; [ -f \"$SCRIPT\" ] && python3 \"$SCRIPT\" --event pre-compact || true",
+            "statusMessage": "Saving Claude Code thread before compaction...",
+            "timeout": 35
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; nmem t save --from claude-code --truncate 2>/dev/null || true",
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-save.py\"; [ -f \"$SCRIPT\" ] && python3 \"$SCRIPT\" --event stop || true",
             "async": true
           }
         ]
