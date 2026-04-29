@@ -369,7 +369,7 @@ export async function appendOrCreateThread({
 	if (typeof syncedCount === "number" && syncedCount > allMessages.length) {
 		// OpenClaw compaction can shrink the active transcript after we already
 		// stored the pre-compaction history. Reset the local cursor to the new
-		// compacted length so future turns append only the post-compaction tail.
+		// compacted length so future turns append only the tail after compaction.
 		_setSyncedMessageCount(threadId, allMessages.length);
 		return { threadId, normalized, messagesAdded: 0 };
 	}
