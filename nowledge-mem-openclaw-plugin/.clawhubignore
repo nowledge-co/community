@@ -1,3 +1,4 @@
+.clawhubignore
 node_modules/
 tests/
 scripts/

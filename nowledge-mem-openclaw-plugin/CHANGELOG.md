@@ -4,6 +4,12 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.21] - 2026-04-29
+
+### Fixed
+
+- ClawHub installs no longer fail archive verification because `.clawhubignore` is now excluded from the published package manifest as well as the archive.
+
 ## [0.8.20] - 2026-04-27
 
 ### Fixed
