@@ -6,12 +6,12 @@
 
 ## Transport
 
-Use `nmem` CLI as the execution layer for memory operations.
+Use `nmem` CLI as the universal fallback and the real transcript-import path. When a host can load package-bundled MCP servers and has a verified user/workspace override path, ship MCP as the direct retrieval/write layer too.
 
 | Transport | When to use | Examples |
 |-----------|------------|----------|
-| **nmem CLI** | Agent plugins that can spawn subprocesses | OpenClaw, Alma, Bub, Droid, Claude Code, Gemini CLI |
-| **MCP** | Declarative runtimes that natively speak MCP and connect to the backend MCP server | Cursor |
+| **nmem CLI** | Agent plugins that can spawn subprocesses, especially for diagnostics, hooks, and real thread import | OpenClaw, Alma, Bub, Droid, Claude Code, Gemini CLI, Codex |
+| **MCP** | Runtimes that natively speak MCP and can connect to the backend MCP server; bundle it only when remote/custom endpoint overrides are verified | Cursor, Codex, Gemini CLI |
 | **HTTP API** | UI extensions where subprocess spawning is inappropriate | Raycast, browser extension |
 
 **CLI resolution order:**
@@ -22,6 +22,12 @@ Use `nmem` CLI as the execution layer for memory operations.
 - API key via `NMEM_API_KEY` environment variable only — never as a CLI argument or in logs
 - API URL via `--api-url` flag or `NMEM_API_URL` environment variable
 - Shared config file: `~/.nowledge-mem/config.json` (`apiUrl`, `apiKey`)
+- For bundled MCP, default to the local desktop endpoint only when user/workspace MCP config can override the same server name. Do not ship a local-only MCP server into a plugin where remote users cannot cleanly override it.
+- Direct HTTP MCP clients do not inherit the shared config file. User-facing remote docs should point to `nmem config mcp show --host <host>` so users paste a host-owned MCP block with the same URL/key instead of editing package files.
+
+**Transcript boundary:**
+- Real transcript save runs beside the host session files. Use `nmem t save --from <runtime>` or a host SDK capture path on the client machine, then upload through API create/append.
+- Do not expose transcript capture as an MCP tool. MCP may search/read saved threads, but local transcript discovery belongs to `nmem` or the host-native capture path.
 
 ## Space-aware execution
 
@@ -150,7 +156,7 @@ Users need a customization path that survives updates.
 2. **Prefer the host's own instruction surface.**
    - Project `AGENTS.md`
    - `CLAUDE.local.md` / `CLAUDE.md`
-   - `.github/instructions/*.instructions.md`
+   - `.github/copilot-instructions.md` or `.github/instructions/*.instructions.md`
    - `.cursor/rules/*.mdc`
    - `GEMINI.md`
    - `HERMES.md` / `SOUL.md`
@@ -184,10 +190,45 @@ Optional capabilities (require platform support):
 
 - [ ] **Auto-recall** — inject relevant memories before each response
 - [ ] **Auto-capture** — save session as searchable thread at session end
+- [ ] **Pre-compaction capture** — when the host exposes a pre-compression hook and a real transcript path, save the thread before context is compressed
 - [ ] **Graph exploration** — connections, evolution chains, entity relationships
 - [ ] **Thread save** — real transcript import (only if parser exists)
 - [ ] **Slash commands** — quick access to common operations
 - [ ] **Space profile support** — can pass one ambient space name, and can optionally provision/show spaces when the host has a real multi-lane workflow
+
+---
+
+## Integration Testing
+
+Use `tests/plugin_e2e` for the key plugin smoke path. The static tests are
+cheap and should pass without credentials:
+
+```bash
+uv run --with pytest pytest tests/plugin_e2e -q
+```
+
+Before release, run live host smoke for any key plugin you changed:
+
+```bash
+NMEM_PLUGIN_E2E=1 NMEM_PLUGIN_E2E_HOSTS=claude,codex,openclaw,hermes \
+  uv run --with pytest pytest tests/plugin_e2e -q
+```
+
+Live smoke must prove user-visible behavior through Mem state, not just command
+success. The harness sends a unique marker through the host, then verifies a
+saved thread in a temporary Mem space.
+
+Rules for adding live coverage:
+
+- Do not pass Mem API keys as command-line arguments. Use `NMEM_API_KEY`,
+  `NMEM_E2E_API_KEY`, or shared `nmem config client` state.
+- Prefer a dedicated temporary space and delete it at teardown.
+- Assert through `nmem t search` / `nmem t show` so the test covers capture,
+  upload, indexing, and source metadata.
+- Keep LLM provider/model selection configurable by env. The repo must not
+  hard-code paid provider secrets or expensive default models.
+- If a host lacks real lifecycle hooks, test the honest fallback surface instead
+  of pretending it has automatic thread capture.
 
 ---
 
@@ -201,6 +242,15 @@ Before adding thread save to a new integration:
 
 **Never fake `save-thread`** in a runtime that doesn't support real transcript import.
 
+### Compaction boundary rule
+
+Treat compaction as a possible data-loss boundary.
+
+- If the host provides both a pre-compaction/pre-compression hook and a transcript path, register capture there as well as at normal session end.
+- If the host only provides post-compaction recovery, use it for Working Memory reload and recall, but do not describe that as pre-compaction transcript capture.
+- If the host does not expose a transcript-backed importer, use `save-handoff` language. Do not imply a hook can preserve the full thread.
+- Pre-compaction capture should be idempotent and should pass the host session id and working directory through to `nmem` or the plugin capture API.
+
 ---
 
 ## Registry Checklist
@@ -212,7 +262,7 @@ When shipping a new integration:
 3. [ ] Use `nowledge_mem_*` tool naming (or document platform convention)
 4. [ ] Update `community/README.md` integration table
 5. [ ] Verify `nowledge-labs-website/nowledge-mem/data/integrations.ts` alignment
-6. [ ] Add marketplace entry if applicable (`.claude-plugin/`, `.cursor-plugin/`, `.factory-plugin/`)
+6. [ ] Add marketplace entry if applicable (`.claude-plugin/`, `.github/plugin/`, `.cursor-plugin/`, `.factory-plugin/`)
 7. [ ] Update `nowledge-mem-npx-skills/skills/check-integration/SKILL.md` detection table
 8. [ ] Add integration docs page to website (EN + ZH)
 
@@ -221,6 +271,15 @@ When bumping a plugin **version**:
 1. [ ] Update `version` field in `community/integrations.json`
 2. [ ] Verify `nowledge-labs-website/nowledge-mem/data/integrations.ts` alignment
 3. [ ] Add marketplace entry version bump if applicable
+
+### Host-specific marketplace files
+
+Do not assume one marketplace file serves every host correctly.
+
+- Claude Code reads `.claude-plugin/marketplace.json`.
+- GitHub Copilot CLI reads `.github/plugin/marketplace.json` and also accepts `.claude-plugin/marketplace.json` for compatibility.
+- When the same plugin name should install different host-specific packages, keep separate marketplace files so each host resolves the name to its own package.
+- Validate that each marketplace source points at the host-specific directory, not a similarly named package for another runtime.
 
 ### Runtime Consumers
 

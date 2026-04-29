@@ -5,13 +5,21 @@ All notable changes to the Nowledge Mem Copilot CLI plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - Unreleased
+## [0.1.1] - 2026-04-27
+
+### Added
+
+- **PreCompact capture** — captures the current Copilot transcript before context compaction, not only after model turns
+- **SessionEnd capture backstop** — runs the same idempotent capture path when Copilot exits or clears a session
 
 ### Fixed
 
 - **Marketplace install compatibility** — session capture now runs from packaged files in `hooks/`, so Copilot marketplace installs no longer depend on a missing `scripts/` directory
 - **Stop hook fallback chain** — capture prefers the packaged runtime under `COPILOT_PLUGIN_ROOT/hooks/`, then falls back to `~/.copilot/nowledge-mem-hooks/` for older installs
+- **Hook payload compatibility** — capture now accepts both camelCase and snake_case Copilot hook payloads, so newer Copilot CLI builds continue passing session and transcript identifiers correctly
+- **Boundary capture reliability** — PreCompact and SessionEnd captures now run even when the latest turn paused on `ask_user`
 - **Docs and release guidance** — no longer tell users to run a marketplace path that Copilot does not install
+- **Capture runtime maintenance** — `scripts/` launchers now delegate to the packaged `hooks/` runtime instead of carrying a second copy that can drift
 
 ## [0.1.0] - 2026-04-21
 

@@ -7,7 +7,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 ## What you get
 
 - **Pick up where you left off.** Every session can start from your current priorities, recent decisions, and unresolved questions.
-- **Stronger retrieval on modern Codex.** Pair the plugin with the Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
+- **Stronger retrieval on modern Codex.** The package bundles the local Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
 - **Real session history.** Save the full Codex transcript, not just a summary.
 - **Quick diagnostics.** One command to verify everything is connected.
@@ -15,7 +15,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 Codex does not give this package hard lifecycle hooks like Claude Code or OpenClaw. The reliable bootstrap is still Working Memory. On modern Codex, the best setup is:
 
 - plugin package for Working Memory guidance, `nmem` fallback, status, and real `save-thread`
-- Nowledge Mem MCP for stronger retrieval and memory writes
+- bundled Nowledge Mem MCP for stronger retrieval and memory writes
 - project `AGENTS.md` for repo-specific follow-through
 
 ## Skills
@@ -62,7 +62,7 @@ codex marketplace add nowledge-co/community
 
 Install `nowledge-mem@nowledge-community` from Codex `/plugins`.
 
-Then put this in `~/.codex/config.toml` for the recommended local setup:
+Then put this in `~/.codex/config.toml` to enable the plugin:
 
 ```toml
 [features]
@@ -70,28 +70,23 @@ plugins = true
 
 [plugins."nowledge-mem@nowledge-community"]
 enabled = true
-
-[mcp_servers.nowledge-mem]
-url = "http://127.0.0.1:14242/mcp/"
-
-[mcp_servers.nowledge-mem.http_headers]
-APP = "Codex"
 ```
 
 Restart Codex after installation.
 
+The package already includes a local Nowledge Mem MCP server at `http://127.0.0.1:14242/mcp/`. Codex uses your `~/.codex/config.toml` entry if you define `mcp_servers.nowledge-mem` yourself, so remote Mem and custom local ports stay explicit.
+
 If you prefer to copy a bundled example, see [`codex.config.example.toml`](./codex.config.example.toml).
 
-For remote Mem, keep the same plugin block and point MCP at your server instead:
+For remote Mem, keep the plugin block and override the bundled MCP server with your server:
 
-```toml
-[mcp_servers.nowledge-mem]
-url = "https://mem.example.com/mcp/"
-
-[mcp_servers.nowledge-mem.http_headers]
-APP = "Codex"
-Authorization = "Bearer nmem_your_key"
+```bash
+nmem config client set url https://mem.example.com
+nmem config client set api-key nmem_your_key
+nmem config mcp show --host codex
 ```
+
+Paste the generated TOML into `~/.codex/config.toml`. Direct MCP clients do not read `~/.nowledge-mem/config.json` by themselves; the generated block gives Codex the same URL and key that `nmem` already uses.
 
 ### Repo-level (this project only)
 
@@ -118,8 +113,10 @@ Create `.agents/plugins/marketplace.json`:
         "path": "./.agents/nowledge-mem"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
-      }
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
     }
   ]
 }
@@ -147,19 +144,13 @@ If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 ## Update
 
 ```bash
-codex plugin marketplace update nowledge-community
-```
-
-If your Codex build does not support `plugin marketplace update`, run:
-
-```bash
 codex plugin marketplace upgrade nowledge-community
 ```
 
-If neither update command exists, re-add the marketplace source:
+If the marketplace is not registered yet, run:
 
 ```bash
-codex marketplace add nowledge-co/community
+codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community
 ```
 
 Restart Codex after updating. If you are on a repo-local `@local` setup, update the local source path instead.
@@ -175,7 +166,13 @@ nmem config client set api-key nmem_your_key
 
 See [Remote Access](https://mem.nowledge.co/docs/remote-access) for details.
 
-This shared local client config powers the package's direct `nmem` commands, including real `save-thread`. The MCP block in `~/.codex/config.toml` is separate and should point to the same remote Mem server.
+This shared local client config powers the package's direct `nmem` commands, including real `save-thread`. If you override the bundled MCP server in `~/.codex/config.toml`, point it to the same remote Mem server.
+
+To generate the override block without hand-copying credentials:
+
+```bash
+nmem config mcp show --host codex
+```
 
 ## Spaces
 
@@ -226,7 +223,7 @@ If you used `nowledge-mem-codex-prompts` before:
 - **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed from `/plugins`, and both `[features] plugins = true` and `[plugins."nowledge-mem@nowledge-community"] enabled = true` are in `~/.codex/config.toml`. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
 - **Only `codex marketplace` exists, not `codex plugin marketplace`**: use `codex marketplace add nowledge-co/community`. This is a host-version difference, not a plugin issue.
 - **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community` (or `codex marketplace add nowledge-co/community` on legacy Codex), install `nowledge-mem@nowledge-community` from `/plugins`, then re-check your `~/.codex/config.toml` plugin key.
-- **Only Working Memory runs, but search/distill never show up**: install the Nowledge Mem MCP server in `~/.codex/config.toml`, then merge the package `AGENTS.md` into the project root for stronger repo-specific behavior. Plugin-only Codex setups rely more heavily on skill intent and usually show weaker proactive follow-through.
+- **Only Working Memory runs, but search/distill never show up**: confirm the bundled MCP server is visible in Codex, then merge the package `AGENTS.md` into the project root for stronger repo-specific behavior. If Mem is remote or not on the default local port, add `mcp_servers.nowledge-mem` in `~/.codex/config.toml` to override the bundled local endpoint.
 
 ## Links
 

@@ -137,16 +137,15 @@ export class NowledgeMemClient {
 		const timer = setTimeout(() => controller.abort(), timeout);
 		const scopedPath = this._withSpaceQuery(path);
 		const scopedBody = this._withSpaceBody(body);
-		const url = `${this.getApiBaseUrl()}${scopedPath}`;
 		try {
-			const response = await fetch(url, {
+			const requestBody =
+				scopedBody === undefined ? undefined : JSON.stringify(scopedBody);
+			const response = await fetch(`${this.getApiBaseUrl()}${scopedPath}`, {
 				method,
 				headers: this.getApiHeaders(),
-				body:
-					scopedBody === undefined ? undefined : JSON.stringify(scopedBody),
+				body: requestBody,
 				signal: controller.signal,
 			});
-
 			const text = await response.text();
 			let data = {};
 			try {
@@ -154,7 +153,6 @@ export class NowledgeMemClient {
 			} catch {
 				data = { raw: text };
 			}
-
 			if (!response.ok) {
 				const detail =
 					typeof data?.detail === "string"

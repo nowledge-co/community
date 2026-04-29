@@ -37,13 +37,14 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | Integration | Install | What it does |
 |-------------|---------|--------------|
 | **[Skills](nowledge-mem-npx-skills)** | `npx skills add nowledge-co/community/nowledge-mem-npx-skills` | Reusable workflow package for Working Memory, routed recall, resumable handoffs, and distillation. Prefer native packages when your tool has one. |
-| **[Claude Code Plugin](nowledge-mem-claude-code-plugin)** | `claude plugin marketplace add nowledge-co/community` then `claude plugin install nowledge-mem@nowledge-community` | Claude Code native plugin with hooks for Working Memory bootstrap, routed recall, and automatic session capture. |
+| **[Claude Code Plugin](nowledge-mem-claude-code-plugin)** | `claude plugin marketplace add nowledge-co/community` then `claude plugin install nowledge-mem@nowledge-community` | Claude Code native plugin with hooks for Working Memory bootstrap, routed recall, automatic session capture, and pre-compaction transcript save. |
+| **[Copilot CLI Plugin](nowledge-mem-copilot-cli-plugin)** | `copilot plugin marketplace add nowledge-co/community` then `copilot plugin install nowledge-mem@nowledge-community` | GitHub Copilot CLI plugin with Working Memory bootstrap, guided recall, incremental session capture, and pre-compaction transcript save. |
 | **[Droid Plugin](nowledge-mem-droid-plugin)** | `droid plugin marketplace add https://github.com/nowledge-co/community` then `droid plugin install nowledge-mem@nowledge-community` | Factory Droid plugin with Working Memory bootstrap, routed recall, distillation, and honest `save-handoff` semantics. |
-| **[Gemini CLI](https://github.com/nowledge-co/nowledge-mem-gemini-cli)** | Search `Nowledge Mem` in the [Gemini CLI Extensions Gallery](https://geminicli.com/extensions/?name=nowledge-co/nowledge-mem-gemini-cli) and install | Gemini-native context, hooks, commands, and skills for Working Memory, routed recall, real thread save, and handoff summaries. |
+| **[Gemini CLI](https://github.com/nowledge-co/nowledge-mem-gemini-cli)** | Search `Nowledge Mem` in the [Gemini CLI Extensions Gallery](https://geminicli.com/extensions/?name=nowledge-co/nowledge-mem-gemini-cli) and install | Gemini-native context, bundled MCP, hooks, commands, and skills for Working Memory, routed recall, real thread save before compression or exit, and handoff summaries. |
 | **[Antigravity Trajectory Extractor](https://github.com/jijiamoer/antigravity-trajectory-extractor)** | `git clone https://github.com/jijiamoer/antigravity-trajectory-extractor.git` | Live RPC extraction for Antigravity conversation trajectories. |
 | **[Windsurf Trajectory Extractor](https://github.com/jijiamoer/windsurf-trajectory-extractor)** | `git clone https://github.com/jijiamoer/windsurf-trajectory-extractor.git` | Offline protobuf extraction for Windsurf Cascade conversation history. |
 | **[Cursor Plugin](nowledge-mem-cursor-plugin)** | Link `nowledge-mem-cursor-plugin` into `~/.cursor/plugins/local/nowledge-mem-cursor` | Cursor-native plugin package with a session-start Working Memory hook, bundled MCP config, rules, and honest `save-handoff` semantics. |
-| **[Codex Plugin](nowledge-mem-codex-plugin)** | `codex plugin marketplace add nowledge-co/community`, install `nowledge-mem@nowledge-community` from Codex `/plugins`, then add the plugin block plus the Nowledge Mem MCP server to `~/.codex/config.toml` | Hybrid Codex path: plugin package for Working Memory guidance and real session save, MCP for stronger retrieval and memory writes, `nmem` as fallback. |
+| **[Codex Plugin](nowledge-mem-codex-plugin)** | `codex plugin marketplace add nowledge-co/community`, install `nowledge-mem@nowledge-community` from Codex `/plugins`, then enable the plugin in `~/.codex/config.toml` | Hybrid Codex path: plugin package plus bundled local MCP for stronger retrieval and memory writes, with `nmem` as the real session-save and fallback path. |
 | **[OpenClaw Plugin](nowledge-mem-openclaw-plugin)** | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | Full memory lifecycle with memory tools, thread tools, automatic capture, and distillation. |
 | **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with Working Memory, thread-aware recall, structured saves, and optional auto-capture. |
 | **[Bub Plugin](nowledge-mem-bub-plugin)** | `pip install nowledge-mem-bub` | Bub-native plugin: cross-tool knowledge, auto-capture via save_state, Working Memory, and graph exploration. |
@@ -63,7 +64,7 @@ Add to your tool's MCP settings:
 {
   "mcpServers": {
     "nowledge-mem": {
-      "url": "http://127.0.0.1:14242/mcp",
+      "url": "http://127.0.0.1:14242/mcp/",
       "type": "streamableHttp"
     }
   }
@@ -71,6 +72,16 @@ Add to your tool's MCP settings:
 ```
 
 See [mcp.json](mcp.json) for the reference config.
+
+For remote Mem, configure this machine once with `nmem config client set url ...` and `nmem config client set api-key ...`, then generate the exact host config:
+
+```bash
+nmem config mcp show --host cursor
+nmem config mcp show --host codex
+nmem config mcp show --host gemini-cli
+```
+
+Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically; paste the generated block into the host's own MCP settings.
 
 ## Requirements
 

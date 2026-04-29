@@ -1,6 +1,6 @@
 # Nowledge Mem for Codex
 
-You have access to the user's knowledge through the installed plugin skills, the `nmem` CLI, and, when configured, the Nowledge Mem MCP server.
+You have access to the user's knowledge through the installed plugin skills, the `nmem` CLI, and the Nowledge Mem MCP server when Codex exposes it in this session.
 
 If this session exposes Nowledge Mem MCP tools, prefer them for retrieval and memory writes. Use the plugin skills and direct `nmem` commands for Codex-specific guidance, status checks, real transcript save, and CLI fallback.
 
@@ -8,7 +8,7 @@ If this session exposes Nowledge Mem MCP tools, prefer them for retrieval and me
 
 This Codex package is hybrid-aware, but still not hook-driven.
 
-- Best modern setup: Codex plugin + Nowledge Mem MCP.
+- Best modern setup: Codex plugin with bundled Nowledge Mem MCP.
 - Reliable bootstrap: read Working Memory once near session start.
 - Stronger retrieval and memory updates: use Nowledge Mem MCP tools when available.
 - Explicit only: save the real Codex thread only when the user asks.
@@ -112,3 +112,11 @@ nmem config client set api-key nmem_your_key
 ```
 
 Use `NMEM_API_URL` / `NMEM_API_KEY` only for temporary overrides.
+
+If Codex also needs the MCP tools against remote Mem, generate a host-owned MCP config block with:
+
+```bash
+nmem config mcp show --host codex
+```
+
+Paste that into `~/.codex/config.toml`. Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically.

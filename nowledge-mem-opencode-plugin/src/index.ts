@@ -1,5 +1,8 @@
 import type { PluginModule } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin"
+import { existsSync, readFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
 
 const BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
@@ -55,10 +58,34 @@ export default {
 
     // --- HTTP transport (for thread operations with large payloads) ---
 
-    const apiUrl = process.env.NMEM_API_URL || "http://127.0.0.1:14242"
-    const apiKey = process.env.NMEM_API_KEY
+    function readSharedConfig(): Record<string, unknown> {
+      const path = join(homedir(), ".nowledge-mem", "config.json")
+      try {
+        if (!existsSync(path)) return {}
+        const parsed = JSON.parse(readFileSync(path, "utf8"))
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}
+      } catch {
+        return {}
+      }
+    }
+
+    function stringConfigValue(value: unknown): string | undefined {
+      return typeof value === "string" ? value.trim() || undefined : undefined
+    }
+
+    const sharedConfig = readSharedConfig()
+    const apiUrl = (
+      process.env.NMEM_API_URL?.trim() ||
+      stringConfigValue(sharedConfig.apiUrl) ||
+      "http://127.0.0.1:14242"
+    ).replace(/\/+$/, "")
+    const apiKey = process.env.NMEM_API_KEY?.trim() || stringConfigValue(sharedConfig.apiKey)
     const ambientSpaceId =
-      process.env.NMEM_SPACE?.trim() || process.env.NMEM_SPACE_ID?.trim() || undefined
+      process.env.NMEM_SPACE?.trim() ||
+      process.env.NMEM_SPACE_ID?.trim() ||
+      stringConfigValue(sharedConfig.space) ||
+      stringConfigValue(sharedConfig.spaceId) ||
+      stringConfigValue(sharedConfig.space_id)
 
     function withAmbientSpace(body: unknown): unknown {
       if (!ambientSpaceId || body == null || typeof body !== "object" || Array.isArray(body)) {
@@ -75,7 +102,10 @@ export default {
       body: unknown,
     ): Promise<{ ok: boolean; status: number; data: any }> {
       const headers: Record<string, string> = { "Content-Type": "application/json" }
-      if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`
+      if (apiKey) {
+        headers["Authorization"] = `Bearer ${apiKey}`
+        headers["X-NMEM-API-Key"] = apiKey
+      }
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 30_000)
       try {

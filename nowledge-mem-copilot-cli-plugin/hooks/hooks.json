@@ -36,8 +36,30 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PLUGIN_HOOK_DIR=\"${COPILOT_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/hooks\"; FALLBACK_HOOK_DIR=\"${HOME}/.copilot/nowledge-mem-hooks\"; if [ -f \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" || true; elif [ -f \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" || true; else true; fi",
+            "command": "PLUGIN_HOOK_DIR=\"${COPILOT_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/hooks\"; FALLBACK_HOOK_DIR=\"${HOME}/.copilot/nowledge-mem-hooks\"; if [ -f \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" --event stop || true; elif [ -f \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" --event stop || true; else true; fi",
             "async": true
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PLUGIN_HOOK_DIR=\"${COPILOT_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/hooks\"; FALLBACK_HOOK_DIR=\"${HOME}/.copilot/nowledge-mem-hooks\"; if [ -f \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" --event pre-compact || true; elif [ -f \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" --event pre-compact || true; else true; fi",
+            "timeout": 35
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PLUGIN_HOOK_DIR=\"${COPILOT_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/hooks\"; FALLBACK_HOOK_DIR=\"${HOME}/.copilot/nowledge-mem-hooks\"; if [ -f \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" --event session-end || true; elif [ -f \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" --event session-end || true; else true; fi",
+            "timeout": 35
           }
         ]
       }

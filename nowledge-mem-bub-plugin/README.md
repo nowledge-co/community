@@ -69,7 +69,7 @@ Bub does not currently expose a dedicated user-owned instruction file through th
 ```json
 // ~/.nowledge-mem/config.json
 {
-  "apiUrl": "https://your-server:14242",
+  "apiUrl": "https://your-server",
   "apiKey": "your-key"
 }
 ```

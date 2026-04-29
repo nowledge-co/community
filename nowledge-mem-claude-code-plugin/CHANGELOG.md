@@ -5,6 +5,21 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] - 2026-04-27
+
+### Fixed
+
+- Hooks now use `python3` or `python`, whichever is available, instead of assuming a `python3` binary exists.
+- Stop and PreCompact capture now preserve WSL bridge installs where only Windows `nmem.cmd` is available, including WSL project paths passed to `nmem`.
+- Stop and PreCompact capture now accept both `session_id` and `sessionId` hook payload keys, so current Claude Code payloads still avoid latest-session guessing.
+
+## [0.7.4] - 2026-04-27
+
+### Fixed
+
+- Added a `PreCompact` hook that runs `nmem t save --from claude-code` before manual or automatic Claude Code compaction, so the full local transcript is captured before context is compressed.
+- Stop and PreCompact capture now pass Claude's hook `session_id` and `cwd` into `nmem`, avoiding "latest session" guessing when multiple Claude Code sessions are active in the same project.
+
 ## [0.7.3] - 2026-04-08
 
 ### Changed

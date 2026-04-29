@@ -12,6 +12,7 @@ Tests cover:
 """
 
 import json
+import io
 import os
 import sys
 import tempfile
@@ -20,31 +21,43 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add scripts/ to path so we can import the capture module
+# Add hooks/ to path so we can import the packaged capture module
 sys.path.insert(
-    0, str(Path(__file__).parent.parent / "scripts")
+    0, str(Path(__file__).parent.parent / "hooks")
 )
 
 # Rename the module for import (Python doesn't like hyphens in module names)
 import importlib.util
 _spec = importlib.util.spec_from_file_location(
     "copilot_stop_save",
-    Path(__file__).parent.parent / "scripts" / "copilot-stop-save.py",
+    Path(__file__).parent.parent / "hooks" / "copilot-stop-save.py",
 )
 copilot_stop_save = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(copilot_stop_save)
 
 
-def test_packaged_hook_runtime_matches_compatibility_copy():
+def test_script_compatibility_launchers_delegate_to_packaged_hook():
     repo_root = Path(__file__).parent.parent
-    assert (
-        (repo_root / "hooks" / "copilot-stop-save.py").read_bytes()
-        == (repo_root / "scripts" / "copilot-stop-save.py").read_bytes()
-    )
-    assert (
-        (repo_root / "hooks" / "copilot-stop-save.sh").read_bytes()
-        == (repo_root / "scripts" / "copilot-stop-save.sh").read_bytes()
-    )
+    python_launcher = (repo_root / "scripts" / "copilot-stop-save.py").read_text()
+    shell_launcher = (repo_root / "scripts" / "copilot-stop-save.sh").read_text()
+
+    assert "hooks\" / \"copilot-stop-save.py" in python_launcher
+    assert "../hooks/copilot-stop-save.sh" in shell_launcher
+
+
+def test_boundary_capture_hooks_are_synchronous():
+    repo_root = Path(__file__).parent.parent
+    hooks = json.loads((repo_root / "hooks" / "hooks.json").read_text())["hooks"]
+
+    stop = hooks["Stop"][0]["hooks"][0]
+    precompact = hooks["PreCompact"][0]["hooks"][0]
+    session_end = hooks["SessionEnd"][0]["hooks"][0]
+
+    assert stop.get("async") is True
+    assert precompact.get("async") is not True
+    assert precompact.get("timeout") == 35
+    assert session_end.get("async") is not True
+    assert session_end.get("timeout") == 35
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +293,25 @@ class TestExtractInput:
         result = copilot_stop_save.extract_input({})
         assert result == {}
 
+    def test_input_value_accepts_snake_and_camel_case(self):
+        payload = {
+            "session_id": "snake-session",
+            "sessionId": "camel-session",
+            "transcript_path": "/tmp/snake.jsonl",
+        }
+        assert (
+            copilot_stop_save.input_value(payload, "session_id", "sessionId")
+            == "snake-session"
+        )
+        assert (
+            copilot_stop_save.input_value(payload, "transcriptPath", "transcript_path")
+            == "/tmp/snake.jsonl"
+        )
+
+    def test_normalize_hook_event(self):
+        assert copilot_stop_save.normalize_hook_event("PreCompact") == "precompact"
+        assert copilot_stop_save.normalize_hook_event("pre-compact") == "precompact"
+
 
 # ---------------------------------------------------------------------------
 # Tests: Title Generation
@@ -414,6 +446,116 @@ class TestTranscriptLoading:
             assert loaded[0]["type"] == "user.message"
         finally:
             os.unlink(f.name)
+
+
+# ---------------------------------------------------------------------------
+# Tests: Main Capture Entrypoint
+# ---------------------------------------------------------------------------
+
+
+class TestMainCaptureEntrypoint:
+    def _write_transcript(self, events):
+        f = tempfile.NamedTemporaryFile("w", suffix=".jsonl", delete=False)
+        for event in events:
+            f.write(json.dumps(event) + "\n")
+        f.flush()
+        f.close()
+        return f.name
+
+    def test_main_accepts_snake_case_stop_payload(self):
+        transcript_path = self._write_transcript(multi_turn_transcript())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload = {
+                "session_id": "snake-session",
+                "transcript_path": transcript_path,
+                "hook_event_name": "Stop",
+                "stop_reason": "end_turn",
+                "timestamp": "2026-04-27T10:00:00Z",
+            }
+            try:
+                with patch.object(copilot_stop_save, "STATE_DIR", Path(tmpdir) / "state"), \
+                    patch.object(copilot_stop_save, "LOG_FILE", Path(tmpdir) / "hook-log.jsonl"), \
+                    patch("shutil.which", return_value="nmem"), \
+                    patch.object(copilot_stop_save, "run_json", return_value={}) as run_json, \
+                    patch.object(sys, "stdin", io.StringIO(json.dumps(payload))), \
+                    patch.object(sys, "argv", ["copilot-stop-save.py"]):
+                    assert copilot_stop_save.main() == 0
+                    assert run_json.called
+            finally:
+                os.unlink(transcript_path)
+
+    def test_precompact_saves_even_when_latest_turn_is_not_final(self):
+        events = [
+            make_event("user.message", content="We need a checkpoint before compaction.", event_id="e1"),
+            make_event("assistant.turn_start", event_id="e2"),
+            make_event(
+                "assistant.message",
+                content="I can do that. What would you like me to preserve?",
+                event_id="e3",
+            ),
+            make_event("assistant.turn_end", event_id="e4", turn_id="turn-1"),
+        ]
+        transcript_path = self._write_transcript(events)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload = {
+                "session_id": "precompact-session",
+                "transcript_path": transcript_path,
+                "hook_event_name": "PreCompact",
+                "timestamp": "2026-04-27T10:00:00Z",
+            }
+            try:
+                with patch.object(copilot_stop_save, "STATE_DIR", Path(tmpdir) / "state"), \
+                    patch.object(copilot_stop_save, "LOG_FILE", Path(tmpdir) / "hook-log.jsonl"), \
+                    patch("shutil.which", return_value="nmem"), \
+                    patch.object(copilot_stop_save, "run_json", return_value={}) as run_json, \
+                    patch.object(sys, "stdin", io.StringIO(json.dumps(payload))), \
+                    patch.object(sys, "argv", ["copilot-stop-save.py", "--event", "pre-compact"]):
+                    assert copilot_stop_save.main() == 0
+                    assert run_json.called
+            finally:
+                os.unlink(transcript_path)
+
+    def test_precompact_saves_even_when_latest_cycle_used_ask_user(self):
+        events = [
+            make_event(
+                "user.message",
+                content="Please save this thread before compaction if I am away.",
+                event_id="e1",
+            ),
+            make_event("assistant.turn_start", event_id="e2"),
+            make_event(
+                "assistant.message",
+                content="I can save it. Do you want me to include the last decision?",
+                event_id="e3",
+            ),
+            make_event(
+                "tool.execution_start",
+                tool_name="ask_user",
+                arguments={"question": "Include the last decision?"},
+                tool_call_id="tool-1",
+                event_id="e4",
+            ),
+            make_event("assistant.turn_end", event_id="e5", turn_id="turn-1"),
+        ]
+        transcript_path = self._write_transcript(events)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload = {
+                "session_id": "precompact-ask-user-session",
+                "transcript_path": transcript_path,
+                "hook_event_name": "PreCompact",
+                "timestamp": "2026-04-27T10:00:00Z",
+            }
+            try:
+                with patch.object(copilot_stop_save, "STATE_DIR", Path(tmpdir) / "state"), \
+                    patch.object(copilot_stop_save, "LOG_FILE", Path(tmpdir) / "hook-log.jsonl"), \
+                    patch("shutil.which", return_value="nmem"), \
+                    patch.object(copilot_stop_save, "run_json", return_value={}) as run_json, \
+                    patch.object(sys, "stdin", io.StringIO(json.dumps(payload))), \
+                    patch.object(sys, "argv", ["copilot-stop-save.py", "--event", "pre-compact"]):
+                    assert copilot_stop_save.main() == 0
+                    assert run_json.called
+            finally:
+                os.unlink(transcript_path)
 
 
 # ---------------------------------------------------------------------------

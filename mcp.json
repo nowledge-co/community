@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "nowledge-mem": {
-      "url": "http://127.0.0.1:14242/mcp",
+      "url": "http://127.0.0.1:14242/mcp/",
       "type": "streamableHttp",
       "headers": {
         "APP": "<MCP Client App Name here>",

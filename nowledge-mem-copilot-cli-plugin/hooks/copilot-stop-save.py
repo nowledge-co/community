@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Copilot CLI session capture for Nowledge Mem.
 
-Reads Copilot CLI transcript events from stdin (via Stop hook), extracts
-user/assistant messages, filters secrets, and creates threads via
-``nmem t import``. Auto-distills valuable sessions.
+Reads Copilot CLI transcript events from stdin (via Stop, PreCompact, or
+SessionEnd hooks), extracts user/assistant messages, filters secrets, and
+creates threads via ``nmem t import``. Auto-distills valuable completed turns.
 
 Thread ID: ``copilot-{session_id}`` (stable per-session, enables incremental
 append). State management with file locking for concurrent session safety.
 """
 
+import argparse
 import hashlib
 import json
 import os
@@ -114,6 +115,20 @@ def extract_input(payload: dict) -> dict:
                 return data["input"]
             return data
     return payload if isinstance(payload, dict) else {}
+
+
+def input_value(payload: dict, *keys: str) -> object:
+    """Return the first non-empty hook payload value across naming variants."""
+    for key in keys:
+        value = payload.get(key)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def normalize_hook_event(value: object) -> str:
+    text = str(value or "").strip()
+    return re.sub(r"[^a-z0-9]+", "", text.lower())
 
 
 def strip_wrappers(text: str) -> str:
@@ -339,16 +354,32 @@ def state_token(session_id: str) -> str:
 def main() -> int:
     import shutil
 
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--event", default="")
+    args, _unknown = parser.parse_known_args()
+
     raw = sys.stdin.read().strip()
     payload = json.loads(raw) if raw else {}
     hook_input = extract_input(payload)
 
-    session_id = hook_input.get("sessionId")
-    transcript_path = hook_input.get("transcriptPath")
-    stop_reason = hook_input.get("stopReason")
+    hook_event = normalize_hook_event(
+        args.event or input_value(hook_input, "hook_event_name", "hookEventName")
+    )
+    session_id = input_value(hook_input, "session_id", "sessionId")
+    transcript_path = input_value(
+        hook_input, "transcript_path", "transcriptPath"
+    )
+    stop_reason = input_value(hook_input, "stop_reason", "stopReason")
     hook_timestamp_ms = normalize_timestamp_ms(hook_input.get("timestamp"))
+    boundary_event = hook_event in {"precompact", "precompress", "sessionend"}
 
-    if not session_id or not transcript_path or stop_reason != "end_turn":
+    if (
+        hook_event == "stop"
+        and stop_reason is not None
+        and stop_reason != "end_turn"
+    ):
+        return 0
+    if not session_id or not transcript_path:
         return 0
     if not Path(transcript_path).exists():
         return 0
@@ -455,7 +486,7 @@ def main() -> int:
                 cycle_tools.append(name)
                 if name == "task_complete":
                     used_task_complete = True
-                if name == "ask_user":
+                if name == "ask_user" and not boundary_event:
                     state["active_start_event_id"] = state.get(
                         "active_start_event_id"
                     ) or slice_events[0].get("id")
@@ -501,7 +532,7 @@ def main() -> int:
             or bool(INCOMPLETE_RE.search(final_assistant_text))
             or has_background
         )
-        if looks_incomplete:
+        if looks_incomplete and not boundary_event:
             state["active_start_event_id"] = state.get(
                 "active_start_event_id"
             ) or slice_events[0].get("id")
@@ -607,7 +638,8 @@ def main() -> int:
             f"{msg['role']}: {msg['content']}" for msg in messages
         )
         should_try_distill = (
-            total_chars >= MIN_DISTILL_CHARS
+            not looks_incomplete
+            and total_chars >= MIN_DISTILL_CHARS
             and current_hash != state.get("last_content_hash")
             and (now_ts - state.get("last_distill_ts", 0)) >= DISTILL_COOLDOWN_SECS
             and (
@@ -659,6 +691,7 @@ def main() -> int:
             {
                 "session_id": session_id,
                 "action": "saved",
+                "event": hook_event or "unknown",
                 "thread_id": thread_id,
                 "message_count": len(messages),
                 "total_chars": total_chars,

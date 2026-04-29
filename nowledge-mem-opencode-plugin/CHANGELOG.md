@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2] - 2026-04-27
+
+### Fixed
+
+- **Remote session save now uses shared client config**: `nowledge_mem_save_thread` reads `~/.nowledge-mem/config.json` for `apiUrl`, `apiKey`, and optional `space`, matching the `nmem` CLI paths used by memory search and handoff commands. Environment variables still take priority for temporary overrides.
+- **Remote auth is proxy-safe**: HTTP thread save now sends both `Authorization: Bearer ...` and `X-NMEM-API-Key`.
+
 ## [0.3.1] - 2026-04-10
 
 ### Changed

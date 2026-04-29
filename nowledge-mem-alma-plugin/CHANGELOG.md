@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+### Fixed
+
+- Auto-capture handlers now stay registered and re-check the live `autoCapture` setting at runtime, so turning thread sync on after startup works without reloading Alma.
+
 ## 0.7.0
 
 ### Fixed

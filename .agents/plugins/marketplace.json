@@ -10,7 +10,11 @@
         "source": "local",
         "path": "./nowledge-mem-codex-plugin"
       },
-      "category": "productivity"
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
     }
   ]
 }

@@ -4,7 +4,8 @@
 
 1. Update `version` for the `copilot-cli` entry in `integrations.json` (repo root)
 2. Update `version` in `.claude-plugin/plugin.json`
-3. Add a new section to `CHANGELOG.md`
+3. Update the Copilot marketplace entry in `.github/plugin/marketplace.json`
+4. Add a new section to `CHANGELOG.md`
 
 ## Testing
 
@@ -12,11 +13,12 @@ Before release:
 
 1. Verify `integrations.json` is valid JSON: `python3 -m json.tool integrations.json > /dev/null`
 2. Verify `hooks/hooks.json` is valid JSON: `python3 -m json.tool hooks/hooks.json > /dev/null`
-3. Run fixture tests: `uv run --with pytest pytest tests/ -v`
-4. Install the plugin locally and verify:
+3. Verify the Copilot marketplace is valid JSON: `python3 -m json.tool ../.github/plugin/marketplace.json > /dev/null`
+4. Run fixture tests: `uv run --with pytest pytest tests/ -v`
+5. Install the plugin locally and verify:
    - Working Memory loads at session start
    - Per-turn nudge appears
-   - Stop hook captures sessions from the packaged plugin runtime, and `copilot-stop-save.py` writes diagnostics to `~/.copilot/nowledge-mem-hooks/hook-log.jsonl` for both the packaged and compatibility paths
+   - Stop, PreCompact, and SessionEnd hooks capture sessions from the packaged plugin runtime, and `copilot-stop-save.py` writes diagnostics to `~/.copilot/nowledge-mem-hooks/hook-log.jsonl` for both the packaged and compatibility paths
    - Copilot shows only the skill-backed surface (no extra command-doc entries)
    - The remaining skills still match actual behavior (`read-working-memory`, `search-memory`, `distill-memory`, `save-thread`)
    - `nmem status` still works as the direct troubleshooting path

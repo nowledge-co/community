@@ -49,7 +49,7 @@ For remote Mem, adjust the MCP server URL and headers using Cursor's MCP configu
 If you also want the `sessionStart` hook and `save-handoff` skill to work against remote Mem, configure the local `nmem` client too:
 
 ```bash
-nmem config client set url https://your-server:14242
+nmem config client set url https://your-server
 nmem config client set api-key your-key
 ```
 

@@ -265,13 +265,9 @@ class NowledgeMemClient:
         try:
             return self._request_json(url, body, headers)
         except RuntimeError as first_error:
-            if not api_key:
-                raise
-
-            # Match nmem's proxy compatibility behavior: if a proxy strips
-            # auth headers, retry with the key in the query string; if the
-            # configured URL still includes /remote-api, retry once at root.
-            for retry_url in self._retry_urls(url, api_key):
+            # Keep proxy compatibility for configs that accidentally include
+            # /remote-api, but never move credentials from headers into URLs.
+            for retry_url in self._retry_urls(url):
                 try:
                     return self._request_json(retry_url, body, headers)
                 except RuntimeError:
@@ -330,7 +326,7 @@ class NowledgeMemClient:
         return str(config.get("apiKey") or config.get("api_key") or "").strip()
 
     @staticmethod
-    def _retry_urls(url: str, api_key: str) -> List[str]:
+    def _retry_urls(url: str) -> List[str]:
         urls: List[str] = []
 
         def add(candidate: str) -> None:
@@ -338,11 +334,6 @@ class NowledgeMemClient:
                 urls.append(candidate)
 
         parsed = urlparse.urlsplit(url)
-        query = urlparse.parse_qsl(parsed.query, keep_blank_values=True)
-        if not any(key.lower() == "nmem_api_key" for key, _ in query):
-            query.append(("nmem_api_key", api_key))
-            add(urlparse.urlunsplit(parsed._replace(query=urlparse.urlencode(query))))
-
         path = parsed.path or ""
         if path == "/remote-api":
             stripped_path = "/"
@@ -353,9 +344,5 @@ class NowledgeMemClient:
         if stripped_path:
             stripped = parsed._replace(path=stripped_path)
             add(urlparse.urlunsplit(stripped))
-            stripped_query = urlparse.parse_qsl(stripped.query, keep_blank_values=True)
-            if not any(key.lower() == "nmem_api_key" for key, _ in stripped_query):
-                stripped_query.append(("nmem_api_key", api_key))
-                add(urlparse.urlunsplit(stripped._replace(query=urlparse.urlencode(stripped_query))))
 
         return urls

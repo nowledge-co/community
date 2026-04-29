@@ -5,9 +5,9 @@ user's cross-tool knowledge graph. Replaces the generic MCP connection
 with lifecycle hooks: automatic Working Memory injection, per-turn
 recall, user-profile mirroring, and native tool names.
 
-Transport: ``nmem`` CLI only. The CLI handles server URL, API key, and
-remote access. If ``nmem`` is not installed, the provider disables
-gracefully.
+Transport: ``nmem`` CLI for memory operations, plus direct Mem API calls for
+large transcript payloads. The shared ``nmem`` client config still owns server
+URL, API key, and remote access.
 """
 
 from __future__ import annotations

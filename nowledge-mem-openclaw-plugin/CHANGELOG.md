@@ -4,6 +4,25 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.22] - 2026-04-29
+
+### Fixed
+
+- OpenClaw installs no longer show a false "possible data exfiltration" warning from older local security scanners.
+
+## [0.8.21] - 2026-04-29
+
+### Fixed
+
+- ClawHub installs no longer fail archive verification because `.clawhubignore` is now excluded from the published package manifest as well as the archive.
+
+## [0.8.20] - 2026-04-27
+
+### Fixed
+
+- ClawHub packages now exclude local `node_modules/`, preventing unpublished development artifacts from entering the security scan.
+- Remote HTTP requests no longer place API keys in URL query strings. The plugin keeps credentials in `Authorization` and `X-NMEM-API-Key` headers only.
+
 ## [0.8.19] - 2026-04-21
 
 ### Fixed
