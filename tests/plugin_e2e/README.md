@@ -3,6 +3,11 @@
 This suite protects the high-value integration contract for the first key set:
 Claude Code, Codex, OpenClaw, and Hermes.
 
+For the wider maintainer-machine release playbook, including Alma, OpenCode,
+dev `nmem`, isolated backend setup, and config dirtiness checks, see
+`../../../docs/implementation/MAJOR_INTEGRATIONS_LOCAL_E2E_PLAYBOOK.md` from this
+directory.
+
 The default run is safe and cheap:
 
 ```bash

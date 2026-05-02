@@ -62,4 +62,23 @@ set -e
 grep -Fq '[action needed]' <<<"$conflict_output" || fail "conflict-provider did not explain the conflict"
 grep -Fq 'provider: "other-provider"' "$conflict_hermes/config.yaml" || fail "conflict-provider should not rewrite existing provider"
 
+legacy_home="$TMP_DIR/legacy-home"
+legacy_hermes="$legacy_home/.hermes"
+legacy_memory_dir="$legacy_hermes/hermes-agent/plugins/memory"
+mkdir -p "$legacy_memory_dir"
+cat > "$legacy_hermes/config.yaml" <<'YAML'
+memory:
+  provider: ""
+YAML
+cat > "$legacy_memory_dir/__init__.py" <<'PY'
+from pathlib import Path
+_MEMORY_PLUGINS_DIR = Path(__file__).parent
+PY
+
+legacy_output="$(HOME="$legacy_home" HERMES_HOME="$legacy_hermes" bash "$SETUP_SH" 2>&1)"
+grep -Fq '[*] Detected older Hermes provider discovery' <<<"$legacy_output" || fail "legacy runtime was not detected"
+[ -f "$legacy_hermes/plugins/nowledge-mem/plugin.yaml" ] || fail "legacy canonical plugin install missing"
+[ -f "$legacy_memory_dir/nowledge-mem/plugin.yaml" ] || fail "legacy compatibility plugin install missing"
+grep -Fq 'provider: "nowledge-mem"' "$legacy_hermes/config.yaml" || fail "legacy config provider not updated"
+
 echo "[ok] Hermes setup installer regression checks passed"
