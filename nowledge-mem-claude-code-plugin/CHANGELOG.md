@@ -5,6 +5,13 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] - 2026-05-02
+
+### Fixed
+
+- Stop capture now resolves macOS symlinked project paths before calling `nmem`, so Claude Code sessions launched from `/private/var/...` temp workspaces map back to the transcript directory Claude actually writes.
+- Release E2E now covers Claude Code, Codex, OpenClaw, Hermes, and OpenCode live thread capture against an isolated Mem backend.
+
 ## [0.7.6] - 2026-05-02
 
 ### Fixed

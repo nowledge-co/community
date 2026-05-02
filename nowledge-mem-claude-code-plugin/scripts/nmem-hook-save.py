@@ -124,7 +124,8 @@ def _build_command(
 
     cwd = _payload_value(payload, "cwd")
     if cwd:
-        project = str(Path(cwd).expanduser())
+        project_path = Path(cwd).expanduser()
+        project = str(project_path if nmem.lower().endswith(".cmd") else project_path.resolve())
         if nmem.lower().endswith(".cmd"):
             project = _cmd_exe_path(project)
         args.extend(["--project", project])

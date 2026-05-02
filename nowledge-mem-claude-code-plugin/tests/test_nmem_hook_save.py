@@ -29,7 +29,7 @@ def test_build_command_uses_unix_nmem_directly(tmp_path):
         "--session-id",
         "claude-session",
         "--project",
-        str(tmp_path),
+        str(tmp_path.resolve()),
     ]
 
 
@@ -42,7 +42,7 @@ def test_build_command_accepts_camel_case_claude_hook_payload(tmp_path):
     assert "--session-id" in command
     assert command[command.index("--session-id") + 1] == "camel-session"
     assert "--project" in command
-    assert command[command.index("--project") + 1] == str(tmp_path)
+    assert command[command.index("--project") + 1] == str(tmp_path.resolve())
 
 
 def test_build_command_accepts_nested_claude_hook_payload(tmp_path):
@@ -54,7 +54,22 @@ def test_build_command_accepts_nested_claude_hook_payload(tmp_path):
     assert "--session-id" in command
     assert command[command.index("--session-id") + 1] == "nested-session"
     assert "--project" in command
-    assert command[command.index("--project") + 1] == str(tmp_path)
+    assert command[command.index("--project") + 1] == str(tmp_path.resolve())
+
+
+def test_build_command_resolves_project_symlink(tmp_path):
+    real_project = tmp_path / "real-project"
+    real_project.mkdir()
+    linked_project = tmp_path / "linked-project"
+    linked_project.symlink_to(real_project, target_is_directory=True)
+
+    command = nmem_hook_save._build_command(
+        "/usr/local/bin/nmem",
+        {"session_id": "symlink-session", "cwd": str(linked_project)},
+    )
+
+    assert "--project" in command
+    assert command[command.index("--project") + 1] == str(real_project.resolve())
 
 
 def test_build_command_wraps_windows_cmd_for_wsl_bridge():

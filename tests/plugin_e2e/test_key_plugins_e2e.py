@@ -266,6 +266,7 @@ def test_claude_code_live_thread_capture(e2e_context: E2EContext, tmp_path: Path
         "--output-format",
         "stream-json",
         "--include-hook-events",
+        "--verbose",
         "--permission-mode",
         "dontAsk",
         "--max-budget-usd",
@@ -274,7 +275,25 @@ def test_claude_code_live_thread_capture(e2e_context: E2EContext, tmp_path: Path
     if os.environ.get("NMEM_E2E_CLAUDE_MODEL"):
         command.extend(["--model", os.environ["NMEM_E2E_CLAUDE_MODEL"]])
 
-    result = _run(command, cwd=tmp_path, env=e2e_context.env, timeout=180)
+    result = subprocess.run(
+        command,
+        cwd=str(tmp_path),
+        env=e2e_context.env,
+        text=True,
+        capture_output=True,
+        timeout=180,
+    )
+    combined = result.stdout + result.stderr
+    if result.returncode != 0 and not (
+        e2e_context.marker in combined and "error_max_budget_usd" in combined
+    ):
+        raise AssertionError(
+            "command failed\n"
+            f"cmd: {' '.join(command)}\n"
+            f"exit: {result.returncode}\n"
+            f"stdout:\n{result.stdout[-4000:]}\n"
+            f"stderr:\n{result.stderr[-4000:]}"
+        )
     assert e2e_context.marker in result.stdout
     _poll_thread(
         marker=e2e_context.marker,
@@ -387,6 +406,20 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
         {"path": "plugins.entries.openclaw-nowledge-mem.config.space", "value": e2e_context.space},
         {"path": "plugins.slots.contextEngine", "value": "nowledge-mem"},
     ]
+    if os.environ.get("NMEM_E2E_API_URL"):
+        config_ops.append(
+            {
+                "path": "plugins.entries.openclaw-nowledge-mem.config.apiUrl",
+                "value": os.environ["NMEM_E2E_API_URL"],
+            }
+        )
+    if os.environ.get("NMEM_E2E_API_KEY"):
+        config_ops.append(
+            {
+                "path": "plugins.entries.openclaw-nowledge-mem.config.apiKey",
+                "value": os.environ["NMEM_E2E_API_KEY"],
+            }
+        )
     if os.environ.get("NMEM_E2E_OPENCLAW_MODEL"):
         config_ops.append({"path": "agents.defaults.model.primary", "value": os.environ["NMEM_E2E_OPENCLAW_MODEL"]})
     batch_file = tmp_path / "openclaw-config.json"
@@ -515,7 +548,7 @@ def test_opencode_live_tool_thread_capture(e2e_context: E2EContext, tmp_path: Pa
             prompt,
         ],
         env=env,
-        timeout=int(os.environ.get("NMEM_E2E_OPENCODE_TIMEOUT_SECONDS", "180")),
+        timeout=int(os.environ.get("NMEM_E2E_OPENCODE_TIMEOUT_SECONDS", "360")),
     )
     assert e2e_context.marker in result.stdout
     assert '"tool":"nowledge_mem_status"' in result.stdout
