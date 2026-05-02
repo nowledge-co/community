@@ -203,13 +203,21 @@ export default {
         },
         { sessionID: ctx.sessionID },
       ]
+      let lastError: unknown
       for (const options of attempts) {
         try {
           const messages = normalizeSessionMessages(await client.session.messages(options as any))
           if (messages.length > 0) return messages
-        } catch {
+        } catch (error) {
+          lastError = error
           // Keep compatibility across OpenCode SDK shapes.
         }
+      }
+      if (lastError) {
+        console.warn(
+          `[nowledge-mem] failed to read OpenCode session messages for ${ctx.sessionID}:`,
+          lastError instanceof Error ? lastError.message : lastError,
+        )
       }
       return []
     }

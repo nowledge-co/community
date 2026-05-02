@@ -145,6 +145,10 @@ def _validate_toml_if_possible(text: str) -> None:
         tomllib.loads(text)
     except ModuleNotFoundError:
         return
+    except Exception as error:
+        raise SystemExit(
+            f"error: refusing to modify invalid Codex config.toml: {error}"
+        ) from error
 
 
 def ensure_codex_hooks_enabled() -> None:

@@ -335,6 +335,55 @@ class SpaceResolutionTests(unittest.TestCase):
             else:
                 os.environ["NMEM_API_KEY"] = previous_key
 
+    def test_thread_append_omits_space_id_when_no_space_configured(self):
+        captured: dict[str, object] = {}
+        original_run = client_module.subprocess.run
+        original_urlopen = client_module.urlrequest.urlopen
+        previous_url = os.environ.get("NMEM_API_URL")
+        previous_key = os.environ.get("NMEM_API_KEY")
+        os.environ["NMEM_API_URL"] = "http://mem.test"
+        os.environ["NMEM_API_KEY"] = ""
+
+        def _bad_run(*_args, **_kwargs):
+            raise AssertionError("thread append must not send transcript through argv")
+
+        class _Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'{"success": true, "messages_added": 1}'
+
+        def _fake_urlopen(request, **_kwargs):
+            captured["body"] = request.data.decode("utf-8")
+            return _Response()
+
+        try:
+            client_module.subprocess.run = _bad_run
+            client_module.urlrequest.urlopen = _fake_urlopen
+            client = client_module.NowledgeMemClient()
+            result = client.append_thread(
+                "hermes/session 1",
+                [{"role": "assistant", "content": "hello"}],
+            )
+            payload = json.loads(captured["body"])
+            self.assertEqual(result["messages_added"], 1)
+            self.assertNotIn("space_id", payload)
+        finally:
+            client_module.subprocess.run = original_run
+            client_module.urlrequest.urlopen = original_urlopen
+            if previous_url is None:
+                os.environ.pop("NMEM_API_URL", None)
+            else:
+                os.environ["NMEM_API_URL"] = previous_url
+            if previous_key is None:
+                os.environ.pop("NMEM_API_KEY", None)
+            else:
+                os.environ["NMEM_API_KEY"] = previous_key
+
 
 if __name__ == "__main__":
     unittest.main()

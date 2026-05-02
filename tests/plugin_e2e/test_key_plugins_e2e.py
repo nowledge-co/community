@@ -307,6 +307,16 @@ def test_claude_code_live_thread_capture(e2e_context: E2EContext, tmp_path: Path
 def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: Path):
     _require_live_host("codex")
     workspace = tmp_path / "codex-workspace"
+    codex_home = tmp_path / "codex-home"
+    codex_home.mkdir()
+    source_codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).expanduser()
+    for name in ("auth.json", "config.toml", "installation_id", "version.json"):
+        source_file = source_codex_home / name
+        if source_file.exists():
+            shutil.copy2(source_file, codex_home / name)
+    codex_env = e2e_context.env.copy()
+    codex_env["CODEX_HOME"] = str(codex_home)
+
     (workspace / ".agents" / "plugins").mkdir(parents=True)
     shutil.copytree(
         CODEX_PLUGIN,
@@ -339,7 +349,7 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
     )
     _run(
         ["python3", str(workspace / ".agents" / "nowledge-mem" / "scripts" / "install_hooks.py")],
-        env=e2e_context.env,
+        env=codex_env,
         timeout=30,
     )
 
@@ -364,7 +374,7 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
         command.extend(["--model", os.environ["NMEM_E2E_CODEX_MODEL"]])
     command.append(prompt)
 
-    result = _run(command, env=e2e_context.env, timeout=240)
+    result = _run(command, env=codex_env, timeout=240)
     assert e2e_context.marker in result.stdout
     _poll_thread(
         marker=e2e_context.marker,

@@ -202,6 +202,18 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn('[projects."/tmp/demo"]\ncodex_hooks = false', updated)
         self.assertIn("[features]\napps = true\ncodex_hooks = true", updated)
 
+    def test_ensure_codex_hooks_enabled_rejects_invalid_toml(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text("[features\ncodex_hooks = false\n", encoding="utf-8")
+
+        with self.assertRaises(SystemExit):
+            self.module.ensure_codex_hooks_enabled()
+
+        self.assertEqual(
+            self.module.CONFIG_FILE.read_text(encoding="utf-8"),
+            "[features\ncodex_hooks = false\n",
+        )
+
     def test_install_runtime_hook_copies_runtime(self):
         self.module.install_runtime_hook()
 
