@@ -71,11 +71,13 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 | `SessionStart` | After compaction | Re-loads Working Memory + checkpoint prompt |
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
 | `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code session by hook `session_id` before context is compressed |
-| `Stop` | Model finishes responding | Captures session to knowledge graph (async) |
+| `Stop` | Model finishes responding | Captures session to knowledge graph |
 
 The `SessionStart` hook tries `nmem wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
-The `PreCompact` hook runs the same client-side thread save before Claude Code compresses the context. The `Stop` hook runs it again in the background after every response. Both paths pass Claude's hook `session_id` into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
+The `PreCompact` hook runs the same client-side thread save before Claude Code compresses the context. The `Stop` hook runs it again after every response with a bounded retry window, so short transcript-flush delays do not turn into silent no-op saves. Both paths pass Claude's hook `session_id` into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
+
+If the desktop app's Claude Code file watcher is also enabled, you can leave it on. The watcher and plugin hooks converge on the same `claude-code-<sessionId>` thread, so repeated saves update the existing thread instead of creating a second one.
 
 ### Local vs Remote
 
@@ -101,7 +103,7 @@ Spaces are optional. If one Claude Code process naturally belongs to one project
 NMEM_SPACE="Research Agent"
 ```
 
-The session-start Working Memory read, per-turn guidance, slash-command flows, and background `nmem t save --from claude-code` capture will then stay in that lane automatically.
+The session-start Working Memory read, per-turn guidance, slash-command flows, and hook-driven `nmem t save --from claude-code` capture will then stay in that lane automatically.
 
 Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. Claude Code does not need a second plugin-local space config.
 

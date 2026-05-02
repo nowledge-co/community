@@ -1,9 +1,10 @@
 {
   "name": "nowledge-mem",
-  "version": "0.1.8",
+  "version": "0.1.10",
   "description": "Your Codex agent remembers past decisions, finds relevant context, and learns from every session, across all your AI tools.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Nowledge Mem",
     "shortDescription": "Memory that follows you across AI tools",

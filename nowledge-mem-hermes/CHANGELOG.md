@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## [0.5.13] - 2026-05-02
+
+### Fixed
+
+- Added a `post_llm_call` compatibility fallback for Hermes builds that load memory providers through the general plugin hook path before the native provider lifecycle is available. One-shot `hermes chat -q` sessions now still sync completed turns as Mem threads.
+- Thread appends now pass the resolved Mem space as an explicit append guard, matching import behavior.
+- Initial turn sync is now idempotent when a fallback hook and native provider both see the same completed turn.
+
+## [0.5.12] - 2026-05-02
+
+### Fixed
+
+- Hermes now syncs completed turns through the provider `sync_turn` lifecycle instead of relying only on end-of-session shutdown. This makes thread capture work for one-shot `hermes chat -q` sessions and keeps `on_session_end` as a final flush for longer sessions.
+
 ## [0.5.11] - 2026-04-27
 
 ### Fixed

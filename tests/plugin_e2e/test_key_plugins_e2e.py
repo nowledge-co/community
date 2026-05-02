@@ -18,7 +18,8 @@ CLAUDE_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-claude-code-plugin"
 CODEX_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-codex-plugin"
 OPENCLAW_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-openclaw-plugin"
 HERMES_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-hermes"
-KEY_HOSTS = {"claude", "codex", "openclaw", "hermes"}
+OPENCODE_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-opencode-plugin"
+KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode"}
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -199,10 +200,15 @@ def test_key_plugin_static_contracts_are_declared():
 
     codex_manifest = _read_json(CODEX_PLUGIN / ".codex-plugin" / "plugin.json")
     codex_mcp = _read_json(CODEX_PLUGIN / ".mcp.json")
+    codex_hooks = _read_json(CODEX_PLUGIN / "hooks" / "hooks.json")["hooks"]
     assert codex_manifest["name"] == "nowledge-mem"
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
+    assert codex_manifest["hooks"] == "./hooks/hooks.json"
     assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
+    assert "Stop" in codex_hooks
+    assert "nmem-stop-save.py" in json.dumps(codex_hooks)
+    assert (CODEX_PLUGIN / "scripts" / "install_hooks.py").exists()
     assert (CODEX_PLUGIN / "skills" / "working-memory" / "SKILL.md").exists()
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
 
@@ -217,10 +223,24 @@ def test_key_plugin_static_contracts_are_declared():
 
     hermes_manifest = (HERMES_PLUGIN / "plugin.yaml").read_text(encoding="utf-8")
     assert "name: nowledge-mem" in hermes_manifest
-    for hook in ("prefetch", "on_memory_write", "on_pre_compress", "on_session_end"):
+    for hook in (
+        "prefetch",
+        "post_llm_call",
+        "on_memory_write",
+        "on_pre_compress",
+        "on_session_end",
+    ):
         assert f"  - {hook}" in hermes_manifest
     assert (HERMES_PLUGIN / "provider.py").exists()
     assert (HERMES_PLUGIN / "client.py").exists()
+
+    opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
+    opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
+    assert opencode_pkg["name"] == "opencode-nowledge-mem"
+    assert opencode_pkg["version"] == "0.3.3"
+    assert "fetchSessionMessages" in opencode_source
+    assert "path: { id: ctx.sessionID }" in opencode_source
+    assert "nowledge_mem_save_thread" in opencode_source
 
 
 def test_key_plugin_credentials_stay_out_of_static_runtime_urls():
@@ -265,7 +285,7 @@ def test_claude_code_live_thread_capture(e2e_context: E2EContext, tmp_path: Path
 
 
 @pytest.mark.skipif(_skip_live_host("codex"), reason="Codex live E2E not requested")
-def test_codex_live_skill_and_mcp_thread_save(e2e_context: E2EContext, tmp_path: Path):
+def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: Path):
     _require_live_host("codex")
     workspace = tmp_path / "codex-workspace"
     (workspace / ".agents" / "plugins").mkdir(parents=True)
@@ -295,14 +315,19 @@ def test_codex_live_skill_and_mcp_thread_save(e2e_context: E2EContext, tmp_path:
         encoding="utf-8",
     )
     (workspace / "AGENTS.md").write_text(
-        "Use the Nowledge Mem plugin when the user asks to save or recall memory.\n",
+        "Use the Nowledge Mem plugin when the user asks to recall memory. Do not manually save this test thread.\n",
         encoding="utf-8",
+    )
+    _run(
+        ["python3", str(workspace / ".agents" / "nowledge-mem" / "scripts" / "install_hooks.py")],
+        env=e2e_context.env,
+        timeout=30,
     )
 
     prompt = (
         f"This is a Nowledge Mem integration test marker {e2e_context.marker}. "
-        "Use the $nowledge-mem:save-thread skill to save this Codex session, "
-        f"then reply exactly: done {e2e_context.marker}"
+        "Do not call any Nowledge Mem save-thread skill or nmem command. "
+        f"Just reply exactly: done {e2e_context.marker}"
     )
     command = [
         "codex",
@@ -333,10 +358,28 @@ def test_codex_live_skill_and_mcp_thread_save(e2e_context: E2EContext, tmp_path:
 @pytest.mark.skipif(_skip_live_host("openclaw"), reason="OpenClaw live E2E not requested")
 def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext, tmp_path: Path):
     _require_live_host("openclaw")
-    profile = os.environ.get("NMEM_E2E_OPENCLAW_PROFILE") or f"nmem-e2e-{e2e_context.run_id}"
-    base = ["openclaw", "--profile", profile]
-    _run([*base, "plugins", "install", str(OPENCLAW_PLUGIN), "--link", "--force"], env=e2e_context.env, timeout=120)
+    profile = os.environ.get("NMEM_E2E_OPENCLAW_PROFILE")
+    base = ["openclaw", "--profile", profile] if profile else ["openclaw"]
+    plugin_copy = tmp_path / "openclaw-nowledge-mem"
+    shutil.copytree(
+        OPENCLAW_PLUGIN,
+        plugin_copy,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            "node_modules",
+            "tests",
+            "coverage",
+            "dist",
+            "*.log",
+        ),
+    )
+    # OpenClaw profiles isolate config, not the installed extension directory.
+    # Install a package-shaped copy with --force so the safety scanner sees what
+    # users receive from npm/ClawHub instead of checkout-only test fixtures.
+    _run([*base, "plugins", "install", str(plugin_copy), "--force"], env=e2e_context.env, timeout=120)
 
+    default_config = Path.home() / ".openclaw" / "openclaw.json"
+    default_config_backup = default_config.read_bytes() if not profile and default_config.exists() else None
     config_ops: list[dict[str, Any]] = [
         {"path": "plugins.entries.openclaw-nowledge-mem.enabled", "value": True},
         {"path": "plugins.entries.openclaw-nowledge-mem.config.sessionDigest", "value": True},
@@ -345,35 +388,39 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
         {"path": "plugins.slots.contextEngine", "value": "nowledge-mem"},
     ]
     if os.environ.get("NMEM_E2E_OPENCLAW_MODEL"):
-        config_ops.append({"path": "agents.defaults.model", "value": os.environ["NMEM_E2E_OPENCLAW_MODEL"]})
+        config_ops.append({"path": "agents.defaults.model.primary", "value": os.environ["NMEM_E2E_OPENCLAW_MODEL"]})
     batch_file = tmp_path / "openclaw-config.json"
     batch_file.write_text(json.dumps(config_ops), encoding="utf-8")
-    _run([*base, "config", "set", "--batch-file", str(batch_file)], env=e2e_context.env, timeout=60)
+    try:
+        _run([*base, "config", "set", "--batch-file", str(batch_file)], env=e2e_context.env, timeout=60)
 
-    prompt = f"Reply with exactly: done {e2e_context.marker}"
-    result = _run(
-        [
-            *base,
-            "agent",
-            "--local",
-            "--session-id",
-            f"nmem-e2e-{e2e_context.run_id}",
-            "--message",
-            prompt,
-            "--json",
-            "--timeout",
-            os.environ.get("NMEM_E2E_OPENCLAW_TIMEOUT_SECONDS", "180"),
-        ],
-        env=e2e_context.env,
-        timeout=int(os.environ.get("NMEM_E2E_OPENCLAW_TIMEOUT_SECONDS", "180")) + 30,
-    )
-    assert e2e_context.marker in result.stdout
-    _poll_thread(
-        marker=e2e_context.marker,
-        source="openclaw",
-        space=e2e_context.space,
-        env=e2e_context.env,
-    )
+        prompt = f"Reply with exactly: done {e2e_context.marker}"
+        result = _run(
+            [
+                *base,
+                "agent",
+                "--local",
+                "--session-id",
+                f"nmem-e2e-{e2e_context.run_id}",
+                "--message",
+                prompt,
+                "--json",
+                "--timeout",
+                os.environ.get("NMEM_E2E_OPENCLAW_TIMEOUT_SECONDS", "180"),
+            ],
+            env=e2e_context.env,
+            timeout=int(os.environ.get("NMEM_E2E_OPENCLAW_TIMEOUT_SECONDS", "180")) + 30,
+        )
+        assert e2e_context.marker in (result.stdout + result.stderr)
+        _poll_thread(
+            marker=e2e_context.marker,
+            source="openclaw",
+            space=e2e_context.space,
+            env=e2e_context.env,
+        )
+    finally:
+        if default_config_backup is not None:
+            default_config.write_bytes(default_config_backup)
 
 
 @pytest.mark.skipif(_skip_live_host("hermes"), reason="Hermes live E2E not requested")
@@ -381,6 +428,14 @@ def test_hermes_live_provider_hooks_capture(e2e_context: E2EContext, tmp_path: P
     _require_live_host("hermes")
     hermes_home = tmp_path / "hermes-home"
     hermes_home.mkdir()
+    real_hermes_home = Path(
+        os.environ.get("NMEM_E2E_HERMES_SOURCE_HOME", Path.home() / ".hermes")
+    )
+    for credential_file in (".env", "auth.json"):
+        source = real_hermes_home / credential_file
+        if source.exists():
+            shutil.copy2(source, hermes_home / credential_file)
+
     env = e2e_context.env.copy()
     env["HERMES_HOME"] = str(hermes_home)
 
@@ -412,6 +467,64 @@ def test_hermes_live_provider_hooks_capture(e2e_context: E2EContext, tmp_path: P
     _poll_thread(
         marker=e2e_context.marker,
         source="hermes",
+        space=e2e_context.space,
+        env=env,
+    )
+
+
+@pytest.mark.skipif(_skip_live_host("opencode"), reason="OpenCode live E2E not requested")
+def test_opencode_live_tool_thread_capture(e2e_context: E2EContext, tmp_path: Path):
+    _require_live_host("opencode")
+    workspace = tmp_path / "opencode-workspace"
+    workspace.mkdir()
+    plugin_copy = tmp_path / "opencode-nowledge-mem"
+    shutil.copytree(
+        OPENCODE_PLUGIN,
+        plugin_copy,
+        ignore=shutil.ignore_patterns(".git", "node_modules", "coverage", "dist", "*.log"),
+    )
+    plugin_dependency = Path.home() / ".config" / "opencode" / "node_modules" / "@opencode-ai" / "plugin"
+    if not plugin_dependency.exists():
+        raise AssertionError(
+            "OpenCode local plugin smoke requires @opencode-ai/plugin in ~/.config/opencode/node_modules. "
+            "Run any OpenCode command once or install the plugin dependency before using a checkout path."
+        )
+    dependency_target = plugin_copy / "node_modules" / "@opencode-ai"
+    dependency_target.mkdir(parents=True)
+    (dependency_target / "plugin").symlink_to(plugin_dependency)
+
+    env = e2e_context.env.copy()
+    env["OPENCODE_CONFIG_CONTENT"] = json.dumps({"plugin": [str(plugin_copy)]})
+    model = os.environ.get("NMEM_E2E_OPENCODE_MODEL", "opencode/minimax-m2.5-free")
+    prompt = (
+        f"Nowledge Mem OpenCode integration test marker {e2e_context.marker}. "
+        "First call the nowledge_mem_status tool. "
+        f"Then call the nowledge_mem_save_thread tool with summary 'OpenCode e2e {e2e_context.marker}'. "
+        f"Then reply exactly: done {e2e_context.marker}"
+    )
+    result = _run(
+        [
+            "opencode",
+            "run",
+            "--dir",
+            str(workspace),
+            "--model",
+            model,
+            "--format",
+            "json",
+            prompt,
+        ],
+        env=env,
+        timeout=int(os.environ.get("NMEM_E2E_OPENCODE_TIMEOUT_SECONDS", "180")),
+    )
+    assert e2e_context.marker in result.stdout
+    assert '"tool":"nowledge_mem_status"' in result.stdout
+    assert '"tool":"nowledge_mem_save_thread"' in result.stdout
+    assert "Session capture failed" not in result.stdout
+    assert "No messages found" not in result.stdout
+    _poll_thread(
+        marker=e2e_context.marker,
+        source="opencode",
         space=e2e_context.space,
         env=env,
     )

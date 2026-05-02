@@ -310,7 +310,7 @@ class SpaceResolutionTests(unittest.TestCase):
         try:
             client_module.subprocess.run = _bad_run
             client_module.urlrequest.urlopen = _fake_urlopen
-            client = client_module.NowledgeMemClient()
+            client = client_module.NowledgeMemClient(space="Research Agent")
             result = client.append_thread(
                 "hermes/session 1",
                 [{"role": "assistant", "content": "y" * 100_000}],
@@ -322,6 +322,7 @@ class SpaceResolutionTests(unittest.TestCase):
                 "http://mem.test/threads/hermes%2Fsession%201/append",
             )
             self.assertEqual(payload["messages"][0]["content"], "y" * 100_000)
+            self.assertEqual(payload["space_id"], "Research Agent")
         finally:
             client_module.subprocess.run = original_run
             client_module.urlrequest.urlopen = original_urlopen

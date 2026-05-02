@@ -137,12 +137,6 @@ function pickStr(obj, key) {
 	return trimmed || undefined;
 }
 
-function pickPresentString(obj, key) {
-	if (!Object.prototype.hasOwnProperty.call(obj, key)) return undefined;
-	if (typeof obj[key] !== "string") return undefined;
-	return obj[key].trim();
-}
-
 function resolveEnvTemplate(value) {
 	return value.replace(/\$\{([^}]+)\}/g, (_, envVar) => {
 		const envValue = process.env[envVar];
@@ -391,8 +385,11 @@ export function parseConfig(raw, logger) {
 	_sources.apiKey = ak.source;
 
 	// --- space: file (legacy) > pluginConfig > template > env > default ---
-	const fs = pickPresentString(resolvedFile, "space");
-	const ps = pickPresentString(resolvedPlugin, "space");
+	// OpenClaw's schema stores the default as `space: ""`. Treat that as
+	// "not set" so launch-time ambient space can still scope test runs and
+	// scripted agent sessions. A non-empty configured space remains stronger.
+	const fs = pickStr(resolvedFile, "space");
+	const ps = pickStr(resolvedPlugin, "space");
 	const fst = pickStr(resolvedFile, "spaceTemplate");
 	const pst = pickStr(resolvedPlugin, "spaceTemplate");
 	const spaceChoice = firstDefined(

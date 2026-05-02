@@ -331,6 +331,29 @@ class NowledgeMemProvider(MemoryProvider):
         thread.start()
         self._bg_threads.append(thread)
 
+    def sync_turn(self, user_content: str, assistant_content: str, *, session_id: str = "") -> None:
+        if self._cron_skipped or not self._client:
+            return
+
+        active_session_id = (session_id or self._session_id or "").strip()
+        if not active_session_id:
+            return
+        if not user_content and not assistant_content:
+            return
+
+        previous_session_id = self._session_id
+        self._session_id = active_session_id
+        try:
+            cleaned_messages = self._clean_session_messages(
+                [
+                    {"role": "user", "content": user_content},
+                    {"role": "assistant", "content": assistant_content},
+                ]
+            )
+            self._write_thread_messages(cleaned_messages, title_messages=cleaned_messages)
+        finally:
+            self._session_id = previous_session_id or active_session_id
+
     def on_pre_compress(self, messages: List[Dict[str, Any]]) -> str:
         if self._cron_skipped or not self._client:
             return ""
@@ -356,14 +379,46 @@ class NowledgeMemProvider(MemoryProvider):
             saved_count = 0
 
         if saved_count <= 0:
-            title = self._build_thread_title(cleaned_messages)
+            self._write_thread_messages(cleaned_messages, title_messages=cleaned_messages)
+            return
+
+        delta = cleaned_messages[saved_count:]
+        if not delta:
+            return
+        self._write_thread_messages(delta, title_messages=cleaned_messages)
+
+    def _write_thread_messages(
+        self,
+        messages: List[Dict[str, str]],
+        *,
+        title_messages: Optional[List[Dict[str, str]]] = None,
+    ) -> None:
+        if not self._client or not messages:
+            return
+        session_id = (self._session_id or "").strip()
+        if not session_id:
+            return
+
+        if self._saved_message_count <= 0:
+            title = self._build_thread_title(title_messages or messages)
             try:
-                self._client.import_thread(
+                result = self._client.import_thread(
                     session_id,
-                    cleaned_messages,
+                    messages,
                     title=title or None,
                     source="hermes",
                 )
+                if not self._response_succeeded(result):
+                    if self._thread_already_exists(result):
+                        self._append_existing_thread(session_id, messages)
+                        self._saved_message_count += len(messages)
+                        return
+                    logger.warning(
+                        "Nowledge Mem session import did not succeed for %s: %s",
+                        session_id,
+                        self._response_error(result),
+                    )
+                    return
             except Exception as error:
                 logger.warning(
                     "Nowledge Mem session import failed for %s: %s",
@@ -371,14 +426,11 @@ class NowledgeMemProvider(MemoryProvider):
                     error,
                 )
                 return
-            self._saved_message_count = len(cleaned_messages)
+            self._saved_message_count += len(messages)
             return
 
-        delta = cleaned_messages[saved_count:]
-        if not delta:
-            return
         try:
-            self._client.append_thread(session_id, delta)
+            self._append_existing_thread(session_id, messages)
         except Exception as error:
             logger.warning(
                 "Nowledge Mem session append failed for %s: %s",
@@ -386,7 +438,13 @@ class NowledgeMemProvider(MemoryProvider):
                 error,
             )
             return
-        self._saved_message_count = len(cleaned_messages)
+        self._saved_message_count += len(messages)
+
+    def _append_existing_thread(self, session_id: str, messages: List[Dict[str, str]]) -> None:
+        assert self._client is not None
+        result = self._client.append_thread(session_id, messages)
+        if not self._response_succeeded(result):
+            raise RuntimeError(self._response_error(result))
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
         if self._cron_skipped:
@@ -526,6 +584,37 @@ class NowledgeMemProvider(MemoryProvider):
                 return {"success": True, **result}
             return result
         return {"success": True, "result": result}
+
+    @staticmethod
+    def _response_succeeded(result: Any) -> bool:
+        if not isinstance(result, dict):
+            return True
+        success = result.get("success")
+        if success is False:
+            return False
+        results = result.get("results")
+        if isinstance(results, list) and results:
+            return all(
+                not isinstance(item, dict) or item.get("success") is not False
+                for item in results
+            )
+        return True
+
+    @staticmethod
+    def _thread_already_exists(result: Any) -> bool:
+        return "already exists" in NowledgeMemProvider._response_error(result).lower()
+
+    @staticmethod
+    def _response_error(result: Any) -> str:
+        if not isinstance(result, dict):
+            return str(result)
+        errors: List[str] = []
+        if result.get("error"):
+            errors.append(str(result.get("error")))
+        for item in result.get("results") or []:
+            if isinstance(item, dict) and item.get("error"):
+                errors.append(str(item.get("error")))
+        return "; ".join(errors) or json.dumps(result, ensure_ascii=False)[:300]
 
     @staticmethod
     def _load_config(hermes_home: str) -> Dict[str, Any]:

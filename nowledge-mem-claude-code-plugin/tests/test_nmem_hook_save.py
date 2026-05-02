@@ -1,5 +1,6 @@
 import importlib.util
 from pathlib import Path
+from subprocess import CompletedProcess
 from unittest.mock import patch
 
 
@@ -19,6 +20,7 @@ def test_build_command_uses_unix_nmem_directly(tmp_path):
 
     assert command == [
         "/usr/local/bin/nmem",
+        "--json",
         "t",
         "save",
         "--from",
@@ -64,6 +66,7 @@ def test_build_command_wraps_windows_cmd_for_wsl_bridge():
     assert command[:3] == ["cmd.exe", "/s", "/c"]
     assert "C:\\Users\\Alice\\AppData\\Roaming\\npm\\nmem.cmd" in command[3]
     assert "/mnt/c/" not in command[3]
+    assert "--json" in command[3]
     assert "--session-id session-1" in command[3]
 
 
@@ -78,3 +81,65 @@ def test_build_command_converts_wsl_project_path_for_windows_cmd():
     assert command[:3] == ["cmd.exe", "/s", "/c"]
     assert "\\\\wsl.localhost\\Ubuntu\\home\\alice\\project" in command[3]
     assert "--project /home/alice/project" not in command[3]
+
+
+def test_run_capture_retries_until_nmem_reports_saved_result():
+    calls = [
+        CompletedProcess(["nmem"], 0, stdout='{"results":[]}', stderr=""),
+        CompletedProcess(
+            ["nmem"],
+            0,
+            stdout='{"results":[{"action":"created","session_id":"s1"}]}',
+            stderr="",
+        ),
+    ]
+
+    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0, 0.0)), \
+        patch.object(nmem_hook_save.subprocess, "run", side_effect=calls) as run:
+        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
+            ["/usr/local/bin/nmem", "--json", "t", "save"]
+        )
+
+    assert captured is True
+    assert returncode == 0
+    assert stderr == ""
+    assert run.call_count == 2
+
+
+def test_run_capture_reports_uncaptured_when_transcript_never_flushes():
+    proc = CompletedProcess(["nmem"], 0, stdout='{"results":[]}', stderr="")
+
+    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0, 0.0)), \
+        patch.object(nmem_hook_save.subprocess, "run", return_value=proc):
+        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
+            ["/usr/local/bin/nmem", "--json", "t", "save"]
+        )
+
+    assert captured is False
+    assert returncode == 0
+    assert stderr == ""
+
+
+def test_run_capture_falls_back_for_legacy_nmem_without_json_support():
+    calls = [
+        CompletedProcess(
+            ["nmem"],
+            2,
+            stdout="",
+            stderr="No such option: --json",
+        ),
+        CompletedProcess(["nmem"], 0, stdout="", stderr=""),
+    ]
+
+    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0,)), \
+        patch.object(nmem_hook_save, "_run_command", side_effect=calls) as run:
+        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
+            ["/usr/local/bin/nmem", "--json", "t", "save"],
+            ["/usr/local/bin/nmem", "t", "save"],
+        )
+
+    assert captured is True
+    assert returncode == 0
+    assert stderr == ""
+    assert run.call_count == 2
+    assert "--json" not in run.call_args_list[1].args[0]

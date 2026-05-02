@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.3] - 2026-05-02
+
+### Fixed
+
+- `nowledge_mem_save_thread` now supports the current OpenCode SDK response shape for `session.messages`, so full-session capture works again instead of falling back to handoff summaries.
+
 ## [0.3.2] - 2026-04-27
 
 ### Fixed

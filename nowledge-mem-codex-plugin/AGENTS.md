@@ -6,12 +6,14 @@ If this session exposes Nowledge Mem MCP tools, prefer them for retrieval and me
 
 ## Operating Model
 
-This Codex package is hybrid-aware, but still not hook-driven.
+This Codex package is hybrid-aware and hook-assisted.
 
 - Best modern setup: Codex plugin with bundled Nowledge Mem MCP.
+- Automatic capture: the Codex Stop hook saves the real transcript through `nmem t save --from codex` after each turn.
+- Current stable Codex: run `scripts/install_hooks.py` once after installing or updating the plugin so Codex loads the hook from `~/.codex/hooks.json`.
 - Reliable bootstrap: read Working Memory once near session start.
 - Stronger retrieval and memory updates: use Nowledge Mem MCP tools when available.
-- Explicit only: save the real Codex thread only when the user asks.
+- Explicit fallback: if hook setup is missing or the user asks for a manual save, use the `save-thread` skill.
 
 Do not stop at the Working Memory briefing if the task clearly resumes prior work.
 
@@ -94,7 +96,7 @@ At the end of substantial tasks, explicitly check whether one durable memory sho
 
 ## Save Thread
 
-Only when the user asks. This saves the real Codex transcript, not a reconstruction:
+Normally the Stop hook saves the real Codex transcript automatically. Use this command only when the user asks for a manual save or when hook setup is unavailable:
 
 ```bash
 nmem --json t save --from codex -p . -s "Brief summary"

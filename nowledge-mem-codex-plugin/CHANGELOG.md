@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.10] - 2026-05-02
+
+### Fixed
+
+- Stop hooks now use Codex's supported bounded hook contract. Current stable Codex skips async hooks, so the packaged hook and host-level installer no longer emit `async: true`.
+- Automatic capture now retries when the session file exists but `nmem` has not imported any messages yet, which covers the short transcript-flush window after a turn finishes.
+- Hook capture falls back to the legacy non-JSON `nmem t save` command when an older `nmem` build does not support the global `--json` flag.
+- Host-level hook setup should be rerun after this update so existing `~/.codex/hooks.json` entries are rewritten with the non-async hook contract.
+
+## [0.1.9] - 2026-05-02
+
+### Added
+
+- **Automatic Codex thread capture**: packaged a Stop hook that saves the real Codex transcript through `nmem t save --from codex` after each turn, with deduplication handled by Mem.
+- **Current Codex compatibility**: added `scripts/install_hooks.py` to install the same capture hook into `~/.codex/hooks.json` for stable Codex builds that do not yet load plugin-bundled hooks.
+
+### Fixed
+
+- Codex hook capture now shells out to `nmem` instead of importing `nmem_cli` internals, so local and remote Mem client configuration stays owned by the CLI.
+
 ## [0.1.8] - 2026-04-27
 
 ### Fixed

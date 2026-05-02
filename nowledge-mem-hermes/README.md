@@ -66,6 +66,7 @@ The plugin uses Hermes' memory provider lifecycle to replace manual Working Memo
 |------|-------------|----------|
 | `system_prompt_block` | Working Memory injected into every session automatically | Manual `read_working_memory` call |
 | `prefetch` | Relevant memories searched before each turn | "Search proactively" guidance in SOUL.md |
+| `post_llm_call` | Compatibility fallback that captures completed one-shot turns when Hermes routes the plugin through the general hook loader | Missed `hermes chat -q` transcript sync on affected builds |
 | `on_memory_write` | User profile facts from Hermes mirrored to Nowledge Mem | Nothing (new capability) |
 | `on_pre_compress` | Provides a best-effort recovery hint on Hermes builds that consume provider compression output | Manual compression notes |
 | `on_session_end` | Cleaned Hermes transcript captured as a Mem thread when the session actually ends | Manual handoff-only thread save |

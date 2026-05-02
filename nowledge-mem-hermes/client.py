@@ -209,7 +209,10 @@ class NowledgeMemClient:
         if not messages:
             return {"success": True, "thread_id": thread_id, "appended": 0}
         path = f"/threads/{urlparse.quote(thread_id, safe='')}/append"
-        return self._api_post(path, {"messages": messages, "deduplicate": True})
+        payload: Dict[str, Any] = {"messages": messages, "deduplicate": True}
+        if self._has_explicit_space and self._space:
+            payload["space_id"] = self._space
+        return self._api_post(path, payload)
 
     def _cli(self, args: List[str]) -> Any:
         """Run ``nmem --json <args>`` and return parsed JSON."""

@@ -5,6 +5,14 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-05-02
+
+### Fixed
+
+- Stop capture now uses a bounded foreground hook instead of async fire-and-forget capture, so Claude Code has time to flush the transcript before `nmem t save` runs.
+- Stop capture now treats an empty `nmem` result as retryable. The hook stays idempotent with the desktop watcher and PreCompact capture, but no longer reports success before a real thread was imported.
+- Hook capture falls back to the legacy non-JSON `nmem t save` command when an older `nmem` build does not support the global `--json` flag.
+
 ## [0.7.5] - 2026-04-27
 
 ### Fixed
