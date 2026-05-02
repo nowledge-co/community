@@ -62,13 +62,13 @@ test("parseConfig does not evaluate lower-priority templates eagerly", () => {
 	}
 });
 
-test("parseConfig preserves explicit empty space over ambient env", () => {
+test("parseConfig lets ambient env fill an empty configured space", () => {
 	const previous = process.env.NMEM_SPACE;
 	process.env.NMEM_SPACE = "Env Space";
 	try {
 		const cfg = parseConfig({ space: "" }, logger);
-		assert.equal(cfg.space, "");
-		assert.equal(cfg._sources.space, "pluginConfig");
+		assert.equal(cfg.space, "Env Space");
+		assert.equal(cfg._sources.space, "env");
 	} finally {
 		if (previous === undefined) delete process.env.NMEM_SPACE;
 		else process.env.NMEM_SPACE = previous;

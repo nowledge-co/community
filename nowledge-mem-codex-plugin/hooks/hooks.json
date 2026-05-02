@@ -1,0 +1,18 @@
+{
+  "description": "Nowledge Mem Codex lifecycle hook — best-effort transcript capture after each turn",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${PLUGIN_ROOT}/hooks/nmem-stop-save.py",
+            "timeout": 40,
+            "statusMessage": "Saving Codex thread to Nowledge Mem..."
+          }
+        ]
+      }
+    ]
+  }
+}

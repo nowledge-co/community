@@ -1,5 +1,6 @@
 import importlib.util
 from pathlib import Path
+from subprocess import CompletedProcess
 from unittest.mock import patch
 
 
@@ -19,6 +20,7 @@ def test_build_command_uses_unix_nmem_directly(tmp_path):
 
     assert command == [
         "/usr/local/bin/nmem",
+        "--json",
         "t",
         "save",
         "--from",
@@ -27,7 +29,7 @@ def test_build_command_uses_unix_nmem_directly(tmp_path):
         "--session-id",
         "claude-session",
         "--project",
-        str(tmp_path),
+        str(tmp_path.resolve()),
     ]
 
 
@@ -40,7 +42,7 @@ def test_build_command_accepts_camel_case_claude_hook_payload(tmp_path):
     assert "--session-id" in command
     assert command[command.index("--session-id") + 1] == "camel-session"
     assert "--project" in command
-    assert command[command.index("--project") + 1] == str(tmp_path)
+    assert command[command.index("--project") + 1] == str(tmp_path.resolve())
 
 
 def test_build_command_accepts_nested_claude_hook_payload(tmp_path):
@@ -52,7 +54,22 @@ def test_build_command_accepts_nested_claude_hook_payload(tmp_path):
     assert "--session-id" in command
     assert command[command.index("--session-id") + 1] == "nested-session"
     assert "--project" in command
-    assert command[command.index("--project") + 1] == str(tmp_path)
+    assert command[command.index("--project") + 1] == str(tmp_path.resolve())
+
+
+def test_build_command_resolves_project_symlink(tmp_path):
+    real_project = tmp_path / "real-project"
+    real_project.mkdir()
+    linked_project = tmp_path / "linked-project"
+    linked_project.symlink_to(real_project, target_is_directory=True)
+
+    command = nmem_hook_save._build_command(
+        "/usr/local/bin/nmem",
+        {"session_id": "symlink-session", "cwd": str(linked_project)},
+    )
+
+    assert "--project" in command
+    assert command[command.index("--project") + 1] == str(real_project.resolve())
 
 
 def test_build_command_wraps_windows_cmd_for_wsl_bridge():
@@ -64,6 +81,7 @@ def test_build_command_wraps_windows_cmd_for_wsl_bridge():
     assert command[:3] == ["cmd.exe", "/s", "/c"]
     assert "C:\\Users\\Alice\\AppData\\Roaming\\npm\\nmem.cmd" in command[3]
     assert "/mnt/c/" not in command[3]
+    assert "--json" in command[3]
     assert "--session-id session-1" in command[3]
 
 
@@ -78,3 +96,65 @@ def test_build_command_converts_wsl_project_path_for_windows_cmd():
     assert command[:3] == ["cmd.exe", "/s", "/c"]
     assert "\\\\wsl.localhost\\Ubuntu\\home\\alice\\project" in command[3]
     assert "--project /home/alice/project" not in command[3]
+
+
+def test_run_capture_retries_until_nmem_reports_saved_result():
+    calls = [
+        CompletedProcess(["nmem"], 0, stdout='{"results":[]}', stderr=""),
+        CompletedProcess(
+            ["nmem"],
+            0,
+            stdout='{"results":[{"action":"created","session_id":"s1"}]}',
+            stderr="",
+        ),
+    ]
+
+    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0, 0.0)), \
+        patch.object(nmem_hook_save.subprocess, "run", side_effect=calls) as run:
+        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
+            ["/usr/local/bin/nmem", "--json", "t", "save"]
+        )
+
+    assert captured is True
+    assert returncode == 0
+    assert stderr == ""
+    assert run.call_count == 2
+
+
+def test_run_capture_reports_uncaptured_when_transcript_never_flushes():
+    proc = CompletedProcess(["nmem"], 0, stdout='{"results":[]}', stderr="")
+
+    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0, 0.0)), \
+        patch.object(nmem_hook_save.subprocess, "run", return_value=proc):
+        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
+            ["/usr/local/bin/nmem", "--json", "t", "save"]
+        )
+
+    assert captured is False
+    assert returncode == 0
+    assert stderr == ""
+
+
+def test_run_capture_falls_back_for_legacy_nmem_without_json_support():
+    calls = [
+        CompletedProcess(
+            ["nmem"],
+            2,
+            stdout="",
+            stderr="No such option: --json",
+        ),
+        CompletedProcess(["nmem"], 0, stdout="", stderr=""),
+    ]
+
+    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0,)), \
+        patch.object(nmem_hook_save, "_run_command", side_effect=calls) as run:
+        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
+            ["/usr/local/bin/nmem", "--json", "t", "save"],
+            ["/usr/local/bin/nmem", "t", "save"],
+        )
+
+    assert captured is True
+    assert returncode == 0
+    assert stderr == ""
+    assert run.call_count == 2
+    assert "--json" not in run.call_args_list[1].args[0]

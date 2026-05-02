@@ -187,6 +187,41 @@ export default {
         }))
     }
 
+    function normalizeSessionMessages(raw: any): any[] {
+      if (Array.isArray(raw)) return raw
+      if (Array.isArray(raw?.data)) return raw.data
+      if (Array.isArray(raw?.items)) return raw.items
+      if (Array.isArray(raw?.messages)) return raw.messages
+      return []
+    }
+
+    async function fetchSessionMessages(ctx: any): Promise<any[]> {
+      const attempts = [
+        {
+          path: { id: ctx.sessionID },
+          query: ctx.directory ? { directory: ctx.directory } : undefined,
+        },
+        { sessionID: ctx.sessionID },
+      ]
+      let lastError: unknown
+      for (const options of attempts) {
+        try {
+          const messages = normalizeSessionMessages(await client.session.messages(options as any))
+          if (messages.length > 0) return messages
+        } catch (error) {
+          lastError = error
+          // Keep compatibility across OpenCode SDK shapes.
+        }
+      }
+      if (lastError) {
+        console.warn(
+          `[nowledge-mem] failed to read OpenCode session messages for ${ctx.sessionID}:`,
+          lastError instanceof Error ? lastError.message : lastError,
+        )
+      }
+      return []
+    }
+
     return {
       tool: {
         nowledge_mem_working_memory: tool({
@@ -342,9 +377,7 @@ export default {
 
             try {
               // Fetch full session messages via OpenCode SDK
-              const sdkMessages = await client.session.messages({
-                sessionID: ctx.sessionID,
-              })
+              const sdkMessages = await fetchSessionMessages(ctx)
 
               if (!sdkMessages || sdkMessages.length === 0) {
                 return JSON.stringify({ error: "No messages found in current session" })

@@ -42,6 +42,39 @@ get_file() {
   fi
 }
 
+install_plugin_files() {
+  local target_dir="$1"
+  local output_prefix="${2:-}"
+
+  mkdir -p "$target_dir"
+  for f in $PLUGIN_FILES; do
+    CONTENT="$(get_file "$f")"
+    if [ -z "$CONTENT" ]; then
+      echo "[error] Could not download $f"
+      ALL_OK=false
+      continue
+    fi
+    printf '%s\n' "$CONTENT" > "$target_dir/$f"
+    echo "  [ok] ${output_prefix}$f"
+  done
+}
+
+needs_legacy_memory_provider_copy() {
+  local memory_dir="$1"
+  local discovery_file="$memory_dir/__init__.py"
+
+  [ -d "$memory_dir" ] || return 1
+  [ -f "$discovery_file" ] || return 1
+
+  # New Hermes releases also scan $HERMES_HOME/plugins/<name>. Older releases
+  # only scan the bundled plugins/memory directory, so they need a provider copy.
+  if grep -qF '_get_user_plugins_dir' "$discovery_file" || grep -qF 'HERMES_HOME/plugins' "$discovery_file"; then
+    return 1
+  fi
+
+  return 0
+}
+
 ensure_memory_provider() {
   local config_path="$1"
   python3 - "$config_path" <<'PY'
@@ -137,16 +170,16 @@ if [ "$MODE" = "plugin" ]; then
   PLUGIN_FILES="plugin.yaml __init__.py provider.py client.py"
   ALL_OK=true
 
-  for f in $PLUGIN_FILES; do
-    CONTENT="$(get_file "$f")"
-    if [ -z "$CONTENT" ]; then
-      echo "[error] Could not download $f"
-      ALL_OK=false
-      continue
-    fi
-    printf '%s\n' "$CONTENT" > "$PLUGIN_DIR/$f"
-    echo "  [ok] $f"
-  done
+  install_plugin_files "$PLUGIN_DIR"
+
+  LEGACY_MEMORY_PROVIDER_DIR="$HERMES_HOME/hermes-agent/plugins/memory"
+  LEGACY_PLUGIN_DIR="$LEGACY_MEMORY_PROVIDER_DIR/nowledge-mem"
+  LEGACY_COMPAT_INSTALLED=false
+  if needs_legacy_memory_provider_copy "$LEGACY_MEMORY_PROVIDER_DIR"; then
+    echo "[*] Detected older Hermes provider discovery; installing compatibility copy..."
+    install_plugin_files "$LEGACY_PLUGIN_DIR" "legacy:"
+    LEGACY_COMPAT_INSTALLED=true
+  fi
 
   if ! $ALL_OK; then
     echo "[error] Some files failed to download. Check your network."
@@ -209,6 +242,9 @@ YAML
 
   echo ""
   echo "Plugin installed to $PLUGIN_DIR"
+  if $LEGACY_COMPAT_INSTALLED; then
+    echo "Compatibility copy installed to $LEGACY_PLUGIN_DIR"
+  fi
   echo "Restart Hermes, then test:"
   echo '  "Search my memories for recent decisions"'
   exit 0

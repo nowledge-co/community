@@ -66,6 +66,7 @@ The plugin uses Hermes' memory provider lifecycle to replace manual Working Memo
 |------|-------------|----------|
 | `system_prompt_block` | Working Memory injected into every session automatically | Manual `read_working_memory` call |
 | `prefetch` | Relevant memories searched before each turn | "Search proactively" guidance in SOUL.md |
+| `post_llm_call` | Compatibility fallback that captures completed one-shot turns when Hermes routes the plugin through the general hook loader | Missed `hermes chat -q` transcript sync on affected builds |
 | `on_memory_write` | User profile facts from Hermes mirrored to Nowledge Mem | Nothing (new capability) |
 | `on_pre_compress` | Provides a best-effort recovery hint on Hermes builds that consume provider compression output | Manual compression notes |
 | `on_session_end` | Cleaned Hermes transcript captured as a Mem thread when the session actually ends | Manual handoff-only thread save |
@@ -166,7 +167,7 @@ Use `SOUL.md` for your own durable memory preferences and `HERMES.md` for repo-s
 
 - **"Nowledge Mem server not reachable"**: Verify the desktop app is running. Check with `nmem status`.
 - **"nmem CLI not found"**: Install with `pip install nmem-cli`, or enable CLI in the desktop app: Settings > Developer Tools.
-- **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. Restart Hermes.
+- **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. On older Hermes builds, rerun the setup command; it also places a compatibility copy under `~/.hermes/hermes-agent/plugins/memory/nowledge-mem/` when that runtime still discovers providers from the bundled memory directory. Restart Hermes after reinstalling.
 - **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
 - **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`.
 - **Tool call fails immediately at 0.0s**: Update to v0.5.6 or later. Earlier builds had two separate failure modes: v0.5.3 and below could reject Hermes list-shaped tool arguments for labels or bulk IDs, and v0.5.4 could still advertise `nmem_*` tools before Hermes had actually indexed them for dispatch.

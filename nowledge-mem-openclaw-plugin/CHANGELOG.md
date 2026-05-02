@@ -4,6 +4,12 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.23] - 2026-05-02
+
+### Fixed
+
+- Empty OpenClaw dashboard space settings no longer block launch-time `NMEM_SPACE`. This keeps scripted profiles, local E2E runs, and agent-specific launchers scoped to the intended Mem space while preserving non-empty dashboard/file space overrides.
+
 ## [0.8.22] - 2026-04-29
 
 ### Fixed

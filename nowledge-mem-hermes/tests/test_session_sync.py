@@ -9,16 +9,7 @@ from pathlib import Path
 def _load_provider_module():
     plugin_dir = Path(__file__).resolve().parents[1]
 
-    agent_module = types.ModuleType("agent")
-    memory_provider_module = types.ModuleType("agent.memory_provider")
-
-    class MemoryProvider:  # pragma: no cover - compatibility stub
-        pass
-
-    memory_provider_module.MemoryProvider = MemoryProvider
-    agent_module.memory_provider = memory_provider_module
-    sys.modules.setdefault("agent", agent_module)
-    sys.modules.setdefault("agent.memory_provider", memory_provider_module)
+    _install_agent_stub()
 
     package_name = "nowledge_mem_hermes_session_sync"
     if package_name not in sys.modules:
@@ -35,6 +26,37 @@ def _load_provider_module():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _load_plugin_module():
+    plugin_dir = Path(__file__).resolve().parents[1]
+
+    _install_agent_stub()
+
+    package_name = "nowledge_mem_hermes_plugin_init"
+    spec = importlib.util.spec_from_file_location(
+        package_name,
+        plugin_dir / "__init__.py",
+        submodule_search_locations=[str(plugin_dir)],
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    sys.modules[package_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _install_agent_stub():
+    agent_module = types.ModuleType("agent")
+    memory_provider_module = types.ModuleType("agent.memory_provider")
+
+    class MemoryProvider:  # pragma: no cover - compatibility stub
+        pass
+
+    memory_provider_module.MemoryProvider = MemoryProvider
+    agent_module.memory_provider = memory_provider_module
+    sys.modules.setdefault("agent", agent_module)
+    sys.modules.setdefault("agent.memory_provider", memory_provider_module)
 
 
 provider = _load_provider_module()
@@ -65,6 +87,22 @@ class FakeClient:
             raise RuntimeError("append failed")
         self.append_calls.append({"thread_id": thread_id, "messages": messages})
         return {"success": True, "thread_id": thread_id}
+
+
+class HookOnlyContext:
+    def __init__(self):
+        self.hooks = {}
+
+    def register_hook(self, name, callback):
+        self.hooks[name] = callback
+
+
+class ProviderContext:
+    def __init__(self):
+        self.providers = []
+
+    def register_memory_provider(self, provider_instance):
+        self.providers.append(provider_instance)
 
 
 def test_on_session_end_imports_clean_messages_then_appends_delta():
@@ -107,6 +145,82 @@ def test_on_session_end_imports_clean_messages_then_appends_delta():
             "messages": [{"role": "user", "content": "next step"}],
         }
     ]
+
+
+def test_sync_turn_imports_completed_one_shot_turn():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-oneshot"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("question", "answer", session_id="session-oneshot")
+
+    assert instance._client.import_calls == [
+        {
+            "thread_id": "session-oneshot",
+            "messages": [
+                {"role": "user", "content": "question"},
+                {"role": "assistant", "content": "answer"},
+            ],
+            "title": "question",
+            "source": "hermes",
+        }
+    ]
+
+
+def test_initial_import_existing_thread_falls_back_to_dedup_append():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-existing"
+    instance._saved_message_count = 0
+
+    def _already_exists(thread_id, messages, *, title=None, source="hermes"):
+        instance._client.import_calls.append(
+            {
+                "thread_id": thread_id,
+                "messages": messages,
+                "title": title,
+                "source": source,
+            }
+        )
+        return {
+            "success": False,
+            "results": [
+                {
+                    "success": False,
+                    "error": "Thread session-existing already exists in space default",
+                }
+            ],
+        }
+
+    instance._client.import_thread = _already_exists
+
+    instance.sync_turn("question", "answer", session_id="session-existing")
+
+    assert instance._client.append_calls == [
+        {
+            "thread_id": "session-existing",
+            "messages": [
+                {"role": "user", "content": "question"},
+                {"role": "assistant", "content": "answer"},
+            ],
+        }
+    ]
+
+
+def test_register_supports_provider_collector_and_hook_only_contexts():
+    plugin = _load_plugin_module()
+
+    provider_ctx = ProviderContext()
+    plugin.register(provider_ctx)
+    assert len(provider_ctx.providers) == 1
+    assert provider_ctx.providers[0].name == "nowledge-mem"
+
+    hook_ctx = HookOnlyContext()
+    plugin.register(hook_ctx)
+    assert "post_llm_call" in hook_ctx.hooks
 
 
 def test_on_session_end_skips_malformed_messages_and_failed_import_does_not_advance_count():
