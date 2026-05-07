@@ -11,12 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`SessionStart` Working Memory now resolves a per-project `--space` from the session cwd.** Resolution order: `$NMEM_SPACE` env var → lowercased basename of the directory that holds the git common-dir (so worktrees share the main repo's space) → empty. When a `--space` resolves and the target space exists with non-empty Working Memory, that lane is injected; otherwise the hook falls back to the legacy default-space `nmem wm read`, then to `~/ai-now/memory.md`. Implements the "real ambient lane" pass-through described in `docs/PLUGIN_DEVELOPMENT_GUIDE.md` ("Space-aware execution") for Claude Code, where the session cwd + git context is the natural project lane.
 - Same resolution applied to the `compact` matcher so post-compaction Working Memory reload uses the same project lane.
+- **`Stop` and `PreCompact` thread capture now passes `--space` to `nmem t save`** using the same cwd-derived resolution. Without this, captured Claude Code threads land in the default space, so the desktop app's per-space daily distill (`~/ai-now/spaces/sp_<key>_<id>/memory.md`) cannot route them — every project's activity collapses back into the global daily Working Memory at `~/ai-now/memory.md`. Tagging threads at save time lets the existing per-space distill machinery actually fire on a per-project basis.
 
 ### Notes for users
 
-- **Backward compatible.** If you have not enabled spaces (`nmem spaces enable`) or have not created a space whose name matches your repo basename, behavior is unchanged: the hook silently falls through to default-space `nmem wm read`.
-- **To opt in:** `nmem spaces enable && nmem spaces create "<your-repo-basename>" --icon code`. From then on `nmem wm read --space "<repo>"` and the SessionStart hook will both target that lane.
-- **Override:** export `NMEM_SPACE=...` in your shell to force a specific space name regardless of cwd.
+- **Backward compatible.** If you have not enabled spaces (`nmem spaces enable`) or have not created a space whose name matches your repo basename, behavior is unchanged: the hook silently falls through to default-space `nmem wm read` and `nmem t save` runs without `--space` (no resolution, no tag).
+- **To opt in:** `nmem spaces enable && nmem spaces create "<your-repo-basename>" --icon code`. From then on `nmem wm read --space "<repo>"`, the SessionStart hook, and the Stop/PreCompact thread save will all target that lane.
+- **Override:** export `NMEM_SPACE=...` in your shell to force a specific space name regardless of cwd, for both Working Memory injection and thread save.
 
 ## [0.7.7] - 2026-05-02
 
