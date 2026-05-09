@@ -59,7 +59,7 @@ topic, use nmem_update rather than create a duplicate."""
 
 _SEARCH = {
     "name": "nmem_search",
-    "description": "Search stored memories. Supports label filtering and deep search mode.",
+    "description": "Search stored memories. Supports label filtering, minimum-importance filtering, and deep search mode.",
     "parameters": {
         "type": "object",
         "properties": {
@@ -72,6 +72,10 @@ _SEARCH = {
             "mode": {
                 "type": "string",
                 "description": "'normal' (fast, default) or 'deep' (graph-enhanced).",
+            },
+            "min_importance": {
+                "type": "number",
+                "description": "Minimum importance threshold, 0.0-1.0. Filters out lower-priority memories.",
             },
         },
         "required": ["query"],
@@ -472,6 +476,7 @@ class NowledgeMemProvider(MemoryProvider):
                 limit=args.get("limit", 10),
                 filter_labels=self._parse_csv(args.get("filter_labels")),
                 mode=args.get("mode"),
+                min_importance=args.get("min_importance"),
             )
         if tool_name == "nmem_save":
             return client.save(
