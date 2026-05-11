@@ -181,8 +181,8 @@
       },
       "install": {
         "command": "codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
-        "updateCommand": "(codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community) && HOOK_SETUP=\"$(find ~/.codex/plugins/cache -path '*/nowledge-mem/*/scripts/install_hooks.py' -print 2>/dev/null | sort | tail -1)\" && test -n \"$HOOK_SETUP\" && python3 \"$HOOK_SETUP\"",
-        "configRequired": "After marketplace add, install nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true, codex_hooks = true, and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. Run the installed scripts/install_hooks.py once to enable Stop-hook thread capture on current Codex stable. Add [mcp_servers.nowledge-mem] only to override the bundled local MCP endpoint.",
+        "updateCommand": "codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
+        "configRequired": "After marketplace add or upgrade, install or update nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true, codex_hooks = true, and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. Run the installed scripts/install_hooks.py once after the package itself is installed to enable Stop-hook thread capture on current Codex stable. Add [mcp_servers.nowledge-mem] only to override the bundled local MCP endpoint.",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },

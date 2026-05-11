@@ -80,7 +80,11 @@ Then enable thread capture for current stable Codex builds:
 
 ```bash
 HOOK_SETUP="$(find ~/.codex/plugins/cache -path '*/nowledge-mem/*/scripts/install_hooks.py' -print 2>/dev/null | sort | tail -1)"
-test -n "$HOOK_SETUP" && python3 "$HOOK_SETUP"
+if [ -z "$HOOK_SETUP" ]; then
+  echo "Hook setup was not found. Open Codex, run /plugins, install nowledge-mem@nowledge-community, then retry."
+else
+  python3 "$HOOK_SETUP"
+fi
 ```
 
 This installs a small Stop hook into `~/.codex/hooks.json`. The hook shells out to `nmem t save --from codex`, so local mode and remote Mem mode use the same `nmem` client configuration.
@@ -168,17 +172,23 @@ If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 
 ## Update
 
-If you installed the Codex package before `0.1.10`, marketplace update alone refreshes plugin files but does not reliably refresh the host-level Stop hook. Run the hook setup below after updating; this replaces older async hook entries that current Codex stable skips.
+If you installed the Codex package before `0.1.10`, refresh the marketplace first. Current Codex builds may refresh the marketplace checkout without reinstalling the already-installed package cache, so the hook setup file may still be missing until the package itself is updated from `/plugins`.
 
 ```bash
 codex plugin marketplace upgrade nowledge-community
 ```
 
-Then refresh the host-level hook runtime:
+Open Codex, run `/plugins`, update or reinstall `nowledge-mem@nowledge-community`, then restart Codex.
+
+After the package itself is updated, refresh the host-level hook runtime:
 
 ```bash
 HOOK_SETUP="$(find ~/.codex/plugins/cache -path '*/nowledge-mem/*/scripts/install_hooks.py' -print 2>/dev/null | sort | tail -1)"
-test -n "$HOOK_SETUP" && python3 "$HOOK_SETUP"
+if [ -z "$HOOK_SETUP" ]; then
+  echo "Hook setup is still missing. Reinstall nowledge-mem@nowledge-community from Codex /plugins, then retry."
+else
+  python3 "$HOOK_SETUP"
+fi
 ```
 
 If the marketplace is not registered yet, run:
