@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; PY=\"$(command -v python3 || command -v python || true)\"; SPACE=\"${NMEM_SPACE:-$(basename \"$(cd \"$(dirname \"$(git rev-parse --git-common-dir 2>/dev/null)\")\" 2>/dev/null && pwd)\" 2>/dev/null | tr '[:upper:]' '[:lower:]')}\"; { [ -n \"$PY\" ] && [ -n \"$SPACE\" ] && nmem --json wm read --space \"$SPACE\" 2>/dev/null | \"$PY\" -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if d.get('exists') and c else sys.exit(1)\" 2>/dev/null; } || { [ -n \"$PY\" ] && nmem --json wm read 2>/dev/null | \"$PY\" -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null; } || cat ~/ai-now/memory.md 2>/dev/null || true"
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-read.sh\"; [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\" || true"
           }
         ]
       },
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; PY=\"$(command -v python3 || command -v python || true)\"; SPACE=\"${NMEM_SPACE:-$(basename \"$(cd \"$(dirname \"$(git rev-parse --git-common-dir 2>/dev/null)\")\" 2>/dev/null && pwd)\" 2>/dev/null | tr '[:upper:]' '[:lower:]')}\"; { { [ -n \"$PY\" ] && [ -n \"$SPACE\" ] && nmem --json wm read --space \"$SPACE\" 2>/dev/null | \"$PY\" -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if d.get('exists') and c else sys.exit(1)\" 2>/dev/null; } || { [ -n \"$PY\" ] && nmem --json wm read 2>/dev/null | \"$PY\" -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null; } || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-read.sh\"; { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\" || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
           }
         ]
       }

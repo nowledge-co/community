@@ -195,7 +195,10 @@ def test_key_plugin_static_contracts_are_declared():
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     assert claude_manifest["name"] == "nowledge-mem"
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
+    assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
+    assert "wm read" not in json.dumps(claude_hooks)
+    assert (CLAUDE_PLUGIN / "scripts" / "nmem-hook-read.sh").exists()
     assert (CLAUDE_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
 
     codex_manifest = _read_json(CODEX_PLUGIN / ".codex-plugin" / "plugin.json")
