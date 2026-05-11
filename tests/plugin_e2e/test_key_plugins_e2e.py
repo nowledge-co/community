@@ -195,7 +195,10 @@ def test_key_plugin_static_contracts_are_declared():
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     assert claude_manifest["name"] == "nowledge-mem"
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
+    assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
+    assert "wm read" not in json.dumps(claude_hooks)
+    assert (CLAUDE_PLUGIN / "scripts" / "nmem-hook-read.sh").exists()
     assert (CLAUDE_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
 
     codex_manifest = _read_json(CODEX_PLUGIN / ".codex-plugin" / "plugin.json")
@@ -241,6 +244,42 @@ def test_key_plugin_static_contracts_are_declared():
     assert "fetchSessionMessages" in opencode_source
     assert "path: { id: ctx.sessionID }" in opencode_source
     assert "nowledge_mem_save_thread" in opencode_source
+
+
+def test_claude_read_hooks_keep_file_fallback_without_plugin_root(tmp_path):
+    hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
+    home = tmp_path / "home"
+    memory_file = home / "ai-now" / "memory.md"
+    memory_file.parent.mkdir(parents=True)
+    memory_file.write_text("fallback briefing\n", encoding="utf-8")
+
+    env = {
+        "HOME": str(home),
+        "PATH": "/bin:/usr/bin",
+        "CLAUDE_PLUGIN_ROOT": "",
+    }
+    startup_command = hooks["SessionStart"][0]["hooks"][0]["command"]
+    startup = subprocess.run(
+        ["/bin/sh", "-c", startup_command],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=15,
+    )
+    assert startup.returncode == 0
+    assert startup.stdout.strip() == "fallback briefing"
+
+    compact_command = hooks["SessionStart"][1]["hooks"][0]["command"]
+    compact = subprocess.run(
+        ["/bin/sh", "-c", compact_command],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=15,
+    )
+    assert compact.returncode == 0
+    assert "fallback briefing" in compact.stdout
+    assert "Context was compacted" in compact.stdout
 
 
 def test_key_plugin_credentials_stay_out_of_static_runtime_urls():

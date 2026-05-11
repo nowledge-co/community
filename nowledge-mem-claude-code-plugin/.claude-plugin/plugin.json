@@ -1,7 +1,7 @@
 {
   "name": "nowledge-mem",
   "description": "Personal knowledge graph for Claude Code \u2014 remembers decisions, searches past work, captures sessions",
-  "version": "0.7.8",
+  "version": "0.7.9",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",
