@@ -254,6 +254,11 @@ def test_key_plugin_credentials_stay_out_of_static_runtime_urls():
 @pytest.mark.skipif(_skip_live_host("claude"), reason="Claude live E2E not requested")
 def test_claude_code_live_thread_capture(e2e_context: E2EContext, tmp_path: Path):
     _require_live_host("claude")
+    workspace = tmp_path / e2e_context.space
+    workspace.mkdir()
+    _run(["git", "init", "-q"], cwd=workspace, env=e2e_context.env, timeout=30)
+
+    session_id = str(uuid.uuid4())
     prompt = f"Reply with exactly: done {e2e_context.marker}"
     command = [
         "claude",
@@ -262,7 +267,7 @@ def test_claude_code_live_thread_capture(e2e_context: E2EContext, tmp_path: Path
         "--plugin-dir",
         str(CLAUDE_PLUGIN),
         "--session-id",
-        str(uuid.uuid4()),
+        session_id,
         "--output-format",
         "stream-json",
         "--include-hook-events",
@@ -277,7 +282,7 @@ def test_claude_code_live_thread_capture(e2e_context: E2EContext, tmp_path: Path
 
     result = subprocess.run(
         command,
-        cwd=str(tmp_path),
+        cwd=str(workspace),
         env=e2e_context.env,
         text=True,
         capture_output=True,
@@ -295,6 +300,37 @@ def test_claude_code_live_thread_capture(e2e_context: E2EContext, tmp_path: Path
             f"stderr:\n{result.stderr[-4000:]}"
         )
     assert e2e_context.marker in result.stdout
+
+    # Claude --print gives us deterministic CI-friendly transcript generation,
+    # but it does not reliably emit the interactive Stop lifecycle event. Invoke
+    # the same save script with Claude's hook payload shape against the real
+    # session transcript, with NMEM_SPACE removed so Git cwd resolution is tested.
+    hook_env = e2e_context.env.copy()
+    hook_env.pop("NMEM_SPACE", None)
+    hook_env.pop("NMEM_SPACE_ID", None)
+    hook_payload = json.dumps({"session_id": session_id, "cwd": str(workspace)})
+    hook_result = subprocess.run(
+        [
+            "python3",
+            str(CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py"),
+            "--event",
+            "stop",
+        ],
+        cwd=str(workspace),
+        env=hook_env,
+        input=hook_payload,
+        text=True,
+        capture_output=True,
+        timeout=45,
+    )
+    if hook_result.returncode != 0:
+        raise AssertionError(
+            "Claude hook save command failed\n"
+            f"exit: {hook_result.returncode}\n"
+            f"stdout:\n{hook_result.stdout[-4000:]}\n"
+            f"stderr:\n{hook_result.stderr[-4000:]}"
+        )
+
     _poll_thread(
         marker=e2e_context.marker,
         source="claude-code",

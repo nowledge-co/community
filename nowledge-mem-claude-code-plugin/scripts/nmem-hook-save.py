@@ -104,6 +104,51 @@ def _build_nmem_command(nmem: str, *args: str) -> list[str]:
     return [nmem, *args]
 
 
+def _resolve_space_from_cwd(project_path: Path) -> str | None:
+    """Resolve the per-project Nowledge Mem space name from a working directory.
+
+    Resolution order:
+    1. ``$NMEM_SPACE`` env var (explicit override).
+    2. Lowercased basename of the directory that holds ``git rev-parse --git-common-dir``.
+       Using ``--git-common-dir`` (rather than ``--show-toplevel``) means worktrees
+       share the main repo's space, which is the desired grouping.
+
+    Returns ``None`` when the cwd is not inside a Git repo or the lookup fails.
+    """
+    env_space = (os.environ.get("NMEM_SPACE") or "").strip().lower()
+    if env_space:
+        return env_space
+
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=str(project_path),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=2,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return None
+
+    if proc.returncode != 0:
+        return None
+
+    common_dir = (proc.stdout or "").strip()
+    if not common_dir:
+        return None
+
+    common_path = Path(common_dir)
+    if not common_path.is_absolute():
+        common_path = (project_path / common_path).resolve()
+    repo_root = common_path.parent
+    if not repo_root.exists():
+        return None
+
+    name = repo_root.name.strip().lower()
+    return name or None
+
+
 def _build_command(
     nmem: str,
     payload: dict[str, Any],
@@ -129,6 +174,10 @@ def _build_command(
         if nmem.lower().endswith(".cmd"):
             project = _cmd_exe_path(project)
         args.extend(["--project", project])
+
+        space = _resolve_space_from_cwd(project_path)
+        if space:
+            args.extend(["--space", space])
 
     return _build_nmem_command(nmem, *args)
 
@@ -183,7 +232,11 @@ def _run_capture_with_retries(
             continue
 
         last_returncode = proc.returncode
-        last_stderr = proc.stderr or ""
+        last_stderr = (
+            proc.stderr
+            or (proc.stdout if proc.returncode != 0 else "")
+            or ""
+        )
 
         if proc.returncode != 0 and legacy_command and _json_flag_unsupported(proc):
             try:
@@ -196,7 +249,11 @@ def _run_capture_with_retries(
                 continue
 
             last_returncode = legacy_proc.returncode
-            last_stderr = legacy_proc.stderr or ""
+            last_stderr = (
+                legacy_proc.stderr
+                or (legacy_proc.stdout if legacy_proc.returncode != 0 else "")
+                or ""
+            )
             if legacy_proc.returncode == 0:
                 # Older nmem builds may not support --json. In that mode the
                 # best compatibility signal is the command's successful exit,

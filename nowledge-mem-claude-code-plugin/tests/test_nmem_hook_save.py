@@ -1,4 +1,5 @@
 import importlib.util
+import os
 from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
@@ -31,6 +32,47 @@ def test_build_command_uses_unix_nmem_directly(tmp_path):
         "--project",
         str(tmp_path.resolve()),
     ]
+
+
+def test_build_command_adds_space_from_environment(tmp_path):
+    with patch.dict(os.environ, {"NMEM_SPACE": "Research Lane"}):
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "session-1", "cwd": str(tmp_path)},
+        )
+
+    assert "--space" in command
+    assert command[command.index("--space") + 1] == "research lane"
+
+
+def test_build_command_adds_space_from_git_common_dir(tmp_path):
+    project = tmp_path / "ExampleRepo"
+    project.mkdir()
+    subdir = project / "subdir"
+    subdir.mkdir()
+    with patch.dict(os.environ, {"NMEM_SPACE": ""}):
+        nmem_hook_save.subprocess.run(
+            ["git", "init", "-q"],
+            cwd=str(project),
+            check=True,
+        )
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "session-1", "cwd": str(subdir)},
+        )
+
+    assert "--space" in command
+    assert command[command.index("--space") + 1] == "examplerepo"
+
+
+def test_build_command_omits_space_outside_git_when_no_override(tmp_path):
+    with patch.dict(os.environ, {"NMEM_SPACE": ""}):
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "session-1", "cwd": str(tmp_path)},
+        )
+
+    assert "--space" not in command
 
 
 def test_build_command_accepts_camel_case_claude_hook_payload(tmp_path):
@@ -133,6 +175,25 @@ def test_run_capture_reports_uncaptured_when_transcript_never_flushes():
     assert captured is False
     assert returncode == 0
     assert stderr == ""
+
+
+def test_run_capture_reports_json_stdout_errors():
+    proc = CompletedProcess(
+        ["nmem"],
+        1,
+        stdout='{"error":"path_not_found","path":"/missing"}',
+        stderr="",
+    )
+
+    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0,)), \
+        patch.object(nmem_hook_save.subprocess, "run", return_value=proc):
+        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
+            ["/usr/local/bin/nmem", "--json", "t", "save"]
+        )
+
+    assert captured is False
+    assert returncode == 1
+    assert "path_not_found" in stderr
 
 
 def test_run_capture_falls_back_for_legacy_nmem_without_json_support():
