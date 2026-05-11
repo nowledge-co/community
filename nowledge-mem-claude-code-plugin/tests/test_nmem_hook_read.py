@@ -19,7 +19,7 @@ def _run_hook(tmp_path: Path, *, cwd: Path, env: dict[str, str]) -> subprocess.C
     hook_env["HOME"] = str(tmp_path / "home")
     (Path(hook_env["HOME"]) / "ai-now").mkdir(parents=True, exist_ok=True)
     return subprocess.run(
-        ["sh", str(SCRIPT_PATH)],
+        ["/bin/sh", str(SCRIPT_PATH)],
         cwd=str(cwd),
         env=hook_env,
         text=True,
@@ -114,11 +114,14 @@ def test_read_hook_falls_back_to_local_memory_file_without_nmem(tmp_path):
     memory_file = tmp_path / "home" / "ai-now" / "memory.md"
     memory_file.parent.mkdir(parents=True)
     memory_file.write_text("file briefing\n", encoding="utf-8")
+    bin_dir = tmp_path / "no-nmem-bin"
+    bin_dir.mkdir()
+    (bin_dir / "cat").symlink_to("/bin/cat")
 
     result = _run_hook(
         tmp_path,
         cwd=tmp_path,
-        env={"PATH": "/bin:/usr/bin", "NMEM_SPACE": ""},
+        env={"PATH": str(bin_dir), "NMEM_SPACE": ""},
     )
 
     assert result.returncode == 0
