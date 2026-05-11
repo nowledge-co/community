@@ -1,4 +1,5 @@
 import importlib.util
+import os
 from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
@@ -31,6 +32,47 @@ def test_build_command_uses_unix_nmem_directly(tmp_path):
         "--project",
         str(tmp_path.resolve()),
     ]
+
+
+def test_build_command_adds_space_from_environment(tmp_path):
+    with patch.dict(os.environ, {"NMEM_SPACE": "Research Lane"}):
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "session-1", "cwd": str(tmp_path)},
+        )
+
+    assert "--space" in command
+    assert command[command.index("--space") + 1] == "research lane"
+
+
+def test_build_command_adds_space_from_git_common_dir(tmp_path):
+    project = tmp_path / "ExampleRepo"
+    project.mkdir()
+    subdir = project / "subdir"
+    subdir.mkdir()
+    with patch.dict(os.environ, {"NMEM_SPACE": ""}):
+        nmem_hook_save.subprocess.run(
+            ["git", "init", "-q"],
+            cwd=str(project),
+            check=True,
+        )
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "session-1", "cwd": str(subdir)},
+        )
+
+    assert "--space" in command
+    assert command[command.index("--space") + 1] == "examplerepo"
+
+
+def test_build_command_omits_space_outside_git_when_no_override(tmp_path):
+    with patch.dict(os.environ, {"NMEM_SPACE": ""}):
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "session-1", "cwd": str(tmp_path)},
+        )
+
+    assert "--space" not in command
 
 
 def test_build_command_accepts_camel_case_claude_hook_payload(tmp_path):
