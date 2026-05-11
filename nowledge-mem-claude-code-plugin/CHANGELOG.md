@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - SessionStart and compact Working Memory reload now share one hook script instead of duplicating the same shell pipeline in `hooks.json`. Behavior is unchanged: project-space Working Memory is tried first when a space resolves, then default-space `nmem wm read`, then `~/ai-now/memory.md`.
 - Added regression coverage for the read hook's git-space resolution, `NMEM_SPACE` override, default-space fallback, and local file fallback.
+- The `~/ai-now/memory.md` fallback remains available even if Claude Code launches a hook without `CLAUDE_PLUGIN_ROOT`.
 
 ## [0.7.8] - 2026-05-07
 

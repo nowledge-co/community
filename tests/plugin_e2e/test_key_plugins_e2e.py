@@ -246,6 +246,42 @@ def test_key_plugin_static_contracts_are_declared():
     assert "nowledge_mem_save_thread" in opencode_source
 
 
+def test_claude_read_hooks_keep_file_fallback_without_plugin_root(tmp_path):
+    hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
+    home = tmp_path / "home"
+    memory_file = home / "ai-now" / "memory.md"
+    memory_file.parent.mkdir(parents=True)
+    memory_file.write_text("fallback briefing\n", encoding="utf-8")
+
+    env = {
+        "HOME": str(home),
+        "PATH": "/bin:/usr/bin",
+        "CLAUDE_PLUGIN_ROOT": "",
+    }
+    startup_command = hooks["SessionStart"][0]["hooks"][0]["command"]
+    startup = subprocess.run(
+        ["/bin/sh", "-c", startup_command],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=15,
+    )
+    assert startup.returncode == 0
+    assert startup.stdout.strip() == "fallback briefing"
+
+    compact_command = hooks["SessionStart"][1]["hooks"][0]["command"]
+    compact = subprocess.run(
+        ["/bin/sh", "-c", compact_command],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=15,
+    )
+    assert compact.returncode == 0
+    assert "fallback briefing" in compact.stdout
+    assert "Context was compacted" in compact.stdout
+
+
 def test_key_plugin_credentials_stay_out_of_static_runtime_urls():
     hermes_client = (HERMES_PLUGIN / "client.py").read_text(encoding="utf-8").lower()
     openclaw_client = (OPENCLAW_PLUGIN / "src" / "client.js").read_text(encoding="utf-8").lower()

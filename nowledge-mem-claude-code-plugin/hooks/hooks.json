@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-read.sh\"; [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\" || true"
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-read.sh\"; { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\"; } || cat \"$HOME/ai-now/memory.md\" 2>/dev/null || true"
           }
         ]
       },
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-read.sh\"; { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\" || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-read.sh\"; { { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\"; } || cat \"$HOME/ai-now/memory.md\" 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
           }
         ]
       }
