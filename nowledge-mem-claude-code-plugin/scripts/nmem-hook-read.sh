@@ -3,10 +3,14 @@
 
 if ! command -v nmem >/dev/null 2>&1; then
   if command -v nmem.cmd >/dev/null 2>&1; then
+    escape_cmd_arg() {
+      printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+    }
+
     nmem() {
       q=""
       for a in "$@"; do
-        q="$q \"$a\""
+        q="$q \"$(escape_cmd_arg "$a")\""
       done
       cmd.exe /s /c "\"nmem.cmd\"$q"
     }

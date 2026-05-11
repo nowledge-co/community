@@ -153,9 +153,11 @@ esac
     result = _run_hook(
         tmp_path,
         cwd=tmp_path,
-        env={"PATH": f"{bin_dir}:/bin:/usr/bin", "NMEM_SPACE": ""},
+        env={"PATH": f"{bin_dir}:/bin:/usr/bin", "NMEM_SPACE": 'project"2024'},
     )
 
     assert result.returncode == 0
     assert result.stdout.strip() == "cmd briefing"
-    assert '"nmem.cmd" "--json" "wm" "read"' in calls.read_text(encoding="utf-8")
+    command = calls.read_text(encoding="utf-8")
+    assert '"nmem.cmd" "--json" "wm" "read"' in command
+    assert '"project\\"2024"' in command
