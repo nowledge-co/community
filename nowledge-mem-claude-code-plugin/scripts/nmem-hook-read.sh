@@ -2,14 +2,13 @@
 # Best-effort Working Memory injection for Claude Code lifecycle hooks.
 
 if ! command -v nmem >/dev/null 2>&1; then
-  NMEM_CMD="$(command -v nmem.cmd 2>/dev/null || true)"
-  if [ -n "$NMEM_CMD" ]; then
+  if command -v nmem.cmd >/dev/null 2>&1; then
     nmem() {
       q=""
       for a in "$@"; do
         q="$q \"$a\""
       done
-      cmd.exe /s /c "\"$NMEM_CMD\"$q"
+      cmd.exe /s /c "\"nmem.cmd\"$q"
     }
   fi
 fi
