@@ -79,6 +79,7 @@ class NowledgeMemClient:
         limit: int = 10,
         filter_labels: Optional[List[str]] = None,
         mode: Optional[str] = None,
+        min_importance: Optional[float] = None,
     ) -> Any:
         """Search memories. CLI requires a query string."""
         if not query:
@@ -91,6 +92,8 @@ class NowledgeMemClient:
                 cmd.extend(["-l", label])
         if mode == "deep":
             cmd.extend(["--mode", "deep"])
+        if min_importance is not None:
+            cmd.extend(["--importance", str(min_importance)])
         return self._cli(cmd)
 
     def save(

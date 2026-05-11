@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## [0.5.14] - 2026-05-10
+
+### Added
+
+- `nmem_search` now exposes `min_importance`, forwarding it to `nmem m search --importance` so Hermes can filter out lower-priority memories during recall.
+
 ## [0.5.13] - 2026-05-02
 
 ### Fixed
