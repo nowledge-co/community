@@ -1,10 +1,12 @@
 # Nowledge Mem Plugin for Proma
 
-Integrates Nowledge Mem's personal knowledge graph into Proma, providing persistent cross-session memory through MCP tools, lifecycle hooks, and a companion skill.
+Integrates Nowledge Mem's personal knowledge graph into [Proma](https://github.com/proma-ai/proma), an extensible desktop AI agent built on the Claude Agent SDK. Provides persistent cross-session memory through MCP tools, lifecycle hooks, and companion skills.
+
+> **What is Proma?** Proma is a desktop AI agent application that combines a chat UI with an extensible plugin/skill system. It uses the Claude Agent SDK under the hood, giving it access to the same MCP and hook infrastructure as Claude Code, but with its own configuration surface (`mcp.json` with `"servers"` key, `settings.json` for hooks, workspace-level skills). Think of it as "Claude Code with a desktop GUI and plugin marketplace." [GitHub: proma-ai/proma](https://github.com/proma-ai/proma)
 
 ## Prerequisites
 
-- [Proma](https://proma.ai) desktop app or CLI
+- [Proma](https://github.com/proma-ai/proma) desktop app
 - Nowledge Mem server running (desktop app or remote)
 - Python 3.9+ (for hook scripts)
 - `nmem` CLI in PATH (bundled with [Nowledge Mem desktop app](https://mem.nowledge.co/), or `pip install nmem-cli`)
@@ -83,13 +85,16 @@ Merge the hooks configuration from `hooks/hooks.json` into `~/.proma/settings.js
 
 Replace `<proma-home>` with your actual Proma home path (usually `~/.proma` on macOS/Linux or `C:\Users\<user>\.proma` on Windows).
 
-### 4. Install the Skill
+### 4. Install the Skills
 
-Copy the nmem skill to your Proma workspace:
+Copy the skill files to your Proma workspace:
 
 ```bash
-mkdir -p ~/.proma/agent-workspaces/default/skills/nmem/
-cp skills/nmem/SKILL.md ~/.proma/agent-workspaces/default/skills/nmem/
+cp -r skills/read-working-memory ~/.proma/agent-workspaces/default/skills/
+cp -r skills/search-memory ~/.proma/agent-workspaces/default/skills/
+cp -r skills/distill-memory ~/.proma/agent-workspaces/default/skills/
+cp -r skills/save-thread ~/.proma/agent-workspaces/default/skills/
+cp -r skills/status ~/.proma/agent-workspaces/default/skills/
 ```
 
 ### 5. (Recommended) Add CLAUDE.md Guidance
@@ -124,7 +129,8 @@ Proma Agent
   |-- mcp.json  -->  nmem MCP server (tools: search, save, status)
   |-- Stop Hook -->  save-to-nmem.py   (auto-capture sessions)
   |-- SessionStart Hook --> read-working-memory.py (inject context)
-  |-- nmem Skill --> /nmem-save, /nmem-search, /nmem-status
+  |-- Skills -->  read-working-memory, search-memory, distill-memory,
+  |               save-thread, status
 ```
 
 ## How It Works
@@ -132,7 +138,7 @@ Proma Agent
 1. **MCP Tools** — `mcp__nowledge-mem__*` tools are available to the agent for on-demand memory operations: search past decisions, save new learnings, read working memory.
 2. **Stop Hook** — After every agent response, `save-to-nmem.py` parses the current Proma session JSONL (`~/.proma/agent-sessions/<id>.jsonl`) and uploads the messages to nmem's thread store via REST API.
 3. **SessionStart Hook** — On new or resumed sessions, `read-working-memory.py` calls `nmem wm read` and outputs the briefing for context injection.
-4. **Skill** — Slash commands provide manual control as a fallback.
+4. **Skills** — Standard skills for read-working-memory, search-memory, distill-memory, save-thread, and status. Slash commands (`/nmem-save`, `/nmem-search`, `/nmem-status`) provide manual control as a fallback.
 
 ### Session Format
 

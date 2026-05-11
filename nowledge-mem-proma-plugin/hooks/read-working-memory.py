@@ -34,7 +34,8 @@ def log(msg: str) -> None:
 
 
 def _find_nmem() -> str | None:
-    """Locate the nmem CLI executable."""
+    """Locate the nmem CLI executable.  Checks PATH first, then common
+    install paths, then falls back to ``uvx --from nmem-cli nmem``."""
     found = shutil.which("nmem") or shutil.which("nmem.cmd")
     if found:
         return found
@@ -46,6 +47,10 @@ def _find_nmem() -> str | None:
     for p in candidates:
         if p.exists():
             return str(p)
+    # uvx fallback (per plugin development guide)
+    uvx = shutil.which("uvx") or shutil.which("uv")
+    if uvx:
+        return uvx  # caller will prepend "uvx --from nmem-cli nmem" args
     return None
 
 
@@ -55,7 +60,11 @@ def read_working_memory() -> dict[str, Any] | None:
         log("nmem CLI not found")
         return None
 
-    cmd = [nmem, "--json", "wm", "read"]
+    # If _find_nmem returned uvx, prepend the nmem package args
+    if nmem.endswith("uvx") or nmem.endswith("uv"):
+        cmd = [nmem, "--from", "nmem-cli", "nmem", "--json", "wm", "read"]
+    else:
+        cmd = [nmem, "--json", "wm", "read"]
     # Wrap .cmd files through cmd.exe
     if nmem.lower().endswith(".cmd"):
         cmd = ["cmd.exe", "/s", "/c", subprocess.list2cmdline(cmd)]

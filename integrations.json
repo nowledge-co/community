@@ -609,7 +609,7 @@
         "prefix": "mcp__nowledge-mem__",
         "note": "MCP tools auto-prefixed by Proma Agent SDK; Proma also has built-in mcp__mem__ tools for session-level memory"
       },
-      "skills": ["nmem"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": ["/nmem-save", "/nmem-search", "/nmem-status"]
     },
     {
