@@ -232,7 +232,11 @@ def _run_capture_with_retries(
             continue
 
         last_returncode = proc.returncode
-        last_stderr = proc.stderr or ""
+        last_stderr = (
+            proc.stderr
+            or (proc.stdout if proc.returncode != 0 else "")
+            or ""
+        )
 
         if proc.returncode != 0 and legacy_command and _json_flag_unsupported(proc):
             try:
@@ -245,7 +249,11 @@ def _run_capture_with_retries(
                 continue
 
             last_returncode = legacy_proc.returncode
-            last_stderr = legacy_proc.stderr or ""
+            last_stderr = (
+                legacy_proc.stderr
+                or (legacy_proc.stdout if legacy_proc.returncode != 0 else "")
+                or ""
+            )
             if legacy_proc.returncode == 0:
                 # Older nmem builds may not support --json. In that mode the
                 # best compatibility signal is the command's successful exit,

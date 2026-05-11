@@ -177,6 +177,25 @@ def test_run_capture_reports_uncaptured_when_transcript_never_flushes():
     assert stderr == ""
 
 
+def test_run_capture_reports_json_stdout_errors():
+    proc = CompletedProcess(
+        ["nmem"],
+        1,
+        stdout='{"error":"path_not_found","path":"/missing"}',
+        stderr="",
+    )
+
+    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0,)), \
+        patch.object(nmem_hook_save.subprocess, "run", return_value=proc):
+        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
+            ["/usr/local/bin/nmem", "--json", "t", "save"]
+        )
+
+    assert captured is False
+    assert returncode == 1
+    assert "path_not_found" in stderr
+
+
 def test_run_capture_falls_back_for_legacy_nmem_without_json_support():
     calls = [
         CompletedProcess(
