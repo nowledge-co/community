@@ -564,6 +564,55 @@
       "slashCommands": []
     },
     {
+      "id": "proma",
+      "name": "Proma",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-proma-plugin",
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "hook",
+        "note": "Stop hook runs save-to-nmem.py which parses Proma session JSONL from ~/.proma/agent-sessions/ and uploads messages to nmem via REST API. SessionStart hook injects Working Memory via read-working-memory.py."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "automatic",
+        "distill": "automatic",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Add Nowledge Mem MCP server to ~/.proma/agent-workspaces/default/mcp.json (key: servers)",
+          "Copy hook scripts to ~/.proma/hooks/",
+          "Add Stop and SessionStart hooks to ~/.proma/settings.json",
+          "Copy nmem skill to ~/.proma/agent-workspaces/default/skills/nmem/",
+          "Add nmem usage guidance to CLAUDE.md for tool selection (nmem vs built-in MemOS)",
+          "Restart Proma after configuration changes"
+        ]
+      },
+      "install": {
+        "command": "Manual setup — see plugin README for step-by-step instructions",
+        "updateCommand": "Replace hook scripts and skill files from latest plugin release",
+        "detectionHint": "~/.proma/agent-workspaces/default/mcp.json contains nowledge-mem server",
+        "docsUrl": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-proma-plugin"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "prefix": "mcp__nowledge-mem__",
+        "note": "MCP tools auto-prefixed by Proma Agent SDK; Proma also has built-in mcp__mem__ tools for session-level memory"
+      },
+      "skills": ["nmem"],
+      "slashCommands": ["/nmem-save", "/nmem-search", "/nmem-status"]
+    },
+    {
       "id": "npx-skills",
       "name": "npx Skills",
       "category": "surface",
