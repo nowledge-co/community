@@ -1,0 +1,53 @@
+# TLS overlay — adds a Caddy reverse-proxy sidecar in front of the headless
+# server. Caddy handles automatic Let's Encrypt certificates, HTTP-to-HTTPS
+# redirects, and HSTS.
+#
+# Apply on top of compose.yaml:
+#   NOWLEDGE_DOMAIN=mem.example.com NOWLEDGE_LE_EMAIL=you@example.com \
+#     docker compose -f compose.yaml -f compose.tls.yaml up -d
+#
+# Prerequisites:
+#   - A DNS A/AAAA record for NOWLEDGE_DOMAIN pointing at this host.
+#   - Ports 80 and 443 reachable from the internet (Let's Encrypt challenge).
+#
+# This overlay also rebinds the upstream Mem port to localhost so the only
+# externally reachable surface is Caddy itself.
+
+services:
+  mem:
+    ports: !reset
+      - "127.0.0.1:14242:14242"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: nowledge-mem-caddy
+    restart: unless-stopped
+    depends_on:
+      mem:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    environment:
+      NOWLEDGE_DOMAIN: ${NOWLEDGE_DOMAIN:?set NOWLEDGE_DOMAIN to your fully qualified hostname}
+      NOWLEDGE_LE_EMAIL: ${NOWLEDGE_LE_EMAIL:?set NOWLEDGE_LE_EMAIL for Let's Encrypt account}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data           # Let's Encrypt account + certificates
+      - caddy_config:/config
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  caddy_data:
+  caddy_config:
