@@ -38,7 +38,7 @@
       },
       "install": {
         "command": "claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "claude plugin marketplace update && claude plugin update nowledge-mem@nowledge-community",
+        "updateCommand": "claude plugin marketplace add nowledge-co/community && claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running as Claude Code agent; ~/.claude/ exists",
         "docsUrl": "/docs/integrations/claude-code"
       },
@@ -84,7 +84,7 @@
       },
       "install": {
         "command": "copilot plugin marketplace add nowledge-co/community && copilot plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem",
+        "updateCommand": "copilot plugin marketplace add nowledge-co/community && copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem",
         "detectionHint": "Running as GitHub Copilot CLI agent; ~/.copilot/ exists",
         "docsUrl": "/docs/integrations/copilot-cli"
       },
@@ -411,8 +411,8 @@
         ]
       },
       "install": {
-        "command": "python3 -m pip install nowledge-mem-bub",
-        "updateCommand": "python3 -m pip install --upgrade nowledge-mem-bub",
+        "command": "python3 -m pip install nowledge-mem-bub || python -m pip install nowledge-mem-bub || py -3 -m pip install nowledge-mem-bub",
+        "updateCommand": "python3 -m pip install --upgrade nowledge-mem-bub || python -m pip install --upgrade nowledge-mem-bub || py -3 -m pip install --upgrade nowledge-mem-bub",
         "detectionHint": "Running inside Bub",
         "docsUrl": "/docs/integrations/bub"
       },
