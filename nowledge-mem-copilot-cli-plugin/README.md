@@ -113,6 +113,7 @@ The session-start Working Memory read, per-turn guidance, skills, and background
 ## Update
 
 ```bash
+copilot plugin marketplace add nowledge-co/community
 copilot plugin marketplace update nowledge-community
 copilot plugin update nowledge-mem
 ```
