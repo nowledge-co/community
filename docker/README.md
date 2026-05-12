@@ -31,7 +31,7 @@ docker compose pull
 docker compose up -d        # restart with new image, all three volumes intact
 ```
 
-### The two contracts that make this work — and that we will not break
+### The three contracts that make this work — and that we will not break
 
 1. **UID 10001 is forever.** The container runs as `uid=10001 gid=10001`.
    Files in your volumes are owned by 10001:10001 on the host. Every future
@@ -43,6 +43,18 @@ docker compose up -d        # restart with new image, all three volumes intact
    move. The `XDG_*` env vars inside the image will not move either. You can
    bind your compose volumes to wherever you want on the host without worrying
    about path drift across releases.
+3. **Your device identity lives in the `config` volume.** A UUID seed at
+   `/etc/nowledge-mem/co.nowledge.mem.desktop/machine_id` (auto-generated on
+   first start) is what the license backend sees as your device. So:
+   - `docker compose down && up -d` → same device, license stays activated.
+   - `docker compose pull && up -d` → same device, license stays activated.
+   - `docker compose down -v` → device gone, equivalent to a fresh install.
+   - Moving the volume to another host → license follows the volume.
+   - Fleet operators: override with `NOWLEDGE_DEVICE_FINGERPRINT=<value>` env
+     for centralized identity (e.g. derived from a secret manager).
+   This is the contract that makes the per-license device cap meaningful when
+   running in containers — without it, every container restart would look
+   like a brand-new device to the license server.
 
 ### Air-gapped / pre-baked models
 
