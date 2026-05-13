@@ -133,8 +133,10 @@ You need:
 
 - A DNS A/AAAA record for `NOWLEDGE_DOMAIN` pointing at this host.
 - Ports `80` and `443` open to the internet (Let's Encrypt HTTP-01 challenge).
-- Docker Compose **v2.24 or newer** (the overlay uses the `!reset` tag to
-  rebind the upstream port, which earlier versions don't understand).
+- Docker Compose **v2.24.4 or newer**. The overlay uses the `!override`
+  merge tag to rebind the upstream port; this tag (and the related
+  `!reset`) only became reliable in 2.24.4. Earlier 2.24.x versions
+  either fail to parse the file or silently drop the rebind.
 
 The mem container is rebound to `127.0.0.1` so the only reachable surface is
 Caddy.
@@ -150,6 +152,33 @@ The server enforces two independent things:
   network call, and persists in the `config` volume.
 - **An API key** (`remote-access.json`) — bearer-token auth on every non-public
   endpoint. The web UI uses the same key.
+
+### Where is my API key? (read this first)
+
+The image generates an API key on first start. Four ways to retrieve or
+rotate it — pick whichever fits how you got here:
+
+```bash
+# 1. You ran ./bootstrap.sh and missed the output — just rerun it:
+./bootstrap.sh                            # reprints the key, license, URL
+
+# 2. You started with `docker compose up -d` directly:
+docker compose exec -T mem nmem key       # prints the current key
+docker compose exec -T mem nmem key --rotate   # rotates to a new value
+
+# 3. You want to skim the first-run banner:
+docker compose logs mem | grep -A 1 "API Key"
+
+# 4. You prefer one command that handles rotation cleanly:
+./bootstrap.sh rotate-key                 # rotates and reprints
+```
+
+The key is stored at `/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json`
+inside the `config` volume; it survives `docker compose pull && up -d`
+upgrades. **Backing up the `config` volume backs up the key.**
+
+If you rotate the key, every existing client (web UI, MCP clients, the
+`nmem` CLI on remote machines) needs the new value pasted in.
 
 ### What's exempt from auth
 
