@@ -284,6 +284,29 @@ you pulled was not produced by our pipeline.
 
 ---
 
+## Architecture support
+
+The image ships a multi-arch manifest for **`linux/amd64`** and
+**`linux/arm64`**. Docker pulls the matching variant automatically.
+
+- **`amd64` — primary supported target.** Every release runs the full
+  ingest/agent/search loop on amd64 before tagging.
+- **`arm64` — experimental.** The build succeeds and all native
+  dependency wheels (Kuzu/ladybug, ONNX, tokenizers, BGE-m3) exist for
+  arm64, but we don't yet routinely exercise full agent flows on this
+  arch. Expected hosts: Ampere/Graviton VPS, Apple Silicon under
+  Docker Desktop, Raspberry Pi 5 with 8 GiB RAM. If you hit
+  arch-specific behaviour, please file an issue with `arch: arm64`
+  in the body so we can fold it into the supported set.
+
+If you need a specific arch, pin it explicitly:
+
+```bash
+docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:0.8.4
+```
+
+---
+
 ## Day-2 operations
 
 ### Backup
