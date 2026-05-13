@@ -54,12 +54,14 @@ bring_up_and_wait() {
   "${DC[@]}" up -d
 
   step "Waiting for /livez (up to 120s)"
+  # `i` is 1-indexed and the first probe runs before any sleep, so elapsed
+  # seconds is `(i-1)*2`, not `i*2`. Was off by 2s on the first probe.
   for i in $(seq 1 60); do
     if "${DC[@]}" exec -T "$SVC" \
         /opt/nowledge-mem/python/bin/python3 -c \
           'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen("http://127.0.0.1:14242/livez", timeout=4).status==200 else 1)' \
         >/dev/null 2>&1; then
-      note "ready in $((i*2))s"
+      note "ready in $(( (i - 1) * 2 ))s"
       return 0
     fi
     sleep 2
@@ -69,6 +71,17 @@ bring_up_and_wait() {
   done
 }
 
+# Read the effective NOWLEDGE_DOMAIN that Compose will inject — works whether
+# the operator exported it to the shell or put it in a `.env` next to
+# compose.yaml for Compose interpolation. Returns empty if neither path
+# defines it.
+resolve_tls_domain() {
+  local val
+  val="$("${DC[@]}" config 2>/dev/null \
+        | awk '$1=="NOWLEDGE_DOMAIN:"{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2; exit}')" || val=""
+  printf '%s\n' "${val%\"}" | sed 's/^"//; s/"$//'
+}
+
 cmd="${1:-up}"
 
 case "$cmd" in
@@ -76,7 +89,10 @@ case "$cmd" in
     bring_up_and_wait
 
     step "Access Anywhere API key (paste into the web UI when prompted)"
-    KEY="$("${DC[@]}" exec -T "$SVC" nmem key 2>/dev/null | tr -d '\r\n')"
+    # `|| KEY=""` so a failing `nmem key` lets the friendly check below
+    # surface the diagnostic instead of `set -e` silently aborting the
+    # script in the middle of a command-substitution pipeline.
+    KEY="$("${DC[@]}" exec -T "$SVC" nmem key 2>/dev/null | tr -d '\r\n')" || KEY=""
     if [[ -z "$KEY" ]]; then
       fail "could not retrieve API key (\`nmem key\` returned empty)."
     fi
@@ -90,9 +106,16 @@ case "$cmd" in
     step "Open the web UI"
     # If the TLS overlay is active, mem is bound to loopback and traffic
     # is supposed to flow through Caddy on 443. Print the HTTPS URL so
-    # operators don't chase a non-routable HTTP endpoint.
-    if [[ "$NMEM_COMPOSE_FILES" == *compose.tls.yaml* && -n "${NOWLEDGE_DOMAIN:-}" ]]; then
-      note "https://${NOWLEDGE_DOMAIN}/app"
+    # operators don't chase a non-routable HTTP endpoint. Ask Compose
+    # for the *merged* NOWLEDGE_DOMAIN so an operator who keeps it in
+    # `.env` (for Compose interpolation, not shell export) is handled
+    # the same as one who `export`s it.
+    TLS_DOMAIN=""
+    if [[ "$NMEM_COMPOSE_FILES" == *compose.tls.yaml* ]]; then
+      TLS_DOMAIN="$(resolve_tls_domain)"
+    fi
+    if [[ -n "$TLS_DOMAIN" ]]; then
+      note "https://${TLS_DOMAIN}/app"
     else
       # Resolve an externally reachable URL hint, best-effort. `hostname -I`
       # is Linux-only and exits non-zero on macOS/BSD; the `|| true` keeps
