@@ -108,10 +108,10 @@ certificate for you.
 
 ```bash
 docker compose up -d
-docker compose logs -f mem                                 # wait for "Application startup complete"
-docker compose exec mem nmem key                           # show the API key
-docker compose exec mem nmem license status                # license tier
-docker compose exec mem nmem license activate <CODE>       # optional
+docker compose logs -f mem                                    # wait for "Application startup complete"
+docker compose exec -T mem nmem key                           # show the API key
+docker compose exec -T mem nmem license status                # license tier
+docker compose exec -T mem nmem license activate <CODE>       # optional
 
 # macOS:   open http://localhost:14242/app
 # Linux:   xdg-open http://localhost:14242/app
@@ -180,10 +180,10 @@ up the key.
 
 ```bash
 # Show the current key
-./bootstrap.sh                            # or: docker compose exec mem nmem key
+./bootstrap.sh                            # or: docker compose exec -T mem nmem key
 
 # Rotate (invalidates the old value immediately; re-paste in clients)
-./bootstrap.sh rotate-key                 # or: docker compose exec mem nmem key --rotate
+./bootstrap.sh rotate-key                 # or: docker compose exec -T mem nmem key --rotate
 
 # Pre-seed a known key (useful for fleets managed by a secret manager).
 # Write the file before first `docker compose up`:
@@ -198,8 +198,9 @@ chmod 0600 ./seed/co.nowledge.mem.desktop/remote-access.json
 
 ### Rate-limit recovery
 
-After 5 invalid-auth attempts from the same client IP, the server blocks
-that IP for **15 minutes**. If you locked yourself out during testing:
+After **8 invalid-auth attempts within a 5-minute window** from the same
+client IP, the server blocks that IP for **10 minutes**. If you locked
+yourself out during testing:
 
 ```bash
 docker compose restart mem        # clears the in-memory rate-limit window
@@ -242,7 +243,7 @@ identity that produced the build.
 
 ```bash
 cosign verify docker.io/nowledgelabs/mem:0.8.4 \
-  --certificate-identity-regexp='https://github.com/nowledge-co/nowledge-mem/.github/workflows/release-docker.yml@.*' \
+  --certificate-identity-regexp='https://github.com/nowledge-co/mem/.github/workflows/release-docker.yml@.*' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 ```
 

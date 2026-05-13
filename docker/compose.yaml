@@ -8,8 +8,8 @@
 # Quick start:
 #   docker compose up -d
 #   docker compose logs -f mem
-#   docker compose exec mem nmem license activate <BASE64-CODE>
-#   docker compose exec mem nmem key       # surfaces the web-UI login key
+#   docker compose exec -T mem nmem license activate <BASE64-CODE>
+#   docker compose exec -T mem nmem key      # surfaces the web-UI login key
 #   open http://<host>:14242/app
 #
 # Add TLS by overlaying compose.tls.yaml (Caddy sidecar, auto-Let's-Encrypt):
@@ -17,7 +17,7 @@
 #
 # Verify the image is signed by Nowledge Labs (anyone, anywhere):
 #   cosign verify docker.io/nowledgelabs/mem:0.8.4 \
-#     --certificate-identity-regexp='https://github.com/nowledge-co/nowledge-mem/.github/workflows/release-docker.yml@.*' \
+#     --certificate-identity-regexp='https://github.com/nowledge-co/mem/.github/workflows/release-docker.yml@.*' \
 #     --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 
 services:
