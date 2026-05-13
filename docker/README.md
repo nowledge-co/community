@@ -414,26 +414,39 @@ recurring, bump `mem_limit` per the table above or pin
 `NOWLEDGE_KUZU_BUFFER_POOL_SIZE` explicitly. See "Memory and recovery"
 above and `docs/design/HEADLESS_MEMORY_CONTRACT.md` for the full picture.
 
-**AI Now / feed agent hangs, /livez stops responding, container goes
-"unhealthy".** Different cause from the buffer-pool wedge above: the
-agent is retrying an LLM provider call that's failing (timeout, missing
-API key, or no provider configured at all). The retry loop holds CPU
-and embedding memory; the asyncio event loop gets starved and `/livez`
-falls off. Confirm with `docker stats nowledge-mem` (CPU near 200 %,
-memory near `mem_limit`) and `docker logs nowledge-mem | grep -i
-"timeout\|httpx.*timeout\|ReadTimeout" | tail -5`.
+**Feed agent / knowledge agent hangs the container, /livez goes
+"unhealthy".** Different cause from the buffer-pool wedge above: those
+agents do many synchronous BGE-m3 ONNX embedding passes during context
+gathering. Sync inference on CPU starves the asyncio event loop;
+in-flight `httpx` LLM responses can't be serviced and report
+`ReadTimeout` **even though the network and the LLM provider are
+fine**. The agent retries, doing more inference, and memory climbs
+toward `mem_limit`. Eventually Docker OOM-kills.
 
-Recover:
+Confirm:
 
 ```bash
-docker compose restart mem        # clears the loop
-# Then BEFORE re-triggering the agent:
-#   - Settings → Providers → confirm an LLM is configured with a working key
-#   - Or bump mem_limit to 8g per the table above for agent workloads
+docker stats --no-stream nowledge-mem
+# CPU near 200 %, memory near mem_limit → it's this failure mode.
+docker logs nowledge-mem | grep -E "httpx.*Timeout|ReadTimeout" | tail -3
+# Many of these → confirms the event-loop starvation pattern.
 ```
 
-The structural fix (bounded retries + structured error to UI) is tracked
-in `docs/design/HEADLESS_MEMORY_CONTRACT.md` Appendix A. Until that
-lands, the rule of thumb is: do not invoke agent flows on a deploy that
-hasn't been re-configured with a remote-LLM provider after a
-`down -v`.
+Recover and avoid recurrence:
+
+```bash
+docker compose restart mem        # kills the wedged agent loop
+# Then BEFORE re-triggering feed/knowledge:
+#   - Bump mem_limit to 8g per the table above. The default 4g is
+#     sized for passive (graph + web UI + idle embedding); agent
+#     flows need headroom for retries + the resident embedding model.
+#   - AI Now is lighter and works inside 4g; feed/knowledge are the
+#     heavyweights right now.
+```
+
+This is **not** a misconfigured LLM provider — verified by inspecting
+on-disk state, all three agents (AI Now, feed, knowledge) read the
+same `remote_llm.json`. The structural fix lives in the agent layer
+(off-event-loop ONNX inference, batched embedding calls, bounded
+retries) and is tracked in
+`docs/design/HEADLESS_MEMORY_CONTRACT.md` Appendix A (TODO 5.5a–5.5d).
