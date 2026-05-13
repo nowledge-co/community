@@ -15,7 +15,11 @@
 
 services:
   mem:
-    ports: !reset
+    # `!override` replaces the base ports list outright. `!reset` would just
+    # clear it (the base 14242:14242 would be removed and not replaced), which
+    # would leave host-side `curl http://127.0.0.1:14242/health` broken — even
+    # though Caddy still reaches mem internally via the Docker network.
+    ports: !override
       - "127.0.0.1:14242:14242"
 
   caddy:
