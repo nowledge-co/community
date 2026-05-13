@@ -300,6 +300,59 @@ docker compose logs -f mem
 - `GET /health` — process is up **and** the database is open. Use this for
   readiness gating (k8s readinessProbe, load balancer health check).
 
+### Memory and recovery
+
+The server uses KuzuDB for the graph, and KuzuDB has a per-process buffer
+pool. The pool is sized at startup from a heuristic over the current DB
+size and grown automatically as the data scales. Two things to know:
+
+**Sizing your container.** The compose default (`mem_limit: 4g`) is sized
+for a small-to-medium personal graph. As your data grows, lift the
+container:
+
+| DB size (steady state) | Recommended `mem_limit` |
+|---|---|
+| < 200 MB | 2 GB |
+| < 1 GB | **4 GB** (the compose default) |
+| 1 – 4 GB | 8 GB |
+| 4 – 16 GB | 16 GB |
+| > 16 GB | host-specific; pin `NOWLEDGE_KUZU_BUFFER_POOL_SIZE` explicitly |
+
+A rough rule: the Kuzu pool wants ~25% of the container budget; the
+embedding model wants ~1.4 GB; Python + uvicorn want ~500 MB; and you
+want ~25% headroom for OS page cache and ingestion temp buffers.
+
+**If a large upload fails with a 500 and the next few reads also 500**,
+you've hit a buffer-pool exhaustion (`docker compose logs mem | grep
+"Buffer manager exception"` confirms). Today's recovery:
+
+```bash
+docker compose restart mem
+# Then verify the new floor:
+curl -s http://127.0.0.1:14242/health \
+  | jq '{
+      pool:  .buffer_pool_current_mb,
+      floor: .buffer_pool_auto_floor_mb,
+      cap:   .buffer_pool_auto_cap_mb,
+      need_restart: .buffer_pool_restart_required
+    }'
+```
+
+The image self-escalates the floor on exhaustion and the next restart
+picks up the new value, so a single restart is normally enough. If
+exhaustion keeps recurring, your container's `mem_limit` is too low for
+your dataset — bump it per the table above and recreate the stack.
+
+**Power-user knobs:**
+
+- `NOWLEDGE_KUZU_BUFFER_POOL_SIZE` — pin the pool to a fixed size
+  (e.g. `1GB`, `512MB`). Disables both the heuristic and auto-escalation.
+  Use when you want deterministic capacity planning at scale.
+- *(roadmap)* `NOWLEDGE_KUZU_BUFFER_POOL_FLOOR_MB` and cgroup-aware
+  auto-cap detection are tracked in
+  `docs/design/HEADLESS_MEMORY_CONTRACT.md`; until those land, set the
+  explicit size above on tight-memory hosts.
+
 ---
 
 ## Secrets
@@ -354,3 +407,9 @@ to `npx`/`uvx`. The default image trusts outbound HTTPS but does not include
 those CLIs. For now, install plugins on the desktop app and they'll be picked
 up by the server via the shared config volume; first-class headless plugin
 install is on the roadmap.
+
+**A file upload returned 500 and now every page in the UI fails.** The Kuzu
+buffer pool exhausted. `docker compose restart mem` recovers; if it keeps
+recurring, bump `mem_limit` per the table above or pin
+`NOWLEDGE_KUZU_BUFFER_POOL_SIZE` explicitly. See "Memory and recovery"
+above and `docs/design/HEADLESS_MEMORY_CONTRACT.md` for the full picture.
