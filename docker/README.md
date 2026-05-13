@@ -65,7 +65,7 @@ once on a connected machine:
 # On a connected machine, with the same image:
 docker compose up -d
 # Trigger a search so embedding weights download:
-docker compose exec mem curl -s -H "Authorization: Bearer $(docker compose exec mem nmem key | tr -d '\r\n')" \
+docker compose exec -T mem curl -s -H "Authorization: Bearer $(docker compose exec -T mem nmem key | tr -d '\r\n')" \
   "http://127.0.0.1:14242/memories/search?q=warmup&limit=1" >/dev/null
 docker compose down
 

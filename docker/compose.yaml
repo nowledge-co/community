@@ -44,9 +44,10 @@ services:
 
     # Optional knobs. All env vars listed here have sane defaults in the image.
     environment:
-      # Restrict origins permitted through the /remote-api gateway. Comma-
-      # separated CIDR list; unset = no allowlist (gateway still requires a
-      # token; see docs for the auth header contract).
+      # Restrict client source IPs permitted through the /remote-api gateway
+      # (network-level allowlist, not CORS origins). Comma-separated CIDR
+      # list; unset = no allowlist (the gateway still requires a token; see
+      # docs for the auth header contract).
       NOWLEDGE_IP_ALLOWLIST: ""
 
     # ---- Security hardening -------------------------------------------------
