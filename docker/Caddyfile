@@ -1,0 +1,51 @@
+# Caddy configuration for fronting the headless Nowledge Mem server with TLS.
+#
+# This file is mounted read-only into the caddy sidecar. It uses runtime env
+# vars (NOWLEDGE_DOMAIN, NOWLEDGE_LE_EMAIL) sourced from compose.tls.yaml.
+#
+# What it does:
+#   - Obtains and renews a Let's Encrypt certificate for NOWLEDGE_DOMAIN.
+#   - Terminates TLS 1.2+ with HTTP/3 (QUIC) support.
+#   - Reverse-proxies all traffic to the mem container on port 14242.
+#   - Enables HSTS once you're confident the cert is stable. Uncomment when ready.
+#
+# The headless server's own /remote-api gateway and license/auth contract stay
+# intact behind this — Caddy only adds transport security and a hostname.
+
+{
+	# Use a real email for renewal notifications and account recovery.
+	email {$NOWLEDGE_LE_EMAIL}
+
+	# Global runtime logger (Caddy's own diagnostics, not per-request).
+	# Per-request access logs are configured in the site block below; Caddy
+	# v2 does not emit HTTP access logs unless a site-scoped `log` is set.
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$NOWLEDGE_DOMAIN} {
+	encode zstd gzip
+
+	# Per-request HTTP access logs in JSON to the caddy container's stdout.
+	# Pair with `docker compose logs -f caddy` (or your log aggregator).
+	log {
+		output stdout
+		format json
+	}
+
+	# Forward everything (SPA at /app, API, MCP, WebSockets, SSE) to mem:14242.
+	reverse_proxy mem:14242 {
+		# Streaming endpoints (SSE for graph intelligence, /agent/ai-now/*)
+		# need a long timeout and unbuffered pass-through.
+		flush_interval -1
+		transport http {
+			read_timeout  10m
+			write_timeout 10m
+		}
+	}
+
+	# Uncomment after first successful issuance and at least one renewal:
+	# header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+}

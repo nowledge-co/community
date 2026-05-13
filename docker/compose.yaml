@@ -1,0 +1,110 @@
+# Nowledge Mem — headless server reference compose.
+#
+# This is the minimal, opinionated way to run the official image locally or
+# on a single-host server. It is hardened by default: read-only rootfs,
+# nonroot user, all caps dropped, no-new-privileges, pids/memory limits,
+# bounded log rotation.
+#
+# Quick start:
+#   docker compose up -d
+#   docker compose logs -f mem
+#   docker compose exec -T mem nmem license activate <BASE64-CODE>
+#   docker compose exec -T mem nmem key      # surfaces the web-UI login key
+#   open http://<host>:14242/app
+#
+# Add TLS by overlaying compose.tls.yaml (Caddy sidecar, auto-Let's-Encrypt):
+#   docker compose -f compose.yaml -f compose.tls.yaml up -d
+#
+# Verify the image is signed by Nowledge Labs (anyone, anywhere):
+#   cosign verify docker.io/nowledgelabs/mem:0.8.4 \
+#     --certificate-identity-regexp='https://github.com/nowledge-co/mem/.github/workflows/release-docker.yml@.*' \
+#     --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
+
+services:
+  mem:
+    image: docker.io/nowledgelabs/mem:0.8.4
+    container_name: nowledge-mem
+    restart: unless-stopped
+
+    # The image already listens on 14242 inside the container. Map to the same
+    # port on the host by default. Bind to 127.0.0.1 if you intend to put a
+    # reverse proxy in front (the overlay file does exactly this).
+    ports:
+      - "14242:14242"
+
+    # Three-volume contract:
+    #   data   — irreplaceable (KuzuDB graph, content store)
+    #   config — valuable     (settings, license, OAuth tokens)
+    #   cache  — rebuildable  (embedding models, search index projection)
+    # Back up `data` and `config`. `cache` is safe to wipe.
+    volumes:
+      - data:/var/lib/nowledge-mem
+      - config:/etc/nowledge-mem
+      - cache:/var/cache/nowledge-mem
+
+    # Optional environment knobs. All env vars listed in the image have sane
+    # defaults; uncomment this block to override any. The image's full
+    # environment surface is documented in community/docker/README.md.
+    #
+    # environment:
+    #   # Restrict client source IPs permitted through the /remote-api gateway
+    #   # (network-level allowlist, not CORS origins). Comma-separated CIDR
+    #   # list. Leave unset for no allowlist (the gateway still requires a
+    #   # token; see docs for the auth header contract).
+    #   NOWLEDGE_IP_ALLOWLIST: "10.0.0.0/8,192.168.0.0/16"
+
+    # ---- Security hardening -------------------------------------------------
+    # The image is built so it never needs to write outside its named volumes.
+    # If your application data changes that, file a bug — don't relax these.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    user: "10001:10001"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+
+    # ---- Resource ceilings --------------------------------------------------
+    # The embedding model alone wants ~1 GB of RAM. 4 GB is a comfortable
+    # default for a small personal server; raise for heavy ingestion.
+    mem_limit: 4g
+    mem_reservation: 1g
+    cpus: 2.0
+
+    # ---- Logging ------------------------------------------------------------
+    # Backend already emits JSON to stdout. Let Docker rotate.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        compress: "true"
+
+    # ---- Healthcheck --------------------------------------------------------
+    # The image defines HEALTHCHECK against /livez. Compose can override the
+    # cadence if you want a different policy; the defaults below match the
+    # image. start_period accounts for first-run model warmup and Kuzu open.
+    healthcheck:
+      test: ["CMD", "/opt/nowledge-mem/python/bin/python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:14242/livez', timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+# Named volumes are local-driver by default. The explicit `name:` keys lock
+# the on-disk identifier so backup/reset commands don't depend on the project
+# name (which Compose derives from the current working directory and would
+# otherwise prefix to bare volume names).
+#
+# Bind to host paths if you prefer a known on-disk location (recommended for
+# backup workflows):
+#   data:    driver_opts: { type: none, o: bind, device: /srv/nowledge/data }
+volumes:
+  data:
+    name: nowledge-mem-data
+  config:
+    name: nowledge-mem-config
+  cache:
+    name: nowledge-mem-cache
