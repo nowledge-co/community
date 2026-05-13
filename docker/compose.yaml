@@ -89,10 +89,18 @@ services:
       retries: 3
       start_period: 90s
 
-# Named volumes are local-driver by default. Bind to host paths if you prefer
-# a known on-disk location (recommended for backup workflows):
+# Named volumes are local-driver by default. The explicit `name:` keys lock
+# the on-disk identifier so backup/reset commands don't depend on the project
+# name (which Compose derives from the current working directory and would
+# otherwise prefix to bare volume names).
+#
+# Bind to host paths if you prefer a known on-disk location (recommended for
+# backup workflows):
 #   data:    driver_opts: { type: none, o: bind, device: /srv/nowledge/data }
 volumes:
   data:
+    name: nowledge-mem-data
   config:
+    name: nowledge-mem-config
   cache:
+    name: nowledge-mem-cache

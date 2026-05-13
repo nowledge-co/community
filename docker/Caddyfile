@@ -16,8 +16,9 @@
 	# Use a real email for renewal notifications and account recovery.
 	email {$NOWLEDGE_LE_EMAIL}
 
-	# Encode JSON access logs (skip if you don't need them; logs go to stdout
-	# of the caddy container by default).
+	# Global runtime logger (Caddy's own diagnostics, not per-request).
+	# Per-request access logs are configured in the site block below; Caddy
+	# v2 does not emit HTTP access logs unless a site-scoped `log` is set.
 	log {
 		output stdout
 		format json
@@ -26,6 +27,13 @@
 
 {$NOWLEDGE_DOMAIN} {
 	encode zstd gzip
+
+	# Per-request HTTP access logs in JSON to the caddy container's stdout.
+	# Pair with `docker compose logs -f caddy` (or your log aggregator).
+	log {
+		output stdout
+		format json
+	}
 
 	# Forward everything (SPA at /app, API, MCP, WebSockets, SSE) to mem:14242.
 	reverse_proxy mem:14242 {

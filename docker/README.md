@@ -70,12 +70,12 @@ docker compose exec mem curl -s -H "Authorization: Bearer $(docker compose exec 
 docker compose down
 
 # Snapshot the cache volume:
-docker run --rm -v nowledge-mem_cache:/cache -v "$PWD":/dst alpine \
+docker run --rm -v nowledge-mem-cache:/cache -v "$PWD":/dst alpine \
   tar -C /cache -czf /dst/nmem-cache.tgz .
 
 # On the air-gapped machine:
-docker volume create nowledge-mem_cache
-docker run --rm -v nowledge-mem_cache:/cache -v "$PWD":/src alpine \
+docker volume create nowledge-mem-cache
+docker run --rm -v nowledge-mem-cache:/cache -v "$PWD":/src alpine \
   tar -C /cache -xzf /src/nmem-cache.tgz
 docker compose up -d
 ```
@@ -112,7 +112,10 @@ docker compose logs -f mem                                 # wait for "Applicati
 docker compose exec mem nmem key                           # show the API key
 docker compose exec mem nmem license status                # license tier
 docker compose exec mem nmem license activate <CODE>       # optional
-open http://localhost:14242/app
+
+# macOS:   open http://localhost:14242/app
+# Linux:   xdg-open http://localhost:14242/app
+# Windows: start http://localhost:14242/app
 ```
 
 ---
@@ -164,7 +167,7 @@ skip auth by default.
 
 ### Where the key lives
 
-```
+```text
 /etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json
                   ^                       ^
                   app namespace           mode 0600, owner nowledge:nowledge
@@ -190,7 +193,7 @@ cat > ./seed/co.nowledge.mem.desktop/remote-access.json <<EOF
 EOF
 chmod 0600 ./seed/co.nowledge.mem.desktop/remote-access.json
 # Then bind ./seed onto /etc/nowledge-mem in compose.yaml (or copy into the
-# volume with `docker run --rm -v config:/dst -v $PWD/seed:/src alpine cp -a /src/. /dst/`).
+# volume with `docker run --rm -v nowledge-mem-config:/dst -v "$PWD"/seed:/src alpine cp -a /src/. /dst/`).
 ```
 
 ### Rate-limit recovery
@@ -257,8 +260,8 @@ you pulled was not produced by our pipeline.
 
 ```bash
 docker run --rm \
-  -v nowledge-mem_data:/data:ro \
-  -v nowledge-mem_config:/config:ro \
+  -v nowledge-mem-data:/data:ro \
+  -v nowledge-mem-config:/config:ro \
   -v "$PWD":/backup \
   alpine \
   tar -C / -czf /backup/nowledge-mem-$(date +%F).tgz data config
@@ -281,7 +284,7 @@ once a newer image has opened the database, an older image will refuse to.
 
 ```bash
 docker compose down
-docker volume rm nowledge-mem_data nowledge-mem_config nowledge-mem_cache
+docker volume rm nowledge-mem-data nowledge-mem-config nowledge-mem-cache
 docker compose up -d
 ```
 
@@ -425,7 +428,7 @@ install is on the roadmap.
 buffer pool exhausted. `docker compose restart mem` recovers; if it keeps
 recurring, bump `mem_limit` per the table above or pin
 `NOWLEDGE_KUZU_BUFFER_POOL_SIZE` explicitly. See "Memory and recovery"
-above and `docs/design/HEADLESS_MEMORY_CONTRACT.md` for the full picture.
+above.
 
 **Feed agent / knowledge agent hangs the container, /livez goes
 "unhealthy".** Different cause from the buffer-pool wedge above: those
@@ -461,5 +464,5 @@ This is **not** a misconfigured LLM provider — verified by inspecting
 on-disk state, all three agents (AI Now, feed, knowledge) read the
 same `remote_llm.json`. The structural fix lives in the agent layer
 (off-event-loop ONNX inference, batched embedding calls, bounded
-retries) and is tracked in
-`docs/design/HEADLESS_MEMORY_CONTRACT.md` Appendix A (TODO 5.5a–5.5d).
+retries) and is tracked upstream; for now, sizing the container
+generously per the table above is the working mitigation.

@@ -50,4 +50,6 @@ services:
 
 volumes:
   caddy_data:
+    name: nowledge-mem-caddy-data
   caddy_config:
+    name: nowledge-mem-caddy-config
