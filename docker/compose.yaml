@@ -16,13 +16,13 @@
 #   docker compose -f compose.yaml -f compose.tls.yaml up -d
 #
 # Verify the image is signed by Nowledge Labs (anyone, anywhere):
-#   cosign verify docker.io/nowledge/mem:0.8.4 \
+#   cosign verify docker.io/nowledgelabs/mem:0.8.4 \
 #     --certificate-identity-regexp='https://github.com/nowledge-co/nowledge-mem/.github/workflows/release-docker.yml@.*' \
 #     --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 
 services:
   mem:
-    image: docker.io/nowledge/mem:0.8.4
+    image: docker.io/nowledgelabs/mem:0.8.4
     container_name: nowledge-mem
     restart: unless-stopped
 

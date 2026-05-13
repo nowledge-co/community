@@ -1,6 +1,6 @@
 # Run Nowledge Mem in Docker
 
-The official headless image at `docker.io/nowledge/mem` runs the full Nowledge
+The official headless image at `docker.io/nowledgelabs/mem` runs the full Nowledge
 Mem server: REST API, MCP, and the web UI at `/app`. The container ships the
 **same** PyArmor-protected Python bundle as the desktop release, runs as a
 non-root user, and lives entirely off three named volumes.
@@ -238,7 +238,7 @@ public keys to download or rotate — verification uses the GitHub Actions OIDC
 identity that produced the build.
 
 ```bash
-cosign verify docker.io/nowledge/mem:0.8.4 \
+cosign verify docker.io/nowledgelabs/mem:0.8.4 \
   --certificate-identity-regexp='https://github.com/nowledge-co/nowledge-mem/.github/workflows/release-docker.yml@.*' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 ```
