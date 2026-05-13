@@ -348,10 +348,23 @@ your dataset — bump it per the table above and recreate the stack.
 - `NOWLEDGE_KUZU_BUFFER_POOL_SIZE` — pin the pool to a fixed size
   (e.g. `1GB`, `512MB`). Disables both the heuristic and auto-escalation.
   Use when you want deterministic capacity planning at scale.
-- *(roadmap)* `NOWLEDGE_KUZU_BUFFER_POOL_FLOOR_MB` and cgroup-aware
-  auto-cap detection are tracked in
-  `docs/design/HEADLESS_MEMORY_CONTRACT.md`; until those land, set the
-  explicit size above on tight-memory hosts.
+- `NOWLEDGE_KUZU_BUFFER_POOL_FLOOR_MB` — override the auto-mode floor.
+  Headless containers default to **256 MB** so a fresh deploy can absorb
+  a first-day ingest workload. Set to `0` to opt out on tight-memory
+  hosts (e.g. 1 GiB VPS); set higher on bulk-ingest hosts.
+- `NOWLEDGE_AGENT_MAX_CONCURRENT` — per-agent-type concurrency cap.
+  Default **1** on headless, 2 on desktop. Raise to 2 on an 8 GiB
+  container, 3+ on a 16 GiB container. Above this cap the server
+  returns `AgentBusy` immediately rather than queueing — the browser
+  shows "agent is busy, try again in a few seconds" instead of
+  silently double-booking memory and OOM-killing the container.
+
+**Container memory cap is now cgroup-aware.** Earlier builds would
+size Kuzu's auto-cap from the *host's* RAM, ignoring your
+`mem_limit`. Starting 0.8.4 the auto-cap clamps to the cgroup
+`memory.max` (or v1 equivalent), so Mem cannot grow its graph memory
+past what Docker has actually given the container. No action needed
+— this just means `mem_limit: 4g` is honoured the way you'd expect.
 
 ---
 
