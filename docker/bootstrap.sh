@@ -87,15 +87,22 @@ case "$cmd" in
     step "License status"
     "${DC[@]}" exec -T "$SVC" nmem license status || true
 
-    # Resolve an externally reachable URL hint, best-effort. `hostname -I` is
-    # Linux-only and exits non-zero on macOS/BSD; the `|| true` keeps that
-    # from tripping `set -euo pipefail` before the localhost fallback runs.
-    if command -v hostname >/dev/null 2>&1; then
-      IP="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
-    fi
-    : "${IP:=localhost}"
     step "Open the web UI"
-    note "http://${IP}:14242/app"
+    # If the TLS overlay is active, mem is bound to loopback and traffic
+    # is supposed to flow through Caddy on 443. Print the HTTPS URL so
+    # operators don't chase a non-routable HTTP endpoint.
+    if [[ "$NMEM_COMPOSE_FILES" == *compose.tls.yaml* && -n "${NOWLEDGE_DOMAIN:-}" ]]; then
+      note "https://${NOWLEDGE_DOMAIN}/app"
+    else
+      # Resolve an externally reachable URL hint, best-effort. `hostname -I`
+      # is Linux-only and exits non-zero on macOS/BSD; the `|| true` keeps
+      # that from tripping `set -euo pipefail` before the localhost fallback.
+      if command -v hostname >/dev/null 2>&1; then
+        IP="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
+      fi
+      : "${IP:=localhost}"
+      note "http://${IP}:14242/app"
+    fi
     note "(paste the key above when asked for an API key)"
     ;;
 
@@ -114,6 +121,10 @@ case "$cmd" in
     ;;
 
   rotate-key)
+    # Same rationale as `activate`: `docker compose exec` requires a
+    # running container, so make rotation work even after `docker
+    # compose down`.
+    bring_up_and_wait
     step "Rotating Access Anywhere API key"
     note "Old key will stop working immediately. Web-UI sessions and MCP"
     note "clients must be re-authed with the new value."
