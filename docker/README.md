@@ -12,7 +12,11 @@ instead.
 > **For your agent.** Drop this URL into Claude / Codex / Cursor / any agent and
 > it will know how to install, monitor, and upgrade your Mem server on its own
 > (destructive operations stay with you):
-> `https://github.com/nowledge-co/community/blob/main/skills/nowledge-mem-docker/SKILL.md`
+>
+> `https://raw.githubusercontent.com/nowledge-co/community/main/skills/nowledge-mem-docker/SKILL.md`
+>
+> (Raw file URL — curl returns the markdown directly. The browsable version
+> is at `github.com/nowledge-co/community/blob/main/skills/nowledge-mem-docker/SKILL.md`.)
 
 ---
 
