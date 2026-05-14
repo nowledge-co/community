@@ -1189,7 +1189,32 @@ EOF
 cmd_auto_update_enable() {
   require_docker
   if is_auto_update_enabled; then
-    note "auto-update is already enabled."
+    local existing_token
+    existing_token="$(read_env_var NOWLEDGE_UPDATER_TOKEN)"
+    if [[ -n "$existing_token" ]]; then
+      note "auto-update is already enabled."
+      cmd_auto_update_status
+      return 0
+    fi
+
+    step "Repairing auto-update token"
+    note "The updater overlay is enabled, but NOWLEDGE_UPDATER_TOKEN is missing from .env."
+    local token
+    token="$(generate_token)"
+    write_env_var "NOWLEDGE_UPDATER_TOKEN" "$token"
+    ok "new token written to .env (mode 0600)"
+
+    step "Recreating updater and mem containers on the repaired token"
+    local persisted
+    persisted="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+    if [[ -n "$persisted" ]]; then
+      NMEM_COMPOSE_FILES="-f compose.yaml $persisted"
+    else
+      NMEM_COMPOSE_FILES="-f compose.yaml $AUTO_UPDATE_OVERLAY"
+    fi
+    DC=(docker compose ${NMEM_COMPOSE_FILES})
+    "${DC[@]}" up -d --force-recreate updater "$SVC" >/dev/null 2>&1
+    ok "both containers restarted on the repaired token"
     cmd_auto_update_status
     return 0
   fi
@@ -1266,7 +1291,7 @@ cmd_auto_update_status() {
   if [[ -n "$token" ]]; then
     note "token: present in .env (mode $(stat -f '%Lp' "$ENV_FILE" 2>/dev/null || stat -c '%a' "$ENV_FILE" 2>/dev/null))"
   else
-    warn "token MISSING from .env — re-run 'auto-update enable' to repair"
+    warn "token MISSING from .env — run './nmemctl auto-update enable' to regenerate it and restart the stack"
   fi
 
   local upd_id health
@@ -1279,11 +1304,17 @@ cmd_auto_update_status() {
     # Quick status probe via curl from a one-shot helper. The sidecar is
     # only reachable on the compose network, so we curl from inside the
     # network via `docker run --network` + the sidecar's container name.
-    local status_json
-    status_json="$(docker run --rm --network "$(docker inspect -f '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}}{{end}}' "$upd_id")" \
-      curlimages/curl:8.10.1 -fsS \
-      -H "Authorization: Bearer $token" \
-      "http://updater:8080/status" 2>/dev/null || true)"
+    local status_json network_name
+    network_name="$(docker inspect -f '{{range $k,$_ := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$upd_id" 2>/dev/null | head -n 1)"
+    if [[ -n "$network_name" ]]; then
+      status_json="$(docker run --rm --network "$network_name" \
+        curlimages/curl:8.10.1 -fsS \
+        -H "Authorization: Bearer $token" \
+        "http://updater:8080/status" 2>/dev/null || true)"
+    else
+      status_json=""
+      warn "could not detect updater compose network"
+    fi
     if [[ -n "$status_json" ]]; then
       printf '%s\n' "$status_json" | jq . 2>/dev/null \
         | sed 's/^/    /' || printf '    %s\n' "$status_json"

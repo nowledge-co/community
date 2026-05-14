@@ -381,10 +381,24 @@ case "$method $path" in
       mv "${snapshot_abs}.tmp" "${snapshot_abs}"
       audit "APPLY snapshot ok $(du -h "$snapshot_abs" | awk '{print $1}')"
 
-      # Step 3: rotate snapshots. Keep newest N.
+      # Step 3: rotate snapshots. Keep newest N. Clamp retain to at least
+      # one so a misconfigured NOWLEDGE_SNAPSHOT_RETAIN=0 cannot delete
+      # the snapshot we just created before compose/livez have succeeded.
+      case "${NOWLEDGE_SNAPSHOT_RETAIN:-3}" in
+        ''|*[!0-9]*)
+          retain=3
+          ;;
+        *)
+          retain=$NOWLEDGE_SNAPSHOT_RETAIN
+          ;;
+      esac
+      if [ "$retain" -lt 1 ]; then
+        audit "APPLY snapshot retain=$retain adjusted to 1 for current rollback artifact"
+        retain=1
+      fi
       # shellcheck disable=SC2012
       ls -1t "$SNAPSHOT_DIR"/_pre-upgrade-*.tar.gz 2>/dev/null \
-        | tail -n +"$((NOWLEDGE_SNAPSHOT_RETAIN + 1))" \
+        | tail -n +"$((retain + 1))" \
         | while read -r old; do
             audit "APPLY rotate rm $(basename "$old")"
             rm -f "$old"
@@ -396,7 +410,17 @@ case "$method $path" in
       # path (./nmemctl restore-app from the snapshot + ./nmemctl upgrade
       # <old-tag>) will overwrite .env again. Atomic write via temp+mv.
       env_file="/opt/compose/.env"
+      env_backup="/tmp/nowledge-mem-env-before-upgrade.$$"
       env_tmp="/opt/compose/.env.tmp.$$"
+      old_tag_was_set=0
+      old_tag=""
+      if [ -f "$env_file" ]; then
+        cp "$env_file" "$env_backup"
+        old_tag=$(awk -F= '/^NMEM_IMAGE_TAG=/ {print $2}' "$env_file" | tail -n 1)
+        [ -n "$old_tag" ] && old_tag_was_set=1
+      else
+        : > "$env_backup"
+      fi
       {
         if [ -f "$env_file" ]; then
           grep -Ev '^NMEM_IMAGE_TAG=' "$env_file" || true
@@ -442,10 +466,10 @@ case "$method $path" in
       project_arg=""
       [ -n "$project" ] && project_arg="-p $project"
 
-      # cd into the compose project dir so:
-      #   - relative overlay paths ("-f compose.updater.yaml") resolve here,
-      #     not against the sidecar's /opt/updater workdir;
-      #   - compose auto-discovers .env from the project dir.
+      # cd into the compose project dir so relative overlay paths
+      # ("-f compose.updater.yaml") resolve here, not against the
+      # sidecar's /opt/updater workdir. Pass --env-file explicitly because
+      # --project-directory changes compose's default .env lookup base.
       # shellcheck disable=SC2086 — word-split $compose_overlays so
       # "-f a.yaml -f b.yaml" expands to multiple args.
       # --force-recreate stops + removes + creates fresh in one step.
@@ -463,14 +487,38 @@ case "$method $path" in
       # seeded by compose.updater.yaml from ${PWD} on the operator's shell.
       if ! ( cd /opt/compose && docker compose \
               --project-directory "$NOWLEDGE_COMPOSE_PROJECT_DIR" \
+              --env-file /opt/compose/.env \
               $project_arg -f compose.yaml $compose_overlays \
               up -d --no-deps --force-recreate "$NOWLEDGE_MEM_SERVICE" \
             ) 2>/tmp/compose-err-$$; then
         err=$(tr '\n' ' ' < /tmp/compose-err-$$ | head -c 400)
         rm -f /tmp/compose-err-$$
-        audit "APPLY compose up failed — mem may be on old image: $err"
+        cp "$env_backup" "$env_file" 2>/dev/null || true
+        chmod 0600 "$env_file" 2>/dev/null || true
+        if [ "$old_tag_was_set" -eq 1 ]; then
+          export NMEM_IMAGE_TAG="$old_tag"
+        else
+          unset NMEM_IMAGE_TAG
+        fi
+        if docker start "$NOWLEDGE_MEM_CONTAINER" >/dev/null 2>&1; then
+          audit "APPLY compose up failed — restored .env and restarted old container: $err"
+        elif ( cd /opt/compose && docker compose \
+                --project-directory "$NOWLEDGE_COMPOSE_PROJECT_DIR" \
+                --env-file /opt/compose/.env \
+                $project_arg -f compose.yaml $compose_overlays \
+                up -d --no-deps "$NOWLEDGE_MEM_SERVICE" \
+              ) >/tmp/compose-rollback-$$ 2>&1; then
+          rm -f /tmp/compose-rollback-$$
+          audit "APPLY compose up failed — restored .env and recreated old service: $err"
+        else
+          rollback_err=$(tr '\n' ' ' < /tmp/compose-rollback-$$ | head -c 400)
+          rm -f /tmp/compose-rollback-$$
+          audit "APPLY compose up failed; rollback attempt also failed: $err / rollback: $rollback_err"
+        fi
+        rm -f "$env_backup"
         exit 3
       fi
+      rm -f "$env_backup"
       rm -f /tmp/compose-err-$$
       audit "APPLY compose up ok (overlays=$compose_overlays, .env NMEM_IMAGE_TAG=$tag), waiting for /livez"
 
