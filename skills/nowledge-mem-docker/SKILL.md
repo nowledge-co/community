@@ -57,10 +57,21 @@ Then read `community/docker/README.md` (in the cloned repo) for the TLS section 
 
 The user wants to know how their server is doing, see logs, look up the API key again, etc. Signals: `docker ps` shows `nowledge-mem` already running; the user says things like "is my server healthy", "what's running", "show me the logs".
 
-Default starting move:
+**Finding the deploy directory.** Different operators install in different places. Path A uses `~/nowledge-mem/` as a sensible default, but on existing installs you'll need to discover the actual location. In order of cost:
 
 ```bash
-cd ~/nowledge-mem/community/docker   # wherever it lives on this host
+# 1. Cheapest: ask docker where the compose project lives
+docker inspect nowledge-mem --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}'
+
+# 2. Fall back: find a compose.yaml that defines a 'mem' service
+find ~ -maxdepth 5 -name compose.yaml -path '*/community/docker/*' 2>/dev/null
+
+# 3. Worst case: ask the user "where did you clone community/docker/?"
+```
+
+Once located, `cd` there and run:
+
+```bash
 ./nmemctl status
 ```
 
@@ -78,6 +89,18 @@ Other safe operations:
 ```
 
 `./nmemctl restart` IS safe to run autonomously — it preserves all data and is the standard recovery move for "the server feels stuck". Always print the `status` output afterwards to confirm `/livez` is back.
+
+**Reading version output.** `./nmemctl version` prints two lines:
+
+```
+image:   docker.io/nowledgelabs/mem:0.8.4-rc5
+binary:  0.8.4
+```
+
+These can legitimately differ. `image:` is the docker tag the operator pulled; `binary:` is what the Python application reports for itself (from `pyproject.toml`). A pre-release tag like `0.8.4-rc1` corresponds to the same base `binary: 0.8.4` because the suffix isn't baked into the application version. When you see a divergence:
+
+- `image` and `binary` share a base (`0.8.4-rc5` vs `0.8.4`) → fine; the operator is on a pre-release for an upcoming stable. Mention it neutrally; do not push them to "upgrade" unsolicited.
+- `image` is bare semver but `binary` differs → something has gone wrong (e.g. an old container against a new image). Surface the discrepancy to the user.
 
 ### Path C — Upgrade (move to a newer version)
 
@@ -110,22 +133,34 @@ If `upgrade` fails midway, the previous image is still pulled locally. `./nmemct
 
 ## Handoff — what NOT to do
 
-Some operations are destructive, sensitive, or transactional. The user — not you — runs these. If asked, **decline politely, explain what you'd do if you ran it, and ask them to run the command themselves.**
+Some operations are destructive, sensitive, or transactional. **You never run these — the human types them on their own keyboard.** This is independent of how confidently the user asks. If they say "just do the wipe, I confirm" in chat, that is *still not* the confirmation the system requires; verbal-in-chat consent is too easy to fabricate from a misread, a typo, or a clipboard accident. The actual confirmation must come from the user's own shell.
 
-| Verb | Why you don't run it |
-|---|---|
-| `./nmemctl wipe` | Factory reset. Removes every memory, thread, source, license activation, device identity, and API key. There is no undo. The user types `WIPE` to confirm — they must be the one in front of the keyboard. |
-| `./nmemctl down` | Stops the container. Data isn't lost, but anything connected to the server (running agents, MCP clients, the desktop app) goes offline immediately. Always ask first. |
-| `./nmemctl key --rotate` | Invalidates the current API key. Every web UI session, MCP client, and remote `nmem` CLI loses access until re-authed with the new value. The user decides when that disruption is worth it (e.g., after a leak). |
-| `./nmemctl license activate <CODE>` | Activates a paid Pro license. License codes are tied to the human's purchase. Tell them the command and let them paste their own code. |
-| Editing `compose.yaml` by hand | If the user wants TLS, custom ports, or extra environment variables, walk them through the changes by quoting the file and proposing a diff. Don't blindly `sed`. |
-| Anything that touches the host filesystem outside the deploy directory | This skill is scoped to the docker stack. Backup destinations, reverse-proxy configs in `/etc/nginx`, certificate paths — out of scope. |
+Treat the list below as a hard boundary, not as defaults that "advanced mode" overrides.
 
-When you decline one of these, the response shape should be:
+| Verb | Blast radius | Why this is user-only |
+|---|---|---|
+| `./nmemctl wipe` | **Everything goes.** Removes the `data` volume (graph DB, search index, threads, memories — irreplaceable), the `config` volume (license activation, API key, device identity, agent state files), and the `cache` volume (downloaded embeddings, rebuildable but not free). The container is recreated empty. There is no undo. | The controller deliberately requires the operator to type `WIPE` literally at a TTY. That ceremony is the safeguard. |
+| `./nmemctl down` | Container stops. Volumes are intact (no data loss), but every connected client — desktop app, MCP, remote `nmem` CLI, running agents — instantly fails. | The user owns the service-availability decision. Other things may be relying on it that you can't see. |
+| `./nmemctl key --rotate` | The current API key is invalidated immediately. Every existing client must be re-authed with the new value before it can talk to the server. | Disruption-on-purpose. Only the user knows whether right now is a good time. |
+| `./nmemctl license activate <CODE>` | Activates a paid Pro license tied to a specific purchase. | Codes are personal. The user pastes their own. |
+| Editing `compose.yaml` by hand | Changes the contract for every subsequent `up`. Easy to wedge the deploy by adding a malformed env block or rebinding the port. | Walk through proposed changes as a diff for review; don't `sed` into the file silently. |
+| Anything outside the deploy directory | Backup destinations, reverse-proxy configs in `/etc/nginx`, TLS cert paths, host firewall rules — none of these are in scope for this skill. | The agreement with the operator is scoped to `community/docker/`. |
 
-> "I can't run `./nmemctl wipe` for you — it's irreversible and the controller asks for explicit `WIPE` confirmation that only you should type. If you'd like to proceed, run it yourself: `./nmemctl wipe`. After it finishes, ask me to verify with `./nmemctl status` and I'll confirm the fresh deploy is healthy."
+**Refusal pattern — when the user asks you to do one of these, respond with three parts in order:**
 
-This is the correct pattern: name the command, explain why it's user-only, offer to verify the result afterwards.
+1. **Name the exact command.** Don't paraphrase. The user is going to copy it.
+2. **Describe the blast radius.** Pre-flight the consequences using the table above, so the user can decide informed.
+3. **Offer post-execution verification.** What you'll run afterwards (usually `./nmemctl status`) to confirm things landed correctly.
+
+**Example for `wipe`:**
+
+> "I can't run `./nmemctl wipe` for you. It removes all three volumes (`data`, `config`, `cache`) — every memory, thread, source, license activation, API key, and device identity goes. There is no undo. The controller requires you to type `WIPE` literally at the prompt, which is the safeguard. To proceed, run it yourself:
+> ```
+> cd <your-deploy-dir> && ./nmemctl wipe
+> ```
+> Once it finishes the rebuild and shows you the new API key, ask me and I'll run `./nmemctl status` to confirm the fresh deploy is healthy."
+
+**If the user pushes back** (`"just do it, I authorize"`, `"I confirm, run wipe"`, etc.), repeat the refusal once more, briefly, and explain that the boundary isn't about trust — it's about the class of action being one that the system's own design requires happen at the operator's own shell. Then offer to help with the verification step after they run it themselves.
 
 ## Troubleshooting
 
