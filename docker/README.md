@@ -9,6 +9,11 @@ It is **headless** by design. There is no GTK, no WebKit, no Tauri. If you want
 the desktop app, install the `.deb` or `.AppImage` from the release page
 instead.
 
+> **For your agent.** Drop this URL into Claude / Codex / Cursor / any agent and
+> it will know how to install, monitor, and upgrade your Mem server on its own
+> (destructive operations stay with you):
+> `https://github.com/nowledge-co/community/blob/main/skills/nowledge-mem-docker/SKILL.md`
+
 ---
 
 ## Volume contract — what survives `docker compose pull && up -d`
