@@ -1036,7 +1036,9 @@ EOF
 #   - Auth is a per-deploy random token stored in `.env` (mode 0600).
 #   - The sidecar is not exposed beyond the compose-internal network.
 #   - The mem backend's `/admin/upgrade/*` endpoints proxy to it, behind
-#     the existing API key plus an Origin guard (closed by default).
+#     the existing API key. State-changing endpoints stay loopback-only
+#     unless `NOWLEDGE_ADMIN_REMOTE_OPS=1` is set; `auto-update enable`
+#     sets that flag because browser-triggered install is the opt-in.
 
 AUTO_UPDATE_STATE_KEY="NMEM_STATE_OVERLAYS"
 AUTO_UPDATE_OVERLAY="-f compose.updater.yaml"
@@ -1160,6 +1162,8 @@ Subcommands:
   enable        Generate a per-deploy token, layer in compose.updater.yaml,
                 and recreate the stack with the updater sidecar attached.
                 After this, the web UI can pull and apply Mem updates.
+                Also sets NOWLEDGE_ADMIN_REMOTE_OPS=1 because applying an
+                update from a browser is a server-side state change.
 
   disable       Remove the updater sidecar (compose rm), clear the token
                 from .env, and remove the overlay from .nmemctl-state.
@@ -1203,7 +1207,8 @@ cmd_auto_update_enable() {
     local token
     token="$(generate_token)"
     write_env_var "NOWLEDGE_UPDATER_TOKEN" "$token"
-    ok "new token written to .env (mode 0600)"
+    write_env_var "NOWLEDGE_ADMIN_REMOTE_OPS" "1"
+    ok "new token and remote install opt-in written to .env (mode 0600)"
 
     step "Recreating updater and mem containers on the repaired token"
     local persisted
@@ -1224,7 +1229,8 @@ cmd_auto_update_enable() {
   local token
   token="$(generate_token)"
   write_env_var "NOWLEDGE_UPDATER_TOKEN" "$token"
-  ok "wrote .env (mode 0600)"
+  write_env_var "NOWLEDGE_ADMIN_REMOTE_OPS" "1"
+  ok "wrote updater token and remote install opt-in to .env (mode 0600)"
 
   step "Persisting overlay to .nmemctl-state"
   state_add_overlay
@@ -1267,6 +1273,7 @@ cmd_auto_update_disable() {
 
   step "Clearing token and overlay state"
   unset_env_var "NOWLEDGE_UPDATER_TOKEN"
+  unset_env_var "NOWLEDGE_ADMIN_REMOTE_OPS"
   state_remove_overlay
   ok "next ./nmemctl up will run without the overlay"
 

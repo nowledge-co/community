@@ -440,13 +440,14 @@ auto-update sidecar:
 ./nmemctl auto-update enable
 ```
 
-That generates a per-deploy random token (mode 0600 in `.env`), adds the
-`compose.updater.yaml` overlay to the persisted stack, and brings the stack
-back up with a small `nowledgelabs/mem-updater` sidecar attached. From then
-on, the Settings → Server card in the web UI surfaces "Update available"
-when a newer image lands on Docker Hub, with a Download button (background
-pull, no downtime) and an Install button (≈30 s downtime, takes a pre-stop
-snapshot to `./cache/_pre-upgrade-<ts>.tar.gz`).
+That generates a per-deploy random token (mode 0600 in `.env`), sets
+`NOWLEDGE_ADMIN_REMOTE_OPS=1`, adds the `compose.updater.yaml` overlay to
+the persisted stack, and brings the stack back up with a small
+`nowledgelabs/mem-updater` sidecar attached. From then on, the Settings →
+Server card in the web UI surfaces "Update available" when a newer image
+lands on Docker Hub, with a Download button (background pull, no downtime)
+and an Install button (≈30 s downtime, takes a pre-stop snapshot to
+`./cache/_pre-upgrade-<ts>.tar.gz`).
 
 ```bash
 ./nmemctl auto-update status              # current state, last pull, retained snapshots
@@ -473,11 +474,12 @@ Pair this with the new `/admin/upgrade/*` endpoints on the Mem backend:
 | `POST /admin/upgrade/download` | Pre-pull a target tag (background, idempotent). |
 | `POST /admin/upgrade/install` | Type-to-confirm, snapshot, recreate, wait for `/livez`. |
 
-**Origin guard.** By default, the install endpoint accepts requests only
-from the same-host UI (the `/app` served by this Mem container). If you
-want to trigger upgrades from the desktop in remote mode or from
-`mem.nowledge.co`, set `NOWLEDGE_ADMIN_REMOTE_OPS=1` on the server.
-Trusted networks only.
+**Remote install opt-in.** A leaked API key is enough authority for most
+Mem API calls, so `/admin/upgrade/download` and `/admin/upgrade/install`
+stay loopback-only until `NOWLEDGE_ADMIN_REMOTE_OPS=1` is set. The
+`auto-update enable` command sets that flag because browser-triggered
+install is the whole point of opting in. Keep this on trusted networks
+only. `/admin/upgrade/check` remains read-only and can run without the flag.
 
 **Recovery from a bad upgrade.** Every Install takes a volume-level
 snapshot of `./data` and `./config` (excludes `./cache`) before the

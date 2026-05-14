@@ -132,6 +132,7 @@ How to guide the operator through enabling it (only after they ask for it, and a
 ```
 
 **Trust trade-off worth saying out loud:** auto-update adds a small sidecar container that holds `/var/run/docker.sock`. Docker socket access is host-root-equivalent for that container. The Mem container itself does NOT mount the socket; only the sidecar does. Per-deploy random token in `.env` (mode 0600). The sidecar is not exposed beyond the compose-internal network.
+`enable` also sets `NOWLEDGE_ADMIN_REMOTE_OPS=1`, because browser-triggered install is a server-side state change and must be an explicit operator opt-in.
 
 Before recommending `enable`, hand the operator that trade-off in one short sentence and let them decide.
 
@@ -142,7 +143,7 @@ Before recommending `enable`, hand the operator that trade-off in one short sent
 3. Server takes a volume-level snapshot of `./data` + `./config` to `./cache/_pre-upgrade-<ts>.tar.gz` (last 3 retained), then recreates the container on the new tag.
 4. Failure path: if `/livez` doesn't go green within 180s, the UI shows the snapshot path. SSH and roll back with `./nmemctl import ./cache/_pre-upgrade-<ts>.tar.gz --force` (volume-level snapshot uses the import verb, NOT restore-app).
 
-**Origin guard.** `/admin/upgrade/*` endpoints accept requests only from the same-host UI by default. If the operator wants to trigger upgrade from the desktop in remote mode or from `mem.nowledge.co`, they need to set `NOWLEDGE_ADMIN_REMOTE_OPS=1` on the server. Mention this if they ask "why doesn't it work from my desktop in remote mode".
+**Remote install opt-in.** `/admin/upgrade/check` is read-only, but `/admin/upgrade/download` and `/admin/upgrade/install` require loopback or `NOWLEDGE_ADMIN_REMOTE_OPS=1`. `./nmemctl auto-update enable` sets that flag; if the operator hand-edits compose files and skips nmemctl, mention it when install 403s from the browser.
 
 **What you DON'T do for auto-update:**
 - Don't `./nmemctl auto-update enable` without first surfacing the docker.sock trade-off.
