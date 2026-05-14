@@ -28,9 +28,17 @@
 
 services:
   mem:
-    image: docker.io/nowledgelabs/mem:0.8.4
+    # The tag is parameterized so `./nmemctl upgrade <ver>` and the
+    # optional `./nmemctl auto-update` sidecar can flip versions by
+    # writing `NMEM_IMAGE_TAG=<ver>` to `.env` (mode 0600, gitignored)
+    # without rewriting this file. Fresh installs use the default.
+    image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-0.8.4}
     container_name: nowledge-mem
     restart: unless-stopped
+    labels:
+      # Identification metadata for operators and future tooling. The
+      # updater sidecar targets NOWLEDGE_MEM_CONTAINER/NOWLEDGE_MEM_SERVICE.
+      nowledge.auto-update: "true"
 
     # The image already listens on 14242 inside the container. Map to the same
     # port on the host by default. Bind to 127.0.0.1 if you intend to put a
