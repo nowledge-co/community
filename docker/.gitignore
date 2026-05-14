@@ -1,0 +1,16 @@
+# The Mem server's writable surface — bind-mounted into the container.
+# Each operator gets their own; never commit these to git.
+data/
+config/
+cache/
+
+# Caddy state when running with compose.tls.yaml — survives restarts,
+# would otherwise pollute working tree.
+caddy_data/
+caddy_config/
+
+# Backup/restore artifacts left by ./nmemctl export, ./nmemctl backup-app,
+# and the .bak files self-update leaves behind.
+mem-export-*.tar.gz
+mem-app-export-*.zip
+*.bak.*

@@ -36,10 +36,26 @@ set -euo pipefail
 # Version of the controller itself. Bump when nmemctl semantics or
 # command surface change. Independent of the docker image version
 # (which `./nmemctl version` reports separately).
-NMEMCTL_VERSION="1.1.0"
+NMEMCTL_VERSION="2.0.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+
+# Bind-mount layout (relative to compose.yaml). The operator owns these
+# directories; the container runs as UID 10001 and `nmemctl` keeps the
+# ownership correct via one-shot busybox containers. Standard host-side
+# tools (rsync, restic, borg, ZFS snapshot, tar) work directly on these
+# paths — no docker volume idioms to learn.
+DIR_DATA="$SCRIPT_DIR/data"        # KuzuDB graph + LanceDB search index
+DIR_CONFIG="$SCRIPT_DIR/config"    # license, API key, agent state
+DIR_CACHE="$SCRIPT_DIR/cache"      # embedding models (rebuildable)
+CONTAINER_UID="10001"
+CONTAINER_GID="10001"
+
+# Helper image for one-shot perms/cp/rm operations. Pinned to a stable
+# tag; busybox:stable is ~1 MB and is the standard "do a thing as root in
+# a bind mount without bothering the operator with chown/sudo" pattern.
+HELPER_IMG="busybox:stable"
 
 # Preflight only runs for commands that need docker. `help` and bare invocation
 # of the script (for instance from a fresh checkout while reading docs) should
@@ -98,6 +114,10 @@ probe_livez() {
 
 # Bring the stack up and block until /livez answers. Idempotent.
 bring_up_and_wait() {
+  # First-run safety: ensure the bind-mount dirs exist + are owned by the
+  # container's UID. No-op on warm starts where ownership already matches.
+  prepare_dirs
+
   step "Bringing Nowledge Mem up"
   "${DC[@]}" up -d
 
@@ -158,6 +178,31 @@ read_image_tag() {
         in_svc && /^  [a-z]/ {in_svc=0}
         in_svc && $1=="image:" {print $2; exit}
       '
+}
+
+# Ensure data/config/cache exist and are owned by UID 10001:10001.
+# Operator never types `chown` or `sudo`. Idempotent.
+#
+# Why a one-shot helper container instead of host-side `sudo chown`:
+# inside `busybox` we're already root (the implicit docker default),
+# so chowning bind-mounted paths Just Works without asking the host
+# operator for elevation.
+prepare_dirs() {
+  mkdir -p "$DIR_DATA" "$DIR_CONFIG" "$DIR_CACHE"
+  # Quick path: if ownership already matches, skip the helper container.
+  # Saves ~1s on every `up` after the first.
+  local first
+  first="$(stat -c '%u:%g' "$DIR_DATA" 2>/dev/null || stat -f '%u:%g' "$DIR_DATA" 2>/dev/null || true)"
+  if [[ "$first" == "${CONTAINER_UID}:${CONTAINER_GID}" ]]; then
+    return 0
+  fi
+  docker run --rm \
+    -v "$SCRIPT_DIR/data:/work/data" \
+    -v "$SCRIPT_DIR/config:/work/config" \
+    -v "$SCRIPT_DIR/cache:/work/cache" \
+    "$HELPER_IMG" \
+    chown -R "${CONTAINER_UID}:${CONTAINER_GID}" /work/data /work/config /work/cache \
+      >/dev/null 2>&1 || warn "could not chown bind-mount dirs to ${CONTAINER_UID}:${CONTAINER_GID} (continuing — container may fail to write)"
 }
 
 # ---------------------------------------------------------------------------
@@ -376,7 +421,7 @@ cmd_wipe() {
   step "FACTORY RESET"
   warn "This will REMOVE all data: memories, threads, sources, license activation,"
   warn "device identity, API keys, and cached embeddings."
-  warn "Volumes wiped: nowledge-mem-data, nowledge-mem-config, nowledge-mem-cache"
+  warn "Directories wiped: ./data  ./config  ./cache"
   echo
   printf "    Type \033[1;31mWIPE\033[0m to confirm: "
   local answer
@@ -389,10 +434,21 @@ cmd_wipe() {
   step "Stopping container"
   "${DC[@]}" down
 
-  step "Removing named volumes"
-  # `|| true` — already-gone volumes are not a failure.
-  docker volume rm nowledge-mem-data nowledge-mem-config nowledge-mem-cache 2>&1 \
-    | sed 's/^/    /' || true
+  step "Removing bind-mount contents"
+  # Files inside are owned by UID 10001 (container's user) — we use the
+  # helper container to remove them so the operator doesn't need sudo.
+  # rm -rf on the *contents*, not the dirs themselves, so the bind targets
+  # stay in place for the next `up`.
+  docker run --rm \
+    -v "$SCRIPT_DIR/data:/work/data" \
+    -v "$SCRIPT_DIR/config:/work/config" \
+    -v "$SCRIPT_DIR/cache:/work/cache" \
+    "$HELPER_IMG" \
+    sh -c '
+      rm -rf /work/data/* /work/data/.[!.]* /work/data/..?* 2>/dev/null || true
+      rm -rf /work/config/* /work/config/.[!.]* /work/config/..?* 2>/dev/null || true
+      rm -rf /work/cache/* /work/cache/.[!.]* /work/cache/..?* 2>/dev/null || true
+    ' >/dev/null 2>&1 || warn "couldn't remove some files (continuing)"
 
   step "Starting fresh"
   cmd_up
@@ -540,31 +596,34 @@ cmd_self_update() {
 }
 
 # ---------------------------------------------------------------------------
-# Export / import — migrate a deployment to another host.
+# Migration — two layers, deliberately separate
 #
-# The intent is "lift a working Mem server off one Linux box and drop it on
-# another", same image version on both sides. We tar the three named volumes
-# and ship a single archive; on the destination we untar into fresh volumes
-# and start the container.
+# Layer 1: volume-level snapshot (export / import)
+#   Tars the three bind-mount directories (./data, ./config, ./cache) into a
+#   single .tar.gz. Source and destination must run the SAME image version
+#   (or destination strictly newer — migrations run forward on first boot;
+#   the backend refuses to open a DB written by a newer version).
 #
-# Identity is deliberately NOT carried across:
-#   - `machine_id` is excluded from the archive so the destination boots
-#     with a fresh device identity. License entitlement still carries via
-#     `license.json`; the app may prompt for re-activation on first launch,
-#     which consumes one seat from the user's allowance.
-#   - `remote-access.json` IS carried — the API key stays stable so already-
-#     paired clients (web UI, MCP clients, remote `nmem` CLI) keep working
-#     after migration without a re-auth dance.
+#   Identity model is "fresh device, but carry license + API key":
+#     - machine_id is EXCLUDED so the destination boots with a fresh device
+#       identity. License re-activates on first launch (consumes one seat).
+#     - remote-access.json IS carried — already-paired clients (web UI, MCP,
+#       remote nmem CLI) keep working at the new host without re-auth.
 #
-# `cache` is included by default (fast first-launch — no model re-download),
-# opt out with `--no-cache` if archive size matters more than warm-start.
+# Layer 2: application-level dump (backup-app / restore-app)
+#   Wraps the in-container `nmem export` / `nmem import` which produces a
+#   schema-aware JSONL dump portable across image versions. Use this when
+#   moving between non-matching versions, or when you want a dump you can
+#   inspect with normal tools.
 #
-# This is a volume-level snapshot, not an application-level dump. Source and
-# destination must be on the same image version, or destination must be
-# strictly NEWER (migrations run forward on first boot). Going backwards
-# is refused by the backend — Ladybug will not open a DB written by a
-# newer version. For cross-version moves use the in-container `nmem` CLI's
-# export/import, which produces a portable application-level dump.
+# Why both: layer 1 is fast and complete (license + key + agent state +
+# cache); layer 2 is portable but loses license/key/agent state. They serve
+# different needs and shouldn't be conflated.
+#
+# Both layers operate purely through the host filesystem and helper
+# containers — no `docker cp`, no fiddling with the read-only container
+# rootfs. The bind-mount layout means the operator's working directory IS
+# the writable surface.
 
 EXPORT_EXCLUDES=(
   "config/co.nowledge.mem.desktop/machine_id"
@@ -583,7 +642,8 @@ cmd_export() {
     esac
   done
 
-  # Default output filename — host + UTC timestamp.
+  # Default output filename — host + UTC timestamp. Lives next to the
+  # compose.yaml by default (.gitignore covers the pattern).
   if [[ -z "$out_path" ]]; then
     local host_tag
     host_tag="$(hostname 2>/dev/null | tr -c 'A-Za-z0-9-' '-' | sed 's/-*$//')"
@@ -595,8 +655,8 @@ cmd_export() {
   note "includes: data, config (minus machine_id)$([[ "$no_cache" == false ]] && echo ", cache")"
   note "excludes: machine_id (fresh identity on import)"
 
-  # Stopping the container ensures the Kuzu DB is at rest. Tar-ing a live
-  # DB file is the classic backup footgun — pages may be mid-write.
+  # Stop the container — Kuzu DB must be at rest to snapshot cleanly.
+  # Tar-ing live DB pages mid-write is the classic backup footgun.
   if is_running; then
     step "Stopping container (required — DB must be at rest)"
     "${DC[@]}" down
@@ -615,15 +675,17 @@ cmd_export() {
     exclude_args="$exclude_args --exclude=$e"
   done
 
-  # Write manifest in /tmp, mount alongside, include in archive.
-  local manifest_tmp
-  manifest_tmp="$(mktemp -t nmemctl-export-manifest.XXXXXX)"
-  cat > "$manifest_tmp" <<EOF
+  # Write manifest into the bind-mount tree, include in archive, remove
+  # after. Avoids creating a host-side tmpfile the helper container
+  # couldn't otherwise read.
+  local manifest_path="$SCRIPT_DIR/.nmemctl-export-manifest.json"
+  cat > "$manifest_path" <<EOF
 {
-  "format": "nmemctl-export-v1",
+  "format": "nmemctl-export-v2",
   "exported_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "source_image": "$img",
   "source_nmemctl_version": "$NMEMCTL_VERSION",
+  "layout": "bind-mount",
   "includes": [$( $no_cache && echo '"data", "config"' || echo '"data", "config", "cache"' )],
   "excludes": ["machine_id"]
 }
@@ -634,16 +696,17 @@ EOF
   local out_file
   out_file="$(basename "$out_path")"
 
+  # Tar via helper container so we can read UID-10001-owned files without
+  # asking the operator for sudo. Helper runs as root inside the container.
+  # Alpine's /bin/tar is busybox (no --transform support), so we install GNU
+  # tar for the --transform pass that renames the manifest into archive root.
   docker run --rm \
-    -v nowledge-mem-data:/src/data:ro \
-    -v nowledge-mem-config:/src/config:ro \
-    -v nowledge-mem-cache:/src/cache:ro \
-    -v "$manifest_tmp:/src/manifest.json:ro" \
+    -v "$SCRIPT_DIR:/src:ro" \
     -v "$out_dir:/out" \
     alpine:3.20 \
-    sh -c "cd /src && tar $exclude_args -czf /out/$out_file manifest.json $includes"
+    sh -c "apk add --no-cache tar >/dev/null && cd /src && tar $exclude_args -czf /out/$out_file --transform 's|^\\.nmemctl-export-manifest\\.json\$|manifest.json|' .nmemctl-export-manifest.json $includes"
 
-  rm -f "$manifest_tmp"
+  rm -f "$manifest_path"
 
   step "Restarting container"
   "${DC[@]}" up -d
@@ -653,10 +716,10 @@ EOF
   note "size:    $(du -h "$out_path" | awk '{print $1}')"
   echo
   note "On the destination host:"
-  note "    scp $out_file user@destination:~/"
+  note "    scp '$out_file' user@destination:~/"
   note "    ssh user@destination"
   note "    cd <community/docker checkout>"
-  note "    ./nmemctl import ~/$out_file"
+  note "    ./nmemctl import ~/'$out_file'"
 }
 
 cmd_import() {
@@ -682,15 +745,14 @@ cmd_import() {
   fi
 
   # Refuse to overwrite an existing populated deploy without --force.
-  # Check by peeking inside the data volume — anything more than the auto-
-  # created empty subdirs counts.
-  local existing
-  existing="$(docker run --rm \
-    -v nowledge-mem-data:/data:ro \
-    alpine:3.20 \
-    sh -c 'find /data -mindepth 1 -maxdepth 2 -type f 2>/dev/null | head -5' || true)"
+  # Check by peeking into the data dir — anything beyond an empty mount
+  # is meaningful state.
+  local existing=""
+  if [[ -d "$DIR_DATA" ]]; then
+    existing="$(find "$DIR_DATA" -mindepth 1 -maxdepth 2 \( -type f -o -type d \) 2>/dev/null | head -5)"
+  fi
   if [[ -n "$existing" ]] && ! $force; then
-    warn "data volume is not empty — sample files:"
+    warn "data directory is not empty — sample entries:"
     printf '%s\n' "$existing" | sed 's/^/      /'
     fail "refusing to import on a non-empty deploy. Pass --force to overwrite, or './nmemctl wipe' first."
   fi
@@ -707,26 +769,31 @@ cmd_import() {
     warn "no manifest.json found in archive — proceeding anyway (older or hand-rolled export)"
   fi
 
-  step "Restoring into named volumes"
-  # Ensure the named volumes exist (they may not on a fresh host).
-  for v in nowledge-mem-data nowledge-mem-config nowledge-mem-cache; do
-    docker volume create "$v" >/dev/null
-  done
+  step "Preparing destination directories"
+  prepare_dirs
 
-  # Untar archive into the three volumes. The archive's top-level layout
-  # already mirrors /src/{data,config,cache}, so we mount the volumes at
-  # /dst/{data,config,cache} and extract there.
+  step "Restoring archive into ./data ./config ./cache"
+  # Untar archive contents into the bind-mount tree. Helper runs as root
+  # so it can write to UID-10001-owned dirs.
   docker run --rm \
-    -v nowledge-mem-data:/dst/data \
-    -v nowledge-mem-config:/dst/config \
-    -v nowledge-mem-cache:/dst/cache \
+    -v "$SCRIPT_DIR:/dst" \
     -v "$archive:/archive.tar.gz:ro" \
     alpine:3.20 \
     sh -c '
       cd /dst
-      # The archive may or may not include cache. Extract whatever is there.
       tar -xzf /archive.tar.gz --exclude=manifest.json
     '
+
+  step "Re-chowning restored files to ${CONTAINER_UID}:${CONTAINER_GID}"
+  # Archives may have been produced on hosts where the docker daemon used
+  # a different remapping. Normalize ownership before container start.
+  docker run --rm \
+    -v "$SCRIPT_DIR/data:/work/data" \
+    -v "$SCRIPT_DIR/config:/work/config" \
+    -v "$SCRIPT_DIR/cache:/work/cache" \
+    "$HELPER_IMG" \
+    chown -R "${CONTAINER_UID}:${CONTAINER_GID}" /work/data /work/config /work/cache \
+      >/dev/null
 
   step "Starting container"
   cmd_up
@@ -735,6 +802,124 @@ cmd_import() {
   note "Migration complete. The new host has its own machine_id"
   note "(license may prompt for re-activation on first launch — that's expected)."
   note "Old host should be retired now to avoid divergent state."
+}
+
+# ---------------------------------------------------------------------------
+# Application-level dump — wraps the in-container `nmem export`/`nmem import`.
+#
+# Operator never types `docker cp` or `docker exec`. Files move via the
+# bind-mounted `./cache` directory: the in-container CLI writes there
+# (which the operator sees at ./cache/), or we copy operator-side files
+# there before kicking off `nmem import` inside the container.
+
+cmd_backup_app() {
+  require_docker
+
+  local out_path=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --out) out_path="$2"; shift 2 ;;
+      *) fail "usage: ./nmemctl backup-app [--out PATH]" ;;
+    esac
+  done
+
+  if ! is_running; then
+    step "Starting container (required — backup-app talks to the running server)"
+    bring_up_and_wait
+  fi
+
+  local host_tag
+  host_tag="$(hostname 2>/dev/null | tr -c 'A-Za-z0-9-' '-' | sed 's/-*$//')"
+  local stamp
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  local in_container_name="mem-app-export-${host_tag:-host}-${stamp}.zip"
+
+  step "Running nmem export inside the container"
+  note "writes to /var/cache/nowledge-mem/${in_container_name}  (visible at ./cache/${in_container_name})"
+  "${DC[@]}" exec -T "$SVC" nmem export "/var/cache/nowledge-mem/${in_container_name}"
+
+  # File appears on the host through the bind mount.
+  local host_path="$DIR_CACHE/${in_container_name}"
+  if [[ ! -f "$host_path" ]]; then
+    fail "nmem export reported success but the archive isn't visible at $host_path — file a bug."
+  fi
+
+  # If operator specified --out, move it there. Else leave next to the
+  # compose for them to grab.
+  local final
+  if [[ -n "$out_path" ]]; then
+    final="$out_path"
+    docker run --rm \
+      -v "$SCRIPT_DIR/cache:/src:ro" \
+      -v "$(cd "$(dirname "$out_path")" && pwd):/dst" \
+      "$HELPER_IMG" \
+      cp "/src/${in_container_name}" "/dst/$(basename "$out_path")"
+    docker run --rm -v "$SCRIPT_DIR/cache:/src" "$HELPER_IMG" \
+      rm -f "/src/${in_container_name}"
+  else
+    final="$SCRIPT_DIR/${in_container_name}"
+    docker run --rm \
+      -v "$SCRIPT_DIR/cache:/src:ro" \
+      -v "$SCRIPT_DIR:/dst" \
+      "$HELPER_IMG" \
+      cp "/src/${in_container_name}" "/dst/${in_container_name}"
+    docker run --rm -v "$SCRIPT_DIR/cache:/src" "$HELPER_IMG" \
+      rm -f "/src/${in_container_name}"
+  fi
+
+  step "Application export complete"
+  note "archive: $final"
+  note "size:    $(du -h "$final" | awk '{print $1}')"
+  echo
+  note "This is a portable, schema-aware dump. Restore on a different version with:"
+  note "    ./nmemctl restore-app $(basename "$final")"
+}
+
+cmd_restore_app() {
+  require_docker
+
+  local infile=""
+  local force=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) force=true; shift ;;
+      -*) fail "usage: ./nmemctl restore-app <file.zip> [--force]" ;;
+      *) infile="$1"; shift ;;
+    esac
+  done
+  [[ -n "$infile" ]] || fail "usage: ./nmemctl restore-app <file.zip> [--force]"
+  [[ -f "$infile" ]] || fail "archive not found: $infile"
+  infile="$(cd "$(dirname "$infile")" && pwd)/$(basename "$infile")"
+
+  if ! is_running; then
+    step "Starting container (required — restore-app talks to the running server)"
+    bring_up_and_wait
+  fi
+
+  # Stage the archive into the bind-mounted cache. The container reads it
+  # at /var/cache/nowledge-mem/_nmemctl-import.zip, then we clean up.
+  local stage_name="_nmemctl-restore-$$.zip"
+  local stage_path="$DIR_CACHE/$stage_name"
+
+  step "Staging archive into ./cache"
+  docker run --rm \
+    -v "$(dirname "$infile"):/in:ro" \
+    -v "$SCRIPT_DIR/cache:/cache" \
+    "$HELPER_IMG" \
+    cp "/in/$(basename "$infile")" "/cache/${stage_name}"
+
+  step "Running nmem import inside the container"
+  local extra=""
+  $force && extra="--mode overwrite"
+  if ! "${DC[@]}" exec -T "$SVC" nmem import $extra "/var/cache/nowledge-mem/${stage_name}"; then
+    docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" || true
+    fail "nmem import failed — see output above"
+  fi
+
+  docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" >/dev/null
+
+  step "Application restore complete"
+  "${DC[@]}" exec -T "$SVC" nmem stats 2>&1 | sed 's/^/    /' | head -10
 }
 
 cmd_help() {
@@ -765,13 +950,19 @@ RELEASE
                                   silent. In a git checkout, defers to
                                   `git pull`.
 
-MIGRATION  (volume-level snapshot — same-version source → destination)
-  nmemctl export [--no-cache]     Stop, tar volumes, restart. Excludes
-                 [--out PATH]     machine_id so destination gets a fresh
-                                  identity; license + API key carry over.
+MIGRATION
+  Volume-level (same-version source → destination, fastest, includes everything):
+    nmemctl export [--no-cache]   Stop, tar ./data ./config ./cache, restart.
+                   [--out PATH]   Excludes machine_id; license + API key carry.
                                   Writes mem-export-<host>-<ts>.tar.gz.
-  nmemctl import <archive>        Untar into named volumes and start.
-                 [--force]        Refuses a non-empty deploy without --force.
+    nmemctl import <archive>      Untar into bind-mount dirs and start.
+                   [--force]      Refuses a non-empty deploy without --force.
+
+  Application-level (cross-version, schema-aware, portable):
+    nmemctl backup-app            Run nmem export inside the container,
+                   [--out PATH]   write a portable schema-aware .zip dump.
+    nmemctl restore-app <file>    Stage the dump via ./cache, run nmem
+                   [--force]      import inside. Use --force for overwrite.
 
 DESTRUCTIVE
   nmemctl wipe                    Factory reset (type WIPE to confirm).
@@ -822,6 +1013,8 @@ case "$cmd" in
   self-update)        cmd_self_update "$@" ;;
   export)             cmd_export "$@" ;;
   import)             cmd_import "$@" ;;
+  backup-app)         cmd_backup_app "$@" ;;
+  restore-app)        cmd_restore_app "$@" ;;
   key)                cmd_key "$@" ;;
   license)            cmd_license "$@" ;;
   upgrade)            cmd_upgrade "$@" ;;

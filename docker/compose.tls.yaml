@@ -38,8 +38,11 @@ services:
       NOWLEDGE_LE_EMAIL: ${NOWLEDGE_LE_EMAIL:?set NOWLEDGE_LE_EMAIL for Let's Encrypt account}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data           # Let's Encrypt account + certificates
-      - caddy_config:/config
+      # Caddy's TLS account + cert + config live next to the compose file.
+      # `caddy_data` survives restarts; lose it and Let's Encrypt re-issues
+      # on next start (rate-limited, so back this up alongside ./config).
+      - ./caddy_data:/data
+      - ./caddy_config:/config
     cap_drop:
       - ALL
     cap_add:
@@ -51,9 +54,3 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
-
-volumes:
-  caddy_data:
-    name: nowledge-mem-caddy-data
-  caddy_config:
-    name: nowledge-mem-caddy-config

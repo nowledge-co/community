@@ -45,7 +45,7 @@ The output includes:
 - The **URL** to open (typically `http://<host-ip>:14242/app`).
 - License status (will say "Free / 0 / 20 memories" until activated).
 
-Hand the API key to the user verbatim. **Do not save it anywhere** — it lives in a `mode 0600` file at `/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json` inside the container's `config` volume. The user only needs to see it once.
+Hand the API key to the user verbatim. **Do not save it anywhere** — it lives in a `mode 0600` file at `./config/co.nowledge.mem.desktop/remote-access.json` next to the compose file on the host (mounted at `/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json` inside the container). The user only needs to see it once.
 
 If the user wants TLS (a real domain with HTTPS), do **not** improvise. Tell them:
 
@@ -129,7 +129,9 @@ If `upgrade` fails midway, the previous image is still pulled locally. `./nmemct
 | "restart it", "kick it" | `nmemctl restart` then `nmemctl status` |
 | "upgrade to 0.8.5" | `nmemctl version`, then `nmemctl upgrade 0.8.5` |
 | "what's my license?" | `nmemctl license` |
-| "where is the data?" | Explain: three named docker volumes — `nowledge-mem-data` (graph + search index, irreplaceable), `nowledge-mem-config` (license + API key + agent state), `nowledge-mem-cache` (embeddings, rebuildable). |
+| "where is the data?" | Explain: three local directories next to `compose.yaml` — `./data` (graph + search index, irreplaceable), `./config` (license + API key + agent state, valuable), `./cache` (embeddings, rebuildable). Files are owned by UID 10001 inside the container; standard tools (`rsync`, `restic`, `tar`) work directly on the host. |
+| "back up my server", "snapshot before upgrade" | `./nmemctl export` — stops the container, tars the three dirs into `mem-export-<host>-<ts>.tar.gz`, restarts. For cross-version moves use `./nmemctl backup-app` instead (portable JSONL dump). |
+| "migrate this to another server" | Same-version: `./nmemctl export` here → copy archive → `./nmemctl import` on the new host. Cross-version or from a `.deb` install: `./nmemctl backup-app` → copy zip → `./nmemctl restore-app` on the new host. The new host gets a fresh device identity; license re-activates and consumes one seat. |
 
 ## Handoff — what NOT to do
 
@@ -139,8 +141,9 @@ Treat the list below as a hard boundary, not as defaults that "advanced mode" ov
 
 | Verb | Blast radius | Why this is user-only |
 |---|---|---|
-| `./nmemctl wipe` | **Everything goes.** Removes the `data` volume (graph DB, search index, threads, memories — irreplaceable), the `config` volume (license activation, API key, device identity, agent state files), and the `cache` volume (downloaded embeddings, rebuildable but not free). The container is recreated empty. There is no undo. | The controller deliberately requires the operator to type `WIPE` literally at a TTY. That ceremony is the safeguard. |
-| `./nmemctl down` | Container stops. Volumes are intact (no data loss), but every connected client — desktop app, MCP, remote `nmem` CLI, running agents — instantly fails. | The user owns the service-availability decision. Other things may be relying on it that you can't see. |
+| `./nmemctl wipe` | **Everything goes.** Removes the contents of `./data` (graph DB, search index, threads, memories — irreplaceable), `./config` (license activation, API key, device identity, agent state files), and `./cache` (downloaded embeddings, rebuildable but not free). The container is recreated empty. There is no undo. | The controller deliberately requires the operator to type `WIPE` literally at a TTY. That ceremony is the safeguard. |
+| `./nmemctl down` | Container stops. The three host directories are intact (no data loss), but every connected client — desktop app, MCP, remote `nmem` CLI, running agents — instantly fails. | The user owns the service-availability decision. Other things may be relying on it that you can't see. |
+| `./nmemctl restore-app <file>` | Imports a `backup-app` zip into the running container. Memories with the same id are overwritten in-place; existing-but-not-in-dump memories stay. Not a "factory reset", but it can still surprise the user if they thought the zip was a different timestamp. | The user owns the merge semantics decision. Confirm the source file's date/origin before running. |
 | `./nmemctl key --rotate` | The current API key is invalidated immediately. Every existing client must be re-authed with the new value before it can talk to the server. | Disruption-on-purpose. Only the user knows whether right now is a good time. |
 | `./nmemctl license activate <CODE>` | Activates a paid Pro license tied to a specific purchase. | Codes are personal. The user pastes their own. |
 | Editing `compose.yaml` by hand | Changes the contract for every subsequent `up`. Easy to wedge the deploy by adding a malformed env block or rebinding the port. | Walk through proposed changes as a diff for review; don't `sed` into the file silently. |
@@ -154,7 +157,7 @@ Treat the list below as a hard boundary, not as defaults that "advanced mode" ov
 
 **Example for `wipe`:**
 
-> "I can't run `./nmemctl wipe` for you. It removes all three volumes (`data`, `config`, `cache`) — every memory, thread, source, license activation, API key, and device identity goes. There is no undo. The controller requires you to type `WIPE` literally at the prompt, which is the safeguard. To proceed, run it yourself:
+> "I can't run `./nmemctl wipe` for you. It empties all three local directories (`./data`, `./config`, `./cache`) — every memory, thread, source, license activation, API key, and device identity goes. There is no undo. The controller requires you to type `WIPE` literally at the prompt, which is the safeguard. To proceed, run it yourself:
 > ```
 > cd <your-deploy-dir> && ./nmemctl wipe
 > ```

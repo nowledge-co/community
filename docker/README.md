@@ -3,7 +3,7 @@
 The official headless image at `docker.io/nowledgelabs/mem` runs the full Nowledge
 Mem server: REST API, MCP, and the web UI at `/app`. The container ships the
 **same** PyArmor-protected Python bundle as the desktop release, runs as a
-non-root user, and lives entirely off three named volumes.
+non-root user, and writes only into three directories you own.
 
 It is **headless** by design. There is no GTK, no WebKit, no Tauri. If you want
 the desktop app, install the `.deb` or `.AppImage` from the release page
@@ -20,73 +20,86 @@ instead.
 
 ---
 
-## Volume contract — what survives `docker compose pull && up -d`
+## Where your data lives
 
-The image is built so it touches **only** the three named volumes at runtime.
-Everything else (`/opt`, `/usr`, the rootfs) is read-only by design and gets
-fully replaced when you pull a new image.
+Three local directories, side by side with `compose.yaml`. **You own them.**
+Standard tools (`rsync`, `restic`, `borg`, ZFS snapshots, `tar`, `du`) work
+directly — no docker volume idioms to learn, no `docker volume inspect` to
+chase mount points through.
 
-| Mount | Tier | What lives here | Survives upgrade? | Lose it = |
-|---|---|---|---|---|
-| `/var/lib/nowledge-mem`   | **Irreplaceable** | KuzuDB graph (`NowledgeGraph/nowledge_graph_v2.db/`), content store, persisted thread/source/artifact payloads | yes (named volume) | data loss; restore from backup |
-| `/etc/nowledge-mem`       | **Valuable** | `app-settings.json`, `plugins.json`, `remote-access.json` (the API key), `license.json`, OAuth tokens, remote-LLM creds, AI Now config, scheduler state | yes (named volume) | re-activate license, re-sign-in, re-paste API keys |
-| `/var/cache/nowledge-mem` | **Rebuildable** | `huggingface/` (LLM/embedding weights), `embeddings/` (FastEmbed ONNX), LanceDB search projection | yes (named volume) | one-time slow first search (re-download) |
+| Directory | Tier | What lives here | Lose it = |
+|---|---|---|---|
+| `./data`   | **Irreplaceable** | KuzuDB graph (`NowledgeGraph/nowledge_graph_v2.db/`), content store, persisted thread/source/artifact payloads | data loss; restore from backup |
+| `./config` | **Valuable**      | `app-settings.json`, `plugins.json`, `remote-access.json` (the API key), `license.json`, OAuth tokens, remote-LLM creds, agent state, scheduler state | re-activate license, re-sign-in, re-paste API keys |
+| `./cache`  | **Rebuildable**   | `huggingface/` (LLM/embedding weights), `embeddings/` (FastEmbed ONNX), LanceDB search projection | one-time slow first search (re-download) |
 
-So: back up `data` and `config`. `cache` is convenience storage; you can wipe
-it any time. The image upgrade contract is:
-
-```bash
-docker compose pull
-docker compose up -d        # restart with new image, all three volumes intact
-```
+Back up `./data` and `./config`. `./cache` is convenience storage; safe to
+wipe. The image upgrade contract — `./nmemctl upgrade <version>` — leaves
+all three dirs intact.
 
 ### The three contracts that make this work — and that we will not break
 
 1. **UID 10001 is forever.** The container runs as `uid=10001 gid=10001`.
-   Files in your volumes are owned by 10001:10001 on the host. Every future
-   release of this image must run as the same UID, otherwise mount-point
-   permissions would break on upgrade. If you ever see a new image fail with
-   permission errors on existing volumes, that is a regression — please file
-   an issue.
-2. **The three mount paths above are part of the public API.** They will not
-   move. The `XDG_*` env vars inside the image will not move either. You can
-   bind your compose volumes to wherever you want on the host without worrying
-   about path drift across releases.
-3. **Your device identity lives in the `config` volume.** A UUID seed at
-   `/etc/nowledge-mem/co.nowledge.mem.desktop/machine_id` (auto-generated on
-   first start) is what the license backend sees as your device. So:
-   - `docker compose down && up -d` → same device, license stays activated.
-   - `docker compose pull && up -d` → same device, license stays activated.
-   - `docker compose down -v` → device gone, equivalent to a fresh install.
-   - Moving the volume to another host → license follows the volume.
-   - Fleet operators: override with `NOWLEDGE_DEVICE_FINGERPRINT=<value>` env
-     for centralized identity (e.g. derived from a secret manager).
-   This is the contract that makes the per-license device cap meaningful when
-   running in containers — without it, every container restart would look
-   like a brand-new device to the license server.
+   Files in `./data`, `./config`, `./cache` are owned by 10001:10001.
+   `./nmemctl up` handles chown for you on first run via a one-shot helper
+   container — you never type `chown` or `sudo`. Every future release of
+   this image will keep the same UID; if a new image ever fails with
+   permission errors on your existing data, that is a regression — file an
+   issue.
+2. **The three in-container mount paths are part of the public API.**
+   `/var/lib/nowledge-mem`, `/etc/nowledge-mem`, `/var/cache/nowledge-mem`
+   will not move; nor will the `XDG_*` env vars inside the image. You can
+   bind these to wherever you want on the host (the default is the three
+   sibling dirs).
+3. **Your device identity lives in `./config/co.nowledge.mem.desktop/machine_id`.**
+   A UUID seed (auto-generated on first start) is what the license backend
+   sees as your device. So:
+   - `./nmemctl down && ./nmemctl up` → same device, license stays activated.
+   - `./nmemctl upgrade <version>` → same device, license stays activated.
+   - `./nmemctl wipe` → device gone, equivalent to a fresh install.
+   - `./nmemctl export` (and `import` on another host) → `machine_id` is
+     deliberately excluded; destination gets a fresh device identity.
+     License re-activates on first launch (consumes one seat).
+   - `rsync ./data ./config ./cache another-host:./` → device follows the
+     copy; old and new will collide on license. Retire one.
+   - Fleet operators: override with `NOWLEDGE_DEVICE_FINGERPRINT=<value>`
+     env for centralized identity (e.g. derived from a secret manager).
+
+### SELinux operators (RHEL / Fedora / Rocky)
+
+Append `:Z` to each bind in `compose.yaml` so SELinux relabels the host
+directories for container access:
+
+```yaml
+volumes:
+  - ./data:/var/lib/nowledge-mem:Z
+  - ./config:/etc/nowledge-mem:Z
+  - ./cache:/var/cache/nowledge-mem:Z
+```
+
+This is opt-in because `:Z` is destructive on first apply (recursive
+relabel) and a no-op (or worse, an error) on systems without SELinux. Set
+it once if you see "permission denied" inside the container despite
+ownership being correct.
 
 ### Air-gapped / pre-baked models
 
-If your deployment has no internet access, pre-populate the `cache` volume
-once on a connected machine:
+If your deployment has no internet access, pre-populate `./cache` once on
+a connected machine, then move:
 
 ```bash
-# On a connected machine, with the same image:
-docker compose up -d
-# Trigger a search so embedding weights download:
-docker compose exec -T mem curl -s -H "Authorization: Bearer $(docker compose exec -T mem nmem key | tr -d '\r\n')" \
+# On a connected machine:
+./nmemctl up
+# Trigger a search so embedding weights download into ./cache:
+docker compose exec -T mem curl -s -H "Authorization: Bearer $(./nmemctl key)" \
   "http://127.0.0.1:14242/memories/search?q=warmup&limit=1" >/dev/null
-docker compose down
+./nmemctl down
 
-# Snapshot the cache volume:
-docker run --rm -v nowledge-mem-cache:/cache -v "$PWD":/dst alpine \
-  tar -C /cache -czf /dst/nmem-cache.tgz .
+# Move ./cache to the air-gapped machine — standard tooling:
+rsync -av ./cache/ air-gapped-host:~/community/docker/cache/
 
 # On the air-gapped machine:
-docker volume create nowledge-mem-cache
-docker run --rm -v nowledge-mem-cache:/cache -v "$PWD":/src alpine \
-  tar -C /cache -xzf /src/nmem-cache.tgz
-docker compose up -d
+./nmemctl up
 ```
 
 The cache layout is identical across hosts of the same arch; there's nothing
@@ -162,7 +175,7 @@ The server enforces two independent things:
 
 - **A license** (`license.json`) — paid Pro tier vs Free. Free is capped at
   20 memories; activate a license to lift the cap. License is a file, not a
-  network call, and persists in the `config` volume.
+  network call, and persists in `./config/`.
 - **An API key** (`remote-access.json`) — bearer-token auth on every non-public
   endpoint. The web UI uses the same key.
 
@@ -185,9 +198,10 @@ rotate it — pick whichever fits how you got here:
 ./nmemctl key --rotate
 ```
 
-The key is stored at `/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json`
-inside the `config` volume; it survives `docker compose pull && up -d`
-upgrades. **Backing up the `config` volume backs up the key.**
+The key is stored at `./config/co.nowledge.mem.desktop/remote-access.json`
+on the host (`/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json`
+inside the container); it survives `docker compose pull && up -d` upgrades.
+**Backing up `./config` backs up the key.**
 
 If you rotate the key, every existing client (web UI, MCP clients, the
 `nmem` CLI on remote machines) needs the new value pasted in.
@@ -209,13 +223,13 @@ skip auth by default.
 ### Where the key lives
 
 ```text
-/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json
+./config/co.nowledge.mem.desktop/remote-access.json   (on the host)
+/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json   (inside the container)
                   ^                       ^
-                  app namespace           mode 0600, owner nowledge:nowledge
+                  app namespace           mode 0600, owner 10001:10001
 ```
 
-This file is generated on first start. Backing up the `config` volume backs
-up the key.
+This file is generated on first start. Backing up `./config` backs up the key.
 
 ### Common operations
 
@@ -227,14 +241,13 @@ up the key.
 ./nmemctl key --rotate                    # or: docker compose exec -T mem nmem key --rotate
 
 # Pre-seed a known key (useful for fleets managed by a secret manager).
-# Write the file before first `docker compose up`:
-mkdir -p ./seed/co.nowledge.mem.desktop
-cat > ./seed/co.nowledge.mem.desktop/remote-access.json <<EOF
+# Write the file before first `./nmemctl up`:
+mkdir -p ./config/co.nowledge.mem.desktop
+cat > ./config/co.nowledge.mem.desktop/remote-access.json <<EOF
 {"api_key":"<your-key>","require_auth_loopback":false,"created_at":"$(date -Iseconds)"}
 EOF
-chmod 0600 ./seed/co.nowledge.mem.desktop/remote-access.json
-# Then bind ./seed onto /etc/nowledge-mem in compose.yaml (or copy into the
-# volume with `docker run --rm -v nowledge-mem-config:/dst -v "$PWD"/seed:/src alpine cp -a /src/. /dst/`).
+chmod 0600 ./config/co.nowledge.mem.desktop/remote-access.json
+# `./nmemctl up` will chown ./config to 10001:10001 on first run.
 ```
 
 ### Rate-limit recovery
@@ -323,19 +336,39 @@ docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:0.8.4
 
 ### Backup and migration
 
+Two layers, pick the one that matches your move:
+
+**Volume-level snapshot** — exact same image version on both ends. Fastest
+restore; carries everything bit-for-bit except the device identity.
+
 ```bash
-./nmemctl export                              # stop, snapshot volumes, restart
+./nmemctl export                              # stop, tar ./data ./config ./cache, restart
 ./nmemctl export --no-cache --out ~/backup.tar.gz   # skip cache for smaller archive
 ./nmemctl import ~/backup.tar.gz              # restore on a new host
 ./nmemctl import ~/backup.tar.gz --force      # overwrite an existing deploy
 ```
 
-`export` stops the container (the Kuzu DB must be at rest to snapshot cleanly),
-tars the three named volumes into a single `.tar.gz`, and restarts the
-container. The default filename is `mem-export-<host>-<timestamp>.tar.gz`
-in the current directory.
+`export` stops the container (Kuzu must be at rest to snapshot cleanly),
+tars the three bind-mount directories into a single `.tar.gz` with a
+manifest, and restarts. Default filename is
+`mem-export-<host>-<timestamp>.tar.gz` in the current directory.
 
-**What carries across, what doesn't:**
+**Application-level dump** — cross-version moves, or migrating from a
+desktop / `.deb` install into Docker. Uses the same portable JSONL format
+the desktop app uses for "Export to file":
+
+```bash
+./nmemctl backup-app                          # produces mem-app-export-<host>-<ts>.zip
+./nmemctl backup-app --out ~/mem-app.zip      # explicit destination
+./nmemctl restore-app ~/mem-app.zip           # imports memories into the running container
+```
+
+`backup-app` runs `nmem export` inside the container and stages the zip
+out via `./cache` (no `docker cp` involved). `restore-app` stages a zip
+in via `./cache` and runs `nmem import` inside. Both leave the container
+running.
+
+**What carries across, what doesn't (volume-level export):**
 
 | Thing | Carries? | Notes |
 |---|---|---|
@@ -347,15 +380,21 @@ in the current directory.
 | Cached embeddings | yes by default | `--no-cache` to skip; first launch re-downloads. |
 | `machine_id` (device identity) | **no — by design** | Destination gets a fresh ID. |
 
-This is a volume-level snapshot, not an application-level dump. **Source and
-destination must be on the same image version**, or destination must be
-strictly newer (migrations run forward on first boot; the backend refuses
-to open a DB written by a newer version). For cross-version moves, use the
-in-container `nmem` CLI's export/import which produces a portable
-application-level dump.
+Volume-level export requires **the same image version** on both ends, or
+destination strictly newer (migrations run forward on first boot; the
+backend refuses to open a DB written by a newer version). For cross-version
+moves, or moving from a `.deb`/desktop install into Docker, use
+`backup-app` / `restore-app` instead — they carry memories/threads/sources/
+artifacts/labels in a portable format that's version-independent within
+supported migration ranges.
 
-After `import` succeeds, retire the source server. Running both side-by-side
-diverges state.
+After a successful migration, retire the source server. Running both
+side-by-side diverges state and double-bills your license seats.
+
+**Standard backup tools work too.** Because the data lives in plain host
+directories, `rsync`, `restic`, `borg`, ZFS/Btrfs snapshots, and `tar`
+all work directly. Stop the container first (`./nmemctl down`) for a
+guaranteed-consistent snapshot, then `./nmemctl up` afterward.
 
 ### Upgrade
 
@@ -390,10 +429,12 @@ once a newer image has opened the database, an older image will refuse to.
 ./nmemctl wipe                            # type WIPE to confirm
 ```
 
-Stops the container, removes all three named volumes
-(`nowledge-mem-{data,config,cache}`), then brings the stack back up fresh and
-prints a new API key. The ceremony is intentional — every prior memory,
-thread, source, license activation, and device identity is gone after this.
+Stops the container, removes the contents of `./data`, `./config`, and
+`./cache` via a one-shot helper container (so you don't need `sudo` to
+remove files owned by UID 10001), then brings the stack back up fresh
+and prints a new API key. The ceremony is intentional — every prior
+memory, thread, source, license activation, and device identity is gone
+after this.
 
 ### Logs
 
@@ -480,7 +521,7 @@ past what Docker has actually given the container. No action needed
 
 ## Secrets
 
-If you'd rather not store the license inside the `config` volume, mount it as
+If you'd rather not store the license inside `./config/`, mount it as
 a Docker secret instead. The path inside the container is unchanged:
 
 ```yaml
@@ -517,8 +558,10 @@ The backend reads the same file; nothing else changes.
 `start_period` (90 s) accounts for this; `/livez` is green immediately.
 
 **`nmem license activate` says "license file not found".** Make sure the
-`config` volume is mounted (`docker compose config` should list it under the
-`mem` service).
+`./config` bind is mounted (`docker compose config` should list
+`./config:/etc/nowledge-mem` under the `mem` service) and that the directory
+exists. `./nmemctl up` creates it; if you wrote `compose.yaml` by hand, run
+`mkdir -p ./config && docker run --rm -v "$PWD/config:/dst" busybox:stable chown -R 10001:10001 /dst`.
 
 **Web UI loads but says "Web Client Not Available".** The image was built
 without the SPA. This should not happen with the official image; please file a
@@ -527,9 +570,9 @@ bug. If you're building locally, ensure `npm run build:web` produced
 
 **MCP plugins won't install.** Plugin install needs network and may shell out
 to `npx`/`uvx`. The default image trusts outbound HTTPS but does not include
-those CLIs. For now, install plugins on the desktop app and they'll be picked
-up by the server via the shared config volume; first-class headless plugin
-install is on the roadmap.
+those CLIs. For now, install plugins on the desktop app and copy
+`./config/co.nowledge.mem.desktop/plugins.json` onto the server's `./config`
+directory; first-class headless plugin install is on the roadmap.
 
 **A file upload returned 500 and now every page in the UI fails.** The Kuzu
 buffer pool exhausted. `docker compose restart mem` recovers; if it keeps

@@ -5,15 +5,21 @@
 # nonroot user, all caps dropped, no-new-privileges, pids/memory limits,
 # bounded log rotation.
 #
+# Your data lives in three directories next to this file:
+#   ./data   — irreplaceable (KuzuDB graph, content store)
+#   ./config — valuable     (settings, license, API key, agent state)
+#   ./cache  — rebuildable  (embedding models, search index projection)
+#
+# Back up `./data` and `./config`. `./cache` is safe to wipe.
+# These directories are owned by UID 10001 inside the container; `nmemctl`
+# handles ownership for you (you never need `chown`).
+#
 # Quick start:
-#   docker compose up -d
-#   docker compose logs -f mem
-#   docker compose exec -T mem nmem license activate <BASE64-CODE>
-#   docker compose exec -T mem nmem key      # surfaces the web-UI login key
+#   ./nmemctl up
 #   open http://<host>:14242/app
 #
 # Add TLS by overlaying compose.tls.yaml (Caddy sidecar, auto-Let's-Encrypt):
-#   docker compose -f compose.yaml -f compose.tls.yaml up -d
+#   NMEM_COMPOSE_FILES='-f compose.yaml -f compose.tls.yaml' ./nmemctl up
 #
 # Verify the image is signed by Nowledge Labs (anyone, anywhere):
 #   cosign verify docker.io/nowledgelabs/mem:0.8.4 \
@@ -32,15 +38,19 @@ services:
     ports:
       - "14242:14242"
 
-    # Three-volume contract:
-    #   data   — irreplaceable (KuzuDB graph, content store)
-    #   config — valuable     (settings, license, OAuth tokens)
-    #   cache  — rebuildable  (embedding models, search index projection)
-    # Back up `data` and `config`. `cache` is safe to wipe.
+    # Bind mounts to local directories — the operator owns these paths.
+    # Standard tools (rsync, restic, borg, ZFS snapshots) work directly.
+    # `nmemctl up` creates the dirs and chowns them to UID 10001 on first
+    # run, so you don't have to.
+    #
+    # SELinux operators (RHEL/Fedora/Rocky): if the container can't write
+    # to these paths, append `:Z` to each bind. The label is omitted here
+    # because it's destructive on first apply and a no-op on non-SELinux
+    # systems — opt in only when needed.
     volumes:
-      - data:/var/lib/nowledge-mem
-      - config:/etc/nowledge-mem
-      - cache:/var/cache/nowledge-mem
+      - ./data:/var/lib/nowledge-mem
+      - ./config:/etc/nowledge-mem
+      - ./cache:/var/cache/nowledge-mem
 
     # Optional environment knobs. All env vars listed in the image have sane
     # defaults; uncomment this block to override any. The image's full
@@ -54,8 +64,9 @@ services:
     #   NOWLEDGE_IP_ALLOWLIST: "10.0.0.0/8,192.168.0.0/16"
 
     # ---- Security hardening -------------------------------------------------
-    # The image is built so it never needs to write outside its named volumes.
-    # If your application data changes that, file a bug — don't relax these.
+    # The image is built so it never needs to write outside the three bind
+    # mounts above. If your application data changes that, file a bug — don't
+    # relax these.
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
@@ -92,19 +103,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 90s
-
-# Named volumes are local-driver by default. The explicit `name:` keys lock
-# the on-disk identifier so backup/reset commands don't depend on the project
-# name (which Compose derives from the current working directory and would
-# otherwise prefix to bare volume names).
-#
-# Bind to host paths if you prefer a known on-disk location (recommended for
-# backup workflows):
-#   data:    driver_opts: { type: none, o: bind, device: /srv/nowledge/data }
-volumes:
-  data:
-    name: nowledge-mem-data
-  config:
-    name: nowledge-mem-config
-  cache:
-    name: nowledge-mem-cache
