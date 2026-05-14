@@ -33,7 +33,10 @@ require_env "${NOWLEDGE_MEM_IMAGE:-}" NOWLEDGE_MEM_IMAGE
 : "${NOWLEDGE_MEM_SERVICE:=mem}"
 : "${NOWLEDGE_PULL_INTERVAL_SECONDS:=86400}"
 : "${NOWLEDGE_SNAPSHOT_RETAIN:=3}"
-: "${NOWLEDGE_LIVEZ_TIMEOUT_SECONDS:=60}"
+# Default matches compose.yaml's `start_period: 90s` plus headroom for
+# kuzu open + migrations. Bulk-ingest or migration-heavy upgrades can
+# legitimately take longer; operators bump this via the env var.
+: "${NOWLEDGE_LIVEZ_TIMEOUT_SECONDS:=180}"
 export NOWLEDGE_MEM_SERVICE NOWLEDGE_PULL_INTERVAL_SECONDS \
        NOWLEDGE_SNAPSHOT_RETAIN NOWLEDGE_LIVEZ_TIMEOUT_SECONDS
 
@@ -65,4 +68,12 @@ fi
 # captures its stdout as the response. fork=true makes it handle
 # multiple concurrent connections; server.sh's lock file is what
 # prevents simultaneous /apply calls.
-exec socat -T 30 TCP-LISTEN:8080,reuseaddr,fork EXEC:/opt/updater/server.sh,stderr
+#
+# Critical: do NOT pass socat's `stderr` option to EXEC. That would
+# fold server.sh's audit log (which goes to stderr) into the HTTP
+# response stream, causing curl to see audit-log lines as a malformed
+# HTTP/0.9 status line. With no `stderr` option, server.sh's stderr
+# inherits this process's stderr, which docker captures as the
+# container's log stream — so `docker logs nowledge-mem-updater`
+# still shows every request, while the HTTP response is clean.
+exec socat -T 30 TCP-LISTEN:8080,reuseaddr,fork EXEC:/opt/updater/server.sh

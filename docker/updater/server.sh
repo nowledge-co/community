@@ -40,15 +40,36 @@ STALE_LOCK_AFTER=1800   # seconds (30 min)
 
 # ---- HTTP helpers --------------------------------------------------------
 
-# Emit an HTTP response. Body is read from stdin.
-# Usage: printf '%s' "$json_body" | respond 200 'application/json'
+# HTTP-status-code → reason phrase. Strict clients (modern curl) reject
+# responses without a reason phrase and fall back to HTTP/0.9 parsing,
+# which manifests as "Received HTTP/0.9 when not allowed" on the caller.
+status_phrase() {
+  case "$1" in
+    200) printf 'OK' ;;
+    202) printf 'Accepted' ;;
+    400) printf 'Bad Request' ;;
+    401) printf 'Unauthorized' ;;
+    404) printf 'Not Found' ;;
+    409) printf 'Conflict' ;;
+    412) printf 'Precondition Failed' ;;
+    500) printf 'Internal Server Error' ;;
+    502) printf 'Bad Gateway' ;;
+    *)   printf 'Status' ;;
+  esac
+}
+
+# Emit an HTTP response. Body is read from stdin. Status line is
+# `HTTP/1.0 <code> <reason>` per RFC 1945 / RFC 9110.
 respond() {
   status=$1
   ctype=${2:-application/json}
   body=$(cat)
-  len=${#body}
-  printf 'HTTP/1.0 %s\r\nContent-Type: %s\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s' \
-    "$status" "$ctype" "$len" "$body"
+  # Byte length — accurate for UTF-8 since `${#var}` in dash counts bytes.
+  # printf's %s emits the exact bytes, so wc -c matches.
+  len=$(printf '%s' "$body" | wc -c | tr -d ' ')
+  phrase=$(status_phrase "$status")
+  printf 'HTTP/1.0 %s %s\r\nContent-Type: %s\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s' \
+    "$status" "$phrase" "$ctype" "$len" "$body"
 }
 
 # Build a JSON response body and emit it.
@@ -116,32 +137,58 @@ require_auth() {
   fi
 }
 
-# Lock file dance. Acquires /apply lock or returns 409.
+# Single-flight lock. Atomic via `mkdir` — succeeds or fails as one
+# syscall, with no TOCTOU window. Plain file-based [ -f X ] + write is
+# racy: two concurrent requests can both observe absent and both write.
+#
+# Liveness model: stale-by-TIMESTAMP only, not by PID. The main socat
+# child that calls acquire_lock exits as soon as it emits the 202; the
+# work runs in a detached subshell whose PID we don't write into the
+# lock. A PID-liveness check on the main process would always see
+# "dead" after a few seconds, falsely concluding stale and double-firing
+# apply. Timestamp age is the right signal.
+LOCK_DIR="${LOCK_FILE}.d"
+
 acquire_lock() {
-  if [ -f "$LOCK_FILE" ]; then
-    held_pid=$(awk -F= '/^pid=/ {print $2}' "$LOCK_FILE" 2>/dev/null || true)
-    held_ts=$(awk -F= '/^ts=/ {print $2}' "$LOCK_FILE" 2>/dev/null || true)
-    now=$(date +%s)
-    age=$(( now - ${held_ts:-0} ))
-    pid_alive=0
-    if [ -n "$held_pid" ] && kill -0 "$held_pid" 2>/dev/null; then
-      pid_alive=1
-    fi
-    if [ "$pid_alive" -eq 1 ] && [ "$age" -lt "$STALE_LOCK_AFTER" ]; then
-      audit "LOCK held by pid=$held_pid age=${age}s"
-      respond_json 409 "$(jq -nc \
-        --arg pid "$held_pid" --arg age "$age" \
-        '{error:"upgrade in progress", pid:$pid, age_seconds:($age|tonumber)}')"
-      exit 0
-    fi
-    audit "LOCK stale (pid=$held_pid age=${age}s) — taking over"
-    rm -f "$LOCK_FILE"
+  # First-attempt atomic mkdir. If it succeeds, we hold the lock.
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    printf 'ts=%s\n' "$(date +%s)" > "$LOCK_DIR/owner"
+    return 0
   fi
-  printf 'pid=%s\nts=%s\n' "$$" "$(date +%s)" > "$LOCK_FILE"
+
+  # Someone else holds it. Check staleness by mtime of the lock dir.
+  held_ts=$(awk -F= '/^ts=/ {print $2}' "$LOCK_DIR/owner" 2>/dev/null || true)
+  if [ -z "$held_ts" ]; then
+    # No owner file inside — fall back to dir mtime.
+    held_ts=$(stat -c '%Y' "$LOCK_DIR" 2>/dev/null || echo 0)
+  fi
+  now=$(date +%s)
+  age=$(( now - ${held_ts:-0} ))
+  if [ "$age" -lt "$STALE_LOCK_AFTER" ]; then
+    audit "LOCK held (age=${age}s)"
+    respond_json 409 "$(jq -nc \
+      --arg age "$age" \
+      '{error:"upgrade in progress", age_seconds:($age|tonumber)}')"
+    exit 0
+  fi
+
+  # Stale. Clear and re-acquire atomically. If re-acquire races and
+  # loses, surface 409 cleanly.
+  audit "LOCK stale (age=${age}s) — taking over"
+  rm -f "$LOCK_DIR/owner"
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    printf 'ts=%s\n' "$(date +%s)" > "$LOCK_DIR/owner"
+    return 0
+  fi
+  audit "LOCK contended on re-acquire"
+  respond_json 409 '{"error":"upgrade contended; retry"}'
+  exit 0
 }
 
 release_lock() {
-  rm -f "$LOCK_FILE"
+  rm -f "$LOCK_DIR/owner" 2>/dev/null || true
+  rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 
 # ---- Route: GET /healthz -------------------------------------------------
@@ -162,8 +209,12 @@ case "$method $path" in
     running_image=$(docker inspect --format '{{.Config.Image}}' \
       "$NOWLEDGE_MEM_CONTAINER" 2>/dev/null || printf 'unknown')
 
-    # What Mem image tags are cached locally?
-    cached_tags=$(docker images --format '{{.Repository}}:{{.Tag}}' "$NOWLEDGE_MEM_IMAGE" 2>/dev/null \
+    # What Mem image tags are cached locally? Docker normalizes images
+    # stored locally to drop the `docker.io/` prefix, so a filter like
+    # `docker images docker.io/nowledgelabs/mem` returns empty. Strip
+    # the prefix before filtering so both forms match.
+    short_image=${NOWLEDGE_MEM_IMAGE#docker.io/}
+    cached_tags=$(docker images --format '{{.Repository}}:{{.Tag}}' "$short_image" 2>/dev/null \
       | awk -F: '{print $NF}' | sort -u | jq -Rsc 'split("\n") | map(select(length>0))')
     cached_tags=${cached_tags:-"[]"}
 
@@ -327,19 +378,60 @@ case "$method $path" in
       # is templated as `image: ...:${NMEM_IMAGE_TAG:-X.Y.Z}` (the
       # default in fresh installs from nmemctl 2.1.0+).
       #
-      # Layered overlays (TLS, etc.) are picked up via NMEM_STATE_OVERLAYS,
-      # which `./nmemctl auto-update enable` records in .nmemctl-state.
-      # We deliberately do NOT source that file here — we ONLY recreate
-      # the mem service, which doesn't need the overlays' definitions to
-      # be present on the apply call. Operator-side restart will handle
-      # full-stack recreates.
+      # CRITICAL: honor the operator's active overlay stack. If the
+      # deploy uses compose.tls.yaml + compose.updater.yaml + a custom
+      # override, recreating with only compose.yaml would lose the
+      # caddy sidecar, the loopback rebind, and any operator-specific
+      # config — breaking the deploy. nmemctl persists the active
+      # overlays in .nmemctl-state (managed by `auto-update enable`,
+      # `auto-update disable`, future TLS-toggle verbs, etc.) so the
+      # sidecar can replay the same compose stack on recreate.
+      compose_overlays=""
+      if [ -f /opt/compose/.nmemctl-state ]; then
+        # shellcheck disable=SC1091
+        . /opt/compose/.nmemctl-state
+        compose_overlays="${NMEM_STATE_OVERLAYS:-}"
+      fi
       export NMEM_IMAGE_TAG="$tag"
-      if ! docker compose -f /opt/compose/compose.yaml \
-              up -d --no-deps "$NOWLEDGE_MEM_SERVICE" >/dev/null 2>&1; then
-        audit "APPLY compose up failed — mem may be on old image"
+
+      # Recover the operator's compose project name from the existing
+      # container's docker-compose label. The default-derived name (from
+      # the sidecar's cwd basename) would be "compose" — which doesn't
+      # match the operator's project (whatever they `docker compose`-ed
+      # from). Without this, --force-recreate would try to create a
+      # NEW container with the operator's container_name (e.g.
+      # "nowledge-mem"), which is already in use by THEIR project, and
+      # the daemon rejects it with "container name already in use".
+      project=$(docker inspect "$NOWLEDGE_MEM_CONTAINER" \
+                  --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null)
+      # Fallback when the container existed before compose v2's project
+      # labels (very old deploys) or was created by hand outside compose.
+      project_arg=""
+      [ -n "$project" ] && project_arg="-p $project"
+
+      # cd into the compose project dir so:
+      #   - relative overlay paths ("-f compose.updater.yaml") resolve here,
+      #     not against the sidecar's /opt/updater workdir;
+      #   - compose auto-discovers .env from the project dir.
+      # shellcheck disable=SC2086 — word-split $compose_overlays so
+      # "-f a.yaml -f b.yaml" expands to multiple args.
+      # --force-recreate stops + removes + creates fresh in one step.
+      # We already explicitly `docker stop`-ed above to flush the DB; the
+      # stopped container is still holding its name (it isn't removed by
+      # plain `stop`), and a normal `up -d` would then conflict with
+      # "container name in use". --force-recreate fixes that, and is the
+      # right semantic for "apply a new image" regardless of any
+      # config-change-detection that compose does implicitly.
+      if ! ( cd /opt/compose && docker compose $project_arg -f compose.yaml $compose_overlays \
+              up -d --no-deps --force-recreate "$NOWLEDGE_MEM_SERVICE" \
+            ) 2>/tmp/compose-err-$$; then
+        err=$(tr '\n' ' ' < /tmp/compose-err-$$ | head -c 400)
+        rm -f /tmp/compose-err-$$
+        audit "APPLY compose up failed — mem may be on old image: $err"
         exit 3
       fi
-      audit "APPLY compose up ok (.env persisted NMEM_IMAGE_TAG=$tag), waiting for /livez"
+      rm -f /tmp/compose-err-$$
+      audit "APPLY compose up ok (overlays=$compose_overlays, .env NMEM_IMAGE_TAG=$tag), waiting for /livez"
 
       # Step 6: wait for /livez green. Up to NOWLEDGE_LIVEZ_TIMEOUT_SECONDS.
       deadline=$(( $(date +%s) + NOWLEDGE_LIVEZ_TIMEOUT_SECONDS ))
