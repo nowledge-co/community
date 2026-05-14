@@ -321,18 +321,41 @@ docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:0.8.4
 
 ## Day-2 operations
 
-### Backup
+### Backup and migration
 
 ```bash
-docker run --rm \
-  -v nowledge-mem-data:/data:ro \
-  -v nowledge-mem-config:/config:ro \
-  -v "$PWD":/backup \
-  alpine \
-  tar -C / -czf /backup/nowledge-mem-$(date +%F).tgz data config
+./nmemctl export                              # stop, snapshot volumes, restart
+./nmemctl export --no-cache --out ~/backup.tar.gz   # skip cache for smaller archive
+./nmemctl import ~/backup.tar.gz              # restore on a new host
+./nmemctl import ~/backup.tar.gz --force      # overwrite an existing deploy
 ```
 
-Restore by extracting into fresh volumes before the first `docker compose up`.
+`export` stops the container (the Kuzu DB must be at rest to snapshot cleanly),
+tars the three named volumes into a single `.tar.gz`, and restarts the
+container. The default filename is `mem-export-<host>-<timestamp>.tar.gz`
+in the current directory.
+
+**What carries across, what doesn't:**
+
+| Thing | Carries? | Notes |
+|---|---|---|
+| Graph DB (memories, threads, sources) | yes | Same image version on both ends. |
+| Search index | yes | |
+| License activation | yes | But the app may prompt for re-activation on first launch (uses one seat). |
+| API key | yes | Clients keep working at the new host without re-auth. |
+| Agent state (feed, scheduler) | yes | |
+| Cached embeddings | yes by default | `--no-cache` to skip; first launch re-downloads. |
+| `machine_id` (device identity) | **no — by design** | Destination gets a fresh ID. |
+
+This is a volume-level snapshot, not an application-level dump. **Source and
+destination must be on the same image version**, or destination must be
+strictly newer (migrations run forward on first boot; the backend refuses
+to open a DB written by a newer version). For cross-version moves, use the
+in-container `nmem` CLI's export/import which produces a portable
+application-level dump.
+
+After `import` succeeds, retire the source server. Running both side-by-side
+diverges state.
 
 ### Upgrade
 

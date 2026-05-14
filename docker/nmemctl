@@ -36,7 +36,7 @@ set -euo pipefail
 # Version of the controller itself. Bump when nmemctl semantics or
 # command surface change. Independent of the docker image version
 # (which `./nmemctl version` reports separately).
-NMEMCTL_VERSION="1.0.0"
+NMEMCTL_VERSION="1.1.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -539,6 +539,204 @@ cmd_self_update() {
   note "Restart the stack to apply any compose changes:  ./nmemctl restart"
 }
 
+# ---------------------------------------------------------------------------
+# Export / import — migrate a deployment to another host.
+#
+# The intent is "lift a working Mem server off one Linux box and drop it on
+# another", same image version on both sides. We tar the three named volumes
+# and ship a single archive; on the destination we untar into fresh volumes
+# and start the container.
+#
+# Identity is deliberately NOT carried across:
+#   - `machine_id` is excluded from the archive so the destination boots
+#     with a fresh device identity. License entitlement still carries via
+#     `license.json`; the app may prompt for re-activation on first launch,
+#     which consumes one seat from the user's allowance.
+#   - `remote-access.json` IS carried — the API key stays stable so already-
+#     paired clients (web UI, MCP clients, remote `nmem` CLI) keep working
+#     after migration without a re-auth dance.
+#
+# `cache` is included by default (fast first-launch — no model re-download),
+# opt out with `--no-cache` if archive size matters more than warm-start.
+#
+# This is a volume-level snapshot, not an application-level dump. Source and
+# destination must be on the same image version, or destination must be
+# strictly NEWER (migrations run forward on first boot). Going backwards
+# is refused by the backend — Ladybug will not open a DB written by a
+# newer version. For cross-version moves use the in-container `nmem` CLI's
+# export/import, which produces a portable application-level dump.
+
+EXPORT_EXCLUDES=(
+  "config/co.nowledge.mem.desktop/machine_id"
+)
+
+cmd_export() {
+  require_docker
+
+  local no_cache=false
+  local out_path=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --no-cache) no_cache=true; shift ;;
+      --out) out_path="$2"; shift 2 ;;
+      *) fail "usage: ./nmemctl export [--no-cache] [--out PATH]" ;;
+    esac
+  done
+
+  # Default output filename — host + UTC timestamp.
+  if [[ -z "$out_path" ]]; then
+    local host_tag
+    host_tag="$(hostname 2>/dev/null | tr -c 'A-Za-z0-9-' '-' | sed 's/-*$//')"
+    out_path="$SCRIPT_DIR/mem-export-${host_tag:-host}-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+  fi
+
+  step "Export plan"
+  note "output:   $out_path"
+  note "includes: data, config (minus machine_id)$([[ "$no_cache" == false ]] && echo ", cache")"
+  note "excludes: machine_id (fresh identity on import)"
+
+  # Stopping the container ensures the Kuzu DB is at rest. Tar-ing a live
+  # DB file is the classic backup footgun — pages may be mid-write.
+  if is_running; then
+    step "Stopping container (required — DB must be at rest)"
+    "${DC[@]}" down
+  fi
+
+  step "Discovering current image (for archive manifest)"
+  local img
+  img="$(read_image_tag 2>/dev/null || echo "unknown")"
+  note "image: $img"
+
+  step "Writing archive"
+  local includes="data config"
+  $no_cache || includes="$includes cache"
+  local exclude_args=""
+  for e in "${EXPORT_EXCLUDES[@]}"; do
+    exclude_args="$exclude_args --exclude=$e"
+  done
+
+  # Write manifest in /tmp, mount alongside, include in archive.
+  local manifest_tmp
+  manifest_tmp="$(mktemp -t nmemctl-export-manifest.XXXXXX)"
+  cat > "$manifest_tmp" <<EOF
+{
+  "format": "nmemctl-export-v1",
+  "exported_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "source_image": "$img",
+  "source_nmemctl_version": "$NMEMCTL_VERSION",
+  "includes": [$( $no_cache && echo '"data", "config"' || echo '"data", "config", "cache"' )],
+  "excludes": ["machine_id"]
+}
+EOF
+
+  local out_dir
+  out_dir="$(cd "$(dirname "$out_path")" && pwd)"
+  local out_file
+  out_file="$(basename "$out_path")"
+
+  docker run --rm \
+    -v nowledge-mem-data:/src/data:ro \
+    -v nowledge-mem-config:/src/config:ro \
+    -v nowledge-mem-cache:/src/cache:ro \
+    -v "$manifest_tmp:/src/manifest.json:ro" \
+    -v "$out_dir:/out" \
+    alpine:3.20 \
+    sh -c "cd /src && tar $exclude_args -czf /out/$out_file manifest.json $includes"
+
+  rm -f "$manifest_tmp"
+
+  step "Restarting container"
+  "${DC[@]}" up -d
+
+  step "Export complete"
+  note "archive: $out_path"
+  note "size:    $(du -h "$out_path" | awk '{print $1}')"
+  echo
+  note "On the destination host:"
+  note "    scp $out_file user@destination:~/"
+  note "    ssh user@destination"
+  note "    cd <community/docker checkout>"
+  note "    ./nmemctl import ~/$out_file"
+}
+
+cmd_import() {
+  require_docker
+
+  local archive=""
+  local force=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) force=true; shift ;;
+      -*) fail "usage: ./nmemctl import <archive.tar.gz> [--force]" ;;
+      *) archive="$1"; shift ;;
+    esac
+  done
+  [[ -n "$archive" ]] || fail "usage: ./nmemctl import <archive.tar.gz> [--force]"
+  [[ -f "$archive" ]] || fail "archive not found: $archive"
+  archive="$(cd "$(dirname "$archive")" && pwd)/$(basename "$archive")"
+
+  step "Import preflight"
+
+  if is_running; then
+    fail "container is running — stop it first with './nmemctl down' (or this will race the DB)"
+  fi
+
+  # Refuse to overwrite an existing populated deploy without --force.
+  # Check by peeking inside the data volume — anything more than the auto-
+  # created empty subdirs counts.
+  local existing
+  existing="$(docker run --rm \
+    -v nowledge-mem-data:/data:ro \
+    alpine:3.20 \
+    sh -c 'find /data -mindepth 1 -maxdepth 2 -type f 2>/dev/null | head -5' || true)"
+  if [[ -n "$existing" ]] && ! $force; then
+    warn "data volume is not empty — sample files:"
+    printf '%s\n' "$existing" | sed 's/^/      /'
+    fail "refusing to import on a non-empty deploy. Pass --force to overwrite, or './nmemctl wipe' first."
+  fi
+
+  step "Inspecting archive manifest"
+  local manifest
+  manifest="$(docker run --rm \
+    -v "$archive:/archive.tar.gz:ro" \
+    alpine:3.20 \
+    sh -c 'tar -xzOf /archive.tar.gz manifest.json 2>/dev/null' || true)"
+  if [[ -n "$manifest" ]]; then
+    printf '%s\n' "$manifest" | sed 's/^/    /'
+  else
+    warn "no manifest.json found in archive — proceeding anyway (older or hand-rolled export)"
+  fi
+
+  step "Restoring into named volumes"
+  # Ensure the named volumes exist (they may not on a fresh host).
+  for v in nowledge-mem-data nowledge-mem-config nowledge-mem-cache; do
+    docker volume create "$v" >/dev/null
+  done
+
+  # Untar archive into the three volumes. The archive's top-level layout
+  # already mirrors /src/{data,config,cache}, so we mount the volumes at
+  # /dst/{data,config,cache} and extract there.
+  docker run --rm \
+    -v nowledge-mem-data:/dst/data \
+    -v nowledge-mem-config:/dst/config \
+    -v nowledge-mem-cache:/dst/cache \
+    -v "$archive:/archive.tar.gz:ro" \
+    alpine:3.20 \
+    sh -c '
+      cd /dst
+      # The archive may or may not include cache. Extract whatever is there.
+      tar -xzf /archive.tar.gz --exclude=manifest.json
+    '
+
+  step "Starting container"
+  cmd_up
+
+  echo
+  note "Migration complete. The new host has its own machine_id"
+  note "(license may prompt for re-activation on first launch — that's expected)."
+  note "Old host should be retired now to avoid divergent state."
+}
+
 cmd_help() {
   cat <<'EOF'
 nmemctl — lifecycle controller for the Nowledge Mem headless deploy
@@ -566,6 +764,16 @@ RELEASE
                                   the community repo. Diff-and-prompt; never
                                   silent. In a git checkout, defers to
                                   `git pull`.
+
+MIGRATION  (volume-level snapshot — same-version source → destination)
+  nmemctl export [--no-cache]     Stop, tar volumes, restart. Excludes
+                 [--out PATH]     machine_id so destination gets a fresh
+                                  identity; license + API key carry over.
+                                  Writes mem-export-<host>-<ts>.tar.gz.
+  nmemctl import <archive>        Untar into named volumes and start.
+                 [--force]        Refuses a non-empty deploy without --force.
+
+DESTRUCTIVE
   nmemctl wipe                    Factory reset (type WIPE to confirm).
                                   Stops + removes all volumes + restarts fresh.
 
@@ -612,6 +820,8 @@ case "$cmd" in
   logs)               cmd_logs "$@" ;;
   version|--version)  cmd_version ;;
   self-update)        cmd_self_update "$@" ;;
+  export)             cmd_export "$@" ;;
+  import)             cmd_import "$@" ;;
   key)                cmd_key "$@" ;;
   license)            cmd_license "$@" ;;
   upgrade)            cmd_upgrade "$@" ;;
