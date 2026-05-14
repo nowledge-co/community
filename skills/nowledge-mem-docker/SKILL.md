@@ -196,12 +196,16 @@ If the user mentions the feed timeline still shows **old data after a fresh cont
 ├── compose.yaml             # default stack
 ├── compose.tls.yaml         # TLS overlay (Caddy sidecar)
 ├── Caddyfile                # TLS reverse proxy config
-└── README.md                # full reference
+├── README.md                # full reference
+├── data/                    # graph + search index (bind mount, UID 10001)
+├── config/                  # license, API key, agent state (bind mount, UID 10001)
+└── cache/                   # embedding models, search projection (bind mount, UID 10001)
 
-# Inside the container's config volume:
-/etc/nowledge-mem/co.nowledge.mem.desktop/
+# Inside ./config (mounted at /etc/nowledge-mem in the container):
+./config/co.nowledge.mem.desktop/
 ├── remote-access.json       # API key (mode 0600)
 ├── license.json             # license activation (when present)
+├── machine_id               # device-identity seed (UUID, persisted)
 └── builtin_agents/          # feed / knowledge / scheduler state
 ```
 
