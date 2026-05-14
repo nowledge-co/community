@@ -336,11 +336,26 @@ Restore by extracting into fresh volumes before the first `docker compose up`.
 
 ### Upgrade
 
+Two independent things you might want to upgrade:
+
 ```bash
-./nmemctl upgrade 0.8.5                   # pulls, bumps compose.yaml, recreates
+./nmemctl upgrade 0.8.5                   # the docker image: pull, bump compose, recreate
+./nmemctl self-update                     # the controller + compose stack files themselves
+./nmemctl self-update --check             # see what would change without applying
 ```
 
-The command refuses pre-release tags (`0.8.5-rc1`, etc.) by default — set
+`upgrade` and `self-update` are deliberately separate. `upgrade` is a runtime
+decision (move to a new server version, may run DB migrations). `self-update`
+is purely about the operator tooling sitting next to the container — the
+controller script, compose files, Caddyfile. You can do them in any order.
+
+`self-update` auto-detects a git checkout and defers to `git pull` when
+`community/` is a git repo. On a curl-pulled standalone install it fetches
+files from `raw.githubusercontent.com/nowledge-co/community/main/docker/`,
+diffs them against local, and prompts before overwriting anything. Backups
+are left as `<file>.bak.<timestamp>`.
+
+`upgrade` refuses pre-release tags (`0.8.5-rc1`, etc.) by default — set
 `NMEM_ALLOW_PRERELEASE=1` to override when you're testing a release candidate.
 
 The backend runs schema migrations on startup. There is **no downgrade path**;

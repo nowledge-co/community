@@ -33,6 +33,11 @@
 
 set -euo pipefail
 
+# Version of the controller itself. Bump when nmemctl semantics or
+# command surface change. Independent of the docker image version
+# (which `./nmemctl version` reports separately).
+NMEMCTL_VERSION="1.0.0"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
@@ -241,6 +246,7 @@ cmd_logs() {
 }
 
 cmd_version_inner() {
+  note "nmemctl: $NMEMCTL_VERSION"
   local image_tag binary_ver
   image_tag="$(read_image_tag 2>/dev/null || true)"
   [[ -n "$image_tag" ]] && note "image:   $image_tag"
@@ -253,6 +259,13 @@ cmd_version_inner() {
   fi
 }
 cmd_version() {
+  # If docker isn't available, fall back to printing just the controller
+  # version. That's still useful for bug reports ("which nmemctl is this?")
+  # on a machine that doesn't have docker installed yet.
+  if ! command -v docker >/dev/null 2>&1; then
+    printf "nmemctl %s\n" "$NMEMCTL_VERSION"
+    return 0
+  fi
   require_docker
   step "Version"
   cmd_version_inner
@@ -385,6 +398,147 @@ cmd_wipe() {
   cmd_up
 }
 
+# ---------------------------------------------------------------------------
+# Self-update: pull the latest controller + stack files from the community
+# repo on GitHub.
+#
+# Two modes, auto-detected:
+#
+#   - Git checkout (the canonical install path; `community/` is a git
+#     repo or submodule on the host): `self-update` defers to git and
+#     tells the operator to run `git pull` themselves. We don't run git
+#     commands behind their back because the same checkout may carry
+#     other files the operator cares about (TLS overrides, .env, secrets
+#     bind-mounts).
+#
+#   - Curl-pulled standalone (operator grabbed just nmemctl + compose
+#     without cloning): self-update fetches files from GitHub raw and
+#     diffs them against local. nmemctl itself is updated atomically
+#     (write to temp, rename). Config files (compose.yaml, Caddyfile,
+#     compose.tls.yaml) are diffed and the operator is prompted before
+#     anything overwrites their potentially-customized copy.
+#
+# Self-update never automatically pulls a new docker image — that's
+# `./nmemctl upgrade VERSION` and is a separate, explicit decision. The
+# controller and the runtime version each on their own track on purpose:
+# you should be able to update the controller without forcing a restart
+# of a healthy stack.
+RAW_BASE="https://raw.githubusercontent.com/nowledge-co/community/main/docker"
+STACK_FILES=(nmemctl compose.yaml compose.tls.yaml Caddyfile)
+
+# Read NMEMCTL_VERSION from a remote nmemctl on disk (for diffing).
+extract_remote_version() {
+  local file="$1"
+  awk -F'"' '/^NMEMCTL_VERSION=/{print $2; exit}' "$file"
+}
+
+cmd_self_update() {
+  local check_only=false
+  if [[ "${1:-}" == "--check" ]]; then check_only=true; fi
+
+  step "Self-update — comparing local vs $RAW_BASE"
+
+  # Detect git checkout — community as a repo or submodule
+  if git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    local repo_root
+    repo_root="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+    note "this directory is inside a git checkout at $repo_root"
+    note "use the canonical update path so any other local changes stay coherent:"
+    echo
+    note "    git -C $repo_root pull --ff-only"
+    note "    # if community/ is a submodule of a parent repo:"
+    note "    git -C <parent> submodule update --remote community"
+    echo
+    if $check_only; then return 0; fi
+    warn "skipping curl-based self-update because git is in charge here"
+    return 0
+  fi
+
+  # Curl path — operator pulled standalone files
+  command -v curl >/dev/null 2>&1 || fail "curl is required for self-update on a non-git checkout."
+  command -v diff >/dev/null 2>&1 || fail "diff is required for self-update."
+
+  local tmpdir
+  tmpdir="$(mktemp -d -t nmemctl-selfupdate.XXXXXX)"
+  trap "rm -rf '$tmpdir'" RETURN
+
+  local any_diff=false
+  local controller_new=""
+
+  for f in "${STACK_FILES[@]}"; do
+    local local_path="$SCRIPT_DIR/$f"
+    local remote_path="$tmpdir/$f"
+    if ! curl -fsSL "$RAW_BASE/$f" -o "$remote_path"; then
+      warn "could not fetch $f from remote (skipping)"
+      continue
+    fi
+    if [[ ! -f "$local_path" ]]; then
+      note "$f — missing locally; remote would add it"
+      any_diff=true
+      continue
+    fi
+    if cmp -s "$local_path" "$remote_path"; then
+      ok "$f — up to date"
+    else
+      any_diff=true
+      if [[ "$f" == "nmemctl" ]]; then
+        local local_ver remote_ver
+        local_ver="$NMEMCTL_VERSION"
+        remote_ver="$(extract_remote_version "$remote_path" 2>/dev/null || echo "?")"
+        warn "nmemctl — local $local_ver, remote $remote_ver"
+        controller_new="$remote_path"
+      else
+        warn "$f — differs from remote"
+      fi
+      if $check_only; then continue; fi
+      echo "    -- diff (local vs remote) --"
+      diff -u "$local_path" "$remote_path" | sed 's/^/      /' | head -40
+      echo
+    fi
+  done
+
+  if ! $any_diff; then
+    ok "All stack files match remote. You're up to date."
+    return 0
+  fi
+
+  if $check_only; then
+    note "Updates available. Re-run without --check to apply (interactive)."
+    return 0
+  fi
+
+  echo
+  printf "    Apply updates? [y/N]: "
+  local answer
+  read -r answer
+  if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
+    note "aborted"
+    return 1
+  fi
+
+  for f in "${STACK_FILES[@]}"; do
+    local local_path="$SCRIPT_DIR/$f"
+    local remote_path="$tmpdir/$f"
+    [[ -f "$remote_path" ]] || continue
+    if [[ -f "$local_path" ]] && cmp -s "$local_path" "$remote_path"; then
+      continue   # already matched, no-op
+    fi
+    # Backup, then atomic move
+    if [[ -f "$local_path" ]]; then
+      cp -p "$local_path" "$local_path.bak.$(date +%s)"
+    fi
+    install -m 0755 "$remote_path" "$local_path" 2>/dev/null \
+      || cp -p "$remote_path" "$local_path"
+    # nmemctl needs the +x bit
+    [[ "$f" == "nmemctl" ]] && chmod +x "$local_path"
+    ok "applied: $f"
+  done
+
+  step "Self-update complete"
+  note "Backups left as <file>.bak.<timestamp>. Remove when satisfied."
+  note "Restart the stack to apply any compose changes:  ./nmemctl restart"
+}
+
 cmd_help() {
   cat <<'EOF'
 nmemctl — lifecycle controller for the Nowledge Mem headless deploy
@@ -408,11 +562,16 @@ RELEASE
                                   bump compose.yaml, recreate the container.
                                   Refuses pre-release tags unless
                                   NMEM_ALLOW_PRERELEASE=1.
+  nmemctl self-update [--check]   Update controller + compose stack from
+                                  the community repo. Diff-and-prompt; never
+                                  silent. In a git checkout, defers to
+                                  `git pull`.
   nmemctl wipe                    Factory reset (type WIPE to confirm).
                                   Stops + removes all volumes + restarts fresh.
 
 OTHER
   nmemctl help | -h | --help      This message
+  nmemctl --version               Print controller version + image version
   nmemctl                         Default: up if stopped, status if running
 
 ENV
@@ -452,6 +611,7 @@ case "$cmd" in
   status|ps)          cmd_status ;;
   logs)               cmd_logs "$@" ;;
   version|--version)  cmd_version ;;
+  self-update)        cmd_self_update "$@" ;;
   key)                cmd_key "$@" ;;
   license)            cmd_license "$@" ;;
   upgrade)            cmd_upgrade "$@" ;;
