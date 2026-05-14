@@ -66,7 +66,12 @@ services:
       # cached or POST /pull called first).
       NOWLEDGE_PULL_INTERVAL_SECONDS: ${NOWLEDGE_PULL_INTERVAL_SECONDS:-86400}
       NOWLEDGE_SNAPSHOT_RETAIN: ${NOWLEDGE_SNAPSHOT_RETAIN:-3}
-      NOWLEDGE_LIVEZ_TIMEOUT_SECONDS: ${NOWLEDGE_LIVEZ_TIMEOUT_SECONDS:-60}
+      # Default matches the sidecar's entrypoint.sh default (180s) which in
+      # turn accommodates compose.yaml's `start_period: 90s` for kuzu open +
+      # content-store reconcile. The earlier 60s value was too tight and
+      # tripped legitimate slow boots. Operators bump higher for migration-
+      # heavy upgrades.
+      NOWLEDGE_LIVEZ_TIMEOUT_SECONDS: ${NOWLEDGE_LIVEZ_TIMEOUT_SECONDS:-180}
 
     # No host port exposure. The mem backend reaches the sidecar over
     # the compose-internal docker network as http://updater:8080.

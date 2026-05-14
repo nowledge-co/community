@@ -13,16 +13,27 @@ set -u
 last_status_path=/opt/updater/cache/.last-scheduled-pull
 mkdir -p /opt/updater/cache
 
-# Pull both the literal tag the operator's stack is pinned to AND
-# `:latest`. The first is useful for re-pulling exact-version updates
-# (in case of a tag move); the second is what surfaces "X.Y.Z available"
-# to the UI.
+# Pull `:latest` AND the literal tag the operator's stack is pinned to.
+# `:latest` is what surfaces "X.Y.Z available" to the UI by widening the
+# local image cache to the newest published version. The pinned tag is
+# pulled to absorb potential tag-moves (a published `:X.Y.Z` that was
+# repushed after an emergency fix). We discover the pinned tag from the
+# running mem container's image config rather than baking it in — that
+# way the scheduler stays in sync with operator-side `./nmemctl upgrade`.
 #
-# We do not pull `:X.Y` (rolling minor) because operators who want patch
+# We do NOT pull `:X.Y` (rolling minor) because operators who want patch
 # updates should still consent to them via the Apply button.
 pull_once() {
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  for ref in "${NOWLEDGE_MEM_IMAGE}:latest"; do
+  refs="${NOWLEDGE_MEM_IMAGE}:latest"
+  pinned_tag=$(docker inspect --format '{{.Config.Image}}' \
+                  "$NOWLEDGE_MEM_CONTAINER" 2>/dev/null \
+                | awk -F: '{print $NF}')
+  if [ -n "$pinned_tag" ] && [ "$pinned_tag" != "latest" ]; then
+    refs="$refs ${NOWLEDGE_MEM_IMAGE}:${pinned_tag}"
+  fi
+
+  for ref in $refs; do
     if docker pull "$ref" >/tmp/pull.log 2>&1; then
       printf 'scheduler: pulled %s ok at %s\n' "$ref" "$ts"
       printf '{"image":"%s","ok":true,"at":"%s"}\n' "$ref" "$ts" \

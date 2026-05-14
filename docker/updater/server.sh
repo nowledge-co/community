@@ -3,9 +3,17 @@
 # (see entrypoint.sh). Reads an HTTP request on stdin, writes an HTTP
 # response on stdout, exits.
 #
+# Shebang note: `/bin/sh` on alpine resolves to busybox `ash`, which
+# DOES support `$'\r'` (ANSI-C quoting) for CRLF stripping even though
+# strict POSIX does not. We deliberately depend on busybox's `ash`
+# behavior here rather than adding bash to the image (saves ~3 MB).
+# This script is NOT portable to dash; alpine is the only runtime we
+# ship it on, and the Dockerfile pins alpine:3.20.
+#
 # Routes:
 #   GET  /healthz                  → 200 if alive
-#   GET  /status                   → cached_tags, pull_in_progress, running tag
+#   GET  /status                   → running_image, cached_tags, last_pull,
+#                                    snapshots, upgrade_in_progress
 #   POST /pull?tag=X.Y.Z           → docker pull (idempotent, no downtime)
 #   POST /apply?tag=X.Y.Z          → snapshot + recreate (~30s downtime)
 #
@@ -16,17 +24,22 @@
 #   - Free-space precheck BEFORE docker stop. If insufficient, return
 #     412 and leave the container running. Stopping without space to
 #     snapshot would corrupt the only safety net.
-#   - Atomic snapshot: write to .tmp, mv to final name. Never leave a
-#     half-written tar masquerading as a valid snapshot.
-#   - Single-flight lock: ./cache/_upgrade.lock holds PID+timestamp.
-#     Concurrent /apply gets 409. Stale lock (>30 min, PID dead) is
-#     auto-cleared.
+#   - Atomic snapshot: tar exit status captured directly (not through a
+#     pipeline that would mask failures), then mv .tmp → final only on
+#     success. Never leave a half-written tar masquerading as valid.
+#   - Single-flight lock: ./cache/_upgrade.lock.d is an atomic mkdir
+#     DIRECTORY with a timestamp-only `owner` file inside. Concurrent
+#     /apply gets 409. Staleness is judged by timestamp age (the
+#     detached worker is a fresh subshell, so PID-liveness checks
+#     would always claim stale and double-fire apply).
 #   - /livez watch after recreate: poll up to NOWLEDGE_LIVEZ_TIMEOUT_SECONDS.
 #     If never green, return failure with snapshot path so the operator
 #     can decide whether to restore or debug forward.
 #   - Last-N snapshot rotation: keep newest NOWLEDGE_SNAPSHOT_RETAIN
 #     `_pre-upgrade-*.tar.gz`; delete older.
-#   - All endpoints log to stderr (captured by socat) for the audit trail.
+#   - All endpoints log to stderr (captured by `docker logs`) for the
+#     audit trail. socat's `stderr` option is INTENTIONALLY NOT used
+#     in entrypoint.sh so audit lines don't fold into HTTP responses.
 
 set -u
 
@@ -224,11 +237,19 @@ case "$method $path" in
       last_pull=$(cat "$SCHED_STATUS")
     fi
 
-    # Upgrade in progress?
+    # Upgrade in progress? The lock is now an atomic mkdir directory
+    # (LOCK_DIR = ${LOCK_FILE}.d) with a timestamp-only `owner` file
+    # inside — staleness is judged by age, not PID liveness, because
+    # the subshell doing the work isn't the lock-acquirer process.
     in_progress=false
-    if [ -f "$LOCK_FILE" ]; then
-      held_pid=$(awk -F= '/^pid=/ {print $2}' "$LOCK_FILE" 2>/dev/null || true)
-      if [ -n "$held_pid" ] && kill -0 "$held_pid" 2>/dev/null; then
+    if [ -d "$LOCK_DIR" ]; then
+      held_ts=$(awk -F= '/^ts=/ {print $2}' "$LOCK_DIR/owner" 2>/dev/null || true)
+      if [ -z "$held_ts" ]; then
+        held_ts=$(stat -c '%Y' "$LOCK_DIR" 2>/dev/null || echo 0)
+      fi
+      now=$(date +%s)
+      age=$(( now - ${held_ts:-0} ))
+      if [ "$age" -lt "$STALE_LOCK_AFTER" ]; then
         in_progress=true
       fi
     fi
@@ -317,7 +338,9 @@ case "$method $path" in
     # caller to get a fast 202 with the snapshot path. The detached
     # worker logs everything via audit() to stderr, captured by socat.
     ts=$(date -u +%Y%m%dT%H%M%SZ)
-    snapshot=".cache/_pre-upgrade-${ts}.tar.gz"
+    # ./cache/ (visible) — the operator can ls this from the host.
+    # The earlier .cache/ (hidden dotted dir) was a bug.
+    snapshot="./cache/_pre-upgrade-${ts}.tar.gz"
     snapshot_abs="$SNAPSHOT_DIR/_pre-upgrade-${ts}.tar.gz"
 
     (
@@ -336,12 +359,22 @@ case "$method $path" in
       # Step 2: atomic snapshot. Tar from /opt/snapshot (which has data
       # and config bind-mounted RO). Exclude cache by virtue of not
       # tarring it. Write .tmp first, then rename.
-      if ! tar -czf "${snapshot_abs}.tmp" -C /opt/snapshot data config 2>&1 \
-         | sed 's/^/tar: /' >&2 ; then
-        :
+      #
+      # IMPORTANT: capture tar's exit status directly. In POSIX sh,
+      # `tar … | sed …` returns sed's status, which would mask tar
+      # failures and leave a half-written archive that the `-s` check
+      # below would happily accept. We tee tar's stderr to a temp log
+      # for the audit trail and check tar's exit code explicitly.
+      tar_log=$(mktemp)
+      tar -czf "${snapshot_abs}.tmp" -C /opt/snapshot data config 2>"$tar_log"
+      tar_rc=$?
+      if [ -s "$tar_log" ]; then
+        sed 's/^/tar: /' < "$tar_log" >&2
       fi
-      if [ ! -s "${snapshot_abs}.tmp" ]; then
-        audit "APPLY snapshot failed — restarting mem on old image"
+      rm -f "$tar_log"
+      if [ "$tar_rc" -ne 0 ] || [ ! -s "${snapshot_abs}.tmp" ]; then
+        audit "APPLY snapshot failed (tar rc=$tar_rc) — restarting mem on old image"
+        rm -f "${snapshot_abs}.tmp"
         docker start "$NOWLEDGE_MEM_CONTAINER" >/dev/null 2>&1 || true
         exit 2
       fi

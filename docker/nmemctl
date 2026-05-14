@@ -1205,8 +1205,17 @@ cmd_auto_update_enable() {
   ok "future ./nmemctl up / restart will include the updater sidecar"
 
   step "Bringing the stack up with the overlay attached"
-  # Reload NMEM_COMPOSE_FILES now that .nmemctl-state has been updated.
-  NMEM_COMPOSE_FILES="-f compose.yaml $AUTO_UPDATE_OVERLAY"
+  # Reload NMEM_COMPOSE_FILES from the freshly-updated .nmemctl-state so
+  # we PRESERVE any other overlays the operator has layered in (e.g.
+  # compose.tls.yaml). Hardcoding only the updater overlay here would
+  # silently drop TLS / Caddy and break the deploy on `enable`.
+  local persisted
+  persisted="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+  if [[ -n "$persisted" ]]; then
+    NMEM_COMPOSE_FILES="-f compose.yaml $persisted"
+  else
+    NMEM_COMPOSE_FILES="-f compose.yaml $AUTO_UPDATE_OVERLAY"
+  fi
   DC=(docker compose ${NMEM_COMPOSE_FILES})
   bring_up_and_wait
 
@@ -1293,13 +1302,18 @@ cmd_auto_update_rotate() {
   write_env_var "NOWLEDGE_UPDATER_TOKEN" "$token"
   ok "new token written to .env"
 
-  step "Recreating the updater sidecar to pick up the new token"
-  "${DC[@]}" up -d --force-recreate updater >/dev/null 2>&1
-  ok "sidecar restarted on new token"
+  # Recreate BOTH the updater AND the mem service. compose.updater.yaml
+  # injects NOWLEDGE_UPDATER_TOKEN into the mem container's env at
+  # create-time (so the backend can call the sidecar with bearer auth).
+  # Without recreating mem too, mem would keep the OLD token in its
+  # environment and 401 every time it tries to reach the sidecar.
+  step "Recreating both updater and mem containers on the new token"
+  "${DC[@]}" up -d --force-recreate updater "$SVC" >/dev/null 2>&1
+  ok "both containers restarted on the new token"
 
   step "Token rotated"
-  note "Any backend instance holding the old token will be 401-rejected on"
-  note "its next /admin/upgrade/* call until it re-reads .env."
+  note "Any external client holding the old token (e.g. a stale curl"
+  note "session) will be 401-rejected on its next /admin/upgrade/* call."
 }
 
 cmd_auto_update_upgrade() {
