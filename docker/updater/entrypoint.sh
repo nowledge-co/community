@@ -31,6 +31,15 @@ require_env "${NOWLEDGE_MEM_IMAGE:-}" NOWLEDGE_MEM_IMAGE
 # pass to `docker stop` / `docker inspect`. Operators who renamed
 # either side in their compose.yaml override these.
 : "${NOWLEDGE_MEM_SERVICE:=mem}"
+# Host-side path of the compose project — used by the apply path to tell
+# `docker compose --project-directory=…` how to resolve relative bind-
+# mount paths in compose.yaml. The sidecar mounts the project at
+# /opt/compose for file access, but docker daemon (which lives on the
+# host) needs the HOST path to attach bind mounts correctly to the
+# recreated mem container. compose.updater.yaml seeds this from ${PWD}
+# on the operator's shell.
+: "${NOWLEDGE_COMPOSE_PROJECT_DIR:=/opt/compose}"
+export NOWLEDGE_COMPOSE_PROJECT_DIR
 : "${NOWLEDGE_PULL_INTERVAL_SECONDS:=86400}"
 : "${NOWLEDGE_SNAPSHOT_RETAIN:=3}"
 # Default matches compose.yaml's `start_period: 90s` plus headroom for

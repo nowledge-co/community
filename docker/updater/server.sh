@@ -455,7 +455,15 @@ case "$method $path" in
       # "container name in use". --force-recreate fixes that, and is the
       # right semantic for "apply a new image" regardless of any
       # config-change-detection that compose does implicitly.
-      if ! ( cd /opt/compose && docker compose $project_arg -f compose.yaml $compose_overlays \
+      # CRITICAL: --project-directory tells compose where to RESOLVE
+      # relative bind-mount paths in compose.yaml. The sidecar's cwd
+      # (/opt/compose) is an in-container view; docker daemon needs the
+      # HOST path or it'll auto-create empty root-owned dirs at
+      # /opt/compose/data on the host. NOWLEDGE_COMPOSE_PROJECT_DIR is
+      # seeded by compose.updater.yaml from ${PWD} on the operator's shell.
+      if ! ( cd /opt/compose && docker compose \
+              --project-directory "$NOWLEDGE_COMPOSE_PROJECT_DIR" \
+              $project_arg -f compose.yaml $compose_overlays \
               up -d --no-deps --force-recreate "$NOWLEDGE_MEM_SERVICE" \
             ) 2>/tmp/compose-err-$$; then
         err=$(tr '\n' ' ' < /tmp/compose-err-$$ | head -c 400)

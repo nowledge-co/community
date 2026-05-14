@@ -61,6 +61,19 @@ services:
       NOWLEDGE_MEM_CONTAINER: nowledge-mem          # `docker stop/inspect` target
       NOWLEDGE_MEM_SERVICE: mem                     # `docker compose up` target
       NOWLEDGE_MEM_IMAGE: docker.io/nowledgelabs/mem
+      # CRITICAL: the host-side path of the compose project. The sidecar
+      # mounts this dir at /opt/compose, but when it invokes `docker
+      # compose up` for recreate, the docker daemon resolves relative
+      # bind-mount paths in compose.yaml against the operator's HOST
+      # path — not the sidecar's view. Without this, every apply
+      # recreate would point bind mounts at `/opt/compose/data`,
+      # docker would auto-create that empty dir as root, and the new
+      # mem container would boot into an empty install.
+      #
+      # `${PWD}` is substituted at compose parse time on the operator's
+      # shell — that's where they ran `./nmemctl auto-update enable` or
+      # `docker compose up`, which IS the project dir on the host.
+      NOWLEDGE_COMPOSE_PROJECT_DIR: ${NOWLEDGE_COMPOSE_PROJECT_DIR:-${PWD}}
       # Background pull cadence. 86400s = 24h. Set to 0 to disable
       # scheduled pulls (Apply still works; image must already be
       # cached or POST /pull called first).
