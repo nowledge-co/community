@@ -6,7 +6,7 @@
 # Apply on top of compose.yaml:
 #   ./nmemctl auto-update enable    # generates token, persists overlay
 # or by hand:
-#   docker compose -f compose.yaml -f compose.updater.yaml up -d
+#   NOWLEDGE_COMPOSE_PROJECT_DIR="$PWD" docker compose -f compose.yaml -f compose.updater.yaml up -d
 #
 # Trust model — read this before opting in:
 #
