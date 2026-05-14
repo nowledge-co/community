@@ -1326,9 +1326,11 @@ cmd_auto_update_upgrade() {
   docker pull "docker.io/nowledgelabs/mem-updater:$target" >/dev/null
   ok "image pulled"
 
-  if [[ "$target" != "latest" ]]; then
-    write_env_var "NMEM_UPDATER_TAG" "$target"
-  fi
+  # ALWAYS write NMEM_UPDATER_TAG, including the literal "latest". Without
+  # this, the `compose.updater.yaml` fallback `${NMEM_UPDATER_TAG:-X.Y.Z}`
+  # kicks in and the recreated sidecar runs the BAKED default — making
+  # `auto-update upgrade` (no args) a silent no-op.
+  write_env_var "NMEM_UPDATER_TAG" "$target"
 
   step "Recreating the updater sidecar on the new image"
   "${DC[@]}" up -d --force-recreate updater >/dev/null 2>&1
