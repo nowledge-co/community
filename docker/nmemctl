@@ -1,0 +1,476 @@
+#!/usr/bin/env bash
+#
+# nmemctl — lifecycle controller for the Nowledge Mem headless deploy.
+#
+# Naming follows the systemctl/kubectl convention: this tool *controls* the
+# deployment (compose stack lifecycle, volume wipe, version upgrade) while the
+# in-container `nmem` CLI handles application operations (keys, license, data).
+# Commands like `nmemctl key` forward to the in-container `nmem` so a user
+# never has to remember whether something lives in or out of the container.
+#
+# Run from the directory containing compose.yaml. All commands are idempotent
+# where it's safe to be (up, key, license status); destructive commands (wipe)
+# require explicit confirmation.
+#
+# Usage:
+#   ./nmemctl                          smart default: up if stopped, else status
+#   ./nmemctl up                       start + wait + print key + URL
+#   ./nmemctl down                     stop (data preserved)
+#   ./nmemctl restart                  stop + start
+#   ./nmemctl status                   compose ps + health + license + version
+#   ./nmemctl logs [-f] [--tail N]     view server logs
+#   ./nmemctl version                  image + binary versions
+#
+#   ./nmemctl key                      print Access Anywhere API key
+#   ./nmemctl key --rotate             rotate it
+#   ./nmemctl license                  show license status
+#   ./nmemctl license activate CODE    activate Pro license
+#
+#   ./nmemctl upgrade VERSION          pull image + bump compose + recreate
+#   ./nmemctl wipe                     FACTORY RESET (requires typing WIPE)
+#
+#   ./nmemctl help | -h | --help
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Preflight only runs for commands that need docker. `help` and bare invocation
+# of the script (for instance from a fresh checkout while reading docs) should
+# never error out on a missing docker. Lazy-check via require_docker() below.
+require_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    printf "\033[1;31merror:\033[0m docker not found on PATH\n" >&2
+    exit 1
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    printf "\033[1;31merror:\033[0m 'docker compose' v2 plugin not installed\n" >&2
+    exit 1
+  fi
+  if [[ ! -f compose.yaml ]]; then
+    printf "\033[1;31merror:\033[0m compose.yaml not found in %s\n" "$SCRIPT_DIR" >&2
+    exit 1
+  fi
+}
+
+# Compose wrapper. Override NMEM_COMPOSE_FILES to stack overlays (e.g. TLS):
+#   NMEM_COMPOSE_FILES='-f compose.yaml -f compose.tls.yaml' ./nmemctl up
+NMEM_COMPOSE_FILES="${NMEM_COMPOSE_FILES:--f compose.yaml}"
+DC=(docker compose ${NMEM_COMPOSE_FILES})
+
+# Service name in compose.yaml. Override with NMEM_SERVICE if you renamed it.
+SVC="${NMEM_SERVICE:-mem}"
+
+# ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
+step()  { printf "\n\033[1;34m==>\033[0m %s\n" "$*"; }
+note()  { printf "    %s\n" "$*"; }
+ok()    { printf "    \033[0;32mOK\033[0m %s\n" "$*"; }
+warn()  { printf "    \033[1;33mwarn\033[0m %s\n" "$*"; }
+fail()  { printf "\033[1;31merror:\033[0m %s\n" "$*" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Internal: container state probing
+# ---------------------------------------------------------------------------
+
+# Is the mem service container running? (returns 0 if yes)
+is_running() {
+  local id
+  id="$("${DC[@]}" ps -q "$SVC" 2>/dev/null)" || return 1
+  [[ -n "$id" ]] || return 1
+  [[ "$(docker inspect -f '{{.State.Running}}' "$id" 2>/dev/null)" == "true" ]]
+}
+
+# Hit /livez via the bundled python (no curl in slim image). Returns 0 when ready.
+probe_livez() {
+  "${DC[@]}" exec -T "$SVC" \
+    /opt/nowledge-mem/python/bin/python3 -c \
+      'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen("http://127.0.0.1:14242/livez", timeout=4).status==200 else 1)' \
+    >/dev/null 2>&1
+}
+
+# Bring the stack up and block until /livez answers. Idempotent.
+bring_up_and_wait() {
+  step "Bringing Nowledge Mem up"
+  "${DC[@]}" up -d
+
+  step "Waiting for /livez (up to 120s)"
+  # i is 1-indexed; first probe runs before any sleep, so elapsed seconds
+  # is (i-1)*2, not i*2.
+  for i in $(seq 1 60); do
+    if probe_livez; then
+      ok "ready in $(( (i - 1) * 2 ))s"
+      return 0
+    fi
+    sleep 2
+    if [[ $i -eq 60 ]]; then
+      fail "server did not become live in 120s. Check '${DC[*]} logs $SVC'."
+    fi
+  done
+}
+
+# Read the effective NOWLEDGE_DOMAIN that Compose will inject — works whether
+# the operator exported it to the shell or put it in a `.env` next to
+# compose.yaml. Empty if neither path defines it.
+resolve_tls_domain() {
+  local val
+  val="$("${DC[@]}" config 2>/dev/null \
+        | awk '$1=="NOWLEDGE_DOMAIN:"{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2; exit}')" || val=""
+  printf '%s\n' "${val%\"}" | sed 's/^"//; s/"$//'
+}
+
+# Print the web UI URL — HTTPS via Caddy if TLS overlay is loaded, else
+# the LAN IP (Linux) or localhost fallback.
+print_url() {
+  local tls_domain=""
+  if [[ "$NMEM_COMPOSE_FILES" == *compose.tls.yaml* ]]; then
+    tls_domain="$(resolve_tls_domain)"
+  fi
+  if [[ -n "$tls_domain" ]]; then
+    note "https://${tls_domain}/app"
+  else
+    local ip=""
+    if command -v hostname >/dev/null 2>&1; then
+      ip="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
+    fi
+    : "${ip:=localhost}"
+    note "http://${ip}:14242/app"
+  fi
+}
+
+# Read the current API key from inside the container. Empty on failure.
+read_key() {
+  "${DC[@]}" exec -T "$SVC" nmem key 2>/dev/null | tr -d '\r\n' || true
+}
+
+# Read the image tag the container is currently running (from compose).
+read_image_tag() {
+  "${DC[@]}" config 2>/dev/null \
+    | awk -v svc="$SVC" '
+        $0 ~ "^  "svc":" {in_svc=1; next}
+        in_svc && /^  [a-z]/ {in_svc=0}
+        in_svc && $1=="image:" {print $2; exit}
+      '
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+cmd_up() {
+  require_docker
+  bring_up_and_wait
+
+  step "Access Anywhere API key"
+  local key
+  key="$(read_key)"
+  [[ -n "$key" ]] || fail "could not retrieve API key (\`nmem key\` returned empty)."
+  note "$key"
+  note "stored at /etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json (mode 0600)"
+  note "rotate with:  ./nmemctl key --rotate"
+
+  step "License status"
+  "${DC[@]}" exec -T "$SVC" nmem license status || true
+
+  step "Open the web UI"
+  print_url
+  note "(paste the API key above when prompted)"
+}
+
+cmd_down() {
+  require_docker
+  step "Stopping Nowledge Mem (data preserved)"
+  "${DC[@]}" down
+  ok "stopped"
+}
+
+cmd_restart() {
+  require_docker
+  step "Restarting Nowledge Mem"
+  if is_running; then
+    "${DC[@]}" restart "$SVC"
+  else
+    "${DC[@]}" up -d
+  fi
+  step "Waiting for /livez"
+  for i in $(seq 1 60); do
+    if probe_livez; then ok "ready in $(( (i - 1) * 2 ))s"; return 0; fi
+    sleep 2
+  done
+  fail "server did not become live in 120s after restart."
+}
+
+cmd_status() {
+  require_docker
+  step "Container state"
+  "${DC[@]}" ps
+
+  if ! is_running; then
+    warn "container is not running — run \`./nmemctl up\` to start it"
+    return 0
+  fi
+
+  step "Health"
+  if probe_livez; then
+    ok "/livez responding"
+  else
+    warn "/livez not responding yet"
+  fi
+
+  step "License"
+  "${DC[@]}" exec -T "$SVC" nmem license status 2>/dev/null || warn "license status unavailable"
+
+  step "Version"
+  cmd_version_inner
+
+  step "Access Anywhere"
+  local key
+  key="$(read_key)"
+  if [[ -n "$key" ]]; then
+    note "API key:  $key"
+  fi
+  print_url
+}
+
+cmd_logs() {
+  require_docker
+  # All remaining args pass through to compose logs (so -f, --tail, etc work).
+  "${DC[@]}" logs "$@" "$SVC"
+}
+
+cmd_version_inner() {
+  local image_tag binary_ver
+  image_tag="$(read_image_tag 2>/dev/null || true)"
+  [[ -n "$image_tag" ]] && note "image:   $image_tag"
+  if is_running; then
+    binary_ver="$("${DC[@]}" exec -T "$SVC" \
+        /opt/nowledge-mem/python/bin/python3 -c \
+          'import urllib.request,json; print(json.load(urllib.request.urlopen("http://127.0.0.1:14242/health",timeout=4)).get("version",""))' \
+        2>/dev/null | tr -d '\r\n' || true)"
+    [[ -n "$binary_ver" ]] && note "binary:  $binary_ver"
+  fi
+}
+cmd_version() {
+  require_docker
+  step "Version"
+  cmd_version_inner
+}
+
+cmd_key() {
+  require_docker
+  local arg="${1:-}"
+  case "$arg" in
+    --rotate)
+      # Up first — exec requires a running container.
+      bring_up_and_wait
+      step "Rotating Access Anywhere API key"
+      note "Old key will stop working immediately. Web UI sessions and MCP"
+      note "clients must be re-authed with the new value."
+      "${DC[@]}" exec -T "$SVC" nmem key --rotate
+      step "New key"
+      "${DC[@]}" exec -T "$SVC" nmem key
+      ;;
+    ""|--show)
+      if ! is_running; then
+        bring_up_and_wait
+      fi
+      "${DC[@]}" exec -T "$SVC" nmem key
+      ;;
+    *)
+      fail "usage: ./nmemctl key [--rotate]"
+      ;;
+  esac
+}
+
+cmd_license() {
+  require_docker
+  local sub="${1:-status}"
+  case "$sub" in
+    status)
+      if ! is_running; then bring_up_and_wait; fi
+      "${DC[@]}" exec -T "$SVC" nmem license status
+      ;;
+    activate)
+      local code="${2:-}"
+      [[ -n "$code" ]] || fail "usage: ./nmemctl license activate <BASE64-CODE>"
+      bring_up_and_wait
+      step "Activating license"
+      "${DC[@]}" exec -T "$SVC" nmem license activate "$code"
+      step "License status"
+      "${DC[@]}" exec -T "$SVC" nmem license status
+      ;;
+    *)
+      fail "usage: ./nmemctl license [status | activate CODE]"
+      ;;
+  esac
+}
+
+cmd_upgrade() {
+  require_docker
+  local target="${1:-}"
+  [[ -n "$target" ]] || fail "usage: ./nmemctl upgrade VERSION   (e.g. 0.8.5)"
+
+  step "Upgrade plan"
+  local current
+  current="$(read_image_tag 2>/dev/null | sed 's|.*:||' || true)"
+  note "current image: ${current:-unknown}"
+  note "target image:  ${target}"
+
+  # Bare semver only — refuse anything that looks like a pre-release suffix
+  # unless the operator opts in with NMEM_ALLOW_PRERELEASE=1.
+  if ! [[ "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    if [[ "${NMEM_ALLOW_PRERELEASE:-}" == "1" ]]; then
+      warn "non-stable target '$target' allowed via NMEM_ALLOW_PRERELEASE=1"
+    else
+      fail "refusing to upgrade to non-stable tag '$target'. Set NMEM_ALLOW_PRERELEASE=1 to override."
+    fi
+  fi
+
+  step "Pulling docker.io/nowledgelabs/mem:${target}"
+  docker pull "docker.io/nowledgelabs/mem:${target}"
+
+  step "Bumping compose.yaml image tag"
+  # Match `image: docker.io/nowledgelabs/mem:*` on its own line and replace.
+  if ! grep -qE "^[[:space:]]+image:[[:space:]]+docker\.io/nowledgelabs/mem:" compose.yaml; then
+    fail "could not find the mem image line in compose.yaml — bump manually."
+  fi
+  cp compose.yaml compose.yaml.bak
+  sed -i.tmp -E \
+      "s|^([[:space:]]+image:[[:space:]]+)docker\.io/nowledgelabs/mem:.*|\\1docker.io/nowledgelabs/mem:${target}|" \
+      compose.yaml
+  rm -f compose.yaml.tmp
+  diff -u compose.yaml.bak compose.yaml || true
+  rm -f compose.yaml.bak
+
+  step "Recreating container with new image"
+  "${DC[@]}" up -d --force-recreate "$SVC"
+
+  step "Waiting for /livez"
+  for i in $(seq 1 60); do
+    if probe_livez; then ok "ready in $(( (i - 1) * 2 ))s"; break; fi
+    sleep 2
+    [[ $i -eq 60 ]] && fail "server did not come back up in 120s."
+  done
+
+  step "Upgrade complete"
+  cmd_version_inner
+}
+
+cmd_wipe() {
+  require_docker
+  step "FACTORY RESET"
+  warn "This will REMOVE all data: memories, threads, sources, license activation,"
+  warn "device identity, API keys, and cached embeddings."
+  warn "Volumes wiped: nowledge-mem-data, nowledge-mem-config, nowledge-mem-cache"
+  echo
+  printf "    Type \033[1;31mWIPE\033[0m to confirm: "
+  local answer
+  read -r answer
+  if [[ "$answer" != "WIPE" ]]; then
+    note "aborted (got '$answer', expected 'WIPE')"
+    return 1
+  fi
+
+  step "Stopping container"
+  "${DC[@]}" down
+
+  step "Removing named volumes"
+  # `|| true` — already-gone volumes are not a failure.
+  docker volume rm nowledge-mem-data nowledge-mem-config nowledge-mem-cache 2>&1 \
+    | sed 's/^/    /' || true
+
+  step "Starting fresh"
+  cmd_up
+}
+
+cmd_help() {
+  cat <<'EOF'
+nmemctl — lifecycle controller for the Nowledge Mem headless deploy
+
+LIFECYCLE
+  nmemctl up                      Start + wait + print API key + URL
+  nmemctl down                    Stop (data preserved on disk)
+  nmemctl restart                 Stop + start
+  nmemctl status                  Container state, health, license, version
+  nmemctl logs [-f] [--tail N]    View server logs (pass-through to compose)
+  nmemctl version                 Image tag + binary version
+
+CONFIG (forwards to in-container nmem CLI)
+  nmemctl key                     Print the Access Anywhere API key
+  nmemctl key --rotate            Rotate the key (old one invalidated)
+  nmemctl license                 License status
+  nmemctl license activate CODE   Activate a Pro license
+
+RELEASE
+  nmemctl upgrade VERSION         Pull docker.io/nowledgelabs/mem:VERSION,
+                                  bump compose.yaml, recreate the container.
+                                  Refuses pre-release tags unless
+                                  NMEM_ALLOW_PRERELEASE=1.
+  nmemctl wipe                    Factory reset (type WIPE to confirm).
+                                  Stops + removes all volumes + restarts fresh.
+
+OTHER
+  nmemctl help | -h | --help      This message
+  nmemctl                         Default: up if stopped, status if running
+
+ENV
+  NMEM_COMPOSE_FILES              Override compose files. To enable TLS:
+                                    NMEM_COMPOSE_FILES='-f compose.yaml -f compose.tls.yaml'
+  NMEM_SERVICE                    Service name in compose.yaml (default: mem)
+  NMEM_ALLOW_PRERELEASE           Set to 1 to allow `upgrade` to non-stable tags
+
+SEE ALSO
+  README.md in this directory; the in-container nmem CLI for data operations.
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
+# Smart default: status if running, up if not. Lets `./nmemctl` with no args
+# do the right thing whether you're starting fresh or checking on the deploy.
+cmd_default() {
+  require_docker
+  if is_running; then
+    cmd_status
+  else
+    cmd_up
+  fi
+}
+
+cmd="${1:-}"
+[[ $# -gt 0 ]] && shift
+
+case "$cmd" in
+  ""|default)         cmd_default ;;
+  up)                 cmd_up ;;
+  down|stop)          cmd_down ;;
+  restart)            cmd_restart ;;
+  status|ps)          cmd_status ;;
+  logs)               cmd_logs "$@" ;;
+  version|--version)  cmd_version ;;
+  key)                cmd_key "$@" ;;
+  license)            cmd_license "$@" ;;
+  upgrade)            cmd_upgrade "$@" ;;
+  wipe|factory-reset) cmd_wipe ;;
+  help|-h|--help)     cmd_help ;;
+
+  # Backward-compat aliases for the old bootstrap.sh verbs. Kept silent
+  # (no deprecation message) so copy-pasted v0.8.4 docs don't surface a
+  # warning to end users. Drop these in a future major.
+  activate)
+    cmd_license activate "$@"
+    ;;
+  rotate-key)
+    cmd_key --rotate
+    ;;
+
+  *)
+    printf "error: unknown command: %s\n\n" "$cmd" >&2
+    cmd_help >&2
+    exit 2
+    ;;
+esac

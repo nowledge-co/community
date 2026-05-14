@@ -88,7 +88,7 @@ machine-specific in there.
 ## Quick start (one command)
 
 ```bash
-./bootstrap.sh
+./nmemctl up
 ```
 
 That brings the stack up, waits for `/livez`, prints the Access Anywhere API
@@ -97,8 +97,12 @@ key, shows your license tier, and tells you the URL to open.
 If you have a license code:
 
 ```bash
-./bootstrap.sh activate <BASE64-LICENSE-CODE>
+./nmemctl license activate <BASE64-LICENSE-CODE>
 ```
+
+`nmemctl` is the lifecycle controller for this deploy. Run `./nmemctl help`
+for the full command set (up / down / restart / status / logs / version /
+key / license / upgrade / wipe).
 
 The default `compose.yaml` exposes the server on `0.0.0.0:14242`. To put TLS
 in front, overlay `compose.tls.yaml` and Caddy will obtain a Let's Encrypt
@@ -159,18 +163,17 @@ The image generates an API key on first start. Four ways to retrieve or
 rotate it — pick whichever fits how you got here:
 
 ```bash
-# 1. You ran ./bootstrap.sh and missed the output — just rerun it:
-./bootstrap.sh                            # reprints the key, license, URL
+# 1. You ran ./nmemctl up and missed the output — re-print everything:
+./nmemctl status                          # key, license, URL, health
 
-# 2. You started with `docker compose up -d` directly:
-docker compose exec -T mem nmem key       # prints the current key
-docker compose exec -T mem nmem key --rotate   # rotates to a new value
+# 2. You just want the key by itself:
+./nmemctl key                             # prints the current key
 
-# 3. You want to skim the first-run banner:
-docker compose logs mem | grep -A 1 "API Key"
+# 3. You want to skim the first-run banner from logs:
+./nmemctl logs | grep -A 1 "API Key"
 
-# 4. You prefer one command that handles rotation cleanly:
-./bootstrap.sh rotate-key                 # rotates and reprints
+# 4. Rotate the key (the old one stops working immediately):
+./nmemctl key --rotate
 ```
 
 The key is stored at `/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json`
@@ -209,10 +212,10 @@ up the key.
 
 ```bash
 # Show the current key
-./bootstrap.sh                            # or: docker compose exec -T mem nmem key
+./nmemctl key                             # or: docker compose exec -T mem nmem key
 
 # Rotate (invalidates the old value immediately; re-paste in clients)
-./bootstrap.sh rotate-key                 # or: docker compose exec -T mem nmem key --rotate
+./nmemctl key --rotate                    # or: docker compose exec -T mem nmem key --rotate
 
 # Pre-seed a known key (useful for fleets managed by a secret manager).
 # Write the file before first `docker compose up`:
@@ -239,7 +242,7 @@ The block is per-client-IP, not per-key — rotating the key won't unblock you.
 
 ### If a key leaks
 
-1. `./bootstrap.sh rotate-key` — issue a new value.
+1. `./nmemctl key --rotate` — issue a new value.
 2. Audit `docker compose logs mem` for `HTTP_REQUEST_SUMMARY` lines with
    unfamiliar `client_ip` values around the time of the leak.
 3. If the leak is severe, also rotate any provider keys you stored via the
@@ -325,10 +328,11 @@ Restore by extracting into fresh volumes before the first `docker compose up`.
 ### Upgrade
 
 ```bash
-# Pin to the new version in compose.yaml, then:
-docker compose pull
-docker compose up -d
+./nmemctl upgrade 0.8.5                   # pulls, bumps compose.yaml, recreates
 ```
+
+The command refuses pre-release tags (`0.8.5-rc1`, etc.) by default — set
+`NMEM_ALLOW_PRERELEASE=1` to override when you're testing a release candidate.
 
 The backend runs schema migrations on startup. There is **no downgrade path**;
 once a newer image has opened the database, an older image will refuse to.
@@ -336,10 +340,13 @@ once a newer image has opened the database, an older image will refuse to.
 ### Factory reset
 
 ```bash
-docker compose down
-docker volume rm nowledge-mem-data nowledge-mem-config nowledge-mem-cache
-docker compose up -d
+./nmemctl wipe                            # type WIPE to confirm
 ```
+
+Stops the container, removes all three named volumes
+(`nowledge-mem-{data,config,cache}`), then brings the stack back up fresh and
+prints a new API key. The ceremony is intentional — every prior memory,
+thread, source, license activation, and device identity is gone after this.
 
 ### Logs
 
@@ -347,7 +354,7 @@ The image emits structured JSON to stdout. The compose file already configures
 rotation (`max-size: 10m`, `max-file: 5`). To follow:
 
 ```bash
-docker compose logs -f mem
+./nmemctl logs -f                         # tail -f, pass-through to compose
 ```
 
 ### Health probes
