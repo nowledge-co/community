@@ -458,10 +458,12 @@ snapshot to `./cache/_pre-upgrade-<ts>.tar.gz`).
 **Trust model worth reading before you enable.** The sidecar mounts
 `/var/run/docker.sock` — that's why it's opt-in. Docker socket access
 is host-root-equivalent for that container. The sidecar is **not exposed
-beyond the compose-internal network**, runs an ~150-line POSIX-shell
-HTTP handler whose code you can read at `community/docker/updater/`,
-and only accepts requests bearing the per-deploy token. The mem
-container itself does **not** mount docker.sock; only the sidecar does.
+beyond the compose-internal network**, runs a small shell HTTP handler
+whose code you can read at `community/docker/updater/`
+(`server.sh` ~ 400 lines incl. comments, plus a ~50-line scheduler and
+entrypoint), and only accepts requests bearing the per-deploy token.
+The mem container itself does **not** mount docker.sock; only the
+sidecar does.
 
 Pair this with the new `/admin/upgrade/*` endpoints on the Mem backend:
 
@@ -479,13 +481,18 @@ Trusted networks only.
 
 **Recovery from a bad upgrade.** Every Install takes a volume-level
 snapshot of `./data` and `./config` (excludes `./cache`) before the
-recreate. If the new image's `/livez` doesn't go green within 180s,
-the UI surfaces the snapshot path. SSH and restore:
+recreate. The snapshot is a `.tar.gz` written to `./cache/` on the
+host (NOT an `nmem` application export — different format from
+`backup-app`). If the new image's `/livez` doesn't go green within
+180s, the UI surfaces the snapshot path. SSH and restore using
+`./nmemctl import` (the volume-level matching verb for the
+volume-level snapshot):
 
 ```bash
-./nmemctl restore-app /var/cache/nowledge-mem/_pre-upgrade-<ts>.tar.gz
-# Then if you want to roll back the image too:
+# Roll back the image first (so the migration order matches):
 ./nmemctl upgrade 0.8.4    # whatever version you were on
+# Then restore the bind-mount directories from the snapshot:
+./nmemctl import ./cache/_pre-upgrade-<ts>.tar.gz --force
 ```
 
 Snapshots rotate automatically: the last 3 are kept; older are deleted on
