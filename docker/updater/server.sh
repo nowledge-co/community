@@ -12,7 +12,7 @@
 #
 # Every route except /healthz requires `Authorization: Bearer $TOKEN`.
 #
-# Invariants from docs/design/HEADLESS_UPGRADE_UX.md:
+# Headless upgrade invariants:
 #
 #   - Free-space precheck BEFORE docker stop. If insufficient, return
 #     412 and leave the container running. Stopping without space to
@@ -219,7 +219,7 @@ acquire_lock() {
 }
 
 release_lock() {
-  rm -f "$LOCK_DIR/owner" 2>/dev/null || true
+  rm -f "$LOCK_DIR"/owner "$LOCK_DIR"/owner.* 2>/dev/null || true
   rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 

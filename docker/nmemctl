@@ -82,18 +82,49 @@ require_docker() {
 #
 #   2. `.nmemctl-state` (persisted across invocations). Written by
 #      `auto-update enable`, TLS setup, etc. so the operator can run
-#      `./nmemctl up` / `restart` without re-typing overlays. Sources a
-#      simple `NMEM_STATE_OVERLAYS="-f compose.X.yaml"` assignment.
+#      `./nmemctl up` / `restart` without re-typing overlays. Parsed as
+#      data; never sourced, because this file is user-editable.
 #
 # The explicit env var wins when set; `.nmemctl-state` is layered on top
 # of the base compose.yaml only when no explicit override is present.
 if [[ -z "${NMEM_COMPOSE_FILES:-}" ]]; then
   NMEM_COMPOSE_FILES="-f compose.yaml"
   if [[ -f "$SCRIPT_DIR/.nmemctl-state" ]]; then
-    # shellcheck disable=SC1091
-    source "$SCRIPT_DIR/.nmemctl-state"
-    if [[ -n "${NMEM_STATE_OVERLAYS:-}" ]]; then
-      NMEM_COMPOSE_FILES="$NMEM_COMPOSE_FILES $NMEM_STATE_OVERLAYS"
+    state_line="$(grep -E '^NMEM_STATE_OVERLAYS=' "$SCRIPT_DIR/.nmemctl-state" 2>/dev/null | tail -n 1 || true)"
+    if [[ -n "$state_line" ]]; then
+      state_overlays="${state_line#NMEM_STATE_OVERLAYS=}"
+      state_overlays="${state_overlays#\"}"
+      state_overlays="${state_overlays%\"}"
+      state_overlays="${state_overlays#\'}"
+      state_overlays="${state_overlays%\'}"
+      read -r -a overlay_parts <<< "$state_overlays"
+      idx=0
+      while [[ "$idx" -lt "${#overlay_parts[@]}" ]]; do
+        if [[ "${overlay_parts[$idx]}" != "-f" ]]; then
+          printf "\033[1;31merror:\033[0m invalid .nmemctl-state overlay token\n" >&2
+          exit 1
+        fi
+        next=$((idx + 1))
+        if [[ "$next" -ge "${#overlay_parts[@]}" ]]; then
+          printf "\033[1;31merror:\033[0m invalid .nmemctl-state overlay value\n" >&2
+          exit 1
+        fi
+        overlay_file="${overlay_parts[$next]}"
+        case "$overlay_file" in
+          /*|*..*|*\'*|*\"*|*\\*|*";"*|*":"*)
+            printf "\033[1;31merror:\033[0m invalid .nmemctl-state overlay path: %s\n" "$overlay_file" >&2
+            exit 1
+            ;;
+          *.yaml|*.yml)
+            NMEM_COMPOSE_FILES="$NMEM_COMPOSE_FILES -f $overlay_file"
+            ;;
+          *)
+            printf "\033[1;31merror:\033[0m invalid .nmemctl-state overlay extension: %s\n" "$overlay_file" >&2
+            exit 1
+            ;;
+        esac
+        idx=$((idx + 2))
+      done
     fi
   fi
 fi
@@ -1181,8 +1212,8 @@ Subcommands:
 
 Security notes:
   The updater sidecar mounts /var/run/docker.sock — that's why it's
-  opt-in. Read docs/design/HEADLESS_UPGRADE_UX.md before enabling on a
-  production server.
+  opt-in. Read the "Click-to-update from the web UI" section in this
+  directory's README before enabling on a production server.
 EOF
       ;;
     *)

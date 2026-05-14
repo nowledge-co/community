@@ -497,8 +497,9 @@ volume-level snapshot):
 ./nmemctl import ./cache/_pre-upgrade-<ts>.tar.gz --force
 ```
 
-Snapshots rotate automatically: the last 3 are kept; older are deleted on
-each successful Install. Override with `NOWLEDGE_SNAPSHOT_RETAIN`.
+Snapshots rotate automatically after each pre-upgrade snapshot is written:
+the last 3 are kept; older archives are deleted before the recreate. Override
+with `NOWLEDGE_SNAPSHOT_RETAIN`.
 
 ### Factory reset
 

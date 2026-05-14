@@ -10,8 +10,9 @@
 #      controlled by NOWLEDGE_PULL_INTERVAL_SECONDS (0 disables).
 #
 # Exiting either job exits the container; restart_policy: unless-stopped
-# brings it back. We do NOT trap-and-restart inside; let Docker do its
-# job.
+# brings it back. We do NOT trap-and-restart inside; let Docker do its job,
+# but we do supervise both children so a dead scheduler cannot silently stop
+# warming the image cache.
 set -eu
 
 require_env() {
@@ -67,10 +68,10 @@ fi
 printf 'updater: starting (mem container=%s, image=%s, pull every %ss)\n' \
   "$NOWLEDGE_MEM_CONTAINER" "$NOWLEDGE_MEM_IMAGE" "$NOWLEDGE_PULL_INTERVAL_SECONDS"
 
-# Scheduler in background. fork=true on socat below means the http
-# server is also non-blocking, so the foreground wait works.
+scheduler_pid=""
 if [ "$NOWLEDGE_PULL_INTERVAL_SECONDS" -gt 0 ]; then
   /opt/updater/scheduler.sh &
+  scheduler_pid=$!
 fi
 
 # socat passes each connection's request to server.sh on stdin and
@@ -85,4 +86,24 @@ fi
 # inherits this process's stderr, which docker captures as the
 # container's log stream — so `docker logs nowledge-mem-updater`
 # still shows every request, while the HTTP response is clean.
-exec socat -T 30 TCP-LISTEN:8080,reuseaddr,fork EXEC:/opt/updater/server.sh
+# Keep the connection idle timeout above normal image-pull duration. `POST
+# /pull` is synchronous and may be quiet for minutes while docker downloads.
+: "${NOWLEDGE_SOCAT_TIMEOUT_SECONDS:=600}"
+socat -T "$NOWLEDGE_SOCAT_TIMEOUT_SECONDS" TCP-LISTEN:8080,reuseaddr,fork EXEC:/opt/updater/server.sh &
+socat_pid=$!
+
+while :; do
+  if ! kill -0 "$socat_pid" 2>/dev/null; then
+    status=0
+    wait "$socat_pid" || status=$?
+    [ -n "$scheduler_pid" ] && kill "$scheduler_pid" 2>/dev/null || true
+    exit "$status"
+  fi
+  if [ -n "$scheduler_pid" ] && ! kill -0 "$scheduler_pid" 2>/dev/null; then
+    status=0
+    wait "$scheduler_pid" || status=$?
+    kill "$socat_pid" 2>/dev/null || true
+    exit "$status"
+  fi
+  sleep 2
+done
