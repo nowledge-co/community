@@ -36,7 +36,8 @@ pull_once() {
   for ref in $refs; do
     if docker pull "$ref" >/tmp/pull.log 2>&1; then
       printf 'scheduler: pulled %s ok at %s\n' "$ref" "$ts"
-      printf '{"image":"%s","ok":true,"at":"%s"}\n' "$ref" "$ts" \
+      jq -nc --arg image "$ref" --arg at "$ts" \
+        '{image:$image,ok:true,at:$at}' \
         > "$last_status_path.tmp" && mv "$last_status_path.tmp" "$last_status_path"
     else
       err=$(tail -n 3 /tmp/pull.log | tr '\n' ' ')

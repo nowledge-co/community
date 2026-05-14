@@ -121,7 +121,7 @@ If `upgrade` fails midway, the previous image is still pulled locally. `./nmemct
 
 Some operators don't want to SSH every release. The headless deploy has an opt-in companion that lets them click Update from the web UI in Settings → About → Self-hosted server.
 
-How to enable on the operator's behalf (only when the operator asks for it, and AFTER you walk them through the trust trade-off):
+How to guide the operator through enabling it (only after they ask for it, and after you surface the trust trade-off):
 
 ```bash
 ./nmemctl auto-update enable    # generates token, adds sidecar, recreates stack
@@ -147,7 +147,7 @@ Before recommending `enable`, hand the operator that trade-off in one short sent
 **What you DON'T do for auto-update:**
 - Don't `./nmemctl auto-update enable` without first surfacing the docker.sock trade-off.
 - Don't click Install on their behalf from the web UI — the type-to-confirm exists to require the operator's own hand on the keyboard.
-- Don't recommend rotate without cause; if they did rotate, expect the desktop and other clients to need re-auth.
+- Don't recommend rotate without cause. Rotating only changes mem↔updater bearer auth and recreates the containers; desktop and other clients keep using the same API key.
 
 ## What to do when the user asks for `<thing>`
 

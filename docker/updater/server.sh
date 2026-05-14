@@ -3,13 +3,6 @@
 # (see entrypoint.sh). Reads an HTTP request on stdin, writes an HTTP
 # response on stdout, exits.
 #
-# Shebang note: `/bin/sh` on alpine resolves to busybox `ash`, which
-# DOES support `$'\r'` (ANSI-C quoting) for CRLF stripping even though
-# strict POSIX does not. We deliberately depend on busybox's `ash`
-# behavior here rather than adding bash to the image (saves ~3 MB).
-# This script is NOT portable to dash; alpine is the only runtime we
-# ship it on, and the Dockerfile pins alpine:3.20.
-#
 # Routes:
 #   GET  /healthz                  → 200 if alive
 #   GET  /status                   → running_image, cached_tags, last_pull,
@@ -50,6 +43,8 @@ CONFIG_DIR=/opt/snapshot/config
 LOCK_FILE="$SNAPSHOT_DIR/_upgrade.lock"
 SCHED_STATUS="/opt/updater/cache/.last-scheduled-pull"
 STALE_LOCK_AFTER=1800   # seconds (30 min)
+CR=$(printf '\r')
+LOCK_HEARTBEAT_PID=""
 
 # ---- HTTP helpers --------------------------------------------------------
 
@@ -101,7 +96,7 @@ audit() {
 
 # Read the first request line.
 IFS= read -r request_line || { respond_json 400 '{"error":"empty request"}'; exit 0; }
-request_line=${request_line%$'\r'}
+request_line=${request_line%"$CR"}
 method=${request_line%% *}
 rest=${request_line#"$method "}
 target=${rest%% *}
@@ -114,10 +109,10 @@ esac
 # Read headers until blank line. Capture only what we need.
 auth_header=""
 while IFS= read -r header_line; do
-  header_line=${header_line%$'\r'}
+  header_line=${header_line%"$CR"}
   [ -z "$header_line" ] && break
   lname=$(printf '%s' "${header_line%%:*}" | tr 'A-Z' 'a-z')
-  lval=${header_line#*: }
+  lval=$(printf '%s' "${header_line#*:}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
   case "$lname" in
     authorization) auth_header=$lval ;;
   esac
@@ -162,10 +157,34 @@ require_auth() {
 # apply. Timestamp age is the right signal.
 LOCK_DIR="${LOCK_FILE}.d"
 
+write_lock_owner() {
+  tmp="$LOCK_DIR/owner.$$"
+  printf 'ts=%s\n' "$(date +%s)" > "$tmp"
+  mv "$tmp" "$LOCK_DIR/owner"
+}
+
+start_lock_heartbeat() {
+  (
+    while [ -d "$LOCK_DIR" ]; do
+      write_lock_owner 2>/dev/null || true
+      sleep 30
+    done
+  ) &
+  LOCK_HEARTBEAT_PID=$!
+}
+
+stop_lock_heartbeat() {
+  if [ -n "${LOCK_HEARTBEAT_PID:-}" ]; then
+    kill "$LOCK_HEARTBEAT_PID" 2>/dev/null || true
+    wait "$LOCK_HEARTBEAT_PID" 2>/dev/null || true
+    LOCK_HEARTBEAT_PID=""
+  fi
+}
+
 acquire_lock() {
   # First-attempt atomic mkdir. If it succeeds, we hold the lock.
   if mkdir "$LOCK_DIR" 2>/dev/null; then
-    printf 'ts=%s\n' "$(date +%s)" > "$LOCK_DIR/owner"
+    write_lock_owner
     return 0
   fi
 
@@ -191,7 +210,7 @@ acquire_lock() {
   rm -f "$LOCK_DIR/owner"
   rmdir "$LOCK_DIR" 2>/dev/null || true
   if mkdir "$LOCK_DIR" 2>/dev/null; then
-    printf 'ts=%s\n' "$(date +%s)" > "$LOCK_DIR/owner"
+    write_lock_owner
     return 0
   fi
   audit "LOCK contended on re-acquire"
@@ -202,6 +221,38 @@ acquire_lock() {
 release_lock() {
   rm -f "$LOCK_DIR/owner" 2>/dev/null || true
   rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+
+read_compose_overlays() {
+  [ -f /opt/compose/.nmemctl-state ] || return 0
+  line=$(grep -E '^NMEM_STATE_OVERLAYS=' /opt/compose/.nmemctl-state 2>/dev/null | tail -n 1 || true)
+  [ -n "$line" ] || return 0
+  value=${line#NMEM_STATE_OVERLAYS=}
+  value=${value#\"}
+  value=${value%\"}
+  value=${value#\'}
+  value=${value%\'}
+
+  set -- $value
+  overlays=""
+  while [ "$#" -gt 0 ]; do
+    [ "${1:-}" = "-f" ] || return 1
+    [ "$#" -ge 2 ] || return 1
+    file=$2
+    case "$file" in
+      /*|*..*|*\'*|*\"*|*\\*|*';'*)
+        return 1
+        ;;
+      *.yaml|*.yml)
+        overlays="$overlays -f $file"
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+    shift 2
+  done
+  printf '%s\n' "$overlays"
 }
 
 # ---- Route: GET /healthz -------------------------------------------------
@@ -346,7 +397,8 @@ case "$method $path" in
     (
       # Recreate the failure semantics inside the subshell: any error
       # releases the lock and logs.
-      trap 'release_lock' EXIT
+      start_lock_heartbeat
+      trap 'stop_lock_heartbeat; release_lock' EXIT
       audit "APPLY start ref=$ref snapshot=$snapshot"
 
       # Step 1: stop the mem container.
@@ -407,7 +459,7 @@ case "$method $path" in
       # Step 4: persist the new tag to .env BEFORE the recreate. This way
       # if the recreate succeeds, future `./nmemctl up`/`restart` calls
       # use the new tag. If the recreate fails, the operator's recovery
-      # path (./nmemctl restore-app from the snapshot + ./nmemctl upgrade
+      # path (./nmemctl import from the snapshot + ./nmemctl upgrade
       # <old-tag>) will overwrite .env again. Atomic write via temp+mv.
       env_file="/opt/compose/.env"
       env_backup="/tmp/nowledge-mem-env-before-upgrade.$$"
@@ -427,8 +479,8 @@ case "$method $path" in
         fi
         printf 'NMEM_IMAGE_TAG=%s\n' "$tag"
       } > "$env_tmp"
+      chmod 0600 "$env_tmp" 2>/dev/null || true
       mv "$env_tmp" "$env_file"
-      chmod 0600 "$env_file" 2>/dev/null || true
 
       # Step 5: recreate from new tag. compose up -d with NMEM_IMAGE_TAG
       # overridden in the calling environment. The operator's compose.yaml
@@ -443,12 +495,14 @@ case "$method $path" in
       # overlays in .nmemctl-state (managed by `auto-update enable`,
       # `auto-update disable`, future TLS-toggle verbs, etc.) so the
       # sidecar can replay the same compose stack on recreate.
-      compose_overlays=""
-      if [ -f /opt/compose/.nmemctl-state ]; then
-        # shellcheck disable=SC1091
-        . /opt/compose/.nmemctl-state
-        compose_overlays="${NMEM_STATE_OVERLAYS:-}"
-      fi
+      compose_overlays=$(read_compose_overlays) || {
+        audit "APPLY invalid .nmemctl-state overlay list — restarting mem on old image"
+        cp "$env_backup" "$env_file" 2>/dev/null || true
+        chmod 0600 "$env_file" 2>/dev/null || true
+        docker start "$NOWLEDGE_MEM_CONTAINER" >/dev/null 2>&1 || true
+        rm -f "$env_backup"
+        exit 3
+      }
       export NMEM_IMAGE_TAG="$tag"
 
       # Recover the operator's compose project name from the existing

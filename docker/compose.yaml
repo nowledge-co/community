@@ -36,9 +36,8 @@ services:
     container_name: nowledge-mem
     restart: unless-stopped
     labels:
-      # Inert by default. Becomes meaningful when the auto-update
-      # overlay is layered in (the updater sidecar only touches
-      # containers carrying this label).
+      # Identification metadata for operators and future tooling. The
+      # updater sidecar targets NOWLEDGE_MEM_CONTAINER/NOWLEDGE_MEM_SERVICE.
       nowledge.auto-update: "true"
 
     # The image already listens on 14242 inside the container. Map to the same

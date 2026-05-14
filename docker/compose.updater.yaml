@@ -70,10 +70,9 @@ services:
       # docker would auto-create that empty dir as root, and the new
       # mem container would boot into an empty install.
       #
-      # `${PWD}` is substituted at compose parse time on the operator's
-      # shell — that's where they ran `./nmemctl auto-update enable` or
-      # `docker compose up`, which IS the project dir on the host.
-      NOWLEDGE_COMPOSE_PROJECT_DIR: ${NOWLEDGE_COMPOSE_PROJECT_DIR:-${PWD}}
+      # nmemctl exports this explicitly before invoking compose. Manual
+      # compose users should set it to the host-side project directory.
+      NOWLEDGE_COMPOSE_PROJECT_DIR: ${NOWLEDGE_COMPOSE_PROJECT_DIR:?set NOWLEDGE_COMPOSE_PROJECT_DIR to the compose project directory}
       # Background pull cadence. 86400s = 24h. Set to 0 to disable
       # scheduled pulls (Apply still works; image must already be
       # cached or POST /pull called first).

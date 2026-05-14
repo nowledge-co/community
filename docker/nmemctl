@@ -97,6 +97,7 @@ if [[ -z "${NMEM_COMPOSE_FILES:-}" ]]; then
     fi
   fi
 fi
+export NOWLEDGE_COMPOSE_PROJECT_DIR="${NOWLEDGE_COMPOSE_PROJECT_DIR:-$SCRIPT_DIR}"
 DC=(docker compose ${NMEM_COMPOSE_FILES})
 
 # Service name in compose.yaml. Override with NMEM_SERVICE if you renamed it.
@@ -1061,8 +1062,8 @@ write_env_var() {
     fi
     printf '%s=%s\n' "$name" "$value"
   } > "$tmp"
+  chmod 0600 "$tmp"
   mv "$tmp" "$ENV_FILE"
-  chmod 0600 "$ENV_FILE"
 }
 
 # Remove NAME from .env (no-op if absent or .env missing).
@@ -1071,8 +1072,8 @@ unset_env_var() {
   [[ -f "$ENV_FILE" ]] || return 0
   tmp="${ENV_FILE}.tmp.$$"
   grep -Ev "^${name}=" "$ENV_FILE" > "$tmp" || true
+  chmod 0600 "$tmp"
   mv "$tmp" "$ENV_FILE"
-  chmod 0600 "$ENV_FILE"
 }
 
 # Read NAME=VALUE from .nmemctl-state (the persisted overlay state).
@@ -1247,7 +1248,7 @@ cmd_auto_update_enable() {
   step "Auto-update enabled"
   note "The web UI's Settings → Server card now shows the Update button"
   note "when a newer Mem image is published. SSH is only needed in the"
-  note "failure path (restore-app from a pre-upgrade snapshot)."
+  note "failure path (import from a pre-upgrade snapshot)."
   note ""
   note "Security: the updater sidecar holds docker.sock. Treat the token"
   note "as you would a host root credential."
@@ -1301,20 +1302,12 @@ cmd_auto_update_status() {
   else
     health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$upd_id" 2>/dev/null || echo unknown)"
     note "container: running ($health)"
-    # Quick status probe via curl from a one-shot helper. The sidecar is
-    # only reachable on the compose network, so we curl from inside the
-    # network via `docker run --network` + the sidecar's container name.
-    local status_json network_name
-    network_name="$(docker inspect -f '{{range $k,$_ := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$upd_id" 2>/dev/null | head -n 1)"
-    if [[ -n "$network_name" ]]; then
-      status_json="$(docker run --rm --network "$network_name" \
-        curlimages/curl:8.10.1 -fsS \
-        -H "Authorization: Bearer $token" \
-        "http://updater:8080/status" 2>/dev/null || true)"
-    else
-      status_json=""
-      warn "could not detect updater compose network"
-    fi
+    # Probe from inside the existing sidecar so status works offline and
+    # never pulls a helper image.
+    local status_json
+    status_json="$(docker exec "$upd_id" \
+      wget -qO- --header "Authorization: Bearer $token" \
+      "http://127.0.0.1:8080/status" 2>/dev/null || true)"
     if [[ -n "$status_json" ]]; then
       printf '%s\n' "$status_json" | jq . 2>/dev/null \
         | sed 's/^/    /' || printf '    %s\n' "$status_json"
