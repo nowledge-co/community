@@ -14,3 +14,9 @@ caddy_config/
 mem-export-*.tar.gz
 mem-app-export-*.zip
 *.bak.*
+
+# Auto-update state. `.env` holds NOWLEDGE_UPDATER_TOKEN (mode 0600) and
+# NMEM_IMAGE_TAG; `.nmemctl-state` persists per-deploy choices like
+# which overlay files are layered in.
+.env
+.nmemctl-state

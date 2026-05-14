@@ -36,7 +36,7 @@ set -euo pipefail
 # Version of the controller itself. Bump when nmemctl semantics or
 # command surface change. Independent of the docker image version
 # (which `./nmemctl version` reports separately).
-NMEMCTL_VERSION="2.0.0"
+NMEMCTL_VERSION="2.1.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -75,9 +75,28 @@ require_docker() {
   fi
 }
 
-# Compose wrapper. Override NMEM_COMPOSE_FILES to stack overlays (e.g. TLS):
-#   NMEM_COMPOSE_FILES='-f compose.yaml -f compose.tls.yaml' ./nmemctl up
-NMEM_COMPOSE_FILES="${NMEM_COMPOSE_FILES:--f compose.yaml}"
+# Compose wrapper. Two layers of override:
+#
+#   1. Explicit env var (highest priority — never persisted):
+#        NMEM_COMPOSE_FILES='-f compose.yaml -f compose.tls.yaml' ./nmemctl up
+#
+#   2. `.nmemctl-state` (persisted across invocations). Written by
+#      `auto-update enable`, TLS setup, etc. so the operator can run
+#      `./nmemctl up` / `restart` without re-typing overlays. Sources a
+#      simple `NMEM_STATE_OVERLAYS="-f compose.X.yaml"` assignment.
+#
+# The explicit env var wins when set; `.nmemctl-state` is layered on top
+# of the base compose.yaml only when no explicit override is present.
+if [[ -z "${NMEM_COMPOSE_FILES:-}" ]]; then
+  NMEM_COMPOSE_FILES="-f compose.yaml"
+  if [[ -f "$SCRIPT_DIR/.nmemctl-state" ]]; then
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/.nmemctl-state"
+    if [[ -n "${NMEM_STATE_OVERLAYS:-}" ]]; then
+      NMEM_COMPOSE_FILES="$NMEM_COMPOSE_FILES $NMEM_STATE_OVERLAYS"
+    fi
+  fi
+fi
 DC=(docker compose ${NMEM_COMPOSE_FILES})
 
 # Service name in compose.yaml. Override with NMEM_SERVICE if you renamed it.
@@ -389,18 +408,31 @@ cmd_upgrade() {
   step "Pulling docker.io/nowledgelabs/mem:${target}"
   docker pull "docker.io/nowledgelabs/mem:${target}"
 
-  step "Bumping compose.yaml image tag"
-  # Match `image: docker.io/nowledgelabs/mem:*` on its own line and replace.
-  if ! grep -qE "^[[:space:]]+image:[[:space:]]+docker\.io/nowledgelabs/mem:" compose.yaml; then
-    fail "could not find the mem image line in compose.yaml — bump manually."
+  # compose.yaml from nmemctl 2.1.0+ templates the image as
+  # `${NMEM_IMAGE_TAG:-X.Y.Z}`. We then keep compose.yaml untouched and
+  # just override via .env. This plays nicely with `./nmemctl self-update`
+  # (which refreshes compose.yaml from upstream) and with the auto-update
+  # sidecar (which uses the same env-var mechanism).
+  #
+  # If the operator's compose.yaml predates 2.1.0 (literal image tag), we
+  # fall back to the legacy sed-in-place path and gently nudge toward
+  # self-update so future upgrades stay clean.
+  if grep -qE 'image:[[:space:]]*docker\.io/nowledgelabs/mem:\$\{NMEM_IMAGE_TAG' compose.yaml; then
+    step "Setting NMEM_IMAGE_TAG=${target} in .env"
+    write_env_var "NMEM_IMAGE_TAG" "$target"
+  else
+    warn "compose.yaml predates nmemctl 2.1.0 (literal image tag)."
+    warn "Falling back to in-place rewrite. Run './nmemctl self-update'"
+    warn "afterwards to switch to the templated form for cleaner upgrades."
+    step "Bumping compose.yaml image tag"
+    cp compose.yaml compose.yaml.bak
+    sed -i.tmp -E \
+        "s|^([[:space:]]+image:[[:space:]]+)docker\.io/nowledgelabs/mem:.*|\\1docker.io/nowledgelabs/mem:${target}|" \
+        compose.yaml
+    rm -f compose.yaml.tmp
+    diff -u compose.yaml.bak compose.yaml || true
+    rm -f compose.yaml.bak
   fi
-  cp compose.yaml compose.yaml.bak
-  sed -i.tmp -E \
-      "s|^([[:space:]]+image:[[:space:]]+)docker\.io/nowledgelabs/mem:.*|\\1docker.io/nowledgelabs/mem:${target}|" \
-      compose.yaml
-  rm -f compose.yaml.tmp
-  diff -u compose.yaml.bak compose.yaml || true
-  rm -f compose.yaml.bak
 
   step "Recreating container with new image"
   "${DC[@]}" up -d --force-recreate "$SVC"
@@ -942,13 +974,18 @@ CONFIG (forwards to in-container nmem CLI)
 
 RELEASE
   nmemctl upgrade VERSION         Pull docker.io/nowledgelabs/mem:VERSION,
-                                  bump compose.yaml, recreate the container.
+                                  set NMEM_IMAGE_TAG in .env, recreate.
                                   Refuses pre-release tags unless
                                   NMEM_ALLOW_PRERELEASE=1.
   nmemctl self-update [--check]   Update controller + compose stack from
                                   the community repo. Diff-and-prompt; never
                                   silent. In a git checkout, defers to
                                   `git pull`.
+  nmemctl auto-update SUBCMD      Opt-in click-to-update sidecar. Subcommands:
+                                    enable / disable / status / rotate / upgrade.
+                                  After 'enable', the web UI shows an Update
+                                  button when newer Mem images are published.
+                                  See `./nmemctl auto-update help` for details.
 
 MIGRATION
   Volume-level (same-version source → destination, fastest, includes everything):
@@ -985,6 +1022,306 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# auto-update — opt-in click-to-update via a small sidecar
+# ---------------------------------------------------------------------------
+#
+# `auto-update enable` adds the updater sidecar to the stack so the web UI
+# can pull new Mem images on a schedule and apply a recreate when the
+# operator clicks the Update button. Without this, the only upgrade path
+# is `./nmemctl upgrade <version>` from the host shell.
+#
+# Security shape (docs/design/HEADLESS_UPGRADE_UX.md §2):
+#   - The sidecar mounts /var/run/docker.sock; the mem container does not.
+#   - Auth is a per-deploy random token stored in `.env` (mode 0600).
+#   - The sidecar is not exposed beyond the compose-internal network.
+#   - The mem backend's `/admin/upgrade/*` endpoints proxy to it, behind
+#     the existing API key plus an Origin guard (closed by default).
+
+AUTO_UPDATE_STATE_KEY="NMEM_STATE_OVERLAYS"
+AUTO_UPDATE_OVERLAY="-f compose.updater.yaml"
+ENV_FILE="$SCRIPT_DIR/.env"
+STATE_FILE="$SCRIPT_DIR/.nmemctl-state"
+
+# Read a NAME=VALUE from .env. Empty if not set / file missing.
+read_env_var() {
+  local name="$1"
+  [[ -f "$ENV_FILE" ]] || return 0
+  grep -E "^${name}=" "$ENV_FILE" 2>/dev/null | tail -n 1 | sed -E "s/^${name}=//; s/^['\"]//; s/['\"]$//"
+}
+
+# Atomically set NAME=VALUE in .env (create if missing, replace if present).
+# Always re-applies mode 0600 because .env holds the updater token + the
+# image-tag override and should not be world-readable.
+write_env_var() {
+  local name="$1" value="$2" tmp
+  tmp="${ENV_FILE}.tmp.$$"
+  {
+    if [[ -f "$ENV_FILE" ]]; then
+      grep -Ev "^${name}=" "$ENV_FILE" || true
+    fi
+    printf '%s=%s\n' "$name" "$value"
+  } > "$tmp"
+  mv "$tmp" "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
+}
+
+# Remove NAME from .env (no-op if absent or .env missing).
+unset_env_var() {
+  local name="$1" tmp
+  [[ -f "$ENV_FILE" ]] || return 0
+  tmp="${ENV_FILE}.tmp.$$"
+  grep -Ev "^${name}=" "$ENV_FILE" > "$tmp" || true
+  mv "$tmp" "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
+}
+
+# Read NAME=VALUE from .nmemctl-state (the persisted overlay state).
+read_state_var() {
+  local name="$1"
+  [[ -f "$STATE_FILE" ]] || return 0
+  grep -E "^${name}=" "$STATE_FILE" 2>/dev/null | tail -n 1 \
+    | sed -E "s/^${name}=//; s/^['\"]//; s/['\"]$//"
+}
+
+# Atomically rewrite .nmemctl-state to include the auto-update overlay
+# alongside any other overlays already present (TLS, future ones).
+state_add_overlay() {
+  local existing tmp
+  existing="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+  if [[ "$existing" == *"compose.updater.yaml"* ]]; then
+    return 0
+  fi
+  tmp="${STATE_FILE}.tmp.$$"
+  {
+    if [[ -f "$STATE_FILE" ]]; then
+      grep -Ev "^${AUTO_UPDATE_STATE_KEY}=" "$STATE_FILE" || true
+    fi
+    if [[ -n "$existing" ]]; then
+      printf '%s="%s %s"\n' "$AUTO_UPDATE_STATE_KEY" "$existing" "$AUTO_UPDATE_OVERLAY"
+    else
+      printf '%s="%s"\n' "$AUTO_UPDATE_STATE_KEY" "$AUTO_UPDATE_OVERLAY"
+    fi
+  } > "$tmp"
+  mv "$tmp" "$STATE_FILE"
+}
+
+state_remove_overlay() {
+  local existing tmp new
+  existing="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+  if [[ -z "$existing" ]]; then
+    return 0
+  fi
+  # Strip "-f compose.updater.yaml" tokens (with surrounding whitespace).
+  new="$(printf '%s' "$existing" | sed -E 's/(^| )-f +compose\.updater\.yaml( |$)/ /g; s/^ +//; s/ +$//')"
+  tmp="${STATE_FILE}.tmp.$$"
+  {
+    if [[ -f "$STATE_FILE" ]]; then
+      grep -Ev "^${AUTO_UPDATE_STATE_KEY}=" "$STATE_FILE" || true
+    fi
+    if [[ -n "$new" ]]; then
+      printf '%s="%s"\n' "$AUTO_UPDATE_STATE_KEY" "$new"
+    fi
+  } > "$tmp"
+  mv "$tmp" "$STATE_FILE"
+}
+
+# Generate 32 bytes of randomness, base64 url-safe-ish (no slashes).
+generate_token() {
+  # /dev/urandom is universally available; openssl avoids depending on it
+  # by reading from /dev/random which can block. Tr the slashes out.
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -base64 32 | tr '/+' '_-' | tr -d '=\n'
+  else
+    head -c 32 /dev/urandom | base64 | tr '/+' '_-' | tr -d '=\n'
+  fi
+}
+
+is_auto_update_enabled() {
+  local overlays
+  overlays="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+  [[ "$overlays" == *"compose.updater.yaml"* ]]
+}
+
+cmd_auto_update() {
+  local sub="${1:-}"
+  [[ $# -gt 0 ]] && shift
+  case "$sub" in
+    enable)  cmd_auto_update_enable "$@" ;;
+    disable) cmd_auto_update_disable "$@" ;;
+    status)  cmd_auto_update_status "$@" ;;
+    rotate)  cmd_auto_update_rotate "$@" ;;
+    upgrade) cmd_auto_update_upgrade "$@" ;;
+    ""|help|-h|--help)
+      cat <<'EOF'
+auto-update — opt-in click-to-update sidecar for the headless deploy
+
+Subcommands:
+  enable        Generate a per-deploy token, layer in compose.updater.yaml,
+                and recreate the stack with the updater sidecar attached.
+                After this, the web UI can pull and apply Mem updates.
+
+  disable       Remove the updater sidecar (compose rm), clear the token
+                from .env, and remove the overlay from .nmemctl-state.
+                Idempotent.
+
+  status        Show whether auto-update is enabled, the sidecar's health,
+                the last scheduled pull, and the retained snapshots.
+
+  rotate        Rotate the updater token. Any in-flight upgrade attempt
+                using the old token will be rejected on its next call.
+                Use this if you suspect the token has leaked.
+
+  upgrade       Bump the updater sidecar's own image to a newer version.
+                Independent of the mem image upgrade cadence.
+
+Security notes:
+  The updater sidecar mounts /var/run/docker.sock — that's why it's
+  opt-in. Read docs/design/HEADLESS_UPGRADE_UX.md before enabling on a
+  production server.
+EOF
+      ;;
+    *)
+      fail "unknown auto-update subcommand: $sub  (try './nmemctl auto-update help')"
+      ;;
+  esac
+}
+
+cmd_auto_update_enable() {
+  require_docker
+  if is_auto_update_enabled; then
+    note "auto-update is already enabled."
+    cmd_auto_update_status
+    return 0
+  fi
+
+  step "Generating updater token (32 bytes, /dev/urandom)"
+  local token
+  token="$(generate_token)"
+  write_env_var "NOWLEDGE_UPDATER_TOKEN" "$token"
+  ok "wrote .env (mode 0600)"
+
+  step "Persisting overlay to .nmemctl-state"
+  state_add_overlay
+  ok "future ./nmemctl up / restart will include the updater sidecar"
+
+  step "Bringing the stack up with the overlay attached"
+  # Reload NMEM_COMPOSE_FILES now that .nmemctl-state has been updated.
+  NMEM_COMPOSE_FILES="-f compose.yaml $AUTO_UPDATE_OVERLAY"
+  DC=(docker compose ${NMEM_COMPOSE_FILES})
+  bring_up_and_wait
+
+  step "Auto-update enabled"
+  note "The web UI's Settings → Server card now shows the Update button"
+  note "when a newer Mem image is published. SSH is only needed in the"
+  note "failure path (restore-app from a pre-upgrade snapshot)."
+  note ""
+  note "Security: the updater sidecar holds docker.sock. Treat the token"
+  note "as you would a host root credential."
+}
+
+cmd_auto_update_disable() {
+  require_docker
+  if ! is_auto_update_enabled; then
+    note "auto-update is already disabled."
+    return 0
+  fi
+
+  step "Stopping and removing the updater sidecar"
+  "${DC[@]}" rm -fsv updater >/dev/null 2>&1 || true
+  ok "updater container removed"
+
+  step "Clearing token and overlay state"
+  unset_env_var "NOWLEDGE_UPDATER_TOKEN"
+  state_remove_overlay
+  ok "next ./nmemctl up will run without the overlay"
+
+  step "Auto-update disabled"
+  note "The Update button in the web UI will turn into the SSH-command hint."
+  note "Existing pre-upgrade snapshots in ./cache/ are preserved; remove"
+  note "them by hand if you want the disk space back."
+}
+
+cmd_auto_update_status() {
+  require_docker
+  step "Auto-update status"
+
+  if ! is_auto_update_enabled; then
+    note "state: disabled"
+    note "Run './nmemctl auto-update enable' to opt in."
+    return 0
+  fi
+  note "state: enabled"
+
+  local token
+  token="$(read_env_var NOWLEDGE_UPDATER_TOKEN)"
+  if [[ -n "$token" ]]; then
+    note "token: present in .env (mode $(stat -f '%Lp' "$ENV_FILE" 2>/dev/null || stat -c '%a' "$ENV_FILE" 2>/dev/null))"
+  else
+    warn "token MISSING from .env — re-run 'auto-update enable' to repair"
+  fi
+
+  local upd_id health
+  upd_id="$("${DC[@]}" ps -q updater 2>/dev/null || true)"
+  if [[ -z "$upd_id" ]]; then
+    warn "updater container not running"
+  else
+    health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$upd_id" 2>/dev/null || echo unknown)"
+    note "container: running ($health)"
+    # Quick status probe via curl from a one-shot helper. The sidecar is
+    # only reachable on the compose network, so we curl from inside the
+    # network via `docker run --network` + the sidecar's container name.
+    local status_json
+    status_json="$(docker run --rm --network "$(docker inspect -f '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}}{{end}}' "$upd_id")" \
+      curlimages/curl:8.10.1 -fsS \
+      -H "Authorization: Bearer $token" \
+      "http://updater:8080/status" 2>/dev/null || true)"
+    if [[ -n "$status_json" ]]; then
+      printf '%s\n' "$status_json" | jq . 2>/dev/null \
+        | sed 's/^/    /' || printf '    %s\n' "$status_json"
+    fi
+  fi
+}
+
+cmd_auto_update_rotate() {
+  require_docker
+  if ! is_auto_update_enabled; then
+    fail "auto-update is not enabled. Nothing to rotate."
+  fi
+  step "Rotating updater token"
+  local token
+  token="$(generate_token)"
+  write_env_var "NOWLEDGE_UPDATER_TOKEN" "$token"
+  ok "new token written to .env"
+
+  step "Recreating the updater sidecar to pick up the new token"
+  "${DC[@]}" up -d --force-recreate updater >/dev/null 2>&1
+  ok "sidecar restarted on new token"
+
+  step "Token rotated"
+  note "Any backend instance holding the old token will be 401-rejected on"
+  note "its next /admin/upgrade/* call until it re-reads .env."
+}
+
+cmd_auto_update_upgrade() {
+  require_docker
+  if ! is_auto_update_enabled; then
+    fail "auto-update is not enabled."
+  fi
+  local target="${1:-latest}"
+  step "Pulling updater image: docker.io/nowledgelabs/mem-updater:$target"
+  docker pull "docker.io/nowledgelabs/mem-updater:$target" >/dev/null
+  ok "image pulled"
+
+  if [[ "$target" != "latest" ]]; then
+    write_env_var "NMEM_UPDATER_TAG" "$target"
+  fi
+
+  step "Recreating the updater sidecar on the new image"
+  "${DC[@]}" up -d --force-recreate updater >/dev/null 2>&1
+  ok "sidecar running on $target"
+}
+
+# ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
 
@@ -1018,6 +1355,7 @@ case "$cmd" in
   key)                cmd_key "$@" ;;
   license)            cmd_license "$@" ;;
   upgrade)            cmd_upgrade "$@" ;;
+  auto-update)        cmd_auto_update "$@" ;;
   wipe|factory-reset) cmd_wipe ;;
   help|-h|--help)     cmd_help ;;
 

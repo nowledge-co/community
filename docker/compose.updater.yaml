@@ -1,0 +1,108 @@
+# Auto-update overlay — opt-in sidecar that pulls new Mem images on a
+# schedule and applies a recreate when the operator clicks "Update" in
+# the web UI. Without this overlay, the only way to upgrade the server
+# is `./nmemctl upgrade <version>` from the host shell.
+#
+# Apply on top of compose.yaml:
+#   ./nmemctl auto-update enable    # generates token, persists overlay
+# or by hand:
+#   docker compose -f compose.yaml -f compose.updater.yaml up -d
+#
+# Trust model — read this before opting in:
+#
+#   The updater sidecar mounts `/var/run/docker.sock`. Anything with
+#   docker.sock access is effectively root on the host. The sidecar is
+#   not exposed beyond the compose-internal network, runs as a small,
+#   audit-able shell script (community/docker/updater/server.sh), and
+#   only accepts requests bearing the per-deploy random token in
+#   `NOWLEDGE_UPDATER_TOKEN`. But the threat envelope is real — if the
+#   token leaks AND an attacker can reach the compose network, they can
+#   recreate the mem container against any image they choose.
+#
+#   The mem container itself does NOT mount docker.sock. Only this
+#   sidecar does.
+
+services:
+  mem:
+    # Crucial: NO `depends_on` here. The mem container must boot even if
+    # the updater sidecar can't start (rootless docker without socket
+    # access, podman, locked-down environments). The backend probes the
+    # sidecar at `/admin/upgrade/check` time and returns a structured
+    # "sidecar unavailable" response so the UI degrades gracefully.
+    #
+    # Wire the mem backend to know where the sidecar lives and which
+    # token to present. These env vars are what the new
+    # /admin/upgrade/* endpoints read.
+    environment:
+      NOWLEDGE_UPDATER_URL: http://updater:8080
+      NOWLEDGE_UPDATER_TOKEN: ${NOWLEDGE_UPDATER_TOKEN:?run `./nmemctl auto-update enable` first}
+
+  updater:
+    image: docker.io/nowledgelabs/mem-updater:${NMEM_UPDATER_TAG:-0.8.4}
+    container_name: nowledge-mem-updater
+    restart: unless-stopped
+
+    # docker.sock access. The reason this overlay is opt-in.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Compose project, RW so the apply path can update `.env` with
+      # the new image tag for subsequent `docker compose up` calls. The
+      # updater never modifies compose.yaml itself.
+      - ./:/opt/compose
+      # The three bind-mount directories. data and config are tarred
+      # into the snapshot; cache hosts the snapshot output and the
+      # single-flight lock file.
+      - ./data:/opt/snapshot/data:ro
+      - ./config:/opt/snapshot/config:ro
+      - ./cache:/opt/snapshot/cache
+
+    environment:
+      NOWLEDGE_UPDATER_TOKEN: ${NOWLEDGE_UPDATER_TOKEN:?run `./nmemctl auto-update enable` first}
+      NOWLEDGE_MEM_CONTAINER: nowledge-mem          # `docker stop/inspect` target
+      NOWLEDGE_MEM_SERVICE: mem                     # `docker compose up` target
+      NOWLEDGE_MEM_IMAGE: docker.io/nowledgelabs/mem
+      # Background pull cadence. 86400s = 24h. Set to 0 to disable
+      # scheduled pulls (Apply still works; image must already be
+      # cached or POST /pull called first).
+      NOWLEDGE_PULL_INTERVAL_SECONDS: ${NOWLEDGE_PULL_INTERVAL_SECONDS:-86400}
+      NOWLEDGE_SNAPSHOT_RETAIN: ${NOWLEDGE_SNAPSHOT_RETAIN:-3}
+      NOWLEDGE_LIVEZ_TIMEOUT_SECONDS: ${NOWLEDGE_LIVEZ_TIMEOUT_SECONDS:-60}
+
+    # No host port exposure. The mem backend reaches the sidecar over
+    # the compose-internal docker network as http://updater:8080.
+    expose:
+      - "8080"
+
+    # Healthcheck so depends_on:service_healthy works on the mem side.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # The sidecar's job requires docker.sock + tar of files owned by
+    # UID 10001, both of which need either root in-container or
+    # broad capabilities. We accept root-in-container; the sidecar's
+    # code surface is the entire reason for the trust review the
+    # operator did before enabling this overlay.
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE   # read files owned by UID 10001 for tarring
+      - DAC_READ_SEARCH
+      - CHOWN          # writing snapshot with correct owner
+    security_opt:
+      - no-new-privileges:true
+
+    # Resource ceilings. The pull/apply work is bursty; nothing to
+    # justify giving the sidecar more than a small share.
+    mem_limit: 256m
+    pids_limit: 128
+    cpus: 1.0
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
