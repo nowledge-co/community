@@ -458,16 +458,6 @@ case "$cmd" in
   wipe|factory-reset) cmd_wipe ;;
   help|-h|--help)     cmd_help ;;
 
-  # Backward-compat aliases for the old bootstrap.sh verbs. Kept silent
-  # (no deprecation message) so copy-pasted v0.8.4 docs don't surface a
-  # warning to end users. Drop these in a future major.
-  activate)
-    cmd_license activate "$@"
-    ;;
-  rotate-key)
-    cmd_key --rotate
-    ;;
-
   *)
     printf "error: unknown command: %s\n\n" "$cmd" >&2
     cmd_help >&2
