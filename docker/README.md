@@ -401,7 +401,7 @@ guaranteed-consistent snapshot, then `./nmemctl up` afterward.
 Two independent things you might want to upgrade:
 
 ```bash
-./nmemctl upgrade 0.8.5                   # the docker image: pull, bump compose, recreate
+./nmemctl upgrade 0.8.5                   # the docker image: pull, bump .env, recreate
 ./nmemctl self-update                     # the controller + compose stack files themselves
 ./nmemctl self-update --check             # see what would change without applying
 ```
@@ -420,8 +420,76 @@ are left as `<file>.bak.<timestamp>`.
 `upgrade` refuses pre-release tags (`0.8.5-rc1`, etc.) by default — set
 `NMEM_ALLOW_PRERELEASE=1` to override when you're testing a release candidate.
 
+`upgrade` writes the target tag to `.env` (`NMEM_IMAGE_TAG=X.Y.Z`, mode 0600).
+`compose.yaml` reads that env var as `${NMEM_IMAGE_TAG:-X.Y.Z}` so future
+`up`/`restart` invocations stay on the new version without touching
+`compose.yaml`. The fallback default in `compose.yaml` is the release tag at
+the time you cloned; `self-update` may bump it but `.env` always wins.
+
 The backend runs schema migrations on startup. There is **no downgrade path**;
 once a newer image has opened the database, an older image will refuse to.
+Skipping versions (0.8.4 → 0.8.6 without 0.8.5) **is supported** — schema
+migrations run forward in order on the new image's first boot.
+
+### Click-to-update from the web UI (optional)
+
+If you'd rather not SSH every time a new release lands, opt in to the
+auto-update sidecar:
+
+```bash
+./nmemctl auto-update enable
+```
+
+That generates a per-deploy random token (mode 0600 in `.env`), adds the
+`compose.updater.yaml` overlay to the persisted stack, and brings the stack
+back up with a small `nowledgelabs/mem-updater` sidecar attached. From then
+on, the Settings → Server card in the web UI surfaces "Update available"
+when a newer image lands on Docker Hub, with a Download button (background
+pull, no downtime) and an Install button (≈30 s downtime, takes a pre-stop
+snapshot to `./cache/_pre-upgrade-<ts>.tar.gz`).
+
+```bash
+./nmemctl auto-update status              # current state, last pull, retained snapshots
+./nmemctl auto-update rotate              # rotate the updater token
+./nmemctl auto-update upgrade             # bump the updater image itself
+./nmemctl auto-update disable             # remove the sidecar; keep snapshots
+```
+
+**Trust model worth reading before you enable.** The sidecar mounts
+`/var/run/docker.sock` — that's why it's opt-in. Docker socket access
+is host-root-equivalent for that container. The sidecar is **not exposed
+beyond the compose-internal network**, runs an ~150-line POSIX-shell
+HTTP handler whose code you can read at `community/docker/updater/`,
+and only accepts requests bearing the per-deploy token. The mem
+container itself does **not** mount docker.sock; only the sidecar does.
+
+Pair this with the new `/admin/upgrade/*` endpoints on the Mem backend:
+
+| Endpoint | Behavior |
+|---|---|
+| `GET /admin/upgrade/check` | Aggregated state (current/latest/pulled/sidecar-reachable). UI polls every 120 min. |
+| `POST /admin/upgrade/download` | Pre-pull a target tag (background, idempotent). |
+| `POST /admin/upgrade/install` | Type-to-confirm, snapshot, recreate, wait for `/livez`. |
+
+**Origin guard.** By default, the install endpoint accepts requests only
+from the same-host UI (the `/app` served by this Mem container). If you
+want to trigger upgrades from the desktop in remote mode or from
+`mem.nowledge.co`, set `NOWLEDGE_ADMIN_REMOTE_OPS=1` on the server.
+Trusted networks only.
+
+**Recovery from a bad upgrade.** Every Install takes a volume-level
+snapshot of `./data` and `./config` (excludes `./cache`) before the
+recreate. If the new image's `/livez` doesn't go green within 180s,
+the UI surfaces the snapshot path. SSH and restore:
+
+```bash
+./nmemctl restore-app /var/cache/nowledge-mem/_pre-upgrade-<ts>.tar.gz
+# Then if you want to roll back the image too:
+./nmemctl upgrade 0.8.4    # whatever version you were on
+```
+
+Snapshots rotate automatically: the last 3 are kept; older are deleted on
+each successful Install. Override with `NOWLEDGE_SNAPSHOT_RETAIN`.
 
 ### Factory reset
 
