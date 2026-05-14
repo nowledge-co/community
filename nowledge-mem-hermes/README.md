@@ -66,13 +66,15 @@ The plugin uses Hermes' memory provider lifecycle to replace manual Working Memo
 |------|-------------|----------|
 | `system_prompt_block` | Working Memory injected into every session automatically | Manual `read_working_memory` call |
 | `prefetch` | Relevant memories searched before each turn | "Search proactively" guidance in SOUL.md |
+| `sync_turn` | Completed turns captured as Mem thread messages as they finish | Waiting for session exit before transcript sync |
 | `post_llm_call` | Compatibility fallback that captures completed one-shot turns when Hermes routes the plugin through the general hook loader | Missed `hermes chat -q` transcript sync on affected builds |
 | `on_memory_write` | User profile facts from Hermes mirrored to Nowledge Mem | Nothing (new capability) |
 | `on_pre_compress` | Provides a best-effort recovery hint on Hermes builds that consume provider compression output | Manual compression notes |
-| `on_session_end` | Cleaned Hermes transcript captured as a Mem thread when the session actually ends | Manual handoff-only thread save |
+| `on_session_switch` | `/new`, `/reset`, resume, branch, and compression rotations move sync state to the correct Hermes session | Cross-session delta bleed |
+| `on_session_end` | Final session-boundary flush appends any transcript delta not already captured | Manual handoff-only thread save |
 | `get_tool_schemas` | 6 native tools with clean names | MCP tools with `mcp_nowledge_mem_` prefix |
 
-Durable knowledge saves still happen through the native `nmem_` tools. In addition, the provider now captures cleaned Hermes session transcripts at real session boundaries such as clean exit, `/new`, and `/reset`. The first flush imports the transcript; later flushes in the same live Hermes session append only the delta. Transcript payloads use the Mem API directly so long sessions are not squeezed into shell arguments.
+Durable knowledge saves still happen through the native `nmem_` tools. In addition, the provider captures cleaned Hermes transcript turns as Mem threads while the conversation runs, then performs a final delta flush at real session boundaries such as clean exit, `/new`, and `/reset`. The first write for each Hermes `session_id` imports a thread; later writes for that same session append only the delta. Transcript payloads use the Mem API directly so long sessions are not squeezed into shell arguments.
 
 ## Tools
 

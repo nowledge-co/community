@@ -475,7 +475,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.14",
+      "version": "0.5.15",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
