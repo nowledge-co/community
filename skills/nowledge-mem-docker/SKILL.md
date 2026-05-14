@@ -117,6 +117,38 @@ The backend runs schema migrations on startup. **There is no downgrade path** �
 
 If `upgrade` fails midway, the previous image is still pulled locally. `./nmemctl restart` brings the container back up on the version listed in `compose.yaml`; check `./nmemctl version` to see which side of the bump it landed on.
 
+### Path C-bis — Click-to-update from the web UI (opt-in)
+
+Some operators don't want to SSH every release. The headless deploy has an opt-in companion that lets them click Update from the web UI in Settings → About → Self-hosted server.
+
+How to enable on the operator's behalf (only when the operator asks for it, and AFTER you walk them through the trust trade-off):
+
+```bash
+./nmemctl auto-update enable    # generates token, adds sidecar, recreates stack
+./nmemctl auto-update status    # state + last pull + retained snapshots
+./nmemctl auto-update disable   # remove the sidecar
+./nmemctl auto-update rotate    # rotate the token (recreates sidecar + mem)
+./nmemctl auto-update upgrade   # bump just the updater image
+```
+
+**Trust trade-off worth saying out loud:** auto-update adds a small sidecar container that holds `/var/run/docker.sock`. Docker socket access is host-root-equivalent for that container. The Mem container itself does NOT mount the socket; only the sidecar does. Per-deploy random token in `.env` (mode 0600). The sidecar is not exposed beyond the compose-internal network.
+
+Before recommending `enable`, hand the operator that trade-off in one short sentence and let them decide.
+
+**How the flow looks once enabled:**
+
+1. The web UI's title bar surfaces an "Install update" badge when a newer Mem image is published.
+2. Settings → About → Self-hosted server card lets the operator type-to-confirm the target version and click Install.
+3. Server takes a volume-level snapshot of `./data` + `./config` to `./cache/_pre-upgrade-<ts>.tar.gz` (last 3 retained), then recreates the container on the new tag.
+4. Failure path: if `/livez` doesn't go green within 180s, the UI shows the snapshot path. SSH and roll back with `./nmemctl import ./cache/_pre-upgrade-<ts>.tar.gz --force` (volume-level snapshot uses the import verb, NOT restore-app).
+
+**Origin guard.** `/admin/upgrade/*` endpoints accept requests only from the same-host UI by default. If the operator wants to trigger upgrade from the desktop in remote mode or from `mem.nowledge.co`, they need to set `NOWLEDGE_ADMIN_REMOTE_OPS=1` on the server. Mention this if they ask "why doesn't it work from my desktop in remote mode".
+
+**What you DON'T do for auto-update:**
+- Don't `./nmemctl auto-update enable` without first surfacing the docker.sock trade-off.
+- Don't click Install on their behalf from the web UI — the type-to-confirm exists to require the operator's own hand on the keyboard.
+- Don't recommend rotate without cause; if they did rotate, expect the desktop and other clients to need re-auth.
+
 ## What to do when the user asks for `<thing>`
 
 | User says... | You run... |
@@ -132,6 +164,10 @@ If `upgrade` fails midway, the previous image is still pulled locally. `./nmemct
 | "where is the data?" | Explain: three local directories next to `compose.yaml` — `./data` (graph + search index, irreplaceable), `./config` (license + API key + agent state, valuable), `./cache` (embeddings, rebuildable). Files are owned by UID 10001 inside the container; standard tools (`rsync`, `restic`, `tar`) work directly on the host. |
 | "back up my server", "snapshot before upgrade" | `./nmemctl export` — stops the container, tars the three dirs into `mem-export-<host>-<ts>.tar.gz`, restarts. For cross-version moves use `./nmemctl backup-app` instead (portable JSONL dump). |
 | "migrate this to another server" | Same-version: `./nmemctl export` here → copy archive → `./nmemctl import` on the new host. Cross-version or from a `.deb` install: `./nmemctl backup-app` → copy zip → `./nmemctl restore-app` on the new host. The new host gets a fresh device identity; license re-activates and consumes one seat. |
+| "let me update from the web UI" / "set up click-to-update" | `./nmemctl auto-update enable` — generates a per-deploy token, adds the updater sidecar to the compose stack, brings it up. After this, the web UI's title bar shows an "Install update" badge when a newer image is published; the operator clicks through type-to-confirm and Mem recreates itself in ~30s with a pre-stop snapshot to `./cache/_pre-upgrade-<ts>.tar.gz`. SSH is only needed for failure recovery. |
+| "is auto-update on?" | `./nmemctl auto-update status` — shows whether the sidecar is wired up, last scheduled pull, retained snapshots. Read-only. |
+| "rotate the updater token" | `./nmemctl auto-update rotate` — issues a new token, recreates BOTH the sidecar and mem so they share the new value. Run this if you think the token leaked. |
+| "turn off auto-update" | `./nmemctl auto-update disable` — removes the sidecar, clears the token from `.env`, drops the overlay from `.nmemctl-state`. Existing `_pre-upgrade-*.tar.gz` snapshots stay (delete them by hand if you want the disk back). |
 
 ## Handoff — what NOT to do
 
@@ -144,6 +180,7 @@ Treat the list below as a hard boundary, not as defaults that "advanced mode" ov
 | `./nmemctl wipe` | **Everything goes.** Removes the contents of `./data` (graph DB, search index, threads, memories — irreplaceable), `./config` (license activation, API key, device identity, agent state files), and `./cache` (downloaded embeddings, rebuildable but not free). The container is recreated empty. There is no undo. | The controller deliberately requires the operator to type `WIPE` literally at a TTY. That ceremony is the safeguard. |
 | `./nmemctl down` | Container stops. The three host directories are intact (no data loss), but every connected client — desktop app, MCP, remote `nmem` CLI, running agents — instantly fails. | The user owns the service-availability decision. Other things may be relying on it that you can't see. |
 | `./nmemctl restore-app <file>` | Imports a `backup-app` zip into the running container. Memories with the same id are overwritten in-place; existing-but-not-in-dump memories stay. Not a "factory reset", but it can still surprise the user if they thought the zip was a different timestamp. | The user owns the merge semantics decision. Confirm the source file's date/origin before running. |
+| `./nmemctl auto-update enable` | Adds a sidecar container that holds `/var/run/docker.sock`. Socket access is host-root-equivalent for that container. Not destructive on its own, but the operator should KNOW they're widening the trust boundary before doing it. | Trust shape decision: the operator chooses how much auto-update convenience is worth the docker.sock surface. Hand them the trade-off; let them flip the switch. |
 | `./nmemctl key --rotate` | The current API key is invalidated immediately. Every existing client must be re-authed with the new value before it can talk to the server. | Disruption-on-purpose. Only the user knows whether right now is a good time. |
 | `./nmemctl license activate <CODE>` | Activates a paid Pro license tied to a specific purchase. | Codes are personal. The user pastes their own. |
 | Editing `compose.yaml` by hand | Changes the contract for every subsequent `up`. Easy to wedge the deploy by adding a malformed env block or rebinding the port. | Walk through proposed changes as a diff for review; don't `sed` into the file silently. |
