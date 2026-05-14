@@ -36,7 +36,7 @@ set -euo pipefail
 # Version of the controller itself. Bump when nmemctl semantics or
 # command surface change. Independent of the docker image version
 # (which `./nmemctl version` reports separately).
-NMEMCTL_VERSION="2.1.0"
+NMEMCTL_VERSION="2.2.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
