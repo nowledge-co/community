@@ -232,8 +232,14 @@ def test_key_plugin_static_contracts_are_declared():
     assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
     assert "Stop" in codex_hooks
     assert "nmem-stop-save.py" in json.dumps(codex_hooks)
-    codex_stop_command = codex_hooks["Stop"][0]["hooks"][0]["command"]
-    assert '"${PLUGIN_ROOT}/hooks/nmem-stop-save.py"' in codex_stop_command
+    codex_stop_commands = [
+        hook.get("command", "")
+        for entry in codex_hooks.get("Stop", [])
+        if isinstance(entry, dict)
+        for hook in entry.get("hooks", [])
+        if isinstance(hook, dict)
+    ]
+    assert any('"${PLUGIN_ROOT}/hooks/nmem-stop-save.py"' in command for command in codex_stop_commands)
     assert (CODEX_PLUGIN / "scripts" / "install_hooks.py").exists()
     assert (CODEX_PLUGIN / "skills" / "working-memory" / "SKILL.md").exists()
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
