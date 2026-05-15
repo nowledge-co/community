@@ -22,7 +22,7 @@
 #   NMEM_COMPOSE_FILES='-f compose.yaml -f compose.tls.yaml' ./nmemctl up
 #
 # Verify the image is signed by Nowledge Labs (anyone, anywhere):
-#   cosign verify docker.io/nowledgelabs/mem:0.8.5 \
+#   cosign verify docker.io/nowledgelabs/mem:0.8.6 \
 #     --certificate-identity-regexp='https://github.com/nowledge-co/mem/.github/workflows/release-docker.yml@.*' \
 #     --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 
@@ -32,7 +32,7 @@ services:
     # optional `./nmemctl auto-update` sidecar can flip versions by
     # writing `NMEM_IMAGE_TAG=<ver>` to `.env` (mode 0600, gitignored)
     # without rewriting this file. Fresh installs use the default.
-    image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-0.8.5}
+    image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-0.8.6}
     container_name: nowledge-mem
     restart: unless-stopped
     labels:
