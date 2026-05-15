@@ -63,6 +63,31 @@ If the runtime already has an ambient lane, add `--space "<space name>"` to Work
 
 Use `--mode deep` when the first pass is weak or the need is conceptual.
 
+## Knowledge Tree
+
+When the task needs to browse across memories, threads, wiki pages, working memory, activities, sources, and artifacts as one shape, use the Knowledge Filesystem:
+
+Prefer the MCP `mem_fs` tool when it is available. It accepts shell-shaped commands such as:
+
+```text
+ls /
+recall "session token strategy" --in /memories -k 5
+find /memories --label decisions --since 2026-01-01
+grep "JWT rotation" /memories
+cat /memories/by-id/<id>.memory.md
+stat /wiki/entities/PostgreSQL--<id>.entity.md
+```
+
+Otherwise use the CLI fallback:
+
+```bash
+nmem fs ls /
+nmem fs recall "session token strategy" --in /memories -k 5
+nmem fs cat /memories/by-id/<id>.memory.md
+```
+
+Use `recall` for fuzzy intent, `find` for metadata constraints, `grep` for exact strings, `stat` before loading large bodies, and `cat` only after choosing a path. Treat returned paths as Mem identifiers, not OS filesystem paths. Mounting, source fragments, SQL/Cypher, replay, and tail are later phases.
+
 For past conversations specifically:
 
 ```bash

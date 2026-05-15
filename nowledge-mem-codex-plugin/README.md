@@ -8,6 +8,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 
 - **Pick up where you left off.** Every session can start from your current priorities, recent decisions, and unresolved questions.
 - **Stronger retrieval on modern Codex.** The package bundles the local Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
+- **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, sources, and artifacts as one tree.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
 - **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary.
 - **Quick diagnostics.** One command to verify everything is connected.
@@ -28,6 +29,26 @@ The reliable bootstrap is still Working Memory. On modern Codex, the best setup 
 | `save-thread` | Manual fallback, "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
 | `status` | "Is Mem working?", errors | Checks connectivity |
+
+## Knowledge Tree for Agents
+
+Use the Knowledge Filesystem when the task is bigger than a single memory search and you need to browse nearby context.
+
+```text
+mem_fs: recall "why did we change token refresh?" --in /memories -k 5
+mem_fs: cat /memories/by-id/<id>.memory.md
+mem_fs: ls /memories/by-label/auth
+```
+
+The same surface is available from the shell:
+
+```bash
+nmem fs ls /
+nmem fs recall "session token strategy" --in /memories -k 5
+nmem fs grep "JWT rotation" /memories
+```
+
+Use `recall` for fuzzy intent, `find` for metadata, `grep` for exact strings, `stat` before loading large files, and `cat` only after you have a useful path. This first release is API-backed; it is not an OS mount yet.
 
 ## Prerequisites
 
