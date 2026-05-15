@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.11";
+const expectedVersion = "0.1.12";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);

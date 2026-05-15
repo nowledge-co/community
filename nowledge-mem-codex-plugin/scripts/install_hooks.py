@@ -27,6 +27,7 @@ NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
 MCP_MANAGED_BEGIN = "# BEGIN Nowledge Mem MCP (managed by nowledge-mem-codex-plugin)"
 MCP_MANAGED_END = "# END Nowledge Mem MCP"
 TOML_KEY_SEGMENT = r"(?:[A-Za-z0-9_-]+|\"(?:\\.|[^\"])*\"|'[^']*')"
+TOML_MCP_SERVERS_KEY = r"(?:mcp_servers|\"mcp_servers\"|'mcp_servers')"
 TOML_NOWLEDGE_MEM_KEY = r"(?:nowledge-mem|\"nowledge-mem\"|'nowledge-mem')"
 TOML_SECTION_HEADER_RE = re.compile(
     rf"^(?:\[\s*{TOML_KEY_SEGMENT}(?:\s*\.\s*{TOML_KEY_SEGMENT})*\s*\]"
@@ -34,7 +35,7 @@ TOML_SECTION_HEADER_RE = re.compile(
     r"\s*(?:#.*)?$"
 )
 NOWLEDGE_MCP_SECTION_RE = re.compile(
-    rf"^\s*\[\s*mcp_servers\s*\.\s*{TOML_NOWLEDGE_MEM_KEY}"
+    rf"^\s*\[\s*{TOML_MCP_SERVERS_KEY}\s*\.\s*{TOML_NOWLEDGE_MEM_KEY}"
     rf"(?:\s*\.\s*{TOML_KEY_SEGMENT})*\s*\]\s*(?:#.*)?$"
 )
 
