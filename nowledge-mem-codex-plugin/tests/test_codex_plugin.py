@@ -326,6 +326,49 @@ class InstallHookTests(unittest.TestCase):
 
         self.assertFalse(self.module.CONFIG_FILE.exists())
 
+    def test_install_codex_mcp_config_removes_stale_managed_override(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "\n".join(
+                [
+                    "[features]",
+                    "hooks = true",
+                    "",
+                    self.module.MCP_MANAGED_BEGIN,
+                    "[mcp_servers.nowledge-mem]",
+                    'url = "https://old.example/mcp/"',
+                    "",
+                    "[mcp_servers.nowledge-mem.http_headers]",
+                    'Authorization = "Bearer old_key"',
+                    self.module.MCP_MANAGED_END,
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        payload = {
+            "apiKeyConfigured": False,
+            "endpoint": "http://127.0.0.1:14242/mcp/",
+            "warnings": [],
+            "rendered": "\n".join(
+                [
+                    "[mcp_servers.nowledge-mem]",
+                    'url = "http://127.0.0.1:14242/mcp/"',
+                    "",
+                    "[mcp_servers.nowledge-mem.http_headers]",
+                    'APP = "Codex"',
+                ]
+            ),
+        }
+
+        with mock.patch.object(self.module, "_load_codex_mcp_payload", return_value=payload):
+            self.assertTrue(self.module.install_codex_mcp_config())
+
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+        self.assertIn("[features]\nhooks = true", updated)
+        self.assertNotIn(self.module.MCP_MANAGED_BEGIN, updated)
+        self.assertNotIn("old_key", updated)
+
 
 if __name__ == "__main__":
     unittest.main()

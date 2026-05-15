@@ -328,10 +328,37 @@ def _should_install_mcp_override(payload: dict) -> bool:
     return False
 
 
+def _write_codex_config_lines(
+    lines: list[str],
+    *,
+    restrict_permissions: bool,
+) -> None:
+    updated = "\n".join(lines)
+    if updated and not updated.endswith("\n"):
+        updated += "\n"
+    _validate_toml_if_possible(updated)
+    CONFIG_FILE.write_text(updated, encoding="utf-8")
+    if restrict_permissions:
+        try:
+            CONFIG_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
+        except OSError as error:
+            print(
+                f"warning: could not restrict permissions on {CONFIG_FILE}: {error}",
+                file=sys.stderr,
+            )
+
+
 def _install_mcp_config_from_payload(payload: dict) -> bool:
     rendered = str(payload.get("rendered") or "").strip()
     if not rendered:
         return False
+
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
+    _validate_toml_if_possible(text)
+    lines = text.splitlines()
+    lines, removed_managed_block = _remove_managed_mcp_block(lines)
+
     if not _should_install_mcp_override(payload):
         print(
             "Codex MCP config: using the plugin-bundled local endpoint. "
@@ -340,13 +367,10 @@ def _install_mcp_config_from_payload(payload: dict) -> bool:
             "desktop credentials if needed, then rerun this setup.",
             file=sys.stderr,
         )
+        if removed_managed_block:
+            _write_codex_config_lines(lines, restrict_permissions=False)
+            return True
         return False
-
-    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
-    _validate_toml_if_possible(text)
-    lines = text.splitlines()
-    lines, _ = _remove_managed_mcp_block(lines)
 
     if _has_existing_unmanaged_nowledge_mcp(lines):
         print(
@@ -363,17 +387,10 @@ def _install_mcp_config_from_payload(payload: dict) -> bool:
         lines.append("")
     lines.extend(block)
 
-    updated = "\n".join(lines) + "\n"
-    _validate_toml_if_possible(updated)
-    CONFIG_FILE.write_text(updated, encoding="utf-8")
-    if payload.get("apiKeyConfigured"):
-        try:
-            CONFIG_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except OSError as error:
-            print(
-                f"warning: could not restrict permissions on {CONFIG_FILE}: {error}",
-                file=sys.stderr,
-            )
+    _write_codex_config_lines(
+        lines,
+        restrict_permissions=bool(payload.get("apiKeyConfigured")),
+    )
     return True
 
 
