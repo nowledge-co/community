@@ -122,3 +122,4 @@ nmem config mcp show --host codex
 ```
 
 Paste that into `~/.codex/config.toml`. Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically.
+If `codex mcp list` shows `Not logged in`, update `nmem`, make sure the desktop app or `nmem config client ...` has written the right URL/API key, then rerun `scripts/install_hooks.py` or paste the generated block manually. Do not use `codex mcp login nowledge-mem`; that command is for OAuth MCP servers.

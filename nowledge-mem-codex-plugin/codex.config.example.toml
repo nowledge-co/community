@@ -6,9 +6,9 @@
 
 [features]
 plugins = true
-# Current Codex stable uses this legacy key; newer builds treat it as the
-# compatibility alias for hooks.
-codex_hooks = true
+# Current Codex builds use this key. If you are pinned to an older Codex build
+# that does not recognize it, use codex_hooks = true instead.
+hooks = true
 
 [plugins."nowledge-mem@nowledge-community"]
 enabled = true
