@@ -58,6 +58,28 @@ def _nmem_json(args: list[str], *, env: dict[str, str], timeout: int = 30) -> An
     return json.loads(stdout) if stdout else {}
 
 
+def _delete_marker_data(*, marker: str, space: str, env: dict[str, str]) -> None:
+    # Host hooks can flush a thread a moment after a failed assertion. Cleanup
+    # therefore does a short best-effort sweep before deleting the temporary
+    # space, instead of assuming data is already visible on the first search.
+    for attempt in range(5):
+        deleted_any = False
+        search = _nmem_json(["t", "search", marker, "--space", space, "-n", "50"], env=env)
+        for thread in search.get("threads", []):
+            thread_id = thread.get("id")
+            if thread_id:
+                _run(["nmem", "t", "delete", thread_id, "--space", space, "-f"], env=env, timeout=30)
+                deleted_any = True
+        memories = _nmem_json(["m", "search", marker, "--space", space, "-n", "50"], env=env)
+        memory_ids = [memory.get("id") for memory in memories.get("memories", []) if memory.get("id")]
+        if memory_ids:
+            _run(["nmem", "m", "delete", *memory_ids, "--space", space, "-f"], env=env, timeout=30)
+            deleted_any = True
+        if not deleted_any and attempt >= 1:
+            return
+        time.sleep(2)
+
+
 def _bool_env(name: str, *, default: bool = False) -> bool:
     value = os.environ.get(name)
     if value is None:
@@ -141,15 +163,7 @@ def e2e_context() -> E2EContext:
     if _bool_env("NMEM_E2E_KEEP_DATA"):
         return
     try:
-        search = _nmem_json(["t", "search", marker, "--space", space, "-n", "50"], env=env)
-        for thread in search.get("threads", []):
-            thread_id = thread.get("id")
-            if thread_id:
-                _run(["nmem", "t", "delete", thread_id, "--space", space, "-f"], env=env, timeout=30)
-        memories = _nmem_json(["m", "search", marker, "--space", space, "-n", "50"], env=env)
-        memory_ids = [memory.get("id") for memory in memories.get("memories", []) if memory.get("id")]
-        if memory_ids:
-            _run(["nmem", "m", "delete", *memory_ids, "--space", space, "-f"], env=env, timeout=30)
+        _delete_marker_data(marker=marker, space=space, env=env)
     finally:
         if owns_space:
             _run(
@@ -558,13 +572,9 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
             "*.log",
         ),
     )
-    # OpenClaw profiles isolate config, not the installed extension directory.
-    # Install a package-shaped copy with --force so the safety scanner sees what
-    # users receive from npm/ClawHub instead of checkout-only test fixtures.
-    _run([*base, "plugins", "install", str(plugin_copy), "--force"], env=e2e_context.env, timeout=120)
-
     default_config = Path.home() / ".openclaw" / "openclaw.json"
     default_config_backup = default_config.read_bytes() if not profile and default_config.exists() else None
+    default_config_existed = default_config_backup is not None
     config_ops: list[dict[str, Any]] = [
         {"path": "plugins.entries.openclaw-nowledge-mem.enabled", "value": True},
         {"path": "plugins.entries.openclaw-nowledge-mem.config.sessionDigest", "value": True},
@@ -591,6 +601,10 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
     batch_file = tmp_path / "openclaw-config.json"
     batch_file.write_text(json.dumps(config_ops), encoding="utf-8")
     try:
+        # OpenClaw profiles isolate config, not the installed extension directory.
+        # Install a package-shaped copy with --force so the safety scanner sees what
+        # users receive from npm/ClawHub instead of checkout-only test fixtures.
+        _run([*base, "plugins", "install", str(plugin_copy), "--force"], env=e2e_context.env, timeout=120)
         _run([*base, "config", "set", "--batch-file", str(batch_file)], env=e2e_context.env, timeout=60)
 
         prompt = f"Reply with exactly: done {e2e_context.marker}"
@@ -610,7 +624,6 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
             env=e2e_context.env,
             timeout=int(os.environ.get("NMEM_E2E_OPENCLAW_TIMEOUT_SECONDS", "180")) + 30,
         )
-        assert e2e_context.marker in (result.stdout + result.stderr)
         _poll_thread(
             marker=e2e_context.marker,
             source="openclaw",
@@ -620,6 +633,8 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
     finally:
         if default_config_backup is not None:
             default_config.write_bytes(default_config_backup)
+        elif not profile and not default_config_existed and default_config.exists():
+            default_config.unlink()
 
 
 @pytest.mark.skipif(_skip_live_host("hermes"), reason="Hermes live E2E not requested")

@@ -1,9 +1,6 @@
-import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { isCronSessionKey, isSubagentSessionKey } from "openclaw/plugin-sdk/routing";
-import {
-	buildStableThreadId,
-} from "./thread-identity.js";
+import { readFile } from "node:fs/promises";
+import { buildStableThreadId } from "./thread-identity.js";
 export {
 	_resetConversationRoots,
 	buildStableThreadId,
@@ -29,6 +26,38 @@ const _lastCaptureAt = new Map();
 const _MAX_COOLDOWN_ENTRIES = 200;
 const _syncedMessageCounts = new Map();
 const _MAX_SYNC_CURSOR_ENTRIES = 500;
+const CAPTURE_MESSAGE_MODE_AUTO = "auto";
+const CAPTURE_MESSAGE_MODE_SNAPSHOT = "snapshot";
+const CAPTURE_MESSAGE_MODE_DELTA = "delta";
+
+function parseAgentSessionKey(sessionKey) {
+	const raw = String(sessionKey || "")
+		.trim()
+		.toLowerCase();
+	if (!raw) return null;
+	const parts = raw.split(":").filter(Boolean);
+	if (parts.length < 3 || parts[0] !== "agent") return null;
+	const agentId = parts[1];
+	const rest = parts.slice(2).join(":");
+	if (!agentId || !rest) return null;
+	return { agentId, rest };
+}
+
+function isAgentCronSessionKey(sessionKey) {
+	const parsed = parseAgentSessionKey(sessionKey);
+	return parsed?.rest?.startsWith("cron:") === true;
+}
+
+function isSubagentSessionKey(sessionKey) {
+	const raw = String(sessionKey || "")
+		.trim()
+		.toLowerCase();
+	if (!raw) return false;
+	if (raw.startsWith("subagent:")) return true;
+	const parsed = parseAgentSessionKey(raw);
+	return parsed?.rest?.startsWith("subagent:") === true;
+}
+
 function _setLastCapture(threadId, now) {
 	_lastCaptureAt.set(threadId, now);
 	// Opportunistic eviction: sweep stale entries when map grows large
@@ -68,11 +97,7 @@ function _compileGlob(pattern) {
 	let re = _compiledPatterns.get(key);
 	if (!re) {
 		re = new RegExp(
-			"^" +
-				key
-					.replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-					.replace(/\*/g, "[^:]*") +
-				"$",
+			`^${key.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^:]*")}$`,
 		);
 		_compiledPatterns.set(key, re);
 	}
@@ -95,12 +120,11 @@ export function matchesExcludePattern(sessionKey, patterns) {
 /**
  * Whether automatic thread capture should skip this OpenClaw session.
  *
- * - Agent-scoped cron / isolated-agent keys are classified by
- *   `isCronSessionKey` from `openclaw/plugin-sdk/routing` (same implementation
- *   the gateway uses). Requires OpenClaw >=2026.3.22.
+ * - Agent-scoped cron / isolated-agent keys follow OpenClaw's canonical
+ *   `agent:<id>:cron:*` session-key shape.
  * - Bare `cron:*` keys are still excluded: some internal paths (e.g. delivery /
  *   failure bookkeeping) use that shape without the `agent:` prefix, and
- *   `isCronSessionKey` only parses agent-scoped keys.
+ *   agent-scoped parsing intentionally does not classify bare keys.
  */
 export function isCronCaptureSessionKey(sessionKey) {
 	const raw = String(sessionKey || "")
@@ -108,7 +132,7 @@ export function isCronCaptureSessionKey(sessionKey) {
 		.toLowerCase();
 	if (!raw) return false;
 	if (raw.startsWith("cron:")) return true;
-	return isCronSessionKey(raw);
+	return isAgentCronSessionKey(raw);
 }
 
 /**
@@ -118,7 +142,8 @@ export function isCronCaptureSessionKey(sessionKey) {
  * Exported for reuse by Context Engine and other capture paths.
  */
 export function hasSkipMarker(messages, marker) {
-	if (!marker || typeof marker !== "string" || !Array.isArray(messages)) return false;
+	if (!marker || typeof marker !== "string" || !Array.isArray(messages))
+		return false;
 	const markerLc = marker.toLowerCase();
 	return messages.some((msg) => {
 		const text = extractText(msg?.content ?? msg?.message?.content);
@@ -225,17 +250,45 @@ export function normalizeRoleMessage(
 		timestamp = msg.timestamp;
 	}
 
+	const openclawMeta =
+		msg.__openclaw && typeof msg.__openclaw === "object"
+			? msg.__openclaw
+			: raw.__openclaw && typeof raw.__openclaw === "object"
+				? raw.__openclaw
+				: null;
+	const msgMetadata =
+		msg.metadata && typeof msg.metadata === "object" ? msg.metadata : null;
+	const rawMetadata =
+		raw.metadata && typeof raw.metadata === "object" ? raw.metadata : null;
 	const externalHint = [
+		openclawMeta?.mirrorIdentity,
+		openclawMeta?.idempotencyKey,
+		msg.idempotencyKey,
+		msg.idempotency_key,
 		msg.external_id,
 		msg.externalId,
 		msg.message_id,
 		msg.messageId,
+		msg.openclaw_entry_id,
+		msg.openclawEntryId,
 		msg.id,
+		raw.idempotencyKey,
+		raw.idempotency_key,
 		raw.external_id,
 		raw.externalId,
 		raw.message_id,
 		raw.messageId,
+		raw.openclaw_entry_id,
+		raw.openclawEntryId,
 		raw.id,
+		msgMetadata?.external_id,
+		msgMetadata?.externalId,
+		msgMetadata?.message_id,
+		msgMetadata?.messageId,
+		rawMetadata?.external_id,
+		rawMetadata?.externalId,
+		rawMetadata?.message_id,
+		rawMetadata?.messageId,
 	]
 		.find((v) => typeof v === "string" && v.trim().length > 0)
 		?.trim();
@@ -263,11 +316,30 @@ function sanitizeIdPart(input, max = 48) {
 	return normalized.slice(0, max);
 }
 
-function buildExternalId({ normalized, index, threadId, sessionKey }) {
+function buildExternalId({
+	normalized,
+	index,
+	threadId,
+	sessionKey,
+	event,
+	ctx,
+	messageMode,
+}) {
 	if (normalized.externalHint) {
 		return `oc:${sanitizeIdPart(normalized.externalHint, 96)}`;
 	}
-	const seed = `${threadId}|${sessionKey}|${index}|${normalized.role}|${normalized.content}`;
+	const runId =
+		messageMode === CAPTURE_MESSAGE_MODE_DELTA
+			? String(ctx?.runId || event?.runId || "").trim()
+			: "";
+	const seed = [
+		threadId,
+		sessionKey,
+		runId ? `run:${runId}` : "",
+		index,
+		normalized.role,
+		normalized.content,
+	].join("|");
 	const digest = createHash("sha1").update(seed).digest("hex");
 	return `oc-msg:${digest}`;
 }
@@ -284,6 +356,18 @@ function buildAppendIdempotencyKey(threadId, reason, messages) {
 			: [],
 	};
 	return `oc-batch:${createHash("sha1").update(JSON.stringify(seed)).digest("hex")}`;
+}
+
+function hasStableExternalHints(normalized) {
+	return (
+		Array.isArray(normalized) &&
+		normalized.length > 0 &&
+		normalized.every(
+			(message) =>
+				typeof message?.externalHint === "string" &&
+				message.externalHint.trim().length > 0,
+		)
+	);
 }
 
 async function loadMessagesFromSessionFile(sessionFile) {
@@ -328,6 +412,7 @@ export async function appendOrCreateThread({
 	reason,
 	maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS,
 	resolvedMessages,
+	messageMode = CAPTURE_MESSAGE_MODE_SNAPSHOT,
 }) {
 	const rawMessages = resolvedMessages ?? (await resolveHookMessages(event));
 	if (!Array.isArray(rawMessages) || rawMessages.length === 0) return;
@@ -341,28 +426,100 @@ export async function appendOrCreateThread({
 		.filter(Boolean);
 	if (normalized.length === 0) return;
 
-	const allMessages = normalized.map((message, index) => ({
-		role: message.role,
-		content: message.content,
-		timestamp: message.timestamp,
-		metadata: {
-			external_id: buildExternalId({
-				normalized: message,
-				index,
-				threadId,
-				sessionKey,
-			}),
-			source: "openclaw",
-			session_key: sessionKey,
-			session_id: sessionId || undefined,
-		},
-	}));
+	const buildMessages = (resolvedMessageMode) =>
+		normalized.map((message, index) => ({
+			role: message.role,
+			content: message.content,
+			timestamp: message.timestamp,
+			metadata: {
+				external_id: buildExternalId({
+					normalized: message,
+					index,
+					threadId,
+					sessionKey,
+					event,
+					ctx,
+					messageMode: resolvedMessageMode,
+				}),
+				source: "openclaw",
+				session_key: sessionKey,
+				session_id: sessionId || undefined,
+			},
+		}));
+
+	let allMessages = buildMessages(
+		messageMode === CAPTURE_MESSAGE_MODE_DELTA
+			? CAPTURE_MESSAGE_MODE_DELTA
+			: CAPTURE_MESSAGE_MODE_SNAPSHOT,
+	);
 
 	let syncedCount = _syncedMessageCounts.get(threadId);
 	if (syncedCount === undefined) {
 		syncedCount = await client.getThreadMessageCount(threadId);
 		if (syncedCount !== null) {
 			_setSyncedMessageCount(threadId, syncedCount);
+		}
+	}
+
+	const resolvedMessageMode =
+		messageMode === CAPTURE_MESSAGE_MODE_DELTA ||
+		(messageMode === CAPTURE_MESSAGE_MODE_AUTO &&
+			(hasStableExternalHints(normalized) ||
+				(typeof syncedCount === "number" && syncedCount > allMessages.length)))
+			? CAPTURE_MESSAGE_MODE_DELTA
+			: CAPTURE_MESSAGE_MODE_SNAPSHOT;
+	if (resolvedMessageMode === CAPTURE_MESSAGE_MODE_DELTA) {
+		allMessages = buildMessages(CAPTURE_MESSAGE_MODE_DELTA);
+		const idempotencyKey = buildAppendIdempotencyKey(
+			threadId,
+			reason,
+			allMessages,
+		);
+		try {
+			const appended = await client.appendThread({
+				threadId,
+				messages: allMessages,
+				deduplicate: true,
+				idempotencyKey,
+			});
+			const added = appended.messagesAdded ?? 0;
+			const total =
+				Number.isFinite(appended.totalMessages) && appended.totalMessages >= 0
+					? appended.totalMessages
+					: typeof syncedCount === "number"
+						? syncedCount + added
+						: allMessages.length;
+			_setSyncedMessageCount(threadId, total);
+			logger.info(
+				`capture: appended ${added} delta messages to ${threadId} (${reason || "event"})`,
+			);
+			return { threadId, normalized, messagesAdded: added };
+		} catch (err) {
+			if (!client.isThreadNotFoundError(err)) {
+				const message = err instanceof Error ? err.message : String(err);
+				logger.warn(
+					`capture: thread append failed for ${threadId}: ${message}`,
+				);
+				return null;
+			}
+		}
+
+		try {
+			const createdId = await client.createThread({
+				threadId,
+				title,
+				messages: allMessages,
+				source: "openclaw",
+			});
+			_setSyncedMessageCount(threadId, allMessages.length);
+			logger.info(
+				`capture: created thread ${createdId} with ${allMessages.length} delta messages (${reason || "event"})`,
+			);
+			return { threadId, normalized, messagesAdded: allMessages.length };
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.warn(`capture: thread create failed for ${threadId}: ${message}`);
+			return null;
 		}
 	}
 
@@ -563,9 +720,7 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 		// Layer 2: marker-based exclusion (user typed #nmem-skip in conversation)
 		const resolvedMessages = await resolveHookMessages(event);
 		if (hasSkipMarker(resolvedMessages, cfg.captureSkipMarker)) {
-			logger.debug?.(
-				`capture: skipped session with skip marker ${sessionKey}`,
-			);
+			logger.debug?.(`capture: skipped session with skip marker ${sessionKey}`);
 			return;
 		}
 
@@ -577,6 +732,7 @@ export function buildAgentEndCaptureHandler(client, cfg, logger) {
 			reason: "agent_end",
 			maxMessageChars: cfg.maxThreadMessageChars,
 			resolvedMessages,
+			messageMode: CAPTURE_MESSAGE_MODE_AUTO,
 		});
 
 		await triageAndDistill({ client, cfg, logger, captureResult, ctx });
@@ -614,9 +770,7 @@ export function buildBeforeResetCaptureHandler(client, cfg, logger) {
 		// Layer 2: marker-based exclusion
 		const resolvedMessages = await resolveHookMessages(event);
 		if (hasSkipMarker(resolvedMessages, cfg.captureSkipMarker)) {
-			logger.debug?.(
-				`capture: skipped session with skip marker ${sessionKey}`,
-			);
+			logger.debug?.(`capture: skipped session with skip marker ${sessionKey}`);
 			return;
 		}
 

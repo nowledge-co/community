@@ -4,6 +4,14 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.24] - 2026-05-15
+
+### Fixed
+
+- OpenClaw session capture now handles newer per-turn `agent_end` hook payloads from Codex app-server runtimes. The plugin no longer mistakes those shorter batches for transcript compaction, so continued turns keep syncing into the same Mem thread after an OpenClaw upgrade.
+- Captured Codex app-server messages now use OpenClaw's stable mirror identity for Mem-side dedupe, keeping Context Engine `afterTurn` and hook backstop capture idempotent when both paths see the same turn.
+- Capture setup no longer depends on runtime-only OpenClaw SDK imports, keeping the plugin loadable on existing OpenClaw installer builds while still matching the host session-key contract.
+
 ## [0.8.23] - 2026-05-02
 
 ### Fixed
