@@ -147,7 +147,7 @@
       "name": "Codex CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.12",
+      "version": "0.1.13",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -173,7 +173,7 @@
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the Codex package and enable plugins in ~/.codex/config.toml",
-          "Run the bundled hook setup after install or update so Codex loads the Stop hook from ~/.codex/hooks.json and can install a managed MCP override from nmem config when needed",
+          "Run the bundled hook setup after install or update so Codex enables lifecycle hooks, enables plugin-bundled hooks, keeps the Nowledge Mem Stop hook enabled in /hooks, and can install a managed MCP override from nmem config when needed",
           "Use the bundled local MCP server, or use nmem config mcp show --host codex to override mcp_servers.nowledge-mem for remote Mem or authenticated localhost",
           "Keep nmem available on this machine",
           "Merge the package AGENTS.md into the project for stronger follow-through"
@@ -182,13 +182,13 @@
       "install": {
         "command": "codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
         "updateCommand": "codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
-        "configRequired": "After marketplace add or upgrade, install or update nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true, hooks = true, and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. Run the installed scripts/install_hooks.py once after the package itself is installed; it enables Stop-hook thread capture and, when nmem has saved credentials, writes a managed mcp_servers.nowledge-mem override. Add your own [mcp_servers.nowledge-mem] only for a deliberate custom endpoint.",
+        "configRequired": "After marketplace add or upgrade, install or update nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true, hooks = true, plugin_hooks = true, and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. Run the installed scripts/install_hooks.py once after the package itself is installed; it enables Stop-hook thread capture, keeps the Nowledge Mem Stop hook enabled in /hooks, and, when nmem has saved credentials, writes a managed mcp_servers.nowledge-mem override. Add your own [mcp_servers.nowledge-mem] only for a deliberate custom endpoint.",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "docsUrl": "/docs/integrations/codex-cli"
       },
       "toolNaming": {
         "convention": "hybrid-cli+mcp",
-        "note": "Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. The Stop hook captures real Codex transcripts through nmem, and the save-thread skill remains the explicit fallback."
+        "note": "Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and the save-thread skill remains the explicit fallback."
       },
       "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "status"],
       "slashCommands": []
