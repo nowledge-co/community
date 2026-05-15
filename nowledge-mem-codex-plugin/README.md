@@ -102,9 +102,9 @@ if ($null -eq $HookSetup) {
 }
 ```
 
-This enables Codex lifecycle hooks and plugin-bundled hooks, then installs a small host-level Stop hook for Codex builds that still need `~/.codex/hooks.json`. The Stop hook shells out to `nmem t save --from codex`, so local mode and remote Mem mode use the same `nmem` client configuration. If both the bundled hook and the host-level fallback are visible, the hook runtime suppresses the duplicate save for the same transcript state.
+This enables Codex lifecycle hooks and plugin-bundled hooks, keeps the Nowledge Mem packaged Stop hook enabled in `/hooks`, then installs a small host-level Stop hook for Codex builds that still need `~/.codex/hooks.json`. The Stop hook shells out to `nmem t save --from codex`, so local mode and remote Mem mode use the same `nmem` client configuration. If both the bundled hook and the host-level fallback are visible, the hook runtime suppresses the duplicate save for the same transcript state.
 
-On current Codex builds, `plugin_hooks = true` is the separate gate that lets Codex load `hooks/hooks.json` from installed plugins. If Codex shows the Nowledge Mem Stop hook in `/hooks`, leave it enabled.
+On current Codex builds, `plugin_hooks = true` is the separate gate that lets Codex load `hooks/hooks.json` from installed plugins. If Codex shows the Nowledge Mem Stop hook in `/hooks`, it should be enabled.
 
 The same setup also asks `nmem` for a Codex MCP config. If `nmem` has a saved API key or a non-default endpoint, the script writes a managed `mcp_servers.nowledge-mem` block into `~/.codex/config.toml`. This is the safest path for remote Mem and for localhost setups that require auth.
 

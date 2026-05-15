@@ -17,6 +17,10 @@ plugin_hooks = true
 [plugins."nowledge-mem@nowledge-community"]
 enabled = true
 
+# Keeps the packaged Stop hook enabled in /hooks.
+[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"]
+enabled = true
+
 # Remote/custom Mem override example:
 # Generate this block from your saved nmem client config with:
 # nmem config mcp show --host codex

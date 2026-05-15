@@ -10,7 +10,7 @@ This Codex package is hybrid-aware and hook-assisted.
 
 - Best modern setup: Codex plugin with bundled Nowledge Mem MCP.
 - Automatic capture: the Codex Stop hook saves the real transcript through `nmem t save --from codex` after each turn.
-- Current Codex: enable both `hooks = true` and `plugin_hooks = true`, then run `scripts/install_hooks.py` once after installing or updating the plugin. `plugin_hooks` lets Codex load the packaged Stop hook; the setup script also keeps the host-level fallback for builds that still need `~/.codex/hooks.json`.
+- Current Codex: enable both `hooks = true` and `plugin_hooks = true`, then run `scripts/install_hooks.py` once after installing or updating the plugin. `plugin_hooks` lets Codex load the packaged Stop hook; the setup script keeps that hook enabled in `/hooks` and also keeps the host-level fallback for builds that still need `~/.codex/hooks.json`.
 - Reliable bootstrap: read Working Memory once near session start.
 - Stronger retrieval and memory updates: use Nowledge Mem MCP tools when available.
 - Explicit fallback: if hook setup is missing or the user asks for a manual save, use the `save-thread` skill.

@@ -299,6 +299,42 @@ class InstallHookTests(unittest.TestCase):
             "[features\ncodex_hooks = false\n",
         )
 
+    def test_ensure_nowledge_plugin_hook_state_enables_packaged_stop_hook(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "\n".join(
+                [
+                    "[features]",
+                    "hooks = true",
+                    "plugin_hooks = true",
+                    "",
+                    '[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"]',
+                    "enabled = false",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        self.module.ensure_nowledge_plugin_hook_state_enabled()
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+
+        self.assertIn(
+            '[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"]\n'
+            "enabled = true",
+            updated,
+        )
+        self.assertIn(
+            '[hooks.state."nowledge-mem@local:hooks/hooks.json:stop:0:0"]\n'
+            "enabled = true",
+            updated,
+        )
+
+        self.module.ensure_nowledge_plugin_hook_state_enabled()
+        rerun = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+        self.assertEqual(rerun.count("nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"), 1)
+        self.assertEqual(rerun.count("nowledge-mem@local:hooks/hooks.json:stop:0:0"), 1)
+
     def test_install_runtime_hook_copies_runtime(self):
         self.module.install_runtime_hook()
 

@@ -85,8 +85,13 @@ as CLI arguments.
   for the thread because lifecycle hooks already had a completed assistant
   response to capture.
 - Codex: creates a repo-local plugin marketplace, runs hook setup, verifies
-  `hooks = true` and `plugin_hooks = true`, avoids an explicit save request,
-  and verifies the Stop hook saved a `codex` thread.
+  `hooks = true`, `plugin_hooks = true`, and the Nowledge Mem Stop hook state,
+  avoids an explicit save request, then verifies a real Codex transcript can be
+  saved as a `codex` thread. Current `codex exec` app-server builds may expose
+  hooks without firing Stop hooks in this non-interactive harness; when that
+  happens, the test replays the installed Stop hook against the transcript Codex
+  just wrote so the package setup, parser, `nmem` path, API path, and dedupe
+  guard are still covered.
 - OpenClaw: installs a package-shaped local plugin copy, enables session digest
   plus the Nowledge Mem context engine slot, points the plugin at the test Mem
   API through restored plugin config, and verifies an `openclaw` thread.
