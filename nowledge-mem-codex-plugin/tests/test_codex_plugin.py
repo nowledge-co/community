@@ -202,6 +202,31 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn('[projects."/tmp/demo"]\ncodex_hooks = false', updated)
         self.assertIn("[features]\napps = true\ncodex_hooks = true\nhooks = true", updated)
 
+    def test_ensure_codex_hooks_enabled_ignores_bracket_values_inside_features(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "\n".join(
+                [
+                    "[features]",
+                    "labels = [",
+                    '  "[not a table header]"',
+                    "]",
+                    "plugins = true",
+                    "",
+                    "[plugins.\"nowledge-mem@nowledge-community\"]",
+                    "enabled = true",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        self.module.ensure_codex_hooks_enabled()
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+
+        self.assertIn('labels = [\n  "[not a table header]"\n]\nplugins = true\nhooks = true', updated)
+        self.assertIn('[plugins."nowledge-mem@nowledge-community"]\nenabled = true', updated)
+
     def test_ensure_codex_hooks_enabled_rejects_invalid_toml(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.module.CONFIG_FILE.write_text("[features\ncodex_hooks = false\n", encoding="utf-8")

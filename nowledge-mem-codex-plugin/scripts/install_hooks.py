@@ -27,6 +27,12 @@ NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
 MCP_MANAGED_BEGIN = "# BEGIN Nowledge Mem MCP (managed by nowledge-mem-codex-plugin)"
 MCP_MANAGED_END = "# END Nowledge Mem MCP"
 NOWLEDGE_MCP_SECTION_RE = re.compile(r"^\s*\[mcp_servers\.nowledge-mem(?:[.\]]|$)")
+TOML_KEY_SEGMENT = r"(?:[A-Za-z0-9_-]+|\"(?:\\.|[^\"])*\"|'[^']*')"
+TOML_SECTION_HEADER_RE = re.compile(
+    rf"^(?:\[\s*{TOML_KEY_SEGMENT}(?:\s*\.\s*{TOML_KEY_SEGMENT})*\s*\]"
+    rf"|\[\[\s*{TOML_KEY_SEGMENT}(?:\s*\.\s*{TOML_KEY_SEGMENT})*\s*\]\])"
+    r"\s*(?:#.*)?$"
+)
 
 
 def _backup_path(path: Path) -> Path:
@@ -170,11 +176,23 @@ def _section_bounds(lines: list[str], section_header: str) -> tuple[int | None, 
 
     for index in range(section_start + 1, len(lines)):
         stripped = lines[index].strip()
-        if stripped.startswith("[") and stripped.endswith("]"):
+        if TOML_SECTION_HEADER_RE.match(stripped):
             section_end = index
             break
 
     return section_start, section_end
+
+
+def _before_trailing_blank_lines(
+    lines: list[str],
+    *,
+    section_start: int,
+    section_end: int,
+) -> int:
+    insert_at = section_end
+    while insert_at > section_start + 1 and lines[insert_at - 1].strip() == "":
+        insert_at -= 1
+    return insert_at
 
 
 def ensure_codex_hooks_enabled() -> None:
@@ -204,7 +222,15 @@ def ensure_codex_hooks_enabled() -> None:
         if codex_hooks_index is not None:
             lines[codex_hooks_index] = "codex_hooks = true"
         if not has_new_key:
-            insert_at = codex_hooks_index + 1 if codex_hooks_index is not None else features_end
+            insert_at = (
+                codex_hooks_index + 1
+                if codex_hooks_index is not None
+                else _before_trailing_blank_lines(
+                    lines,
+                    section_start=features_start,
+                    section_end=features_end,
+                )
+            )
             lines.insert(insert_at, "hooks = true")
 
     updated = "\n".join(lines)
@@ -309,7 +335,9 @@ def _install_mcp_config_from_payload(payload: dict) -> bool:
     if not _should_install_mcp_override(payload):
         print(
             "Codex MCP config: using the plugin-bundled local endpoint. "
-            "If 'codex mcp list' shows Not logged in, update nmem, install the CLI from the desktop app, and rerun this setup.",
+            "If 'codex mcp list' shows Not logged in, ensure nmem is up to date, "
+            "install or update the CLI from the Nowledge Mem desktop app, refresh "
+            "desktop credentials if needed, then rerun this setup.",
             file=sys.stderr,
         )
         return False
