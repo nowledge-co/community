@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth — other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none.",
+  "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth — other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none. install.agentGuide stores the one-line prompt users can hand to an agent.",
   "version": "1.0.0",
   "integrations": [
     {
@@ -40,6 +40,10 @@
         "command": "claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
         "updateCommand": "claude plugin marketplace add nowledge-co/community && claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running as Claude Code agent; ~/.claude/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/claude-code.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Claude Code.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/claude-code.mdx，并按照它为 Claude Code 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/claude-code"
       },
       "toolNaming": {
@@ -86,6 +90,10 @@
         "command": "copilot plugin marketplace add nowledge-co/community && copilot plugin install nowledge-mem@nowledge-community",
         "updateCommand": "copilot plugin marketplace add nowledge-co/community && copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem",
         "detectionHint": "Running as GitHub Copilot CLI agent; ~/.copilot/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/copilot-cli.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Copilot CLI.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/copilot-cli.mdx，并按照它为 Copilot CLI 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/copilot-cli"
       },
       "toolNaming": {
@@ -133,6 +141,10 @@
         "command": "Search 'Nowledge Mem' in the Gemini CLI Extensions Gallery and install",
         "updateCommand": "gemini extensions update nowledge-mem-gemini-cli",
         "detectionHint": "Running as Gemini CLI agent; ~/.gemini/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/gemini-cli.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Gemini CLI.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/gemini-cli.mdx，并按照它为 Gemini CLI 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/gemini-cli"
       },
       "toolNaming": {
@@ -184,6 +196,10 @@
         "updateCommand": "codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community || codex marketplace add nowledge-co/community",
         "configRequired": "After marketplace add or upgrade, install or update nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true, hooks = true, plugin_hooks = true, and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. Run the installed scripts/install_hooks.py once after the package itself is installed; it enables Stop-hook thread capture, keeps the Nowledge Mem Stop hook enabled in /hooks, and, when nmem has saved credentials, writes a managed mcp_servers.nowledge-mem override. Add your own [mcp_servers.nowledge-mem] only for a deliberate custom endpoint.",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/codex-cli.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Codex CLI.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/codex-cli.mdx，并按照它为 Codex CLI 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/codex-cli"
       },
       "toolNaming": {
@@ -229,6 +245,10 @@
         "command": "Copy nowledge-mem-cursor-plugin into ~/.cursor/plugins/local/nowledge-mem-cursor and reload Cursor",
         "updateCommand": "Replace the copied local plugin folder with the latest community version, then reload Cursor",
         "detectionHint": "Running inside Cursor IDE",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/cursor.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Cursor.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/cursor.mdx，并按照它为 Cursor 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/cursor"
       },
       "toolNaming": {
@@ -275,6 +295,10 @@
         "command": "droid plugin marketplace add https://github.com/nowledge-co/community && droid plugin install nowledge-mem@nowledge-community",
         "updateCommand": "droid plugin marketplace update nowledge-community && droid plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running inside Droid (Factory)",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/droid.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Droid.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/droid.mdx，并按照它为 Droid 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/droid"
       },
       "toolNaming": {
@@ -322,6 +346,10 @@
         "command": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem",
         "updateCommand": "openclaw plugins update openclaw-nowledge-mem",
         "detectionHint": "Running as OpenClaw agent; ~/.openclaw/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/openclaw.mdx and follow it to install, configure, verify, and explain Nowledge Mem for OpenClaw.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/openclaw.mdx，并按照它为 OpenClaw 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/openclaw"
       },
       "toolNaming": {
@@ -368,6 +396,10 @@
         "command": "In Alma: Settings > Plugins > Marketplace, search 'Nowledge Mem', click Install",
         "updateCommand": "In Alma: Settings > Plugins > Marketplace, find Nowledge Mem, click Update",
         "detectionHint": "Running inside Alma; ~/.config/alma/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/alma.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Alma.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/alma.mdx，并按照它为 Alma 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/alma"
       },
       "toolNaming": {
@@ -414,6 +446,10 @@
         "command": "python3 -m pip install nowledge-mem-bub || python -m pip install nowledge-mem-bub || py -3 -m pip install nowledge-mem-bub",
         "updateCommand": "python3 -m pip install --upgrade nowledge-mem-bub || python -m pip install --upgrade nowledge-mem-bub || py -3 -m pip install --upgrade nowledge-mem-bub",
         "detectionHint": "Running inside Bub",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/bub.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Bub.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/bub.mdx，并按照它为 Bub 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/bub"
       },
       "toolNaming": {
@@ -461,6 +497,10 @@
         "command": "pi install npm:nowledge-mem-pi",
         "updateCommand": "pi update",
         "detectionHint": "Running as Pi agent; ~/.pi/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/pi.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Pi.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/pi.mdx，并按照它为 Pi 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/pi"
       },
       "toolNaming": {
@@ -506,6 +546,10 @@
         "command": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
         "updateCommand": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
         "detectionHint": "Running as Hermes agent; ~/.hermes/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/hermes.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Hermes Agent.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/hermes.mdx，并按照它为 Hermes Agent 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/hermes"
       },
       "toolNaming": {
@@ -552,6 +596,10 @@
       "install": {
         "command": "Add \"opencode-nowledge-mem\" to plugin array in opencode.json",
         "detectionHint": "Running as OpenCode agent; ~/.config/opencode/ or .opencode/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/opencode.mdx and follow it to install, configure, verify, and explain Nowledge Mem for OpenCode.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/opencode.mdx，并按照它为 OpenCode 安装、配置、验证和说明 Nowledge Mem。"
+        },
         "docsUrl": "/docs/integrations/opencode"
       },
       "toolNaming": {
