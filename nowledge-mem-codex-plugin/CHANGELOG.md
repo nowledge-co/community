@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.13] - 2026-05-15
+
+### Fixed
+
+- Codex setup now enables `plugin_hooks = true` in addition to `hooks = true`, matching current Codex's separate gate for lifecycle hooks shipped inside installed plugins.
+- Stop-hook capture now suppresses duplicate imports when Codex sees both the plugin-bundled hook and the host-level fallback hook for the same transcript state.
+- The plugin-bundled Stop hook now quotes its `${PLUGIN_ROOT}` script path, so plugin cache paths with spaces do not break automatic capture.
+- Setup guidance now explains that MCP is not required for automatic Codex thread capture; the Stop hook is the capture path, while MCP remains the stronger retrieval and memory-write path.
+
 ## [0.1.12] - 2026-05-15
 
 ### Fixed

@@ -24,9 +24,16 @@ class HookTests(unittest.TestCase):
         self.module = load_module("nmem_stop_save", HOOK_MODULE_PATH)
         self.temp_dir = tempfile.TemporaryDirectory()
         self.temp_path = Path(self.temp_dir.name)
+        self.env_patch = mock.patch.dict(
+            self.module.os.environ,
+            {"CODEX_HOME": str(self.temp_path / ".codex")},
+            clear=False,
+        )
+        self.env_patch.start()
         self.module._log_path = lambda: self.temp_path / "nmem-stop-hook.log"
 
     def tearDown(self):
+        self.env_patch.stop()
         self.temp_dir.cleanup()
 
     def test_build_command_uses_codex_session_id_and_project(self):
@@ -121,6 +128,33 @@ class HookTests(unittest.TestCase):
 
         self.assertEqual(self.module._derive_codex_home(str(transcript)), self.temp_path)
 
+    def test_claim_capture_event_suppresses_duplicate_same_transcript_state(self):
+        transcript = self.temp_path / "sessions" / "2026" / "05" / "02" / "rollout-abc.jsonl"
+        transcript.parent.mkdir(parents=True)
+        transcript.write_text("first", encoding="utf-8")
+        payload = {
+            "session_id": "019abc",
+            "cwd": str(self.temp_path / "project"),
+            "transcript_path": str(transcript),
+        }
+
+        self.assertTrue(self.module._claim_capture_event(payload))
+        self.assertFalse(self.module._claim_capture_event(payload))
+
+    def test_claim_capture_event_allows_changed_transcript_state(self):
+        transcript = self.temp_path / "sessions" / "2026" / "05" / "02" / "rollout-abc.jsonl"
+        transcript.parent.mkdir(parents=True)
+        transcript.write_text("first", encoding="utf-8")
+        payload = {
+            "session_id": "019abc",
+            "cwd": str(self.temp_path / "project"),
+            "transcript_path": str(transcript),
+        }
+
+        self.assertTrue(self.module._claim_capture_event(payload))
+        transcript.write_text("first\nsecond", encoding="utf-8")
+        self.assertTrue(self.module._claim_capture_event(payload))
+
     def test_missing_nmem_is_non_fatal(self):
         with mock.patch.object(self.module, "_nmem_command", return_value=None), \
              mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: "{}")):
@@ -200,7 +234,30 @@ class InstallHookTests(unittest.TestCase):
         updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
 
         self.assertIn('[projects."/tmp/demo"]\ncodex_hooks = false', updated)
-        self.assertIn("[features]\napps = true\ncodex_hooks = true\nhooks = true", updated)
+        self.assertIn(
+            "[features]\napps = true\ncodex_hooks = true\nhooks = true\nplugin_hooks = true",
+            updated,
+        )
+
+    def test_ensure_codex_hooks_enabled_updates_plugin_hook_flag(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "\n".join(
+                [
+                    "[features]",
+                    "plugins = true",
+                    "hooks = false",
+                    "plugin_hooks = false",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        self.module.ensure_codex_hooks_enabled()
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+
+        self.assertIn("[features]\nplugins = true\nhooks = true\nplugin_hooks = true", updated)
 
     def test_ensure_codex_hooks_enabled_ignores_bracket_values_inside_features(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -224,7 +281,10 @@ class InstallHookTests(unittest.TestCase):
         self.module.ensure_codex_hooks_enabled()
         updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
 
-        self.assertIn('labels = [\n  "[not a table header]"\n]\nplugins = true\nhooks = true', updated)
+        self.assertIn(
+            'labels = [\n  "[not a table header]"\n]\nplugins = true\nhooks = true\nplugin_hooks = true',
+            updated,
+        )
         self.assertIn('[plugins."nowledge-mem@nowledge-community"]\nenabled = true', updated)
 
     def test_ensure_codex_hooks_enabled_rejects_invalid_toml(self):

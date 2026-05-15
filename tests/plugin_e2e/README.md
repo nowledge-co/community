@@ -84,8 +84,9 @@ as CLI arguments.
   the marker and then exits with `error_max_budget_usd`, the test still polls
   for the thread because lifecycle hooks already had a completed assistant
   response to capture.
-- Codex: creates a repo-local plugin marketplace, enables the plugin, avoids an
-  explicit save request, and verifies the Stop hook saved a `codex` thread.
+- Codex: creates a repo-local plugin marketplace, runs hook setup, verifies
+  `hooks = true` and `plugin_hooks = true`, avoids an explicit save request,
+  and verifies the Stop hook saved a `codex` thread.
 - OpenClaw: installs a package-shaped local plugin copy, enables session digest
   plus the Nowledge Mem context engine slot, points the plugin at the test Mem
   API through restored plugin config, and verifies an `openclaw` thread.

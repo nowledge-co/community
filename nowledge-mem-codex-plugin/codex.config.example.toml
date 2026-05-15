@@ -6,9 +6,13 @@
 
 [features]
 plugins = true
-# Current Codex builds use this key. If you are pinned to an older Codex build
-# that does not recognize it, use codex_hooks = true instead.
+# Enables user/project lifecycle hooks. Current Codex builds use this key.
+# Older builds may also accept codex_hooks = true; the setup script preserves it
+# if it is already present.
 hooks = true
+# Enables lifecycle hooks shipped by installed plugins, including this package's
+# Stop hook. Codex may ask you to approve or toggle the hook from /hooks.
+plugin_hooks = true
 
 [plugins."nowledge-mem@nowledge-community"]
 enabled = true

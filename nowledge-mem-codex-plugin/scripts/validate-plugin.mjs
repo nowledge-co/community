@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.12";
+const expectedVersion = "0.1.13";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -96,14 +96,38 @@ const hooks = parseJsonIfPresent(path.join(pluginRoot, "hooks/hooks.json"), "hoo
 if (hooks) {
   const stopHooks = hooks.hooks?.Stop;
   if (!Array.isArray(stopHooks)) fail("hooks/hooks.json must declare Stop hooks");
-  else if (!JSON.stringify(stopHooks).includes("nmem-stop-save.py")) fail("Stop hooks must run nmem-stop-save.py");
-  else ok("Stop hook capture");
+  else {
+    const commands = [];
+    const collectCommands = (value) => {
+      if (Array.isArray(value)) {
+        for (const item of value) collectCommands(item);
+        return;
+      }
+      if (value && typeof value === "object") {
+        if (typeof value.command === "string") commands.push(value.command);
+        for (const item of Object.values(value)) collectCommands(item);
+      }
+    };
+    collectCommands(stopHooks);
+    if (!commands.some((command) => command.includes("nmem-stop-save.py"))) {
+      fail("Stop hooks must run nmem-stop-save.py");
+    } else ok("Stop hook capture");
+    if (!commands.some((command) => command.includes("\"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\""))) {
+      fail("Stop hook command must quote the ${PLUGIN_ROOT} script path");
+    } else ok("Stop hook path quoting");
+  }
 }
 
 const changelog = readTextIfPresent(path.join(pluginRoot, "CHANGELOG.md"), "CHANGELOG.md");
 if (changelog !== null) {
   if (!changelog.includes(`## [${expectedVersion}]`)) fail(`CHANGELOG must contain a ${expectedVersion} entry`);
   else ok("CHANGELOG version entry");
+}
+
+const hookRuntime = readTextIfPresent(path.join(pluginRoot, "hooks/nmem-stop-save.py"), "hooks/nmem-stop-save.py");
+if (hookRuntime !== null) {
+  if (!hookRuntime.includes("def _claim_capture_event")) fail("Stop hook runtime must guard duplicate hook sources");
+  else ok("Stop hook duplicate guard");
 }
 
 const integrationsDoc = parseJsonIfPresent(path.join(repoRoot, "integrations.json"), "integrations.json");

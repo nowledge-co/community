@@ -23,6 +23,7 @@ SOURCE_HOOK = PLUGIN_ROOT / "hooks" / "nmem-stop-save.py"
 INSTALLED_HOOK = HOOKS_DIR / "nowledge-mem-stop-save.py"
 CODEX_HOOKS_KEY_RE = re.compile(r"^\s*codex_hooks\s*=")
 CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*hooks\s*=")
+CODEX_PLUGIN_HOOKS_KEY_RE = re.compile(r"^\s*plugin_hooks\s*=")
 NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
 MCP_MANAGED_BEGIN = "# BEGIN Nowledge Mem MCP (managed by nowledge-mem-codex-plugin)"
 MCP_MANAGED_END = "# END Nowledge Mem MCP"
@@ -212,21 +213,30 @@ def ensure_codex_hooks_enabled() -> None:
     if features_start is None:
         if lines and lines[-1] != "":
             lines.append("")
-        lines.extend([section_header, "hooks = true"])
+        lines.extend([section_header, "hooks = true", "plugin_hooks = true"])
     else:
-        has_new_key = False
+        has_hooks_key = False
+        has_plugin_hooks_key = False
         codex_hooks_index = None
         for index in range(features_start + 1, features_end):
             stripped = lines[index].strip()
             if CODEX_HOOKS_NEW_KEY_RE.match(stripped):
                 lines[index] = "hooks = true"
-                has_new_key = True
+                has_hooks_key = True
+            elif CODEX_PLUGIN_HOOKS_KEY_RE.match(stripped):
+                lines[index] = "plugin_hooks = true"
+                has_plugin_hooks_key = True
             elif CODEX_HOOKS_KEY_RE.match(stripped):
                 codex_hooks_index = index
 
         if codex_hooks_index is not None:
             lines[codex_hooks_index] = "codex_hooks = true"
-        if not has_new_key:
+        missing_feature_lines = []
+        if not has_hooks_key:
+            missing_feature_lines.append("hooks = true")
+        if not has_plugin_hooks_key:
+            missing_feature_lines.append("plugin_hooks = true")
+        if missing_feature_lines:
             insert_at = (
                 codex_hooks_index + 1
                 if codex_hooks_index is not None
@@ -236,7 +246,8 @@ def ensure_codex_hooks_enabled() -> None:
                     section_end=features_end,
                 )
             )
-            lines.insert(insert_at, "hooks = true")
+            for line in reversed(missing_feature_lines):
+                lines.insert(insert_at, line)
 
     updated = "\n".join(lines)
     if updated and not updated.endswith("\n"):
@@ -452,7 +463,7 @@ def main() -> int:
     print("Installed Nowledge Mem Codex Stop hook")
     print(f"- runtime hook: {INSTALLED_HOOK}")
     print(f"- hooks config: {GLOBAL_HOOKS_FILE}")
-    print(f"- feature flag ensured in: {CONFIG_FILE}")
+    print(f"- hook feature flags ensured in: {CONFIG_FILE}")
     if mcp_config_installed:
         print(f"- authenticated MCP config ensured in: {CONFIG_FILE}")
     return 0

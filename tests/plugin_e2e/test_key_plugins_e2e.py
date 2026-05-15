@@ -211,6 +211,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
     assert "Stop" in codex_hooks
     assert "nmem-stop-save.py" in json.dumps(codex_hooks)
+    codex_stop_command = codex_hooks["Stop"][0]["hooks"][0]["command"]
+    assert '"${PLUGIN_ROOT}/hooks/nmem-stop-save.py"' in codex_stop_command
     assert (CODEX_PLUGIN / "scripts" / "install_hooks.py").exists()
     assert (CODEX_PLUGIN / "skills" / "working-memory" / "SKILL.md").exists()
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
@@ -427,6 +429,9 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
         env=codex_env,
         timeout=30,
     )
+    codex_config = (codex_home / "config.toml").read_text(encoding="utf-8")
+    assert "hooks = true" in codex_config
+    assert "plugin_hooks = true" in codex_config
 
     prompt = (
         f"This is a Nowledge Mem integration test marker {e2e_context.marker}. "
