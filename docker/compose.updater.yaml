@@ -38,7 +38,7 @@ services:
       NOWLEDGE_UPDATER_TOKEN: ${NOWLEDGE_UPDATER_TOKEN:?run `./nmemctl auto-update enable` first}
 
   updater:
-    image: docker.io/nowledgelabs/mem-updater:${NMEM_UPDATER_TAG:-0.8.4}
+    image: docker.io/nowledgelabs/mem-updater:${NMEM_UPDATER_TAG:-0.8.5}
     container_name: nowledge-mem-updater
     restart: unless-stopped
 
