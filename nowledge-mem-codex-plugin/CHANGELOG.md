@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.12] - 2026-05-15
+
+### Fixed
+
+- Codex setup now also recognizes fully quoted TOML MCP table headers such as `["mcp_servers"."nowledge-mem"]` as user-owned config. This prevents setup from appending a duplicate managed table when users already have a valid quoted Codex MCP block.
+
 ## [0.1.11] - 2026-05-15
 
 ### Fixed
