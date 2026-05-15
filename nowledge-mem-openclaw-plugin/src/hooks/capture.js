@@ -332,14 +332,10 @@ function buildExternalId({
 		messageMode === CAPTURE_MESSAGE_MODE_DELTA
 			? String(ctx?.runId || event?.runId || "").trim()
 			: "";
-	const seed = [
-		threadId,
-		sessionKey,
-		runId ? `run:${runId}` : "",
-		index,
-		normalized.role,
-		normalized.content,
-	].join("|");
+	const seedParts = [threadId, sessionKey];
+	if (runId) seedParts.push(`run:${runId}`);
+	seedParts.push(index, normalized.role, normalized.content);
+	const seed = seedParts.join("|");
 	const digest = createHash("sha1").update(seed).digest("hex");
 	return `oc-msg:${digest}`;
 }

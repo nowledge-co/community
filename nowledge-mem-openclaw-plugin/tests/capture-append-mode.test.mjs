@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
@@ -18,6 +19,10 @@ function message(role, content, extra = {}) {
 		content,
 		...extra,
 	};
+}
+
+function fallbackExternalId(seed) {
+	return `oc-msg:${createHash("sha1").update(seed).digest("hex")}`;
 }
 
 class FakeThreadClient {
@@ -285,6 +290,61 @@ test("snapshot capture appends only the tail of full-transcript hook payloads", 
 	assert.deepEqual(
 		client.appendCalls[0].messages.map((msg) => msg.content),
 		["third", "fourth"],
+	);
+});
+
+test("snapshot fallback external IDs preserve the legacy seed shape", async () => {
+	const sessionKey = "agent:main:telegram:direct:snapshot-fallback";
+	const client = new FakeThreadClient({ existingCount: 0 });
+	const result = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [message("user", "legacy fallback")],
+		},
+		ctx: {
+			sessionId: "session-snapshot-fallback",
+			sessionKey,
+			runId: "run-ignored-in-snapshot",
+		},
+		reason: "after_turn",
+	});
+
+	assert.equal(result.messagesAdded, 1);
+	assert.equal(client.appendCalls.length, 1);
+	assert.equal(
+		client.appendCalls[0].messages[0].metadata.external_id,
+		fallbackExternalId(
+			`${result.threadId}|${sessionKey}|0|user|legacy fallback`,
+		),
+	);
+});
+
+test("delta fallback external IDs include run id when available", async () => {
+	const sessionKey = "agent:main:telegram:direct:delta-fallback";
+	const client = new FakeThreadClient({ existingCount: 0 });
+	const result = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [message("assistant", "delta fallback")],
+		},
+		ctx: {
+			sessionId: "session-delta-fallback",
+			sessionKey,
+			runId: "run-42",
+		},
+		reason: "agent_end",
+		messageMode: "delta",
+	});
+
+	assert.equal(result.messagesAdded, 1);
+	assert.equal(client.appendCalls.length, 1);
+	assert.equal(
+		client.appendCalls[0].messages[0].metadata.external_id,
+		fallbackExternalId(
+			`${result.threadId}|${sessionKey}|run:run-42|0|assistant|delta fallback`,
+		),
 	);
 });
 
