@@ -26,12 +26,16 @@ CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*hooks\s*=")
 NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
 MCP_MANAGED_BEGIN = "# BEGIN Nowledge Mem MCP (managed by nowledge-mem-codex-plugin)"
 MCP_MANAGED_END = "# END Nowledge Mem MCP"
-NOWLEDGE_MCP_SECTION_RE = re.compile(r"^\s*\[mcp_servers\.nowledge-mem(?:[.\]]|$)")
 TOML_KEY_SEGMENT = r"(?:[A-Za-z0-9_-]+|\"(?:\\.|[^\"])*\"|'[^']*')"
+TOML_NOWLEDGE_MEM_KEY = r"(?:nowledge-mem|\"nowledge-mem\"|'nowledge-mem')"
 TOML_SECTION_HEADER_RE = re.compile(
     rf"^(?:\[\s*{TOML_KEY_SEGMENT}(?:\s*\.\s*{TOML_KEY_SEGMENT})*\s*\]"
     rf"|\[\[\s*{TOML_KEY_SEGMENT}(?:\s*\.\s*{TOML_KEY_SEGMENT})*\s*\]\])"
     r"\s*(?:#.*)?$"
+)
+NOWLEDGE_MCP_SECTION_RE = re.compile(
+    rf"^\s*\[\s*mcp_servers\s*\.\s*{TOML_NOWLEDGE_MEM_KEY}"
+    rf"(?:\s*\.\s*{TOML_KEY_SEGMENT})*\s*\]\s*(?:#.*)?$"
 )
 
 
@@ -337,6 +341,22 @@ def _write_codex_config_lines(
     if updated and not updated.endswith("\n"):
         updated += "\n"
     _validate_toml_if_possible(updated)
+    if restrict_permissions:
+        try:
+            if CONFIG_FILE.exists():
+                CONFIG_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
+            else:
+                fd = os.open(
+                    CONFIG_FILE,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    stat.S_IRUSR | stat.S_IWUSR,
+                )
+                os.close(fd)
+        except OSError as error:
+            raise SystemExit(
+                f"error: refusing to write Codex MCP API key before securing {CONFIG_FILE}: {error}"
+            ) from error
+
     CONFIG_FILE.write_text(updated, encoding="utf-8")
     if restrict_permissions:
         try:
