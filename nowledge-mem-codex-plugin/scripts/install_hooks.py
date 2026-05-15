@@ -304,23 +304,28 @@ def _has_existing_unmanaged_nowledge_mcp(lines: list[str]) -> bool:
     return False
 
 
-def _remove_managed_mcp_block(lines: list[str]) -> tuple[list[str], bool]:
+def _remove_managed_mcp_block(lines: list[str]) -> tuple[list[str], bool, bool]:
     cleaned: list[str] = []
-    in_managed = False
     removed = False
+    index = 0
 
-    for line in lines:
+    while index < len(lines):
+        line = lines[index]
         if line.strip() == MCP_MANAGED_BEGIN:
-            in_managed = True
+            end_index = None
+            for candidate in range(index + 1, len(lines)):
+                if lines[candidate].strip() == MCP_MANAGED_END:
+                    end_index = candidate
+                    break
+            if end_index is None:
+                return lines, removed, True
             removed = True
+            index = end_index + 1
             continue
-        if line.strip() == MCP_MANAGED_END and in_managed:
-            in_managed = False
-            continue
-        if not in_managed:
-            cleaned.append(line)
+        cleaned.append(line)
+        index += 1
 
-    return cleaned, removed
+    return cleaned, removed, False
 
 
 def _should_install_mcp_override(payload: dict) -> bool:
@@ -377,7 +382,19 @@ def _install_mcp_config_from_payload(payload: dict) -> bool:
     text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
     _validate_toml_if_possible(text)
     lines = text.splitlines()
-    lines, removed_managed_block = _remove_managed_mcp_block(lines)
+    (
+        lines,
+        removed_managed_block,
+        unterminated_managed_block,
+    ) = _remove_managed_mcp_block(lines)
+    if unterminated_managed_block:
+        print(
+            "Codex MCP config: found an unterminated managed Nowledge Mem MCP block; "
+            "left config.toml unchanged. Remove or repair the managed BEGIN/END "
+            "markers, then rerun this setup.",
+            file=sys.stderr,
+        )
+        return False
 
     if not _should_install_mcp_override(payload):
         print(

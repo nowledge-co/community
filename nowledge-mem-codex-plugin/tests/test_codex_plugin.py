@@ -410,6 +410,42 @@ class InstallHookTests(unittest.TestCase):
         self.assertNotIn(self.module.MCP_MANAGED_BEGIN, updated)
         self.assertNotIn("old_key", updated)
 
+    def test_install_codex_mcp_config_preserves_unterminated_managed_block(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        original = "\n".join(
+            [
+                "[features]",
+                "hooks = true",
+                "",
+                self.module.MCP_MANAGED_BEGIN,
+                "[mcp_servers.nowledge-mem]",
+                'url = "https://old.example/mcp/"',
+                "",
+                '[projects."/tmp/demo"]',
+                "trusted = true",
+                "",
+            ]
+        )
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        payload = {
+            "apiKeyConfigured": True,
+            "warnings": [],
+            "rendered": "\n".join(
+                [
+                    "[mcp_servers.nowledge-mem]",
+                    'url = "http://127.0.0.1:14242/mcp/"',
+                    "",
+                    "[mcp_servers.nowledge-mem.http_headers]",
+                    'Authorization = "Bearer nmem_test"',
+                ]
+            ),
+        }
+
+        with mock.patch.object(self.module, "_load_codex_mcp_payload", return_value=payload):
+            self.assertFalse(self.module.install_codex_mcp_config())
+
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+
 
 if __name__ == "__main__":
     unittest.main()
