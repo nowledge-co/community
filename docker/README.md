@@ -296,7 +296,7 @@ public keys to download or rotate — verification uses the GitHub Actions OIDC
 identity that produced the build.
 
 ```bash
-cosign verify docker.io/nowledgelabs/mem:0.8.4 \
+cosign verify docker.io/nowledgelabs/mem:0.8.5 \
   --certificate-identity-regexp='https://github.com/nowledge-co/mem/.github/workflows/release-docker.yml@.*' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 ```
@@ -327,7 +327,7 @@ The image ships a multi-arch manifest for **`linux/amd64`** and
 If you need a specific arch, pin it explicitly:
 
 ```bash
-docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:0.8.4
+docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:0.8.5
 ```
 
 ---
@@ -428,7 +428,7 @@ the time you cloned; `self-update` may bump it but `.env` always wins.
 
 The backend runs schema migrations on startup. There is **no downgrade path**;
 once a newer image has opened the database, an older image will refuse to.
-Skipping versions (0.8.4 → 0.8.6 without 0.8.5) **is supported** — schema
+Skipping versions (0.8.5 → 0.8.7 without 0.8.6) **is supported** — schema
 migrations run forward in order on the new image's first boot.
 
 ### Click-to-update from the web UI (optional)
@@ -492,7 +492,7 @@ volume-level snapshot):
 
 ```bash
 # Roll back the image first (so the migration order matches):
-./nmemctl upgrade 0.8.4    # whatever version you were on
+./nmemctl upgrade 0.8.5    # whatever version you were on
 # Then restore the bind-mount directories from the snapshot:
 ./nmemctl import ./cache/_pre-upgrade-<ts>.tar.gz --force
 ```
