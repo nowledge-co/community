@@ -41,8 +41,8 @@
         "updateCommand": "claude plugin marketplace add nowledge-co/community && claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running as Claude Code agent; ~/.claude/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/claude-code.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Claude Code.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/claude-code.mdx，并按照它为 Claude Code 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/claude-code.mdx, then help me install or update Nowledge Mem for Claude Code. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/claude-code.mdx，然后帮我为 Claude Code 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/claude-code"
       },
@@ -91,8 +91,8 @@
         "updateCommand": "copilot plugin marketplace add nowledge-co/community && copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem",
         "detectionHint": "Running as GitHub Copilot CLI agent; ~/.copilot/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/copilot-cli.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Copilot CLI.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/copilot-cli.mdx，并按照它为 Copilot CLI 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/copilot-cli.mdx, then help me install or update Nowledge Mem for Copilot CLI. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/copilot-cli.mdx，然后帮我为 Copilot CLI 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/copilot-cli"
       },
@@ -142,8 +142,8 @@
         "updateCommand": "gemini extensions update nowledge-mem-gemini-cli",
         "detectionHint": "Running as Gemini CLI agent; ~/.gemini/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/gemini-cli.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Gemini CLI.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/gemini-cli.mdx，并按照它为 Gemini CLI 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/gemini-cli.mdx, then help me install or update Nowledge Mem for Gemini CLI. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/gemini-cli.mdx，然后帮我为 Gemini CLI 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/gemini-cli"
       },
@@ -197,8 +197,8 @@
         "configRequired": "After marketplace add or upgrade, install or update nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true, hooks = true, plugin_hooks = true, and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. Run the installed scripts/install_hooks.py once after the package itself is installed; it enables Stop-hook thread capture, keeps the Nowledge Mem Stop hook enabled in /hooks, and, when nmem has saved credentials, writes a managed mcp_servers.nowledge-mem override. Add your own [mcp_servers.nowledge-mem] only for a deliberate custom endpoint.",
         "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/codex-cli.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Codex CLI.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/codex-cli.mdx，并按照它为 Codex CLI 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/codex-cli.mdx, then help me install or update Nowledge Mem for Codex CLI. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/codex-cli.mdx，然后帮我为 Codex CLI 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/codex-cli"
       },
@@ -246,8 +246,8 @@
         "updateCommand": "Replace the copied local plugin folder with the latest community version, then reload Cursor",
         "detectionHint": "Running inside Cursor IDE",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/cursor.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Cursor.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/cursor.mdx，并按照它为 Cursor 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/cursor.mdx, then help me install or update Nowledge Mem for Cursor. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/cursor.mdx，然后帮我为 Cursor 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/cursor"
       },
@@ -296,8 +296,8 @@
         "updateCommand": "droid plugin marketplace update nowledge-community && droid plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running inside Droid (Factory)",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/droid.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Droid.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/droid.mdx，并按照它为 Droid 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/droid.mdx, then help me install or update Nowledge Mem for Droid. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/droid.mdx，然后帮我为 Droid 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/droid"
       },
@@ -347,8 +347,8 @@
         "updateCommand": "openclaw plugins update openclaw-nowledge-mem",
         "detectionHint": "Running as OpenClaw agent; ~/.openclaw/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/openclaw.mdx and follow it to install, configure, verify, and explain Nowledge Mem for OpenClaw.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/openclaw.mdx，并按照它为 OpenClaw 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/openclaw.mdx, then help me install or update Nowledge Mem for OpenClaw. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/openclaw.mdx，然后帮我为 OpenClaw 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/openclaw"
       },
@@ -397,8 +397,8 @@
         "updateCommand": "In Alma: Settings > Plugins > Marketplace, find Nowledge Mem, click Update",
         "detectionHint": "Running inside Alma; ~/.config/alma/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/alma.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Alma.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/alma.mdx，并按照它为 Alma 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/alma.mdx, then help me install or update Nowledge Mem for Alma. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/alma.mdx，然后帮我为 Alma 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/alma"
       },
@@ -447,8 +447,8 @@
         "updateCommand": "python3 -m pip install --upgrade nowledge-mem-bub || python -m pip install --upgrade nowledge-mem-bub || py -3 -m pip install --upgrade nowledge-mem-bub",
         "detectionHint": "Running inside Bub",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/bub.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Bub.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/bub.mdx，并按照它为 Bub 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/bub.mdx, then help me install or update Nowledge Mem for Bub. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/bub.mdx，然后帮我为 Bub 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/bub"
       },
@@ -498,8 +498,8 @@
         "updateCommand": "pi update",
         "detectionHint": "Running as Pi agent; ~/.pi/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/pi.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Pi.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/pi.mdx，并按照它为 Pi 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/pi.mdx, then help me install or update Nowledge Mem for Pi. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/pi.mdx，然后帮我为 Pi 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/pi"
       },
@@ -547,8 +547,8 @@
         "updateCommand": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
         "detectionHint": "Running as Hermes agent; ~/.hermes/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/hermes.mdx and follow it to install, configure, verify, and explain Nowledge Mem for Hermes Agent.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/hermes.mdx，并按照它为 Hermes Agent 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/hermes.mdx, then help me install or update Nowledge Mem for Hermes Agent. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/hermes.mdx，然后帮我为 Hermes Agent 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/hermes"
       },
@@ -597,8 +597,8 @@
         "command": "Add \"opencode-nowledge-mem\" to plugin array in opencode.json",
         "detectionHint": "Running as OpenCode agent; ~/.config/opencode/ or .opencode/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/docs/integrations/opencode.mdx and follow it to install, configure, verify, and explain Nowledge Mem for OpenCode.",
-          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/opencode.mdx，并按照它为 OpenCode 安装、配置、验证和说明 Nowledge Mem。"
+          "prompt": "Read https://mem.nowledge.co/docs/integrations/opencode.mdx, then help me install or update Nowledge Mem for OpenCode. Use the recommended path first, verify the setup with the success check in the guide, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/docs/integrations/opencode.mdx，然后帮我为 OpenCode 安装或更新 Nowledge Mem。优先使用指南中的推荐路径，按成功检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/opencode"
       },
