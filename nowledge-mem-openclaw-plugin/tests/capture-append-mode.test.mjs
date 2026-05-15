@@ -235,6 +235,31 @@ test("snapshot capture still treats a shorter transcript as compaction shrink", 
 	assert.equal(client.createCalls.length, 0);
 });
 
+test("auto capture requires stable identities before treating a short batch as delta", async () => {
+	const client = new FakeThreadClient({ existingCount: 6 });
+	const result = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [
+				message("user", "short prompt without host identity"),
+				message("assistant", "short answer without host identity"),
+			],
+		},
+		ctx: {
+			sessionId: "session-auto-short-unknown",
+			sessionKey: "agent:main:telegram:direct:auto-short-unknown",
+			runId: "run-2",
+		},
+		reason: "agent_end",
+		messageMode: "auto",
+	});
+
+	assert.equal(result.messagesAdded, 0);
+	assert.equal(client.appendCalls.length, 0);
+	assert.equal(client.createCalls.length, 0);
+});
+
 test("snapshot capture appends only the tail of full-transcript hook payloads", async () => {
 	const client = new FakeThreadClient({ existingCount: 2 });
 	const result = await appendOrCreateThread({

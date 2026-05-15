@@ -64,17 +64,30 @@ def _delete_marker_data(*, marker: str, space: str, env: dict[str, str]) -> None
     # space, instead of assuming data is already visible on the first search.
     for attempt in range(5):
         deleted_any = False
-        search = _nmem_json(["t", "search", marker, "--space", space, "-n", "50"], env=env)
-        for thread in search.get("threads", []):
-            thread_id = thread.get("id")
-            if thread_id:
-                _run(["nmem", "t", "delete", thread_id, "--space", space, "-f"], env=env, timeout=30)
-                deleted_any = True
-        memories = _nmem_json(["m", "search", marker, "--space", space, "-n", "50"], env=env)
-        memory_ids = [memory.get("id") for memory in memories.get("memories", []) if memory.get("id")]
-        if memory_ids:
-            _run(["nmem", "m", "delete", *memory_ids, "--space", space, "-f"], env=env, timeout=30)
-            deleted_any = True
+        try:
+            search = _nmem_json(["t", "search", marker, "--space", space, "-n", "50"], env=env)
+            for thread in search.get("threads", []):
+                thread_id = thread.get("id")
+                if not thread_id:
+                    continue
+                try:
+                    _run(["nmem", "t", "delete", thread_id, "--space", space, "-f"], env=env, timeout=30)
+                    deleted_any = True
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            memories = _nmem_json(["m", "search", marker, "--space", space, "-n", "50"], env=env)
+            memory_ids = [memory.get("id") for memory in memories.get("memories", []) if memory.get("id")]
+            if memory_ids:
+                try:
+                    _run(["nmem", "m", "delete", *memory_ids, "--space", space, "-f"], env=env, timeout=30)
+                    deleted_any = True
+                except Exception:
+                    pass
+        except Exception:
+            pass
         if not deleted_any and attempt >= 1:
             return
         time.sleep(2)

@@ -464,8 +464,7 @@ export async function appendOrCreateThread({
 	const resolvedMessageMode =
 		messageMode === CAPTURE_MESSAGE_MODE_DELTA ||
 		(messageMode === CAPTURE_MESSAGE_MODE_AUTO &&
-			(hasStableExternalHints(normalized) ||
-				(typeof syncedCount === "number" && syncedCount > allMessages.length)))
+			hasStableExternalHints(normalized))
 			? CAPTURE_MESSAGE_MODE_DELTA
 			: CAPTURE_MESSAGE_MODE_SNAPSHOT;
 	if (resolvedMessageMode === CAPTURE_MESSAGE_MODE_DELTA) {
