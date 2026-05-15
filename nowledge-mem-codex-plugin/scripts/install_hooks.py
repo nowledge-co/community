@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import stat
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,7 +22,11 @@ CONFIG_FILE = CODEX_DIR / "config.toml"
 SOURCE_HOOK = PLUGIN_ROOT / "hooks" / "nmem-stop-save.py"
 INSTALLED_HOOK = HOOKS_DIR / "nowledge-mem-stop-save.py"
 CODEX_HOOKS_KEY_RE = re.compile(r"^\s*codex_hooks\s*=")
+CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*hooks\s*=")
 NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
+MCP_MANAGED_BEGIN = "# BEGIN Nowledge Mem MCP (managed by nowledge-mem-codex-plugin)"
+MCP_MANAGED_END = "# END Nowledge Mem MCP"
+NOWLEDGE_MCP_SECTION_RE = re.compile(r"^\s*\[mcp_servers\.nowledge-mem(?:[.\]]|$)")
 
 
 def _backup_path(path: Path) -> Path:
@@ -151,6 +156,27 @@ def _validate_toml_if_possible(text: str) -> None:
         ) from error
 
 
+def _section_bounds(lines: list[str], section_header: str) -> tuple[int | None, int]:
+    section_start = None
+    section_end = len(lines)
+
+    for index, line in enumerate(lines):
+        if line.strip() == section_header:
+            section_start = index
+            break
+
+    if section_start is None:
+        return None, section_end
+
+    for index in range(section_start + 1, len(lines)):
+        stripped = lines[index].strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            section_end = index
+            break
+
+    return section_start, section_end
+
+
 def ensure_codex_hooks_enabled() -> None:
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
@@ -158,34 +184,28 @@ def ensure_codex_hooks_enabled() -> None:
 
     lines = text.splitlines()
     section_header = "[features]"
-    features_start = None
-    features_end = len(lines)
-
-    for index, line in enumerate(lines):
-        if line.strip() == section_header:
-            features_start = index
-            break
+    features_start, features_end = _section_bounds(lines, section_header)
 
     if features_start is None:
         if lines and lines[-1] != "":
             lines.append("")
-        lines.extend([section_header, "codex_hooks = true"])
+        lines.extend([section_header, "hooks = true"])
     else:
-        for index in range(features_start + 1, len(lines)):
-            stripped = lines[index].strip()
-            if stripped.startswith("[") and stripped.endswith("]"):
-                features_end = index
-                break
-
-        replaced = False
+        has_new_key = False
+        codex_hooks_index = None
         for index in range(features_start + 1, features_end):
-            if CODEX_HOOKS_KEY_RE.match(lines[index].strip()):
-                lines[index] = "codex_hooks = true"
-                replaced = True
-                break
+            stripped = lines[index].strip()
+            if CODEX_HOOKS_NEW_KEY_RE.match(stripped):
+                lines[index] = "hooks = true"
+                has_new_key = True
+            elif CODEX_HOOKS_KEY_RE.match(stripped):
+                codex_hooks_index = index
 
-        if not replaced:
-            lines.insert(features_end, "codex_hooks = true")
+        if codex_hooks_index is not None:
+            lines[codex_hooks_index] = "codex_hooks = true"
+        if not has_new_key:
+            insert_at = codex_hooks_index + 1 if codex_hooks_index is not None else features_end
+            lines.insert(insert_at, "hooks = true")
 
     updated = "\n".join(lines)
     if updated and not updated.endswith("\n"):
@@ -193,15 +213,165 @@ def ensure_codex_hooks_enabled() -> None:
     CONFIG_FILE.write_text(updated, encoding="utf-8")
 
 
+def _load_codex_mcp_payload() -> dict | None:
+    nmem = shutil.which("nmem")
+    if not nmem:
+        print(
+            "warning: nmem not found; skipped Codex MCP config check",
+            file=sys.stderr,
+        )
+        return None
+
+    try:
+        proc = subprocess.run(
+            [nmem, "--json", "config", "mcp", "show", "--host", "codex"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=8,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(
+            f"warning: could not run 'nmem config mcp show --host codex': {error}",
+            file=sys.stderr,
+        )
+        return None
+
+    if proc.returncode != 0:
+        stderr = (proc.stderr or proc.stdout or "").strip()
+        print(
+            "warning: skipped Codex MCP config; update nmem and run "
+            "'nmem config mcp show --host codex' if Codex MCP reports Not logged in"
+            + (f" ({stderr})" if stderr else ""),
+            file=sys.stderr,
+        )
+        return None
+
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        print(
+            "warning: skipped Codex MCP config; nmem did not return JSON",
+            file=sys.stderr,
+        )
+        return None
+
+    return payload if isinstance(payload, dict) else None
+
+
+def _has_existing_unmanaged_nowledge_mcp(lines: list[str]) -> bool:
+    in_managed = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == MCP_MANAGED_BEGIN:
+            in_managed = True
+            continue
+        if stripped == MCP_MANAGED_END:
+            in_managed = False
+            continue
+        if not in_managed and NOWLEDGE_MCP_SECTION_RE.match(stripped):
+            return True
+    return False
+
+
+def _remove_managed_mcp_block(lines: list[str]) -> tuple[list[str], bool]:
+    cleaned: list[str] = []
+    in_managed = False
+    removed = False
+
+    for line in lines:
+        if line.strip() == MCP_MANAGED_BEGIN:
+            in_managed = True
+            removed = True
+            continue
+        if line.strip() == MCP_MANAGED_END and in_managed:
+            in_managed = False
+            continue
+        if not in_managed:
+            cleaned.append(line)
+
+    return cleaned, removed
+
+
+def _should_install_mcp_override(payload: dict) -> bool:
+    if payload.get("apiKeyConfigured"):
+        return True
+    endpoint = str(payload.get("endpoint") or "")
+    if endpoint and endpoint != "http://127.0.0.1:14242/mcp/":
+        return True
+    return False
+
+
+def _install_mcp_config_from_payload(payload: dict) -> bool:
+    rendered = str(payload.get("rendered") or "").strip()
+    if not rendered:
+        return False
+    if not _should_install_mcp_override(payload):
+        print(
+            "Codex MCP config: using the plugin-bundled local endpoint. "
+            "If 'codex mcp list' shows Not logged in, update nmem, install the CLI from the desktop app, and rerun this setup.",
+            file=sys.stderr,
+        )
+        return False
+
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
+    _validate_toml_if_possible(text)
+    lines = text.splitlines()
+    lines, _ = _remove_managed_mcp_block(lines)
+
+    if _has_existing_unmanaged_nowledge_mcp(lines):
+        print(
+            "Codex MCP config: existing mcp_servers.nowledge-mem block left unchanged. "
+            "Replace it with 'nmem config mcp show --host codex' if Codex MCP reports Not logged in.",
+            file=sys.stderr,
+        )
+        return False
+
+    block = [MCP_MANAGED_BEGIN, *rendered.splitlines(), MCP_MANAGED_END]
+    while lines and lines[-1] == "":
+        lines.pop()
+    if lines:
+        lines.append("")
+    lines.extend(block)
+
+    updated = "\n".join(lines) + "\n"
+    _validate_toml_if_possible(updated)
+    CONFIG_FILE.write_text(updated, encoding="utf-8")
+    if payload.get("apiKeyConfigured"):
+        try:
+            CONFIG_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
+        except OSError as error:
+            print(
+                f"warning: could not restrict permissions on {CONFIG_FILE}: {error}",
+                file=sys.stderr,
+            )
+    return True
+
+
+def install_codex_mcp_config() -> bool:
+    payload = _load_codex_mcp_payload()
+    if payload is None:
+        return False
+
+    installed = _install_mcp_config_from_payload(payload)
+    for warning in payload.get("warnings") or []:
+        print(f"warning: nmem MCP config: {warning}", file=sys.stderr)
+    return installed
+
+
 def main() -> int:
     install_runtime_hook()
     merge_hooks_json()
     ensure_codex_hooks_enabled()
+    mcp_config_installed = install_codex_mcp_config()
 
     print("Installed Nowledge Mem Codex Stop hook")
     print(f"- runtime hook: {INSTALLED_HOOK}")
     print(f"- hooks config: {GLOBAL_HOOKS_FILE}")
     print(f"- feature flag ensured in: {CONFIG_FILE}")
+    if mcp_config_installed:
+        print(f"- authenticated MCP config ensured in: {CONFIG_FILE}")
     return 0
 
 

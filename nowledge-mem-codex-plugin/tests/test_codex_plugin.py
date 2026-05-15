@@ -200,7 +200,7 @@ class InstallHookTests(unittest.TestCase):
         updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
 
         self.assertIn('[projects."/tmp/demo"]\ncodex_hooks = false', updated)
-        self.assertIn("[features]\napps = true\ncodex_hooks = true", updated)
+        self.assertIn("[features]\napps = true\ncodex_hooks = true\nhooks = true", updated)
 
     def test_ensure_codex_hooks_enabled_rejects_invalid_toml(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -219,6 +219,87 @@ class InstallHookTests(unittest.TestCase):
 
         self.assertTrue(self.module.INSTALLED_HOOK.exists())
         self.assertIn("Best-effort Codex transcript capture", self.module.INSTALLED_HOOK.read_text())
+
+    def test_install_codex_mcp_config_writes_managed_authenticated_override(self):
+        payload = {
+            "apiKeyConfigured": True,
+            "warnings": [],
+            "rendered": "\n".join(
+                [
+                    "[mcp_servers.nowledge-mem]",
+                    'url = "http://127.0.0.1:14242/mcp/"',
+                    "",
+                    "[mcp_servers.nowledge-mem.http_headers]",
+                    'APP = "Codex"',
+                    'Authorization = "Bearer nmem_test"',
+                    '"X-NMEM-API-Key" = "nmem_test"',
+                ]
+            ),
+        }
+
+        with mock.patch.object(self.module, "_load_codex_mcp_payload", return_value=payload):
+            self.assertTrue(self.module.install_codex_mcp_config())
+
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+        self.assertIn(self.module.MCP_MANAGED_BEGIN, updated)
+        self.assertIn('Authorization = "Bearer nmem_test"', updated)
+        self.assertIn(self.module.MCP_MANAGED_END, updated)
+        self.assertEqual(self.module.CONFIG_FILE.stat().st_mode & 0o777, 0o600)
+
+    def test_install_codex_mcp_config_preserves_user_owned_mcp_override(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "\n".join(
+                [
+                    "[mcp_servers.nowledge-mem]",
+                    'url = "https://user.example/mcp/"',
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        payload = {
+            "apiKeyConfigured": True,
+            "warnings": [],
+            "rendered": "\n".join(
+                [
+                    "[mcp_servers.nowledge-mem]",
+                    'url = "http://127.0.0.1:14242/mcp/"',
+                    "",
+                    "[mcp_servers.nowledge-mem.http_headers]",
+                    'APP = "Codex"',
+                    'Authorization = "Bearer nmem_test"',
+                ]
+            ),
+        }
+
+        with mock.patch.object(self.module, "_load_codex_mcp_payload", return_value=payload):
+            self.assertFalse(self.module.install_codex_mcp_config())
+
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+        self.assertIn('url = "https://user.example/mcp/"', updated)
+        self.assertNotIn(self.module.MCP_MANAGED_BEGIN, updated)
+
+    def test_install_codex_mcp_config_skips_default_local_without_key(self):
+        payload = {
+            "apiKeyConfigured": False,
+            "endpoint": "http://127.0.0.1:14242/mcp/",
+            "warnings": [],
+            "rendered": "\n".join(
+                [
+                    "[mcp_servers.nowledge-mem]",
+                    'url = "http://127.0.0.1:14242/mcp/"',
+                    "",
+                    "[mcp_servers.nowledge-mem.http_headers]",
+                    'APP = "Codex"',
+                ]
+            ),
+        }
+
+        with mock.patch.object(self.module, "_load_codex_mcp_payload", return_value=payload):
+            self.assertFalse(self.module.install_codex_mcp_config())
+
+        self.assertFalse(self.module.CONFIG_FILE.exists())
 
 
 if __name__ == "__main__":

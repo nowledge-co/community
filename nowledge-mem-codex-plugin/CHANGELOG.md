@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.11] - 2026-05-15
+
+### Fixed
+
+- Codex setup now also checks `nmem config mcp show --host codex` and writes a managed authenticated MCP override when `nmem` has saved client credentials. This keeps Codex MCP aligned with the same URL/API key used by `nmem`, instead of relying only on the bundled unauthenticated local fallback.
+- Setup now enables Codex's current `hooks = true` feature flag while preserving an existing legacy `codex_hooks = true` entry when users already have one.
+- Troubleshooting now explains that `codex mcp login nowledge-mem` is not the right recovery path for Nowledge Mem; users should update `nmem`, install the desktop CLI config, and rerun the plugin setup or paste the generated MCP block.
+
 ## [0.1.10] - 2026-05-02
 
 ### Fixed
