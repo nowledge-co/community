@@ -20,7 +20,11 @@
       },
       "homepage": "https://mem.nowledge.co/",
       "tags": ["ai-powered", "knowledge-management", "context-management", "memory-management"],
-      "source": "./nowledge-mem-claude-code-plugin"
+      "source": {
+        "source": "git-subdir",
+        "url": "nowledge-co/community",
+        "path": "nowledge-mem-claude-code-plugin"
+      }
     }
   ]
 }
