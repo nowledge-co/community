@@ -592,6 +592,4 @@ class TestBuildNmemCommand:
 
     def test_windows_cmd(self):
         cmd = copilot_stop_save.build_nmem_command("C:\\nmem.cmd", "--json", "wm", "read")
-        assert cmd[0] == "cmd.exe"
-        assert cmd[1] == "/s"
-        assert cmd[2] == "/c"
+        assert cmd == ["cmd.exe", "/d", "/c", "call", "C:\\nmem.cmd", "--json", "wm", "read"]
