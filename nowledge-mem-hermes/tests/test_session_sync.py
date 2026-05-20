@@ -210,6 +210,123 @@ def test_initial_import_existing_thread_falls_back_to_dedup_append():
     ]
 
 
+def test_session_switch_resets_new_session_delta_before_sync_turn():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-old"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("old question", "old answer", session_id="session-old")
+    instance.on_session_switch(
+        "session-new",
+        parent_session_id="session-old",
+        reset=True,
+        reason="new_session",
+    )
+    instance.sync_turn("new question", "new answer", session_id="session-new")
+
+    assert instance._client.import_calls == [
+        {
+            "thread_id": "session-old",
+            "messages": [
+                {"role": "user", "content": "old question"},
+                {"role": "assistant", "content": "old answer"},
+            ],
+            "title": "old question",
+            "source": "hermes",
+        },
+        {
+            "thread_id": "session-new",
+            "messages": [
+                {"role": "user", "content": "new question"},
+                {"role": "assistant", "content": "new answer"},
+            ],
+            "title": "new question",
+            "source": "hermes",
+        },
+    ]
+    assert instance._client.append_calls == []
+    assert instance._session_id == "session-new"
+    assert instance._saved_message_count == 2
+
+
+def test_session_switch_preserves_per_session_delta_when_resuming():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-a"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("a1", "a2", session_id="session-a")
+    instance.on_session_switch("session-b", parent_session_id="session-a", reset=True)
+    instance.sync_turn("b1", "b2", session_id="session-b")
+    instance.on_session_switch("session-a", parent_session_id="session-b", reset=False)
+    instance.sync_turn("a3", "a4", session_id="session-a")
+
+    assert instance._client.import_calls[0]["thread_id"] == "session-a"
+    assert instance._client.import_calls[1]["thread_id"] == "session-b"
+    assert instance._client.append_calls == [
+        {
+            "thread_id": "session-a",
+            "messages": [
+                {"role": "user", "content": "a3"},
+                {"role": "assistant", "content": "a4"},
+            ],
+        }
+    ]
+    assert instance._saved_message_counts["session-a"] == 4
+    assert instance._saved_message_counts["session-b"] == 2
+
+
+def test_session_switch_without_reset_does_not_reuse_previous_session_count():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-old"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("old question", "old answer", session_id="session-old")
+    instance.on_session_switch(
+        "session-branch",
+        parent_session_id="session-old",
+        reset=False,
+        reason="branch",
+    )
+    instance.sync_turn("branch question", "branch answer", session_id="session-branch")
+
+    assert [call["thread_id"] for call in instance._client.import_calls] == [
+        "session-old",
+        "session-branch",
+    ]
+    assert instance._client.append_calls == []
+    assert instance._saved_message_counts["session-branch"] == 2
+    assert "session-branch" in instance._delta_only_sessions
+
+
+def test_session_end_skips_full_flush_when_only_delta_count_is_known():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-old"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("old question", "old answer", session_id="session-old")
+    instance.on_session_switch("session-branch", parent_session_id="session-old", reset=False)
+    instance.sync_turn("branch question", "branch answer", session_id="session-branch")
+
+    instance.on_session_end(
+        [
+            {"role": "user", "content": "old question"},
+            {"role": "assistant", "content": "old answer"},
+            {"role": "user", "content": "branch question"},
+            {"role": "assistant", "content": "branch answer"},
+        ]
+    )
+
+    assert instance._client.append_calls == []
+
+
 def test_register_supports_provider_collector_and_hook_only_contexts():
     plugin = _load_plugin_module()
 

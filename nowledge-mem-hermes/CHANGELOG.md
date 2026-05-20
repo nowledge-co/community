@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## [0.5.15] - 2026-05-14
+
+### Fixed
+
+- Fixed Hermes thread sync after `/new`, `/reset`, and other in-process session switches. The provider now tracks transcript delta counters per Hermes `session_id` and implements Hermes' `on_session_switch` lifecycle, so the first completed turn in a new session imports a new Mem thread instead of incorrectly trying to append to a thread that does not exist yet.
+- Completed-turn sync now keeps the active Hermes session id instead of restoring the previous id after each write. This makes `sync_turn` and the session-boundary final flush agree on which Mem thread is current.
+- Session switches that keep lineage, such as branch or compression, no longer reuse the previous session's counter for a new Hermes `session_id`. The provider treats those as per-turn delta sync until it has a safe full-transcript baseline.
+
 ## [0.5.14] - 2026-05-10
 
 ### Added

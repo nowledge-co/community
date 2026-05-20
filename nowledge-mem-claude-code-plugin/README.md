@@ -110,7 +110,7 @@ Shared spaces, default retrieval, and agent guidance still live in Mem's own spa
 ## Update
 
 ```bash
-claude plugin marketplace update
+claude plugin marketplace update nowledge-community
 claude plugin update nowledge-mem@nowledge-community
 # Restart Claude Code to apply changes
 ```

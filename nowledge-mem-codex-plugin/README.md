@@ -8,6 +8,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 
 - **Pick up where you left off.** Every session can start from your current priorities, recent decisions, and unresolved questions.
 - **Stronger retrieval on modern Codex.** The package bundles the local Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
+- **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, sources, and artifacts as one tree.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
 - **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary.
 - **Quick diagnostics.** One command to verify everything is connected.
@@ -28,6 +29,26 @@ The reliable bootstrap is still Working Memory. On modern Codex, the best setup 
 | `save-thread` | Manual fallback, "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
 | `status` | "Is Mem working?", errors | Checks connectivity |
+
+## Knowledge Tree for Agents
+
+Use the Knowledge Filesystem when the task is bigger than a single memory search and you need to browse nearby context.
+
+```text
+mem_fs: recall "why did we change token refresh?" --in /memories -k 5
+mem_fs: cat /memories/by-id/<id>.memory.md
+mem_fs: ls /memories/by-label/auth
+```
+
+The same surface is available from the shell:
+
+```bash
+nmem fs ls /
+nmem fs recall "session token strategy" --in /memories -k 5
+nmem fs grep "JWT rotation" /memories
+```
+
+Use `recall` for fuzzy intent, `find` for metadata, `grep` for exact strings, `stat` before loading large files, and `cat` only after you have a useful path. This first release is API-backed; it is not an OS mount yet.
 
 ## Prerequisites
 
@@ -68,7 +89,8 @@ Then put this in `~/.codex/config.toml` to enable the plugin:
 ```toml
 [features]
 plugins = true
-codex_hooks = true
+hooks = true
+plugin_hooks = true
 
 [plugins."nowledge-mem@nowledge-community"]
 enabled = true
@@ -76,7 +98,7 @@ enabled = true
 
 Restart Codex after installation.
 
-Then enable thread capture for current stable Codex builds:
+Then run the setup script from the installed plugin:
 
 ```bash
 HOOK_SETUP="$(find ~/.codex/plugins/cache -path '*/nowledge-mem/*/scripts/install_hooks.py' -print 2>/dev/null | sort | tail -1)"
@@ -87,7 +109,25 @@ else
 fi
 ```
 
-This installs a small Stop hook into `~/.codex/hooks.json`. The hook shells out to `nmem t save --from codex`, so local mode and remote Mem mode use the same `nmem` client configuration.
+On Windows PowerShell, run the same installed script with the Python launcher:
+
+```powershell
+$HookSetup = Get-ChildItem "$env:USERPROFILE\.codex\plugins\cache" -Recurse -Filter install_hooks.py |
+  Where-Object { $_.FullName -like "*nowledge-mem*" } |
+  Sort-Object FullName |
+  Select-Object -Last 1
+if ($null -eq $HookSetup) {
+  Write-Host "Hook setup was not found. Open Codex, run /plugins, install nowledge-mem@nowledge-community, then retry."
+} else {
+  py -3 $HookSetup.FullName
+}
+```
+
+This enables Codex lifecycle hooks and plugin-bundled hooks, keeps the Nowledge Mem packaged Stop hook enabled in `/hooks`, then installs a small host-level Stop hook for Codex builds that still need `~/.codex/hooks.json`. The Stop hook shells out to `nmem t save --from codex`, so local mode and remote Mem mode use the same `nmem` client configuration. If both the bundled hook and the host-level fallback are visible, the hook runtime suppresses the duplicate save for the same transcript state.
+
+On current Codex builds, `plugin_hooks = true` is the separate gate that lets Codex load `hooks/hooks.json` from installed plugins. If Codex shows the Nowledge Mem Stop hook in `/hooks`, it should be enabled.
+
+The same setup also asks `nmem` for a Codex MCP config. If `nmem` has a saved API key or a non-default endpoint, the script writes a managed `mcp_servers.nowledge-mem` block into `~/.codex/config.toml`. This is the safest path for remote Mem and for localhost setups that require auth.
 
 The package already includes a local Nowledge Mem MCP server at `http://127.0.0.1:14242/mcp/`. Codex uses your `~/.codex/config.toml` entry if you define `mcp_servers.nowledge-mem` yourself, so remote Mem and custom local ports stay explicit.
 
@@ -101,7 +141,7 @@ nmem config client set api-key nmem_your_key
 nmem config mcp show --host codex
 ```
 
-Paste the generated TOML into `~/.codex/config.toml`. Direct MCP clients do not read `~/.nowledge-mem/config.json` by themselves; the generated block gives Codex the same URL and key that `nmem` already uses.
+Paste the generated TOML into `~/.codex/config.toml`, or rerun the setup script above if your installed plugin is `0.1.11` or newer. Direct MCP clients do not read `~/.nowledge-mem/config.json` by themselves; the generated block gives Codex the same URL and key that `nmem` already uses.
 
 ### Repo-level (this project only)
 
@@ -172,7 +212,7 @@ If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 
 ## Update
 
-If you installed the Codex package before `0.1.10`, refresh the marketplace first. Current Codex builds may refresh the marketplace checkout without reinstalling the already-installed package cache, so the hook setup file may still be missing until the package itself is updated from `/plugins`.
+If you installed the Codex package before `0.1.13`, refresh the marketplace first. Current Codex builds may refresh the marketplace checkout without reinstalling the already-installed package cache, so the hook setup file or bundled hook changes may still be missing until the package itself is updated from `/plugins`.
 
 ```bash
 codex plugin marketplace upgrade nowledge-community
@@ -264,8 +304,9 @@ If you used `nowledge-mem-codex-prompts` before:
 
 - **"Command not found: nmem"**: `pip install nmem-cli` or use `uvx --from nmem-cli nmem`. See [Getting Started](https://mem.nowledge.co/docs/installation).
 - **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
-- **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed from `/plugins`, and both `[features] plugins = true` and `[plugins."nowledge-mem@nowledge-community"] enabled = true` are in `~/.codex/config.toml`. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
-- **Codex threads are not appearing automatically**: rerun `scripts/install_hooks.py` from the installed plugin folder, then restart Codex. Current stable Codex loads automatic capture from `~/.codex/hooks.json`; newer Codex builds can also load the bundled `hooks/hooks.json` when plugin hooks are enabled by the host.
+- **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed from `/plugins`, and `~/.codex/config.toml` has `[features] plugins = true`, `hooks = true`, `plugin_hooks = true`, and `[plugins."nowledge-mem@nowledge-community"] enabled = true`. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
+- **Codex threads are not appearing automatically**: rerun `scripts/install_hooks.py` from the installed plugin folder, then restart Codex. Confirm `~/.codex/config.toml` has `[features] hooks = true` and `plugin_hooks = true`. If Codex shows `/hooks`, make sure the Nowledge Mem Stop hook is enabled there.
+- **`codex mcp list` shows `Not logged in`**: update `nmem` so it matches your Mem app/server, install the CLI config from the desktop app if you use local desktop Mem, then rerun `scripts/install_hooks.py`. You can also run `nmem config mcp show --host codex` and paste the generated TOML into `~/.codex/config.toml`. Do not use `codex mcp login nowledge-mem`; that command is for OAuth MCP servers, while Nowledge Mem's Codex path uses the URL and headers generated by `nmem`.
 - **Only `codex marketplace` exists, not `codex plugin marketplace`**: use `codex marketplace add nowledge-co/community`. This is a host-version difference, not a plugin issue.
 - **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community` (or `codex marketplace add nowledge-co/community` on legacy Codex), install `nowledge-mem@nowledge-community` from `/plugins`, then re-check your `~/.codex/config.toml` plugin key.
 - **Only Working Memory runs, but search/distill never show up**: confirm the bundled MCP server is visible in Codex, then merge the package `AGENTS.md` into the project root for stronger repo-specific behavior. If Mem is remote or not on the default local port, add `mcp_servers.nowledge-mem` in `~/.codex/config.toml` to override the bundled local endpoint.

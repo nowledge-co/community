@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -17,6 +18,7 @@ from typing import Any
 
 ATTEMPT_TIMEOUT_SECONDS = 8
 SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5, 3.0)
+CAPTURE_LOCK_STALE_SECONDS = 90
 SESSION_NOT_FOUND_MARKERS = (
     "No codex sessions found",
     "Codex sessions directory not found",
@@ -80,6 +82,100 @@ def _log(message: str) -> None:
             handle.write(f"[{timestamp}] {message}\n")
     except Exception:
         pass
+
+
+def _capture_lock_root(payload: dict[str, Any]) -> Path:
+    codex_home = os.environ.get("CODEX_HOME")
+    if codex_home:
+        return Path(codex_home).expanduser() / "log" / "nowledge-mem-stop-hook-locks"
+
+    derived = _derive_codex_home(_payload_value(payload, "transcript_path", "transcriptPath"))
+    if derived:
+        return derived / "log" / "nowledge-mem-stop-hook-locks"
+
+    return Path.home() / ".codex" / "log" / "nowledge-mem-stop-hook-locks"
+
+
+def _transcript_fingerprint(transcript_path: str | None) -> dict[str, Any]:
+    if not transcript_path:
+        return {"path": "", "exists": False}
+
+    path = Path(transcript_path).expanduser()
+    try:
+        stat_result = path.stat()
+    except OSError:
+        return {"path": str(path), "exists": False}
+
+    return {
+        "path": str(path),
+        "exists": True,
+        "size": stat_result.st_size,
+        "mtime_ns": stat_result.st_mtime_ns,
+    }
+
+
+def _capture_lock_key(payload: dict[str, Any]) -> str:
+    basis = {
+        "event": "Stop",
+        "session_id": _payload_value(payload, "session_id", "sessionId") or "",
+        "cwd": _payload_value(payload, "cwd") or "",
+        "transcript": _transcript_fingerprint(
+            _payload_value(payload, "transcript_path", "transcriptPath")
+        ),
+    }
+    encoded = json.dumps(basis, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _cleanup_stale_capture_locks(lock_root: Path, now: float) -> None:
+    try:
+        for lock_path in lock_root.glob("*.lock"):
+            try:
+                age = now - lock_path.stat().st_mtime
+                if age > CAPTURE_LOCK_STALE_SECONDS:
+                    lock_path.unlink()
+            except OSError:
+                continue
+    except OSError:
+        pass
+
+
+def _claim_capture_event(payload: dict[str, Any]) -> bool:
+    """Claim this Stop event so plugin and fallback hooks do not both import it."""
+    lock_root = _capture_lock_root(payload)
+    try:
+        lock_root.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        _log(f"lock: unavailable ({exc}); continuing without duplicate guard")
+        return True
+
+    now = time.time()
+    _cleanup_stale_capture_locks(lock_root, now)
+    lock_path = lock_root / f"{_capture_lock_key(payload)}.lock"
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    try:
+        fd = os.open(lock_path, flags, 0o600)
+    except FileExistsError:
+        try:
+            age = now - lock_path.stat().st_mtime
+            if age > CAPTURE_LOCK_STALE_SECONDS:
+                lock_path.unlink()
+                fd = os.open(lock_path, flags, 0o600)
+            else:
+                return False
+        except FileExistsError:
+            return False
+        except OSError:
+            return False
+    except OSError as exc:
+        _log(f"lock: failed to claim ({exc}); continuing without duplicate guard")
+        return True
+
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(str(now))
+        handle.write("\n")
+    return True
 
 
 def _nmem_command() -> str | None:
@@ -298,6 +394,10 @@ def main() -> int:
     nmem = _nmem_command()
     if not nmem:
         _log("skip: nmem not found")
+        return 0
+
+    if not _claim_capture_event(payload):
+        _log("skip: duplicate Stop hook event already claimed")
         return 0
 
     try:

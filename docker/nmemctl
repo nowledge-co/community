@@ -1,0 +1,1445 @@
+#!/usr/bin/env bash
+#
+# nmemctl — lifecycle controller for the Nowledge Mem headless deploy.
+#
+# Naming follows the systemctl/kubectl convention: this tool *controls* the
+# deployment (compose stack lifecycle, volume wipe, version upgrade) while the
+# in-container `nmem` CLI handles application operations (keys, license, data).
+# Commands like `nmemctl key` forward to the in-container `nmem` so a user
+# never has to remember whether something lives in or out of the container.
+#
+# Run from the directory containing compose.yaml. All commands are idempotent
+# where it's safe to be (up, key, license status); destructive commands (wipe)
+# require explicit confirmation.
+#
+# Usage:
+#   ./nmemctl                          smart default: up if stopped, else status
+#   ./nmemctl up                       start + wait + print key + URL
+#   ./nmemctl down                     stop (data preserved)
+#   ./nmemctl restart                  stop + start
+#   ./nmemctl status                   compose ps + health + license + version
+#   ./nmemctl logs [-f] [--tail N]     view server logs
+#   ./nmemctl version                  image + binary versions
+#
+#   ./nmemctl key                      print Access Anywhere API key
+#   ./nmemctl key --rotate             rotate it
+#   ./nmemctl license                  show license status
+#   ./nmemctl license activate CODE    activate Pro license
+#
+#   ./nmemctl upgrade VERSION          pull image + bump compose + recreate
+#   ./nmemctl wipe                     FACTORY RESET (requires typing WIPE)
+#
+#   ./nmemctl help | -h | --help
+
+set -euo pipefail
+
+# Version of the controller itself. Bump when nmemctl semantics or
+# command surface change. Independent of the docker image version
+# (which `./nmemctl version` reports separately).
+NMEMCTL_VERSION="2.2.0"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Bind-mount layout (relative to compose.yaml). The operator owns these
+# directories; the container runs as UID 10001 and `nmemctl` keeps the
+# ownership correct via one-shot busybox containers. Standard host-side
+# tools (rsync, restic, borg, ZFS snapshot, tar) work directly on these
+# paths — no docker volume idioms to learn.
+DIR_DATA="$SCRIPT_DIR/data"        # KuzuDB graph + LanceDB search index
+DIR_CONFIG="$SCRIPT_DIR/config"    # license, API key, agent state
+DIR_CACHE="$SCRIPT_DIR/cache"      # embedding models (rebuildable)
+CONTAINER_UID="10001"
+CONTAINER_GID="10001"
+
+# Helper image for one-shot perms/cp/rm operations. Pinned to a stable
+# tag; busybox:stable is ~1 MB and is the standard "do a thing as root in
+# a bind mount without bothering the operator with chown/sudo" pattern.
+HELPER_IMG="busybox:stable"
+
+# Preflight only runs for commands that need docker. `help` and bare invocation
+# of the script (for instance from a fresh checkout while reading docs) should
+# never error out on a missing docker. Lazy-check via require_docker() below.
+require_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    printf "\033[1;31merror:\033[0m docker not found on PATH\n" >&2
+    exit 1
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    printf "\033[1;31merror:\033[0m 'docker compose' v2 plugin not installed\n" >&2
+    exit 1
+  fi
+  if [[ ! -f compose.yaml ]]; then
+    printf "\033[1;31merror:\033[0m compose.yaml not found in %s\n" "$SCRIPT_DIR" >&2
+    exit 1
+  fi
+}
+
+# Compose wrapper. Two layers of override:
+#
+#   1. Explicit env var (highest priority — never persisted):
+#        NMEM_COMPOSE_FILES='-f compose.yaml -f compose.tls.yaml' ./nmemctl up
+#
+#   2. `.nmemctl-state` (persisted across invocations). Written by
+#      `auto-update enable`, TLS setup, etc. so the operator can run
+#      `./nmemctl up` / `restart` without re-typing overlays. Parsed as
+#      data; never sourced, because this file is user-editable.
+#
+# The explicit env var wins when set; `.nmemctl-state` is layered on top
+# of the base compose.yaml only when no explicit override is present.
+if [[ -z "${NMEM_COMPOSE_FILES:-}" ]]; then
+  NMEM_COMPOSE_FILES="-f compose.yaml"
+  if [[ -f "$SCRIPT_DIR/.nmemctl-state" ]]; then
+    state_line="$(grep -E '^NMEM_STATE_OVERLAYS=' "$SCRIPT_DIR/.nmemctl-state" 2>/dev/null | tail -n 1 || true)"
+    if [[ -n "$state_line" ]]; then
+      state_overlays="${state_line#NMEM_STATE_OVERLAYS=}"
+      state_overlays="${state_overlays#\"}"
+      state_overlays="${state_overlays%\"}"
+      state_overlays="${state_overlays#\'}"
+      state_overlays="${state_overlays%\'}"
+      read -r -a overlay_parts <<< "$state_overlays"
+      idx=0
+      while [[ "$idx" -lt "${#overlay_parts[@]}" ]]; do
+        if [[ "${overlay_parts[$idx]}" != "-f" ]]; then
+          printf "\033[1;31merror:\033[0m invalid .nmemctl-state overlay token\n" >&2
+          exit 1
+        fi
+        next=$((idx + 1))
+        if [[ "$next" -ge "${#overlay_parts[@]}" ]]; then
+          printf "\033[1;31merror:\033[0m invalid .nmemctl-state overlay value\n" >&2
+          exit 1
+        fi
+        overlay_file="${overlay_parts[$next]}"
+        case "$overlay_file" in
+          /*|*..*|*\'*|*\"*|*\\*|*";"*|*":"*)
+            printf "\033[1;31merror:\033[0m invalid .nmemctl-state overlay path: %s\n" "$overlay_file" >&2
+            exit 1
+            ;;
+          *.yaml|*.yml)
+            NMEM_COMPOSE_FILES="$NMEM_COMPOSE_FILES -f $overlay_file"
+            ;;
+          *)
+            printf "\033[1;31merror:\033[0m invalid .nmemctl-state overlay extension: %s\n" "$overlay_file" >&2
+            exit 1
+            ;;
+        esac
+        idx=$((idx + 2))
+      done
+    fi
+  fi
+fi
+export NOWLEDGE_COMPOSE_PROJECT_DIR="${NOWLEDGE_COMPOSE_PROJECT_DIR:-$SCRIPT_DIR}"
+DC=(docker compose ${NMEM_COMPOSE_FILES})
+
+# Service name in compose.yaml. Override with NMEM_SERVICE if you renamed it.
+SVC="${NMEM_SERVICE:-mem}"
+
+# ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
+step()  { printf "\n\033[1;34m==>\033[0m %s\n" "$*"; }
+note()  { printf "    %s\n" "$*"; }
+ok()    { printf "    \033[0;32mOK\033[0m %s\n" "$*"; }
+warn()  { printf "    \033[1;33mwarn\033[0m %s\n" "$*"; }
+fail()  { printf "\033[1;31merror:\033[0m %s\n" "$*" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Internal: container state probing
+# ---------------------------------------------------------------------------
+
+# Is the mem service container running? (returns 0 if yes)
+is_running() {
+  local id
+  id="$("${DC[@]}" ps -q "$SVC" 2>/dev/null)" || return 1
+  [[ -n "$id" ]] || return 1
+  [[ "$(docker inspect -f '{{.State.Running}}' "$id" 2>/dev/null)" == "true" ]]
+}
+
+# Hit /livez via the bundled python (no curl in slim image). Returns 0 when ready.
+probe_livez() {
+  "${DC[@]}" exec -T "$SVC" \
+    /opt/nowledge-mem/python/bin/python3 -c \
+      'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen("http://127.0.0.1:14242/livez", timeout=4).status==200 else 1)' \
+    >/dev/null 2>&1
+}
+
+# Bring the stack up and block until /livez answers. Idempotent.
+bring_up_and_wait() {
+  # First-run safety: ensure the bind-mount dirs exist + are owned by the
+  # container's UID. No-op on warm starts where ownership already matches.
+  prepare_dirs
+
+  step "Bringing Nowledge Mem up"
+  "${DC[@]}" up -d
+
+  step "Waiting for /livez (up to 120s)"
+  # i is 1-indexed; first probe runs before any sleep, so elapsed seconds
+  # is (i-1)*2, not i*2.
+  for i in $(seq 1 60); do
+    if probe_livez; then
+      ok "ready in $(( (i - 1) * 2 ))s"
+      return 0
+    fi
+    sleep 2
+    if [[ $i -eq 60 ]]; then
+      fail "server did not become live in 120s. Check '${DC[*]} logs $SVC'."
+    fi
+  done
+}
+
+# Read the effective NOWLEDGE_DOMAIN that Compose will inject — works whether
+# the operator exported it to the shell or put it in a `.env` next to
+# compose.yaml. Empty if neither path defines it.
+resolve_tls_domain() {
+  local val
+  val="$("${DC[@]}" config 2>/dev/null \
+        | awk '$1=="NOWLEDGE_DOMAIN:"{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2; exit}')" || val=""
+  printf '%s\n' "${val%\"}" | sed 's/^"//; s/"$//'
+}
+
+# Print the web UI URL — HTTPS via Caddy if TLS overlay is loaded, else
+# the LAN IP (Linux) or localhost fallback.
+print_url() {
+  local tls_domain=""
+  if [[ "$NMEM_COMPOSE_FILES" == *compose.tls.yaml* ]]; then
+    tls_domain="$(resolve_tls_domain)"
+  fi
+  if [[ -n "$tls_domain" ]]; then
+    note "https://${tls_domain}/app"
+  else
+    local ip=""
+    if command -v hostname >/dev/null 2>&1; then
+      ip="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
+    fi
+    : "${ip:=localhost}"
+    note "http://${ip}:14242/app"
+  fi
+}
+
+# Read the current API key from inside the container. Empty on failure.
+read_key() {
+  "${DC[@]}" exec -T "$SVC" nmem key 2>/dev/null | tr -d '\r\n' || true
+}
+
+# Read the image tag the container is currently running (from compose).
+read_image_tag() {
+  "${DC[@]}" config 2>/dev/null \
+    | awk -v svc="$SVC" '
+        $0 ~ "^  "svc":" {in_svc=1; next}
+        in_svc && /^  [a-z]/ {in_svc=0}
+        in_svc && $1=="image:" {print $2; exit}
+      '
+}
+
+# Ensure data/config/cache exist and are owned by UID 10001:10001.
+# Operator never types `chown` or `sudo`. Idempotent.
+#
+# Why a one-shot helper container instead of host-side `sudo chown`:
+# inside `busybox` we're already root (the implicit docker default),
+# so chowning bind-mounted paths Just Works without asking the host
+# operator for elevation.
+prepare_dirs() {
+  mkdir -p "$DIR_DATA" "$DIR_CONFIG" "$DIR_CACHE"
+  # Quick path: if ownership already matches, skip the helper container.
+  # Saves ~1s on every `up` after the first.
+  local first
+  first="$(stat -c '%u:%g' "$DIR_DATA" 2>/dev/null || stat -f '%u:%g' "$DIR_DATA" 2>/dev/null || true)"
+  if [[ "$first" == "${CONTAINER_UID}:${CONTAINER_GID}" ]]; then
+    return 0
+  fi
+  docker run --rm \
+    -v "$SCRIPT_DIR/data:/work/data" \
+    -v "$SCRIPT_DIR/config:/work/config" \
+    -v "$SCRIPT_DIR/cache:/work/cache" \
+    "$HELPER_IMG" \
+    chown -R "${CONTAINER_UID}:${CONTAINER_GID}" /work/data /work/config /work/cache \
+      >/dev/null 2>&1 || warn "could not chown bind-mount dirs to ${CONTAINER_UID}:${CONTAINER_GID} (continuing — container may fail to write)"
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+cmd_up() {
+  require_docker
+  bring_up_and_wait
+
+  step "Access Anywhere API key"
+  local key
+  key="$(read_key)"
+  [[ -n "$key" ]] || fail "could not retrieve API key (\`nmem key\` returned empty)."
+  note "$key"
+  note "stored at /etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json (mode 0600)"
+  note "rotate with:  ./nmemctl key --rotate"
+
+  step "License status"
+  "${DC[@]}" exec -T "$SVC" nmem license status || true
+
+  step "Open the web UI"
+  print_url
+  note "(paste the API key above when prompted)"
+}
+
+cmd_down() {
+  require_docker
+  step "Stopping Nowledge Mem (data preserved)"
+  "${DC[@]}" down
+  ok "stopped"
+}
+
+cmd_restart() {
+  require_docker
+  step "Restarting Nowledge Mem"
+  if is_running; then
+    "${DC[@]}" restart "$SVC"
+  else
+    "${DC[@]}" up -d
+  fi
+  step "Waiting for /livez"
+  for i in $(seq 1 60); do
+    if probe_livez; then ok "ready in $(( (i - 1) * 2 ))s"; return 0; fi
+    sleep 2
+  done
+  fail "server did not become live in 120s after restart."
+}
+
+cmd_status() {
+  require_docker
+  step "Container state"
+  "${DC[@]}" ps
+
+  if ! is_running; then
+    warn "container is not running — run \`./nmemctl up\` to start it"
+    return 0
+  fi
+
+  step "Health"
+  if probe_livez; then
+    ok "/livez responding"
+  else
+    warn "/livez not responding yet"
+  fi
+
+  step "License"
+  "${DC[@]}" exec -T "$SVC" nmem license status 2>/dev/null || warn "license status unavailable"
+
+  step "Version"
+  cmd_version_inner
+
+  step "Access Anywhere"
+  local key
+  key="$(read_key)"
+  if [[ -n "$key" ]]; then
+    note "API key:  $key"
+  fi
+  print_url
+}
+
+cmd_logs() {
+  require_docker
+  # All remaining args pass through to compose logs (so -f, --tail, etc work).
+  "${DC[@]}" logs "$@" "$SVC"
+}
+
+cmd_version_inner() {
+  note "nmemctl: $NMEMCTL_VERSION"
+  local image_tag binary_ver
+  image_tag="$(read_image_tag 2>/dev/null || true)"
+  [[ -n "$image_tag" ]] && note "image:   $image_tag"
+  if is_running; then
+    binary_ver="$("${DC[@]}" exec -T "$SVC" \
+        /opt/nowledge-mem/python/bin/python3 -c \
+          'import urllib.request,json; print(json.load(urllib.request.urlopen("http://127.0.0.1:14242/health",timeout=4)).get("version",""))' \
+        2>/dev/null | tr -d '\r\n' || true)"
+    [[ -n "$binary_ver" ]] && note "binary:  $binary_ver"
+  fi
+}
+cmd_version() {
+  # If docker isn't available, fall back to printing just the controller
+  # version. That's still useful for bug reports ("which nmemctl is this?")
+  # on a machine that doesn't have docker installed yet.
+  if ! command -v docker >/dev/null 2>&1; then
+    printf "nmemctl %s\n" "$NMEMCTL_VERSION"
+    return 0
+  fi
+  require_docker
+  step "Version"
+  cmd_version_inner
+}
+
+cmd_key() {
+  require_docker
+  local arg="${1:-}"
+  case "$arg" in
+    --rotate)
+      # Up first — exec requires a running container.
+      bring_up_and_wait
+      step "Rotating Access Anywhere API key"
+      note "Old key will stop working immediately. Web UI sessions and MCP"
+      note "clients must be re-authed with the new value."
+      "${DC[@]}" exec -T "$SVC" nmem key --rotate
+      step "New key"
+      "${DC[@]}" exec -T "$SVC" nmem key
+      ;;
+    ""|--show)
+      if ! is_running; then
+        bring_up_and_wait
+      fi
+      "${DC[@]}" exec -T "$SVC" nmem key
+      ;;
+    *)
+      fail "usage: ./nmemctl key [--rotate]"
+      ;;
+  esac
+}
+
+cmd_license() {
+  require_docker
+  local sub="${1:-status}"
+  case "$sub" in
+    status)
+      if ! is_running; then bring_up_and_wait; fi
+      "${DC[@]}" exec -T "$SVC" nmem license status
+      ;;
+    activate)
+      local code="${2:-}"
+      [[ -n "$code" ]] || fail "usage: ./nmemctl license activate <BASE64-CODE>"
+      bring_up_and_wait
+      step "Activating license"
+      "${DC[@]}" exec -T "$SVC" nmem license activate "$code"
+      step "License status"
+      "${DC[@]}" exec -T "$SVC" nmem license status
+      ;;
+    *)
+      fail "usage: ./nmemctl license [status | activate CODE]"
+      ;;
+  esac
+}
+
+cmd_upgrade() {
+  require_docker
+  local target="${1:-}"
+  [[ -n "$target" ]] || fail "usage: ./nmemctl upgrade VERSION   (e.g. 0.8.5)"
+
+  step "Upgrade plan"
+  local current
+  current="$(read_image_tag 2>/dev/null | sed 's|.*:||' || true)"
+  note "current image: ${current:-unknown}"
+  note "target image:  ${target}"
+
+  # Bare semver only — refuse anything that looks like a pre-release suffix
+  # unless the operator opts in with NMEM_ALLOW_PRERELEASE=1.
+  if ! [[ "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    if [[ "${NMEM_ALLOW_PRERELEASE:-}" == "1" ]]; then
+      warn "non-stable target '$target' allowed via NMEM_ALLOW_PRERELEASE=1"
+    else
+      fail "refusing to upgrade to non-stable tag '$target'. Set NMEM_ALLOW_PRERELEASE=1 to override."
+    fi
+  fi
+
+  step "Pulling docker.io/nowledgelabs/mem:${target}"
+  docker pull "docker.io/nowledgelabs/mem:${target}"
+
+  # compose.yaml from nmemctl 2.1.0+ templates the image as
+  # `${NMEM_IMAGE_TAG:-X.Y.Z}`. We then keep compose.yaml untouched and
+  # just override via .env. This plays nicely with `./nmemctl self-update`
+  # (which refreshes compose.yaml from upstream) and with the auto-update
+  # sidecar (which uses the same env-var mechanism).
+  #
+  # If the operator's compose.yaml predates 2.1.0 (literal image tag), we
+  # fall back to the legacy sed-in-place path and gently nudge toward
+  # self-update so future upgrades stay clean.
+  if grep -qE 'image:[[:space:]]*docker\.io/nowledgelabs/mem:\$\{NMEM_IMAGE_TAG' compose.yaml; then
+    step "Setting NMEM_IMAGE_TAG=${target} in .env"
+    write_env_var "NMEM_IMAGE_TAG" "$target"
+  else
+    warn "compose.yaml predates nmemctl 2.1.0 (literal image tag)."
+    warn "Falling back to in-place rewrite. Run './nmemctl self-update'"
+    warn "afterwards to switch to the templated form for cleaner upgrades."
+    step "Bumping compose.yaml image tag"
+    cp compose.yaml compose.yaml.bak
+    sed -i.tmp -E \
+        "s|^([[:space:]]+image:[[:space:]]+)docker\.io/nowledgelabs/mem:.*|\\1docker.io/nowledgelabs/mem:${target}|" \
+        compose.yaml
+    rm -f compose.yaml.tmp
+    diff -u compose.yaml.bak compose.yaml || true
+    rm -f compose.yaml.bak
+  fi
+
+  step "Recreating container with new image"
+  "${DC[@]}" up -d --force-recreate "$SVC"
+
+  step "Waiting for /livez"
+  for i in $(seq 1 60); do
+    if probe_livez; then ok "ready in $(( (i - 1) * 2 ))s"; break; fi
+    sleep 2
+    [[ $i -eq 60 ]] && fail "server did not come back up in 120s."
+  done
+
+  step "Upgrade complete"
+  cmd_version_inner
+}
+
+cmd_wipe() {
+  require_docker
+  step "FACTORY RESET"
+  warn "This will REMOVE all data: memories, threads, sources, license activation,"
+  warn "device identity, API keys, and cached embeddings."
+  warn "Directories wiped: ./data  ./config  ./cache"
+  echo
+  printf "    Type \033[1;31mWIPE\033[0m to confirm: "
+  local answer
+  read -r answer
+  if [[ "$answer" != "WIPE" ]]; then
+    note "aborted (got '$answer', expected 'WIPE')"
+    return 1
+  fi
+
+  step "Stopping container"
+  "${DC[@]}" down
+
+  step "Removing bind-mount contents"
+  # Files inside are owned by UID 10001 (container's user) — we use the
+  # helper container to remove them so the operator doesn't need sudo.
+  # rm -rf on the *contents*, not the dirs themselves, so the bind targets
+  # stay in place for the next `up`.
+  docker run --rm \
+    -v "$SCRIPT_DIR/data:/work/data" \
+    -v "$SCRIPT_DIR/config:/work/config" \
+    -v "$SCRIPT_DIR/cache:/work/cache" \
+    "$HELPER_IMG" \
+    sh -c '
+      rm -rf /work/data/* /work/data/.[!.]* /work/data/..?* 2>/dev/null || true
+      rm -rf /work/config/* /work/config/.[!.]* /work/config/..?* 2>/dev/null || true
+      rm -rf /work/cache/* /work/cache/.[!.]* /work/cache/..?* 2>/dev/null || true
+    ' >/dev/null 2>&1 || warn "couldn't remove some files (continuing)"
+
+  step "Starting fresh"
+  cmd_up
+}
+
+# ---------------------------------------------------------------------------
+# Self-update: pull the latest controller + stack files from the community
+# repo on GitHub.
+#
+# Two modes, auto-detected:
+#
+#   - Git checkout (the canonical install path; `community/` is a git
+#     repo or submodule on the host): `self-update` defers to git and
+#     tells the operator to run `git pull` themselves. We don't run git
+#     commands behind their back because the same checkout may carry
+#     other files the operator cares about (TLS overrides, .env, secrets
+#     bind-mounts).
+#
+#   - Curl-pulled standalone (operator grabbed just nmemctl + compose
+#     without cloning): self-update fetches files from GitHub raw and
+#     diffs them against local. nmemctl itself is updated atomically
+#     (write to temp, rename). Config files (compose.yaml, Caddyfile,
+#     compose.tls.yaml) are diffed and the operator is prompted before
+#     anything overwrites their potentially-customized copy.
+#
+# Self-update never automatically pulls a new docker image — that's
+# `./nmemctl upgrade VERSION` and is a separate, explicit decision. The
+# controller and the runtime version each on their own track on purpose:
+# you should be able to update the controller without forcing a restart
+# of a healthy stack.
+RAW_BASE="https://raw.githubusercontent.com/nowledge-co/community/main/docker"
+STACK_FILES=(nmemctl compose.yaml compose.tls.yaml Caddyfile)
+
+# Read NMEMCTL_VERSION from a remote nmemctl on disk (for diffing).
+extract_remote_version() {
+  local file="$1"
+  awk -F'"' '/^NMEMCTL_VERSION=/{print $2; exit}' "$file"
+}
+
+cmd_self_update() {
+  local check_only=false
+  if [[ "${1:-}" == "--check" ]]; then check_only=true; fi
+
+  step "Self-update — comparing local vs $RAW_BASE"
+
+  # Detect git checkout — community as a repo or submodule
+  if git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    local repo_root
+    repo_root="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+    note "this directory is inside a git checkout at $repo_root"
+    note "use the canonical update path so any other local changes stay coherent:"
+    echo
+    note "    git -C $repo_root pull --ff-only"
+    note "    # if community/ is a submodule of a parent repo:"
+    note "    git -C <parent> submodule update --remote community"
+    echo
+    if $check_only; then return 0; fi
+    warn "skipping curl-based self-update because git is in charge here"
+    return 0
+  fi
+
+  # Curl path — operator pulled standalone files
+  command -v curl >/dev/null 2>&1 || fail "curl is required for self-update on a non-git checkout."
+  command -v diff >/dev/null 2>&1 || fail "diff is required for self-update."
+
+  local tmpdir
+  tmpdir="$(mktemp -d -t nmemctl-selfupdate.XXXXXX)"
+  trap "rm -rf '$tmpdir'" RETURN
+
+  local any_diff=false
+  local controller_new=""
+
+  for f in "${STACK_FILES[@]}"; do
+    local local_path="$SCRIPT_DIR/$f"
+    local remote_path="$tmpdir/$f"
+    if ! curl -fsSL "$RAW_BASE/$f" -o "$remote_path"; then
+      warn "could not fetch $f from remote (skipping)"
+      continue
+    fi
+    if [[ ! -f "$local_path" ]]; then
+      note "$f — missing locally; remote would add it"
+      any_diff=true
+      continue
+    fi
+    if cmp -s "$local_path" "$remote_path"; then
+      ok "$f — up to date"
+    else
+      any_diff=true
+      if [[ "$f" == "nmemctl" ]]; then
+        local local_ver remote_ver
+        local_ver="$NMEMCTL_VERSION"
+        remote_ver="$(extract_remote_version "$remote_path" 2>/dev/null || echo "?")"
+        warn "nmemctl — local $local_ver, remote $remote_ver"
+        controller_new="$remote_path"
+      else
+        warn "$f — differs from remote"
+      fi
+      if $check_only; then continue; fi
+      echo "    -- diff (local vs remote) --"
+      diff -u "$local_path" "$remote_path" | sed 's/^/      /' | head -40
+      echo
+    fi
+  done
+
+  if ! $any_diff; then
+    ok "All stack files match remote. You're up to date."
+    return 0
+  fi
+
+  if $check_only; then
+    note "Updates available. Re-run without --check to apply (interactive)."
+    return 0
+  fi
+
+  echo
+  printf "    Apply updates? [y/N]: "
+  local answer
+  read -r answer
+  if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
+    note "aborted"
+    return 1
+  fi
+
+  for f in "${STACK_FILES[@]}"; do
+    local local_path="$SCRIPT_DIR/$f"
+    local remote_path="$tmpdir/$f"
+    [[ -f "$remote_path" ]] || continue
+    if [[ -f "$local_path" ]] && cmp -s "$local_path" "$remote_path"; then
+      continue   # already matched, no-op
+    fi
+    # Backup, then atomic move
+    if [[ -f "$local_path" ]]; then
+      cp -p "$local_path" "$local_path.bak.$(date +%s)"
+    fi
+    install -m 0755 "$remote_path" "$local_path" 2>/dev/null \
+      || cp -p "$remote_path" "$local_path"
+    # nmemctl needs the +x bit
+    [[ "$f" == "nmemctl" ]] && chmod +x "$local_path"
+    ok "applied: $f"
+  done
+
+  step "Self-update complete"
+  note "Backups left as <file>.bak.<timestamp>. Remove when satisfied."
+  note "Restart the stack to apply any compose changes:  ./nmemctl restart"
+}
+
+# ---------------------------------------------------------------------------
+# Migration — two layers, deliberately separate
+#
+# Layer 1: volume-level snapshot (export / import)
+#   Tars the three bind-mount directories (./data, ./config, ./cache) into a
+#   single .tar.gz. Source and destination must run the SAME image version
+#   (or destination strictly newer — migrations run forward on first boot;
+#   the backend refuses to open a DB written by a newer version).
+#
+#   Identity model is "fresh device, but carry license + API key":
+#     - machine_id is EXCLUDED so the destination boots with a fresh device
+#       identity. License re-activates on first launch (consumes one seat).
+#     - remote-access.json IS carried — already-paired clients (web UI, MCP,
+#       remote nmem CLI) keep working at the new host without re-auth.
+#
+# Layer 2: application-level dump (backup-app / restore-app)
+#   Wraps the in-container `nmem export` / `nmem import` which produces a
+#   schema-aware JSONL dump portable across image versions. Use this when
+#   moving between non-matching versions, or when you want a dump you can
+#   inspect with normal tools.
+#
+# Why both: layer 1 is fast and complete (license + key + agent state +
+# cache); layer 2 is portable but loses license/key/agent state. They serve
+# different needs and shouldn't be conflated.
+#
+# Both layers operate purely through the host filesystem and helper
+# containers — no `docker cp`, no fiddling with the read-only container
+# rootfs. The bind-mount layout means the operator's working directory IS
+# the writable surface.
+
+EXPORT_EXCLUDES=(
+  "config/co.nowledge.mem.desktop/machine_id"
+)
+
+cmd_export() {
+  require_docker
+
+  local no_cache=false
+  local out_path=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --no-cache) no_cache=true; shift ;;
+      --out) out_path="$2"; shift 2 ;;
+      *) fail "usage: ./nmemctl export [--no-cache] [--out PATH]" ;;
+    esac
+  done
+
+  # Default output filename — host + UTC timestamp. Lives next to the
+  # compose.yaml by default (.gitignore covers the pattern).
+  if [[ -z "$out_path" ]]; then
+    local host_tag
+    host_tag="$(hostname 2>/dev/null | tr -c 'A-Za-z0-9-' '-' | sed 's/-*$//')"
+    out_path="$SCRIPT_DIR/mem-export-${host_tag:-host}-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+  fi
+
+  step "Export plan"
+  note "output:   $out_path"
+  note "includes: data, config (minus machine_id)$([[ "$no_cache" == false ]] && echo ", cache")"
+  note "excludes: machine_id (fresh identity on import)"
+
+  # Stop the container — Kuzu DB must be at rest to snapshot cleanly.
+  # Tar-ing live DB pages mid-write is the classic backup footgun.
+  if is_running; then
+    step "Stopping container (required — DB must be at rest)"
+    "${DC[@]}" down
+  fi
+
+  step "Discovering current image (for archive manifest)"
+  local img
+  img="$(read_image_tag 2>/dev/null || echo "unknown")"
+  note "image: $img"
+
+  step "Writing archive"
+  local includes="data config"
+  $no_cache || includes="$includes cache"
+  local exclude_args=""
+  for e in "${EXPORT_EXCLUDES[@]}"; do
+    exclude_args="$exclude_args --exclude=$e"
+  done
+
+  # Write manifest into the bind-mount tree, include in archive, remove
+  # after. Avoids creating a host-side tmpfile the helper container
+  # couldn't otherwise read.
+  local manifest_path="$SCRIPT_DIR/.nmemctl-export-manifest.json"
+  cat > "$manifest_path" <<EOF
+{
+  "format": "nmemctl-export-v2",
+  "exported_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "source_image": "$img",
+  "source_nmemctl_version": "$NMEMCTL_VERSION",
+  "layout": "bind-mount",
+  "includes": [$( $no_cache && echo '"data", "config"' || echo '"data", "config", "cache"' )],
+  "excludes": ["machine_id"]
+}
+EOF
+
+  local out_dir
+  out_dir="$(cd "$(dirname "$out_path")" && pwd)"
+  local out_file
+  out_file="$(basename "$out_path")"
+
+  # Tar via helper container so we can read UID-10001-owned files without
+  # asking the operator for sudo. Helper runs as root inside the container.
+  # Alpine's /bin/tar is busybox (no --transform support), so we install GNU
+  # tar for the --transform pass that renames the manifest into archive root.
+  docker run --rm \
+    -v "$SCRIPT_DIR:/src:ro" \
+    -v "$out_dir:/out" \
+    alpine:3.20 \
+    sh -c "apk add --no-cache tar >/dev/null && cd /src && tar $exclude_args -czf /out/$out_file --transform 's|^\\.nmemctl-export-manifest\\.json\$|manifest.json|' .nmemctl-export-manifest.json $includes"
+
+  rm -f "$manifest_path"
+
+  step "Restarting container"
+  "${DC[@]}" up -d
+
+  step "Export complete"
+  note "archive: $out_path"
+  note "size:    $(du -h "$out_path" | awk '{print $1}')"
+  echo
+  note "On the destination host:"
+  note "    scp '$out_file' user@destination:~/"
+  note "    ssh user@destination"
+  note "    cd <community/docker checkout>"
+  note "    ./nmemctl import ~/'$out_file'"
+}
+
+cmd_import() {
+  require_docker
+
+  local archive=""
+  local force=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) force=true; shift ;;
+      -*) fail "usage: ./nmemctl import <archive.tar.gz> [--force]" ;;
+      *) archive="$1"; shift ;;
+    esac
+  done
+  [[ -n "$archive" ]] || fail "usage: ./nmemctl import <archive.tar.gz> [--force]"
+  [[ -f "$archive" ]] || fail "archive not found: $archive"
+  archive="$(cd "$(dirname "$archive")" && pwd)/$(basename "$archive")"
+
+  step "Import preflight"
+
+  if is_running; then
+    fail "container is running — stop it first with './nmemctl down' (or this will race the DB)"
+  fi
+
+  # Refuse to overwrite an existing populated deploy without --force.
+  # Check by peeking into the data dir — anything beyond an empty mount
+  # is meaningful state.
+  local existing=""
+  if [[ -d "$DIR_DATA" ]]; then
+    existing="$(find "$DIR_DATA" -mindepth 1 -maxdepth 2 \( -type f -o -type d \) 2>/dev/null | head -5)"
+  fi
+  if [[ -n "$existing" ]] && ! $force; then
+    warn "data directory is not empty — sample entries:"
+    printf '%s\n' "$existing" | sed 's/^/      /'
+    fail "refusing to import on a non-empty deploy. Pass --force to overwrite, or './nmemctl wipe' first."
+  fi
+
+  step "Inspecting archive manifest"
+  local manifest
+  manifest="$(docker run --rm \
+    -v "$archive:/archive.tar.gz:ro" \
+    alpine:3.20 \
+    sh -c 'tar -xzOf /archive.tar.gz manifest.json 2>/dev/null' || true)"
+  if [[ -n "$manifest" ]]; then
+    printf '%s\n' "$manifest" | sed 's/^/    /'
+  else
+    warn "no manifest.json found in archive — proceeding anyway (older or hand-rolled export)"
+  fi
+
+  step "Preparing destination directories"
+  prepare_dirs
+
+  step "Restoring archive into ./data ./config ./cache"
+  # Untar archive contents into the bind-mount tree. Helper runs as root
+  # so it can write to UID-10001-owned dirs.
+  docker run --rm \
+    -v "$SCRIPT_DIR:/dst" \
+    -v "$archive:/archive.tar.gz:ro" \
+    alpine:3.20 \
+    sh -c '
+      cd /dst
+      tar -xzf /archive.tar.gz --exclude=manifest.json
+    '
+
+  step "Re-chowning restored files to ${CONTAINER_UID}:${CONTAINER_GID}"
+  # Archives may have been produced on hosts where the docker daemon used
+  # a different remapping. Normalize ownership before container start.
+  docker run --rm \
+    -v "$SCRIPT_DIR/data:/work/data" \
+    -v "$SCRIPT_DIR/config:/work/config" \
+    -v "$SCRIPT_DIR/cache:/work/cache" \
+    "$HELPER_IMG" \
+    chown -R "${CONTAINER_UID}:${CONTAINER_GID}" /work/data /work/config /work/cache \
+      >/dev/null
+
+  step "Starting container"
+  cmd_up
+
+  echo
+  note "Migration complete. The new host has its own machine_id"
+  note "(license may prompt for re-activation on first launch — that's expected)."
+  note "Old host should be retired now to avoid divergent state."
+}
+
+# ---------------------------------------------------------------------------
+# Application-level dump — wraps the in-container `nmem export`/`nmem import`.
+#
+# Operator never types `docker cp` or `docker exec`. Files move via the
+# bind-mounted `./cache` directory: the in-container CLI writes there
+# (which the operator sees at ./cache/), or we copy operator-side files
+# there before kicking off `nmem import` inside the container.
+
+cmd_backup_app() {
+  require_docker
+
+  local out_path=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --out) out_path="$2"; shift 2 ;;
+      *) fail "usage: ./nmemctl backup-app [--out PATH]" ;;
+    esac
+  done
+
+  if ! is_running; then
+    step "Starting container (required — backup-app talks to the running server)"
+    bring_up_and_wait
+  fi
+
+  local host_tag
+  host_tag="$(hostname 2>/dev/null | tr -c 'A-Za-z0-9-' '-' | sed 's/-*$//')"
+  local stamp
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  local in_container_name="mem-app-export-${host_tag:-host}-${stamp}.zip"
+
+  step "Running nmem export inside the container"
+  note "writes to /var/cache/nowledge-mem/${in_container_name}  (visible at ./cache/${in_container_name})"
+  "${DC[@]}" exec -T "$SVC" nmem export "/var/cache/nowledge-mem/${in_container_name}"
+
+  # File appears on the host through the bind mount.
+  local host_path="$DIR_CACHE/${in_container_name}"
+  if [[ ! -f "$host_path" ]]; then
+    fail "nmem export reported success but the archive isn't visible at $host_path — file a bug."
+  fi
+
+  # If operator specified --out, move it there. Else leave next to the
+  # compose for them to grab.
+  local final
+  if [[ -n "$out_path" ]]; then
+    final="$out_path"
+    docker run --rm \
+      -v "$SCRIPT_DIR/cache:/src:ro" \
+      -v "$(cd "$(dirname "$out_path")" && pwd):/dst" \
+      "$HELPER_IMG" \
+      cp "/src/${in_container_name}" "/dst/$(basename "$out_path")"
+    docker run --rm -v "$SCRIPT_DIR/cache:/src" "$HELPER_IMG" \
+      rm -f "/src/${in_container_name}"
+  else
+    final="$SCRIPT_DIR/${in_container_name}"
+    docker run --rm \
+      -v "$SCRIPT_DIR/cache:/src:ro" \
+      -v "$SCRIPT_DIR:/dst" \
+      "$HELPER_IMG" \
+      cp "/src/${in_container_name}" "/dst/${in_container_name}"
+    docker run --rm -v "$SCRIPT_DIR/cache:/src" "$HELPER_IMG" \
+      rm -f "/src/${in_container_name}"
+  fi
+
+  step "Application export complete"
+  note "archive: $final"
+  note "size:    $(du -h "$final" | awk '{print $1}')"
+  echo
+  note "This is a portable, schema-aware dump. Restore on a different version with:"
+  note "    ./nmemctl restore-app $(basename "$final")"
+}
+
+cmd_restore_app() {
+  require_docker
+
+  local infile=""
+  local force=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force) force=true; shift ;;
+      -*) fail "usage: ./nmemctl restore-app <file.zip> [--force]" ;;
+      *) infile="$1"; shift ;;
+    esac
+  done
+  [[ -n "$infile" ]] || fail "usage: ./nmemctl restore-app <file.zip> [--force]"
+  [[ -f "$infile" ]] || fail "archive not found: $infile"
+  infile="$(cd "$(dirname "$infile")" && pwd)/$(basename "$infile")"
+
+  if ! is_running; then
+    step "Starting container (required — restore-app talks to the running server)"
+    bring_up_and_wait
+  fi
+
+  # Stage the archive into the bind-mounted cache. The container reads it
+  # at /var/cache/nowledge-mem/_nmemctl-import.zip, then we clean up.
+  local stage_name="_nmemctl-restore-$$.zip"
+  local stage_path="$DIR_CACHE/$stage_name"
+
+  step "Staging archive into ./cache"
+  docker run --rm \
+    -v "$(dirname "$infile"):/in:ro" \
+    -v "$SCRIPT_DIR/cache:/cache" \
+    "$HELPER_IMG" \
+    cp "/in/$(basename "$infile")" "/cache/${stage_name}"
+
+  step "Running nmem import inside the container"
+  local extra=""
+  $force && extra="--mode overwrite"
+  if ! "${DC[@]}" exec -T "$SVC" nmem import $extra "/var/cache/nowledge-mem/${stage_name}"; then
+    docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" || true
+    fail "nmem import failed — see output above"
+  fi
+
+  docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" >/dev/null
+
+  step "Application restore complete"
+  "${DC[@]}" exec -T "$SVC" nmem stats 2>&1 | sed 's/^/    /' | head -10
+}
+
+cmd_help() {
+  cat <<'EOF'
+nmemctl — lifecycle controller for the Nowledge Mem headless deploy
+
+LIFECYCLE
+  nmemctl up                      Start + wait + print API key + URL
+  nmemctl down                    Stop (data preserved on disk)
+  nmemctl restart                 Stop + start
+  nmemctl status                  Container state, health, license, version
+  nmemctl logs [-f] [--tail N]    View server logs (pass-through to compose)
+  nmemctl version                 Image tag + binary version
+
+CONFIG (forwards to in-container nmem CLI)
+  nmemctl key                     Print the Access Anywhere API key
+  nmemctl key --rotate            Rotate the key (old one invalidated)
+  nmemctl license                 License status
+  nmemctl license activate CODE   Activate a Pro license
+
+RELEASE
+  nmemctl upgrade VERSION         Pull docker.io/nowledgelabs/mem:VERSION,
+                                  set NMEM_IMAGE_TAG in .env, recreate.
+                                  Refuses pre-release tags unless
+                                  NMEM_ALLOW_PRERELEASE=1.
+  nmemctl self-update [--check]   Update controller + compose stack from
+                                  the community repo. Diff-and-prompt; never
+                                  silent. In a git checkout, defers to
+                                  `git pull`.
+  nmemctl auto-update SUBCMD      Opt-in click-to-update sidecar. Subcommands:
+                                    enable / disable / status / rotate / upgrade.
+                                  After 'enable', the web UI shows an Update
+                                  button when newer Mem images are published.
+                                  See `./nmemctl auto-update help` for details.
+
+MIGRATION
+  Volume-level (same-version source → destination, fastest, includes everything):
+    nmemctl export [--no-cache]   Stop, tar ./data ./config ./cache, restart.
+                   [--out PATH]   Excludes machine_id; license + API key carry.
+                                  Writes mem-export-<host>-<ts>.tar.gz.
+    nmemctl import <archive>      Untar into bind-mount dirs and start.
+                   [--force]      Refuses a non-empty deploy without --force.
+
+  Application-level (cross-version, schema-aware, portable):
+    nmemctl backup-app            Run nmem export inside the container,
+                   [--out PATH]   write a portable schema-aware .zip dump.
+    nmemctl restore-app <file>    Stage the dump via ./cache, run nmem
+                   [--force]      import inside. Use --force for overwrite.
+
+DESTRUCTIVE
+  nmemctl wipe                    Factory reset (type WIPE to confirm).
+                                  Stops + removes all volumes + restarts fresh.
+
+OTHER
+  nmemctl help | -h | --help      This message
+  nmemctl --version               Print controller version + image version
+  nmemctl                         Default: up if stopped, status if running
+
+ENV
+  NMEM_COMPOSE_FILES              Override compose files. To enable TLS:
+                                    NMEM_COMPOSE_FILES='-f compose.yaml -f compose.tls.yaml'
+  NMEM_SERVICE                    Service name in compose.yaml (default: mem)
+  NMEM_ALLOW_PRERELEASE           Set to 1 to allow `upgrade` to non-stable tags
+
+SEE ALSO
+  README.md in this directory; the in-container nmem CLI for data operations.
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# auto-update — opt-in click-to-update via a small sidecar
+# ---------------------------------------------------------------------------
+#
+# `auto-update enable` adds the updater sidecar to the stack so the web UI
+# can pull new Mem images on a schedule and apply a recreate when the
+# operator clicks the Update button. Without this, the only upgrade path
+# is `./nmemctl upgrade <version>` from the host shell.
+#
+# Security shape (docs/design/HEADLESS_UPGRADE_UX.md §2):
+#   - The sidecar mounts /var/run/docker.sock; the mem container does not.
+#   - Auth is a per-deploy random token stored in `.env` (mode 0600).
+#   - The sidecar is not exposed beyond the compose-internal network.
+#   - The mem backend's `/admin/upgrade/*` endpoints proxy to it, behind
+#     the existing API key. State-changing endpoints stay loopback-only
+#     unless `NOWLEDGE_ADMIN_REMOTE_OPS=1` is set; `auto-update enable`
+#     sets that flag because browser-triggered install is the opt-in.
+
+AUTO_UPDATE_STATE_KEY="NMEM_STATE_OVERLAYS"
+AUTO_UPDATE_OVERLAY="-f compose.updater.yaml"
+ENV_FILE="$SCRIPT_DIR/.env"
+STATE_FILE="$SCRIPT_DIR/.nmemctl-state"
+
+# Read a NAME=VALUE from .env. Empty if not set / file missing.
+read_env_var() {
+  local name="$1"
+  [[ -f "$ENV_FILE" ]] || return 0
+  grep -E "^${name}=" "$ENV_FILE" 2>/dev/null | tail -n 1 | sed -E "s/^${name}=//; s/^['\"]//; s/['\"]$//"
+}
+
+# Atomically set NAME=VALUE in .env (create if missing, replace if present).
+# Always re-applies mode 0600 because .env holds the updater token + the
+# image-tag override and should not be world-readable.
+write_env_var() {
+  local name="$1" value="$2" tmp
+  tmp="${ENV_FILE}.tmp.$$"
+  {
+    if [[ -f "$ENV_FILE" ]]; then
+      grep -Ev "^${name}=" "$ENV_FILE" || true
+    fi
+    printf '%s=%s\n' "$name" "$value"
+  } > "$tmp"
+  chmod 0600 "$tmp"
+  mv "$tmp" "$ENV_FILE"
+}
+
+# Remove NAME from .env (no-op if absent or .env missing).
+unset_env_var() {
+  local name="$1" tmp
+  [[ -f "$ENV_FILE" ]] || return 0
+  tmp="${ENV_FILE}.tmp.$$"
+  grep -Ev "^${name}=" "$ENV_FILE" > "$tmp" || true
+  chmod 0600 "$tmp"
+  mv "$tmp" "$ENV_FILE"
+}
+
+# Read NAME=VALUE from .nmemctl-state (the persisted overlay state).
+read_state_var() {
+  local name="$1"
+  [[ -f "$STATE_FILE" ]] || return 0
+  grep -E "^${name}=" "$STATE_FILE" 2>/dev/null | tail -n 1 \
+    | sed -E "s/^${name}=//; s/^['\"]//; s/['\"]$//"
+}
+
+# Atomically rewrite .nmemctl-state to include the auto-update overlay
+# alongside any other overlays already present (TLS, future ones).
+state_add_overlay() {
+  local existing tmp
+  existing="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+  if [[ "$existing" == *"compose.updater.yaml"* ]]; then
+    return 0
+  fi
+  tmp="${STATE_FILE}.tmp.$$"
+  {
+    if [[ -f "$STATE_FILE" ]]; then
+      grep -Ev "^${AUTO_UPDATE_STATE_KEY}=" "$STATE_FILE" || true
+    fi
+    if [[ -n "$existing" ]]; then
+      printf '%s="%s %s"\n' "$AUTO_UPDATE_STATE_KEY" "$existing" "$AUTO_UPDATE_OVERLAY"
+    else
+      printf '%s="%s"\n' "$AUTO_UPDATE_STATE_KEY" "$AUTO_UPDATE_OVERLAY"
+    fi
+  } > "$tmp"
+  mv "$tmp" "$STATE_FILE"
+}
+
+state_remove_overlay() {
+  local existing tmp new
+  existing="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+  if [[ -z "$existing" ]]; then
+    return 0
+  fi
+  # Strip "-f compose.updater.yaml" tokens (with surrounding whitespace).
+  new="$(printf '%s' "$existing" | sed -E 's/(^| )-f +compose\.updater\.yaml( |$)/ /g; s/^ +//; s/ +$//')"
+  tmp="${STATE_FILE}.tmp.$$"
+  {
+    if [[ -f "$STATE_FILE" ]]; then
+      grep -Ev "^${AUTO_UPDATE_STATE_KEY}=" "$STATE_FILE" || true
+    fi
+    if [[ -n "$new" ]]; then
+      printf '%s="%s"\n' "$AUTO_UPDATE_STATE_KEY" "$new"
+    fi
+  } > "$tmp"
+  mv "$tmp" "$STATE_FILE"
+}
+
+# Generate 32 bytes of randomness, base64 url-safe-ish (no slashes).
+generate_token() {
+  # /dev/urandom is universally available; openssl avoids depending on it
+  # by reading from /dev/random which can block. Tr the slashes out.
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -base64 32 | tr '/+' '_-' | tr -d '=\n'
+  else
+    head -c 32 /dev/urandom | base64 | tr '/+' '_-' | tr -d '=\n'
+  fi
+}
+
+is_auto_update_enabled() {
+  local overlays
+  overlays="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+  [[ "$overlays" == *"compose.updater.yaml"* ]]
+}
+
+cmd_auto_update() {
+  local sub="${1:-}"
+  [[ $# -gt 0 ]] && shift
+  case "$sub" in
+    enable)  cmd_auto_update_enable "$@" ;;
+    disable) cmd_auto_update_disable "$@" ;;
+    status)  cmd_auto_update_status "$@" ;;
+    rotate)  cmd_auto_update_rotate "$@" ;;
+    upgrade) cmd_auto_update_upgrade "$@" ;;
+    ""|help|-h|--help)
+      cat <<'EOF'
+auto-update — opt-in click-to-update sidecar for the headless deploy
+
+Subcommands:
+  enable        Generate a per-deploy token, layer in compose.updater.yaml,
+                and recreate the stack with the updater sidecar attached.
+                After this, the web UI can pull and apply Mem updates.
+                Also sets NOWLEDGE_ADMIN_REMOTE_OPS=1 because applying an
+                update from a browser is a server-side state change.
+
+  disable       Remove the updater sidecar (compose rm), clear the token
+                from .env, and remove the overlay from .nmemctl-state.
+                Idempotent.
+
+  status        Show whether auto-update is enabled, the sidecar's health,
+                the last scheduled pull, and the retained snapshots.
+
+  rotate        Rotate the updater token. Any in-flight upgrade attempt
+                using the old token will be rejected on its next call.
+                Use this if you suspect the token has leaked.
+
+  upgrade       Bump the updater sidecar's own image to a newer version.
+                Independent of the mem image upgrade cadence.
+
+Security notes:
+  The updater sidecar mounts /var/run/docker.sock — that's why it's
+  opt-in. Read the "Click-to-update from the web UI" section in this
+  directory's README before enabling on a production server.
+EOF
+      ;;
+    *)
+      fail "unknown auto-update subcommand: $sub  (try './nmemctl auto-update help')"
+      ;;
+  esac
+}
+
+cmd_auto_update_enable() {
+  require_docker
+  if is_auto_update_enabled; then
+    local existing_token
+    existing_token="$(read_env_var NOWLEDGE_UPDATER_TOKEN)"
+    if [[ -n "$existing_token" ]]; then
+      note "auto-update is already enabled."
+      cmd_auto_update_status
+      return 0
+    fi
+
+    step "Repairing auto-update token"
+    note "The updater overlay is enabled, but NOWLEDGE_UPDATER_TOKEN is missing from .env."
+    local token
+    token="$(generate_token)"
+    write_env_var "NOWLEDGE_UPDATER_TOKEN" "$token"
+    write_env_var "NOWLEDGE_ADMIN_REMOTE_OPS" "1"
+    ok "new token and remote install opt-in written to .env (mode 0600)"
+
+    step "Recreating updater and mem containers on the repaired token"
+    local persisted
+    persisted="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+    if [[ -n "$persisted" ]]; then
+      NMEM_COMPOSE_FILES="-f compose.yaml $persisted"
+    else
+      NMEM_COMPOSE_FILES="-f compose.yaml $AUTO_UPDATE_OVERLAY"
+    fi
+    DC=(docker compose ${NMEM_COMPOSE_FILES})
+    "${DC[@]}" up -d --force-recreate updater "$SVC" >/dev/null 2>&1
+    ok "both containers restarted on the repaired token"
+    cmd_auto_update_status
+    return 0
+  fi
+
+  step "Generating updater token (32 bytes, /dev/urandom)"
+  local token
+  token="$(generate_token)"
+  write_env_var "NOWLEDGE_UPDATER_TOKEN" "$token"
+  write_env_var "NOWLEDGE_ADMIN_REMOTE_OPS" "1"
+  ok "wrote updater token and remote install opt-in to .env (mode 0600)"
+
+  step "Persisting overlay to .nmemctl-state"
+  state_add_overlay
+  ok "future ./nmemctl up / restart will include the updater sidecar"
+
+  step "Bringing the stack up with the overlay attached"
+  # Reload NMEM_COMPOSE_FILES from the freshly-updated .nmemctl-state so
+  # we PRESERVE any other overlays the operator has layered in (e.g.
+  # compose.tls.yaml). Hardcoding only the updater overlay here would
+  # silently drop TLS / Caddy and break the deploy on `enable`.
+  local persisted
+  persisted="$(read_state_var "$AUTO_UPDATE_STATE_KEY")"
+  if [[ -n "$persisted" ]]; then
+    NMEM_COMPOSE_FILES="-f compose.yaml $persisted"
+  else
+    NMEM_COMPOSE_FILES="-f compose.yaml $AUTO_UPDATE_OVERLAY"
+  fi
+  DC=(docker compose ${NMEM_COMPOSE_FILES})
+  bring_up_and_wait
+
+  step "Auto-update enabled"
+  note "The web UI's Settings → Server card now shows the Update button"
+  note "when a newer Mem image is published. SSH is only needed in the"
+  note "failure path (import from a pre-upgrade snapshot)."
+  note ""
+  note "Security: the updater sidecar holds docker.sock. Treat the token"
+  note "as you would a host root credential."
+}
+
+cmd_auto_update_disable() {
+  require_docker
+  if ! is_auto_update_enabled; then
+    note "auto-update is already disabled."
+    return 0
+  fi
+
+  step "Stopping and removing the updater sidecar"
+  "${DC[@]}" rm -fsv updater >/dev/null 2>&1 || true
+  ok "updater container removed"
+
+  step "Clearing token and overlay state"
+  unset_env_var "NOWLEDGE_UPDATER_TOKEN"
+  unset_env_var "NOWLEDGE_ADMIN_REMOTE_OPS"
+  state_remove_overlay
+  ok "next ./nmemctl up will run without the overlay"
+
+  step "Auto-update disabled"
+  note "The Update button in the web UI will turn into the SSH-command hint."
+  note "Existing pre-upgrade snapshots in ./cache/ are preserved; remove"
+  note "them by hand if you want the disk space back."
+}
+
+cmd_auto_update_status() {
+  require_docker
+  step "Auto-update status"
+
+  if ! is_auto_update_enabled; then
+    note "state: disabled"
+    note "Run './nmemctl auto-update enable' to opt in."
+    return 0
+  fi
+  note "state: enabled"
+
+  local token
+  token="$(read_env_var NOWLEDGE_UPDATER_TOKEN)"
+  if [[ -n "$token" ]]; then
+    note "token: present in .env (mode $(stat -f '%Lp' "$ENV_FILE" 2>/dev/null || stat -c '%a' "$ENV_FILE" 2>/dev/null))"
+  else
+    warn "token MISSING from .env — run './nmemctl auto-update enable' to regenerate it and restart the stack"
+  fi
+
+  local upd_id health
+  upd_id="$("${DC[@]}" ps -q updater 2>/dev/null || true)"
+  if [[ -z "$upd_id" ]]; then
+    warn "updater container not running"
+  else
+    health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$upd_id" 2>/dev/null || echo unknown)"
+    note "container: running ($health)"
+    # Probe from inside the existing sidecar so status works offline and
+    # never pulls a helper image.
+    local status_json
+    status_json="$(docker exec "$upd_id" \
+      wget -qO- --header "Authorization: Bearer $token" \
+      "http://127.0.0.1:8080/status" 2>/dev/null || true)"
+    if [[ -n "$status_json" ]]; then
+      printf '%s\n' "$status_json" | jq . 2>/dev/null \
+        | sed 's/^/    /' || printf '    %s\n' "$status_json"
+    fi
+  fi
+}
+
+cmd_auto_update_rotate() {
+  require_docker
+  if ! is_auto_update_enabled; then
+    fail "auto-update is not enabled. Nothing to rotate."
+  fi
+  step "Rotating updater token"
+  local token
+  token="$(generate_token)"
+  write_env_var "NOWLEDGE_UPDATER_TOKEN" "$token"
+  ok "new token written to .env"
+
+  # Recreate BOTH the updater AND the mem service. compose.updater.yaml
+  # injects NOWLEDGE_UPDATER_TOKEN into the mem container's env at
+  # create-time (so the backend can call the sidecar with bearer auth).
+  # Without recreating mem too, mem would keep the OLD token in its
+  # environment and 401 every time it tries to reach the sidecar.
+  step "Recreating both updater and mem containers on the new token"
+  "${DC[@]}" up -d --force-recreate updater "$SVC" >/dev/null 2>&1
+  ok "both containers restarted on the new token"
+
+  step "Token rotated"
+  note "Any external client holding the old token (e.g. a stale curl"
+  note "session) will be 401-rejected on its next /admin/upgrade/* call."
+}
+
+cmd_auto_update_upgrade() {
+  require_docker
+  if ! is_auto_update_enabled; then
+    fail "auto-update is not enabled."
+  fi
+  local target="${1:-latest}"
+  step "Pulling updater image: docker.io/nowledgelabs/mem-updater:$target"
+  docker pull "docker.io/nowledgelabs/mem-updater:$target" >/dev/null
+  ok "image pulled"
+
+  # ALWAYS write NMEM_UPDATER_TAG, including the literal "latest". Without
+  # this, the `compose.updater.yaml` fallback `${NMEM_UPDATER_TAG:-X.Y.Z}`
+  # kicks in and the recreated sidecar runs the BAKED default — making
+  # `auto-update upgrade` (no args) a silent no-op.
+  write_env_var "NMEM_UPDATER_TAG" "$target"
+
+  step "Recreating the updater sidecar on the new image"
+  "${DC[@]}" up -d --force-recreate updater >/dev/null 2>&1
+  ok "sidecar running on $target"
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
+# Smart default: status if running, up if not. Lets `./nmemctl` with no args
+# do the right thing whether you're starting fresh or checking on the deploy.
+cmd_default() {
+  require_docker
+  if is_running; then
+    cmd_status
+  else
+    cmd_up
+  fi
+}
+
+cmd="${1:-}"
+[[ $# -gt 0 ]] && shift
+
+case "$cmd" in
+  ""|default)         cmd_default ;;
+  up)                 cmd_up ;;
+  down|stop)          cmd_down ;;
+  restart)            cmd_restart ;;
+  status|ps)          cmd_status ;;
+  logs)               cmd_logs "$@" ;;
+  version|--version)  cmd_version ;;
+  self-update)        cmd_self_update "$@" ;;
+  export)             cmd_export "$@" ;;
+  import)             cmd_import "$@" ;;
+  backup-app)         cmd_backup_app "$@" ;;
+  restore-app)        cmd_restore_app "$@" ;;
+  key)                cmd_key "$@" ;;
+  license)            cmd_license "$@" ;;
+  upgrade)            cmd_upgrade "$@" ;;
+  auto-update)        cmd_auto_update "$@" ;;
+  wipe|factory-reset) cmd_wipe ;;
+  help|-h|--help)     cmd_help ;;
+
+  *)
+    printf "error: unknown command: %s\n\n" "$cmd" >&2
+    cmd_help >&2
+    exit 2
+    ;;
+esac

@@ -198,12 +198,7 @@ def has_sensitive_content(text: str) -> bool:
 
 def build_nmem_command(nmem_bin: str, *args: str) -> list[str]:
     if nmem_bin.lower().endswith(".cmd"):
-        return [
-            "cmd.exe",
-            "/s",
-            "/c",
-            subprocess.list2cmdline([nmem_bin, *args]),
-        ]
+        return ["cmd.exe", "/d", "/c", "call", nmem_bin, *args]
     return [nmem_bin, *args]
 
 

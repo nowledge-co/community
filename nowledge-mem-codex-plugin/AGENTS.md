@@ -10,7 +10,7 @@ This Codex package is hybrid-aware and hook-assisted.
 
 - Best modern setup: Codex plugin with bundled Nowledge Mem MCP.
 - Automatic capture: the Codex Stop hook saves the real transcript through `nmem t save --from codex` after each turn.
-- Current stable Codex: run `scripts/install_hooks.py` once after installing or updating the plugin so Codex loads the hook from `~/.codex/hooks.json`.
+- Current Codex: enable both `hooks = true` and `plugin_hooks = true`, then run `scripts/install_hooks.py` once after installing or updating the plugin. `plugin_hooks` lets Codex load the packaged Stop hook; the setup script keeps that hook enabled in `/hooks` and also keeps the host-level fallback for builds that still need `~/.codex/hooks.json`.
 - Reliable bootstrap: read Working Memory once near session start.
 - Stronger retrieval and memory updates: use Nowledge Mem MCP tools when available.
 - Explicit fallback: if hook setup is missing or the user asks for a manual save, use the `save-thread` skill.
@@ -62,6 +62,31 @@ nmem --json m search "query"
 If the runtime already has an ambient lane, add `--space "<space name>"` to Working Memory, memory search, thread search, and save commands.
 
 Use `--mode deep` when the first pass is weak or the need is conceptual.
+
+## Knowledge Tree
+
+When the task needs to browse across memories, threads, wiki pages, working memory, activities, sources, and artifacts as one shape, use the Knowledge Filesystem:
+
+Prefer the MCP `mem_fs` tool when it is available. It accepts shell-shaped commands such as:
+
+```text
+ls /
+recall "session token strategy" --in /memories -k 5
+find /memories --label decisions --since 2026-01-01
+grep "JWT rotation" /memories
+cat /memories/by-id/<id>.memory.md
+stat /wiki/entities/PostgreSQL--<id>.entity.md
+```
+
+Otherwise use the CLI fallback:
+
+```bash
+nmem fs ls /
+nmem fs recall "session token strategy" --in /memories -k 5
+nmem fs cat /memories/by-id/<id>.memory.md
+```
+
+Use `recall` for fuzzy intent, `find` for metadata constraints, `grep` for exact strings, `stat` before loading large bodies, and `cat` only after choosing a path. Treat returned paths as Mem identifiers, not OS filesystem paths. Mounting, source fragments, SQL/Cypher, replay, and tail are later phases.
 
 For past conversations specifically:
 
@@ -122,3 +147,4 @@ nmem config mcp show --host codex
 ```
 
 Paste that into `~/.codex/config.toml`. Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically.
+If `codex mcp list` shows `Not logged in`, update `nmem`, make sure the desktop app or `nmem config client ...` has written the right URL/API key, then rerun `scripts/install_hooks.py` or paste the generated block manually. Do not use `codex mcp login nowledge-mem`; that command is for OAuth MCP servers.

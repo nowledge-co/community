@@ -57,6 +57,29 @@ If results are weak or the need is conceptual/historical, try deeper matching:
 nmem --json m search "query" --mode deep
 ```
 
+## Knowledge tree routing
+
+When the user needs to browse across multiple object types, inspect nearby context, or asks for a file/tree/vault-like view, use the Knowledge Filesystem instead of only flat search.
+
+Prefer MCP `mem_fs` when available:
+
+```text
+recall "session token strategy" --in /memories -k 5
+find /memories --label decisions --since 2026-01-01
+grep "JWT rotation" /memories
+cat /memories/by-id/<id>.memory.md
+```
+
+Otherwise use:
+
+```bash
+nmem fs recall "session token strategy" --in /memories -k 5
+nmem fs ls /wiki
+nmem fs cat /wiki/topics/<topic>.topic.md
+```
+
+Use `recall` for fuzzy phrasing, `find` for metadata constraints, `grep` for exact strings, then `stat` or `cat` the returned paths. KFS paths are Mem identifiers, not local OS files; mount and SQL/Cypher are later phases.
+
 ## Filters
 
 Add filters only when the task clearly implies them:

@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.13] - 2026-05-15
+
+### Fixed
+
+- Codex setup now enables `plugin_hooks = true` in addition to `hooks = true`, matching current Codex's separate gate for lifecycle hooks shipped inside installed plugins.
+- Codex setup now explicitly keeps the Nowledge Mem packaged Stop hook enabled in Codex's `/hooks` state, covering users whose hook was left disabled after an upgrade or manual toggle.
+- Stop-hook capture now suppresses duplicate imports when Codex sees both the plugin-bundled hook and the host-level fallback hook for the same transcript state.
+- The plugin-bundled Stop hook now quotes its `${PLUGIN_ROOT}` script path, so plugin cache paths with spaces do not break automatic capture.
+- Setup guidance now explains that MCP is not required for automatic Codex thread capture; the Stop hook is the capture path, while MCP remains the stronger retrieval and memory-write path.
+
+## [0.1.12] - 2026-05-15
+
+### Fixed
+
+- Codex setup now also recognizes fully quoted TOML MCP table headers such as `["mcp_servers"."nowledge-mem"]` as user-owned config. This prevents setup from appending a duplicate managed table when users already have a valid quoted Codex MCP block.
+
+## [0.1.11] - 2026-05-15
+
+### Fixed
+
+- Codex setup now also checks `nmem config mcp show --host codex` and writes a managed authenticated MCP override when `nmem` has saved client credentials. This keeps Codex MCP aligned with the same URL/API key used by `nmem`, instead of relying only on the bundled unauthenticated local fallback.
+- Setup now enables Codex's current `hooks = true` feature flag while preserving an existing legacy `codex_hooks = true` entry when users already have one.
+- Troubleshooting now explains that `codex mcp login nowledge-mem` is not the right recovery path for Nowledge Mem; users should update `nmem`, install the desktop CLI config, and rerun the plugin setup or paste the generated MCP block.
+
 ## [0.1.10] - 2026-05-02
 
 ### Fixed

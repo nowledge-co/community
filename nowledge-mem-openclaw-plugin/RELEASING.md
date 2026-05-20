@@ -39,7 +39,7 @@ Then verify the ClawHub publish contract from a machine with `clawhub` installed
 
 ```bash
 cd community/nowledge-mem-openclaw-plugin
-clawhub package publish . --dry-run
+clawhub package publish . --owner nowledge --dry-run
 ```
 
 Because this plugin lives in a git repository, ClawHub can infer the source
@@ -48,6 +48,7 @@ that inference fails, pass them explicitly:
 
 ```bash
 clawhub package publish . \
+  --owner nowledge \
   --source-repo nowledge-co/community \
   --source-commit <git-sha> \
   --source-path community/nowledge-mem-openclaw-plugin \
@@ -70,18 +71,37 @@ These still need a real OpenClaw install smoke test:
 
 ## Publish
 
+Before publishing, confirm the package is owned by the `nowledge` publisher.
+The package name is scoped as `@nowledge/openclaw-nowledge-mem`, and ClawHub
+enforces that the scoped package owner exists and matches:
+
+```bash
+clawhub package inspect @nowledge/openclaw-nowledge-mem
+```
+
+If the owner is not `nowledge`, transfer it before publishing another version:
+
+```bash
+clawhub package transfer @nowledge/openclaw-nowledge-mem \
+  --to nowledge \
+  --reason "Align scoped package namespace with Nowledge publisher"
+```
+
 Dry run first:
 
 ```bash
 cd /path/to/clawhub
-clawhub package publish /path/to/community/nowledge-mem-openclaw-plugin --dry-run
+clawhub package publish /path/to/community/nowledge-mem-openclaw-plugin \
+  --owner nowledge \
+  --dry-run
 ```
 
 Then publish the same package:
 
 ```bash
 cd /path/to/clawhub
-clawhub package publish /path/to/community/nowledge-mem-openclaw-plugin
+clawhub package publish /path/to/community/nowledge-mem-openclaw-plugin \
+  --owner nowledge
 ```
 
 If your globally installed `clawhub` CLI is older and does not support
@@ -89,7 +109,9 @@ If your globally installed `clawhub` CLI is older and does not support
 
 ```bash
 cd /path/to/clawhub
-bun clawhub package publish /path/to/community/nowledge-mem-openclaw-plugin --dry-run
+bun clawhub package publish /path/to/community/nowledge-mem-openclaw-plugin \
+  --owner nowledge \
+  --dry-run
 ```
 
 If you also want npm as a secondary distribution path:
@@ -108,7 +130,8 @@ npm publish --access public
 - keep `.clawhubignore` aligned with the npm package surface so ClawHub releases do not ship tests or build-only files
 - run `node scripts/validate-plugin.mjs`
 - run `npm pack --dry-run`
-- run `clawhub package publish . --dry-run`
+- confirm `clawhub package inspect @nowledge/openclaw-nowledge-mem` reports owner `nowledge`
+- run `clawhub package publish . --owner nowledge --dry-run`
 - manually test install in OpenClaw
 - publish to ClawHub
 - optionally publish to npm after the ClawHub release is confirmed
