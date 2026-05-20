@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5] - 2026-05-20
+
+### Fixed
+
+- Added the required top-level `version` field to `hooks/hooks.json` so current Cursor plugin loaders accept the hook configuration.
+
 ## [0.1.4] - 2026-04-08
 
 ### Fixed
