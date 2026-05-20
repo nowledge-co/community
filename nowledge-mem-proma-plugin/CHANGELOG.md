@@ -8,7 +8,8 @@
 - SessionStart hook: Working Memory injection via `read-working-memory.py`
 - 5 standard skills: `read-working-memory`, `search-memory`, `distill-memory`, `save-thread`, `status`
 - Proma session JSONL parser (dedup by UUID, extract text from content blocks)
-- nmem REST API client (reads credentials from `~/.nowledge-mem/config.json`)
+- nmem REST API client (reads credentials from `~/.nowledge-mem/config.json`, supports local mode without an API key)
+- Repeated Stop hook runs append to the existing Proma thread with deduplication
 - `uvx` fallback for nmem CLI discovery (per plugin development guide)
 - Static contract tests (`tests/plugin_e2e/test_proma_plugin.py`)
 - Graceful fallback: hooks silent on error, skills available as manual alternative

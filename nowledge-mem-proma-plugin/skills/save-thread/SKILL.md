@@ -1,3 +1,8 @@
+---
+name: save-thread
+description: Save or archive the current Proma session to Nowledge Mem when the user explicitly asks, especially as a fallback when automatic hooks are unavailable.
+---
+
 # Save Thread
 
 Save the current Proma session to Nowledge Mem on explicit user request.

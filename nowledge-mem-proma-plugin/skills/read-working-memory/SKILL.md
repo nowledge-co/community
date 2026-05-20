@@ -1,3 +1,8 @@
+---
+name: read-working-memory
+description: Load the Nowledge Mem Working Memory briefing at Proma session start, after a break, or when recent context would help the current task.
+---
+
 # Read Working Memory
 
 Read your daily Working Memory briefing to understand current context for Proma sessions.

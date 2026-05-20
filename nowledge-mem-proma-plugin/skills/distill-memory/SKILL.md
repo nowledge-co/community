@@ -1,3 +1,8 @@
+---
+name: distill-memory
+description: Save durable Nowledge Mem insights when a Proma conversation produces decisions, procedures, preferences, plans, learnings, or project context that should survive future sessions.
+---
+
 # Distill Memory
 
 Save durable insights to Nowledge Mem autonomously. Don't wait to be asked — save proactively when the conversation produces lasting value.

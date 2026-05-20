@@ -106,12 +106,37 @@ class TestHookScripts:
         except py_compile.PyCompileError as exc:
             pytest.fail(f"Syntax error in read-working-memory.py: {exc}")
 
-    def test_save_script_has_uvx_fallback(self):
+    def test_wm_script_has_uvx_fallback(self):
         script = PLUGIN_DIR / "hooks" / "read-working-memory.py"
         content = script.read_text(encoding="utf-8")
         assert "uvx" in content.lower(), (
             "read-working-memory.py should include uvx fallback per plugin guide"
         )
+        assert "uv tool" not in content.lower(), (
+            "read-working-memory.py should not treat uv like uvx; only uvx supports --from directly"
+        )
+
+    def test_save_script_allows_local_mode_without_api_key(self):
+        script = PLUGIN_DIR / "hooks" / "save-to-nmem.py"
+        content = script.read_text(encoding="utf-8")
+        assert "skip: no API key" not in content
+        assert "if not API_KEY" not in content
+        assert "if API_KEY:" in content
+
+    def test_save_script_supports_legacy_and_current_config_keys(self):
+        script = PLUGIN_DIR / "hooks" / "save-to-nmem.py"
+        content = script.read_text(encoding="utf-8")
+        assert '"apiUrl", "api_url"' in content
+        assert '"apiKey", "api_key"' in content
+
+    def test_save_script_appends_existing_threads(self):
+        script = PLUGIN_DIR / "hooks" / "save-to-nmem.py"
+        content = script.read_text(encoding="utf-8")
+        assert 'api_request("GET", f"/threads/{thread_path_id}")' in content
+        assert 'api_request("POST", f"/threads/{thread_path_id}/append", append_body)' in content
+        assert '"deduplicate": True' in content
+        assert '"idempotency_key": f"proma:{session_id}"' in content
+        assert '"external_id": f"proma:{uuid}"' in content
 
 
 class TestSkills:
@@ -140,6 +165,14 @@ class TestSkills:
         assert len(content) > 100, (
             f"SKILL.md for {skill_name} is too short ({len(content)} chars)"
         )
+
+    @pytest.mark.parametrize("skill_name", REQUIRED_SKILLS)
+    def test_skill_md_has_frontmatter(self, skill_name):
+        skill_md = PLUGIN_DIR / "skills" / skill_name / "SKILL.md"
+        content = skill_md.read_text(encoding="utf-8")
+        assert content.startswith("---\n"), f"Missing YAML frontmatter: {skill_md}"
+        assert f"name: {skill_name}" in content
+        assert "description:" in content.split("---", 2)[1]
 
     def test_no_legacy_nmem_skill(self):
         legacy = PLUGIN_DIR / "skills" / "nmem"
@@ -170,6 +203,18 @@ class TestIntegrationsJson:
         assert set(entry.get("skills", [])) == set(self.REQUIRED_SKILLS), (
             f"integrations.json skills {entry.get('skills')} don't match {self.REQUIRED_SKILLS}"
         )
+
+    def test_proma_entry_uses_plugin_capture_and_guided_mcp_autonomy(self):
+        repo_root = PLUGIN_DIR.parent
+        ij = json.loads((repo_root / "integrations.json").read_text(encoding="utf-8"))
+        entry = next(i for i in ij["integrations"] if i["id"] == "proma")
+        assert entry["threadSave"]["method"] == "plugin-capture"
+        assert entry["autonomy"]["recall"] == "guided"
+        assert entry["autonomy"]["distill"] == "guided"
+        assert entry["install"]["docsUrl"] == "/docs/integrations/proma"
+        checklist = "\n".join(entry["autonomy"]["bestResultRequires"])
+        assert "skills/nmem" not in checklist
+        assert "standard Nowledge Mem skill folders" in checklist
 
     REQUIRED_SKILLS = TestSkills.REQUIRED_SKILLS
 

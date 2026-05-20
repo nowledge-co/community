@@ -19,6 +19,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -39,14 +40,22 @@ def _load_nmem_config() -> dict[str, str]:
 
 _nmem_cfg = _load_nmem_config()
 
+def _config_value(*keys: str) -> str:
+    for key in keys:
+        value = _nmem_cfg.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
 API_BASE = (
     os.environ.get("NMEM_API_URL")
-    or _nmem_cfg.get("apiUrl")
+    or _config_value("apiUrl", "api_url")
     or "http://127.0.0.1:14242"
 ).rstrip("/")
 API_KEY = (
     os.environ.get("NMEM_API_KEY")
-    or _nmem_cfg.get("apiKey")
+    or _config_value("apiKey", "api_key")
     or ""
 )
 REQUEST_TIMEOUT = 15
@@ -127,6 +136,10 @@ def api_request(method: str, path: str, body: dict | None = None) -> dict[str, A
         return None
 
 
+def api_path_quote(value: str) -> str:
+    return urllib.parse.quote(value, safe="")
+
+
 # ---------------------------------------------------------------------------
 # Session parsing
 # ---------------------------------------------------------------------------
@@ -200,14 +213,23 @@ def parse_session_messages(session_path: Path) -> list[dict[str, Any]]:
             if msg_type == "user":
                 text = extract_text_from_content(content)
                 if text:
-                    messages.append({"role": "user", "content": text})
+                    message_body: dict[str, Any] = {"role": "user", "content": text}
+                    if uuid:
+                        message_body["metadata"] = {"external_id": f"proma:{uuid}"}
+                    messages.append(message_body)
             elif msg_type == "assistant":
                 role = message.get("role", "assistant")
+                # Proma can emit msg_type="assistant" rows that carry role="user"
+                # for reflected user content. Skip those before calling
+                # extract_text_from_content so messages does not duplicate turns.
                 if role == "user":
                     continue
                 text = extract_text_from_content(content)
                 if text:
-                    messages.append({"role": "assistant", "content": text})
+                    message_body = {"role": "assistant", "content": text}
+                    if uuid:
+                        message_body["metadata"] = {"external_id": f"proma:{uuid}"}
+                    messages.append(message_body)
 
     return messages
 
@@ -225,9 +247,21 @@ def upload_thread(session_id: str, messages: list[dict], cwd: str | None) -> boo
         except Exception:
             pass
 
+    thread_id = f"proma-{session_id}"
+    thread_path_id = api_path_quote(thread_id)
+
+    append_body: dict[str, Any] = {
+        "messages": messages,
+        "deduplicate": True,
+        "idempotency_key": f"proma:{session_id}",
+    }
+    existing = api_request("GET", f"/threads/{thread_path_id}")
+    if existing is not None:
+        return api_request("POST", f"/threads/{thread_path_id}/append", append_body) is not None
+
     body: dict[str, Any] = {
         "source": "proma",
-        "thread_id": f"proma-{session_id}",
+        "thread_id": thread_id,
         "title": title,
         "messages": messages,
     }
@@ -246,10 +280,6 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--event", default="stop")
     args, _ = parser.parse_known_args()
-
-    if not API_KEY:
-        log("skip: no API key configured (set NMEM_API_KEY or ~/.nowledge-mem/config.json)")
-        return 0
 
     payload = read_hook_input()
     session_id = payload_value(payload, "session_id", "sessionId")

@@ -1,3 +1,8 @@
+---
+name: search-memory
+description: Search Nowledge Mem memories and threads from Proma when the user references past work, prior decisions, recurring problems, or project history.
+---
+
 # Search Memory
 
 Search your Nowledge Mem knowledge base proactively when past insights would improve the response.

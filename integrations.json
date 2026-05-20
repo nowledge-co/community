@@ -581,19 +581,19 @@
         "status": true
       },
       "threadSave": {
-        "method": "hook",
-        "note": "Stop hook runs save-to-nmem.py which parses Proma session JSONL from ~/.proma/agent-sessions/ and uploads messages to nmem via REST API. SessionStart hook injects Working Memory via read-working-memory.py."
+        "method": "plugin-capture",
+        "note": "Stop hook runs save-to-nmem.py which parses Proma session JSONL from ~/.proma/agent-sessions/ and appends messages to nmem via REST API. SessionStart hook injects Working Memory via read-working-memory.py."
       },
       "autonomy": {
         "bootstrap": "automatic",
-        "recall": "automatic",
-        "distill": "automatic",
+        "recall": "guided",
+        "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Add Nowledge Mem MCP server to ~/.proma/agent-workspaces/default/mcp.json (key: servers)",
           "Copy hook scripts to ~/.proma/hooks/",
           "Add Stop and SessionStart hooks to ~/.proma/settings.json",
-          "Copy nmem skill to ~/.proma/agent-workspaces/default/skills/nmem/",
+          "Copy the standard Nowledge Mem skill folders to ~/.proma/agent-workspaces/default/skills/",
           "Add nmem usage guidance to CLAUDE.md for tool selection (nmem vs built-in MemOS)",
           "Restart Proma after configuration changes"
         ]
@@ -602,7 +602,7 @@
         "command": "Manual setup — see plugin README for step-by-step instructions",
         "updateCommand": "Replace hook scripts and skill files from latest plugin release",
         "detectionHint": "~/.proma/agent-workspaces/default/mcp.json contains nowledge-mem server",
-        "docsUrl": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-proma-plugin"
+        "docsUrl": "/docs/integrations/proma"
       },
       "toolNaming": {
         "convention": "mcp-backend",

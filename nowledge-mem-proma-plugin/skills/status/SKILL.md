@@ -1,3 +1,8 @@
+---
+name: status
+description: Check whether Nowledge Mem is reachable from Proma, including MCP status, CLI fallback, API URL, and configuration issues after install or update.
+---
+
 # Status
 
 Check Nowledge Mem connection status and configuration for Proma.

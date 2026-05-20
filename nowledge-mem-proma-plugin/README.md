@@ -26,6 +26,22 @@ Add the Nowledge Mem MCP server to your Proma workspace `mcp.json`:
       "url": "http://127.0.0.1:14242/mcp/",
       "type": "streamableHttp",
       "headers": {
+        "APP": "Proma"
+      }
+    }
+  }
+}
+```
+
+Local Nowledge Mem usually does not require an API key. For remote Mem setups, replace the URL with your remote server and add your key:
+
+```json
+{
+  "servers": {
+    "nowledge-mem": {
+      "url": "https://mem.example.com/mcp/",
+      "type": "streamableHttp",
+      "headers": {
         "APP": "Proma",
         "Authorization": "Bearer <your-nmem-api-key>",
         "X-NMEM-API-Key": "<your-nmem-api-key>"
@@ -34,8 +50,6 @@ Add the Nowledge Mem MCP server to your Proma workspace `mcp.json`:
   }
 }
 ```
-
-For remote Mem setups, replace the URL with your remote server (e.g., `https://mem.example.com/mcp/`).
 
 ### 2. Install Hook Scripts
 
@@ -84,6 +98,14 @@ Merge the hooks configuration from `hooks/hooks.json` into `~/.proma/settings.js
 ```
 
 Replace `<proma-home>` with your actual Proma home path (usually `~/.proma` on macOS/Linux or `C:\Users\<user>\.proma` on Windows).
+
+If your Proma build expands environment variables in hook commands, you can instead set `PROMA_HOME` and keep the bundled `${PROMA_HOME}` paths from `hooks/hooks.json`:
+
+```bash
+export PROMA_HOME="$HOME/.proma"
+```
+
+The Python scripts also default to `~/.proma` when `PROMA_HOME` is not set, but the hook command itself still needs a path Proma can execute. The most portable setup is to use the literal path in `settings.json`.
 
 ### 4. Install the Skills
 
@@ -136,7 +158,7 @@ Proma Agent
 ## How It Works
 
 1. **MCP Tools** — `mcp__nowledge-mem__*` tools are available to the agent for on-demand memory operations: search past decisions, save new learnings, read working memory.
-2. **Stop Hook** — After every agent response, `save-to-nmem.py` parses the current Proma session JSONL (`~/.proma/agent-sessions/<id>.jsonl`) and uploads the messages to nmem's thread store via REST API.
+2. **Stop Hook** — After every agent response, `save-to-nmem.py` parses the current Proma session JSONL (`~/.proma/agent-sessions/<id>.jsonl`) and appends new messages to the matching nmem thread via REST API.
 3. **SessionStart Hook** — On new or resumed sessions, `read-working-memory.py` calls `nmem wm read` and outputs the briefing for context injection.
 4. **Skills** — Standard skills for read-working-memory, search-memory, distill-memory, save-thread, and status. Slash commands (`/nmem-save`, `/nmem-search`, `/nmem-status`) provide manual control as a fallback.
 
@@ -147,7 +169,7 @@ Proma stores sessions as JSONL files in `~/.proma/agent-sessions/`. Each line is
 - `message.content`: array of content blocks (text, tool_use, tool_result, thinking)
 - `uuid`: unique message identifier
 
-The save script deduplicates by UUID and extracts human-readable text from content blocks.
+The save script deduplicates by UUID, attaches message-level external IDs, and extracts human-readable text from content blocks.
 
 ## Configuration
 

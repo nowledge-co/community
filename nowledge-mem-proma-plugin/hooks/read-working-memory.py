@@ -33,12 +33,11 @@ def log(msg: str) -> None:
         pass
 
 
-def _find_nmem() -> str | None:
-    """Locate the nmem CLI executable.  Checks PATH first, then common
-    install paths, then falls back to ``uvx --from nmem-cli nmem``."""
+def _nmem_command_prefix() -> list[str] | None:
+    """Return the command prefix for invoking nmem."""
     found = shutil.which("nmem") or shutil.which("nmem.cmd")
     if found:
-        return found
+        return [found]
     # Check common install paths on Windows
     candidates = [
         Path(os.environ.get("LOCALAPPDATA", "")) / "Nowledge Mem" / "cli" / "nmem.cmd",
@@ -46,28 +45,25 @@ def _find_nmem() -> str | None:
     ]
     for p in candidates:
         if p.exists():
-            return str(p)
+            return [str(p)]
     # uvx fallback (per plugin development guide)
-    uvx = shutil.which("uvx") or shutil.which("uv")
+    uvx = shutil.which("uvx")
     if uvx:
-        return uvx  # caller will prepend "uvx --from nmem-cli nmem" args
+        return [uvx, "--from", "nmem-cli", "nmem"]
     return None
 
 
 def read_working_memory() -> dict[str, Any] | None:
-    nmem = _find_nmem()
-    if not nmem:
+    prefix = _nmem_command_prefix()
+    if not prefix:
         log("nmem CLI not found")
         return None
 
-    # If _find_nmem returned uvx, prepend the nmem package args
-    if nmem.endswith("uvx") or nmem.endswith("uv"):
-        cmd = [nmem, "--from", "nmem-cli", "nmem", "--json", "wm", "read"]
-    else:
-        cmd = [nmem, "--json", "wm", "read"]
-    # Wrap .cmd files through cmd.exe
-    if nmem.lower().endswith(".cmd"):
-        cmd = ["cmd.exe", "/s", "/c", subprocess.list2cmdline(cmd)]
+    cmd = [*prefix, "--json", "wm", "read"]
+    # Wrap Windows batch launchers through cmd.exe; keep argv split so quoted
+    # paths and following arguments are not flattened into one brittle string.
+    if Path(prefix[0]).name.lower().endswith(".cmd"):
+        cmd = ["cmd.exe", "/d", "/c", "call", *cmd]
 
     try:
         proc = subprocess.run(
