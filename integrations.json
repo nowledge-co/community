@@ -1,7 +1,19 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth — other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none. install.agentGuide stores the one-line prompt users can hand to an agent.",
-  "version": "1.0.0",
+  "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth — other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none. install.agentGuide stores the one-line prompt users can hand to an agent. connect.skillUrl is the universal install contract any agent can fetch to install Nowledge Mem for whichever host it runs in; per-tool agentGuide entries remain as a fallback when a user already knows which host they want.",
+  "version": "1.1.0",
+  "connect": {
+    "skillUrl": "https://mem.nowledge.co/SKILL.md",
+    "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install Nowledge Mem for the AI tool I am using.",
+    "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为我当前使用的 AI 工具安装 Nowledge Mem。",
+    "designDoc": "docs/design/ONBOARDING_REVISIT_0_9_0.md",
+    "appliesTo": [
+      "claude-code", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
+      "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode",
+      "claude-desktop", "proma", "mcp-direct"
+    ],
+    "doesNotApplyTo": ["browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
+  },
   "integrations": [
     {
       "id": "claude-code",
