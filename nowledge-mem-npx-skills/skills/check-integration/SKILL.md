@@ -27,6 +27,14 @@ If this fails, Nowledge Mem is not installed or not running. Guide the user:
 
 ## Step 2: Detect Agent and Recommend The Best Path
 
+For a fresh install, start from the universal connect skill:
+
+```text
+Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for the AI tool I am using.
+```
+
+Use this check-integration skill as the diagnostic fallback: confirm what was installed, explain what behavior the user should expect, and repair configuration when something failed.
+
 Do not only answer "install X". Explain the behavior contract the user will get:
 
 1. what starts automatically
@@ -57,14 +65,14 @@ The canonical source for this table is `community/integrations.json`.
 |-------|--------------|----------------------|------|
 | **Claude Code** | Running as Claude Code agent; `~/.claude/` exists | `claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
 | **OpenClaw** | Running as OpenClaw agent; `~/.openclaw/` exists | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/openclaw) |
-| **Cursor** | Running inside Cursor IDE | Link `nowledge-mem-cursor-plugin` into `~/.cursor/plugins/local/nowledge-mem-cursor`, then reload Cursor | [Guide](https://mem.nowledge.co/docs/integrations/cursor) |
-| **Gemini CLI** | Running as Gemini CLI agent; `~/.gemini/` exists | Search "Nowledge Mem" in the Gemini CLI Extensions Gallery | [Guide](https://mem.nowledge.co/docs/integrations/gemini-cli) |
+| **Cursor** | Running inside Cursor IDE | Copy `nowledge-mem-cursor-plugin` from the community repo into `~/.cursor/plugins/local/nowledge-mem-cursor`, then reload Cursor | [Guide](https://mem.nowledge.co/docs/integrations/cursor) |
+| **Gemini CLI** | Running as Gemini CLI agent; `~/.gemini/` exists | `gemini extensions install https://github.com/nowledge-co/nowledge-mem-gemini-cli --auto-update` or install "Nowledge Mem" from the Extensions Gallery | [Guide](https://mem.nowledge.co/docs/integrations/gemini-cli) |
 | **Alma** | Running inside Alma; `~/.config/alma/` exists | In Alma: Settings > Plugins > Marketplace, search "Nowledge Mem" | [Guide](https://mem.nowledge.co/docs/integrations/alma) |
 | **Droid** | Running inside Droid (Factory) | Add nowledge-co/community marketplace, install nowledge-mem@nowledge-community | [Guide](https://mem.nowledge.co/docs/integrations/droid) |
-| **Codex CLI** | Running as Codex CLI agent; `~/.codex/` exists | `codex plugin marketplace add nowledge-co/community` (legacy fallback: `codex marketplace add nowledge-co/community`), install `nowledge-mem@nowledge-community` from `/plugins`, enable `[features] plugins = true`, `hooks = true`, `plugin_hooks = true`, and `[plugins."nowledge-mem@nowledge-community"] enabled = true`, then run the installed `scripts/install_hooks.py` once for automatic thread capture. Add `mcp_servers.nowledge-mem` only when overriding the bundled local MCP endpoint. | [Guide](https://mem.nowledge.co/docs/integrations/codex-cli) |
+| **Codex CLI** | Running as Codex CLI agent; `~/.codex/` exists | `codex plugin marketplace add nowledge-co/community && codex plugin add nowledge-mem@nowledge-community`, enable `[features] plugins = true`, `hooks = true`, `plugin_hooks = true`, and `[plugins."nowledge-mem@nowledge-community"] enabled = true`, then run the installed `scripts/install_hooks.py` once for automatic thread capture. Add `mcp_servers.nowledge-mem` only when overriding the bundled local MCP endpoint. | [Guide](https://mem.nowledge.co/docs/integrations/codex-cli) |
 | **Bub** | Running inside Bub | `pip install nowledge-mem-bub` | [Guide](https://mem.nowledge.co/docs/integrations/bub) |
 | **Pi** | Running as Pi agent; `~/.pi/` exists | `pi install npm:nowledge-mem-pi` | [Guide](https://mem.nowledge.co/docs/integrations/pi) |
-| **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | Add `"opencode-nowledge-mem"` to `opencode.json` plugin array | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
+| **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | `opencode plugin opencode-nowledge-mem -g` | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
 | **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Install the native Hermes provider (or use MCP only as fallback) | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
 
 If the agent is not listed above:

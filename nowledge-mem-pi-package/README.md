@@ -89,7 +89,7 @@ That keeps your custom behavior durable across package updates.
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/pi)
-- [All Integrations](https://mem.nowledge.co/docs/integrations)
+- [All Connectors](https://mem.nowledge.co/docs/integrations)
 - [GitHub](https://github.com/nowledge-co/community)
 
 ---

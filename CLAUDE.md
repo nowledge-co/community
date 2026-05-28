@@ -8,13 +8,13 @@
 
 ## Universal Install Contract — SKILL.md
 
-`https://mem.nowledge.co/SKILL.md` is the **one URL** any AI agent can fetch to install Nowledge Mem for whichever host it runs in. Source lives at [`nowledge-labs-website/nowledge-mem/public/SKILL.md`](../nowledge-labs-website/nowledge-mem/public/SKILL.md). The design doc is [`docs/design/ONBOARDING_REVISIT_0_9_0.md`](../docs/design/ONBOARDING_REVISIT_0_9_0.md).
+`https://mem.nowledge.co/SKILL.md` is the **one URL** an AI agent can fetch before installing Nowledge Mem for a supported host. Source lives at <https://github.com/nowledge-co/nowledge-labs-website/blob/main/nowledge-mem/public/SKILL.md>. The design doc is <https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md>.
 
 When adding or changing an integration's install command, update both:
 1. The integration's row in [`integrations.json`](integrations.json) (`install.command`, `install.detectionHint`, `install.agentGuide`).
 2. The matching row in the SKILL.md's "Step 2 — Install for that host" table, if the install command changes.
 
-The per-tool `agentGuide.prompt` entries in `integrations.json` remain as a layered fallback when a user already knows which host they want; they are not a replacement for SKILL.md.
+Per-tool `install.agentGuide` prompts in `integrations.json` should still point to `https://mem.nowledge.co/SKILL.md` first. Per-tool website pages are behavior and troubleshooting references after the connect loop starts, not the primary install contract.
 
 The desktop app fetches this file at runtime from `https://raw.githubusercontent.com/nowledge-co/community/main/integrations.json` for plugin update awareness. Changes to the schema (adding/removing/renaming fields) affect:
 - **Rust** (`lib.rs`): `fetch_plugin_registry`, `detect_installed_plugins`, `write_plugin_update_state`

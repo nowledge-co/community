@@ -302,6 +302,30 @@ def test_key_plugin_static_contracts_are_declared():
     assert "nowledge_mem_save_thread" in opencode_source
 
 
+def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    connect = registry["connect"]
+    integrations = registry["integrations"]
+    integration_ids = {entry["id"] for entry in integrations}
+
+    assert connect["skillUrl"] == "https://mem.nowledge.co/SKILL.md"
+    assert "https://mem.nowledge.co/SKILL.md" in connect["prompt"]
+    assert "https://mem.nowledge.co/SKILL.md" in connect["promptZh"]
+    assert set(connect["appliesTo"]) <= integration_ids
+    assert set(connect["doesNotApplyTo"]) <= integration_ids
+
+    agent_guide_entries = [
+        entry for entry in integrations if entry.get("install", {}).get("agentGuide")
+    ]
+    assert agent_guide_entries
+    for entry in agent_guide_entries:
+        guide = entry["install"]["agentGuide"]
+        assert "https://mem.nowledge.co/SKILL.md" in guide["prompt"], entry["id"]
+        assert "https://mem.nowledge.co/SKILL.md" in guide["promptZh"], entry["id"]
+        assert "/docs/integrations/" not in guide["prompt"], entry["id"]
+        assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
+
+
 def test_claude_read_hooks_keep_file_fallback_without_plugin_root(tmp_path):
     hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     home = tmp_path / "home"
