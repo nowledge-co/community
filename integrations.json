@@ -43,7 +43,7 @@
         "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
-          "Install the native plugin",
+          "Install the native connector",
           "Keep nmem available on this machine",
           "Restart Claude Code after install or update"
         ]
@@ -93,7 +93,7 @@
         "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
-          "Install the native plugin",
+          "Install the native connector",
           "Keep nmem available on this machine",
           "Restart Copilot CLI after install so hooks reload"
         ]
@@ -706,7 +706,7 @@
         "bestResultRequires": [
           "Install the shared skills package",
           "Keep nmem available on this machine",
-          "Use a native integration instead when your host has one"
+          "Use a native connector instead when your host has one"
         ]
       },
       "install": {
@@ -968,7 +968,7 @@
           "Add the Nowledge Mem MCP server",
           "Add the provided system prompt or AGENTS.md guidance",
           "Use nmem config mcp show --host <host> for remote Mem credentials",
-          "Prefer a native integration when one exists for your host"
+          "Prefer a native connector when one exists for your host"
         ]
       },
       "install": {

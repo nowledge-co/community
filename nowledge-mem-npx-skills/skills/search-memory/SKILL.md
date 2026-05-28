@@ -13,7 +13,7 @@ description: Search your personal knowledge base when past insights would improv
 
 - the user references previous work, a prior fix, or an earlier decision
 - the task resumes a named feature, bug, refactor, incident, or subsystem
-- the task is a review, regression, release, docs-alignment, or integration-behavior question
+- the task is a review, regression, release, docs-alignment, or connector-behavior question
 - a debugging pattern resembles something solved earlier
 - the user asks for rationale, preferences, procedures, or recurring workflow details
 - the user uses implicit recall language: "that approach", "like before", "the pattern we used"
@@ -36,6 +36,6 @@ For continuation-heavy engineering work, search near the start of the task. Do n
 
 If the host already knows the active project or agent lane, add `--space "<space name>"` to these commands.
 
-## Native Plugin
+## Native Connector
 
-These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem plugin — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations
+These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem connector — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations

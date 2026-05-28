@@ -34,6 +34,6 @@ If status fails:
 - Check that `nmem` is installed: `pip install nmem-cli` or use `uvx --from nmem-cli nmem`
 - For remote mode, verify `~/.nowledge-mem/config.json` has correct `apiUrl` and `apiKey`
 
-## Native Plugin
+## Native Connector
 
-These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem plugin — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations
+These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem connector — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations

@@ -14,7 +14,7 @@ That keeps the integration sharp, durable, and easy to reason about.
 
 ## Memory Lifecycle
 
-This package follows the same core flow as the richer native integrations:
+This package follows the same core flow as the richer native connectors:
 
 1. read Working Memory for current priorities
 2. route recall across memories and threads

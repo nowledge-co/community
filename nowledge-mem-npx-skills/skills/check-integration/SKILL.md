@@ -1,11 +1,11 @@
 ---
 name: check-integration
-description: Check Nowledge Mem setup, detect your agent, and guide native plugin installation. Use when the user asks about setup, configuration, or when memory tools aren't working as expected.
+description: Check Nowledge Mem setup, detect your agent, and guide native connector setup. Use when the user asks about setup, configuration, or when memory tools aren't working as expected.
 ---
 
-# Check Integration
+# Check Connector
 
-> Verify Nowledge Mem is running and guide the user to the best integration for their agent.
+> Verify Nowledge Mem is running and guide the user to the best connector for their agent.
 
 ## When to Use
 
@@ -13,7 +13,7 @@ description: Check Nowledge Mem setup, detect your agent, and guide native plugi
 - Memory tools are failing or not available
 - User asks "is my memory working?" or "how do I set up Nowledge Mem?"
 - First time using Nowledge Mem in this agent
-- User asks about upgrading from skills to a native plugin
+- User asks about upgrading from skills to a native connector
 
 ## Step 1: Check nmem CLI
 
@@ -43,8 +43,8 @@ Do not only answer "install X". Explain the behavior contract the user will get:
 
 Use this priority order:
 
-1. **Native integration first** when the host has one
-2. **Reusable package** when the host supports shared skills/prompts but has no native integration
+1. **Native connector first** when the host has one
+2. **Reusable package** when the host supports shared skills/prompts but has no native connector
 3. **Direct MCP** only when there is no better package path
 
 Fresh users care about outcome, not transport. Tell them what they will actually get after setup.
@@ -53,15 +53,15 @@ Fresh users care about outcome, not transport. Tell them what they will actually
 
 | Path | What usually happens | What it does not guarantee |
 |------|----------------------|----------------------------|
-| **Native integration** | Strongest setup: session bootstrap is often automatic; some hosts also add auto-capture or hook-driven recall | Exact proactive recall/distill timing can still be host-specific |
+| **Native connector** | Strongest setup: session bootstrap is often automatic; some hosts also add auto-capture or hook-driven recall | Exact proactive recall/distill timing can still be host-specific |
 | **Reusable package** | Working Memory, recall, and distill are guided by rules/skills | The host may still ignore the guidance unless prompts and project guidance are strong |
 | **Direct MCP** | Tools are available; with the recommended prompt block, the agent can use them proactively | MCP alone does not create host-enforced autonomy |
 
-Check which agent you're running in and recommend the native plugin if available.
+Check which agent you're running in and recommend the native connector if available.
 
 The canonical source for this table is `community/integrations.json`.
 
-| Agent | How to Detect | Native Plugin Install | Docs |
+| Agent | How to Detect | Native connector setup | Docs |
 |-------|--------------|----------------------|------|
 | **Claude Code** | Running as Claude Code agent; `~/.claude/` exists | `claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
 | **OpenClaw** | Running as OpenClaw agent; `~/.openclaw/` exists | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/openclaw) |
@@ -80,7 +80,7 @@ If the agent is not listed above:
 - use the shared `npx skills` package when the host supports it
 - otherwise use direct MCP plus the recommended prompt block
 
-Do not describe raw MCP as equivalent to a native integration.
+Do not describe raw MCP as equivalent to a native connector.
 
 ## Step 3: Verify
 
@@ -90,7 +90,7 @@ After setup, verify with:
 nmem --json m search "test" -n 1
 ```
 
-If this returns results (or an empty list with no error), the integration is working.
+If this returns results (or an empty list with no error), the connector is working.
 
 Then state the expected outcome in plain language:
 
@@ -106,9 +106,9 @@ If the path is only `guided`, say what strengthens it:
 - merge the package `AGENTS.md` or equivalent repo guidance when recommended
 - configure the local `nmem` client in remote mode
 
-## What Native Plugins Add
+## What Native Connectors Add
 
-Skills give you CLI-based memory access. Native plugins usually add:
+Skills give you CLI-based memory access. Native connectors usually add:
 
 - **Auto-recall**: relevant memories injected before each response (no manual search needed)
 - **Auto-capture**: conversations saved as searchable threads at session end
@@ -121,6 +121,6 @@ Do not promise all of these on every host. Match the actual path the user is set
 
 ## Links
 
-- [All integrations](https://mem.nowledge.co/docs/integrations)
+- [All Connectors](https://mem.nowledge.co/docs/integrations)
 - [Documentation](https://mem.nowledge.co/docs)
 - [Discord Community](https://nowled.ge/discord)

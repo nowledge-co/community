@@ -1,6 +1,6 @@
 ---
 name: save-thread
-description: Deprecated compatibility skill. In generic npx skills environments this must degrade honestly to a resumable handoff, because real transcript-backed thread import is not guaranteed. Prefer save-handoff here, and use native integrations when you need actual session capture.
+description: Deprecated compatibility skill. In generic npx skills environments this must degrade honestly to a resumable handoff, because real transcript-backed thread import is not guaranteed. Prefer save-handoff here, and use native connectors when you need actual session capture.
 ---
 
 # Save Thread (Deprecated Compatibility)
@@ -35,9 +35,9 @@ In generic skill environments, treat `save-thread` as an alias for `save-handoff
 
 ## When Real Thread Save Is Feasible
 
-Use a dedicated native integration when the runtime has a real transcript importer.
+Use a dedicated native connector when the runtime has a real transcript importer.
 
-Examples include Nowledge integrations such as:
+Examples include Nowledge connectors such as:
 
 - Gemini CLI
 - Claude Code
@@ -54,7 +54,7 @@ Use **save-handoff** when:
 
 Use a native **save-thread** only when:
 
-- the agent has a dedicated Nowledge integration for that runtime
+- the agent has a dedicated Nowledge connector for that runtime
 - real transcript import is actually implemented for that runtime
 - you want the actual session captured for later search and inspection
 
@@ -79,6 +79,6 @@ Thread ID: {thread_id}
 
 Always explain that this compatibility skill creates a resumable handoff, not a real transcript import.
 
-## Native Plugin
+## Native Connector
 
-These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem plugin — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations
+These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem connector — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations

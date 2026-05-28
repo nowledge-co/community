@@ -11,7 +11,7 @@ description: "Search your knowledge base when past decisions, preferences, or pr
 
 - References prior work: "the approach we used", "like last time"
 - Resumes a named feature, project, or migration
-- Review, regression, release, docs-alignment, or integration-behavior task
+- Review, regression, release, docs-alignment, or connector-behavior task
 - Debugging resembles a past fix or known root cause
 - Asks for rationale: "why did we choose X?"
 - Recurring theme discussed in earlier sessions

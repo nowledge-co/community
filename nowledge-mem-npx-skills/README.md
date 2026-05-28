@@ -15,7 +15,7 @@ These skills extend your AI coding agent with persistent memory capabilities pow
 - **Save Handoff** - Leave resumable handoff summaries in generic agent environments
 - **Save Thread (Deprecated Compatibility)** - Preserved for users who already installed the old skill name; in generic runtimes it must degrade honestly to a handoff, not claim lossless transcript import
 - **Distill Memory** - Capture breakthrough moments as searchable insights, with proactive save guidance
-- **Check Integration** - Detect your agent, verify setup, and guide native plugin installation for richer features
+- **Check Integration** - Detect your agent, verify setup, and guide native connector setup for richer features
 - **Status** - Check Nowledge Mem connection, server version, CLI version, and configuration
 
 ## Installation
@@ -129,7 +129,7 @@ This old skill name is kept for compatibility because indexed `npx skills` entri
 
 **What it means now:**
 - In generic `npx skills` environments, `save-thread` must behave like `save-handoff`
-- It must **not** claim a real transcript-backed thread import unless the runtime has a dedicated native integration that actually supports one
+- It must **not** claim a real transcript-backed thread import unless the runtime has a dedicated native connector that actually supports one
 
 **Why:**
 - A shared skills package does not control whether the host agent exposes readable session transcripts
@@ -137,12 +137,12 @@ This old skill name is kept for compatibility because indexed `npx skills` entri
 - Pretending this is a lossless thread save would be misleading for users and harmful for retrieval quality later
 
 **If you need real thread save:**
-- Use a native integration that has a real importer for that runtime
-- Today that includes dedicated Nowledge integrations such as Gemini CLI or Claude Code, where `nmem t save --from ...` can read local session files on the client machine
+- Use a native connector that has a real importer for that runtime
+- Today that includes dedicated Nowledge connectors such as Gemini CLI or Claude Code, where `nmem t save --from ...` can read local session files on the client machine
 
 **What to say as a user:**
 - In generic agents: ask for **save handoff** or **checkpoint this**
-- In native integrations with transcript import: ask for **save thread** when you want the actual session captured
+- In native connectors with transcript import: ask for **save thread** when you want the actual session captured
 
 ### Read Working Memory (`read-working-memory`)
 
@@ -194,13 +194,13 @@ nmem --json m search "React patterns"
 
 ### Memory Lifecycle
 
-The reusable skills follow the same core flow as the richer native integrations: read Working Memory, route recall across memories and threads, save a resumable handoff when asked, and distill durable knowledge.
+The reusable skills follow the same core flow as the richer native connectors: read Working Memory, route recall across memories and threads, save a resumable handoff when asked, and distill durable knowledge.
 
 For generic `npx skills` environments, treat `save-handoff` as the honest default. The deprecated `save-thread` compatibility skill stays published only so existing indexed installs do not break or mislead users.
 
 ## Make Agents Use Memory Proactively
 
-Native integrations like Claude Code, Gemini CLI, Cursor, OpenClaw, and Alma already bundle the behavioral guidance that teaches the agent when to read context, search, or save.
+Native connectors like Claude Code, Gemini CLI, Cursor, OpenClaw, and Alma already bundle the behavioral guidance that teaches the agent when to read context, search, or save.
 
 For less common agents, custom harnesses, or environments that only see `nmem`, skills, or MCP tools, you should add explicit intent guidance in `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or the system prompt.
 

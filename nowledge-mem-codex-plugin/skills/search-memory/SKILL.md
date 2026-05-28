@@ -13,7 +13,7 @@ For continuation-style engineering work, search near the start of the task. Do n
 
 - The user references previous work, a prior fix, or an earlier decision
 - The task resumes a named feature, bug, refactor, incident, or subsystem
-- The task is a review, regression, release, docs-alignment, or integration-behavior question
+- The task is a review, regression, release, docs-alignment, or connector-behavior question
 - A debugging pattern resembles something solved earlier
 - The user asks for rationale, preferences, procedures, or recurring workflow details
 - The user uses implicit recall language: "that approach", "like before", "the pattern we used"

@@ -30,6 +30,6 @@ Prefer atomic, standalone memories with strong titles and clear meaning. Focus o
 
 Use structured saves when possible: `--unit-type` (decision, procedure, learning, preference, event), `-l` labels, `-i` importance (0.8–1.0 major decisions, 0.5–0.7 useful patterns, 0.3–0.4 minor notes).
 
-## Native Plugin
+## Native Connector
 
-These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem plugin — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations
+These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem connector — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations

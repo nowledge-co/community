@@ -13,7 +13,7 @@ Search when:
 
 - the user references previous work, a prior fix, or an earlier decision
 - the task resumes a named feature, bug, refactor, incident, or subsystem
-- the task is a review, regression, release, docs-alignment, or integration-behavior question
+- the task is a review, regression, release, docs-alignment, or connector-behavior question
 - a debugging pattern resembles something solved earlier
 - the user asks for rationale, preferences, procedures, or "how we usually do this"
 - the user uses implicit recall language: "that approach", "like before"

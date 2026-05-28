@@ -11,7 +11,7 @@ description: Search memory and thread history when past knowledge would material
 
 - the current task connects to prior work
 - the bug or design resembles something solved earlier
-- the task is a review, regression, release, docs-alignment, or integration-behavior question
+- the task is a review, regression, release, docs-alignment, or connector-behavior question
 - the user asks why a decision was made
 - a previous discussion or session likely contains the missing context
 - the user uses implicit recall language: "that approach", "like before"
