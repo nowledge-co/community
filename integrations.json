@@ -168,7 +168,7 @@
     },
     {
       "id": "codex-cli",
-      "name": "Codex CLI",
+      "name": "Codex",
       "category": "coding",
       "type": "plugin",
       "version": "0.1.13",
@@ -196,7 +196,7 @@
         "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
-          "Install the Codex package and enable plugins in ~/.codex/config.toml",
+          "Install the Codex package and enable plugins in ~/.codex/config.toml, which is shared by the Codex desktop app and Codex CLI",
           "Run the bundled hook setup after install or update so Codex enables lifecycle hooks, enables plugin-bundled hooks, keeps the Nowledge Mem Stop hook enabled in /hooks, and can install a managed MCP override from nmem config when needed",
           "Use the bundled local MCP server, or use nmem config mcp show --host codex to override mcp_servers.nowledge-mem for remote Mem or authenticated localhost",
           "Keep nmem available on this machine",
@@ -207,10 +207,10 @@
         "command": "codex plugin marketplace add nowledge-co/community && codex plugin add nowledge-mem@nowledge-community",
         "updateCommand": "(codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community) && codex plugin add nowledge-mem@nowledge-community",
         "configRequired": "After marketplace add or upgrade, install or update nowledge-mem@nowledge-community from Codex /plugins, then set [features] plugins = true, hooks = true, plugin_hooks = true, and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. Run the installed scripts/install_hooks.py once after the package itself is installed; it enables Stop-hook thread capture, keeps the Nowledge Mem Stop hook enabled in /hooks, and, when nmem has saved credentials, writes a managed mcp_servers.nowledge-mem override. Add your own [mcp_servers.nowledge-mem] only for a deliberate custom endpoint.",
-        "detectionHint": "Running as Codex CLI agent; ~/.codex/ exists",
+        "detectionHint": "Running inside Codex desktop or Codex CLI; ~/.codex/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Codex CLI. Verify with nmem status and the Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Codex CLI 安装或更新 Nowledge Mem。用 nmem status 和 Working Memory 检查验证结果，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Codex. Verify with nmem status and the Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Codex 安装或更新 Nowledge Mem。用 nmem status 和 Working Memory 检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/codex-cli"
       },
