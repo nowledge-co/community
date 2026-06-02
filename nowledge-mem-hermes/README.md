@@ -4,7 +4,7 @@
 
 Hermes has its own memory and learning system. Nowledge Mem complements it with knowledge that spans tools: insights from Claude Code, Cursor, Codex, Gemini, and every other environment you work in. One knowledge graph, available everywhere.
 
-Until this provider is accepted into `NousResearch/hermes-agent`, the supported distribution path is this community package plus the install script below. The upstream PR is the official long-term home; this README keeps the pre-merge path explicit so users can install it now without waiting.
+Hermes now asks new memory providers to ship outside the core `hermes-agent` tree. This community package is the supported Nowledge Mem distribution: it installs as a standalone provider in `~/.hermes/plugins/nowledge-mem/`, which Hermes discovers through its normal memory-provider lifecycle.
 
 ## Install
 

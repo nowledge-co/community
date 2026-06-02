@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Updated Hermes release guidance after upstream closed new in-tree memory providers. The Nowledge Mem Hermes integration now treats the standalone community package as the canonical release path, with upstream limited to an optional docs listing.
+
 ## [0.5.15] - 2026-05-14
 
 ### Fixed
