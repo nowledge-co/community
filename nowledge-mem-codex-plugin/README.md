@@ -70,10 +70,16 @@ Or `pip install nmem-cli`. Then verify with `nmem status`.
 
 ### Home-level (all projects)
 
-Add the Nowledge marketplace:
+Add the Nowledge Community marketplace:
 
 ```bash
 codex plugin marketplace add nowledge-co/community
+```
+
+Install the package from that marketplace:
+
+```bash
+codex plugin add nowledge-mem@nowledge-community
 ```
 
 If your Codex build still uses the legacy top-level subcommand:
@@ -82,7 +88,7 @@ If your Codex build still uses the legacy top-level subcommand:
 codex marketplace add nowledge-co/community
 ```
 
-Install `nowledge-mem@nowledge-community` from Codex `/plugins`.
+You can also install it from Codex `/plugins`; the CLI command above is the same marketplace-backed install path.
 
 Then put this in `~/.codex/config.toml` to enable the plugin:
 
@@ -212,13 +218,14 @@ If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
 
 ## Update
 
-If you installed the Codex package before `0.1.13`, refresh the marketplace first. Current Codex builds may refresh the marketplace checkout without reinstalling the already-installed package cache, so the hook setup file or bundled hook changes may still be missing until the package itself is updated from `/plugins`.
+If you installed the Codex package before `0.1.13`, refresh the marketplace first. Current Codex builds may refresh the marketplace checkout without reinstalling the already-installed package cache, so the hook setup file or bundled hook changes may still be missing until the package itself is updated.
 
 ```bash
 codex plugin marketplace upgrade nowledge-community
+codex plugin add nowledge-mem@nowledge-community
 ```
 
-Open Codex, run `/plugins`, update or reinstall `nowledge-mem@nowledge-community`, then restart Codex.
+You can also update or reinstall `nowledge-mem@nowledge-community` from Codex `/plugins`. Restart Codex after the package is updated.
 
 After the package itself is updated, refresh the host-level hook runtime:
 
