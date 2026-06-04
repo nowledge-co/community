@@ -87,7 +87,7 @@ Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically; past
 ## Requirements
 
 - [Nowledge Mem](https://mem.nowledge.co) running locally
-- `nmem` CLI on your PATH: if Mem is running on the same machine, install it from **Settings > Preferences > Developer Tools > Install CLI** in the app, or use `pip install nmem-cli` for a standalone setup
+- `nmem` CLI on your PATH: if Mem is running on the same machine, install it from **Settings > Preferences > Developer Tools > Install CLI** in the app, use `pip install nmem-cli` for a standalone setup, or on Arch Linux install the [`nmem-cli` AUR package](https://aur.archlinux.org/packages/nmem-cli) with `yay -S nmem-cli` or `paru -S nmem-cli`
 
 ```bash
 nmem status   # verify Nowledge Mem is running

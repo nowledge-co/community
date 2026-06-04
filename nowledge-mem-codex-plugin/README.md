@@ -64,7 +64,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uvx --from nmem-cli nmem --version
 ```
 
-Or `pip install nmem-cli`. Then verify with `nmem status`.
+Or `pip install nmem-cli`. On Arch Linux, use the AUR package:
+
+```bash
+yay -S nmem-cli
+# or: paru -S nmem-cli
+```
+
+Then verify with `nmem status`.
 
 ## Install
 

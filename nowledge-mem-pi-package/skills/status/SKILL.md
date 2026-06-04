@@ -29,7 +29,7 @@ nmem --json status
 **If it fails:**
 
 1. Check that the Nowledge Mem desktop app is running, or that `nmem serve` is active on your server.
-2. Verify `nmem` is installed: `pip install nmem-cli` or `pipx install nmem-cli`.
+2. Verify `nmem` is installed: `pip install nmem-cli`, `pipx install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`.
 3. For remote servers, ensure `~/.nowledge-mem/config.json` contains valid `apiUrl` and `apiKey` fields, or set `NMEM_API_URL` and `NMEM_API_KEY` environment variables.
 
 ## Links

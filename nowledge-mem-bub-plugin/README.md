@@ -14,6 +14,7 @@ pip install nowledge-mem-bub
 
 ```bash
 pip install nmem-cli    # or: pipx install nmem-cli
+# Arch Linux: yay -S nmem-cli  # or: paru -S nmem-cli
 nmem status             # verify connection
 ```
 

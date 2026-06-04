@@ -21,6 +21,7 @@ Pi gains five skills that connect it to your Nowledge Mem knowledge base:
 
 ```bash
 pip install nmem-cli    # or: pipx install nmem-cli
+# Arch Linux: yay -S nmem-cli  # or: paru -S nmem-cli
 nmem status             # verify connection
 ```
 
@@ -78,7 +79,7 @@ That keeps your custom behavior durable across package updates.
 
 ## Troubleshooting
 
-**nmem not found:** Install with `pip install nmem-cli` or `pipx install nmem-cli`.
+**nmem not found:** Install with `pip install nmem-cli`, `pipx install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`.
 
 **Server not running:** Start the Nowledge Mem desktop app, or run `nmem serve` on your server.
 

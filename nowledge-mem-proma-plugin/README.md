@@ -9,7 +9,7 @@ Integrates Nowledge Mem's personal knowledge graph into [Proma](https://github.c
 - [Proma](https://github.com/proma-ai/proma) desktop app
 - Nowledge Mem server running (desktop app or remote)
 - Python 3.9+ (for hook scripts)
-- `nmem` CLI in PATH (bundled with [Nowledge Mem desktop app](https://mem.nowledge.co/), or `pip install nmem-cli`)
+- `nmem` CLI in PATH (bundled with [Nowledge Mem desktop app](https://mem.nowledge.co/), `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`)
 
 ## Installation
 
@@ -194,7 +194,7 @@ The hook scripts read credentials from standard nmem config (`~/.nowledge-mem/co
 - Ensure hook commands use correct absolute paths
 
 **"nmem CLI not found":**
-- Install via `pip install nmem-cli` or the Nowledge Mem desktop app
+- Install via the Nowledge Mem desktop app, `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`
 - Verify `nmem --version` works in your terminal
 
 **Session not saved:**

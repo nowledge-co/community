@@ -72,6 +72,16 @@ pip install nmem-cli
 nmem --version
 ```
 
+**Option 3: Arch Linux AUR**
+
+```bash
+yay -S nmem-cli
+# or: paru -S nmem-cli
+nmem --version
+```
+
+Package: https://aur.archlinux.org/packages/nmem-cli
+
 ### 2. Nowledge Mem Server
 
 Ensure the Nowledge Mem server is running at `http://localhost:14242`.
