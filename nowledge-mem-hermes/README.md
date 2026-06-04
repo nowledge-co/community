@@ -56,7 +56,7 @@ This adds the MCP server to `config.yaml` and installs behavioral guidance in `~
 
 1. **Nowledge Mem desktop app** running (or the server accessible on port 14242)
 2. **Hermes Agent** installed and configured
-3. **`nmem` CLI** available on PATH. If the desktop app is on the same machine, `nmem` is already bundled. Otherwise: `pip install nmem-cli`
+3. **`nmem` CLI** available on PATH. If the desktop app is on the same machine, `nmem` is already bundled. Otherwise use `pip install nmem-cli`, or on Arch Linux use `yay -S nmem-cli` / `paru -S nmem-cli`.
 
 ## What the plugin does
 

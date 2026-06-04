@@ -21,6 +21,7 @@ Pi gains five skills that connect it to your Nowledge Mem knowledge base:
 
 ```bash
 pip install nmem-cli    # or: pipx install nmem-cli
+# Arch Linux: yay -S nmem-cli  # or: paru -S nmem-cli
 nmem status             # verify connection
 ```
 

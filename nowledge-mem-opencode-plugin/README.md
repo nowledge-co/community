@@ -14,7 +14,7 @@ Nowledge Mem gives OpenCode access to knowledge from all your other AI tools: in
 ## Prerequisites
 
 1. **Nowledge Mem desktop app** running (or the server accessible on port 14242)
-2. **`nmem` CLI** on your PATH. In Nowledge Mem go to **Settings > Developer Tools > Install CLI**, or `pip install nmem-cli`
+2. **`nmem` CLI** on your PATH. In Nowledge Mem go to **Settings > Developer Tools > Install CLI**, use `pip install nmem-cli`, or on Arch Linux use `yay -S nmem-cli` / `paru -S nmem-cli`
 3. **OpenCode** installed
 
 ```bash

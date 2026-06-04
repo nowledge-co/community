@@ -53,6 +53,10 @@ pip install nmem-cli
 # Option 2: uvx
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uvx --from nmem-cli nmem --version
+
+# Option 3: Arch Linux AUR
+yay -S nmem-cli
+# or: paru -S nmem-cli
 ```
 
 Verify the connection:

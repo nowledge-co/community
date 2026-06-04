@@ -38,6 +38,6 @@ Thread ID: {thread_id from nmem output}
 
 ## Troubleshooting
 
-If `nmem` is not in PATH: `pip install nmem-cli`
+If `nmem` is not in PATH: `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`
 
 Run `nmem status` to check server connection.

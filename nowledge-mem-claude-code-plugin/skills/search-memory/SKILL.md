@@ -93,7 +93,7 @@ None: State clearly, suggest distilling if current discussion valuable
 
 ## Troubleshooting
 
-If `nmem` is not in PATH: `pip install nmem-cli`
+If `nmem` is not in PATH: `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`
 
 For remote servers: run `nmem config client set url https://...` and `nmem config client set api-key ...` once on this machine.
 

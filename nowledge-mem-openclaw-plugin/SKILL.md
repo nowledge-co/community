@@ -74,7 +74,7 @@ nmem --version
 If this fails:
 
 - For users with the desktop app, direct them to **Settings > Preferences > Developer Tools > Install CLI**
-- Otherwise suggest `pip install nmem-cli`
+- Otherwise suggest `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`
 
 ### Step 2 — Verify the Backend Before Plugin Setup
 
