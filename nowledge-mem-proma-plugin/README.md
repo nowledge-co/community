@@ -194,7 +194,7 @@ The hook scripts read credentials from standard nmem config (`~/.nowledge-mem/co
 - Ensure hook commands use correct absolute paths
 
 **"nmem CLI not found":**
-- Install via `pip install nmem-cli` or the Nowledge Mem desktop app
+- Install via the Nowledge Mem desktop app, `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`
 - Verify `nmem --version` works in your terminal
 
 **Session not saved:**

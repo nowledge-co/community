@@ -143,7 +143,7 @@ Shared spaces, default retrieval, and agent guidance still come from Mem's own s
 
 ## Troubleshooting
 
-- **nmem not found.** Install with `pip install nmem-cli`, then run `nmem status` to verify.
+- **nmem not found.** Install with `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`, then run `nmem status` to verify.
 - **Server not responding.** Start the Nowledge Mem desktop app, or check `nmem status` for diagnostics.
 - **Plugin not loading.** Confirm `"opencode-nowledge-mem"` appears in your `opencode.json` plugin array. Restart OpenCode after changes.
 
