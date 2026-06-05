@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+
+- **Windows support for `setup.sh`.** The installer now resolves `HERMES_HOME` from `%LOCALAPPDATA%\hermes` (matching Hermes' own `_get_platform_default_hermes_home()`) when the environment variable is unset and the script is running under git-bash / MSYS / Cygwin. Previously it always fell back to `~/.hermes`, which silently wrote the plugin and `memory.provider` config to a path Hermes never reads on Windows — leaving installs that looked successful but never activated.
+- **Python launcher detection.** Replaced the hard-coded `python3` call with a `python3 → python → py -3` fallback chain so the config-rewrite helper runs on standard python.org Windows installs (which only ship `python.exe`) as well as Linux/macOS. Fails with a clear error if no Python 3 is found instead of silently leaving `memory.provider` unset.
+- **Soft preflight for `nmem` on the current shell PATH.** Emits a platform-specific warning (Windows / macOS / Linux) when the CLI is not visible, while making clear Hermes still finds it via `shutil.which` (PATHEXT-aware) so the plugin works regardless. Helps users on Windows notice the common case where the desktop installer added `nmem.cmd` to user PATH but the current git-bash session predates the install.
+- Echoes the resolved Hermes home at startup so users can confirm the installer targeted the right directory before files are written.
+
 ### Changed
 
 - Updated Hermes release guidance after upstream closed new in-tree memory providers. The Nowledge Mem Hermes integration now treats the standalone community package as the canonical release path, with upstream limited to an optional docs listing.

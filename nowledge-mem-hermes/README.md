@@ -58,6 +58,18 @@ This adds the MCP server to `config.yaml` and installs behavioral guidance in `~
 2. **Hermes Agent** installed and configured
 3. **`nmem` CLI** available on PATH. If the desktop app is on the same machine, `nmem` is already bundled. Otherwise use `pip install nmem-cli`, or on Arch Linux use `yay -S nmem-cli` / `paru -S nmem-cli`.
 
+### Platform notes
+
+The installer is the same `setup.sh` on every platform but adapts where files land:
+
+| Platform | `HERMES_HOME` (when env var is unset) | `nmem` CLI shim |
+|----------|----------------------------------------|------------------|
+| Linux    | `~/.hermes`                            | `nmem` (PATH)    |
+| macOS    | `~/.hermes`                            | `nmem` (PATH)    |
+| Windows  | `%LOCALAPPDATA%\hermes` (e.g. `C:\Users\<you>\AppData\Local\hermes`) | `%LOCALAPPDATA%\Nowledge Mem\cli\nmem.cmd` (PATHEXT) |
+
+On Windows, run the installer from **git-bash** (ships with Git for Windows) or **WSL**. The script uses `python3`, falling back to `python` or the `py -3` launcher, so a standard python.org install works without extra shims. If you've never set `HERMES_HOME`, the installer mirrors Hermes' own platform-native path resolution and writes to `%LOCALAPPDATA%\hermes`, not `~/.hermes`. The Hermes Python runtime locates `nmem.cmd` via `shutil.which` (which honors `PATHEXT`), so the plugin works even when `nmem` is not directly callable from the shell you ran the installer in.
+
 ## What the plugin does
 
 The plugin uses Hermes' memory provider lifecycle to replace manual Working Memory reads and ad-hoc recall prompting with deterministic hooks:
