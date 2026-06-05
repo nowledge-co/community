@@ -5,7 +5,7 @@ description: Read your daily Working Memory briefing to understand current conte
 
 # Read Working Memory
 
-> Start every session with context. Your Working Memory is a daily briefing synthesized from your knowledge base.
+> Start every session with context. Use Context Bundle when owner identity, agent identity, active scope, or guidance could matter; it includes Working Memory. Use Working Memory alone for the lighter daily briefing.
 
 ## When to Use
 
@@ -29,13 +29,19 @@ description: Read your daily Working Memory briefing to understand current conte
 
 ## Usage
 
-Read Working Memory via nmem CLI (works for both local and remote):
+Prefer Context Bundle for startup context:
+
+```bash
+nmem --json context --source-app copilot-cli
+```
+
+Read Working Memory alone when you only need current priorities:
 
 ```bash
 nmem --json wm read
 ```
 
-If the runtime already knows the current project or agent lane, add `--space "<space name>"`.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"` to either command. If it knows a stable long-running agent id, add `--host-agent-id "<agent-id>"` to `nmem context`.
 
 Fallback for local-only (when nmem is not installed):
 
@@ -59,8 +65,9 @@ The Working Memory briefing contains:
 
 1. **Read once at session start** — don't re-read unless asked
 2. **Reference naturally** — mention relevant context when it connects to the current task
-3. **Don't overwhelm** — share only the parts relevant to what the user is working on
-4. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Codex) appear here
+3. **Avoid duplicate reads** — if Context Bundle was already loaded and includes Working Memory, do not read Working Memory again
+4. **Don't overwhelm** — share only the parts relevant to what the user is working on
+5. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Codex) appear here
 
 ## Troubleshooting
 

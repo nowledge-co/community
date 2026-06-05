@@ -13,9 +13,9 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 - **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary.
 - **Quick diagnostics.** One command to verify everything is connected.
 
-The reliable bootstrap is still Working Memory. On modern Codex, the best setup is:
+The full bootstrap is Context Bundle when available, with Working Memory as the lightweight briefing and compatibility fallback. On modern Codex, the best setup is:
 
-- plugin package for Working Memory guidance, `nmem` fallback, status, and real `save-thread`
+- plugin package for Context Bundle / Working Memory guidance, `nmem` fallback, status, and real `save-thread`
 - bundled Nowledge Mem MCP for stronger retrieval and memory writes
 - Codex Stop hook for automatic transcript capture
 - project `AGENTS.md` for repo-specific follow-through
@@ -24,7 +24,7 @@ The reliable bootstrap is still Working Memory. On modern Codex, the best setup 
 
 | Skill | When it runs | What it does |
 |-------|-------------|-------------|
-| `working-memory` | Session start, "what am I working on" | Loads your daily briefing and prefers MCP `read_working_memory` when present |
+| `working-memory` | Session start, "what am I working on" | Loads Context Bundle when full identity/scope/guidance matters; otherwise loads the daily briefing and prefers MCP when present |
 | `search-memory` | Prior work, past decisions | Searches memories and conversations, preferring MCP retrieval when present |
 | `save-thread` | Manual fallback, "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
@@ -209,7 +209,7 @@ python3 ./.agents/nowledge-mem/scripts/install_hooks.py
 
 ## Verify
 
-Start a new Codex session and ask: "What was I working on?" The agent should load your Working Memory briefing.
+Start a new Codex session and ask: "What was I working on?" The agent should load Context Bundle when full startup context matters, or the Working Memory briefing as the lightweight fallback.
 
 Then test one continuation-style prompt such as "What did we decide before about the OpenClaw release path?" or "Search prior work about this regression." On a healthy plugin + MCP setup, Codex should move beyond the briefing and call Nowledge Mem retrieval tools or the equivalent direct `nmem` search, not stop at the briefing alone.
 
@@ -281,7 +281,7 @@ export NMEM_SPACE="Research Agent"
 codex
 ```
 
-The Working Memory bootstrap, search-memory skill, save-thread skill, distill-memory skill, and direct `nmem` fallbacks will then stay in that lane automatically.
+The Context Bundle / Working Memory bootstrap, search-memory skill, save-thread skill, distill-memory skill, and direct `nmem` fallbacks will then stay in that lane automatically.
 
 Shared spaces, default retrieval, automatic thread capture, and agent guidance come from Mem's own space profile. Codex should choose the ambient lane, not redefine what the space means.
 

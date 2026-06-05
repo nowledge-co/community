@@ -8,7 +8,7 @@ const BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
 You have Nowledge Mem tools for cross-tool knowledge management. Use them proactively.
 
-**At session start:** Call \`nowledge_mem_working_memory\` to load today's briefing (priorities, recent decisions, open questions). Reference relevant parts naturally as the conversation progresses.
+**At session start:** Call \`nowledge_mem_context_bundle\` when identity, scope, or guidance may matter. It includes Working Memory, owner identity, agent identity, active space, and the guidance stack. Use \`nowledge_mem_working_memory\` only for a lightweight daily briefing or fallback. Reference relevant parts naturally as the conversation progresses.
 
 **When to search (\`nowledge_mem_search\`):**
 - The user references previous work, a prior fix, or an earlier decision
@@ -53,6 +53,15 @@ export default {
           })
         }
         return JSON.stringify({ error: stderr || String(err) })
+      }
+    }
+
+    function isNmemErrorPayload(output: string): boolean {
+      try {
+        const parsed = JSON.parse(output)
+        return parsed && typeof parsed === "object" && "error" in parsed
+      } catch {
+        return false
       }
     }
 
@@ -224,9 +233,22 @@ export default {
 
     return {
       tool: {
+        nowledge_mem_context_bundle: tool({
+          description:
+            "Read Nowledge Mem's startup Context Bundle: owner identity, resolved agent identity, active scope, guidance slots, Working Memory, and KFS paths. Call this near session start when behavior, identity, or scope matters.",
+          args: {},
+          async execute(_args, _ctx) {
+            const bundle = await nmem(["context", "--source-app", "opencode"])
+            if (isNmemErrorPayload(bundle)) {
+              return await nmem(["wm", "read"])
+            }
+            return bundle
+          },
+        }),
+
         nowledge_mem_working_memory: tool({
           description:
-            "Read today's Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Call this near the start of each session.",
+            "Read today's lightweight Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Use nowledge_mem_context_bundle for full startup identity/scope/guidance context.",
           args: {},
           async execute(_args, _ctx) {
             return await nmem(["wm", "read"])
@@ -470,7 +492,7 @@ export default {
           "",
           "",
           "IMPORTANT: You have Nowledge Mem tools (nowledge_mem_*) for cross-tool knowledge.",
-          "After compaction, call nowledge_mem_working_memory to restore your context.",
+          "After compaction, call nowledge_mem_context_bundle when identity, scope, or guidance matters; use nowledge_mem_working_memory as the lightweight fallback.",
           "Continue searching and saving proactively.",
         ].join("\n")
       },

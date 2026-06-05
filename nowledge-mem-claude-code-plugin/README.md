@@ -41,7 +41,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 
 **Automatic (no action needed):**
 
-- Working Memory briefing loaded at every session start, resume, and clear
+- Context Bundle loaded at every session start, resume, and clear when available, with Working Memory fallback
 - Per-turn behavioral nudge with memory search, thread search, and save syntax
 - Session conversations captured to your knowledge graph on each response
 - Session conversations captured again before context compaction
@@ -51,7 +51,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 
 - **Search Memory** -- searches both distilled memories and prior sessions when continuity matters
 - **Distill Memory** -- suggests saving breakthroughs and decisions
-- **Read Working Memory** -- loads your daily context briefing
+- **Read Working Memory** -- loads Context Bundle when available, or the lighter daily briefing fallback
 
 **Slash commands (you trigger):**
 
@@ -68,13 +68,13 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 
 | Event | Trigger | Action |
 |-------|---------|--------|
-| `SessionStart` | New, resume, or clear | Loads Working Memory via `nmem wm read` |
-| `SessionStart` | After compaction | Re-loads Working Memory + checkpoint prompt |
+| `SessionStart` | New, resume, or clear | Loads Context Bundle via `nmem context`, then falls back to `nmem wm read` |
+| `SessionStart` | After compaction | Re-loads Context Bundle or Working Memory + checkpoint prompt |
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
 | `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code session by hook `session_id` before context is compressed |
 | `Stop` | Model finishes responding | Captures session to knowledge graph |
 
-The `SessionStart` hook tries `nmem wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` only as the **Default-space** compatibility path.
+The `SessionStart` hook tries `nmem context` first so Claude receives owner identity, agent identity, active space, guidance slots, Working Memory, and KFS paths when the installed CLI supports it. It falls back to `nmem wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
 The `PreCompact` hook runs the same client-side thread save before Claude Code compresses the context. The `Stop` hook runs it again after every response with a bounded retry window, so short transcript-flush delays do not turn into silent no-op saves. Both paths pass Claude's hook `session_id` into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
 
@@ -84,7 +84,7 @@ If the desktop app's Claude Code file watcher is also enabled, you can leave it 
 
 The plugin works transparently in both modes:
 
-- **Local** (Mem on same machine): Working Memory read from Mem, with the local file kept only as the Default-space fallback. Sessions are captured by the desktop app file watcher, the Stop hook, and the PreCompact hook before context compression.
+- **Local** (Mem on same machine): Context Bundle or Working Memory read from Mem, with the local file kept only as the Default-space fallback. Sessions are captured by the desktop app file watcher, the Stop hook, and the PreCompact hook before context compression.
 - **Remote** (Mem on different machine): configure this machine once with:
 
 ```bash
@@ -104,7 +104,7 @@ Spaces are optional. If one Claude Code process naturally belongs to one project
 NMEM_SPACE="Research Agent"
 ```
 
-The session-start Working Memory read, per-turn guidance, slash-command flows, and hook-driven `nmem t save --from claude-code` capture will then stay in that lane automatically.
+The session-start Context Bundle / Working Memory read, per-turn guidance, slash-command flows, and hook-driven `nmem t save --from claude-code` capture will then stay in that lane automatically.
 
 Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. Claude Code does not need a second plugin-local space config.
 

@@ -5,7 +5,7 @@ description: Read your daily Working Memory briefing to understand current conte
 
 # Read Working Memory
 
-> Start every session with context. Your Working Memory is a daily briefing synthesized from your knowledge base.
+> Start every session with context. Use Context Bundle when you need owner identity, agent identity, active scope, guidance slots, and Working Memory together. Use Working Memory alone for the lighter daily briefing.
 
 ## When to Use
 
@@ -29,7 +29,15 @@ description: Read your daily Working Memory briefing to understand current conte
 
 ## Usage
 
-Read Working Memory with `nmem` first:
+Prefer Context Bundle for startup or multi-agent sessions:
+
+```bash
+nmem --json context --source-app generic-agent
+```
+
+If the host has a stable long-running agent id, add `--host-agent-id "<agent-id>"`.
+
+Read Working Memory alone when you only need current priorities:
 
 ```bash
 nmem --json wm read
@@ -37,7 +45,7 @@ nmem --json wm read
 
 If it succeeds but reports `exists: false`, say there is no Working Memory briefing yet.
 
-If the host already knows a project or agent lane, add `--space "<space name>"`.
+If the host already knows a project or agent lane, add `--space "<space name>"` to either command.
 
 Only fall back to `~/ai-now/memory.md` for older local-only **Default-space** setups.
 
@@ -57,7 +65,8 @@ The Working Memory briefing contains:
 2. **Reference naturally** — mention relevant context when it connects to the current task
 3. **Continuation handoff** — if the task looks like a review, regression, release, resume, or prior-decision question, move straight into `search-memory` after the briefing instead of stopping here
 4. **Don't overwhelm** — share only the parts relevant to what the user is working on
-5. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Codex) appear here
+5. **Avoid duplicate startup reads** — if Context Bundle was already loaded and includes Working Memory, do not read Working Memory again
+6. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Codex) appear here
 
 ## Examples
 

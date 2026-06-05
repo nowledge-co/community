@@ -4,7 +4,50 @@
 
 ---
 
-## 1. Working Memory
+## 1. Context Bundle
+
+When a host supports startup hooks, MCP, or an explicit bootstrap step, prefer the
+Context Bundle for full-session startup context. It resolves owner identity,
+agent identity, active space, future guidance slots, Working Memory, and KFS
+paths in one stable contract.
+
+**MCP preferred:**
+
+```text
+read_context_bundle
+```
+
+**CLI fallback:**
+
+```bash
+nmem --json context --source-app "<host>"
+```
+
+If the host has a stable long-running agent identity, pass it:
+
+```bash
+nmem --json context --source-app "<host>" --host-agent-id "<agent-id>"
+```
+
+If the host has an ambient project or agent lane, also pass `--space "<space name>"`.
+
+**When to use Context Bundle:**
+- Session startup for multi-agent hosts or long-running named agents
+- Hook-injected prompt context
+- MCP clients that need the behavior + scope contract before retrieval
+- Tasks where owner identity, agent identity, or guidance may change the answer
+
+**When to use only Working Memory:**
+- Lightweight "what am I focused on?" reads
+- Older clients that do not expose `read_context_bundle` or `nmem context`
+- Mid-session refreshes where identity/scope has not changed
+
+If Context Bundle was already injected and includes Working Memory, do not call
+Working Memory again unless the user asks or the session changed materially.
+
+---
+
+## 2. Working Memory
 
 Read your Working Memory briefing once near the start of each session to understand the user's current context.
 
@@ -43,7 +86,7 @@ NMEM_SPACE="Research Agent" nmem --json wm read
 
 ---
 
-## 2. Proactive Search
+## 3. Proactive Search
 
 Search your knowledge base proactively when past insights would improve the response. Do not wait for the user to say "search my memory".
 
@@ -67,7 +110,7 @@ Search your knowledge base proactively when past insights would improve the resp
 
 ---
 
-## 3. Retrieval Routing
+## 4. Retrieval Routing
 
 1. Start with `nmem --json m search "<query>"` for durable knowledge (decisions, insights, procedures).
 2. Use `nmem --json t search "<query>"` when the user is asking about a prior conversation or exact session history.
@@ -97,7 +140,7 @@ Search your knowledge base proactively when past insights would improve the resp
 
 ---
 
-## 4. Autonomous Save
+## 5. Autonomous Save
 
 **Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.**
 
@@ -129,7 +172,7 @@ Good candidates:
 
 ---
 
-## 5. Add vs Update
+## 6. Add vs Update
 
 - Use `nmem --json m add` when the insight is genuinely new.
 - If an existing memory already captures the same decision, workflow, or preference and the new information refines it, use `nmem m update <id> ...` instead of creating a duplicate.
@@ -137,7 +180,7 @@ Good candidates:
 
 ---
 
-## 6. Thread Save Honesty
+## 7. Thread Save Honesty
 
 Thread save capabilities depend on the runtime:
 

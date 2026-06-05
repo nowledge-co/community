@@ -5,7 +5,9 @@ description: Read the user's Working Memory briefing when current priorities, re
 
 # Read Working Memory
 
-Use the `read_working_memory` MCP tool to load the user's current focus, priorities, and unresolved context when the session-start hook did not already provide it or when a refresh is needed.
+Use `read_context_bundle` when startup identity, agent lane, space scope, or guidance could matter. It includes owner identity, resolved agent identity, active scope, guidance slots, Working Memory, and KFS paths.
+
+Use the `read_working_memory` MCP tool to load only the user's current focus, priorities, and unresolved context when the session-start hook did not already provide it or when a lightweight refresh is needed.
 
 ## When To Use
 
@@ -16,8 +18,8 @@ Use the `read_working_memory` MCP tool to load the user's current focus, priorit
 
 ## Usage Pattern
 
-- If a fresh `<nowledge_working_memory>` block is already present, reuse it instead of reading again immediately.
-- Otherwise, read it once near the start of the session.
+- If a fresh Context Bundle or `<nowledge_working_memory>` block is already present, reuse it instead of reading again immediately.
+- Otherwise, read Context Bundle or Working Memory once near the start of the session.
 - If the task is clearly a continuation, review, regression, release, or prior-decision question, move into `search-memory` after the briefing instead of stopping there.
 - Reuse that context mentally instead of re-reading on every turn.
 - Only refresh if the session context changed materially, the user asks, or the work has gone on long enough that a fresh briefing is clearly useful.

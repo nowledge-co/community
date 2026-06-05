@@ -299,6 +299,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert opencode_pkg["version"] == "0.3.3"
     assert "fetchSessionMessages" in opencode_source
     assert "path: { id: ctx.sessionID }" in opencode_source
+    assert "nowledge_mem_context_bundle" in opencode_source
+    assert 'nmem(["context", "--source-app", "opencode"])' in opencode_source
     assert "nowledge_mem_save_thread" in opencode_source
 
 

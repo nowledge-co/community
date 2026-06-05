@@ -5,7 +5,7 @@ description: "Load today's Working Memory briefing at session start. Shows your 
 
 # Read Working Memory
 
-Start every session with context. Your Working Memory is a daily briefing synthesized from your knowledge base, covering what you're focused on and what changed recently.
+Start every session with context. Use Context Bundle when owner identity, agent identity, active scope, or guidance could matter; it includes Working Memory. Use Working Memory alone for the lighter daily briefing.
 
 ## When to Use
 
@@ -30,10 +30,16 @@ Start every session with context. Your Working Memory is a daily briefing synthe
 ## Usage
 
 ```bash
-nmem --json wm read
+nmem --json context --source-app pi
 ```
 
-If the runtime already knows the current project or agent lane, add `--space "<space name>"`.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`. If it knows a stable long-running agent id, add `--host-agent-id "<agent-id>"` to `nmem context`.
+
+For only Working Memory:
+
+```bash
+nmem --json wm read
+```
 
 ### What You'll Find
 
@@ -46,10 +52,11 @@ If the runtime already knows the current project or agent lane, add `--space "<s
 ### How to Use This Context
 
 1. Read once at session start. Don't re-read unless asked.
-2. If the task is clearly a continuation, review, regression, release, or prior-decision question, move directly into `search-memory` after the briefing.
-3. Reference naturally when it connects to the current task.
-4. Share only the parts relevant to what the user is working on.
-5. Insights saved in other tools (Claude Code, Cursor, Codex) appear here automatically.
+2. If Context Bundle was already loaded and includes Working Memory, do not read Working Memory again.
+3. If the task is clearly a continuation, review, regression, release, or prior-decision question, move directly into `search-memory` after the briefing.
+4. Reference naturally when it connects to the current task.
+5. Share only the parts relevant to what the user is working on.
+6. Insights saved in other tools (Claude Code, Cursor, Codex) appear here automatically.
 
 If the response includes `exists: false`, mention there's no briefing yet and continue.
 

@@ -11,27 +11,33 @@ This Codex package is hybrid-aware and hook-assisted.
 - Best modern setup: Codex plugin with bundled Nowledge Mem MCP.
 - Automatic capture: the Codex Stop hook saves the real transcript through `nmem t save --from codex` after each turn.
 - Current Codex: enable both `hooks = true` and `plugin_hooks = true`, then run `scripts/install_hooks.py` once after installing or updating the plugin. `plugin_hooks` lets Codex load the packaged Stop hook; the setup script keeps that hook enabled in `/hooks` and also keeps the host-level fallback for builds that still need `~/.codex/hooks.json`.
-- Reliable bootstrap: read Working Memory once near session start.
+- Reliable bootstrap: read Context Bundle once when full identity/scope/guidance matters; read Working Memory when only the daily briefing is needed.
 - Stronger retrieval and memory updates: use Nowledge Mem MCP tools when available.
 - Explicit fallback: if hook setup is missing or the user asks for a manual save, use the `save-thread` skill.
 
-Do not stop at the Working Memory briefing if the task clearly resumes prior work.
+Do not stop at the startup context if the task clearly resumes prior work.
 
-## Working Memory
+## Startup Context
 
-At session start, load the user's current context:
+At session start, load the user's current context.
 
-Prefer the Nowledge Mem MCP `read_working_memory` tool when it is available in this session.
+Prefer the Nowledge Mem MCP `read_context_bundle` tool when identity, agent lane, space scope, or guidance could matter. It includes owner identity, resolved agent identity, active scope, guidance slots, Working Memory, and KFS paths.
 
 Otherwise use:
+
+```bash
+nmem --json context --source-app codex
+```
+
+If this runtime already knows a project or agent lane, add `--space "<space name>"`.
+
+If `read_context_bundle` / `nmem context` is unavailable or the user only asks for the daily briefing, use `read_working_memory` or:
 
 ```bash
 nmem --json wm read
 ```
 
-If it returns `exists: false`, mention there's no briefing yet and continue.
-
-If this runtime already knows a project or agent lane, add `--space "<space name>"`.
+If Working Memory returns `exists: false`, mention there's no briefing yet and continue.
 
 If the task is a continuation, review, regression, release, integration, or "why did this change?" style task, immediately follow the briefing with one targeted memory or thread search.
 
@@ -59,7 +65,7 @@ Otherwise use:
 nmem --json m search "query"
 ```
 
-If the runtime already has an ambient lane, add `--space "<space name>"` to Working Memory, memory search, thread search, and save commands.
+If the runtime already has an ambient lane, add `--space "<space name>"` to Context Bundle, Working Memory, memory search, thread search, and save commands.
 
 Use `--mode deep` when the first pass is weak or the need is conceptual.
 

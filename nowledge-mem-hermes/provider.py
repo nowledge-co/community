@@ -2,7 +2,7 @@
 
 Implements the MemoryProvider ABC to give Hermes native access to the
 user's cross-tool knowledge graph. Replaces the generic MCP connection
-with lifecycle hooks: automatic Working Memory injection, per-turn
+with lifecycle hooks: automatic Context Bundle / Working Memory injection, per-turn
 recall, user-profile mirroring, and native tool names.
 
 Transport: ``nmem`` CLI for memory operations, plus direct Mem API calls for
@@ -219,6 +219,7 @@ class NowledgeMemProvider(MemoryProvider):
 
     def __init__(self) -> None:
         self._client: Optional[NowledgeMemClient] = None
+        self._context_bundle = ""
         self._working_memory = ""
         self._cron_skipped = False
         self._bg_threads: List[threading.Thread] = []
@@ -270,12 +271,25 @@ class NowledgeMemProvider(MemoryProvider):
             self._client = None
             return
 
+        raw_identity = kwargs.get("agent_identity")
+        host_agent_id = str(raw_identity).strip() if raw_identity else None
         try:
-            wm = self._client.working_memory()
-            self._working_memory = self._format_working_memory(wm)
+            context_bundle = getattr(self._client, "context_bundle")(
+                source_app="hermes",
+                host_agent_id=host_agent_id,
+            )
+            self._context_bundle = self._format_context_bundle(context_bundle)
         except Exception as error:
-            logger.debug("Working memory fetch failed: %s", error)
-            self._working_memory = ""
+            logger.debug("Context bundle fetch failed: %s", error)
+            self._context_bundle = ""
+
+        if not self._context_bundle:
+            try:
+                wm = self._client.working_memory()
+                self._working_memory = self._format_working_memory(wm)
+            except Exception as error:
+                logger.debug("Working memory fetch failed: %s", error)
+                self._working_memory = ""
 
         logger.info(
             "Nowledge Mem provider initialized (CLI transport)",
@@ -289,7 +303,9 @@ class NowledgeMemProvider(MemoryProvider):
         parts = [GUIDANCE]
         if self._resolved_space:
             parts.append(f"## Active Space\n\n{self._resolved_space}")
-        if self._working_memory:
+        if self._context_bundle:
+            parts.append(self._context_bundle)
+        elif self._working_memory:
             parts.append(f"## Working Memory\n\n{self._working_memory}")
         elif self._client:
             parts.append("## Working Memory\n\nNo briefing available yet. The knowledge graph is connected.")
@@ -727,6 +743,13 @@ class NowledgeMemProvider(MemoryProvider):
             return legacy_env_space
 
         return None
+
+    @staticmethod
+    def _format_context_bundle(bundle: Any) -> str:
+        if not isinstance(bundle, dict):
+            return ""
+        content = bundle.get("rendered_markdown") or bundle.get("content") or ""
+        return str(content).strip()
 
     @staticmethod
     def _format_working_memory(wm: Any) -> str:

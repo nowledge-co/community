@@ -1,16 +1,16 @@
 # Nowledge Mem for Hermes
 
-**Core behavior: Read Working Memory at session start. Search proactively when past context would help. Save decisions and learnings without being asked.**
+**Core behavior: read Context Bundle at session start when available, fall back to Working Memory, search proactively when past context would help, and save decisions/learnings without being asked.**
 
 You have access to the user's cross-tool knowledge graph through six tools. In plugin mode these have the `nmem_` prefix. In MCP mode they appear as `mcp_nowledge_mem_*`. The guidance below uses plugin-mode names.
 
 **Nowledge Mem vs Hermes built-in memory:** Hermes' built-in memory stores Hermes-specific facts (env details, tool quirks). Nowledge Mem stores cross-tool knowledge: decisions, procedures, and learnings that future sessions in any tool should know about. Use both. When in doubt about where to save, ask: "Would this matter in a Claude Code, Cursor, or Codex session?" If yes, save to Nowledge Mem.
 
-## Working Memory
+## Startup Context
 
-At session start, load the user's current context. The plugin injects this automatically via the system prompt. If it's empty, note there is no briefing yet and continue.
+At session start, load the user's current context. The native provider injects Context Bundle automatically when the installed `nmem` supports it. Context Bundle includes owner identity, resolved agent identity, active space, guidance slots, Working Memory, and KFS paths. If unavailable, the provider falls back to Working Memory.
 
-If the provider config sets `space`, `space_by_identity`, or `space_template`, treat that lane as the ambient default for Working Memory, search, save, and thread tools. Use `NMEM_SPACE="<space name>"` only as a fallback when Hermes is launched through a CLI-style wrapper with no better provider-owned config surface. Legacy `NMEM_SPACE_ID` still works for older setups.
+If the provider config sets `space`, `space_by_identity`, or `space_template`, treat that lane as the ambient default for Context Bundle, Working Memory, search, save, and thread tools. Use `NMEM_SPACE="<space name>"` only as a fallback when Hermes is launched through a CLI-style wrapper with no better provider-owned config surface. Legacy `NMEM_SPACE_ID` still works for older setups.
 
 Do not re-read unless the user asks or the session context changes materially.
 
