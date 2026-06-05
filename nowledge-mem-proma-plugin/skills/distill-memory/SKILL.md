@@ -5,16 +5,18 @@ description: Save durable Nowledge Mem insights when a Proma conversation produc
 
 # Distill Memory
 
-Save durable insights to Nowledge Mem autonomously. Don't wait to be asked — save proactively when the conversation produces lasting value.
+Save durable insights to Nowledge Mem autonomously. Don't wait to be asked — save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context.
 
 ## When to Save
 
 **Save proactively when the conversation produces:**
+- A fact (durable reference detail, tool constraint, environment fact)
 - A decision (architecture choice, tool selection, process change)
 - A preference (code style, workflow, tool configuration)
 - A plan (multi-step task design, roadmap item)
 - A procedure (how to set up, how to debug, how to deploy)
 - A learning (bug root cause, pitfall discovered, pattern recognized)
+- An event (meeting outcome, release milestone, incident timeline)
 - Important context (project background, stakeholder constraint)
 
 ## Usage
@@ -24,6 +26,7 @@ Save durable insights to Nowledge Mem autonomously. Don't wait to be asked — s
 mcp__nowledge-mem__add_memory
   content: "<what was decided or learned>"
   title: "<short descriptive title>"
+  unit_type: "fact|preference|decision|plan|procedure|learning|context|event"
   importance: 0.3-1.0
   tags: ["<relevant tags>"]
 ```

@@ -43,7 +43,7 @@ nmem_thread_messages thread_id="<id>" limit=8
 
 ## Saving Knowledge
 
-Save proactively when the conversation produces a decision, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 **Upsert by ID:** Pass a stable `id` to `nmem_save` to create-or-update in one call. If a memory with that ID already exists it is updated; otherwise a new one is created. Use this when you have a natural key (e.g. topic or decision name) instead of the search-then-update dance.
 

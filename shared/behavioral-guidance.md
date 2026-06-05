@@ -99,7 +99,7 @@ Search your knowledge base proactively when past insights would improve the resp
 
 ## 4. Autonomous Save
 
-**Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.**
+**Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.**
 
 Good candidates:
 - Decisions with rationale ("we chose PostgreSQL because ACID is required")
@@ -121,7 +121,8 @@ Good candidates:
 - Generic information already widely known
 
 **Format:**
-- Use structured saves: `--unit-type` (decision, procedure, learning, preference, event), `-l` labels, `-i` importance
+- Use structured saves: `--unit-type` (`fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`), `-l` labels, `-i` importance
+- For MCP or native tool calls, pass the same value as `unit_type` when you know it. Omit `unit_type` only when Mem should classify the save itself.
 - Atomic, standalone memories with strong titles and clear meaning
 - Focus on what was learned or decided, not routine activity
 - If the host has a real ambient space, write with `--space "<space name>"` so the new memory lands in the correct lane.

@@ -5,7 +5,7 @@ description: Recognize breakthrough moments, blocking resolutions, and design de
 
 # Distill Memory
 
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 ## When to Suggest (Moment Detection)
 
@@ -39,6 +39,8 @@ nmem m add "Insight + context for future use" \
   -t "Searchable title (50-60 chars)" \
   -i 0.8
 ```
+
+Add `--unit-type fact|preference|decision|plan|procedure|learning|context|event` when the type is clear.
 
 If an existing memory already captures the same decision, workflow, or preference and the new information refines it, update that memory instead of creating a duplicate:
 

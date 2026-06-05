@@ -5,7 +5,7 @@ description: Capture durable decisions, lessons, and procedures from Cursor work
 
 # Distill Memory
 
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 ## When To Save
 
@@ -26,3 +26,5 @@ Skip routine fixes, work in progress, simple Q&A, and generic information.
 - At the end of substantial work, explicitly review whether one durable memory should be added or updated.
 
 Prefer atomic, standalone memories with strong titles and clear meaning. Focus on what was learned or decided, not routine chatter.
+
+When saving directly, pass `unit_type` when you know it: `fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, or `event`.

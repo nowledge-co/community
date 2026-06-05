@@ -41,7 +41,7 @@ If a memory result includes `source_thread`, inspect the original conversation w
 
 ## Autonomous Save
 
-Save proactively when the conversation produces a decision, procedure, learning, or important context. Don't wait for the user to ask.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Don't wait for the user to ask.
 
 ```bash
 nmem --json m add "content" -t "Title" --unit-type decision -i 0.8

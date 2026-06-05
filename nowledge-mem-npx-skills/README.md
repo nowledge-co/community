@@ -251,10 +251,11 @@ Retrieval routing:
 When preserving knowledge:
 - Use `nmem --json m add` for genuinely new durable knowledge.
 - If an existing memory already captures the same decision, preference, or workflow and the new information refines it, use `nmem m update <id> ...` instead of creating a duplicate.
+- Pass `--unit-type fact|preference|decision|plan|procedure|learning|context|event` when the type is clear.
 - Use a handoff save only when the user explicitly asks for a resumable checkpoint or handoff summary.
 ```
 
-For MCP-only agents, use the same policy but replace the commands with the tool names `read_working_memory`, `memory_search`, `thread_search`, `thread_fetch_messages`, `memory_add`, and `memory_update`.
+For MCP-only agents, use the same policy but replace the commands with the tool names `read_working_memory`, `memory_search`, `thread_search`, `thread_fetch_messages`, `memory_add`, and `memory_update`. Pass `unit_type` to `memory_add` when the type is clear.
 
 ### Step 3: Keep The Prompt Direct
 

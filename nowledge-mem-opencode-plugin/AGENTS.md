@@ -30,7 +30,7 @@ Use `nowledge_mem_search` for durable knowledge. Use `nowledge_mem_thread_search
 
 ## Saving Knowledge
 
-Save proactively when the conversation produces a decision, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 Use `nowledge_mem_save` with clear titles and appropriate importance scores:
 - 0.8 to 1.0: major decisions, critical learnings, core preferences

@@ -31,7 +31,7 @@ Bi-temporal filters narrow results by time:
 
 ## Save (nowledge_mem_save)
 
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 Structure saves:
 

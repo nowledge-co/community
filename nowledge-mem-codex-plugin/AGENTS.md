@@ -97,7 +97,7 @@ nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 
 ## Distill
 
-Save proactively when the conversation produces a decision, procedure, learning, or important context. Don't wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Don't wait to be asked.
 
 Prefer `memory_add` and `memory_update` through the Nowledge Mem MCP server when they are available in this session.
 

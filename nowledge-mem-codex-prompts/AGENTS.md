@@ -54,7 +54,7 @@ nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 
 ## Distill Memory
 
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 Use `nmem --json m add` for new knowledge. If an existing memory captures the same concept and new information refines it, use `nmem m update <id>` instead of creating a duplicate.
 
