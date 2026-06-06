@@ -240,7 +240,7 @@
       },
       "threadSave": {
         "method": "child-runtime",
-        "note": "Slock launches Codex, Claude Code, or another runtime. Thread capture and MCP behavior come from that child runtime connector. The Mem identity is portable and can stay the same when the launcher or child runtime changes."
+        "note": "Slock launches Codex, Claude Code, or another AI tool. Thread capture and MCP behavior come from that launched tool's connector. The Mem identity can stay the same when the launcher or AI tool changes."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -248,23 +248,23 @@
         "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "Install the Nowledge Mem connector for the child runtime Slock launches, such as Codex or Claude Code",
+          "Install the Nowledge Mem connector for the AI tool Slock launches, such as Codex or Claude Code",
           "Create one Mem Agent Identity for each named Slock worker",
           "Set NMEM_AGENT_ID=<agent-slug> in that Slock worker's runtime environment"
         ]
       },
       "install": {
-        "command": "No Slock plugin is required. Install the child runtime connector, then set NMEM_AGENT_ID=<agent-slug> in each Slock agent runtime config.",
+        "command": "Connect the AI tool Slock launches, then set NMEM_AGENT_ID=<agent-slug> in each Slock agent runtime config.",
         "detectionHint": "Running inside a Slock-launched child agent",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Slock path to configure this worker. Install the connector for the child runtime first, then set NMEM_AGENT_ID=<agent-slug>; add NMEM_SPACE only if this whole worker should override its default space. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Slock 路径配置这个 worker。先安装子运行时的连接，再设置 NMEM_AGENT_ID=<agent-slug>；只有当整个 worker 需要覆盖默认 Space 时，才添加 NMEM_SPACE。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Slock path to configure this worker. Connect the AI tool Slock launches first, then set NMEM_AGENT_ID=<agent-slug>; add NMEM_SPACE only if this whole worker should override its default space. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Slock 路径配置这个 worker。先连接 Slock 启动的 AI 工具，再设置 NMEM_AGENT_ID=<agent-slug>；只有当整个 worker 需要覆盖默认 Space 时，才添加 NMEM_SPACE。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/slock"
       },
       "toolNaming": {
         "convention": "child-runtime",
-        "note": "Keep source_app as the launched runtime (codex, claude-code, opencode, pi, etc.); use NMEM_AGENT_ID to select the portable worker profile. Fork to a new slug such as cindy-reviewer only when the persona should diverge."
+        "note": "Keep source_app as the launched AI tool (codex, claude-code, opencode, pi, etc.); use NMEM_AGENT_ID to select the worker profile. Fork to a new slug such as cindy-reviewer only when the persona should diverge."
       },
       "skills": [],
       "slashCommands": []
@@ -288,7 +288,7 @@
       },
       "threadSave": {
         "method": "child-runtime",
-        "note": "Lody launches Claude Code, Codex, or another runtime through Agent Config. Thread capture and MCP behavior come from that child runtime connector. Set a Mem identity only when an Agent Config represents a stable role."
+        "note": "Lody launches Claude Code, Codex, or another AI tool through Agent Config. Thread capture and MCP behavior come from that launched tool's connector. Set a Mem identity only when an Agent Config represents a stable role."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -296,23 +296,23 @@
         "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "Install the Nowledge Mem connector for the child runtime Lody launches",
+          "Install the Nowledge Mem connector for the AI tool Lody launches",
           "Leave NMEM_AGENT_ID unset for generic runtime presets",
           "Set NMEM_AGENT_ID=<agent-slug> only for a role-specific Lody Agent Config"
         ]
       },
       "install": {
-        "command": "No Lody plugin is required. Install the child runtime connector first. Set NMEM_AGENT_ID=<agent-slug> only if this Lody Agent Config represents a stable role.",
+        "command": "Connect the AI tool Lody launches first. Set NMEM_AGENT_ID=<agent-slug> only if this Lody Agent Config represents a stable role.",
         "detectionHint": "Running inside a Lody-launched child agent",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Lody path. Install the connector for the child runtime first. Set NMEM_AGENT_ID=<agent-slug> only if this Lody Agent Config represents a stable role. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Lody 路径配置。先安装子运行时连接。只有当这个 Lody Agent Config 代表稳定角色时，才设置 NMEM_AGENT_ID=<agent-slug>。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Lody path. Connect the AI tool Lody launches first. Set NMEM_AGENT_ID=<agent-slug> only if this Lody Agent Config represents a stable role. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Lody 路径配置。先连接 Lody 启动的 AI 工具。只有当这个 Lody Agent Config 代表稳定角色时，才设置 NMEM_AGENT_ID=<agent-slug>。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/lody"
       },
       "toolNaming": {
         "convention": "child-runtime",
-        "note": "Keep source_app as the launched runtime. Use NMEM_AGENT_ID only for a role-specific Lody Agent Config; otherwise rely on the child runtime connector without identity override."
+        "note": "Keep source_app as the launched AI tool. Use NMEM_AGENT_ID only for a role-specific Lody Agent Config; otherwise rely on the launched tool connector without identity override."
       },
       "skills": [],
       "slashCommands": []
@@ -336,7 +336,7 @@
       },
       "threadSave": {
         "method": "child-runtime",
-        "note": "Multica daemon launches the AI coding tool locally. Thread capture and MCP behavior come from that child runtime connector."
+        "note": "Multica launches the AI coding tool locally. Thread capture and MCP behavior come from that launched tool's connector."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -344,23 +344,23 @@
         "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "Install the Nowledge Mem connector for the child runtime the Multica daemon launches",
+          "Install the Nowledge Mem connector for the AI tool Multica launches",
           "Set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment",
           "Avoid broad secrets in agent custom environment variables"
         ]
       },
       "install": {
-        "command": "No Multica plugin is required. Install the child runtime connector, then set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment.",
+        "command": "Connect the AI tool Multica launches, then set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment.",
         "detectionHint": "Running inside a Multica-daemon-launched child agent",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Multica path. Install the connector for the child runtime first, then set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Multica 路径配置。先安装子运行时连接，再在 Multica Agent custom env 中设置 NMEM_AGENT_ID=<agent-slug>。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Multica path. Connect the AI tool Multica launches first, then set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment. Supported sessions inside that AI tool can sync through its Nowledge Mem connector. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Multica 路径配置。先连接 Multica 启动的 AI 工具，再在 Multica Agent custom env 中设置 NMEM_AGENT_ID=<agent-slug>。这个 AI 工具里的受支持会话会通过它自己的 Nowledge Mem 连接同步。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/multica"
       },
       "toolNaming": {
         "convention": "child-runtime",
-        "note": "Keep source_app as the launched runtime; use NMEM_AGENT_ID to select the portable worker profile."
+        "note": "Keep source_app as the launched AI tool; use NMEM_AGENT_ID to select the worker profile."
       },
       "skills": [],
       "slashCommands": []
@@ -384,7 +384,7 @@
       },
       "threadSave": {
         "method": "child-runtime",
-        "note": "Cumora should connect Mem at the child-runtime or computer-level daemon boundary. If the daemon is shared by several teammates, use a persona instruction that passes the teammate's agent_id on Context Bundle, memory, and thread calls instead of setting one daemon-wide NMEM_AGENT_ID."
+        "note": "Cumora should connect Mem through the AI tool it launches. Supported sessions inside that tool can sync through that tool's connector. If a shared daemon serves several teammates, use a persona instruction that passes the teammate's agent_id on Context Bundle, memory, and thread calls instead of setting one daemon-wide NMEM_AGENT_ID."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -392,24 +392,24 @@
         "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "Install the Nowledge Mem connector for the child runtime Cumora launches",
+          "Install the Nowledge Mem connector for the AI tool Cumora launches",
           "If Cumora does not expose per-agent env, add a persona instruction that passes the teammate's agent_id on Context Bundle, Working Memory, memory, and thread calls",
-          "Use per-agent NMEM_AGENT_ID only if Cumora exposes per-agent runtime environment variables or the daemon belongs to exactly one teammate",
+          "Use per-agent NMEM_AGENT_ID only if Cumora exposes per-agent environment variables or the daemon belongs to exactly one teammate",
           "Leave NMEM_AGENT_ID unset for a shared computer-level daemon"
         ]
       },
       "install": {
-        "command": "Connect Nowledge Mem through the AI tool Cumora runs on this computer, such as Codex, Claude Code, or Pi. If Cumora does not expose per-agent env, add a persona instruction for each teammate to pass its agent_id on Context Bundle, Working Memory, memory, and thread calls. Set NMEM_AGENT_ID only if Cumora exposes per-agent runtime env or the daemon belongs to exactly one teammate.",
+        "command": "Connect Nowledge Mem through the AI tool Cumora runs on this computer, such as Codex, Claude Code, or Pi. Supported sessions inside that AI tool can sync through its Nowledge Mem connector. If Cumora does not expose per-agent environment variables, add a persona instruction for each teammate to pass its agent_id on Context Bundle, Working Memory, memory, and thread calls. Set NMEM_AGENT_ID only if Cumora exposes per-agent environment variables or the daemon belongs to exactly one teammate.",
         "detectionHint": "Running inside a Cumora-launched child agent or daemon",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Cumora path. Connect the child runtime or computer-level daemon to Mem first. If Cumora does not expose per-agent env, add a persona instruction for each teammate to pass its agent_id on read_context_bundle, read_working_memory, memory_search, thread_search, and memory_add. Do not set daemon-wide NMEM_AGENT_ID unless the daemon belongs to exactly one agent. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Cumora 路径配置。先把子运行时或电脑级 daemon 连接到 Mem。如果 Cumora 没有暴露每 Agent env，就给每个 teammate 的 persona 加一段说明：在 read_context_bundle、read_working_memory、memory_search、thread_search 和 memory_add 中传入自己的 agent_id。除非 daemon 只属于一个 Agent，否则不要设置 daemon-wide NMEM_AGENT_ID。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Cumora path. Connect the AI tool Cumora launches first. Supported sessions inside that AI tool can sync through its Nowledge Mem connector. If Cumora does not expose per-agent env, add a persona instruction for each teammate to pass its agent_id on read_context_bundle, read_working_memory, memory_search, thread_search, and memory_add. Do not set daemon-wide NMEM_AGENT_ID unless the daemon belongs to exactly one agent. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Cumora 路径配置。先连接 Cumora 启动的 AI 工具。这个 AI 工具里的受支持会话会通过它自己的 Nowledge Mem 连接同步。如果 Cumora 没有暴露每 Agent env，就给每个 teammate 的 persona 加一段说明：在 read_context_bundle、read_working_memory、memory_search、thread_search 和 memory_add 中传入自己的 agent_id。除非 daemon 只属于一个 Agent，否则不要设置 daemon-wide NMEM_AGENT_ID。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/cumora"
       },
       "toolNaming": {
         "convention": "child-runtime",
-        "note": "Keep source_app as the launched runtime. Use NMEM_AGENT_ID only at a per-agent boundary; otherwise use shared Mem context without identity override."
+        "note": "Keep source_app as the launched AI tool. Use NMEM_AGENT_ID only at a per-agent boundary; otherwise use persona-level agent_id on MCP calls or shared Mem context without identity override."
       },
       "skills": [],
       "slashCommands": []
