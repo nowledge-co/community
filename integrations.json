@@ -384,7 +384,7 @@
       },
       "threadSave": {
         "method": "child-runtime",
-        "note": "Cumora should connect Mem at the child-runtime or computer-level daemon boundary. Do not set one NMEM_AGENT_ID for a shared daemon if it would collapse multiple teammates into one Mem identity."
+        "note": "Cumora should connect Mem at the child-runtime or computer-level daemon boundary. If the daemon is shared by several teammates, use a persona instruction that calls Context Bundle with the teammate's agent_id instead of setting one daemon-wide NMEM_AGENT_ID."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -393,16 +393,17 @@
         "threads": "none",
         "bestResultRequires": [
           "Install the Nowledge Mem connector for the child runtime Cumora launches",
-          "Use per-agent NMEM_AGENT_ID only if Cumora exposes per-agent runtime environment variables",
+          "If Cumora does not expose per-agent env, add a persona instruction that reads Context Bundle with the teammate's agent_id",
+          "Use per-agent NMEM_AGENT_ID only if Cumora exposes per-agent runtime environment variables or the daemon belongs to exactly one teammate",
           "Leave NMEM_AGENT_ID unset for a shared computer-level daemon"
         ]
       },
       "install": {
-        "command": "No Cumora plugin is required. Connect the child runtime or computer-level daemon to Mem first; set NMEM_AGENT_ID only if Cumora exposes per-agent runtime environment variables.",
+        "command": "No Cumora plugin is required. Connect the child runtime or computer-level daemon to Mem first. If Cumora does not expose per-agent env, add a persona instruction for each teammate to read Context Bundle with its agent_id and use the returned active space. Set NMEM_AGENT_ID only if Cumora exposes per-agent runtime env or the daemon belongs to exactly one teammate.",
         "detectionHint": "Running inside a Cumora-launched child agent or daemon",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Cumora path. Connect the child runtime or computer-level daemon to Mem first. Do not set NMEM_AGENT_ID unless Cumora exposes per-agent runtime environment variables. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Cumora 路径配置。先把子运行时或电脑级 daemon 连接到 Mem。除非 Cumora 暴露每个 Agent 的运行时环境变量，否则不要设置 NMEM_AGENT_ID。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Cumora path. Connect the child runtime or computer-level daemon to Mem first. If Cumora does not expose per-agent env, add a persona instruction for each teammate to read Context Bundle with its agent_id and use the returned active space. Do not set daemon-wide NMEM_AGENT_ID unless the daemon belongs to exactly one agent. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Cumora 路径配置。先把子运行时或电脑级 daemon 连接到 Mem。如果 Cumora 没有暴露每 Agent env，就给每个 teammate 的 persona 加一段说明：用自己的 agent_id 读取 Context Bundle，并使用返回的 active space。除非 daemon 只属于一个 Agent，否则不要设置 daemon-wide NMEM_AGENT_ID。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/cumora"
       },
