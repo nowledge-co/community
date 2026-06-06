@@ -399,7 +399,7 @@
         ]
       },
       "install": {
-        "command": "No Cumora plugin is required. Connect the child runtime or computer-level daemon to Mem first. If Cumora does not expose per-agent env, add a persona instruction for each teammate to pass its agent_id on Context Bundle, Working Memory, memory, and thread calls. Set NMEM_AGENT_ID only if Cumora exposes per-agent runtime env or the daemon belongs to exactly one teammate.",
+        "command": "Connect Nowledge Mem through the AI tool Cumora runs on this computer, such as Codex, Claude Code, or Pi. If Cumora does not expose per-agent env, add a persona instruction for each teammate to pass its agent_id on Context Bundle, Working Memory, memory, and thread calls. Set NMEM_AGENT_ID only if Cumora exposes per-agent runtime env or the daemon belongs to exactly one teammate.",
         "detectionHint": "Running inside a Cumora-launched child agent or daemon",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Cumora path. Connect the child runtime or computer-level daemon to Mem first. If Cumora does not expose per-agent env, add a persona instruction for each teammate to pass its agent_id on read_context_bundle, read_working_memory, memory_search, thread_search, and memory_add. Do not set daemon-wide NMEM_AGENT_ID unless the daemon belongs to exactly one agent. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
