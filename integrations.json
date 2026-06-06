@@ -222,6 +222,54 @@
       "slashCommands": []
     },
     {
+      "id": "slock",
+      "name": "Slock",
+      "category": "orchestrator",
+      "type": "orchestrator",
+      "version": null,
+      "directory": null,
+      "transport": "child-runtime",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "child-runtime",
+        "note": "Slock launches Codex, Claude Code, or another runtime. Thread capture and MCP behavior come from that child runtime connector."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Install the Nowledge Mem connector for the child runtime Slock launches, such as Codex or Claude Code",
+          "Create one Mem Agent Identity for each named Slock worker",
+          "Set NMEM_AGENT_ID=<agent-slug> in that Slock worker's runtime environment"
+        ]
+      },
+      "install": {
+        "command": "No Slock plugin is required. Install the child runtime connector, then set NMEM_AGENT_ID=<agent-slug> in each Slock agent runtime config.",
+        "detectionHint": "Running inside a Slock-launched child agent",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Slock path to configure this worker. Install the connector for the child runtime first, then set NMEM_AGENT_ID=<agent-slug>; add NMEM_SPACE only if this whole worker should override its default space. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Slock 路径配置这个 worker。先安装子运行时的连接，再设置 NMEM_AGENT_ID=<agent-slug>；只有当整个 worker 需要覆盖默认 Space 时，才添加 NMEM_SPACE。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+        },
+        "docsUrl": "/docs/integrations/slock"
+      },
+      "toolNaming": {
+        "convention": "child-runtime",
+        "note": "Keep source_app as the launched runtime (codex, claude-code, opencode, etc.); use NMEM_AGENT_ID to select the named Slock worker profile."
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
       "id": "cursor",
       "name": "Cursor",
       "category": "coding",
