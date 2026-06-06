@@ -10,7 +10,7 @@ Hermes now asks new memory providers to ship outside the core `hermes-agent` tre
 
 ### Plugin (recommended, Hermes v0.7.0+)
 
-The plugin integrates at the memory-provider level: Working Memory loads automatically, relevant memories are recalled before every turn, and tools use clean names without the `mcp_` prefix.
+The plugin integrates at the memory-provider level: Context Bundle loads automatically when available, Working Memory remains the lightweight fallback, relevant memories are recalled before every turn, and tools use clean names without the `mcp_` prefix.
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)

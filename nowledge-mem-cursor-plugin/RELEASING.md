@@ -24,7 +24,7 @@ This validator checks:
 
 - required plugin files exist and are non-empty
 - `.cursor-plugin/plugin.json` has the core marketplace metadata
-- `hooks/hooks.json` and `hooks/session-start.mjs` keep the session-start Working Memory bootstrap wired
+- `hooks/hooks.json` and `hooks/session-start.mjs` keep the session-start Context Bundle / Working Memory bootstrap wired
 - `mcp.json` has a valid `nowledge-mem` server entry
 - the rule still documents honest `save-handoff` / `save-thread` semantics
 - rule and skill files keep the frontmatter Cursor's template expects
@@ -37,7 +37,7 @@ These still require a real Cursor IDE validation pass before submission:
 - install the local package through Cursor's documented local plugin path:
   `~/.cursor/plugins/local/<plugin-name>`
 - confirm the rule is applied and all four skills are discovered
-- confirm the `sessionStart` hook injects Working Memory when `nmem` is installed
+- confirm the `sessionStart` hook injects Context Bundle or Working Memory when `nmem` is installed
 - confirm MCP connects locally
 - confirm remote MCP configuration works when URL and headers are updated
 - confirm `save-handoff` works when `nmem` is present
@@ -68,7 +68,7 @@ Use stable, package-specific values when filling the submission form:
 - GitHub repository: `https://github.com/nowledge-co/community`
 - Website URL: `https://mem.nowledge.co/docs/integrations/cursor`
 - Logo URL: `https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-cursor-plugin/assets/logo.png`
-- Short description: `Bring Working Memory, memory recall, and handoff summaries into Cursor with Nowledge Mem.`
+- Short description: `Bring startup context, memory recall, and handoff summaries into Cursor with Nowledge Mem.`
 
 Prefer the docs page over the site homepage for the website field so reviewers land directly on setup instructions. Prefer the raw GitHub logo URL over ephemeral upload links so the asset remains stable during review.
 

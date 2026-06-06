@@ -31,7 +31,7 @@ Read Working Memory alone for current priorities:
 nmem wm read
 ```
 
-If the runtime already knows the current project or agent lane, either add `--space "<space name>"` or launch the whole session with `NMEM_SPACE="<space name>"`.
+If the runtime already knows the current project or agent lane, either add `--space "<space name>"` or launch the whole session with `NMEM_SPACE="<space name>"`. Multi-agent orchestrators can also set `NMEM_AGENT_ID` and `NMEM_HOST_AGENT_ID` before launching Droid so the Context Bundle resolves the right Agent Identity.
 
 Fallback for older local-only setups:
 

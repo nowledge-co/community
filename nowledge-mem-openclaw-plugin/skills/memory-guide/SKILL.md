@@ -54,9 +54,9 @@ Browse recent activity grouped by day. Filter by `event_type` or exact `date_fro
 
 Find past conversations by keyword, then progressively fetch messages. Threads span all sources: this tool, other AI tools, browser capture, imports.
 
-## Working Memory (nowledge_mem_context)
+## Startup Context (nowledge_mem_context)
 
-Read the user's daily briefing (priorities, active projects, flags). Patch a specific section with `patch_section` + `patch_content`/`patch_append` when the conversation updates a priority or resolves a flag.
+Read Context Bundle when identity, active space, guidance, or current priorities matter. Older `nmem` clients fall back to the user's Working Memory briefing. Patch a specific Working Memory section with `patch_section` + `patch_content`/`patch_append` when the conversation updates a priority or resolves a flag.
 
 ## Important
 

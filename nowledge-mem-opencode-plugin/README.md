@@ -56,7 +56,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.3"]
+  "plugin": ["opencode-nowledge-mem@0.3.4"]
 }
 ```
 
@@ -132,13 +132,23 @@ See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access).
 
 ### Spaces
 
-Spaces are optional. If one OpenCode process naturally belongs to one project or agent lane, launch OpenCode with:
+Spaces are optional. If one OpenCode process naturally belongs to one project or agent lane, set it once in the shared Mem client config:
+
+```json title="~/.nowledge-mem/config.json"
+{
+  "space": "Research Agent"
+}
+```
+
+You can also launch OpenCode with an explicit lane:
 
 ```bash
 NMEM_SPACE="Research Agent" opencode
 ```
 
-The plugin's Context Bundle, Working Memory, search, save, and full-session thread save paths will follow that lane. If you do not have a real ambient lane, stay on `Default`.
+The plugin's Context Bundle, Working Memory, search, save, and full-session thread save paths will follow that lane. Environment variables take priority over the shared config. If you do not have a real ambient lane, stay on `Default`.
+
+For multi-agent orchestrators, set `NMEM_AGENT_ID` or `NMEM_HOST_AGENT_ID` per spawned OpenCode worker. Context Bundle will use that stable identity while keeping `source_app=opencode` for provenance.
 
 Shared spaces, default retrieval, and agent guidance still come from Mem's own space profile. OpenCode should pick the lane once, not invent a second plugin-local memory partition.
 

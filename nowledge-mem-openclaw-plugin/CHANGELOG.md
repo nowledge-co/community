@@ -4,6 +4,12 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.25] - 2026-06-06
+
+### Improved
+
+- `nowledge_mem_context`, `sessionContext`, and Context Engine prompt injection now load Context Bundle when available, then fall back to Working Memory for older `nmem` clients. OpenClaw can receive owner identity, agent identity, active space, guidance, and current priorities through the existing context surface without a tool-name change.
+
 ## [0.8.24] - 2026-05-15
 
 ### Fixed

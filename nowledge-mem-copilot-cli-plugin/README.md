@@ -53,7 +53,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 
 **Skills (model-mediated; Copilot may expose them as namespaced entries):**
 
-- **Read Working Memory** — loads your daily context briefing
+- **Read Working Memory** — loads Context Bundle when available, or your daily context briefing as the lightweight fallback
 - **Search Memory** — searches both distilled memories and prior sessions when continuity matters
 - **Distill Memory** — suggests saving breakthroughs and decisions
 - **Save Thread** — saves a concise summary thread when the user explicitly asks to save/checkpoint the session
@@ -66,14 +66,14 @@ The plugin no longer ships separate command docs. Skills are still interpreted b
 
 | Event | Trigger | Action |
 |-------|---------|--------|
-| `SessionStart` | New, resume, or clear | Loads Working Memory via `nmem --json wm read` |
-| `SessionStart` | After compaction | Re-loads Working Memory + checkpoint prompt |
+| `SessionStart` | New, resume, or clear | Loads Context Bundle via `nmem --json context --source-app copilot-cli`, then falls back to Working Memory |
+| `SessionStart` | After compaction | Re-loads Context Bundle or Working Memory + checkpoint prompt |
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
 | `Stop` | Model finishes responding | Captures session to knowledge graph (async) |
 | `PreCompact` | Before context compaction | Captures the current transcript before context is compressed |
 | `SessionEnd` | Session exits or clears | Runs the same idempotent capture path as a final backstop |
 
-The `SessionStart` hook tries `nmem --json wm read` first (works for both local and remote), then falls back to reading `~/ai-now/memory.md` only as the **Default-space** compatibility path.
+The `SessionStart` hook tries `nmem --json context --source-app copilot-cli` first so Copilot receives identity, active scope, guidance, and current priorities when the installed CLI supports it. It falls back to `nmem --json wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
 The `Stop`, `PreCompact`, and `SessionEnd` hooks run the same Python capture script from the plugin's own `hooks/` directory. For older installs, it still falls back to `~/.copilot/nowledge-mem-hooks/` if that compatibility copy exists. It reads the Copilot CLI transcript, extracts messages, filters secrets, and creates threads via `nmem t import`. This is idempotent — repeated runs only append new content.
 
@@ -109,7 +109,9 @@ Spaces are optional. If one Copilot CLI process naturally belongs to one project
 NMEM_SPACE="Research Agent"
 ```
 
-The session-start Working Memory read, per-turn guidance, skills, and background capture will then stay in that lane automatically.
+The session-start Context Bundle / Working Memory read, per-turn guidance, skills, and background capture will then stay in that lane automatically.
+
+For multi-agent orchestrators, set `NMEM_AGENT_ID` or `NMEM_HOST_AGENT_ID` per spawned Copilot CLI worker. Context Bundle will use that stable identity while keeping `source_app=copilot-cli` for provenance.
 
 ## Update
 

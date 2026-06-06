@@ -35,7 +35,7 @@ Prefer Context Bundle for startup or multi-agent sessions:
 nmem --json context --source-app generic-agent
 ```
 
-If the host has a stable long-running agent id, add `--host-agent-id "<agent-id>"`.
+If the host has a stable long-running agent id, add `--host-agent-id "<agent-id>"`. Multi-agent orchestrators can set `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` before launching the child agent.
 
 Read Working Memory alone when you only need current priorities:
 

@@ -8,7 +8,7 @@ At session start, call `nowledge_mem_context_bundle` when identity, scope, or gu
 
 Use `nowledge_mem_working_memory` only for a lightweight daily briefing or fallback on older `nmem` CLIs.
 
-If OpenCode is launched with `NMEM_SPACE="<space name>"`, that lane is the ambient default for Context Bundle, Working Memory, search, save, and session-save flows. Legacy `NMEM_SPACE_ID` still works for older setups.
+If the shared Mem client config sets `space`, that lane is the ambient default for Context Bundle, Working Memory, search, save, and session-save flows. `NMEM_SPACE="<space name>"` can override it for a single OpenCode process. Legacy `NMEM_SPACE_ID` still works for older setups.
 
 Reference relevant parts naturally as the conversation progresses. Do not re-read unless the user asks or the session context changes materially.
 

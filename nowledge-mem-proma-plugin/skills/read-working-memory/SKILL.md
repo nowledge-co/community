@@ -39,7 +39,7 @@ nmem wm read
 nmem --json wm read
 ```
 
-Add `--space "<space name>"` for space-aware lanes. If Proma exposes a stable long-running agent id, add `--host-agent-id "<agent-id>"` to `nmem context`.
+Add `--space "<space name>"` for space-aware lanes. If Proma exposes a stable long-running agent id, add `--host-agent-id "<agent-id>"` to `nmem context`. Multi-agent orchestrators can set `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` before launching Proma.
 
 ## Content
 

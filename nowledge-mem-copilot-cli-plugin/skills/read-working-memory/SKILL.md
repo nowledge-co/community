@@ -41,7 +41,7 @@ Read Working Memory alone when you only need current priorities:
 nmem --json wm read
 ```
 
-If the runtime already knows the current project or agent lane, add `--space "<space name>"` to either command. If it knows a stable long-running agent id, add `--host-agent-id "<agent-id>"` to `nmem context`.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"` to either command. If it knows a stable long-running agent id, add `--host-agent-id "<agent-id>"` to `nmem context`. Multi-agent orchestrators can set `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` before launching Copilot CLI.
 
 Fallback for local-only (when nmem is not installed):
 

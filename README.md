@@ -26,9 +26,15 @@ The autonomy contract uses one shared language across integrations:
 
 This keeps one critical distinction honest for fresh users: having tools available is not the same thing as getting autonomous memory behavior.
 
-For behavioral guidance (when to search, save, read Working Memory, and route ambient spaces), see [`shared/behavioral-guidance.md`](shared/behavioral-guidance.md). For plugin authoring rules, see [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md).
+For behavioral guidance (when to read Context Bundle, use Working Memory fallback, search, save, and route ambient spaces), see [`shared/behavioral-guidance.md`](shared/behavioral-guidance.md). For plugin authoring rules, see [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md).
 
 For end-user customization that survives updates, see [`docs/USER_OVERRIDE_GUIDE.md`](docs/USER_OVERRIDE_GUIDE.md). The short version: do not edit installed plugin files; use the host's own instruction files when that host supports them.
+
+For multi-agent orchestrators that launch Codex, Claude Code, OpenCode, or other
+child CLIs, set `NMEM_AGENT_ID` or `NMEM_HOST_AGENT_ID` in each child process.
+The child plugin still reports its real runtime as `source_app`; the env var
+selects the right Nowledge Agent Identity and default space through Context
+Bundle.
 
 ## Integrations
 
@@ -36,22 +42,22 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 
 | Integration | Install | What it does |
 |-------------|---------|--------------|
-| **[Skills](nowledge-mem-npx-skills)** | `npx skills add nowledge-co/community/nowledge-mem-npx-skills` | Reusable workflow package for Working Memory, routed recall, resumable handoffs, and distillation. Prefer native packages when your tool has one. |
-| **[Claude Code Plugin](nowledge-mem-claude-code-plugin)** | `claude plugin marketplace add nowledge-co/community` then `claude plugin install nowledge-mem@nowledge-community` | Claude Code native plugin with hooks for Working Memory bootstrap, routed recall, automatic session capture, and pre-compaction transcript save. |
-| **[Copilot CLI Plugin](nowledge-mem-copilot-cli-plugin)** | `copilot plugin marketplace add nowledge-co/community` then `copilot plugin install nowledge-mem@nowledge-community` | GitHub Copilot CLI plugin with Working Memory bootstrap, guided recall, incremental session capture, and pre-compaction transcript save. |
-| **[Droid Plugin](nowledge-mem-droid-plugin)** | `droid plugin marketplace add https://github.com/nowledge-co/community` then `droid plugin install nowledge-mem@nowledge-community` | Factory Droid plugin with Working Memory bootstrap, routed recall, distillation, and honest `save-handoff` semantics. |
-| **[Gemini CLI](https://github.com/nowledge-co/nowledge-mem-gemini-cli)** | Search `Nowledge Mem` in the [Gemini CLI Extensions Gallery](https://geminicli.com/extensions/?name=nowledge-co/nowledge-mem-gemini-cli) and install | Gemini-native context, bundled MCP, hooks, commands, and skills for Working Memory, routed recall, real thread save before compression or exit, and handoff summaries. |
+| **[Skills](nowledge-mem-npx-skills)** | `npx skills add nowledge-co/community/nowledge-mem-npx-skills` | Reusable workflow package for Context Bundle / Working Memory startup context, routed recall, resumable handoffs, and distillation. Prefer native packages when your tool has one. |
+| **[Claude Code Plugin](nowledge-mem-claude-code-plugin)** | `claude plugin marketplace add nowledge-co/community` then `claude plugin install nowledge-mem@nowledge-community` | Claude Code native plugin with hooks for Context Bundle / Working Memory startup context, routed recall, automatic session capture, and pre-compaction transcript save. |
+| **[Copilot CLI Plugin](nowledge-mem-copilot-cli-plugin)** | `copilot plugin marketplace add nowledge-co/community` then `copilot plugin install nowledge-mem@nowledge-community` | GitHub Copilot CLI plugin with startup context guidance, routed recall, incremental session capture, and pre-compaction transcript save. |
+| **[Droid Plugin](nowledge-mem-droid-plugin)** | `droid plugin marketplace add https://github.com/nowledge-co/community` then `droid plugin install nowledge-mem@nowledge-community` | Factory Droid plugin with Context Bundle / Working Memory startup context, routed recall, distillation, and honest `save-handoff` semantics. |
+| **[Gemini CLI](https://github.com/nowledge-co/nowledge-mem-gemini-cli)** | Search `Nowledge Mem` in the [Gemini CLI Extensions Gallery](https://geminicli.com/extensions/?name=nowledge-co/nowledge-mem-gemini-cli) and install | Gemini-native context, bundled MCP, hooks, commands, and skills for Context Bundle / Working Memory startup context, routed recall, real thread save before compression or exit, and handoff summaries. |
 | **[Antigravity Trajectory Extractor](https://github.com/jijiamoer/antigravity-trajectory-extractor)** | `git clone https://github.com/jijiamoer/antigravity-trajectory-extractor.git` | Live RPC extraction for Antigravity conversation trajectories. |
 | **[Windsurf Trajectory Extractor](https://github.com/jijiamoer/windsurf-trajectory-extractor)** | `git clone https://github.com/jijiamoer/windsurf-trajectory-extractor.git` | Offline protobuf extraction for Windsurf Cascade conversation history. |
-| **[Cursor Plugin](nowledge-mem-cursor-plugin)** | Link `nowledge-mem-cursor-plugin` into `~/.cursor/plugins/local/nowledge-mem-cursor` | Cursor-native plugin package with a session-start Working Memory hook, bundled MCP config, rules, and honest `save-handoff` semantics. |
+| **[Cursor Plugin](nowledge-mem-cursor-plugin)** | Link `nowledge-mem-cursor-plugin` into `~/.cursor/plugins/local/nowledge-mem-cursor` | Cursor-native plugin package with session-start context guidance, bundled MCP config, rules, and honest `save-handoff` semantics. |
 | **[Codex Plugin](nowledge-mem-codex-plugin)** | `codex plugin marketplace add nowledge-co/community` then `codex plugin add nowledge-mem@nowledge-community`; enable `plugins`, `hooks`, and `plugin_hooks`, then run the setup script | Hybrid Codex path: plugin package plus bundled local MCP for stronger retrieval and memory writes, with the Stop hook calling `nmem` for real session capture. |
 | **[OpenClaw Plugin](nowledge-mem-openclaw-plugin)** | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | Full memory lifecycle with memory tools, thread tools, automatic capture, and distillation. |
-| **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with Working Memory, thread-aware recall, structured saves, and optional auto-capture. |
-| **[Bub Plugin](nowledge-mem-bub-plugin)** | `pip install nowledge-mem-bub` | Bub-native plugin: cross-tool knowledge, auto-capture via save_state, Working Memory, and graph exploration. |
-| **[Pi Package](nowledge-mem-pi-package)** | `pi install npm:nowledge-mem-pi` | Five composable skills for Working Memory, routed recall, distillation, and resumable handoffs in Pi. |
-| **[OpenCode Plugin](nowledge-mem-opencode-plugin)** | Add `"opencode-nowledge-mem"` to `opencode.json` plugins | Native OpenCode plugin with eight tools for Working Memory, search, save, update, thread search, session capture, handoff, and status. |
-| **[Hermes Agent](nowledge-mem-hermes)** | `bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)` | Native Hermes memory provider with Working Memory bootstrap, pre-turn recall, clean `nmem_` tools, and session-end transcript capture into Mem threads. MCP remains available as a fallback mode. |
-| **[Proma Plugin](nowledge-mem-proma-plugin)** | Manual setup with MCP, hooks, and skills; see [Proma guide](https://mem.nowledge.co/docs/integrations/proma) | Proma desktop agent setup with Working Memory at session start, Stop-hook thread capture, MCP memory tools, and standard Nowledge Mem skills. |
+| **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with startup context, thread-aware recall, structured saves, and optional auto-capture. |
+| **[Bub Plugin](nowledge-mem-bub-plugin)** | `pip install nowledge-mem-bub` | Bub-native plugin: cross-tool knowledge, auto-capture via save_state, startup context, and graph exploration. |
+| **[Pi Package](nowledge-mem-pi-package)** | `pi install npm:nowledge-mem-pi` | Five composable skills for Context Bundle / Working Memory startup context, routed recall, distillation, and resumable handoffs in Pi. |
+| **[OpenCode Plugin](nowledge-mem-opencode-plugin)** | Add `"opencode-nowledge-mem"` to `opencode.json` plugins | Native OpenCode plugin with tools for Context Bundle, Working Memory, search, save, update, thread search, session capture, handoff, and status. |
+| **[Hermes Agent](nowledge-mem-hermes)** | `bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)` | Native Hermes memory provider with Context Bundle / Working Memory startup context, pre-turn recall, clean `nmem_` tools, and session-end transcript capture into Mem threads. MCP remains available as a fallback mode. |
+| **[Proma Plugin](nowledge-mem-proma-plugin)** | Manual setup with MCP, hooks, and skills; see [Proma guide](https://mem.nowledge.co/docs/integrations/proma) | Proma desktop agent setup with startup context, Stop-hook thread capture, MCP memory tools, and standard Nowledge Mem skills. |
 | **[Raycast Extension](nowledge-mem-raycast)** | Search Nowledge in Raycast Extension Store | Search memories from Raycast launcher. |
 | **[Claude Desktop](https://github.com/nowledge-co/claude-dxt)** | Download from [nowled.ge/claude-dxt](https://nowled.ge/claude-dxt), double-click `.mcpb` file | One-click extension for Claude Desktop with memory search, save, and update. |
 | **[Browser Extension](https://chromewebstore.google.com/detail/nowledge-memory-exchange/kjgpkgodplgakbeanoifnlpkphemcbmh)** | Install from Chrome Web Store | Side-panel capture for ChatGPT, Claude, Gemini, Perplexity, and other web AI surfaces. |

@@ -16,7 +16,7 @@ Before release:
 3. Verify the Copilot marketplace is valid JSON: `python3 -m json.tool ../.github/plugin/marketplace.json > /dev/null`
 4. Run fixture tests: `uv run --with pytest pytest tests/ -v`
 5. Install the plugin locally and verify:
-   - Working Memory loads at session start
+   - Context Bundle loads at session start, or Working Memory loads as the fallback on older `nmem`
    - Per-turn nudge appears
    - Stop, PreCompact, and SessionEnd hooks capture sessions from the packaged plugin runtime, and `copilot-stop-save.py` writes diagnostics to `~/.copilot/nowledge-mem-hooks/hook-log.jsonl` for both the packaged and compatibility paths
    - Copilot shows only the skill-backed surface (no extra command-doc entries)

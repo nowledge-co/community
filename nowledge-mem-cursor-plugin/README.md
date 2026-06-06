@@ -1,13 +1,13 @@
 # Nowledge Mem for Cursor
 
-> Cursor-native plugin package for Nowledge Mem: MCP-backed recall, session-start Working Memory bootstrap, distillation, and resumable handoffs.
+> Cursor-native plugin package for Nowledge Mem: MCP-backed recall, session-start Context Bundle / Working Memory bootstrap, distillation, and resumable handoffs.
 
-This package follows Cursor's plugin format with `.cursor-plugin/plugin.json`, bundled rules, skills, `mcp.json`, and a `sessionStart` hook for Working Memory bootstrap.
+This package follows Cursor's plugin format with `.cursor-plugin/plugin.json`, bundled rules, skills, `mcp.json`, and a `sessionStart` hook for Context Bundle / Working Memory bootstrap.
 
 ## What You Get
 
 - MCP-backed `read_working_memory`, `memory_search`, `thread_search`, `thread_fetch_messages`, `memory_add`, and `memory_update`
-- Session-start Working Memory bootstrap when `nmem` is available
+- Session-start Context Bundle / Working Memory bootstrap when `nmem` is available
 - Cursor rules for Working Memory timing, proactive recall, retrieval routing, and add-vs-update behavior
 - Four skills: `read-working-memory`, `search-memory`, `distill-memory`, and `save-handoff`
 - A clear lifecycle: Working Memory, routed recall, distillation, and resumable handoffs
@@ -61,16 +61,16 @@ If Nowledge Mem is running on the same machine through the desktop app, install 
 
 That enables two important package behaviors:
 
-- the `sessionStart` hook can preload Working Memory into new Cursor agent sessions
+- the `sessionStart` hook can preload Context Bundle or Working Memory into new Cursor agent sessions
 - the `save-handoff` skill can create resumable handoff threads with `nmem --json t create`
 
-If `nmem` is unavailable, the MCP tools still work. Only the automatic Working Memory bootstrap and handoff creation are affected.
+If `nmem` is unavailable, the MCP tools still work. Only the automatic startup context bootstrap and handoff creation are affected.
 
 ## Spaces
 
 Spaces are optional. Cursor does not yet expose one shared ambient space across all MCP calls in this package, so the current split is:
 
-- `sessionStart` Working Memory bootstrap and `save-handoff` can follow `NMEM_SPACE="<space name>"` when Cursor is launched in a stable lane.
+- `sessionStart` Context Bundle / Working Memory bootstrap and `save-handoff` can follow `NMEM_SPACE="<space name>"` when Cursor is launched in a stable lane.
 - MCP tool calls stay on their normal backend lane unless Cursor/runtime support is extended to pass `space_id`.
 - The Mem space profile still matters. When Cursor eventually forwards `space_id`, shared spaces, default retrieval, and agent guidance should come from Mem's `/spaces` profile, not from a second Cursor-only config.
 
@@ -80,7 +80,7 @@ If you do not have a real ambient lane, stay on `Default`. Legacy `NMEM_SPACE_ID
 
 Cursor can see the tools, but the bundled rules and skills tell it when to use them:
 
-- let the session-start hook provide Working Memory when available, and only call `read_working_memory` when you need a refresh or the hook could not load it
+- let the session-start hook provide Context Bundle or Working Memory when available, and only call `read_context_bundle` / `read_working_memory` when you need a refresh or the hook could not load it
 - search proactively when the user references previous work or a similar bug
 - search threads only when exact prior conversation history matters
 - update an existing memory instead of duplicating it when the same decision evolves
@@ -150,6 +150,6 @@ Release and submission notes live in [`RELEASING.md`](./RELEASING.md).
 ## Why This Design
 
 - MCP is the strongest native execution layer Cursor exposes today for Nowledge Mem.
-- The session-start hook is the smallest reliable automatic context surface, so it bootstraps Working Memory without pretending Cursor has a real transcript-capture path.
+- The session-start hook is the smallest reliable automatic context surface, so it bootstraps Context Bundle or Working Memory without pretending Cursor has a real transcript-capture path.
 - Rules and skills add the lifecycle guidance that plain MCP config lacks.
 - Handoffs stay separate from real thread save so the product contract remains correct.
