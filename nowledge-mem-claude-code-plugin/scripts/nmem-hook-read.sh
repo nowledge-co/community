@@ -38,20 +38,28 @@ resolve_space() {
 }
 
 SPACE="$(resolve_space)"
+AGENT_ID="${NMEM_AGENT_ID:-}"
+HOST_AGENT_ID="${NMEM_HOST_AGENT_ID:-}"
 
 parse_context='import sys,json; d=json.load(sys.stdin); c=d.get("rendered_markdown") or d.get("content") or ""; print(c) if c else sys.exit(1)'
 parse_existing_space_wm='import sys,json; d=json.load(sys.stdin); c=d.get("content",""); print(c) if d.get("exists") and c else sys.exit(1)'
 parse_default_wm='import sys,json; d=json.load(sys.stdin); c=d.get("content",""); print(c) if c else sys.exit(1)'
 
+try_context() {
+  target_space="$1"
+  set -- context --source-app claude-code
+  [ -n "$AGENT_ID" ] && set -- "$@" --agent-id "$AGENT_ID"
+  [ -n "$HOST_AGENT_ID" ] && set -- "$@" --host-agent-id "$HOST_AGENT_ID"
+  [ -n "$target_space" ] && set -- "$@" --space "$target_space"
+  nmem --json "$@" 2>/dev/null | "$PY" -c "$parse_context" 2>/dev/null
+}
+
 if command -v nmem >/dev/null 2>&1 && [ -n "$PY" ]; then
-  if [ -n "$SPACE" ] \
-    && nmem --json context --source-app claude-code --space "$SPACE" 2>/dev/null \
-      | "$PY" -c "$parse_context" 2>/dev/null; then
+  if [ -n "$SPACE" ] && try_context "$SPACE"; then
     exit 0
   fi
 
-  if nmem --json context --source-app claude-code 2>/dev/null \
-    | "$PY" -c "$parse_context" 2>/dev/null; then
+  if try_context ""; then
     exit 0
   fi
 

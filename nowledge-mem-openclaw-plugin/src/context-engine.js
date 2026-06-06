@@ -183,24 +183,24 @@ export function createNowledgeMemContextEngineFactory(
 			info: {
 				id: "nowledge-mem",
 				name: "Nowledge Mem",
-				version: "0.8.0",
+				version: "0.8.25",
 				ownsCompaction: false,
 			},
 
 			// ------------------------------------------------------------------
-			// bootstrap — pre-warm Working Memory for first assemble()
+			// bootstrap — pre-warm startup context for first assemble()
 			// ------------------------------------------------------------------
 			async bootstrap({ sessionId, sessionKey }) {
 				const key = sessionKey || sessionId;
 				try {
-					const wm = await client.readWorkingMemory();
+					const wm = await client.readStartupContext();
 					const state = getSessionState(key);
 					state.wm = wm;
 					state.lastWmFetch = Date.now();
-					logger.debug?.(`ce: bootstrap — WM loaded for ${key}`);
+					logger.debug?.(`ce: bootstrap — startup context loaded for ${key}`);
 					return { bootstrapped: true };
 				} catch (err) {
-					logger.warn(`ce: bootstrap — WM read failed: ${err}`);
+					logger.warn(`ce: bootstrap — startup context read failed: ${err}`);
 					return { bootstrapped: false, reason: String(err) };
 				}
 			},
@@ -232,19 +232,23 @@ export function createNowledgeMemContextEngineFactory(
 					cfg.sessionContext ? SESSION_CONTEXT_GUIDANCE : BASE_GUIDANCE,
 				);
 
-				// 2. Working Memory (refresh if stale)
+				// 2. Startup context (refresh if stale)
 				try {
 					if (!state.wm || Date.now() - state.lastWmFetch > WM_CACHE_TTL_MS) {
-						state.wm = await client.readWorkingMemory();
+						state.wm = await client.readStartupContext();
 						state.lastWmFetch = Date.now();
 					}
 					if (state.wm?.available) {
+						const tag =
+							state.wm.source === "context-bundle"
+								? "nowledge-context-bundle"
+								: "working-memory";
 						sections.push(
-							`<working-memory>\n${escapeForPrompt(state.wm.content)}\n</working-memory>`,
+							`<${tag}>\n${escapeForPrompt(state.wm.content)}\n</${tag}>`,
 						);
 					}
 				} catch (err) {
-					logger.debug?.(`ce: assemble — WM read failed: ${err}`);
+					logger.debug?.(`ce: assemble — startup context read failed: ${err}`);
 				}
 
 				// 3. Recalled memories (when sessionContext enabled)

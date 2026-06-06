@@ -108,11 +108,11 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 					);
 					if (cfg.sessionContext) {
 						lines.push(
-							"  Fallback active: Nowledge Mem still injects Working Memory and uses its own recall path.",
+							"  Fallback active: Nowledge Mem still injects startup context and uses its own recall path.",
 						);
 					} else {
 						lines.push(
-							"  Fallback: Nowledge Mem tools remain available. Enable sessionContext for prompt-time Working Memory and recall.",
+							"  Fallback: Nowledge Mem tools remain available. Enable sessionContext for prompt-time startup context and recall.",
 						);
 					}
 					if (corpusSupplementRegistrationError) {

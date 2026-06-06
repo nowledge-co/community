@@ -200,10 +200,10 @@ test("status tool reports configured-but-unavailable corpus supplement with reca
 		result.content[0].text,
 		/corpusSupplement is configured, but host registration is unavailable in this runtime\./,
 	);
-	assert.match(
-		result.content[0].text,
-		/Fallback active: Nowledge Mem still injects Working Memory and uses its own recall path\./,
-	);
+		assert.match(
+			result.content[0].text,
+			/Fallback active: Nowledge Mem still injects startup context and uses its own recall path\./,
+		);
 	assert.match(
 		result.content[0].text,
 		/corpusSupplement runtime: configured but unavailable \(fallback to plugin recall\)/,
@@ -250,14 +250,14 @@ test("status tool avoids fallback recall claim when sessionContext is disabled",
 
 	const result = await tool.execute();
 
-	assert.doesNotMatch(
-		result.content[0].text,
-		/Fallback active: Nowledge Mem still injects Working Memory and uses its own recall path\./,
-	);
-	assert.match(
-		result.content[0].text,
-		/Fallback: Nowledge Mem tools remain available\. Enable sessionContext for prompt-time Working Memory and recall\./,
-	);
+		assert.doesNotMatch(
+			result.content[0].text,
+			/Fallback active: Nowledge Mem still injects startup context and uses its own recall path\./,
+		);
+		assert.match(
+			result.content[0].text,
+			/Fallback: Nowledge Mem tools remain available\. Enable sessionContext for prompt-time startup context and recall\./,
+		);
 	assert.match(
 		result.content[0].text,
 		/corpusSupplement runtime: configured but unavailable \(sessionContext disabled\)/,

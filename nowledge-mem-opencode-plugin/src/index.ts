@@ -43,7 +43,7 @@ export default {
       try {
         // Bun's $ tagged template escapes each array element as a separate
         // shell argument, so values containing spaces/quotes are safe.
-        const result = await $`nmem --json ${args}`.text()
+        const result = await $`nmem --json ${withAmbientSpaceArg(args)}`.text()
         return result.trim()
       } catch (err: any) {
         const stderr = String(err?.stderr ?? "")
@@ -82,6 +82,36 @@ export default {
       return typeof value === "string" ? value.trim() || undefined : undefined
     }
 
+    function withAmbientSpaceArg(args: string[]): string[] {
+      let next = args
+      if (ambientSpaceId && !next.includes("--space")) {
+        const scopedCommands = new Set(["context", "ctx", "wm", "m", "memories", "t", "threads"])
+        if (scopedCommands.has(next[0] ?? "")) {
+          next = [...next, "--space", ambientSpaceId]
+        }
+      }
+      if (next[0] !== "context" && next[0] !== "ctx") return next
+      if (ambientAgentId && !next.includes("--agent-id")) {
+        next = [...next, "--agent-id", ambientAgentId]
+      }
+      if (ambientHostAgentId && !next.includes("--host-agent-id")) {
+        next = [...next, "--host-agent-id", ambientHostAgentId]
+      }
+      return next
+    }
+
+    function readEnvOrConfig(...keys: string[]): string | undefined {
+      for (const key of keys) {
+        const envValue = process.env[key]?.trim()
+        if (envValue) return envValue
+      }
+      for (const key of keys) {
+        const configValue = stringConfigValue(sharedConfig[key])
+        if (configValue) return configValue
+      }
+      return undefined
+    }
+
     const sharedConfig = readSharedConfig()
     const apiUrl = (
       process.env.NMEM_API_URL?.trim() ||
@@ -95,6 +125,8 @@ export default {
       stringConfigValue(sharedConfig.space) ||
       stringConfigValue(sharedConfig.spaceId) ||
       stringConfigValue(sharedConfig.space_id)
+    const ambientAgentId = readEnvOrConfig("NMEM_AGENT_ID", "agentId", "agent_id")
+    const ambientHostAgentId = readEnvOrConfig("NMEM_HOST_AGENT_ID", "hostAgentId", "host_agent_id")
 
     function withAmbientSpace(body: unknown): unknown {
       if (!ambientSpaceId || body == null || typeof body !== "object" || Array.isArray(body)) {
@@ -135,6 +167,13 @@ export default {
         clearTimeout(timeout)
       }
     }
+
+    /*
+     * Keep declarations above this comment; the next block is the OpenCode SDK
+     * message transform. The ambient identity convention lets orchestrators
+     * set NMEM_AGENT_ID or NMEM_HOST_AGENT_ID per child agent without changing
+     * OpenCode's plugin API.
+     */
 
     // --- Transform OpenCode SDK messages to Nowledge Mem thread format ---
 

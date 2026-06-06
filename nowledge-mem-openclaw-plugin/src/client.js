@@ -690,10 +690,40 @@ export class NowledgeMemClient {
 			const data = await this.execJson(["--json", "wm", "read"], 15_000);
 			const content = String(data.content ?? "").trim();
 			const exists = Boolean(data.exists);
-			return { content, available: exists && content.length > 0 };
+			return {
+				content,
+				available: exists && content.length > 0,
+				source: "working-memory",
+			};
 		} catch {
-			return { content: "", available: false };
+			return { content: "", available: false, source: "working-memory" };
 		}
+	}
+
+	async readContextBundle() {
+		try {
+			const data = await this.execJson(
+				["--json", "context", "--source-app", "openclaw"],
+				15_000,
+			);
+			const content = String(
+				data.rendered_markdown ?? data.markdown ?? data.content ?? "",
+			).trim();
+			return {
+				content,
+				available: content.length > 0,
+				source: "context-bundle",
+				raw: data,
+			};
+		} catch {
+			return { content: "", available: false, source: "context-bundle" };
+		}
+	}
+
+	async readStartupContext() {
+		const bundle = await this.readContextBundle();
+		if (bundle.available) return bundle;
+		return this.readWorkingMemory();
 	}
 
 	/**

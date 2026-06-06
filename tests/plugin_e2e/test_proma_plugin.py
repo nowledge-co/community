@@ -109,6 +109,8 @@ class TestHookScripts:
     def test_wm_script_has_uvx_fallback(self):
         script = PLUGIN_DIR / "hooks" / "read-working-memory.py"
         content = script.read_text(encoding="utf-8")
+        assert '"context", "--source-app", "proma"' in content
+        assert '"wm", "read"' in content
         assert "uvx" in content.lower(), (
             "read-working-memory.py should include uvx fallback per plugin guide"
         )
@@ -245,4 +247,5 @@ class TestChangelog:
     def test_changelog_has_version(self):
         cl = PLUGIN_DIR / "CHANGELOG.md"
         content = cl.read_text(encoding="utf-8")
+        assert "0.1.1" in content, "CHANGELOG should document version 0.1.1"
         assert "0.1.0" in content, "CHANGELOG should document version 0.1.0"
