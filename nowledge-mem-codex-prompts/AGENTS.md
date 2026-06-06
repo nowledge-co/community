@@ -12,7 +12,7 @@ At session start, prefer Context Bundle when full identity, active space, guidan
 nmem --json context --source-app codex
 ```
 
-If the runtime already knows a project or agent lane, add `--space "<space name>"`. If it has a stable long-running agent identity, add `--host-agent-id "<agent-id>"`.
+If the runtime already knows a project or agent lane, add `--space "<space name>"`. If a multi-agent launcher starts this Codex worker, prefer setting `NMEM_AGENT_ID="<agent-slug>"` before launch. Use `NMEM_HOST_AGENT_ID` only for advanced host-id aliases.
 
 Use Working Memory alone when you only need the lightweight daily briefing, or when the installed `nmem` CLI is too old for `context`:
 

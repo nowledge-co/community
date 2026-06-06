@@ -31,10 +31,12 @@ For behavioral guidance (when to read Context Bundle, use Working Memory fallbac
 For end-user customization that survives updates, see [`docs/USER_OVERRIDE_GUIDE.md`](docs/USER_OVERRIDE_GUIDE.md). The short version: do not edit installed plugin files; use the host's own instruction files when that host supports them.
 
 For multi-agent orchestrators that launch Codex, Claude Code, OpenCode, or other
-child CLIs, set `NMEM_AGENT_ID` or `NMEM_HOST_AGENT_ID` in each child process.
-The child plugin still reports its real runtime as `source_app`; the env var
-selects the right Nowledge Agent Identity and default space through Context
-Bundle.
+child CLIs, set `NMEM_AGENT_ID=<agent-slug>` in each child process. Add
+`NMEM_SPACE=<space>` only when that run should override the agent profile's
+default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases, not a
+second required identity variable. The child plugin still reports its real
+runtime as `source_app`; the env var selects the right Nowledge Agent Identity
+through Context Bundle.
 
 ## Integrations
 

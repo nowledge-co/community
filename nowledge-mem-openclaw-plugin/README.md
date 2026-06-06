@@ -127,7 +127,7 @@ NMEM_SPACE="Research Agent"
 
 Nowledge Mem's CLI-backed Working Memory, memory search/save, and the plugin's API-backed thread/feed fallbacks will then stay in that lane together. There is no second OpenClaw-only vault setting; the shared Mem boundary is still one hidden space key, but humans and agents should normally work with the space name instead.
 
-For multi-agent orchestrators, set `NMEM_AGENT_ID` or `NMEM_HOST_AGENT_ID` per spawned OpenClaw worker. Context Bundle will use that stable identity while keeping `source_app=openclaw` for provenance. Keep these as launcher environment variables instead of plugin config keys so OpenClaw's strict config validation remains stable.
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned OpenClaw worker. Add `NMEM_SPACE` only when that run should override the agent profile's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=openclaw` for provenance. Keep these as launcher environment variables instead of plugin config keys so OpenClaw's strict config validation remains stable.
 
 Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. OpenClaw chooses the lane and preserves it across transports; it should not duplicate the profile semantics.
 

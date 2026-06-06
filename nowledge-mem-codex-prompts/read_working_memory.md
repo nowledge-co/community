@@ -12,7 +12,7 @@ Prefer Context Bundle when identity, active space, guidance, and Working Memory 
 nmem --json context --source-app codex
 ```
 
-If the runtime already knows the current project or agent lane, add `--space "<space name>"`. If it knows a stable long-running agent id, add `--host-agent-id "<agent-id>"`.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`. If a multi-agent launcher starts this Codex worker, prefer setting `NMEM_AGENT_ID="<agent-slug>"` before launch. Use `NMEM_HOST_AGENT_ID` only for advanced host-id aliases.
 
 Use Working Memory alone when you only need current priorities, or when `nmem context` is unavailable:
 

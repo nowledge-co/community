@@ -32,20 +32,19 @@ nmem --json context --source-app "<host>" --host-agent-id "<agent-id>"
 If the host has an ambient project or agent lane, also pass `--space "<space name>"`.
 
 For orchestration tools that spawn another AI CLI, keep `--source-app` as the
-child runtime (`codex`, `claude-code`, `opencode`, and so on) and pass the
-orchestrator's stable per-agent id as `--host-agent-id`. When the orchestrator
-can set environment variables per child process, use:
+child runtime (`codex`, `claude-code`, `opencode`, and so on). If a user can set
+environment variables per child process, the friendly path is one variable:
 
 ```bash
 NMEM_AGENT_ID="reviewer"
-NMEM_HOST_AGENT_ID="orchestrator:reviewer"
-NMEM_SPACE="project-review"
 ```
 
-`NMEM_AGENT_ID` selects a Nowledge Agent Identity directly. `NMEM_HOST_AGENT_ID`
-matches a host-local identity stored on the profile. Set one or both; do not use
-the orchestrator name alone for every child agent, or all agents will collapse
-into one profile.
+`NMEM_AGENT_ID` selects a Nowledge Agent Identity directly. Add `NMEM_SPACE` only
+when the whole child process should override that identity's default space.
+`NMEM_HOST_AGENT_ID` is for integration authors or advanced users who need to
+map an immutable host-local id such as `slock:<uuid>` onto a profile. Do not ask
+normal users to set both identity variables; if every child gets the same value,
+all agents will collapse into one profile.
 
 **When to use Context Bundle:**
 - Session startup for multi-agent hosts or long-running named agents

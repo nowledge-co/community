@@ -21,7 +21,7 @@ For only Working Memory:
 nmem --json wm read
 ```
 
-If the runtime already knows the current project or agent lane, add `--space "<space name>"`. If the host has a stable long-running agent id, use `--host-agent-id "<agent-id>"` with `nmem context`. Multi-agent orchestrators can set `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` before launching Codex so the Context Bundle resolves the right Agent Identity.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`. Multi-agent orchestrators can set `NMEM_AGENT_ID="<agent-slug>"` before launching Codex so the Context Bundle resolves the right Agent Identity. Add `NMEM_SPACE` only when that whole run should override the identity's default space. Use `NMEM_HOST_AGENT_ID` only for advanced host-id aliases.
 
 ## What you'll find
 
