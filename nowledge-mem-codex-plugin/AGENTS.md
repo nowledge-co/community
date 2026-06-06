@@ -76,10 +76,12 @@ When the task needs to browse across memories, threads, wiki pages, working memo
 Prefer the MCP `mem_fs` tool when it is available. It accepts shell-shaped commands such as:
 
 ```text
+capabilities
 ls /
 recall "session token strategy" --in /memories -k 5
 find /memories --label decisions --since 2026-01-01
 grep "JWT rotation" /memories
+grep -E "JWT|token" /threads
 cat /memories/by-id/<id>.memory.md
 stat /wiki/entities/PostgreSQL--<id>.entity.md
 ```
@@ -88,11 +90,12 @@ Otherwise use the CLI fallback:
 
 ```bash
 nmem fs ls /
+nmem fs capabilities --json
 nmem fs recall "session token strategy" --in /memories -k 5
 nmem fs cat /memories/by-id/<id>.memory.md
 ```
 
-Use `recall` for fuzzy intent, `find` for metadata constraints, `grep` for exact strings, `stat` before loading large bodies, and `cat` only after choosing a path. Treat returned paths as Mem identifiers, not OS filesystem paths. Mounting, source fragments, SQL/Cypher, replay, and tail are later phases.
+Use `capabilities` before building adapters or checking whether a future feature has shipped. Use `recall` for fuzzy intent, `find` for metadata constraints, `grep` for exact strings, `grep -E` for explicit regex, `stat` before loading large bodies, and `cat` only after choosing a path. Treat returned paths as Mem identifiers, not OS filesystem paths. Mounting, source fragments, SQL/Cypher, replay, and tail are later phases.
 
 For past conversations specifically:
 

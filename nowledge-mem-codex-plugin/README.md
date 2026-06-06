@@ -35,6 +35,7 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 Use the Knowledge Filesystem when the task is bigger than a single memory search and you need to browse nearby context.
 
 ```text
+mem_fs: capabilities
 mem_fs: recall "why did we change token refresh?" --in /memories -k 5
 mem_fs: cat /memories/by-id/<id>.memory.md
 mem_fs: ls /memories/by-label/auth
@@ -43,12 +44,13 @@ mem_fs: ls /memories/by-label/auth
 The same surface is available from the shell:
 
 ```bash
+nmem fs capabilities --json
 nmem fs ls /
 nmem fs recall "session token strategy" --in /memories -k 5
 nmem fs grep "JWT rotation" /memories
 ```
 
-Use `recall` for fuzzy intent, `find` for metadata, `grep` for exact strings, `stat` before loading large files, and `cat` only after you have a useful path. This first release is API-backed; it is not an OS mount yet.
+Use `recall` for fuzzy intent, `find` for metadata, `grep` for exact strings, `stat` before loading large files, and `cat` only after you have a useful path. `grep` is case-insensitive by default; use `--case-sensitive` for exact casing or `-E` for regex. This first release is API-backed; it is not an OS mount yet.
 
 ## Prerequisites
 
