@@ -240,7 +240,7 @@
       },
       "threadSave": {
         "method": "child-runtime",
-        "note": "Slock launches Codex, Claude Code, or another runtime. Thread capture and MCP behavior come from that child runtime connector."
+        "note": "Slock launches Codex, Claude Code, or another runtime. Thread capture and MCP behavior come from that child runtime connector. The Mem identity is portable and can stay the same when the launcher or child runtime changes."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -264,7 +264,7 @@
       },
       "toolNaming": {
         "convention": "child-runtime",
-        "note": "Keep source_app as the launched runtime (codex, claude-code, opencode, etc.); use NMEM_AGENT_ID to select the named Slock worker profile."
+        "note": "Keep source_app as the launched runtime (codex, claude-code, opencode, pi, etc.); use NMEM_AGENT_ID to select the portable worker profile. Fork to a new slug such as cindy-reviewer only when the persona should diverge."
       },
       "skills": [],
       "slashCommands": []
