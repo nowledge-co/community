@@ -24,6 +24,8 @@ DROID_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-droid-plugin"
 GEMINI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-gemini-cli"
 PROMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-proma-plugin"
 CURSOR_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-cursor-plugin"
+BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
+BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode"}
 
 
@@ -410,6 +412,22 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
 
 
+def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
+    bub_tools = (
+        BUB_PLUGIN / "src" / "nowledge_mem_bub" / "tools.py"
+    ).read_text(encoding="utf-8")
+    assert "unit_type: str | None = Field(" in bub_tools
+    assert "unit_type: str = Field(" not in bub_tools
+    assert "Omit when unsure so Nowledge Mem can" in bub_tools
+    assert "unit_type=param.unit_type" in bub_tools
+
+    bench_client = (
+        BENCH_PACKAGE / "src" / "nmem_bench" / "nmem" / "client.py"
+    ).read_text(encoding="utf-8")
+    assert "unit_type: str | None = None" in bench_client
+    assert "if unit_type:\n            args.extend([\"--unit-type\", unit_type])" in bench_client
+
+
 def test_claude_read_hooks_keep_file_fallback_without_plugin_root(tmp_path):
     hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     home = tmp_path / "home"
@@ -729,7 +747,7 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
         _run([*base, "config", "set", "--batch-file", str(batch_file)], env=e2e_context.env, timeout=60)
 
         prompt = f"Reply with exactly: done {e2e_context.marker}"
-        result = _run(
+        _run(
             [
                 *base,
                 "agent",

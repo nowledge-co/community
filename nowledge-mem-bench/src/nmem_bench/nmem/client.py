@@ -238,7 +238,7 @@ class NmemClient:
         title: str = "",
         importance: float = 0.5,
         labels: str = "",
-        unit_type: str = "fact",
+        unit_type: str | None = None,
     ) -> dict[str, Any]:
         """Add a memory directly."""
         args = ["m", "add", content]
@@ -247,7 +247,8 @@ class NmemClient:
         args.extend(["-i", str(importance)])
         if labels:
             args.extend(["-l", labels])
-        args.extend(["--unit-type", unit_type])
+        if unit_type:
+            args.extend(["--unit-type", unit_type])
         return self._run(args)
 
     # ── System operations ──

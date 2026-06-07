@@ -620,7 +620,7 @@
       "name": "Bub",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.1",
+      "version": "0.7.2",
       "directory": "nowledge-mem-bub-plugin",
       "transport": "cli",
       "capabilities": {

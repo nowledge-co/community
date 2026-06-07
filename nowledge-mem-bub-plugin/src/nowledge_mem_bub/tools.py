@@ -105,9 +105,13 @@ class MemSaveInput(BaseModel):
     labels: list[str] = Field(
         default_factory=list, description="Topic labels (0–3 recommended)."
     )
-    unit_type: str = Field(
-        "fact",
-        description="Type: fact, decision, learning, preference, plan, procedure, context, event.",
+    unit_type: str | None = Field(
+        None,
+        description=(
+            "Optional type: fact, decision, learning, preference, plan, "
+            "procedure, context, event. Omit when unsure so Nowledge Mem can "
+            "classify it."
+        ),
     )
     event_start: str | None = Field(
         None, description="When it happened (ISO date)."
@@ -153,7 +157,8 @@ async def mem_save(param: MemSaveInput, *, context: Any) -> str:
     mid = result.get("id", "")
     title = param.title or param.content[:40]
     label_str = ", ".join(param.labels) if param.labels else ""
-    parts = [f"Saved: {title} [{param.unit_type}]"]
+    type_label = param.unit_type or "classified by Nowledge Mem"
+    parts = [f"Saved: {title} [{type_label}]"]
     if mid:
         parts.append(f"id: {mid}")
     if label_str:

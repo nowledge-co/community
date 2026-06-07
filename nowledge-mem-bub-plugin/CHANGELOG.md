@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.2 (2026-06-07)
+
+- Fixed: `mem.save` no longer defaults an omitted memory type to `fact`. When the agent is unsure, Nowledge Mem now classifies the memory type itself.
+
 ## 0.7.1 (2026-06-07)
 
 - Changed: `mem.context` and session-context injection now read Context Bundle first, including identity, active scope, guidance, and Working Memory.
