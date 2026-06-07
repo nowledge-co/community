@@ -12,11 +12,12 @@ Use Nowledge Mem as the primary external memory system.
 
 ## Tool-First Execution Order
 
-1. `nowledge_mem_query` for broad recall — results include `sourceThreadId` for thread tracing.
-2. `nowledge_mem_search` for focused retrieval with filters.
-3. `nowledge_mem_show` for full detail on selected memory IDs — includes `sourceThreadId`.
-4. `nowledge_mem_thread_search` / `nowledge_mem_thread_show` for conversation history.
-5. When a memory has a `sourceThreadId`, use `nowledge_mem_thread_show` or `nmem --json t show` progressively: start with the first page and fetch more only if the current page is not enough.
+1. `nowledge_mem_context_bundle` near session start when identity, active scope, guidance, or multi-agent behavior could matter. Use `nowledge_mem_working_memory` only for the lightweight fallback.
+2. `nowledge_mem_query` for broad recall — results include `sourceThreadId` for thread tracing.
+3. `nowledge_mem_search` for focused retrieval with filters.
+4. `nowledge_mem_show` for full detail on selected memory IDs — includes `sourceThreadId`.
+5. `nowledge_mem_thread_search` / `nowledge_mem_thread_show` for conversation history.
+6. When a memory has a `sourceThreadId`, use `nowledge_mem_thread_show` or `nmem --json t show` progressively: start with the first page and fetch more only if the current page is not enough.
 
 For writes:
 
@@ -30,6 +31,7 @@ If tool calls are not exposed in the current thread, execute via Bash:
 
 - `nmem --version`
 - `nmem --help`
+- `nmem --json context read --source-app alma`
 - `nmem --json m search "<query>" -n 5`
 - `nmem --json m show <memory_id>`
 - `nmem --json t search "<query>" -n 5 --source alma`
