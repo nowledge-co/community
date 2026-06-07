@@ -2,17 +2,23 @@
 
 You have access to the user's cross-tool knowledge through the `nmem` CLI and five installed skills: `read-working-memory`, `search-memory`, `distill-memory`, `save-thread`, and `status`.
 
-## Working Memory at Session Start
+## Context at Session Start
 
-Load the user's current context at the beginning of every session:
+Load the user's current context at the beginning of every session. Prefer Context Bundle because it includes owner identity, resolved agent identity, active scope, guidance, and Working Memory:
+
+```bash
+nmem --json context --source-app pi
+```
+
+If Context Bundle is not available in this runtime or the installed `nmem` is older, fall back to the lightweight Working Memory briefing:
 
 ```bash
 nmem --json wm read
 ```
 
-If it returns `exists: false`, mention there's no briefing yet and continue. Don't re-read during the same session unless the user asks.
+If this runtime already knows a project or agent lane, add `--space "<space name>"`. Multi-agent orchestrators can set `NMEM_AGENT_ID="<agent-slug>"` before launching Pi. Use `NMEM_HOST_AGENT_ID` only for stable host-local aliases, and `NMEM_SPACE` only when the whole run should override the identity's default space.
 
-If this runtime already knows a project or agent lane, add `--space "<space name>"`.
+If Context Bundle already includes Working Memory, do not immediately read Working Memory again. Don't re-read during the same session unless the user asks or the session context changes materially.
 
 ## Proactive Search
 
@@ -22,7 +28,7 @@ Search when the task connects to prior work, the user references a past decision
 nmem --json m search "query"
 ```
 
-If the runtime already has an ambient lane, add `--space "<space name>"` to Working Memory, memory search, thread search, and save commands.
+If the runtime already has an ambient lane, add `--space "<space name>"` to context, memory search, thread search, and save commands.
 
 Use `--mode deep` when the first pass returns weak results or the query is conceptual.
 
