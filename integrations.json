@@ -571,7 +571,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.1",
+      "version": "0.7.2",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {
@@ -610,7 +610,7 @@
       "toolNaming": {
         "convention": "nowledge_mem_prefix",
         "prefix": "nowledge_mem_",
-        "tools": ["nowledge_mem_query", "nowledge_mem_search", "nowledge_mem_store", "nowledge_mem_show", "nowledge_mem_update", "nowledge_mem_delete", "nowledge_mem_working_memory", "nowledge_mem_status", "nowledge_mem_thread_search", "nowledge_mem_thread_show", "nowledge_mem_thread_create", "nowledge_mem_thread_delete"]
+        "tools": ["nowledge_mem_query", "nowledge_mem_search", "nowledge_mem_store", "nowledge_mem_show", "nowledge_mem_update", "nowledge_mem_delete", "nowledge_mem_context_bundle", "nowledge_mem_working_memory", "nowledge_mem_status", "nowledge_mem_thread_search", "nowledge_mem_thread_show", "nowledge_mem_thread_create", "nowledge_mem_thread_delete"]
       },
       "skills": [],
       "slashCommands": []
@@ -620,7 +620,7 @@
       "name": "Bub",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.0",
+      "version": "0.7.1",
       "directory": "nowledge-mem-bub-plugin",
       "transport": "cli",
       "capabilities": {
@@ -671,7 +671,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "skills",
-      "version": "0.7.0",
+      "version": "0.7.1",
       "directory": "nowledge-mem-pi-package",
       "transport": "cli",
       "capabilities": {
