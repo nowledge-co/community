@@ -52,13 +52,14 @@ Guidelines:
 - Title is a short summary, content is the detail
 - 0–3 labels per memory (project names, topics)
 - Importance: 0.8–1.0 critical | 0.5–0.7 useful | 0.1–0.4 minor
-- Ask before saving: "This seems worth remembering — save it?"
+- Save proactively when the value is durable; do not wait for the user to ask.
 
-## Working Memory
+## Context Bundle
 
-`mem.context` returns today's Working Memory briefing: focus areas, priorities,
-recent changes, and open questions.  Read it at the start of a session or when
-the user asks "what am I working on?"
+`mem.context` returns Nowledge Mem's Context Bundle: owner identity, resolved
+agent identity, active scope, guidance, and Working Memory. Read it at the start
+of a session when identity, scope, or guidance matters. If the installed `nmem`
+is older, the tool falls back to the lightweight Working Memory briefing.
 
 ## Thread retrieval
 

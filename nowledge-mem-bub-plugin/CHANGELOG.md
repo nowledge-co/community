@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 (2026-06-07)
+
+- Changed: `mem.context` and session-context injection now read Context Bundle first, including identity, active scope, guidance, and Working Memory.
+- Changed: Working Memory remains the fallback for older `nmem` clients or older servers.
+- Changed: bundled guidance now saves durable knowledge proactively instead of asking before every save.
+
 ## 0.2.2 (2026-03-23)
 
 - Changed: strengthened autonomous save guidance in system prompt to align with shared behavioral guidance across all Nowledge Mem integrations.

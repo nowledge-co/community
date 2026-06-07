@@ -162,22 +162,30 @@ async def mem_save(param: MemSaveInput, *, context: Any) -> str:
 
 
 # ---------------------------------------------------------------------------
-# mem.context — Working Memory
+# mem.context — Context Bundle
 # ---------------------------------------------------------------------------
 
 
 @tool(context=True, name="mem.context")
 async def mem_context(*, context: Any) -> str:
-    """Read today's Working Memory briefing: focus areas, priorities, recent activity."""
+    """Read Nowledge Mem Context Bundle: identity, scope, guidance, and Working Memory."""
     # Check if already loaded in state
+    bundle = context.state.get("_nmem_context_bundle")
+    if bundle:
+        return bundle
     wm = context.state.get("_nmem_working_memory")
     if wm:
         return wm
 
     client = _get_client(context)
+    bundle = await client.read_context_bundle()
+    rendered = bundle.get("rendered_markdown") or bundle.get("content") or ""
+    if rendered:
+        return rendered
+
     result = await client.read_working_memory()
     content = result.get("content", "")
-    return content or "(no Working Memory available)"
+    return content or "(no Context Bundle or Working Memory available)"
 
 
 # ---------------------------------------------------------------------------

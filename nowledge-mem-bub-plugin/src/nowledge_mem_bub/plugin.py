@@ -2,7 +2,7 @@
 
 Hooks:
   system_prompt  — static behavioural guidance (~70 tokens), identical every turn
-  build_prompt   — when session_context is on, inject WM + recalled memories
+  build_prompt   — when session_context is on, inject Context Bundle + recall
   save_state     — capture each turn to a Nowledge Mem thread (incremental)
 """
 
@@ -35,7 +35,7 @@ When a memory has source_thread_id, fetch the full conversation with mem.thread.
 _GUIDANCE_WITH_CONTEXT = """\
 You have access to the user's personal knowledge graph (Nowledge Mem).
 It contains knowledge from all their tools — not just this session.
-Relevant memories and Working Memory have already been injected into context.
+Context Bundle and relevant memories have already been injected into context.
 Use mem.search only for specific follow-ups beyond what was auto-recalled.
 When the conversation produces something worth keeping, save it with mem.save."""
 
@@ -44,7 +44,7 @@ class NowledgeMemPlugin:
     """Nowledge Mem integration for Bub.
 
     Configuration (env vars):
-      NMEM_SESSION_CONTEXT  — "1"/"true"  to inject WM + recall each turn
+      NMEM_SESSION_CONTEXT  — "1"/"true"  to inject Context Bundle + recall each turn
       NMEM_SESSION_DIGEST   — "0"/"false" to disable thread capture
       NMEM_API_URL          — remote server URL
       NMEM_API_KEY          — API key (passed to nmem via env, never logged)
@@ -78,7 +78,7 @@ class NowledgeMemPlugin:
     @hookimpl
     def system_prompt(self, prompt, state) -> str:
         """Inject behavioural guidance and, when session_context is on,
-        Working Memory + recalled knowledge from state."""
+        Context Bundle + recalled knowledge from state."""
         # Always: behavioural nudge
         if self._session_context:
             return _GUIDANCE_WITH_CONTEXT
@@ -92,16 +92,18 @@ class NowledgeMemPlugin:
     async def build_prompt(
         self, message, session_id, state
     ) -> list[dict[str, str]] | str:
-        """When session_context is on, inject WM + recalled memories into the prompt."""
+        """When session_context is on, inject Context Bundle + recalled memories."""
         prompt = await self._builtin_build_prompt(message, session_id, state)
         if not self._session_context:
             return prompt
 
         sections = []
-        # Session context mode: include WM + recalled memories
-        wm, recalled = await self._load_memory(message)
-        if wm:
-            sections.append(f"<working-memory>\n{wm}\n</working-memory>")
+        # Session context mode: include Context Bundle + recalled memories
+        bundle, recalled = await self._load_memory(message, state)
+        if bundle:
+            sections.append(
+                f"<nowledge-mem-context>\n{bundle}\n</nowledge-mem-context>"
+            )
 
         if recalled:
             lines: list[str] = []
@@ -128,8 +130,10 @@ class NowledgeMemPlugin:
         prompt.insert(0, {"type": "text", "text": mem_context})
         return prompt
 
-    async def _load_memory(self, message) -> tuple[str, list[dict[str, Any]]]:
-        """Load Working Memory and recalled memories (when session_context is on)."""
+    async def _load_memory(
+        self, message, state
+    ) -> tuple[str, list[dict[str, Any]]]:
+        """Load Context Bundle and recalled memories (when session_context is on)."""
 
         if not self._session_context:
             # Default mode: no per-turn fetches.  The agent calls
@@ -139,13 +143,28 @@ class NowledgeMemPlugin:
             logger.warning("nmem not in PATH, skipping memory load")
             return "", []
 
-        # Session context mode: fetch WM + recalled memories
-        working_memory, recalled = "", []
+        # Session context mode: fetch Context Bundle + recalled memories.
+        context_bundle, recalled = "", []
         try:
-            wm = await self.client.read_working_memory()
-            working_memory = wm.get("content", "")
+            bundle = await self.client.read_context_bundle()
+            context_bundle = (
+                bundle.get("rendered_markdown")
+                or bundle.get("content")
+                or ""
+            )
+            if context_bundle:
+                state["_nmem_context_bundle"] = context_bundle
         except Exception as exc:
-            logger.warning("working memory read failed: {}", exc)
+            logger.warning("context bundle read failed: {}", exc)
+
+        if not context_bundle:
+            try:
+                wm = await self.client.read_working_memory()
+                context_bundle = wm.get("content", "")
+                if context_bundle:
+                    state["_nmem_working_memory"] = context_bundle
+            except Exception as exc:
+                logger.warning("working memory fallback failed: {}", exc)
 
         # Recall: search for memories relevant to the current message
         query = content_of(message)
@@ -155,7 +174,7 @@ class NowledgeMemPlugin:
             except Exception as exc:
                 logger.warning("recall search failed: {}", exc)
 
-        return working_memory, recalled
+        return context_bundle, recalled
 
     # ------------------------------------------------------------------
     # save_state — async, call_many, always runs (finally block)
