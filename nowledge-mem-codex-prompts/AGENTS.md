@@ -6,7 +6,7 @@ Use the installed prompts when convenient, but compose direct `nmem` commands wh
 
 ## Context Bundle And Working Memory
 
-At session start, prefer Context Bundle when full identity, active space, guidance, and Working Memory matter:
+At session start, prefer Context Bundle when full identity, active space, active rules, and Working Memory matter:
 
 ```bash
 nmem --json context --source-app codex

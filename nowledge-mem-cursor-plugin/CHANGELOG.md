@@ -4,7 +4,7 @@
 
 ### Improved
 
-- The `sessionStart` hook now loads Context Bundle when available, then falls back to Working Memory and the legacy local file. Cursor receives identity, active scope, guidance, and current priorities on newer Nowledge Mem installs without breaking older `nmem` clients.
+- The `sessionStart` hook now loads Context Bundle when available, then falls back to Working Memory and the legacy local file. Cursor receives identity, active scope, active rules, and current priorities on newer Nowledge Mem installs without breaking older `nmem` clients.
 
 ## [0.1.5] - 2026-05-20
 

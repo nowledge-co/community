@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Behavioral guidance now starts with Context Bundle and falls back to Working Memory for older clients.
-- Added explicit multi-agent identity and space guidance for `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE`.
+- Added explicit multi-agent AI Identity and space rules for `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE`.
 
 ## [0.1.0] - 2026-03-31
 

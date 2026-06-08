@@ -1,8 +1,8 @@
 /**
  * nowledge_mem_context — read startup context.
  *
- * Read mode prefers Context Bundle: owner identity, agent identity, active
- * space, guidance slots, Working Memory, and KFS paths. Older nmem clients
+ * Read mode prefers Context Bundle: owner identity, AI Identity, active
+ * space, active rules, Working Memory, and KFS paths. Older nmem clients
  * fall back to Working Memory.
  *
  * Patch mode still edits Working Memory sections only.
@@ -12,7 +12,7 @@ export function createContextTool(client, logger) {
 		name: "nowledge_mem_context",
 		description:
 			"Read the user's startup context, or patch Working Memory sections. " +
-			"READ MODE (default): Call with no parameters to load Context Bundle when available: owner identity, agent identity, active space, guidance slots, Working Memory, and KFS paths. Older nmem clients fall back to Working Memory. " +
+			"READ MODE (default): Call with no parameters to load Context Bundle when available: owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths. Older nmem clients fall back to Working Memory. " +
 			"PATCH MODE: Supply patch_section to update just one section without overwriting the rest. " +
 			"Use patch_content to replace the section body, or patch_append to add text to it. " +
 			"Example: patch_section='## Notes', patch_append='New note: ...' to add a note without losing existing content. " +

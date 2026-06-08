@@ -2,7 +2,7 @@
 
 ## 0.1.1
 
-- Session-start and compaction hooks now load Context Bundle when available, then fall back to Working Memory and the legacy local file. Droid receives identity, active scope, guidance, and current priorities on newer Nowledge Mem installs while older `nmem` clients keep working.
+- Session-start and compaction hooks now load Context Bundle when available, then fall back to Working Memory and the legacy local file. Droid receives identity, active scope, active rules, and current priorities on newer Nowledge Mem installs while older `nmem` clients keep working.
 
 ## 0.1.0
 

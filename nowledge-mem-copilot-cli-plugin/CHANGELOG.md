@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
-- Session-start and post-compaction hooks now load Context Bundle when available, then fall back to Working Memory and the legacy local file. Copilot receives identity, active scope, guidance, and current priorities on newer Nowledge Mem installs without breaking older `nmem` clients.
+- Session-start and post-compaction hooks now load Context Bundle when available, then fall back to Working Memory and the legacy local file. Copilot receives identity, active scope, active rules, and current priorities on newer Nowledge Mem installs without breaking older `nmem` clients.
 
 ## [0.1.2] - 2026-05-20
 

@@ -128,7 +128,7 @@ NMEM_SPACE="Research Agent"
 
 The bundled `nmem`-backed Context Bundle, Working Memory, search, save, and handoff flows will then stay in that lane automatically.
 
-For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Droid worker. Add `NMEM_SPACE` only when that run should override the agent profile's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=droid` for provenance.
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Droid worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=droid` for provenance.
 
 ## Direct `nmem` Use Is Always Allowed
 

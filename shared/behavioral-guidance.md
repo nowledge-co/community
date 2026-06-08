@@ -8,7 +8,7 @@
 
 When a host supports startup hooks, MCP, or an explicit bootstrap step, prefer the
 Context Bundle for full-session startup context. It resolves owner identity,
-agent identity, active space, future guidance slots, Working Memory, and KFS
+AI Identity, active space, active rules, Working Memory, and KFS
 paths in one stable contract.
 
 **MCP preferred:**
@@ -23,7 +23,7 @@ read_context_bundle
 nmem --json context --source-app "<host>"
 ```
 
-If the host has a stable long-running agent identity, pass it:
+If the host has a stable long-running AI Identity, pass it:
 
 ```bash
 nmem --json context --source-app "<host>" --host-agent-id "<agent-id>"
@@ -39,7 +39,7 @@ environment variables per child process, the friendly path is one variable:
 NMEM_AGENT_ID="reviewer"
 ```
 
-`NMEM_AGENT_ID` selects a Nowledge Agent Identity directly. Add `NMEM_SPACE` only
+`NMEM_AGENT_ID` selects a Nowledge AI Identity directly. Add `NMEM_SPACE` only
 when the whole child process should override that identity's default space.
 `NMEM_HOST_AGENT_ID` is for integration authors or advanced users who need to
 map an immutable host-local id such as `slock:<uuid>` onto a profile. Do not ask
@@ -50,7 +50,7 @@ all agents will collapse into one profile.
 - Session startup for multi-agent hosts or long-running named agents
 - Hook-injected prompt context
 - MCP clients that need the behavior + scope contract before retrieval
-- Tasks where owner identity, agent identity, or guidance may change the answer
+- Tasks where owner identity, AI Identity, or rules may change the answer
 
 **When to use only Working Memory:**
 - Lightweight "what am I focused on?" reads
@@ -140,7 +140,7 @@ Search your knowledge base proactively when past insights would improve the resp
   - pass `--space "<space name>"` on the relevant commands, or
   - set `NMEM_SPACE="<space name>"` once for the session only when the integration is CLI-first and lacks a better config surface.
 - If the host does not have a natural ambient space, stay on the default lane and do not invent one.
-- If the host supports profile-owned routing, prefer that over process env. A configured `space`, `spaceTemplate`, or host-owned mapping should beat inherited `NMEM_SPACE`.
+- If the host supports AI Identity-owned routing, prefer that over process env. A configured `space`, `spaceTemplate`, or host-owned mapping should beat inherited `NMEM_SPACE`.
 - If the host exposes a stable identity or workspace signal, derive the lane from that signal. If it does not, keep one fixed lane per profile/process.
 - Shared or cross-space recall should be explicit, not automatic.
 - The storage boundary is a hidden space key. Humans and agents should normally work with the space name instead.

@@ -32,10 +32,10 @@ For end-user customization that survives updates, see [`docs/USER_OVERRIDE_GUIDE
 
 For multi-agent orchestrators that launch Codex, Claude Code, OpenCode, or other
 child CLIs, set `NMEM_AGENT_ID=<agent-slug>` in each child process. Add
-`NMEM_SPACE=<space>` only when that run should override the agent profile's
+`NMEM_SPACE=<space>` only when that run should override the AI Identity's
 default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases, not a
 second required identity variable. The child plugin still reports its real
-runtime as `source_app`; the env var selects the right Nowledge Agent Identity
+runtime as `source_app`; the env var selects the right Nowledge AI Identity
 through Context Bundle.
 
 ## Integrations
@@ -125,7 +125,7 @@ For agent harnesses, the rule is simple:
 
 ### Space behavior by integration
 
-Use one ambient space only when the host already has a real lane, such as one agent identity, one project, or one workspace.
+Use one ambient space only when the host already has a real lane, such as one AI Identity, one project, or one workspace.
 
 | Integration | Ambient space today | Best user setup |
 |-------------|---------------------|-----------------|

@@ -47,7 +47,7 @@ Spaces are optional. Treat them as ambient context, not required setup.
 - The old local file `~/ai-now/memory.md` is only the Default-space compatibility path. Treat it as a fallback, not as the canonical model for every space.
 - The host should derive ambient space from context it already owns, such as:
   - workspace or project path
-  - agent identity / persona slot
+  - AI Identity / persona slot
   - selected project or repository
   - explicit user choice in the host UI
 - For CLI-first hosts, prefer one ambient session lane via `NMEM_SPACE` only when the whole session naturally belongs to one space and the host has no better native config surface. Legacy `NMEM_SPACE_ID` remains compatibility-only. Use per-call `--space` when only some actions need an override.

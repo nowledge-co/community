@@ -117,7 +117,7 @@ The OpenClaw plugin settings can own that lane directly:
 }
 ```
 
-Use `space` when one OpenClaw profile belongs to one stable lane. Use `spaceTemplate` only when your launcher or host environment already sets a trustworthy variable that identifies the lane. If your OpenClaw runtime does not expose per-agent identity to plugins, do not fake it. Use one profile/process per lane or stay on `Default`.
+Use `space` when one OpenClaw profile belongs to one stable lane. Use `spaceTemplate` only when your launcher or host environment already sets a trustworthy variable that identifies the lane. If your OpenClaw runtime does not expose per-AI Identity to plugins, do not fake it. Use one profile/process per lane or stay on `Default`.
 
 If you are running OpenClaw from a launcher or script with no richer config surface, you can still set one session-wide fallback lane with:
 
@@ -127,7 +127,7 @@ NMEM_SPACE="Research Agent"
 
 Nowledge Mem's CLI-backed Working Memory, memory search/save, and the plugin's API-backed thread/feed fallbacks will then stay in that lane together. There is no second OpenClaw-only vault setting; the shared Mem boundary is still one hidden space key, but humans and agents should normally work with the space name instead.
 
-For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned OpenClaw worker. Add `NMEM_SPACE` only when that run should override the agent profile's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=openclaw` for provenance. Keep these as launcher environment variables instead of plugin config keys so OpenClaw's strict config validation remains stable.
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned OpenClaw worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=openclaw` for provenance. Keep these as launcher environment variables instead of plugin config keys so OpenClaw's strict config validation remains stable.
 
 Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. OpenClaw chooses the lane and preserves it across transports; it should not duplicate the profile semantics.
 
@@ -308,7 +308,7 @@ temporal_context: past
 
 Eight memory types: `fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`. Each becomes a typed node in the knowledge graph. Labels enable filtering in `memory_search`. `event_start` records *when* something happened, not just when you saved it, powering bi-temporal search.
 
-**nowledge_mem_context** - Read startup context. On current Nowledge Mem installs this is Context Bundle: owner identity, agent identity, active space, guidance, Working Memory, and KFS paths. Older `nmem` clients fall back to today's Working Memory. Patch mode still edits Working Memory sections.
+**nowledge_mem_context** - Read startup context. On current Nowledge Mem installs this is Context Bundle: owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths. Older `nmem` clients fall back to today's Working Memory. Patch mode still edits Working Memory sections.
 
 **nowledge_mem_connections** - Explore the knowledge graph around a topic or memory. Returns connected memories, EVOLVES version chains (how understanding has grown), related entities, and source document provenance (which files or URLs knowledge was extracted from).
 

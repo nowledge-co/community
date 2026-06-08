@@ -6,7 +6,7 @@ Load the user's startup context before continuing.
 
 ## Workflow
 
-Prefer Context Bundle when identity, active space, guidance, and Working Memory may matter:
+Prefer Context Bundle when identity, active space, active rules, and Working Memory may matter:
 
 ```bash
 nmem --json context --source-app codex

@@ -5,7 +5,7 @@ description: Read the user's Working Memory briefing when current priorities, re
 
 # Read Working Memory
 
-Use `read_context_bundle` when startup identity, agent lane, space scope, or guidance could matter. It includes owner identity, resolved agent identity, active scope, guidance slots, Working Memory, and KFS paths.
+Use `read_context_bundle` when startup identity, agent lane, space scope, or guidance could matter. It includes owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths.
 
 Use the `read_working_memory` MCP tool to load only the user's current focus, priorities, and unresolved context when the session-start hook did not already provide it or when a lightweight refresh is needed.
 

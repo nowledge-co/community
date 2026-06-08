@@ -49,8 +49,8 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
 | `nowledge_mem_show` | Show full memory details. Returns `sourceThreadId` when available. |
 | `nowledge_mem_update` | Update memory content/title/importance |
 | `nowledge_mem_delete` | Delete memory |
-| `nowledge_mem_context_bundle` | Read startup context: owner identity, agent identity, active scope, guidance, Working Memory, and KFS paths. |
-| `nowledge_mem_working_memory` | Read daily Working Memory. Use Context Bundle for full startup identity/scope/guidance context. |
+| `nowledge_mem_context_bundle` | Read startup context: owner identity, AI Identity, active scope, active rules, Working Memory, and KFS paths. |
+| `nowledge_mem_working_memory` | Read daily Working Memory. Use Context Bundle for full startup identity/scope/rules context. |
 | `nowledge_mem_thread_search` | Search conversation threads with optional `source` filter |
 | `nowledge_mem_thread_show` | Fetch thread messages with pagination (`offset`/`limit`). Returns `hasMore`. |
 | `nowledge_mem_thread_create` | Create thread from content/messages |
@@ -194,7 +194,7 @@ The Alma plugin settings can own that lane directly:
 }
 ```
 
-Use `nowledgeMem.space` when this Alma profile always belongs to one lane. Leave it empty when you want Alma to inherit `NMEM_SPACE` from the launcher, or stay on `Default` if no ambient lane exists. Use `nowledgeMem.spaceTemplate` only when Alma is launched with a real host-owned environment variable that already identifies the lane. If Alma does not know a real agent identity, stay on `Default` or run separate Alma profiles for separate lanes.
+Use `nowledgeMem.space` when this Alma profile always belongs to one lane. Leave it empty when you want Alma to inherit `NMEM_SPACE` from the launcher, or stay on `Default` if no ambient lane exists. Use `nowledgeMem.spaceTemplate` only when Alma is launched with a real host-owned environment variable that already identifies the lane. If Alma does not know a real AI Identity, stay on `Default` or run separate Alma profiles for separate lanes.
 
 If you are launching Alma from a shell or launcher with no richer settings surface, you can still set one session-wide fallback lane with:
 

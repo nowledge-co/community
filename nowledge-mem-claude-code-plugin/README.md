@@ -74,7 +74,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 | `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code session by hook `session_id` before context is compressed |
 | `Stop` | Model finishes responding | Captures session to knowledge graph |
 
-The `SessionStart` hook tries `nmem context` first so Claude receives owner identity, agent identity, active space, guidance slots, Working Memory, and KFS paths when the installed CLI supports it. It falls back to `nmem wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
+The `SessionStart` hook tries `nmem context` first so Claude receives owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths when the installed CLI supports it. It falls back to `nmem wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
 The `PreCompact` hook runs the same client-side thread save before Claude Code compresses the context. The `Stop` hook runs it again after every response with a bounded retry window, so short transcript-flush delays do not turn into silent no-op saves. Both paths pass Claude's hook `session_id` into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
 
@@ -106,7 +106,7 @@ NMEM_SPACE="Research Agent"
 
 The session-start Context Bundle / Working Memory read, per-turn guidance, slash-command flows, and hook-driven `nmem t save --from claude-code` capture will then stay in that lane automatically.
 
-For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Claude Code worker. Add `NMEM_SPACE` only when that run should override the agent profile's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=claude-code` for provenance.
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Claude Code worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=claude-code` for provenance.
 
 Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. Claude Code does not need a second plugin-local space config.
 

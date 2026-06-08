@@ -3,7 +3,7 @@ name: working-memory
 description: "Load your current context at session start. Shows what you were working on, active priorities, and unresolved flags. Also trigger when resuming after a break or when the user asks what am I working on."
 ---
 
-Start with what matters. For full startup context, use Context Bundle: it resolves owner identity, the consuming agent identity, active scope, guidance slots, Working Memory, and KFS paths. Working Memory is the lighter daily briefing of active focus areas, priorities, and recent knowledge changes.
+Start with what matters. For full startup context, use Context Bundle: it resolves owner identity, the resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Working Memory is the lighter daily briefing of active focus areas, priorities, and recent knowledge changes.
 
 ## Preferred path
 
@@ -21,11 +21,11 @@ For only Working Memory:
 nmem --json wm read
 ```
 
-If the runtime already knows the current project or agent lane, add `--space "<space name>"`. Multi-agent orchestrators can set `NMEM_AGENT_ID="<agent-slug>"` before launching Codex so the Context Bundle resolves the right Agent Identity. Add `NMEM_SPACE` only when that whole run should override the identity's default space. Use `NMEM_HOST_AGENT_ID` only for advanced host-id aliases.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"`. Multi-agent orchestrators can set `NMEM_AGENT_ID="<agent-slug>"` before launching Codex so the Context Bundle resolves the right AI Identity. Add `NMEM_SPACE` only when that whole run should override the identity's default space. Use `NMEM_HOST_AGENT_ID` only for advanced host-id aliases.
 
 ## What you'll find
 
-- **Identity and scope**: owner identity, agent identity, active space, and guidance slots when using Context Bundle
+- **Identity and scope**: owner identity, AI Identity, active space, and active rules when using Context Bundle
 - **Focus areas**: what you're actively working on, ranked by recent activity
 - **Priorities**: items flagged as important or needing attention
 - **Unresolved flags**: contradictions, stale information, or items to verify

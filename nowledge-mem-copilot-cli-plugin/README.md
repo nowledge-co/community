@@ -73,7 +73,7 @@ The plugin no longer ships separate command docs. Skills are still interpreted b
 | `PreCompact` | Before context compaction | Captures the current transcript before context is compressed |
 | `SessionEnd` | Session exits or clears | Runs the same idempotent capture path as a final backstop |
 
-The `SessionStart` hook tries `nmem --json context --source-app copilot-cli` first so Copilot receives identity, active scope, guidance, and current priorities when the installed CLI supports it. It falls back to `nmem --json wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
+The `SessionStart` hook tries `nmem --json context --source-app copilot-cli` first so Copilot receives identity, active scope, active rules, and current priorities when the installed CLI supports it. It falls back to `nmem --json wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
 The `Stop`, `PreCompact`, and `SessionEnd` hooks run the same Python capture script from the plugin's own `hooks/` directory. For older installs, it still falls back to `~/.copilot/nowledge-mem-hooks/` if that compatibility copy exists. It reads the Copilot CLI transcript, extracts messages, filters secrets, and creates threads via `nmem t import`. This is idempotent — repeated runs only append new content.
 
@@ -111,7 +111,7 @@ NMEM_SPACE="Research Agent"
 
 The session-start Context Bundle / Working Memory read, per-turn guidance, skills, and background capture will then stay in that lane automatically.
 
-For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Copilot CLI worker. Add `NMEM_SPACE` only when that run should override the agent profile's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=copilot-cli` for provenance.
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Copilot CLI worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=copilot-cli` for provenance.
 
 ## Update
 

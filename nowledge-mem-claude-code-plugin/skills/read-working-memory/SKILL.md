@@ -5,7 +5,7 @@ description: Read your daily Working Memory briefing to understand current conte
 
 # Read Working Memory
 
-> Start every session with context. Claude Code hooks prefer Context Bundle when available: owner identity, agent identity, active scope, guidance slots, and Working Memory. Working Memory alone is the lighter fallback.
+> Start every session with context. Claude Code hooks prefer Context Bundle when available: owner identity, AI Identity, active scope, active rules, and Working Memory. Working Memory alone is the lighter fallback.
 
 ## When to Use
 
@@ -41,7 +41,7 @@ Read Working Memory alone when you only need current priorities:
 nmem wm read
 ```
 
-If the runtime already knows the current project or agent lane, add `--space "<space name>"` to either command. Multi-agent orchestrators can set `NMEM_AGENT_ID="<agent-slug>"` before launching Claude Code so hooks read the right Agent Identity automatically. Add `NMEM_SPACE` only when that whole run should override the identity's default space. Use `NMEM_HOST_AGENT_ID` only for advanced host-id aliases.
+If the runtime already knows the current project or agent lane, add `--space "<space name>"` to either command. Multi-agent orchestrators can set `NMEM_AGENT_ID="<agent-slug>"` before launching Claude Code so hooks read the right AI Identity automatically. Add `NMEM_SPACE` only when that whole run should override the identity's default space. Use `NMEM_HOST_AGENT_ID` only for advanced host-id aliases.
 
 Fallback for local-only (when nmem is not installed):
 

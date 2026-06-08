@@ -24,7 +24,7 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 
 | Skill | When it runs | What it does |
 |-------|-------------|-------------|
-| `working-memory` | Session start, "what am I working on" | Loads Context Bundle when full identity/scope/guidance matters; otherwise loads the daily briefing and prefers MCP when present |
+| `working-memory` | Session start, "what am I working on" | Loads Context Bundle when full identity/scope/rules matter; otherwise loads the daily briefing and prefers MCP when present |
 | `search-memory` | Prior work, past decisions | Searches memories and conversations, preferring MCP retrieval when present |
 | `save-thread` | Manual fallback, "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
@@ -285,7 +285,7 @@ codex
 
 The Context Bundle / Working Memory bootstrap, search-memory skill, save-thread skill, distill-memory skill, and direct `nmem` fallbacks will then stay in that lane automatically.
 
-For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Codex worker. Add `NMEM_SPACE` only when that run should override the agent profile's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=codex` for provenance.
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Codex worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=codex` for provenance.
 
 Shared spaces, default retrieval, automatic thread capture, and agent guidance come from Mem's own space profile. Codex should choose the ambient lane, not redefine what the space means.
 

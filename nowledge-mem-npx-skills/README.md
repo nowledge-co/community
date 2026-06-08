@@ -232,7 +232,7 @@ For CLI or skill-driven agents, paste a policy like this into `AGENTS.md` or you
 Use Nowledge Mem as your external memory system.
 
 At session start:
-- Run `nmem --json context --source-app "<host>"` when identity, active space, guidance, or multi-agent behavior could matter.
+- Run `nmem --json context --source-app "<host>"` when identity, active space, active rules, or multi-agent behavior could matter.
 - Use `nmem --json wm read` for a lightweight daily briefing or older `nmem` clients.
 - If Context Bundle already includes Working Memory, do not immediately read Working Memory again.
 - If the host already knows a project or agent lane, add `--space "<space name>"`.

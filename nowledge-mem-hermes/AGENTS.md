@@ -8,7 +8,7 @@ You have access to the user's cross-tool knowledge graph through six tools. In p
 
 ## Startup Context
 
-At session start, load the user's current context. The native provider injects Context Bundle automatically when the installed `nmem` supports it. Context Bundle includes owner identity, resolved agent identity, active space, guidance slots, Working Memory, and KFS paths. If unavailable, the provider falls back to Working Memory.
+At session start, load the user's current context. The native provider injects Context Bundle automatically when the installed `nmem` supports it. Context Bundle includes owner identity, resolved AI Identity, active space, active rules, Working Memory, and KFS paths. If unavailable, the provider falls back to Working Memory.
 
 If the provider config sets `space`, `space_by_identity`, or `space_template`, treat that lane as the ambient default for Context Bundle, Working Memory, search, save, and thread tools. Use `NMEM_SPACE="<space name>"` only as a fallback when Hermes is launched through a CLI-style wrapper with no better provider-owned config surface. Legacy `NMEM_SPACE_ID` still works for older setups.
 

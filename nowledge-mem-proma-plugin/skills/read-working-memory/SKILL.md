@@ -5,7 +5,7 @@ description: Load the Nowledge Mem Working Memory briefing at Proma session star
 
 # Read Working Memory
 
-Read Context Bundle for full Proma startup context when available: owner identity, agent identity, active scope, guidance slots, and Working Memory. Read Working Memory alone when you only need current priorities.
+Read Context Bundle for full Proma startup context when available: owner identity, AI Identity, active scope, active rules, and Working Memory. Read Working Memory alone when you only need current priorities.
 
 ## When to Use
 

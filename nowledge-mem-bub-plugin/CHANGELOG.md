@@ -6,7 +6,7 @@
 
 ## 0.7.1 (2026-06-07)
 
-- Changed: `mem.context` and session-context injection now read Context Bundle first, including identity, active scope, guidance, and Working Memory.
+- Changed: `mem.context` and session-context injection now read Context Bundle first, including identity, active scope, active rules, and Working Memory.
 - Changed: Working Memory remains the fallback for older `nmem` clients or older servers.
 - Changed: bundled guidance now saves durable knowledge proactively instead of asking before every save.
 

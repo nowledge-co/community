@@ -56,12 +56,12 @@
       {
         "id": "nowledge_mem_context_bundle",
         "name": "Read Context Bundle",
-        "description": "Read startup context: owner identity, agent identity, active scope, guidance, Working Memory, and KFS paths."
+        "description": "Read startup context: owner identity, AI Identity, active scope, active rules, Working Memory, and KFS paths."
       },
       {
         "id": "nowledge_mem_working_memory",
         "name": "Read Working Memory",
-        "description": "Read your daily Working Memory briefing. Use Context Bundle for full startup identity/scope/guidance context."
+        "description": "Read your daily Working Memory briefing. Use Context Bundle for full startup identity/scope/rules context."
       },
       {
         "id": "nowledge_mem_status",

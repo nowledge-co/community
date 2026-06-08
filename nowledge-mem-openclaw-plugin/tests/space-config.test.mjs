@@ -167,7 +167,7 @@ test("spawn env clears inherited ambient lane for explicit default-space overrid
 	}
 });
 
-test("spawn env preserves orchestrator agent identity for nmem context", () => {
+test("spawn env preserves orchestrator AI identity for nmem context", () => {
 	const previousAgent = process.env.NMEM_AGENT_ID;
 	const previousHostAgent = process.env.NMEM_HOST_AGENT_ID;
 	process.env.NMEM_AGENT_ID = "reviewer";

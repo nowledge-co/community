@@ -5,7 +5,7 @@ description: "Load today's Working Memory briefing at session start. Shows your 
 
 # Read Working Memory
 
-Start every session with context. Use Context Bundle when owner identity, agent identity, active scope, or guidance could matter; it includes Working Memory. Use Working Memory alone for the lighter daily briefing.
+Start every session with context. Use Context Bundle when owner identity, AI Identity, active scope, or rules could matter; it includes Working Memory. Use Working Memory alone for the lighter daily briefing.
 
 ## When to Use
 

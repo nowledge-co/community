@@ -4,7 +4,7 @@ You have access to the user's cross-tool knowledge through the `nmem` CLI and fi
 
 ## Context at Session Start
 
-Load the user's current context at the beginning of every session. Prefer Context Bundle because it includes owner identity, resolved agent identity, active scope, guidance, and Working Memory:
+Load the user's current context at the beginning of every session. Prefer Context Bundle because it includes owner identity, resolved AI Identity, active scope, active rules, and Working Memory:
 
 ```bash
 nmem --json context --source-app pi

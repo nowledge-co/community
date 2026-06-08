@@ -33,7 +33,7 @@ If you have existing knowledge in Nowledge Mem, the agent should find it through
 |------|-------------|
 | `mem.search` | Search knowledge from all your tools. Supports label and date filters. |
 | `mem.save` | Save a decision, insight, or preference so any tool can find it. |
-| `mem.context` | Read Context Bundle — identity, active scope, guidance, and Working Memory. |
+| `mem.context` | Read Context Bundle — identity, active scope, active rules, and Working Memory. |
 | `mem.connections` | Explore how a piece of knowledge relates to others across tools and time. |
 | `mem.timeline` | Recent activity grouped by day. |
 | `mem.forget` | Delete a memory by ID. |

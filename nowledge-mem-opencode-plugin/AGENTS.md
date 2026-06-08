@@ -4,7 +4,7 @@ You have Nowledge Mem tools registered as `nowledge_mem_*` for cross-tool knowle
 
 ## Context Bundle And Working Memory
 
-At session start, call `nowledge_mem_context_bundle` when identity, scope, or guidance may matter. It includes owner identity, agent identity, active space, guidance slots, Working Memory, and KFS paths.
+At session start, call `nowledge_mem_context_bundle` when identity, scope, or rules may matter. It includes owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths.
 
 Use `nowledge_mem_working_memory` only for a lightweight daily briefing or fallback on older `nmem` CLIs.
 
@@ -51,7 +51,7 @@ Two tools for saving conversations:
 
 ## Long Sessions
 
-In long sessions, OpenCode may compact earlier context. When that happens, this plugin automatically re-injects a reminder. After compaction, call `nowledge_mem_context_bundle` again when identity/scope/guidance matters, or `nowledge_mem_working_memory` for the lightweight fallback.
+In long sessions, OpenCode may compact earlier context. When that happens, this plugin automatically re-injects a reminder. After compaction, call `nowledge_mem_context_bundle` again when identity/scope/rules matter, or `nowledge_mem_working_memory` for the lightweight fallback.
 
 ## Diagnostics
 

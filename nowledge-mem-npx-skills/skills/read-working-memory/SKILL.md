@@ -5,7 +5,7 @@ description: Read your daily Working Memory briefing to understand current conte
 
 # Read Working Memory
 
-> Start every session with context. Use Context Bundle when you need owner identity, agent identity, active scope, guidance slots, and Working Memory together. Use Working Memory alone for the lighter daily briefing.
+> Start every session with context. Use Context Bundle when you need owner identity, AI Identity, active scope, active rules, and Working Memory together. Use Working Memory alone for the lighter daily briefing.
 
 ## When to Use
 

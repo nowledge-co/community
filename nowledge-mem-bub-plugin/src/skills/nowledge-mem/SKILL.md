@@ -57,8 +57,8 @@ Guidelines:
 ## Context Bundle
 
 `mem.context` returns Nowledge Mem's Context Bundle: owner identity, resolved
-agent identity, active scope, guidance, and Working Memory. Read it at the start
-of a session when identity, scope, or guidance matters. If the installed `nmem`
+AI Identity, active scope, active rules, and Working Memory. Read it at the start
+of a session when identity, scope, or rules matter. If the installed `nmem`
 is older, the tool falls back to the lightweight Working Memory briefing.
 
 ## Thread retrieval

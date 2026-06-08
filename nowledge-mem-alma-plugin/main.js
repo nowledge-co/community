@@ -1078,17 +1078,17 @@ export async function activate(context) {
 
 	registerTool("nowledge_mem_context_bundle", {
 		description:
-			"Read Nowledge Mem's startup Context Bundle: owner identity, resolved agent identity, active scope, guidance, Working Memory, and KFS paths. Use this near session start when behavior, identity, or scope matters.",
+			"Read Nowledge Mem's startup Context Bundle: owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Use this near session start when behavior, identity, or scope matters.",
 		inputSchema: {
 			type: "object",
 			properties: {
 				agent_id: {
 					type: "string",
-					description: "Optional Nowledge Mem agent profile id/slug.",
+					description: "Optional Nowledge Mem AI Identity id/slug.",
 				},
 				host_agent_id: {
 					type: "string",
-					description: "Optional stable Alma-local agent identity.",
+					description: "Optional stable Alma-local AI Identity.",
 				},
 				include_working_memory: {
 					type: "boolean",
@@ -1124,7 +1124,7 @@ export async function activate(context) {
 
 	registerTool("nowledge_mem_working_memory", {
 		description:
-			"Read your daily Working Memory briefing. Use nowledge_mem_context_bundle for full startup identity/scope/guidance context.",
+			"Read your daily Working Memory briefing. Use nowledge_mem_context_bundle for full startup identity/scope/rules context.",
 		inputSchema: { type: "object", properties: {} },
 		parameters: { type: "object", properties: {} },
 		async execute() {

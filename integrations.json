@@ -249,7 +249,7 @@
         "threads": "none",
         "bestResultRequires": [
           "Install the Nowledge Mem connector for the AI tool Slock launches, such as Codex or Claude Code",
-          "Create one Mem Agent Identity for each named Slock worker",
+          "Create one Mem AI Identity for each named Slock worker",
           "Set NMEM_AGENT_ID=<agent-slug> in that Slock worker's runtime environment"
         ]
       },
