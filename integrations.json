@@ -240,7 +240,7 @@
       },
       "threadSave": {
         "method": "child-runtime",
-        "note": "Slock launches Codex, Claude Code, or another AI tool. Thread capture and MCP behavior come from that launched tool's connector. The Mem identity can stay the same when the launcher or AI tool changes."
+        "note": "Slock launches Codex, Claude Code, or another AI tool. Thread capture and MCP behavior come from that launched tool's connector. The Mem AI Identity can stay the same when the launcher or AI tool changes."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -264,7 +264,7 @@
       },
       "toolNaming": {
         "convention": "child-runtime",
-        "note": "Keep source_app as the launched AI tool (codex, claude-code, opencode, pi, etc.); use NMEM_AGENT_ID to select the worker profile. Fork to a new slug such as cindy-reviewer only when the persona should diverge."
+        "note": "Keep source_app as the launched AI tool (codex, claude-code, opencode, pi, etc.); use NMEM_AGENT_ID to select the worker AI Identity. Fork to a new slug such as cindy-reviewer only when the persona should diverge."
       },
       "skills": [],
       "slashCommands": []
@@ -288,7 +288,7 @@
       },
       "threadSave": {
         "method": "child-runtime",
-        "note": "Lody launches Claude Code, Codex, or another AI tool through Agent Config. Thread capture and MCP behavior come from that launched tool's connector. Set a Mem identity only when an Agent Config represents a stable role."
+        "note": "Lody launches Claude Code, Codex, or another AI tool through Agent Config. Thread capture and MCP behavior come from that launched tool's connector. Set a Mem AI Identity only when an Agent Config represents a stable role."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -360,7 +360,7 @@
       },
       "toolNaming": {
         "convention": "child-runtime",
-        "note": "Keep source_app as the launched AI tool; use NMEM_AGENT_ID to select the worker profile."
+        "note": "Keep source_app as the launched AI tool; use NMEM_AGENT_ID to select the worker AI Identity."
       },
       "skills": [],
       "slashCommands": []

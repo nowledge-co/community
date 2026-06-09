@@ -21,7 +21,7 @@ Do not stop at the startup context if the task clearly resumes prior work.
 
 At session start, load the user's current context.
 
-Prefer the Nowledge Mem MCP `read_context_bundle` tool when identity, agent lane, space scope, or guidance could matter. It includes owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths.
+Prefer the Nowledge Mem MCP `read_context_bundle` tool when identity, agent lane, space scope, or Rules could matter. It includes owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths.
 
 Otherwise use:
 

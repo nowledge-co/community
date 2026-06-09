@@ -5,7 +5,7 @@ description: Read your daily Working Memory briefing to understand current conte
 
 # Read Working Memory
 
-> Start each Droid session with context. Use Context Bundle when identity, agent lane, scope, or guidance could matter; it includes Working Memory. Use Working Memory alone for the lighter daily briefing.
+> Start each Droid session with context. Use Context Bundle when identity, agent lane, scope, or Rules could matter; it includes Working Memory. Use Working Memory alone for the lighter daily briefing.
 
 ## When to Use
 
