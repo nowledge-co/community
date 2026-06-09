@@ -123,4 +123,41 @@ HOME="$TMP_DIR/elsewhere" LOCALAPPDATA="$TMP_DIR/win-elsewhere/AppData/Local" \
 [ -f "$override_home/plugins/nowledge-mem/plugin.yaml" ] \
   || fail "explicit HERMES_HOME was not honored"
 
+# --- MCP-only install must not require Python ---
+# Regression for PR #270: a top-level Python 3 preflight made `setup.sh --mcp`
+# hard-fail on machines without python3/python/py, even though MCP mode never
+# runs the Python config-rewrite helper. Stub the three launchers so
+# `command -v` reports them missing, then assert the MCP install still succeeds
+# and writes the MCP server block. curl/grep/mkdir keep working (only the
+# python launcher lookups are intercepted).
+mcp_home="$TMP_DIR/mcp-no-python-home"
+mcp_hermes="$mcp_home/.hermes"
+mkdir -p "$mcp_hermes"
+
+set +e
+mcp_output="$(
+  HOME="$mcp_home" HERMES_HOME="$mcp_hermes" \
+  bash -c '
+    command() {
+      if [ "$1" = "-v" ]; then
+        case "$2" in
+          python3|python|py) return 1 ;;
+        esac
+      fi
+      builtin command "$@"
+    }
+    export -f command
+    bash "'"$SETUP_SH"'" --mcp
+  ' 2>&1
+)"
+mcp_status=$?
+set -e
+
+[ "$mcp_status" -eq 0 ] \
+  || { echo "$mcp_output" >&2; fail "mcp-no-python exited non-zero without Python"; }
+grep -Fq 'http://127.0.0.1:14242/mcp/' "$mcp_hermes/config.yaml" \
+  || fail "mcp-no-python did not write MCP server config to config.yaml"
+grep -Fq 'nowledge-mem:' "$mcp_hermes/config.yaml" \
+  || fail "mcp-no-python did not write nowledge-mem MCP entry"
+
 echo "[ok] Hermes setup installer regression checks passed"

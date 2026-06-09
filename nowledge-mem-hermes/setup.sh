@@ -70,12 +70,8 @@ detect_python() {
   printf ''
 }
 
-PYTHON_BIN="$(detect_python)"
-if [ -z "$PYTHON_BIN" ]; then
-  echo "[error] Python 3 not found on PATH (tried python3, python, py -3)."
-  echo "        Install Python 3 from https://www.python.org/ or your package manager and retry."
-  exit 1
-fi
+# Resolved lazily in plugin mode only — MCP-only installs never touch Python.
+PYTHON_BIN=""
 
 echo "[*] Hermes home: $HERMES_HOME"
 
@@ -236,6 +232,15 @@ PY
 # Plugin install
 # =========================================================================
 if [ "$MODE" = "plugin" ]; then
+  # Plugin mode rewrites config.yaml via a Python helper (ensure_memory_provider),
+  # so Python 3 is required here. MCP-only installs skip this entirely.
+  PYTHON_BIN="$(detect_python)"
+  if [ -z "$PYTHON_BIN" ]; then
+    echo "[error] Python 3 not found on PATH (tried python3, python, py -3)."
+    echo "        Install Python 3 from https://www.python.org/ or your package manager and retry."
+    exit 1
+  fi
+
   PLUGIN_DIR="$HERMES_HOME/plugins/nowledge-mem"
 
   # Detect old incorrect path (v0.5.0 installed to plugins/memory/nowledge-mem)
