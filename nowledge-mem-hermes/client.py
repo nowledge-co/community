@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import subprocess
 from typing import Any, Dict, List, Optional
 from urllib import error as urlerror
@@ -26,6 +27,186 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_API_URL = "http://127.0.0.1:14242"
 CONFIG_PATH = os.path.expanduser("~/.nowledge-mem/config.json")
+
+
+def _resolve_nmem() -> Optional[str]:
+    """Resolve the nmem executable. On Windows, subprocess (shell=False) ignores
+    PATHEXT, so a bare "nmem" never matches nmem.CMD; shutil.which honors PATHEXT."""
+    return shutil.which("nmem")
+
+
+def _is_batch(path: str) -> bool:
+    """True when the resolved executable is a cmd.exe batch shim (.cmd/.bat).
+
+    Only these run through cmd.exe, whose metacharacter parsing (& | < > ^ ") is
+    NOT neutralized by Python's list-form quoting. Native binaries and scripts
+    (Linux, macOS, or a real Windows .exe) never touch cmd.exe, so they keep the
+    plain list form and behave exactly as before."""
+    return os.path.splitext(path)[1].lower() in (".cmd", ".bat")
+
+
+def _quote_cmd_arg(arg: str) -> str:
+    """Escape one token so it survives BOTH cmd.exe's command-line tokenizer and
+    the target program's MSVCRT argv parser.
+
+    nmem ships on Windows as a ``.cmd`` shim whose last line forwards every
+    argument to a bundled python: ``"%PYTHON%" -m ...ncli %*``. So a single
+    command line is parsed twice -- once by cmd.exe, once by the C runtime that
+    builds ``sys.argv``. Without this, cmd.exe sees raw ``& | < > ^`` and runs
+    injected commands (the BatBadBut / CVE-2024-1874 class), proven live: a bare
+    ``a&b`` makes cmd execute ``b``.
+
+    Two layers, both required:
+      * MSVCRT argv quoting (Daniel Colascione's algorithm): force-quote EVERY
+        token -- even ones without spaces -- and double backslashes that precede
+        a quote. Inside double quotes cmd.exe treats ``& | < > ( )`` as literal,
+        so force-quoting is what denies cmd.exe any bare metacharacter to act on.
+      * Embedded double quotes are emitted as ``""``. That is literal to cmd.exe
+        (its quote state simply toggles twice) and collapses to a single ``"``
+        under the MSVCRT parser, so an attacker-supplied ``"`` can never close
+        the quoted region and break out.
+
+    Verified empirically on Windows against a ``%*``-forwarding shim: every byte
+    of ``a&b a|b x^y q"uote a<b>c (paren) 中文记忆 z & echo INJECTED`` round-trips
+    verbatim with zero injection.
+
+    Scope: this closes the pure-argv vectors only. It does not (and cannot)
+    neutralize ``%VAR%`` expansion, which cmd.exe performs on the assembled
+    command line before any token reaches argv -- see :func:`_build_cmd_command`
+    for that residual. Literal ``%`` is intentionally left untouched here."""
+    if arg == "":
+        return '""'
+    out = ['"']
+    i, n = 0, len(arg)
+    while i < n:
+        backslashes = 0
+        while i < n and arg[i] == "\\":
+            i += 1
+            backslashes += 1
+        if i == n:
+            # Trailing backslashes immediately precede the closing quote: double
+            # them so the CRT does not read them as escaping that quote.
+            out.append("\\" * (backslashes * 2))
+            break
+        if arg[i] == '"':
+            # Backslashes before a literal quote are doubled; the quote itself
+            # becomes "" (literal under both cmd.exe and the MSVCRT parser).
+            out.append("\\" * (backslashes * 2))
+            out.append('""')
+            i += 1
+        else:
+            out.append("\\" * backslashes)
+            out.append(arg[i])
+            i += 1
+    out.append('"')
+    return "".join(out)
+
+
+def _comspec() -> str:
+    """Absolute path to the Windows command processor, guaranteed to be cmd.exe.
+
+    The batch path launches the processor by ABSOLUTE path -- never the bare name
+    ``cmd.exe`` -- because ``subprocess.run`` with ``shell=False`` passes a STRING
+    command to ``CreateProcess`` with ``executable=None`` and does NOT apply the
+    System32/ComSpec hardening that ``shell=True`` would. A bare ``cmd.exe`` would
+    therefore be subject to Windows search-path resolution, including the current
+    directory (a planting risk).
+
+    Resolution order, each candidate MUST be absolute + existing + basename
+    ``cmd.exe`` (case-insensitive). The last fallback is a hard-coded literal so
+    a poisoned ``%SystemRoot%`` cannot redirect us to an attacker path:
+      1. ``%ComSpec%`` -- the documented Windows variable.
+      2. ``%SystemRoot%\\System32\\cmd.exe`` -- iff ``%SystemRoot%`` itself is
+         absolute, existing, and the resulting cmd.exe exists.
+      3. ``C:\\Windows\\System32\\cmd.exe`` -- the Windows install default,
+         used as last resort even when it does not currently exist (callers will
+         fail loudly on the subsequent ``CreateProcess`` rather than silently
+         picking up something attacker-controlled)."""
+
+    def _is_cmd_exe(path: str) -> bool:
+        return (
+            os.path.isabs(path)
+            and os.path.exists(path)
+            and os.path.basename(path).lower() == "cmd.exe"
+        )
+
+    comspec = os.environ.get("ComSpec", "")
+    if _is_cmd_exe(comspec):
+        return comspec
+
+    system_root = os.environ.get("SystemRoot", "")
+    if os.path.isabs(system_root) and os.path.exists(system_root):
+        candidate = os.path.join(system_root, "System32", "cmd.exe")
+        if _is_cmd_exe(candidate):
+            return candidate
+
+    return r"C:\Windows\System32\cmd.exe"
+
+
+def _build_cmd_command(argv: List[str]) -> str:
+    """Build a fully-escaped command-processor line for a batch shim.
+
+    Launches the command processor by ABSOLUTE path (see :func:`_comspec`) so
+    ``CreateProcess`` does not search PATH or the current directory for
+    ``cmd.exe``. The inner command (shim + args) is wrapped in one outer pair of
+    quotes and run with ``/s``; per cmd's quoting rules that strips only that
+    outer pair and leaves every inner token's quoting intact. The comspec token
+    and the ``/d /s /c`` switches sit OUTSIDE that outer pair -- only the inner
+    argv line is what ``/s`` unwraps. The string is passed to ``subprocess.run``
+    with ``shell=False`` so it reaches ``CreateProcess`` verbatim (Python does
+    not re-quote a string command on Windows).
+
+    Threat model -- stated honestly, not reassuringly:
+      * Neutralized: the pure-argv BatBadBut / CVE-2024-1874 vectors -- ``& | <
+        > ^ "`` supplied DIRECTLY in an argument. Force-quoting every token
+        denies cmd.exe any bare metacharacter to act on, and embedded quotes are
+        emitted as ``""`` so an argument can never break out of its quoted region.
+      * Residual: ``%VAR%`` expansion. cmd.exe expands ``%NAME%`` on the command
+        line BEFORE the shim runs, and percent cannot be escaped in the ``/c``
+        context that forwards ``%*``. If an argument contains a literal
+        ``%NAME%`` AND an environment variable ``NAME`` exists whose value holds
+        cmd metacharacters, the expanded value re-enters cmd syntax and can
+        execute -- command execution in a poisoned-environment scenario, not
+        merely garbled data. Literal ``%`` is deliberately preserved untouched
+        (never escaped, doubled, stripped, or rejected) so real memory content
+        like ``100% done`` round-trips with zero data loss; a ``%NAME%`` whose
+        ``NAME`` is unset is left verbatim. This residual is inherent to
+        forwarding arguments through a cmd.exe ``.cmd`` shim and is pinned by the
+        regression tests in ``tests/test_windows_batch_args.py``."""
+    line = " ".join(_quote_cmd_arg(token) for token in argv)
+    return _quote_cmd_arg(_comspec()) + ' /d /s /c "' + line + '"'
+
+
+def _run_nmem(
+    argv: List[str],
+    *,
+    timeout: float,
+    env: Optional[Dict[str, str]] = None,
+) -> "subprocess.CompletedProcess[str]":
+    """Invoke nmem with the launcher that is safe for the resolved executable.
+
+    Non-batch (Linux/macOS, or a real Windows ``.exe``): the existing list form,
+    completely unchanged. Batch (``.cmd``/``.bat`` on Windows): an explicit,
+    fully-escaped cmd.exe command string so user/model-controlled metacharacters
+    reach nmem as literal data instead of being interpreted by cmd.exe."""
+    if _is_batch(argv[0]):
+        command = _build_cmd_command(argv)
+        return subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=timeout,
+            env=env,
+        )
+    return subprocess.run(
+        argv,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=timeout,
+        env=env,
+    )
 
 
 class NowledgeMemClient:
@@ -44,26 +225,22 @@ class NowledgeMemClient:
     @staticmethod
     def is_available() -> bool:
         """Return True if ``nmem`` CLI is on PATH and responds."""
+        exe = _resolve_nmem()
+        if exe is None:
+            return False
         try:
-            result = subprocess.run(
-                ["nmem", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
+            result = _run_nmem([exe, "--version"], timeout=5)
             return result.returncode == 0
         except Exception:
             return False
 
     def health(self) -> bool:
         """Check that Nowledge Mem is reachable."""
+        exe = _resolve_nmem()
+        if exe is None:
+            return False
         try:
-            result = subprocess.run(
-                ["nmem", "--json", "status"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
+            result = _run_nmem([exe, "--json", "status"], timeout=5)
             return result.returncode == 0
         except Exception:
             return False
@@ -219,7 +396,13 @@ class NowledgeMemClient:
 
     def _cli(self, args: List[str]) -> Any:
         """Run ``nmem --json <args>`` and return parsed JSON."""
-        cmd = ["nmem", "--json"] + args
+        exe = _resolve_nmem()
+        if exe is None:
+            raise RuntimeError(
+                "nmem CLI not found. Install: pip install nmem-cli, "
+                "or enable CLI in Nowledge Mem: Settings > Developer Tools"
+            )
+        cmd = [exe, "--json"] + args
         env = os.environ.copy()
         if self._has_explicit_space:
             env.pop("NMEM_SPACE", None)
@@ -228,13 +411,7 @@ class NowledgeMemClient:
             env["NMEM_SPACE"] = self._space
             env["NMEM_SPACE_ID"] = self._space
         try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=self._timeout,
-                env=env,
-            )
+            result = _run_nmem(cmd, timeout=self._timeout, env=env)
         except FileNotFoundError:
             raise RuntimeError(
                 "nmem CLI not found. Install: pip install nmem-cli, "

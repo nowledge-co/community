@@ -595,11 +595,11 @@ class NowledgeMemProvider(MemoryProvider):
         existing: dict = {}
         if config_path.exists():
             try:
-                existing = json.loads(config_path.read_text())
+                existing = json.loads(config_path.read_text(encoding="utf-8"))
             except Exception:
                 pass
         existing.update(values)
-        config_path.write_text(json.dumps(existing, indent=2))
+        config_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
         logger.info("Nowledge Mem config saved to %s", config_path)
 
     def shutdown(self) -> None:
@@ -679,7 +679,7 @@ class NowledgeMemProvider(MemoryProvider):
             config_path = Path(hermes_home) / "nowledge-mem.json"
             if config_path.exists():
                 try:
-                    cfg = json.loads(config_path.read_text())
+                    cfg = json.loads(config_path.read_text(encoding="utf-8"))
                     if isinstance(cfg, dict):
                         return cfg
                 except Exception as err:
