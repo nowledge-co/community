@@ -30,50 +30,56 @@ CONFIG_PATH = os.path.expanduser("~/.nowledge-mem/config.json")
 
 
 def _resolve_nmem() -> Optional[str]:
-    """Resolve the nmem executable. On Windows, subprocess (shell=False) ignores
-    PATHEXT, so a bare "nmem" never matches nmem.CMD; shutil.which honors PATHEXT."""
+    """Return the absolute path to the ``nmem`` executable, or ``None``.
+
+    ``shutil.which`` honors PATHEXT, so on Windows it correctly resolves the
+    ``nmem.CMD`` shim that ``subprocess.run(["nmem", ...], shell=False)`` would
+    miss.
+    """
     return shutil.which("nmem")
 
 
-def _is_batch(path: str) -> bool:
-    """True when the resolved executable is a cmd.exe batch shim (.cmd/.bat).
+# --- Windows .cmd hardening ------------------------------------------------
+# nmem ships on Windows only as ``nmem.CMD``; the shim's last line forwards
+# every argument to a bundled python via ``"%PYTHON%" -m ...ncli %*``. Python's
+# ``subprocess`` runs ``.cmd``/``.bat`` through ``cmd.exe``, whose metacharacter
+# parsing (``& | < > ^ "``) is NOT neutralized by list-form quoting. Live-proven
+# on Windows: ``subprocess.run([nmem_cmd, "a&b"])`` makes cmd.exe execute ``b``
+# as a separate command. This is the BatBadBut / CVE-2024-1874 class.
+#
+# Defense (only applied when the resolved executable is .cmd/.bat — Linux/macOS
+# and a real Windows .exe keep the plain list form, unchanged):
+#   1. Build the inner command line by force-quoting every token with the
+#      Daniel Colascione MSVCRT algorithm. Inside double quotes cmd.exe treats
+#      ``& | < > ( )`` as literal; embedded ``"`` becomes ``""`` (literal under
+#      cmd, collapses to one ``"`` under the MSVCRT parser).
+#   2. Launch the command processor by ABSOLUTE path (see ``_comspec``) so
+#      ``CreateProcess`` cannot resolve ``cmd.exe`` via PATH or the current
+#      directory (a planting risk under ``shell=False``).
+#   3. Pass the assembled string to ``subprocess.run(shell=False)`` so Python
+#      does not re-quote it.
+#
+# Residual: ``%VAR%`` expansion. cmd.exe expands ``%NAME%`` on the assembled
+# command line before the shim runs, and percent cannot be escaped in the
+# ``/c`` context that forwards ``%*``. Literal ``%`` is intentionally preserved
+# (so real content like ``100% done`` round-trips); a ``%NAME%`` whose ``NAME``
+# is set to a value containing cmd metacharacters can re-enter cmd syntax in a
+# poisoned-environment scenario. Pinned by tests in
+# ``tests/test_windows_batch_args.py``.
 
-    Only these run through cmd.exe, whose metacharacter parsing (& | < > ^ ") is
-    NOT neutralized by Python's list-form quoting. Native binaries and scripts
-    (Linux, macOS, or a real Windows .exe) never touch cmd.exe, so they keep the
-    plain list form and behave exactly as before."""
+
+def _is_batch(path: str) -> bool:
+    """True iff ``path`` is a cmd.exe batch shim (.cmd/.bat)."""
     return os.path.splitext(path)[1].lower() in (".cmd", ".bat")
 
 
 def _quote_cmd_arg(arg: str) -> str:
-    """Escape one token so it survives BOTH cmd.exe's command-line tokenizer and
-    the target program's MSVCRT argv parser.
+    """Quote ``arg`` for both cmd.exe and the MSVCRT argv parser.
 
-    nmem ships on Windows as a ``.cmd`` shim whose last line forwards every
-    argument to a bundled python: ``"%PYTHON%" -m ...ncli %*``. So a single
-    command line is parsed twice -- once by cmd.exe, once by the C runtime that
-    builds ``sys.argv``. Without this, cmd.exe sees raw ``& | < > ^`` and runs
-    injected commands (the BatBadBut / CVE-2024-1874 class), proven live: a bare
-    ``a&b`` makes cmd execute ``b``.
-
-    Two layers, both required:
-      * MSVCRT argv quoting (Daniel Colascione's algorithm): force-quote EVERY
-        token -- even ones without spaces -- and double backslashes that precede
-        a quote. Inside double quotes cmd.exe treats ``& | < > ( )`` as literal,
-        so force-quoting is what denies cmd.exe any bare metacharacter to act on.
-      * Embedded double quotes are emitted as ``""``. That is literal to cmd.exe
-        (its quote state simply toggles twice) and collapses to a single ``"``
-        under the MSVCRT parser, so an attacker-supplied ``"`` can never close
-        the quoted region and break out.
-
-    Verified empirically on Windows against a ``%*``-forwarding shim: every byte
-    of ``a&b a|b x^y q"uote a<b>c (paren) 中文记忆 z & echo INJECTED`` round-trips
-    verbatim with zero injection.
-
-    Scope: this closes the pure-argv vectors only. It does not (and cannot)
-    neutralize ``%VAR%`` expansion, which cmd.exe performs on the assembled
-    command line before any token reaches argv -- see :func:`_build_cmd_command`
-    for that residual. Literal ``%`` is intentionally left untouched here."""
+    See the *Windows .cmd hardening* block above for why this is required.
+    Force-quotes every token (even spaceless ones); doubles backslashes that
+    precede a literal quote; emits embedded ``"`` as ``""``.
+    """
     if arg == "":
         return '""'
     out = ['"']
@@ -84,13 +90,10 @@ def _quote_cmd_arg(arg: str) -> str:
             i += 1
             backslashes += 1
         if i == n:
-            # Trailing backslashes immediately precede the closing quote: double
-            # them so the CRT does not read them as escaping that quote.
+            # Trailing backslashes: double so they don't escape the closing quote.
             out.append("\\" * (backslashes * 2))
             break
         if arg[i] == '"':
-            # Backslashes before a literal quote are doubled; the quote itself
-            # becomes "" (literal under both cmd.exe and the MSVCRT parser).
             out.append("\\" * (backslashes * 2))
             out.append('""')
             i += 1
@@ -103,25 +106,16 @@ def _quote_cmd_arg(arg: str) -> str:
 
 
 def _comspec() -> str:
-    """Absolute path to the Windows command processor, guaranteed to be cmd.exe.
+    """Absolute path to ``cmd.exe``, validated.
 
-    The batch path launches the processor by ABSOLUTE path -- never the bare name
-    ``cmd.exe`` -- because ``subprocess.run`` with ``shell=False`` passes a STRING
-    command to ``CreateProcess`` with ``executable=None`` and does NOT apply the
-    System32/ComSpec hardening that ``shell=True`` would. A bare ``cmd.exe`` would
-    therefore be subject to Windows search-path resolution, including the current
-    directory (a planting risk).
-
-    Resolution order, each candidate MUST be absolute + existing + basename
-    ``cmd.exe`` (case-insensitive). The last fallback is a hard-coded literal so
-    a poisoned ``%SystemRoot%`` cannot redirect us to an attacker path:
-      1. ``%ComSpec%`` -- the documented Windows variable.
-      2. ``%SystemRoot%\\System32\\cmd.exe`` -- iff ``%SystemRoot%`` itself is
-         absolute, existing, and the resulting cmd.exe exists.
-      3. ``C:\\Windows\\System32\\cmd.exe`` -- the Windows install default,
-         used as last resort even when it does not currently exist (callers will
-         fail loudly on the subsequent ``CreateProcess`` rather than silently
-         picking up something attacker-controlled)."""
+    Resolution order; each candidate must be absolute + existing + basename
+    ``cmd.exe`` (case-insensitive). The literal fallback exists so a poisoned
+    ``%SystemRoot%`` cannot redirect us:
+      1. ``%ComSpec%``
+      2. ``%SystemRoot%\\System32\\cmd.exe`` (only if ``%SystemRoot%`` is itself
+         absolute + existing)
+      3. ``C:\\Windows\\System32\\cmd.exe`` (literal default)
+    """
 
     def _is_cmd_exe(path: str) -> bool:
         return (
@@ -144,35 +138,12 @@ def _comspec() -> str:
 
 
 def _build_cmd_command(argv: List[str]) -> str:
-    """Build a fully-escaped command-processor line for a batch shim.
+    """Build the full ``"<cmd.exe>" /d /s /c "<quoted argv>"`` string.
 
-    Launches the command processor by ABSOLUTE path (see :func:`_comspec`) so
-    ``CreateProcess`` does not search PATH or the current directory for
-    ``cmd.exe``. The inner command (shim + args) is wrapped in one outer pair of
-    quotes and run with ``/s``; per cmd's quoting rules that strips only that
-    outer pair and leaves every inner token's quoting intact. The comspec token
-    and the ``/d /s /c`` switches sit OUTSIDE that outer pair -- only the inner
-    argv line is what ``/s`` unwraps. The string is passed to ``subprocess.run``
-    with ``shell=False`` so it reaches ``CreateProcess`` verbatim (Python does
-    not re-quote a string command on Windows).
-
-    Threat model -- stated honestly, not reassuringly:
-      * Neutralized: the pure-argv BatBadBut / CVE-2024-1874 vectors -- ``& | <
-        > ^ "`` supplied DIRECTLY in an argument. Force-quoting every token
-        denies cmd.exe any bare metacharacter to act on, and embedded quotes are
-        emitted as ``""`` so an argument can never break out of its quoted region.
-      * Residual: ``%VAR%`` expansion. cmd.exe expands ``%NAME%`` on the command
-        line BEFORE the shim runs, and percent cannot be escaped in the ``/c``
-        context that forwards ``%*``. If an argument contains a literal
-        ``%NAME%`` AND an environment variable ``NAME`` exists whose value holds
-        cmd metacharacters, the expanded value re-enters cmd syntax and can
-        execute -- command execution in a poisoned-environment scenario, not
-        merely garbled data. Literal ``%`` is deliberately preserved untouched
-        (never escaped, doubled, stripped, or rejected) so real memory content
-        like ``100% done`` round-trips with zero data loss; a ``%NAME%`` whose
-        ``NAME`` is unset is left verbatim. This residual is inherent to
-        forwarding arguments through a cmd.exe ``.cmd`` shim and is pinned by the
-        regression tests in ``tests/test_windows_batch_args.py``."""
+    The outer ``"..."`` is what ``/s`` strips before re-tokenizing, so every
+    inner token's quoting stays intact. See the *Windows .cmd hardening* block
+    above for the threat model and residuals.
+    """
     line = " ".join(_quote_cmd_arg(token) for token in argv)
     return _quote_cmd_arg(_comspec()) + ' /d /s /c "' + line + '"'
 
@@ -183,24 +154,13 @@ def _run_nmem(
     timeout: float,
     env: Optional[Dict[str, str]] = None,
 ) -> "subprocess.CompletedProcess[str]":
-    """Invoke nmem with the launcher that is safe for the resolved executable.
-
-    Non-batch (Linux/macOS, or a real Windows ``.exe``): the existing list form,
-    completely unchanged. Batch (``.cmd``/``.bat`` on Windows): an explicit,
-    fully-escaped cmd.exe command string so user/model-controlled metacharacters
-    reach nmem as literal data instead of being interpreted by cmd.exe."""
-    if _is_batch(argv[0]):
-        command = _build_cmd_command(argv)
-        return subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=timeout,
-            env=env,
-        )
+    """Invoke nmem. Routes ``.cmd``/``.bat`` through the hardened cmd.exe path;
+    everything else (Linux, macOS, real Windows .exe) keeps the plain list form
+    unchanged.
+    """
+    command: Any = _build_cmd_command(argv) if _is_batch(argv[0]) else argv
     return subprocess.run(
-        argv,
+        command,
         capture_output=True,
         text=True,
         encoding="utf-8",
