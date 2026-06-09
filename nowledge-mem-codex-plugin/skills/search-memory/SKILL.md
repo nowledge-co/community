@@ -64,21 +64,24 @@ When the user needs to browse across multiple object types, inspect nearby conte
 Prefer MCP `mem_fs` when available:
 
 ```text
+capabilities
 recall "session token strategy" --in /memories -k 5
 find /memories --label decisions --since 2026-01-01
 grep "JWT rotation" /memories
+grep -E "JWT|token" /threads
 cat /memories/by-id/<id>.memory.md
 ```
 
 Otherwise use:
 
 ```bash
+nmem fs capabilities --json
 nmem fs recall "session token strategy" --in /memories -k 5
 nmem fs ls /wiki
 nmem fs cat /wiki/topics/<topic>.topic.md
 ```
 
-Use `recall` for fuzzy phrasing, `find` for metadata constraints, `grep` for exact strings, then `stat` or `cat` the returned paths. KFS paths are Mem identifiers, not local OS files; mount and SQL/Cypher are later phases.
+Use `capabilities` before assuming roots or future verbs. Use `recall` for fuzzy phrasing, `find` for metadata constraints, `grep` for exact strings, `grep -E` for explicit regex, then `stat` or `cat` the returned paths. KFS paths are Mem identifiers, not local OS files; mount and SQL/Cypher are later phases.
 
 ## Filters
 

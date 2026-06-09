@@ -141,6 +141,40 @@ test("NowledgeMemClient injects ambient space into HTTP requests", () => {
 	});
 });
 
+test("readContextBundle passes source, identity, and ambient space", async () => {
+	const client = new NowledgeMemClient(logger, {
+		apiUrl: "http://127.0.0.1:14242",
+		space: "Research Agent",
+	});
+	let seen = null;
+	client._fetch = async (method, path, options) => {
+		seen = {
+			method,
+			path,
+			params: client._withSpaceQuery(options?.params),
+		};
+		return { rendered_markdown: "context" };
+	};
+
+	const bundle = await client.readContextBundle({
+		agentId: "alice",
+		hostAgentId: "alma:alice",
+	});
+
+	assert.equal(bundle.rendered_markdown, "context");
+	assert.deepEqual(seen, {
+		method: "GET",
+		path: "/context/bundle",
+		params: {
+			source_app: "alma",
+			agent_id: "alice",
+			host_agent_id: "alma:alice",
+			include_working_memory: undefined,
+			space_id: "Research Agent",
+		},
+	});
+});
+
 test("readWorkingMemory rethrows backend errors for non-default spaces", async () => {
 	const client = new NowledgeMemClient(logger, {
 		apiUrl: "http://127.0.0.1:14242",

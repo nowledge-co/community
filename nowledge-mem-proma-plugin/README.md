@@ -134,7 +134,7 @@ When nmem MCP tools (`mcp__nowledge-mem__*`) are available:
 - **Session archiving** -> `mcp__nowledge-mem__save_thread`
 
 **Proactive behaviors:**
-- Read Working Memory at session start
+- Read Context Bundle at session start when available, with Working Memory fallback
 - Distill key decisions to nmem Memories
 - When user says "before", "last time": search nmem + built-in memory
 ```
@@ -157,9 +157,9 @@ Proma Agent
 
 ## How It Works
 
-1. **MCP Tools** — `mcp__nowledge-mem__*` tools are available to the agent for on-demand memory operations: search past decisions, save new learnings, read working memory.
+1. **MCP Tools** — `mcp__nowledge-mem__*` tools are available to the agent for on-demand memory operations: search past decisions, save new learnings, read Context Bundle or Working Memory.
 2. **Stop Hook** — After every agent response, `save-to-nmem.py` parses the current Proma session JSONL (`~/.proma/agent-sessions/<id>.jsonl`) and appends new messages to the matching nmem thread via REST API.
-3. **SessionStart Hook** — On new or resumed sessions, `read-working-memory.py` calls `nmem wm read` and outputs the briefing for context injection.
+3. **SessionStart Hook** — On new or resumed sessions, `read-working-memory.py` calls `nmem context --source-app proma` when available, then falls back to `nmem wm read` for context injection.
 4. **Skills** — Standard skills for read-working-memory, search-memory, distill-memory, save-thread, and status. Slash commands (`/nmem-save`, `/nmem-search`, `/nmem-status`) provide manual control as a fallback.
 
 ### Session Format

@@ -154,9 +154,9 @@ This old skill name is kept for compatibility because indexed `npx skills` entri
 - In generic agents: ask for **save handoff** or **checkpoint this**
 - In native connectors with transcript import: ask for **save thread** when you want the actual session captured
 
-### Read Working Memory (`read-working-memory`)
+### Read Startup Context (`read-working-memory`)
 
-Loads your daily Working Memory briefing at session start so the agent knows your current context.
+Loads Context Bundle at session start when available, or your daily Working Memory briefing as the lightweight fallback, so the agent knows your current context.
 
 **Activates at:**
 - The start of a new session
@@ -164,7 +164,7 @@ Loads your daily Working Memory briefing at session start so the agent knows you
 
 **Example:**
 ```
-[Agent reads Working Memory at session start]
+[Agent reads Context Bundle or Working Memory at session start]
 
 Agent: I see you're focused on the auth migration and have an
 unresolved flag about the session handling approach. Want me to
@@ -232,8 +232,9 @@ For CLI or skill-driven agents, paste a policy like this into `AGENTS.md` or you
 Use Nowledge Mem as your external memory system.
 
 At session start:
-- Run `nmem --json wm read` once to load current priorities and recent context.
-- Do not re-read it on every turn unless the user asks or the session context changed materially.
+- Run `nmem --json context --source-app "<host>"` when identity, active space, active rules, or multi-agent behavior could matter.
+- Use `nmem --json wm read` for a lightweight daily briefing or older `nmem` clients.
+- If Context Bundle already includes Working Memory, do not immediately read Working Memory again.
 - If the host already knows a project or agent lane, add `--space "<space name>"`.
 
 Search proactively when:
@@ -251,10 +252,11 @@ Retrieval routing:
 When preserving knowledge:
 - Use `nmem --json m add` for genuinely new durable knowledge.
 - If an existing memory already captures the same decision, preference, or workflow and the new information refines it, use `nmem m update <id> ...` instead of creating a duplicate.
+- Pass `--unit-type fact|preference|decision|plan|procedure|learning|context|event` when the type is clear.
 - Use a handoff save only when the user explicitly asks for a resumable checkpoint or handoff summary.
 ```
 
-For MCP-only agents, use the same policy but replace the commands with the tool names `read_working_memory`, `memory_search`, `thread_search`, `thread_fetch_messages`, `memory_add`, and `memory_update`.
+For MCP-only agents, use the same policy but replace the commands with the tool names `read_working_memory`, `memory_search`, `thread_search`, `thread_fetch_messages`, `memory_add`, and `memory_update`. Pass `unit_type` to `memory_add` when the type is clear.
 
 ### Step 3: Keep The Prompt Direct
 

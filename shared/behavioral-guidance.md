@@ -4,7 +4,65 @@
 
 ---
 
-## 1. Working Memory
+## 1. Context Bundle
+
+When a host supports startup hooks, MCP, or an explicit bootstrap step, prefer the
+Context Bundle for full-session startup context. It resolves owner identity,
+AI Identity, active space, active rules, Working Memory, and KFS
+paths in one stable contract.
+
+**MCP preferred:**
+
+```text
+read_context_bundle
+```
+
+**CLI fallback:**
+
+```bash
+nmem --json context --source-app "<host>"
+```
+
+If the host has a stable long-running AI Identity, pass it:
+
+```bash
+nmem --json context --source-app "<host>" --host-agent-id "<agent-id>"
+```
+
+If the host has an ambient project or agent lane, also pass `--space "<space name>"`.
+
+For orchestration tools that spawn another AI CLI, keep `--source-app` as the
+child runtime (`codex`, `claude-code`, `opencode`, and so on). If a user can set
+environment variables per child process, the friendly path is one variable:
+
+```bash
+NMEM_AGENT_ID="reviewer"
+```
+
+`NMEM_AGENT_ID` selects a Nowledge AI Identity directly. Add `NMEM_SPACE` only
+when the whole child process should override that identity's default space.
+`NMEM_HOST_AGENT_ID` is for integration authors or advanced users who need to
+map an immutable host-local id such as `slock:<uuid>` onto a profile. Do not ask
+normal users to set both identity variables; if every child gets the same value,
+all agents will collapse into one profile.
+
+**When to use Context Bundle:**
+- Session startup for multi-agent hosts or long-running named agents
+- Hook-injected prompt context
+- MCP clients that need the behavior + scope contract before retrieval
+- Tasks where owner identity, AI Identity, or rules may change the answer
+
+**When to use only Working Memory:**
+- Lightweight "what am I focused on?" reads
+- Older clients that do not expose `read_context_bundle` or `nmem context`
+- Mid-session refreshes where identity/scope has not changed
+
+If Context Bundle was already injected and includes Working Memory, do not call
+Working Memory again unless the user asks or the session changed materially.
+
+---
+
+## 2. Working Memory
 
 Read your Working Memory briefing once near the start of each session to understand the user's current context.
 
@@ -43,7 +101,7 @@ NMEM_SPACE="Research Agent" nmem --json wm read
 
 ---
 
-## 2. Proactive Search
+## 3. Proactive Search
 
 Search your knowledge base proactively when past insights would improve the response. Do not wait for the user to say "search my memory".
 
@@ -67,7 +125,7 @@ Search your knowledge base proactively when past insights would improve the resp
 
 ---
 
-## 3. Retrieval Routing
+## 4. Retrieval Routing
 
 1. Start with `nmem --json m search "<query>"` for durable knowledge (decisions, insights, procedures).
 2. Use `nmem --json t search "<query>"` when the user is asking about a prior conversation or exact session history.
@@ -82,7 +140,7 @@ Search your knowledge base proactively when past insights would improve the resp
   - pass `--space "<space name>"` on the relevant commands, or
   - set `NMEM_SPACE="<space name>"` once for the session only when the integration is CLI-first and lacks a better config surface.
 - If the host does not have a natural ambient space, stay on the default lane and do not invent one.
-- If the host supports profile-owned routing, prefer that over process env. A configured `space`, `spaceTemplate`, or host-owned mapping should beat inherited `NMEM_SPACE`.
+- If the host supports AI Identity-owned routing, prefer that over process env. A configured `space`, `spaceTemplate`, or host-owned mapping should beat inherited `NMEM_SPACE`.
 - If the host exposes a stable identity or workspace signal, derive the lane from that signal. If it does not, keep one fixed lane per profile/process.
 - Shared or cross-space recall should be explicit, not automatic.
 - The storage boundary is a hidden space key. Humans and agents should normally work with the space name instead.
@@ -97,9 +155,9 @@ Search your knowledge base proactively when past insights would improve the resp
 
 ---
 
-## 4. Autonomous Save
+## 5. Autonomous Save
 
-**Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.**
+**Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.**
 
 Good candidates:
 - Decisions with rationale ("we chose PostgreSQL because ACID is required")
@@ -121,14 +179,15 @@ Good candidates:
 - Generic information already widely known
 
 **Format:**
-- Use structured saves: `--unit-type` (decision, procedure, learning, preference, event), `-l` labels, `-i` importance
+- Use structured saves: `--unit-type` (`fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`), `-l` labels, `-i` importance
+- For MCP or native tool calls, pass the same value as `unit_type` when you know it. Omit `unit_type` only when Mem should classify the save itself.
 - Atomic, standalone memories with strong titles and clear meaning
 - Focus on what was learned or decided, not routine activity
 - If the host has a real ambient space, write with `--space "<space name>"` so the new memory lands in the correct lane.
 
 ---
 
-## 5. Add vs Update
+## 6. Add vs Update
 
 - Use `nmem --json m add` when the insight is genuinely new.
 - If an existing memory already captures the same decision, workflow, or preference and the new information refines it, use `nmem m update <id> ...` instead of creating a duplicate.
@@ -136,7 +195,7 @@ Good candidates:
 
 ---
 
-## 6. Thread Save Honesty
+## 7. Thread Save Honesty
 
 Thread save capabilities depend on the runtime:
 

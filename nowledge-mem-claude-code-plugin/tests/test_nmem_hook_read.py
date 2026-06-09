@@ -55,7 +55,8 @@ esac
 
     assert result.returncode == 0
     assert result.stdout.strip() == "space briefing"
-    assert "--space examplerepo" in calls.read_text(encoding="utf-8")
+    command_log = calls.read_text(encoding="utf-8")
+    assert "context --source-app claude-code --space examplerepo" in command_log
 
 
 def test_read_hook_honors_nmem_space_override(tmp_path):
@@ -81,7 +82,40 @@ esac
 
     assert result.returncode == 0
     assert result.stdout.strip() == "env briefing"
-    assert "--space Research Lane" in calls.read_text(encoding="utf-8")
+    command_log = calls.read_text(encoding="utf-8")
+    assert "context --source-app claude-code --space Research Lane" in command_log
+
+
+def test_read_hook_passes_agent_identity_env_to_context_bundle(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls = tmp_path / "calls.log"
+    _write_fake_nmem(
+        bin_dir,
+        f"""
+printf '%s\\n' "$*" >> "{calls}"
+case "$*" in
+  *"--agent-id reviewer"*"--host-agent-id lody:reviewer"*) printf '%s\\n' '{{"rendered_markdown": "reviewer context"}}' ;;
+  *) exit 2 ;;
+esac
+""",
+    )
+
+    result = _run_hook(
+        tmp_path,
+        cwd=tmp_path,
+        env={
+            "PATH": f"{bin_dir}:{os.environ['PATH']}",
+            "NMEM_AGENT_ID": "reviewer",
+            "NMEM_HOST_AGENT_ID": "lody:reviewer",
+            "NMEM_SPACE": "",
+        },
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "reviewer context"
+    command_log = calls.read_text(encoding="utf-8")
+    assert "context --source-app claude-code --agent-id reviewer --host-agent-id lody:reviewer" in command_log
 
 
 def test_read_hook_falls_back_to_default_space_when_project_space_empty(tmp_path):
@@ -108,6 +142,35 @@ esac
 
     assert result.returncode == 0
     assert result.stdout.strip() == "default briefing"
+
+
+def test_read_hook_falls_back_to_working_memory_when_context_unavailable(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls = tmp_path / "calls.log"
+    _write_fake_nmem(
+        bin_dir,
+        f"""
+printf '%s\n' "$*" >> "{calls}"
+case "$*" in
+  *"context"*) exit 2 ;;
+  *"wm read"*) printf '%s\n' '{{"exists": true, "content": "wm fallback"}}' ;;
+  *) exit 1 ;;
+esac
+""",
+    )
+
+    result = _run_hook(
+        tmp_path,
+        cwd=tmp_path,
+        env={"PATH": f"{bin_dir}:{os.environ['PATH']}", "NMEM_SPACE": ""},
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "wm fallback"
+    command_log = calls.read_text(encoding="utf-8")
+    assert "context --source-app claude-code" in command_log
+    assert "wm read" in command_log
 
 
 def test_read_hook_falls_back_to_local_memory_file_without_nmem(tmp_path):
@@ -159,5 +222,5 @@ esac
     assert result.returncode == 0
     assert result.stdout.strip() == "cmd briefing"
     command = calls.read_text(encoding="utf-8")
-    assert '"nmem.cmd" "--json" "wm" "read"' in command
+    assert '"nmem.cmd" "--json" "context" "--source-app" "claude-code"' in command
     assert '"project\\"2024"' in command

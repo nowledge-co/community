@@ -4,9 +4,17 @@ You have access to the user's Nowledge Mem through the `nmem` CLI.
 
 Use the installed prompts when convenient, but compose direct `nmem` commands whenever that is clearer or more efficient.
 
-## Working Memory
+## Context Bundle And Working Memory
 
-At session start, or when recent priorities would help, read Working Memory:
+At session start, prefer Context Bundle when full identity, active space, active rules, and Working Memory matter:
+
+```bash
+nmem --json context --source-app codex
+```
+
+If the runtime already knows a project or agent lane, add `--space "<space name>"`. If a multi-agent launcher starts this Codex worker, prefer setting `NMEM_AGENT_ID="<agent-slug>"` before launch. Use `NMEM_HOST_AGENT_ID` only for advanced host-id aliases.
+
+Use Working Memory alone when you only need the lightweight daily briefing, or when the installed `nmem` CLI is too old for `context`:
 
 ```bash
 nmem --json wm read
@@ -14,11 +22,9 @@ nmem --json wm read
 
 If it returns `exists: false`, say there is no briefing yet and continue normally.
 
-If this runtime already knows a project or agent lane, add `--space "<space name>"`.
-
 Only fall back to `~/ai-now/memory.md` for older local-only **Default-space** setups.
 
-If the task is a continuation, review, regression, release, integration, or prior-decision question, follow the briefing with one targeted search instead of stopping there.
+If Context Bundle already includes Working Memory, do not read Working Memory again unless the user asks for a lightweight refresh. If the task is a continuation, review, regression, release, integration, or prior-decision question, follow the startup context with one targeted search instead of stopping there.
 
 ## Search Memory
 
@@ -36,7 +42,7 @@ Start with:
 nmem --json m search "query"
 ```
 
-If the runtime already has an ambient lane, add `--space "<space name>"` to Working Memory, memory search, thread search, and save commands.
+If the runtime already has an ambient lane, add `--space "<space name>"` to Context Bundle, Working Memory, memory search, thread search, and save commands.
 
 Use `--mode deep` when the need is conceptual, historical, or the first pass is weak.
 
@@ -54,7 +60,7 @@ nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 
 ## Distill Memory
 
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 Use `nmem --json m add` for new knowledge. If an existing memory captures the same concept and new information refines it, use `nmem m update <id>` instead of creating a duplicate.
 

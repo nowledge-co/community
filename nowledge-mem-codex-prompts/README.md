@@ -16,7 +16,7 @@ That keeps the integration sharp, durable, and easy to reason about.
 
 This package follows the same core flow as the richer native connectors:
 
-1. read Working Memory for current priorities
+1. read Context Bundle for startup identity, scope, guidance, and current priorities
 2. route recall across memories and threads
 3. save the real session when the user asks
 4. distill durable knowledge from the work
@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge
 
 ### Project guidance
 
-- `AGENTS.md` you can copy or merge into your project root to teach Codex when to read Working Memory, search memory, distill high-value insights, and save real sessions.
+- `AGENTS.md` you can copy or merge into your project root to teach Codex when to read Context Bundle or Working Memory, search memory, distill high-value insights, and save real sessions.
 
 ## Recommended Setup
 

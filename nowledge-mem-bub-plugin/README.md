@@ -33,7 +33,7 @@ If you have existing knowledge in Nowledge Mem, the agent should find it through
 |------|-------------|
 | `mem.search` | Search knowledge from all your tools. Supports label and date filters. |
 | `mem.save` | Save a decision, insight, or preference so any tool can find it. |
-| `mem.context` | Read today's Working Memory — focus areas, priorities, recent activity. |
+| `mem.context` | Read Context Bundle — identity, active scope, active rules, and Working Memory. |
 | `mem.connections` | Explore how a piece of knowledge relates to others across tools and time. |
 | `mem.timeline` | Recent activity grouped by day. |
 | `mem.forget` | Delete a memory by ID. |
@@ -59,7 +59,7 @@ Bub does not currently expose a dedicated user-owned instruction file through th
 
 | Variable | Default | What it does |
 |----------|---------|-------------|
-| `NMEM_SESSION_CONTEXT` | `false` | Inject Working Memory + recalled knowledge each turn |
+| `NMEM_SESSION_CONTEXT` | `false` | Inject Context Bundle + recalled knowledge each turn |
 | `NMEM_SESSION_DIGEST` | `true` | Feed Bub conversations into Mem for other tools to find |
 | `NMEM_SPACE` | *(unset)* | Ambient space lane for this Bub process |
 | `NMEM_API_URL` | *(local)* | Remote Nowledge Mem server URL |
@@ -82,11 +82,11 @@ Or use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`), which override th
 | Mode | Config | What happens |
 |------|--------|-------------|
 | **Default** | nothing | The agent searches and saves on demand. Conversations flow into Mem for other tools to find. |
-| **Session context** | `NMEM_SESSION_CONTEXT=1` | Working Memory and relevant knowledge injected automatically each turn. |
+| **Session context** | `NMEM_SESSION_CONTEXT=1` | Context Bundle and relevant knowledge injected automatically each turn. |
 
 Most users should start with the default.
 
-If one Bub process naturally belongs to one project or agent lane, set `NMEM_SPACE="Research Agent"` before launch. All CLI-backed Working Memory, search, save, and thread commands will then stay in that lane. Legacy `NMEM_SPACE_ID` still works for older setups.
+If one Bub process naturally belongs to one project or agent lane, set `NMEM_SPACE="Research Agent"` before launch. All CLI-backed Context Bundle, search, save, and thread commands will then stay in that lane. Legacy `NMEM_SPACE_ID` still works for older setups.
 
 Bub is process-scoped today: if you run multiple Bub agents that need different memory lanes, give each process its own `NMEM_SPACE` (or keep them on `Default`). Shared spaces, default retrieval, and agent guidance still come from Mem's shared `/spaces` profile.
 

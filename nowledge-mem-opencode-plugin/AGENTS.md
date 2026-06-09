@@ -2,11 +2,13 @@
 
 You have Nowledge Mem tools registered as `nowledge_mem_*` for cross-tool knowledge management. Use them proactively.
 
-## Working Memory
+## Context Bundle And Working Memory
 
-At session start, call `nowledge_mem_working_memory` to load your daily context briefing: current priorities, recent decisions, and open questions.
+At session start, call `nowledge_mem_context_bundle` when identity, scope, or rules may matter. It includes owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths.
 
-If OpenCode is launched with `NMEM_SPACE="<space name>"`, that lane is the ambient default for Working Memory, search, save, and session-save flows. Legacy `NMEM_SPACE_ID` still works for older setups.
+Use `nowledge_mem_working_memory` only for a lightweight daily briefing or fallback on older `nmem` CLIs.
+
+If the shared Mem client config sets `space`, that lane is the ambient default for Context Bundle, Working Memory, search, save, and session-save flows. `NMEM_SPACE="<space name>"` can override it for a single OpenCode process. Legacy `NMEM_SPACE_ID` still works for older setups.
 
 Reference relevant parts naturally as the conversation progresses. Do not re-read unless the user asks or the session context changes materially.
 
@@ -30,7 +32,7 @@ Use `nowledge_mem_search` for durable knowledge. Use `nowledge_mem_thread_search
 
 ## Saving Knowledge
 
-Save proactively when the conversation produces a decision, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 Use `nowledge_mem_save` with clear titles and appropriate importance scores:
 - 0.8 to 1.0: major decisions, critical learnings, core preferences
@@ -49,7 +51,7 @@ Two tools for saving conversations:
 
 ## Long Sessions
 
-In long sessions, OpenCode may compact earlier context. When that happens, this plugin automatically re-injects a reminder. After compaction, call `nowledge_mem_working_memory` again to restore your full cross-tool context.
+In long sessions, OpenCode may compact earlier context. When that happens, this plugin automatically re-injects a reminder. After compaction, call `nowledge_mem_context_bundle` again when identity/scope/rules matter, or `nowledge_mem_working_memory` for the lightweight fallback.
 
 ## Diagnostics
 

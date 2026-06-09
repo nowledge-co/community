@@ -1,7 +1,7 @@
 {
   "id": "nowledge-mem",
   "name": "Nowledge Mem",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Local-first personal memory for Alma, powered by Nowledge Mem",
   "author": {
     "name": "Nowledge Labs",
@@ -54,9 +54,14 @@
         "description": "Delete a memory by id."
       },
       {
+        "id": "nowledge_mem_context_bundle",
+        "name": "Read Context Bundle",
+        "description": "Read startup context: owner identity, AI Identity, active scope, active rules, Working Memory, and KFS paths."
+      },
+      {
         "id": "nowledge_mem_working_memory",
         "name": "Read Working Memory",
-        "description": "Read your daily Working Memory briefing. The local file is only the Default-space fallback."
+        "description": "Read your daily Working Memory briefing. Use Context Bundle for full startup identity/scope/rules context."
       },
       {
         "id": "nowledge_mem_status",

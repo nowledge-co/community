@@ -19,6 +19,13 @@ CODEX_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-codex-plugin"
 OPENCLAW_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-openclaw-plugin"
 HERMES_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-hermes"
 OPENCODE_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-opencode-plugin"
+COPILOT_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-copilot-cli-plugin"
+DROID_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-droid-plugin"
+GEMINI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-gemini-cli"
+PROMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-proma-plugin"
+CURSOR_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-cursor-plugin"
+BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
+BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode"}
 
 
@@ -272,12 +279,27 @@ def test_key_plugin_static_contracts_are_declared():
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
 
     openclaw_manifest = _read_json(OPENCLAW_PLUGIN / "openclaw.plugin.json")
+    openclaw_pkg = _read_json(OPENCLAW_PLUGIN / "package.json")
+    openclaw_client = (OPENCLAW_PLUGIN / "src" / "client.js").read_text(encoding="utf-8")
+    openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
+    openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
+    assert openclaw_manifest["version"] == "0.8.25"
+    assert openclaw_pkg["version"] == "0.8.25"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
     assert "skills/memory-guide" in openclaw_manifest["skills"]
     assert schema["sessionDigest"]["default"] is True
     assert schema["sessionContext"]["default"] is False
     assert "dreaming" in schema
+    assert "readContextBundle" in openclaw_client
+    assert "readStartupContext" in openclaw_client
+    assert "--source-app\", \"openclaw" in openclaw_client
+    assert "process.env" not in openclaw_client
+    assert "NMEM_AGENT_ID" not in openclaw_client
+    assert "NMEM_HOST_AGENT_ID" not in openclaw_client
+    assert "process.env" in openclaw_spawn_env
+    assert "rendered_markdown" in openclaw_client
+    assert "readStartupContext" in openclaw_context_tool
     assert (OPENCLAW_PLUGIN / "src" / "index.js").exists()
 
     hermes_manifest = (HERMES_PLUGIN / "plugin.yaml").read_text(encoding="utf-8")
@@ -296,10 +318,62 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.3.3"
+    assert opencode_pkg["version"] == "0.3.4"
     assert "fetchSessionMessages" in opencode_source
     assert "path: { id: ctx.sessionID }" in opencode_source
+    assert "nowledge_mem_context_bundle" in opencode_source
+    assert 'nmem(["context", "--source-app", "opencode"])' in opencode_source
+    assert "withAmbientSpaceArg(args)" in opencode_source
+    assert "ambientAgentId" in opencode_source
+    assert "ambientHostAgentId" in opencode_source
+    assert "NMEM_AGENT_ID" in opencode_source
+    assert "NMEM_HOST_AGENT_ID" in opencode_source
+    assert '["context", "ctx", "wm", "m", "memories", "t", "threads"]' in opencode_source
     assert "nowledge_mem_save_thread" in opencode_source
+
+    copilot_manifest = _read_json(COPILOT_PLUGIN / ".claude-plugin" / "plugin.json")
+    copilot_hooks = _read_json(COPILOT_PLUGIN / "hooks" / "hooks.json")
+    assert copilot_manifest["version"] == "0.1.3"
+    assert "--source-app copilot-cli" in json.dumps(copilot_hooks)
+    assert "NMEM_AGENT_ID" in json.dumps(copilot_hooks)
+    assert "NMEM_HOST_AGENT_ID" in json.dumps(copilot_hooks)
+    assert "rendered_markdown" in json.dumps(copilot_hooks)
+    assert "wm read" in json.dumps(copilot_hooks)
+
+    droid_manifest = _read_json(DROID_PLUGIN / ".factory-plugin" / "plugin.json")
+    droid_hooks = _read_json(DROID_PLUGIN / "hooks" / "hooks.json")
+    assert droid_manifest["version"] == "0.1.1"
+    assert "--source-app droid" in json.dumps(droid_hooks)
+    assert "NMEM_AGENT_ID" in json.dumps(droid_hooks)
+    assert "NMEM_HOST_AGENT_ID" in json.dumps(droid_hooks)
+    assert "rendered_markdown" in json.dumps(droid_hooks)
+    assert "wm read" in json.dumps(droid_hooks)
+
+    gemini_pkg = _read_json(GEMINI_PLUGIN / "package.json")
+    gemini_hook = (GEMINI_PLUGIN / "hooks" / "session-start.mjs").read_text(encoding="utf-8")
+    assert gemini_pkg["version"] == "0.1.9"
+    assert "context', '--source-app', 'gemini-cli'" in gemini_hook
+    assert "NMEM_AGENT_ID" in gemini_hook
+    assert "NMEM_HOST_AGENT_ID" in gemini_hook
+    assert "rendered_markdown" in gemini_hook
+    assert "wm', 'read'" in gemini_hook
+
+    proma_manifest = _read_json(PROMA_PLUGIN / ".claude-plugin" / "plugin.json")
+    proma_hook = (PROMA_PLUGIN / "hooks" / "read-working-memory.py").read_text(encoding="utf-8")
+    assert proma_manifest["version"] == "0.1.1"
+    assert '"context", "--source-app", "proma"' in proma_hook
+    assert "NMEM_AGENT_ID" in proma_hook
+    assert "NMEM_HOST_AGENT_ID" in proma_hook
+    assert '"wm", "read"' in proma_hook
+
+    cursor_manifest = _read_json(CURSOR_PLUGIN / ".cursor-plugin" / "plugin.json")
+    cursor_hook = (CURSOR_PLUGIN / "hooks" / "session-start.mjs").read_text(encoding="utf-8")
+    assert cursor_manifest["version"] == "0.1.6"
+    assert "'context', '--source-app', 'cursor'" in cursor_hook
+    assert "NMEM_AGENT_ID" in cursor_hook
+    assert "NMEM_HOST_AGENT_ID" in cursor_hook
+    assert "rendered_markdown" in cursor_hook
+    assert "'wm', 'read'" in cursor_hook
 
 
 def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
@@ -322,8 +396,36 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         guide = entry["install"]["agentGuide"]
         assert "https://mem.nowledge.co/SKILL.md" in guide["prompt"], entry["id"]
         assert "https://mem.nowledge.co/SKILL.md" in guide["promptZh"], entry["id"]
+        assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
+        assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
         assert "/docs/integrations/" not in guide["prompt"], entry["id"]
         assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
+
+    by_id = {entry["id"]: entry for entry in integrations}
+    assert by_id["copilot-cli"]["version"] == "0.1.3"
+    assert by_id["gemini-cli"]["version"] == "0.1.9"
+    assert by_id["cursor"]["version"] == "0.1.6"
+    assert by_id["droid"]["version"] == "0.1.1"
+    assert by_id["openclaw"]["version"] == "0.8.25"
+    assert by_id["proma"]["version"] == "0.1.1"
+    assert by_id["opencode"]["version"] == "0.3.4"
+    assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
+
+
+def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
+    bub_tools = (
+        BUB_PLUGIN / "src" / "nowledge_mem_bub" / "tools.py"
+    ).read_text(encoding="utf-8")
+    assert "unit_type: str | None = Field(" in bub_tools
+    assert "unit_type: str = Field(" not in bub_tools
+    assert "Omit when unsure so Nowledge Mem can" in bub_tools
+    assert "unit_type=param.unit_type" in bub_tools
+
+    bench_client = (
+        BENCH_PACKAGE / "src" / "nmem_bench" / "nmem" / "client.py"
+    ).read_text(encoding="utf-8")
+    assert "unit_type: str | None = None" in bench_client
+    assert "if unit_type:\n            args.extend([\"--unit-type\", unit_type])" in bench_client
 
 
 def test_claude_read_hooks_keep_file_fallback_without_plugin_root(tmp_path):
@@ -645,7 +747,7 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
         _run([*base, "config", "set", "--batch-file", str(batch_file)], env=e2e_context.env, timeout=60)
 
         prompt = f"Reply with exactly: done {e2e_context.marker}"
-        result = _run(
+        _run(
             [
                 *base,
                 "agent",

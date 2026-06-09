@@ -9,11 +9,11 @@ This plugin gives Alma chat-native persistent memory:
 - Trace memories back to source conversations via sourceThreadId linkage
 - Progressive retrieval: paginate through long conversation threads
 - Dedup guard: prevents saving near-identical memories (>=90% similarity)
-- Inject Working Memory + relevant recall context before first send
+- Inject Context Bundle + relevant recall context before first send, with Working Memory fallback for older servers
 - Behavioral guidance: proactive save nudge + thread awareness in every turn
 - Save thread snapshots back to Nowledge Mem on quit (optional)
 
-All operations run locally via `nmem` CLI (or `uvx --from nmem-cli nmem` fallback).
+Data operations use the Nowledge Mem HTTP API, so local desktop and remote Access Anywhere setups share the same behavior. The status tool may still use `nmem` / `uvx --from nmem-cli nmem` for diagnostics.
 
 ## Requirements
 
@@ -49,7 +49,8 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
 | `nowledge_mem_show` | Show full memory details. Returns `sourceThreadId` when available. |
 | `nowledge_mem_update` | Update memory content/title/importance |
 | `nowledge_mem_delete` | Delete memory |
-| `nowledge_mem_working_memory` | Read daily Working Memory. The local file is only the Default-space compatibility fallback. |
+| `nowledge_mem_context_bundle` | Read startup context: owner identity, AI Identity, active scope, active rules, Working Memory, and KFS paths. |
+| `nowledge_mem_working_memory` | Read daily Working Memory. Use Context Bundle for full startup identity/scope/rules context. |
 | `nowledge_mem_thread_search` | Search conversation threads with optional `source` filter |
 | `nowledge_mem_thread_show` | Fetch thread messages with pagination (`offset`/`limit`). Returns `hasMore`. |
 | `nowledge_mem_thread_create` | Create thread from content/messages |
@@ -130,7 +131,7 @@ For casual chat, the AI intentionally does NOT save every message. This is by de
 
 ### Hooks
 
-- **`chat.message.willSend`** — (1) buffers the user message from hook input for live sync, (2) injects recall context (Working Memory + relevant memories) per `recallPolicy`.
+- **`chat.message.willSend`** — (1) buffers the user message from hook input for live sync, (2) injects recall context (Context Bundle + relevant memories, with Working Memory fallback) per `recallPolicy`.
 - **`chat.message.didReceive`** — buffers the AI response from hook input and starts a 7-second idle timer. When the timer fires, the thread is flushed to Nowledge Mem.
 - **`thread.activated`** — flushes the previous thread immediately on thread switch.
 - **Quit hooks** (`app.willQuit` etc.) — safety net flush before Alma exits.
@@ -193,7 +194,7 @@ The Alma plugin settings can own that lane directly:
 }
 ```
 
-Use `nowledgeMem.space` when this Alma profile always belongs to one lane. Leave it empty when you want Alma to inherit `NMEM_SPACE` from the launcher, or stay on `Default` if no ambient lane exists. Use `nowledgeMem.spaceTemplate` only when Alma is launched with a real host-owned environment variable that already identifies the lane. If Alma does not know a real agent identity, stay on `Default` or run separate Alma profiles for separate lanes.
+Use `nowledgeMem.space` when this Alma profile always belongs to one lane. Leave it empty when you want Alma to inherit `NMEM_SPACE` from the launcher, or stay on `Default` if no ambient lane exists. Use `nowledgeMem.spaceTemplate` only when Alma is launched with a real host-owned environment variable that already identifies the lane. If Alma does not know a real AI Identity, stay on `Default` or run separate Alma profiles for separate lanes.
 
 If you are launching Alma from a shell or launcher with no richer settings surface, you can still set one session-wide fallback lane with:
 

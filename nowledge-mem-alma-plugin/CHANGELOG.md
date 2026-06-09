@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.2
+
+### Changed
+
+- Alma now exposes `nowledge_mem_context_bundle` for startup identity, scope, guidance, Working Memory, and KFS paths.
+- Auto-recall injection now uses Context Bundle first and falls back to Working Memory when connected to an older server.
+
 ## 0.7.1
 
 ### Fixed

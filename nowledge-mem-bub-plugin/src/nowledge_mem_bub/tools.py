@@ -105,9 +105,13 @@ class MemSaveInput(BaseModel):
     labels: list[str] = Field(
         default_factory=list, description="Topic labels (0–3 recommended)."
     )
-    unit_type: str = Field(
-        "fact",
-        description="Type: fact, decision, learning, preference, plan, procedure, context, event.",
+    unit_type: str | None = Field(
+        None,
+        description=(
+            "Optional type: fact, decision, learning, preference, plan, "
+            "procedure, context, event. Omit when unsure so Nowledge Mem can "
+            "classify it."
+        ),
     )
     event_start: str | None = Field(
         None, description="When it happened (ISO date)."
@@ -153,7 +157,8 @@ async def mem_save(param: MemSaveInput, *, context: Any) -> str:
     mid = result.get("id", "")
     title = param.title or param.content[:40]
     label_str = ", ".join(param.labels) if param.labels else ""
-    parts = [f"Saved: {title} [{param.unit_type}]"]
+    type_label = param.unit_type or "classified by Nowledge Mem"
+    parts = [f"Saved: {title} [{type_label}]"]
     if mid:
         parts.append(f"id: {mid}")
     if label_str:
@@ -162,22 +167,30 @@ async def mem_save(param: MemSaveInput, *, context: Any) -> str:
 
 
 # ---------------------------------------------------------------------------
-# mem.context — Working Memory
+# mem.context — Context Bundle
 # ---------------------------------------------------------------------------
 
 
 @tool(context=True, name="mem.context")
 async def mem_context(*, context: Any) -> str:
-    """Read today's Working Memory briefing: focus areas, priorities, recent activity."""
+    """Read Nowledge Mem Context Bundle: identity, scope, guidance, and Working Memory."""
     # Check if already loaded in state
+    bundle = context.state.get("_nmem_context_bundle")
+    if bundle:
+        return bundle
     wm = context.state.get("_nmem_working_memory")
     if wm:
         return wm
 
     client = _get_client(context)
+    bundle = await client.read_context_bundle()
+    rendered = bundle.get("rendered_markdown") or bundle.get("content") or ""
+    if rendered:
+        return rendered
+
     result = await client.read_working_memory()
     content = result.get("content", "")
-    return content or "(no Working Memory available)"
+    return content or "(no Context Bundle or Working Memory available)"
 
 
 # ---------------------------------------------------------------------------

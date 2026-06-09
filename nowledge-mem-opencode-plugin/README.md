@@ -6,7 +6,7 @@ Nowledge Mem gives OpenCode access to knowledge from all your other AI tools: in
 
 ## What you get
 
-- **Start every session informed.** The plugin loads your Working Memory briefing at session start: current priorities, recent decisions, open questions.
+- **Start every session informed.** The plugin can load your Context Bundle at session start: owner identity, AI Identity, active space, active rules, and Working Memory.
 - **The agent searches for you.** When past context would improve the answer, OpenCode finds it through your knowledge graph without being asked.
 - **Insights stick around.** Key decisions and learnings are saved to Nowledge Mem, ready for any future session in any tool.
 - **Resumable handoffs.** Save structured session summaries that any future session in any tool can pick up from.
@@ -48,7 +48,7 @@ Start a new OpenCode session and ask:
 
 > What was I working on recently?
 
-OpenCode should call `nowledge_mem_working_memory` and return your current context. If Mem is not running, you will see a connection error in the tool output.
+OpenCode should call `nowledge_mem_context_bundle` when full startup context matters, or `nowledge_mem_working_memory` as the lightweight fallback, then return your current context. If Mem is not running, you will see a connection error in the tool output.
 
 ## Update
 
@@ -56,7 +56,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.3"]
+  "plugin": ["opencode-nowledge-mem@0.3.4"]
 }
 ```
 
@@ -64,6 +64,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 | Tool | What it does |
 |------|-------------|
+| `nowledge_mem_context_bundle` | Read startup context: owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths. |
 | `nowledge_mem_working_memory` | Read today's Working Memory: focus areas, priorities, recent activity. |
 | `nowledge_mem_search` | Search knowledge from all your tools. Supports label, date, and deep mode filters. |
 | `nowledge_mem_save` | Save a decision, insight, or preference so any tool can find it. |
@@ -89,7 +90,7 @@ Nowledge Mem captures OpenCode sessions in three complementary ways:
 
 The plugin uses two OpenCode hooks:
 
-- **System prompt injection** (`experimental.chat.system.transform`): teaches the agent when to read Working Memory, search proactively, and save autonomously. Active on every turn.
+- **System prompt injection** (`experimental.chat.system.transform`): teaches the agent when to read Context Bundle, use Working Memory fallback, search proactively, and save autonomously. Active on every turn.
 - **Compaction resilience** (`experimental.session.compacting`): injects a reminder to restore Nowledge Mem context after long sessions trigger context compaction. Ensures the agent doesn't lose awareness of your knowledge tools.
 
 For project-specific behavioral guidance, add to your `AGENTS.md` or OpenCode instructions. The included `AGENTS.md` in this package serves as a reference.
@@ -131,13 +132,23 @@ See [Access Mem Anywhere](https://mem.nowledge.co/docs/remote-access).
 
 ### Spaces
 
-Spaces are optional. If one OpenCode process naturally belongs to one project or agent lane, launch OpenCode with:
+Spaces are optional. If one OpenCode process naturally belongs to one project or agent lane, set it once in the shared Mem client config:
+
+```json title="~/.nowledge-mem/config.json"
+{
+  "space": "Research Agent"
+}
+```
+
+You can also launch OpenCode with an explicit lane:
 
 ```bash
 NMEM_SPACE="Research Agent" opencode
 ```
 
-The plugin's `nmem` calls and full-session thread save path will follow that lane. If you do not have a real ambient lane, stay on `Default`.
+The plugin's Context Bundle, Working Memory, search, save, and full-session thread save paths will follow that lane. Environment variables take priority over the shared config. If you do not have a real ambient lane, stay on `Default`.
+
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned OpenCode worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=opencode` for provenance.
 
 Shared spaces, default retrieval, and agent guidance still come from Mem's own space profile. OpenCode should pick the lane once, not invent a second plugin-local memory partition.
 

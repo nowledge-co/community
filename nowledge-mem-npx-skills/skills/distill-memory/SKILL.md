@@ -5,7 +5,7 @@ description: Capture breakthrough moments and valuable insights as searchable me
 
 # Distill Memory
 
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 ## When to Save
 
@@ -28,7 +28,7 @@ Skip routine fixes with no generalizable lesson, work in progress that will chan
 
 Prefer atomic, standalone memories with strong titles and clear meaning. Focus on what was learned or decided, not routine chatter.
 
-Use structured saves when possible: `--unit-type` (decision, procedure, learning, preference, event), `-l` labels, `-i` importance (0.8–1.0 major decisions, 0.5–0.7 useful patterns, 0.3–0.4 minor notes).
+Use structured saves when possible: `--unit-type` (`fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `context`, `event`), `-l` labels, `-i` importance (0.8–1.0 major decisions, 0.5–0.7 useful patterns, 0.3–0.4 minor notes). For MCP/native tools, pass the same value as `unit_type` when you know it.
 
 ## Native Connector
 

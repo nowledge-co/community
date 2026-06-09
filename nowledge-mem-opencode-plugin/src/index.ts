@@ -8,7 +8,7 @@ const BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
 You have Nowledge Mem tools for cross-tool knowledge management. Use them proactively.
 
-**At session start:** Call \`nowledge_mem_working_memory\` to load today's briefing (priorities, recent decisions, open questions). Reference relevant parts naturally as the conversation progresses.
+**At session start:** Call \`nowledge_mem_context_bundle\` when identity, scope, or rules may matter. It includes Working Memory, owner identity, AI Identity, active space, and the active rules. Use \`nowledge_mem_working_memory\` only for a lightweight daily briefing or fallback. Reference relevant parts naturally as the conversation progresses.
 
 **When to search (\`nowledge_mem_search\`):**
 - The user references previous work, a prior fix, or an earlier decision
@@ -43,7 +43,7 @@ export default {
       try {
         // Bun's $ tagged template escapes each array element as a separate
         // shell argument, so values containing spaces/quotes are safe.
-        const result = await $`nmem --json ${args}`.text()
+        const result = await $`nmem --json ${withAmbientSpaceArg(args)}`.text()
         return result.trim()
       } catch (err: any) {
         const stderr = String(err?.stderr ?? "")
@@ -53,6 +53,15 @@ export default {
           })
         }
         return JSON.stringify({ error: stderr || String(err) })
+      }
+    }
+
+    function isNmemErrorPayload(output: string): boolean {
+      try {
+        const parsed = JSON.parse(output)
+        return parsed && typeof parsed === "object" && "error" in parsed
+      } catch {
+        return false
       }
     }
 
@@ -73,6 +82,36 @@ export default {
       return typeof value === "string" ? value.trim() || undefined : undefined
     }
 
+    function withAmbientSpaceArg(args: string[]): string[] {
+      let next = args
+      if (ambientSpaceId && !next.includes("--space")) {
+        const scopedCommands = new Set(["context", "ctx", "wm", "m", "memories", "t", "threads"])
+        if (scopedCommands.has(next[0] ?? "")) {
+          next = [...next, "--space", ambientSpaceId]
+        }
+      }
+      if (next[0] !== "context" && next[0] !== "ctx") return next
+      if (ambientAgentId && !next.includes("--agent-id")) {
+        next = [...next, "--agent-id", ambientAgentId]
+      }
+      if (ambientHostAgentId && !next.includes("--host-agent-id")) {
+        next = [...next, "--host-agent-id", ambientHostAgentId]
+      }
+      return next
+    }
+
+    function readEnvOrConfig(...keys: string[]): string | undefined {
+      for (const key of keys) {
+        const envValue = process.env[key]?.trim()
+        if (envValue) return envValue
+      }
+      for (const key of keys) {
+        const configValue = stringConfigValue(sharedConfig[key])
+        if (configValue) return configValue
+      }
+      return undefined
+    }
+
     const sharedConfig = readSharedConfig()
     const apiUrl = (
       process.env.NMEM_API_URL?.trim() ||
@@ -86,6 +125,8 @@ export default {
       stringConfigValue(sharedConfig.space) ||
       stringConfigValue(sharedConfig.spaceId) ||
       stringConfigValue(sharedConfig.space_id)
+    const ambientAgentId = readEnvOrConfig("NMEM_AGENT_ID", "agentId", "agent_id")
+    const ambientHostAgentId = readEnvOrConfig("NMEM_HOST_AGENT_ID", "hostAgentId", "host_agent_id")
 
     function withAmbientSpace(body: unknown): unknown {
       if (!ambientSpaceId || body == null || typeof body !== "object" || Array.isArray(body)) {
@@ -126,6 +167,13 @@ export default {
         clearTimeout(timeout)
       }
     }
+
+    /*
+     * Keep declarations above this comment; the next block is the OpenCode SDK
+     * message transform. The ambient identity convention lets orchestrators
+     * set NMEM_AGENT_ID or NMEM_HOST_AGENT_ID per child agent without changing
+     * OpenCode's plugin API.
+     */
 
     // --- Transform OpenCode SDK messages to Nowledge Mem thread format ---
 
@@ -224,9 +272,22 @@ export default {
 
     return {
       tool: {
+        nowledge_mem_context_bundle: tool({
+          description:
+            "Read Nowledge Mem's startup Context Bundle: owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Call this near session start when behavior, identity, or scope matters.",
+          args: {},
+          async execute(_args, _ctx) {
+            const bundle = await nmem(["context", "--source-app", "opencode"])
+            if (isNmemErrorPayload(bundle)) {
+              return await nmem(["wm", "read"])
+            }
+            return bundle
+          },
+        }),
+
         nowledge_mem_working_memory: tool({
           description:
-            "Read today's Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Call this near the start of each session.",
+            "Read today's lightweight Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Use nowledge_mem_context_bundle for full startup identity/scope/rules context.",
           args: {},
           async execute(_args, _ctx) {
             return await nmem(["wm", "read"])
@@ -470,7 +531,7 @@ export default {
           "",
           "",
           "IMPORTANT: You have Nowledge Mem tools (nowledge_mem_*) for cross-tool knowledge.",
-          "After compaction, call nowledge_mem_working_memory to restore your context.",
+          "After compaction, call nowledge_mem_context_bundle when identity, scope, or rules matter; use nowledge_mem_working_memory as the lightweight fallback.",
           "Continue searching and saving proactively.",
         ].join("\n")
       },

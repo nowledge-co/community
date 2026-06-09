@@ -5,6 +5,12 @@ All notable changes to the Nowledge Mem Copilot CLI plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-06-06
+
+### Improved
+
+- Session-start and post-compaction hooks now load Context Bundle when available, then fall back to Working Memory and the legacy local file. Copilot receives identity, active scope, active rules, and current priorities on newer Nowledge Mem installs without breaking older `nmem` clients.
+
 ## [0.1.2] - 2026-05-20
 
 ### Fixed

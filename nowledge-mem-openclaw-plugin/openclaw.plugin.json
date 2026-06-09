@@ -1,8 +1,8 @@
 {
 	"id": "openclaw-nowledge-mem",
 	"name": "Nowledge Mem",
-	"description": "Cross-tool knowledge graph memory for OpenClaw with Working Memory, graph search, and session distillation.",
-	"version": "0.8.24",
+	"description": "Cross-tool knowledge graph memory for OpenClaw with startup context, graph search, and session distillation.",
+	"version": "0.8.25",
 	"kind": ["memory", "context-engine"],
 	"skills": [
 		"skills/memory-guide"
@@ -10,7 +10,7 @@
 	"uiHints": {
 		"sessionContext": {
 			"label": "Session context injection",
-			"help": "Inject Working Memory and relevant memories at prompt time. Off by default; the agent can call memory_search on demand instead."
+			"help": "Inject Context Bundle / Working Memory and relevant memories at prompt time. Off by default; the agent can call memory_search on demand instead."
 		},
 		"sessionDigest": {
 			"label": "Session digest at end",
@@ -42,7 +42,7 @@
 		},
 		"corpusSupplement": {
 			"label": "Register as corpus supplement",
-			"help": "Make Nowledge Mem searchable through memory-core's recall pipeline and dreaming promotion. Enable when memory-core is your memory slot and you want cross-tool knowledge to participate in OpenClaw's native recall and dreaming. When enabled, the plugin's own search-based recall is skipped to avoid duplicates (Working Memory injection continues)."
+			"help": "Make Nowledge Mem searchable through memory-core's recall pipeline and dreaming promotion. Enable when memory-core is your memory slot and you want cross-tool knowledge to participate in OpenClaw's native recall and dreaming. When enabled, the plugin's own search-based recall is skipped to avoid duplicates (startup context injection continues)."
 		},
 		"corpusMaxResults": {
 			"label": "Corpus supplement max results",
@@ -80,7 +80,7 @@
 			"sessionContext": {
 				"type": "boolean",
 				"default": false,
-				"description": "Inject Working Memory and recalled memories at prompt time. Off by default; the agent queries memory on demand via tools."
+				"description": "Inject Context Bundle / Working Memory and recalled memories at prompt time. Off by default; the agent queries memory on demand via tools."
 			},
 			"sessionDigest": {
 				"type": "boolean",

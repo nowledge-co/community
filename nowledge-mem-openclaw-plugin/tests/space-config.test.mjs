@@ -167,6 +167,27 @@ test("spawn env clears inherited ambient lane for explicit default-space overrid
 	}
 });
 
+test("spawn env preserves orchestrator AI identity for nmem context", () => {
+	const previousAgent = process.env.NMEM_AGENT_ID;
+	const previousHostAgent = process.env.NMEM_HOST_AGENT_ID;
+	process.env.NMEM_AGENT_ID = "reviewer";
+	process.env.NMEM_HOST_AGENT_ID = "lody:reviewer";
+	try {
+		const env = buildNmemSpawnEnv({
+			apiUrl: "http://127.0.0.1:14242",
+			hasExplicitSpace: true,
+			spaceId: "",
+		});
+		assert.equal(env.NMEM_AGENT_ID, "reviewer");
+		assert.equal(env.NMEM_HOST_AGENT_ID, "lody:reviewer");
+	} finally {
+		if (previousAgent === undefined) delete process.env.NMEM_AGENT_ID;
+		else process.env.NMEM_AGENT_ID = previousAgent;
+		if (previousHostAgent === undefined) delete process.env.NMEM_HOST_AGENT_ID;
+		else process.env.NMEM_HOST_AGENT_ID = previousHostAgent;
+	}
+});
+
 test("apiJson injects ambient space into fallback HTTP requests", async () => {
 	const previousFetch = globalThis.fetch;
 	const client = new NowledgeMemClient(

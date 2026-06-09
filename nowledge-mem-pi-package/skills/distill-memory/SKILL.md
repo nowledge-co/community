@@ -5,7 +5,7 @@ description: "Save decisions, insights, preferences, and procedures as durable m
 
 # Distill Memory
 
-Save proactively when the conversation produces knowledge worth keeping. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 ## When to Distill
 

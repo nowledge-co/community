@@ -44,7 +44,7 @@ src/
     memory-search.js    - OpenClaw compat; multi-signal; bi-temporal; relevance_reason; sourceThreadId
     memory-get.js       - OpenClaw compat; supports MEMORY.md alias; sourceThreadId
     save.js             - structured capture: unit_type, labels, temporal, importance; pre-save dedup check
-    context.js          - Working Memory daily briefing (read + section-level patch)
+    context.js          - startup context read + Working Memory section-level patch
     connections.js      - graph exploration: edge types, relationship strength, provenance
     timeline.js         - activity feed: daily grouping, event_type filter, memoryId hints
     forget.js           - memory deletion by ID or search
@@ -66,7 +66,7 @@ When `corpusSupplement: true`, the plugin registers a `MemoryCorpusSupplement` v
 
 1. **Recall**: When memory-core's `memory_search` runs, it fans out to all registered corpus supplements. Our supplement calls `client.search()` and maps results to `MemoryCorpusSearchResult` format.
 2. **Dreaming**: Recalled Nowledge Mem content accumulates frequency, relevance, and diversity scores in memory-core's short-term recall store. High-scoring content is promoted to `MEMORY.md` during deep-phase dreaming.
-3. **Dedup**: When active, the recall hook and CE `assemble()` skip their own search-based recall (memories section only). Working Memory injection continues as before.
+3. **Dedup**: When active, the recall hook and CE `assemble()` skip their own search-based recall (memories section only). Startup context injection continues as before.
 
 ### When to enable
 
@@ -132,7 +132,7 @@ When `contextEngine` points elsewhere (or is absent), hooks handle everything. N
 
 ### Nowledge Mem Native (differentiators)
 - `nowledge_mem_save` - structured capture: `unit_type`, `labels[]`, `event_start`, `event_end`, `temporal_context`, `importance`. All fields wired to CLI and API.
-- `nowledge_mem_context` - Working Memory daily briefing. Read-only by default; supports section-level patch via `patch_section` + `patch_content`/`patch_append` params (uses `nmem wm patch` client-side read-modify-write).
+- `nowledge_mem_context` - startup context. Read-only by default: Context Bundle when available, Working Memory fallback on older `nmem` clients. Also supports Working Memory section-level patch via `patch_section` + `patch_content`/`patch_append` params (uses `nmem wm patch` client-side read-modify-write).
 - `nowledge_mem_connections` - graph exploration. Edges JOIN-ed to nodes by type: CRYSTALLIZED_FROM (crystal → source memories), EVOLVES (with sub-relations: supersedes/enriches/confirms/challenges), SOURCED_FROM (document provenance), MENTIONS (entities). Each connection shows strength % and memoryId.
 - `nowledge_mem_timeline` - activity feed via `nmem f`. Groups by day. `event_type` filter. Exact date range via `date_from`/`date_to` (YYYY-MM-DD). Entries include `(id: <memoryId>)` for chaining to connections.
 - `nowledge_mem_forget` - delete by ID or fuzzy query.
@@ -151,7 +151,7 @@ When `contextEngine` points elsewhere (or is absent), hooks handle everything. N
 ## Hook Surface
 
 - `before_prompt_build` (always-on) - directive behavioral guidance in system-prompt space: tells agent to search before answering questions about prior work/decisions/preferences, and to save decisions/learnings proactively. Explicitly notes semantic search (not file paths) to counter OpenClaw's hardcoded memory section. Adjusts when sessionContext is on to avoid redundant searches.
-- `before_prompt_build` (sessionContext) - session context: Working Memory + `searchRich()` memories with `relevanceReason`. Note: does NOT inject thread snippets — threads are available via `memory_search` tool and `nowledge_mem_thread_fetch`.
+- `before_prompt_build` (sessionContext) - session context: Context Bundle / Working Memory + `searchRich()` memories with `relevanceReason`. Note: does NOT inject thread snippets — threads are available via `memory_search` tool and `nowledge_mem_thread_fetch`.
 - `agent_end` - thread capture + LLM triage/distillation (requires `sessionDigest: true`)
 - `after_compaction` - thread append
 - `before_reset` - thread append
@@ -170,7 +170,7 @@ Ambient space: choose one real lane through plugin config `space` or `spaceTempl
 
 | Key | Type | Default | Env Var | Description |
 |-----|------|---------|---------|-------------|
-| `sessionContext` | boolean | `false` | `NMEM_SESSION_CONTEXT` | Inject Working Memory + relevant memories at prompt time |
+| `sessionContext` | boolean | `false` | `NMEM_SESSION_CONTEXT` | Inject Context Bundle / Working Memory + relevant memories at prompt time |
 | `sessionDigest` | boolean | `true` | `NMEM_SESSION_DIGEST` | Thread capture + LLM distillation at session end |
 | `digestMinInterval` | integer 0-86400 | `300` | `NMEM_DIGEST_MIN_INTERVAL` | Minimum seconds between session digests |
 | `maxContextResults` | integer 1-20 | `5` | `NMEM_MAX_CONTEXT_RESULTS` | How many memories to inject at prompt time |

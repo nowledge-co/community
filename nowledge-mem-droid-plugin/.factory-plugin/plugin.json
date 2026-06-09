@@ -1,7 +1,7 @@
 {
   "name": "nowledge-mem",
-  "description": "Personal knowledge graph for Droid with Working Memory, routed recall, distillation, and honest handoff summaries.",
-  "version": "0.1.0",
+  "description": "Personal knowledge graph for Droid with startup context, routed recall, distillation, and honest handoff summaries.",
+  "version": "0.1.1",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai"

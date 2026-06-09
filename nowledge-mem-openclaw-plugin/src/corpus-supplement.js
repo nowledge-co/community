@@ -10,7 +10,7 @@
  * Enable via config: `corpusSupplement: true`
  *
  * Designed to coexist with the plugin's own tools and hooks:
- * - Working Memory injection: still handled by the recall hook / CE (only we know about WM)
+ * - Startup context injection: still handled by the recall hook / CE
  * - Search-based recall: handled by this supplement when active, by hooks/CE when not
  *
  * Error handling: both search() and get() catch all errors and return [] / null.

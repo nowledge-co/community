@@ -72,6 +72,20 @@ class NowledgeMemClient:
         """Fetch the user's Working Memory briefing."""
         return self._cli(["wm", "read"])
 
+    def context_bundle(
+        self,
+        *,
+        source_app: Optional[str] = None,
+        host_agent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Fetch the full startup Context Bundle when supported by the CLI."""
+        cmd = ["context"]
+        if source_app:
+            cmd.extend(["--source-app", source_app])
+        if host_agent_id:
+            cmd.extend(["--host-agent-id", host_agent_id])
+        return self._cli(cmd)
+
     def search(
         self,
         query: str = "",

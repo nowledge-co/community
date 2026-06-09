@@ -306,6 +306,18 @@ export class NowledgeMemClient {
 		}
 	}
 
+	async readContextBundle(options = {}) {
+		const params = {
+			source_app: "alma",
+			agent_id: options.agentId || process.env.NMEM_AGENT_ID || undefined,
+			host_agent_id:
+				options.hostAgentId || process.env.NMEM_HOST_AGENT_ID || undefined,
+			include_working_memory:
+				options.includeWorkingMemory === false ? false : undefined,
+		};
+		return this._fetch("GET", "/context/bundle", { params });
+	}
+
 	// --- Thread operations ---
 
 	async searchThreads(query, limit = 5, source) {
@@ -520,8 +532,15 @@ const BEHAVIORAL_GUIDANCE = [
 
 function buildMemoryContextBlock(workingMemory, results, options = {}) {
 	const includeCliPlaybook = options.includeCliPlaybook === true;
+	const contextBundle = options.contextBundle;
+	const renderedContextBundle =
+		typeof contextBundle?.rendered_markdown === "string"
+			? contextBundle.rendered_markdown.trim()
+			: "";
 	const sections = [];
-	if (workingMemory?.available) {
+	if (renderedContextBundle) {
+		sections.push(`## Context Bundle\n${renderedContextBundle}`);
+	} else if (workingMemory?.available) {
 		sections.push(`## Working Memory\n${workingMemory.content}`);
 	}
 
@@ -1057,9 +1076,55 @@ export async function activate(context) {
 		},
 	});
 
+	registerTool("nowledge_mem_context_bundle", {
+		description:
+			"Read Nowledge Mem's startup Context Bundle: owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Use this near session start when behavior, identity, or scope matters.",
+		inputSchema: {
+			type: "object",
+			properties: {
+				agent_id: {
+					type: "string",
+					description: "Optional Nowledge Mem AI Identity id/slug.",
+				},
+				host_agent_id: {
+					type: "string",
+					description: "Optional stable Alma-local AI Identity.",
+				},
+				include_working_memory: {
+					type: "boolean",
+					description: "Include Working Memory preview. Defaults to true.",
+				},
+			},
+		},
+		parameters: {
+			type: "object",
+			properties: {
+				agent_id: { type: "string" },
+				host_agent_id: { type: "string" },
+				include_working_memory: { type: "boolean" },
+			},
+		},
+		async execute(input) {
+			try {
+				const bundle = await client.readContextBundle({
+					agentId:
+						typeof input?.agent_id === "string" ? input.agent_id.trim() : "",
+					hostAgentId:
+						typeof input?.host_agent_id === "string"
+							? input.host_agent_id.trim()
+							: "",
+					includeWorkingMemory: input?.include_working_memory !== false,
+				});
+				return { ok: true, ...bundle };
+			} catch (err) {
+				return cliErrorResult(err, "context_bundle");
+			}
+		},
+	});
+
 	registerTool("nowledge_mem_working_memory", {
 		description:
-			"Read your daily Working Memory briefing. The local file is only the Default-space fallback.",
+			"Read your daily Working Memory briefing. Use nowledge_mem_context_bundle for full startup identity/scope/rules context.",
 		inputSchema: { type: "object", properties: {} },
 		parameters: { type: "object", properties: {} },
 		async execute() {
@@ -1506,9 +1571,21 @@ export async function activate(context) {
 
 		if (allowAutoRecall) {
 			try {
-				const wm = await client.readWorkingMemory();
+				let contextBundle = null;
+				let wm = null;
+				try {
+					contextBundle = await client.readContextBundle();
+				} catch (contextErr) {
+					const message =
+						contextErr instanceof Error ? contextErr.message : String(contextErr);
+					logger.warn?.(
+						`nowledge-mem: context bundle fallback to Working Memory: ${message}`,
+					);
+					wm = await client.readWorkingMemory();
+				}
 				const results = await client.search(currentContent, maxRecallResults);
 				const contextBlock = buildMemoryContextBlock(wm, results, {
+					contextBundle,
 					includeCliPlaybook: injectCliPlaybook,
 				});
 				if (contextBlock && payload.setContent(`${contextBlock}\n\n${currentContent}`)) {

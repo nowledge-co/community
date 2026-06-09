@@ -36,7 +36,7 @@ These still require a real Droid validation pass:
 - install `nowledge-mem@nowledge-community`
 - confirm hooks load without manifest or schema errors
 - confirm slash commands are discovered
-- confirm Working Memory loads at session start
+- confirm Context Bundle loads at session start, or Working Memory loads as the fallback on older `nmem`
 - confirm search and distillation guidance behave correctly
 - confirm remote Mem configuration works through `~/.nowledge-mem/config.json`
 - confirm the package exposes `save-handoff` and does not claim `save-thread`

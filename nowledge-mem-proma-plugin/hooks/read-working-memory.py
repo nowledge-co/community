@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Read Nowledge Mem Working Memory for Proma SessionStart hook.
+"""Read Nowledge Mem startup context for Proma SessionStart hook.
 
-Calls `nmem --json wm read` via subprocess and outputs the result as JSON
-for the Proma Agent SDK to inject as session context.
+Calls `nmem --json context --source-app proma` when available, then falls
+back to `nmem --json wm read`. The result is emitted as JSON for the Proma
+Agent SDK to inject as session context.
 
 Falls back gracefully if nmem is not installed or the server is unreachable.
 """
@@ -10,6 +11,7 @@ Falls back gracefully if nmem is not installed or the server is unreachable.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -53,13 +55,13 @@ def _nmem_command_prefix() -> list[str] | None:
     return None
 
 
-def read_working_memory() -> dict[str, Any] | None:
+def _run_nmem_json(args: list[str], label: str) -> dict[str, Any] | None:
     prefix = _nmem_command_prefix()
     if not prefix:
         log("nmem CLI not found")
         return None
 
-    cmd = [*prefix, "--json", "wm", "read"]
+    cmd = [*prefix, "--json", *args]
     # Wrap Windows batch launchers through cmd.exe; keep argv split so quoted
     # paths and following arguments are not flattened into one brittle string.
     if Path(prefix[0]).name.lower().endswith(".cmd"):
@@ -75,31 +77,60 @@ def read_working_memory() -> dict[str, Any] | None:
             check=False,
         )
         if proc.returncode != 0:
-            log(f"nmem wm read exit={proc.returncode} stderr={proc.stderr.strip()[:200]}")
+            log(f"{label} exit={proc.returncode} stderr={proc.stderr.strip()[:200]}")
             return None
         raw = proc.stdout.strip()
         if not raw:
             return None
         return json.loads(raw)
     except subprocess.TimeoutExpired:
-        log("nmem wm read timed out")
+        log(f"{label} timed out")
         return None
     except Exception as exc:
-        log(f"nmem wm read error: {exc}")
+        log(f"{label} error: {exc}")
         return None
+
+
+def _env_value(name: str) -> str:
+    return os.environ.get(name, "").strip()
+
+
+def _context_args() -> list[str]:
+    args = ["context", "--source-app", "proma"]
+    agent_id = _env_value("NMEM_AGENT_ID")
+    host_agent_id = _env_value("NMEM_HOST_AGENT_ID")
+    space = _env_value("NMEM_SPACE") or _env_value("NMEM_SPACE_ID")
+    if agent_id:
+        args.extend(["--agent-id", agent_id])
+    if host_agent_id:
+        args.extend(["--host-agent-id", host_agent_id])
+    if space:
+        args.extend(["--space", space])
+    return args
+
+
+def _working_memory_args() -> list[str]:
+    args = ["wm", "read"]
+    space = _env_value("NMEM_SPACE") or _env_value("NMEM_SPACE_ID")
+    if space:
+        args.extend(["--space", space])
+    return args
 
 
 def main() -> int:
-    log("read-working-memory start")
+    log("read-startup-context start")
 
-    wm = read_working_memory()
-    if wm is None:
-        log("read-working-memory: no data")
-        print(json.dumps({"working_memory": None, "status": "empty"}))
+    context = _run_nmem_json(_context_args(), "nmem context")
+    if context is None:
+        context = _run_nmem_json(_working_memory_args(), "nmem wm read")
+
+    if context is None:
+        log("read-startup-context: no data")
+        print(json.dumps({"context": None, "working_memory": None, "status": "empty"}))
         return 0
 
-    log(f"read-working-memory: got data keys={list(wm.keys())}")
-    print(json.dumps(wm, ensure_ascii=False, indent=2))
+    log(f"read-startup-context: got data keys={list(context.keys())}")
+    print(json.dumps(context, ensure_ascii=False, indent=2))
     return 0
 
 

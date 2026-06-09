@@ -7,7 +7,7 @@ description: Recognize breakthrough moments, design decisions, and durable lesso
 
 ## Proactive Save
 
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 ## Good Candidates
 
@@ -29,6 +29,8 @@ nmem --json m add "Insight with enough context to stand on its own" \
   -i 0.8 \
   -s droid
 ```
+
+Add `--unit-type fact|preference|decision|plan|procedure|learning|context|event` when the type is clear.
 
 If the same decision or workflow already exists and the new information refines it, update the memory instead of duplicating it:
 

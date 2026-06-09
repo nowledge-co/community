@@ -1,5 +1,5 @@
 {
-  "description": "Nowledge Mem lifecycle hooks — Working Memory injection and session capture",
+  "description": "Nowledge Mem lifecycle hooks — Context Bundle / Working Memory injection and session capture",
   "hooks": {
     "SessionStart": [
       {

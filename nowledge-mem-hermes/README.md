@@ -10,7 +10,7 @@ Hermes now asks new memory providers to ship outside the core `hermes-agent` tre
 
 ### Plugin (recommended, Hermes v0.7.0+)
 
-The plugin integrates at the memory-provider level: Working Memory loads automatically, relevant memories are recalled before every turn, and tools use clean names without the `mcp_` prefix.
+The plugin integrates at the memory-provider level: Context Bundle loads automatically when available, Working Memory remains the lightweight fallback, relevant memories are recalled before every turn, and tools use clean names without the `mcp_` prefix.
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)
@@ -60,11 +60,11 @@ This adds the MCP server to `config.yaml` and installs behavioral guidance in `~
 
 ## What the plugin does
 
-The plugin uses Hermes' memory provider lifecycle to replace manual Working Memory reads and ad-hoc recall prompting with deterministic hooks:
+The plugin uses Hermes' memory provider lifecycle to replace manual Context Bundle / Working Memory reads and ad-hoc recall prompting with deterministic hooks:
 
 | Hook | What happens | Replaces |
 |------|-------------|----------|
-| `system_prompt_block` | Working Memory injected into every session automatically | Manual `read_working_memory` call |
+| `system_prompt_block` | Context Bundle injected into every session when available; falls back to Working Memory | Manual `read_context_bundle` / `read_working_memory` call |
 | `prefetch` | Relevant memories searched before each turn | "Search proactively" guidance in SOUL.md |
 | `sync_turn` | Completed turns captured as Mem thread messages as they finish | Waiting for session exit before transcript sync |
 | `post_llm_call` | Compatibility fallback that captures completed one-shot turns when Hermes routes the plugin through the general hook loader | Missed `hermes chat -q` transcript sync on affected builds |
@@ -141,7 +141,7 @@ If you are launching Hermes through a CLI-style wrapper with no provider config 
 NMEM_SPACE="Research Agent" hermes
 ```
 
-Plugin-mode Working Memory reads, searches, saves, and thread tools then stay in that lane automatically. If you do not have a real ambient lane, stay on `Default`.
+Plugin-mode Context Bundle reads, Working Memory fallback, searches, saves, and thread tools then stay in that lane automatically. If you do not have a real ambient lane, stay on `Default`.
 
 Legacy `NMEM_SPACE_ID` still works, but `NMEM_SPACE` is the preferred human-facing contract when the provider config does not already choose a lane.
 
@@ -149,7 +149,7 @@ Those settings choose the ambient lane only. Shared spaces, default retrieval, a
 
 ## Verify
 
-Start a new Hermes session. You should see Working Memory loaded in the system prompt. Ask:
+Start a new Hermes session. You should see the Context Bundle, or Working Memory on older CLIs, loaded in the system prompt. Ask:
 
 > Search my memories for recent decisions.
 

@@ -18,14 +18,19 @@ Search memory (`nmem --json m search "query"`) when:
 
 ### Saving Knowledge
 
-Save proactively when the conversation produces:
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context.
+
+Good candidates include:
+- **Facts** — durable reference details future sessions should know
+- **Preferences** — coding style, workflow, tool configuration
 - **Decisions** with rationale and trade-offs
-- **Breakthroughs** — root causes found, blockers resolved
+- **Plans** — next steps, phased designs, roadmap items
 - **Procedures** — workflows, SOPs, how-to knowledge
-- **Lessons** — "next time do X", patterns recognized
+- **Learnings** — root causes found, blockers resolved, patterns recognized
+- **Events/context** — outcomes or background constraints that would otherwise be lost
 
 ```bash
-nmem m add "Insight with context" -t "Searchable Title" -i 0.8
+nmem m add "Insight with context" -t "Searchable Title" -i 0.8 --unit-type learning
 ```
 
 ### Session Capture

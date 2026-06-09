@@ -1,5 +1,9 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## 0.1.1 (2026-06-06)
+
+- SessionStart now loads Context Bundle when available, then falls back to Working Memory. Proma receives identity, active scope, active rules, and current priorities on newer Nowledge Mem installs without losing compatibility with older `nmem` clients.
+
 ## 0.1.0 (2026-05-12)
 
 - Initial Proma integration

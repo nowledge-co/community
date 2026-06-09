@@ -1,12 +1,12 @@
 # Nowledge Mem for Droid
 
-> Your personal knowledge graph inside Factory Droid. Read Working Memory at session start, recall past decisions when they matter, distill durable knowledge, and save honest resumable handoffs when you ask.
+> Your personal knowledge graph inside Factory Droid. Read startup context, recall past decisions when they matter, distill durable knowledge, and save honest resumable handoffs when you ask.
 
 This package is the Droid-native Nowledge Mem surface.
 
 It uses the host's plugin model directly:
 
-- lifecycle hooks for Working Memory bootstrap and lightweight behavioral guidance
+- lifecycle hooks for Context Bundle / Working Memory bootstrap and lightweight behavioral guidance
 - agent skills for routed recall, distillation, and handoff judgment
 - slash commands for explicit memory workflows
 - `nmem` CLI as the execution layer for local and remote Mem access
@@ -69,7 +69,7 @@ nmem status
 
 **Automatic lifecycle behavior**
 
-- Working Memory loads at session start, resume, clear, and after compaction
+- Context Bundle loads at session start, resume, clear, and after compaction when available, with Working Memory fallback
 - Per-turn guidance nudges Droid to search before answering and to review durable distillation opportunities before substantial work ends
 
 **Slash commands**
@@ -126,7 +126,9 @@ Spaces are optional. If one Droid runtime naturally belongs to one project or ag
 NMEM_SPACE="Research Agent"
 ```
 
-The bundled `nmem`-backed Working Memory, search, save, and handoff flows will then stay in that lane automatically.
+The bundled `nmem`-backed Context Bundle, Working Memory, search, save, and handoff flows will then stay in that lane automatically.
+
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Droid worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=droid` for provenance.
 
 ## Direct `nmem` Use Is Always Allowed
 

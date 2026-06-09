@@ -196,8 +196,15 @@ class NmemClient:
         return result if isinstance(result, dict) else {}
 
     # ------------------------------------------------------------------
-    # Working Memory
+    # Context Bundle / Working Memory
     # ------------------------------------------------------------------
+
+    async def read_context_bundle(self) -> dict:
+        try:
+            result = await self._exec_json("context", "read", "--source-app", "bub")
+            return result if isinstance(result, dict) else {}
+        except NmemError:
+            return {}
 
     async def read_working_memory(self) -> dict:
         try:

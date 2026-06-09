@@ -2,7 +2,7 @@
 description: Distill durable insights from the current Codex conversation into Nowledge Mem
 ---
 
-Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context. Do not wait to be asked.
+Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
 ## Workflow
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.4] - 2026-06-06
+
+### Fixed
+
+- Context Bundle, Working Memory, memory, and thread CLI calls now honor the same ambient space as HTTP-backed session saves. If OpenCode is launched with `NMEM_SPACE` / `NMEM_SPACE_ID`, or the shared Mem client config has `space`, the plugin keeps startup context, recall, saves, and thread capture in one lane.
+
 ## [0.3.3] - 2026-05-02
 
 ### Fixed

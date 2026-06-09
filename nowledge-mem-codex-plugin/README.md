@@ -13,9 +13,9 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 - **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary.
 - **Quick diagnostics.** One command to verify everything is connected.
 
-The reliable bootstrap is still Working Memory. On modern Codex, the best setup is:
+The full bootstrap is Context Bundle when available, with Working Memory as the lightweight briefing and compatibility fallback. On modern Codex, the best setup is:
 
-- plugin package for Working Memory guidance, `nmem` fallback, status, and real `save-thread`
+- plugin package for Context Bundle / Working Memory guidance, `nmem` fallback, status, and real `save-thread`
 - bundled Nowledge Mem MCP for stronger retrieval and memory writes
 - Codex Stop hook for automatic transcript capture
 - project `AGENTS.md` for repo-specific follow-through
@@ -24,7 +24,7 @@ The reliable bootstrap is still Working Memory. On modern Codex, the best setup 
 
 | Skill | When it runs | What it does |
 |-------|-------------|-------------|
-| `working-memory` | Session start, "what am I working on" | Loads your daily briefing and prefers MCP `read_working_memory` when present |
+| `working-memory` | Session start, "what am I working on" | Loads Context Bundle when full identity/scope/rules matter; otherwise loads the daily briefing and prefers MCP when present |
 | `search-memory` | Prior work, past decisions | Searches memories and conversations, preferring MCP retrieval when present |
 | `save-thread` | Manual fallback, "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
@@ -35,6 +35,7 @@ The reliable bootstrap is still Working Memory. On modern Codex, the best setup 
 Use the Knowledge Filesystem when the task is bigger than a single memory search and you need to browse nearby context.
 
 ```text
+mem_fs: capabilities
 mem_fs: recall "why did we change token refresh?" --in /memories -k 5
 mem_fs: cat /memories/by-id/<id>.memory.md
 mem_fs: ls /memories/by-label/auth
@@ -43,12 +44,13 @@ mem_fs: ls /memories/by-label/auth
 The same surface is available from the shell:
 
 ```bash
+nmem fs capabilities --json
 nmem fs ls /
 nmem fs recall "session token strategy" --in /memories -k 5
 nmem fs grep "JWT rotation" /memories
 ```
 
-Use `recall` for fuzzy intent, `find` for metadata, `grep` for exact strings, `stat` before loading large files, and `cat` only after you have a useful path. This first release is API-backed; it is not an OS mount yet.
+Use `recall` for fuzzy intent, `find` for metadata, `grep` for exact strings, `stat` before loading large files, and `cat` only after you have a useful path. `grep` is case-insensitive by default; use `--case-sensitive` for exact casing or `-E` for regex. This first release is API-backed; it is not an OS mount yet.
 
 ## Prerequisites
 
@@ -209,7 +211,7 @@ python3 ./.agents/nowledge-mem/scripts/install_hooks.py
 
 ## Verify
 
-Start a new Codex session and ask: "What was I working on?" The agent should load your Working Memory briefing.
+Start a new Codex session and ask: "What was I working on?" The agent should load Context Bundle when full startup context matters, or the Working Memory briefing as the lightweight fallback.
 
 Then test one continuation-style prompt such as "What did we decide before about the OpenClaw release path?" or "Search prior work about this regression." On a healthy plugin + MCP setup, Codex should move beyond the briefing and call Nowledge Mem retrieval tools or the equivalent direct `nmem` search, not stop at the briefing alone.
 
@@ -281,7 +283,9 @@ export NMEM_SPACE="Research Agent"
 codex
 ```
 
-The Working Memory bootstrap, search-memory skill, save-thread skill, distill-memory skill, and direct `nmem` fallbacks will then stay in that lane automatically.
+The Context Bundle / Working Memory bootstrap, search-memory skill, save-thread skill, distill-memory skill, and direct `nmem` fallbacks will then stay in that lane automatically.
+
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Codex worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=codex` for provenance.
 
 Shared spaces, default retrieval, automatic thread capture, and agent guidance come from Mem's own space profile. Codex should choose the ambient lane, not redefine what the space means.
 
@@ -323,7 +327,7 @@ If you used `nowledge-mem-codex-prompts` before:
 - **`codex mcp list` shows `Not logged in`**: update `nmem` so it matches your Mem app/server, install the CLI config from the desktop app if you use local desktop Mem, then rerun `scripts/install_hooks.py`. You can also run `nmem config mcp show --host codex` and paste the generated TOML into `~/.codex/config.toml`. Do not use `codex mcp login nowledge-mem`; that command is for OAuth MCP servers, while Nowledge Mem's Codex path uses the URL and headers generated by `nmem`.
 - **Only `codex marketplace` exists, not `codex plugin marketplace`**: use `codex marketplace add nowledge-co/community`. This is a host-version difference, not a plugin issue.
 - **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community` (or `codex marketplace add nowledge-co/community` on legacy Codex), install with `codex plugin add nowledge-mem@nowledge-community` or from `/plugins`, then re-check your `~/.codex/config.toml` plugin key.
-- **Only Working Memory runs, but search/distill never show up**: confirm the bundled MCP server is visible in Codex, then merge the package `AGENTS.md` into the project root for stronger repo-specific behavior. If Mem is remote or not on the default local port, add `mcp_servers.nowledge-mem` in `~/.codex/config.toml` to override the bundled local endpoint.
+- **Only startup context loads, but search/distill never show up**: confirm the bundled MCP server is visible in Codex, then merge the package `AGENTS.md` into the project root for stronger repo-specific behavior. If Mem is remote or not on the default local port, add `mcp_servers.nowledge-mem` in `~/.codex/config.toml` to override the bundled local endpoint.
 
 ## Links
 

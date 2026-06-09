@@ -193,17 +193,21 @@ export function buildRecallHandler(client, cfg, logger, runtime = {}) {
 
 		const sections = [];
 
-		// 1. Working Memory — daily context, not a static profile.
-		// Always injected regardless of search query (WM is independent of user message).
+		// 1. Startup context — identity/guidance plus daily context when available.
+		// Always injected regardless of search query (it is independent of user message).
 		try {
-			const wm = await client.readWorkingMemory();
-			if (wm.available) {
+			const startupContext = await client.readStartupContext();
+			if (startupContext.available) {
+				const tag =
+					startupContext.source === "context-bundle"
+						? "nowledge-context-bundle"
+						: "working-memory";
 				sections.push(
-					`<working-memory>\n${escapeForPrompt(wm.content)}\n</working-memory>`,
+					`<${tag}>\n${escapeForPrompt(startupContext.content)}\n</${tag}>`,
 				);
 			}
 		} catch (err) {
-			logger.error(`recall: working memory read failed: ${err}`);
+			logger.error(`recall: startup context read failed: ${err}`);
 		}
 
 		// 2. Relevant memories — enriched with scoring signals and labels.
