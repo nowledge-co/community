@@ -4,14 +4,18 @@ Cross-tool memory for Pi. Your decisions, preferences, and procedures persist ac
 
 ## What You Get
 
-Pi gains five skills that connect it to your Nowledge Mem knowledge base:
+Pi gains a native extension plus five skills:
+
+- Completed Pi conversations sync into Nowledge Mem as searchable threads
+- Context Bundle / Working Memory, search, and distillation stay available through skills
+- Remote Mem works through `~/.nowledge-mem/config.json` or `NMEM_API_URL` / `NMEM_API_KEY`
 
 | Skill | What it does |
 |-------|-------------|
 | `read-working-memory` | Loads your daily briefing at session start: focus areas, priorities, recent changes |
 | `search-memory` | Searches past decisions, procedures, and preferences when context would help |
 | `distill-memory` | Saves decisions, insights, and procedures as durable memories |
-| `save-thread` | Creates a structured handoff summary of the session |
+| `save-thread` | Creates a curated handoff summary when you explicitly want one |
 | `status` | Checks Nowledge Mem server connectivity |
 
 ## Prerequisites
@@ -37,14 +41,18 @@ pi install npm:nowledge-mem-pi
 
 **Manual install:**
 
-Copy the `skills/` directory into your Pi skills location:
+Copy the `skills/` directory and extension into your Pi config:
 
 ```bash
 # Global skills
 cp -r skills/* ~/.pi/agent/skills/
+mkdir -p ~/.pi/agent/extensions
+cp extensions/nowledge-mem.ts ~/.pi/agent/extensions/
 
 # Or project-local skills
 cp -r skills/* .pi/skills/
+mkdir -p .pi/extensions
+cp extensions/nowledge-mem.ts .pi/extensions/
 ```
 
 ## Verify
@@ -56,6 +64,12 @@ Start a Pi session and check connectivity:
 ```
 
 Pi should run `nmem --json status` and report the server connection.
+
+Then have a short Pi exchange and check recent threads:
+
+```bash
+nmem t list --source pi -n 5
+```
 
 ## Update
 
@@ -83,7 +97,7 @@ That keeps your custom behavior durable across package updates.
 
 **Server not running:** Start the Nowledge Mem desktop app, or run `nmem serve` on your server.
 
-**Remote setup:** Create `~/.nowledge-mem/config.json` with `{"apiUrl": "...", "apiKey": "..."}`, or set `NMEM_API_URL` and `NMEM_API_KEY` environment variables.
+**Remote setup:** Create `~/.nowledge-mem/config.json` with `{"apiUrl": "...", "apiKey": "..."}`, or set `NMEM_API_URL` and `NMEM_API_KEY` environment variables. The extension uses the same config for automatic thread sync.
 
 **Check status:** Ask Pi to run the `status` skill, or run `nmem status` directly.
 

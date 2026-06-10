@@ -5,6 +5,14 @@ All notable changes to the Nowledge Mem Pi package will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-06-10
+
+### Added
+
+- Added a native Pi extension that automatically syncs completed Pi sessions into Nowledge Mem threads.
+- Session capture is idempotent: the plugin writes stable Pi entry IDs and appends only new transcript messages.
+- Added final flushes for session switches, compaction, and shutdown so `/new`, resume, and exit keep thread history complete.
+
 ## [0.7.1] - 2026-06-07
 
 ### Changed
