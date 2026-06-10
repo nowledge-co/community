@@ -86,6 +86,20 @@ Nowledge Mem captures OpenCode sessions in three complementary ways:
 
 **Remote mode note:** Background auto-sync (1) reads OpenCode's local SQLite database, so it only works when both tools run on the same machine. The plugin tools (2, 3) work in both local and remote mode.
 
+To backfill older OpenCode sessions, preview first:
+
+```bash
+nmem t sync --from opencode --all-projects --limit 20
+```
+
+Then import:
+
+```bash
+nmem t sync --from opencode --all-projects --apply
+```
+
+Use `-p /path/to/project` instead of `--all-projects` when you only want one project. The command reads OpenCode's local session database or legacy JSON storage and writes to the Mem server configured in `nmem`.
+
 ## Hooks
 
 The plugin uses two OpenCode hooks:
