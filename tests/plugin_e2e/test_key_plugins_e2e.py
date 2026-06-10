@@ -556,20 +556,26 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
             message: { role: "assistant", content: "nmem-pi-smoke assistant" },
           },
         ];
+        const manager = {
+          getBranch: () => entries,
+          getSessionId: () => "Smoke Session/One",
+          getSessionName: () => "Pi Smoke Thread",
+          getCwd: () => "/tmp/pi-smoke",
+          getSessionFile: () => "/tmp/pi-smoke/session.jsonl",
+        };
+        let stale = false;
         const ctx = {
-          sessionManager: {
-            getBranch: () => entries,
-            getSessionId: () => "Smoke Session/One",
-            getSessionName: () => "Pi Smoke Thread",
-            getCwd: () => "/tmp/pi-smoke",
-            getSessionFile: () => "/tmp/pi-smoke/session.jsonl",
+          get sessionManager() {
+            if (stale) throw new Error("stale ctx accessed after scheduled agent_end");
+            return manager;
           },
         };
         await handlers.get("agent_end")?.({ type: "agent_end" }, ctx);
+        stale = true;
         await new Promise((resolve) => setTimeout(resolve, 1100));
         await handlers.get("session_before_switch")?.(
           { type: "session_before_switch", reason: "new" },
-          ctx,
+          { sessionManager: manager },
         );
         await new Promise((resolve) => setTimeout(resolve, 100));
         server.close();

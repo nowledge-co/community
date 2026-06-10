@@ -29,6 +29,13 @@ interface SyncState {
 	lastSyncedCount?: number;
 }
 
+interface SyncPayload {
+	threadId: string;
+	sessionId: string;
+	messages: ThreadMessage[];
+	body: JsonObject;
+}
+
 const syncStates = new Map<string, SyncState>();
 
 function readSharedConfig(): JsonObject {
@@ -315,12 +322,13 @@ function shouldSync(messages: ThreadMessage[]): boolean {
 	return messages.some((msg) => msg.role === "user") && messages.some((msg) => msg.role === "assistant");
 }
 
-async function flushOnce(ctx: ExtensionContext, reason: string, state: SyncState): Promise<void> {
+function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | undefined {
 	const messages = buildMessages(ctx);
-	if (!shouldSync(messages)) return;
+	if (!shouldSync(messages)) return undefined;
 
 	const config = resolveConfig();
 	const threadId = threadIdFor(ctx);
+	const id = sessionId(ctx);
 	const manager = ctx.sessionManager as unknown as {
 		getCwd?: () => string;
 		getSessionFile?: () => string | undefined;
@@ -333,32 +341,35 @@ async function flushOnce(ctx: ExtensionContext, reason: string, state: SyncState
 		project: manager.getCwd?.(),
 		tool_version: PLUGIN_VERSION,
 		metadata: {
-			pi_session_id: sessionId(ctx),
+			pi_session_id: id,
 			pi_session_file: manager.getSessionFile?.(),
 			sync_reason: reason,
 			...(config.agentId ? { agent_id: config.agentId } : {}),
 			...(config.hostAgentId ? { host_agent_id: config.hostAgentId } : {}),
 		},
 	};
+	return { threadId, sessionId: id, messages, body };
+}
 
+async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> {
 	let result = state.created
 		? { ok: false, status: 409, data: { detail: "append existing thread" } }
-		: await postJson("/threads", body);
+		: await postJson("/threads", payload.body);
 	if (result.ok) {
 		state.created = true;
-		state.lastSyncedCount = messages.length;
+		state.lastSyncedCount = payload.messages.length;
 		state.lastError = undefined;
 		return;
 	}
 
-	result = await postJson(`/threads/${encodeURIComponent(threadId)}/append`, {
-		messages,
+	result = await postJson(`/threads/${encodeURIComponent(payload.threadId)}/append`, {
+		messages: payload.messages,
 		deduplicate: true,
-		idempotency_key: `pi:${sessionId(ctx)}:${messages.length}`,
+		idempotency_key: `pi:${payload.sessionId}:${payload.messages.length}`,
 	});
 	if (!result.ok && state.created && isThreadNotFound(result)) {
 		state.created = false;
-		result = await postJson("/threads", body);
+		result = await postJson("/threads", payload.body);
 	}
 	if (!result.ok) {
 		const detail = JSON.stringify(result.data);
@@ -367,12 +378,12 @@ async function flushOnce(ctx: ExtensionContext, reason: string, state: SyncState
 		return;
 	}
 	state.created = true;
-	state.lastSyncedCount = messages.length;
+	state.lastSyncedCount = payload.messages.length;
 	state.lastError = undefined;
 }
 
-async function flush(ctx: ExtensionContext, reason: string): Promise<void> {
-	const key = threadIdFor(ctx);
+async function flushPayload(payload: SyncPayload): Promise<void> {
+	const key = payload.threadId;
 	const state = syncStates.get(key) || {};
 	syncStates.set(key, state);
 	if (state.inFlight) {
@@ -382,21 +393,29 @@ async function flush(ctx: ExtensionContext, reason: string): Promise<void> {
 	}
 	do {
 		state.pending = false;
-		state.inFlight = flushOnce(ctx, reason, state).finally(() => {
+		state.inFlight = flushOnce(payload, state).finally(() => {
 			state.inFlight = undefined;
 		});
 		await state.inFlight;
 	} while (state.pending);
 }
 
+async function flush(ctx: ExtensionContext, reason: string): Promise<void> {
+	const payload = buildSyncPayload(ctx, reason);
+	if (!payload) return;
+	await flushPayload(payload);
+}
+
 function scheduleFlush(ctx: ExtensionContext, reason: string): void {
-	const key = threadIdFor(ctx);
+	const payload = buildSyncPayload(ctx, reason);
+	if (!payload) return;
+	const key = payload.threadId;
 	const state = syncStates.get(key) || {};
 	syncStates.set(key, state);
 	if (state.timer) clearTimeout(state.timer);
 	state.timer = setTimeout(() => {
 		state.timer = undefined;
-		void flush(ctx, reason);
+		void flushPayload(payload);
 	}, FLUSH_DELAY_MS);
 }
 
