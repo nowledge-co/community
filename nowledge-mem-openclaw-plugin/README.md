@@ -9,7 +9,7 @@ This is not a flat note store. Nowledge Mem links related knowledge into a graph
 ## Requirements
 
 - [Nowledge Mem](https://mem.nowledge.co) desktop app **or** `nmem` CLI
-- [OpenClaw](https://openclaw.ai) >= 2026.4.5 (corpus supplement requires this version; core features work on >= 2026.3.7)
+- [OpenClaw](https://openclaw.ai) >= 2026.5.3 for ClawHub installs. Older 2026.4.x builds can reject current ClawHub packages with an archive integrity mismatch before the plugin is installed.
 
 ## Installation
 
@@ -18,6 +18,14 @@ openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 ```
 
 OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. On current OpenClaw builds, that same install flow may also set `plugins.slots.contextEngine` to `openclaw-nowledge-mem`. Plugin `0.8.18+` accepts that automatically as a compatibility alias, so you do not need to hand-edit the file after install. If you manage config manually, keep using the canonical context engine id `nowledge-mem`.
+
+To update the plugin, re-run the ClawHub install with `--force`:
+
+```bash
+openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force
+```
+
+Use this instead of `openclaw plugins update openclaw-nowledge-mem` when an old install record is pinned to a specific version.
 
 Restart OpenClaw after install to load it.
 

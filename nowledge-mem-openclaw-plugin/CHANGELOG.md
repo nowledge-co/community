@@ -4,6 +4,13 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.26] - 2026-06-10
+
+### Fixed
+
+- OpenClaw update guidance now uses `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force` so stale pinned install records cannot downgrade the plugin.
+- ClawHub package metadata now requires OpenClaw 2026.5.3 or later, matching current ClawHub npm-pack artifact support and avoiding confusing archive-integrity failures on older OpenClaw installers.
+
 ## [0.8.25] - 2026-06-06
 
 ### Improved

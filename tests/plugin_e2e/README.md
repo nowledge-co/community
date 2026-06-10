@@ -93,8 +93,10 @@ as CLI arguments.
   just wrote so the package setup, parser, `nmem` path, API path, and dedupe
   guard are still covered.
 - OpenClaw: installs a package-shaped local plugin copy, enables session digest
-  plus the Nowledge Mem context engine slot, points the plugin at the test Mem
-  API through restored plugin config, and verifies an `openclaw` thread.
+  plus the Nowledge Mem context engine slot inside an isolated temporary
+  `OPENCLAW_HOME` / `OPENCLAW_STATE_DIR`, points the plugin at the test Mem API,
+  and verifies an `openclaw` thread without mutating the user's real
+  `~/.openclaw/extensions` or plugin install records.
 - Hermes: installs the local provider into an isolated `HERMES_HOME`, enables
   `memory.provider: nowledge-mem`, and verifies `on_session_end` saved a
   `hermes` thread.

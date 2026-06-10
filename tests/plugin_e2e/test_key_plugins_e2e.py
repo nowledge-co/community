@@ -284,8 +284,8 @@ def test_key_plugin_static_contracts_are_declared():
     openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
     openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
-    assert openclaw_manifest["version"] == "0.8.25"
-    assert openclaw_pkg["version"] == "0.8.25"
+    assert openclaw_manifest["version"] == "0.8.26"
+    assert openclaw_pkg["version"] == "0.8.26"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
     assert "skills/memory-guide" in openclaw_manifest["skills"]
     assert schema["sessionDigest"]["default"] is True
@@ -406,7 +406,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["gemini-cli"]["version"] == "0.1.9"
     assert by_id["cursor"]["version"] == "0.1.6"
     assert by_id["droid"]["version"] == "0.1.1"
-    assert by_id["openclaw"]["version"] == "0.8.25"
+    assert by_id["openclaw"]["version"] == "0.8.26"
     assert by_id["proma"]["version"] == "0.1.1"
     assert by_id["opencode"]["version"] == "0.3.4"
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
@@ -711,9 +711,29 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
             "*.log",
         ),
     )
-    default_config = Path.home() / ".openclaw" / "openclaw.json"
-    default_config_backup = default_config.read_bytes() if not profile and default_config.exists() else None
-    default_config_existed = default_config_backup is not None
+    # OpenClaw profiles isolate config selection, but plugin installs and
+    # install records live under the OpenClaw state dir. Never let this live E2E
+    # rewrite the maintainer's real ~/.openclaw/extensions or plugins.installs.
+    real_state = Path(os.environ.get("NMEM_E2E_OPENCLAW_SOURCE_STATE", Path.home() / ".openclaw"))
+    isolated_home = tmp_path / "openclaw-home"
+    isolated_state = isolated_home / ".openclaw"
+    isolated_state.mkdir(parents=True)
+    real_config = real_state / "openclaw.json"
+    isolated_config = isolated_state / "openclaw.json"
+    if real_config.exists():
+        shutil.copy2(real_config, isolated_config)
+    else:
+        isolated_config.write_text("{}", encoding="utf-8")
+    for dirname in ("agents", "credentials", "identity"):
+        source = real_state / dirname
+        if source.exists():
+            shutil.copytree(source, isolated_state / dirname, dirs_exist_ok=True)
+    host_env = {
+        **e2e_context.env,
+        "OPENCLAW_HOME": str(isolated_home),
+        "OPENCLAW_STATE_DIR": str(isolated_state),
+        "OPENCLAW_CONFIG_PATH": str(isolated_config),
+    }
     config_ops: list[dict[str, Any]] = [
         {"path": "plugins.entries.openclaw-nowledge-mem.enabled", "value": True},
         {"path": "plugins.entries.openclaw-nowledge-mem.config.sessionDigest", "value": True},
@@ -739,41 +759,35 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
         config_ops.append({"path": "agents.defaults.model.primary", "value": os.environ["NMEM_E2E_OPENCLAW_MODEL"]})
     batch_file = tmp_path / "openclaw-config.json"
     batch_file.write_text(json.dumps(config_ops), encoding="utf-8")
-    try:
-        # OpenClaw profiles isolate config, not the installed extension directory.
-        # Install a package-shaped copy with --force so the safety scanner sees what
-        # users receive from npm/ClawHub instead of checkout-only test fixtures.
-        _run([*base, "plugins", "install", str(plugin_copy), "--force"], env=e2e_context.env, timeout=120)
-        _run([*base, "config", "set", "--batch-file", str(batch_file)], env=e2e_context.env, timeout=60)
 
-        prompt = f"Reply with exactly: done {e2e_context.marker}"
-        _run(
-            [
-                *base,
-                "agent",
-                "--local",
-                "--session-id",
-                f"nmem-e2e-{e2e_context.run_id}",
-                "--message",
-                prompt,
-                "--json",
-                "--timeout",
-                os.environ.get("NMEM_E2E_OPENCLAW_TIMEOUT_SECONDS", "180"),
-            ],
-            env=e2e_context.env,
-            timeout=int(os.environ.get("NMEM_E2E_OPENCLAW_TIMEOUT_SECONDS", "180")) + 30,
-        )
-        _poll_thread(
-            marker=e2e_context.marker,
-            source="openclaw",
-            space=e2e_context.space,
-            env=e2e_context.env,
-        )
-    finally:
-        if default_config_backup is not None:
-            default_config.write_bytes(default_config_backup)
-        elif not profile and not default_config_existed and default_config.exists():
-            default_config.unlink()
+    # Install a package-shaped copy with --force so the safety scanner sees what
+    # users receive from npm/ClawHub instead of checkout-only test fixtures.
+    _run([*base, "plugins", "install", str(plugin_copy), "--force"], env=host_env, timeout=120)
+    _run([*base, "config", "set", "--batch-file", str(batch_file)], env=host_env, timeout=60)
+
+    prompt = f"Reply with exactly: done {e2e_context.marker}"
+    _run(
+        [
+            *base,
+            "agent",
+            "--local",
+            "--session-id",
+            f"nmem-e2e-{e2e_context.run_id}",
+            "--message",
+            prompt,
+            "--json",
+            "--timeout",
+            os.environ.get("NMEM_E2E_OPENCLAW_TIMEOUT_SECONDS", "180"),
+        ],
+        env=host_env,
+        timeout=int(os.environ.get("NMEM_E2E_OPENCLAW_TIMEOUT_SECONDS", "180")) + 30,
+    )
+    _poll_thread(
+        marker=e2e_context.marker,
+        source="openclaw",
+        space=e2e_context.space,
+        env=e2e_context.env,
+    )
 
 
 @pytest.mark.skipif(_skip_live_host("hermes"), reason="Hermes live E2E not requested")

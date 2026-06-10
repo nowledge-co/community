@@ -518,7 +518,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.25",
+      "version": "0.8.26",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -543,13 +543,14 @@
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the native OpenClaw plugin",
+          "Use OpenClaw 2026.5.3 or later for current ClawHub packages",
           "Keep nmem available on this machine",
           "Restart OpenClaw after install or config changes"
         ]
       },
       "install": {
         "command": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem",
-        "updateCommand": "openclaw plugins update openclaw-nowledge-mem",
+        "updateCommand": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force",
         "detectionHint": "Running as OpenClaw agent; ~/.openclaw/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for OpenClaw. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
