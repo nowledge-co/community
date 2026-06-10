@@ -8,6 +8,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 from typing import Any
 
 import pytest
@@ -24,9 +25,10 @@ DROID_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-droid-plugin"
 GEMINI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-gemini-cli"
 PROMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-proma-plugin"
 CURSOR_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-cursor-plugin"
+PI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-pi-package"
 BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
-KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode"}
+KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -375,6 +377,23 @@ def test_key_plugin_static_contracts_are_declared():
     assert "rendered_markdown" in cursor_hook
     assert "'wm', 'read'" in cursor_hook
 
+    pi_pkg = _read_json(PI_PLUGIN / "package.json")
+    pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
+    assert pi_pkg["version"] == "0.8.0"
+    assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
+    assert "./skills" in pi_pkg["pi"]["skills"]
+    assert 'pi.on("agent_end"' in pi_extension
+    assert 'pi.on("session_shutdown"' in pi_extension
+    assert 'pi.on("session_before_switch"' in pi_extension
+    assert 'pi.on("session_before_compact"' in pi_extension
+    assert 'source: SOURCE_APP' in pi_extension
+    assert 'metadata: {' in pi_extension
+    assert "external_id" in pi_extension
+    assert "deduplicate: true" in pi_extension
+    assert "NMEM_AGENT_ID" in pi_extension
+    assert "NMEM_HOST_AGENT_ID" in pi_extension
+    assert "custom" in pi_extension
+
 
 def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     registry = _read_json(COMMUNITY_ROOT / "integrations.json")
@@ -409,6 +428,10 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.26"
     assert by_id["proma"]["version"] == "0.1.1"
     assert by_id["opencode"]["version"] == "0.3.4"
+    assert by_id["pi"]["version"] == "0.8.0"
+    assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
+    assert by_id["pi"]["capabilities"]["autoCapture"] is True
+    assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
 
 
@@ -470,6 +493,115 @@ def test_key_plugin_credentials_stay_out_of_static_runtime_urls():
     assert "nmem_api_key=" not in hermes_client
     assert "nmem_api_key=" not in openclaw_client
     assert "Authorization" not in (CODEX_PLUGIN / ".mcp.json").read_text(encoding="utf-8")
+
+
+@pytest.mark.skipif(_skip_live_host("pi"), reason="Pi live E2E not requested")
+def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
+    _require_live_host("pi")
+    if shutil.which("bun") is None:
+        raise AssertionError("Pi extension smoke requires bun on PATH")
+
+    agent_dir = tmp_path / "pi-agent"
+    env = os.environ.copy()
+    env["PI_CODING_AGENT_DIR"] = str(agent_dir)
+    _run(["pi", "install", str(PI_PLUGIN), "--no-approve"], env=env, timeout=60)
+    listing = _run(["pi", "list", "--no-approve"], env=env, timeout=30)
+    assert str(PI_PLUGIN) in listing.stdout
+
+    script = dedent(
+        """
+        import http from "node:http";
+
+        const { default: nowledgeMemPi } = await import(process.env.PI_EXTENSION_URL);
+        const calls = [];
+        const server = http.createServer((req, res) => {
+          let raw = "";
+          req.on("data", (chunk) => raw += chunk);
+          req.on("end", () => {
+            calls.push({
+              method: req.method,
+              url: req.url,
+              body: raw ? JSON.parse(raw) : {},
+            });
+            res.setHeader("content-type", "application/json");
+            res.end(JSON.stringify({ ok: true }));
+          });
+        });
+        await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const { port } = server.address();
+        process.env.NMEM_API_URL = `http://127.0.0.1:${port}`;
+        process.env.NMEM_SPACE = "pi-smoke-space";
+        process.env.NMEM_AGENT_ID = "PiSmokeAgent";
+        process.env.NMEM_HOST_AGENT_ID = "slock:PiSmokeAgent";
+
+        const handlers = new Map();
+        nowledgeMemPi({ on(event, handler) { handlers.set(event, handler); } });
+        const entries = [
+          {
+            id: "u1",
+            type: "message",
+            timestamp: "2026-06-10T00:00:00Z",
+            message: { role: "user", content: "nmem-pi-smoke user" },
+          },
+          {
+            id: "c1",
+            type: "message",
+            timestamp: "2026-06-10T00:00:01Z",
+            message: { role: "custom", content: "context bundle should not sync" },
+          },
+          {
+            id: "a1",
+            type: "message",
+            timestamp: "2026-06-10T00:00:02Z",
+            message: { role: "assistant", content: "nmem-pi-smoke assistant" },
+          },
+        ];
+        const ctx = {
+          sessionManager: {
+            getBranch: () => entries,
+            getSessionId: () => "Smoke Session/One",
+            getSessionName: () => "Pi Smoke Thread",
+            getCwd: () => "/tmp/pi-smoke",
+            getSessionFile: () => "/tmp/pi-smoke/session.jsonl",
+          },
+        };
+        await handlers.get("agent_end")?.({ type: "agent_end" }, ctx);
+        await new Promise((resolve) => setTimeout(resolve, 1100));
+        await handlers.get("session_before_switch")?.(
+          { type: "session_before_switch", reason: "new" },
+          ctx,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        server.close();
+
+        if (calls.length !== 2) throw new Error(`expected 2 calls, got ${calls.length}`);
+        const [create, append] = calls;
+        if (create.url !== "/threads") throw new Error(`bad create url ${create.url}`);
+        if (!append.url.includes("/threads/pi-smoke-session-one/append")) {
+          throw new Error(`bad append url ${append.url}`);
+        }
+        if (create.body.source !== "pi") throw new Error("missing pi source");
+        if (create.body.space_id !== "pi-smoke-space" || append.body.space_id !== "pi-smoke-space") {
+          throw new Error("space not propagated");
+        }
+        if (create.body.metadata.agent_id !== "PiSmokeAgent") throw new Error("agent_id missing");
+        if (create.body.metadata.host_agent_id !== "slock:PiSmokeAgent") {
+          throw new Error("host_agent_id missing");
+        }
+        if (create.body.messages.length !== 2) {
+          throw new Error(`custom message leaked or messages missing: ${create.body.messages.length}`);
+        }
+        if (!create.body.messages.every((msg) => msg.metadata?.source_app === "pi")) {
+          throw new Error("message source_app missing");
+        }
+        if (append.body.deduplicate !== true) throw new Error("append deduplicate missing");
+        console.log(JSON.stringify({ ok: true, calls: calls.length }));
+        """
+    )
+    smoke_env = env.copy()
+    smoke_env["PI_EXTENSION_URL"] = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").resolve().as_uri()
+    result = _run(["bun", "--eval", script], env=smoke_env, timeout=30)
+    assert '"ok":true' in result.stdout.replace(" ", "")
 
 
 @pytest.mark.skipif(_skip_live_host("claude"), reason="Claude live E2E not requested")

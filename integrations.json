@@ -671,32 +671,33 @@
       "id": "pi",
       "name": "Pi",
       "category": "coding",
-      "type": "skills",
-      "version": "0.7.1",
+      "type": "plugin",
+      "version": "0.8.0",
       "directory": "nowledge-mem-pi-package",
-      "transport": "cli",
+      "transport": "plugin+cli",
       "capabilities": {
         "workingMemory": true,
         "search": true,
         "distill": true,
         "autoRecall": false,
-        "autoCapture": false,
+        "autoCapture": true,
         "graphExploration": false,
         "status": true
       },
       "threadSave": {
-        "method": "handoff-only",
-        "note": "Pi does not have a native transcript importer; save-thread creates a structured handoff summary"
+        "method": "plugin-capture",
+        "note": "The Pi extension syncs completed session branches as Mem threads; save-thread remains available for curated handoff summaries."
       },
       "autonomy": {
         "bootstrap": "guided",
         "recall": "guided",
         "distill": "guided",
-        "threads": "handoff-only",
+        "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the Pi package",
           "Keep nmem available on this machine",
-          "Treat save-thread in Pi as a handoff summary, not transcript import"
+          "Restart Pi after install or update so the extension is loaded",
+          "Use save-thread only when you want an extra curated handoff summary"
         ]
       },
       "install": {
@@ -711,7 +712,7 @@
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "Skills teach agent to invoke nmem CLI directly"
+        "note": "Skills teach agent to invoke nmem CLI directly; the extension handles automatic thread capture."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": []

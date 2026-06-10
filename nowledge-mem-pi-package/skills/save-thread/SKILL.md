@@ -1,11 +1,11 @@
 ---
 name: save-thread
-description: "Save a structured handoff summary when the user asks to preserve the session. Creates a searchable record of goals, decisions, and next steps."
+description: "Create a structured handoff summary when the user asks for a checkpoint. Pi transcript sync is automatic; this skill adds a concise continuation record."
 ---
 
 # Save Thread
 
-Pi does not have a native transcript importer. This skill creates a structured handoff summary that captures the session's key outcomes as a searchable thread in your knowledge base.
+The Nowledge Mem Pi package automatically syncs completed Pi conversations as searchable threads. This skill creates a structured handoff summary when the user wants a concise checkpoint for a future session.
 
 ## When to Use
 
@@ -13,7 +13,7 @@ Pi does not have a native transcript importer. This skill creates a structured h
 - Session ending with important context that should carry forward
 - Complex multi-step work that a future session will resume
 
-Never auto-save or suggest saving unprompted.
+Do not use this as routine transcript sync. Use it only when a curated handoff would help a future session resume quickly.
 
 ## Usage
 

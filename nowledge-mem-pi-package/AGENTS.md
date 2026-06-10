@@ -67,9 +67,11 @@ nmem --json m update <memory_id> -c "updated content"
 
 One strong memory is better than three weak ones.
 
-## Thread Save Honesty
+## Thread Capture
 
-Pi does not have a native transcript importer. When the user asks to save the session, create a structured handoff summary using `nmem --json t create`. Be transparent: this is a curated summary, not a verbatim transcript. Include goals, decisions, files touched, risks, and next steps.
+The Nowledge Mem Pi package includes an extension that automatically syncs completed Pi conversations as Mem threads. It captures the active Pi session branch after completed agent turns and at session boundaries.
+
+When the user explicitly asks for a checkpoint or handoff, create a curated summary with `nmem --json t create`. Be clear that this is a focused handoff in addition to automatic transcript sync. Include goals, decisions, files touched, risks, and next steps.
 
 ```bash
 nmem --json t create \
