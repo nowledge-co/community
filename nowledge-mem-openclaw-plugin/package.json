@@ -29,7 +29,9 @@
 			"./src/index.js"
 		],
 		"install": {
-			"npmSpec": "@nowledge/openclaw-nowledge-mem"
+			"clawhubSpec": "clawhub:@nowledge/openclaw-nowledge-mem",
+			"npmSpec": "@nowledge/openclaw-nowledge-mem",
+			"defaultChoice": "clawhub"
 		},
 		"compat": {
 			"pluginApi": ">=2026.5.3"
