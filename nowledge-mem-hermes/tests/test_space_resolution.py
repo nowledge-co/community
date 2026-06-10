@@ -157,6 +157,7 @@ class SpaceResolutionTests(unittest.TestCase):
     def test_client_explicit_empty_space_clears_inherited_environment(self):
         captured: dict[str, object] = {}
         original_run = client_module.subprocess.run
+        original_resolve = client_module._resolve_nmem
         previous_space = os.environ.get("NMEM_SPACE")
         previous_space_id = os.environ.get("NMEM_SPACE_ID")
         os.environ["NMEM_SPACE"] = "Env Space"
@@ -174,6 +175,7 @@ class SpaceResolutionTests(unittest.TestCase):
 
         try:
             client_module.subprocess.run = _fake_run
+            client_module._resolve_nmem = lambda: "nmem"
             client = client_module.NowledgeMemClient(space="")
             client.working_memory()
             env = captured["env"]
@@ -181,6 +183,7 @@ class SpaceResolutionTests(unittest.TestCase):
             self.assertNotIn("NMEM_SPACE_ID", env)
         finally:
             client_module.subprocess.run = original_run
+            client_module._resolve_nmem = original_resolve
             if previous_space is None:
                 os.environ.pop("NMEM_SPACE", None)
             else:
@@ -193,6 +196,7 @@ class SpaceResolutionTests(unittest.TestCase):
     def test_client_explicit_space_sets_subprocess_environment(self):
         captured: dict[str, object] = {}
         original_run = client_module.subprocess.run
+        original_resolve = client_module._resolve_nmem
         previous_space = os.environ.get("NMEM_SPACE")
         previous_space_id = os.environ.get("NMEM_SPACE_ID")
         os.environ["NMEM_SPACE"] = "Env Space"
@@ -210,6 +214,7 @@ class SpaceResolutionTests(unittest.TestCase):
 
         try:
             client_module.subprocess.run = _fake_run
+            client_module._resolve_nmem = lambda: "nmem"
             client = client_module.NowledgeMemClient(space="Research Agent")
             client.working_memory()
             env = captured["env"]
@@ -217,6 +222,7 @@ class SpaceResolutionTests(unittest.TestCase):
             self.assertEqual(env.get("NMEM_SPACE_ID"), "Research Agent")
         finally:
             client_module.subprocess.run = original_run
+            client_module._resolve_nmem = original_resolve
             if previous_space is None:
                 os.environ.pop("NMEM_SPACE", None)
             else:

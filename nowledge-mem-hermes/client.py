@@ -15,7 +15,10 @@ from __future__ import annotations
 
 import json
 import logging
+import ntpath
 import os
+import re
+import shutil
 import subprocess
 from typing import Any, Dict, List, Optional
 from urllib import error as urlerror
@@ -26,6 +29,160 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_API_URL = "http://127.0.0.1:14242"
 CONFIG_PATH = os.path.expanduser("~/.nowledge-mem/config.json")
+_CMD_ENV_EXPANSION_RE = re.compile(r"%[A-Za-z_][A-Za-z0-9_]*%")
+
+
+def _resolve_nmem() -> Optional[str]:
+    """Return the absolute path to the ``nmem`` executable, or ``None``.
+
+    ``shutil.which`` honors PATHEXT, so on Windows it correctly resolves the
+    ``nmem.CMD`` shim that ``subprocess.run(["nmem", ...], shell=False)`` would
+    miss.
+    """
+    return shutil.which("nmem")
+
+
+# --- Windows .cmd hardening ------------------------------------------------
+# nmem ships on Windows only as ``nmem.CMD``; the shim's last line forwards
+# every argument to a bundled python via ``"%PYTHON%" -m ...ncli %*``. Python's
+# ``subprocess`` runs ``.cmd``/``.bat`` through ``cmd.exe``, whose metacharacter
+# parsing (``& | < > ^ "``) is NOT neutralized by list-form quoting. Live-proven
+# on Windows: ``subprocess.run([nmem_cmd, "a&b"])`` makes cmd.exe execute ``b``
+# as a separate command. This is the BatBadBut / CVE-2024-1874 class.
+#
+# Defense (only applied when the resolved executable is .cmd/.bat — Linux/macOS
+# and a real Windows .exe keep the plain list form, unchanged):
+#   1. Build the inner command line by force-quoting every token with the
+#      Daniel Colascione MSVCRT algorithm. Inside double quotes cmd.exe treats
+#      ``& | < > ( )`` as literal; embedded ``"`` becomes ``""`` (literal under
+#      cmd, collapses to one ``"`` under the MSVCRT parser).
+#   2. Launch the command processor by ABSOLUTE path (see ``_comspec``) so
+#      ``CreateProcess`` cannot resolve ``cmd.exe`` via PATH or the current
+#      directory (a planting risk under ``shell=False``).
+#   3. Pass the assembled string to ``subprocess.run(shell=False)`` so Python
+#      does not re-quote it.
+#
+# Percent handling: literal percent text such as ``100% done`` is preserved, but
+# ``%NAME%``-style tokens are rejected before cmd.exe can expand environment
+# variables. That avoids both data corruption (``%USERNAME%`` changing content)
+# and poisoned-environment command injection.
+
+
+def _is_batch(path: str) -> bool:
+    """True iff ``path`` is a cmd.exe batch shim (.cmd/.bat)."""
+    return os.path.splitext(path)[1].lower() in (".cmd", ".bat")
+
+
+def _quote_cmd_arg(arg: str) -> str:
+    """Quote ``arg`` for both cmd.exe and the MSVCRT argv parser.
+
+    See the *Windows .cmd hardening* block above for why this is required.
+    Force-quotes every token (even spaceless ones); doubles backslashes that
+    precede a literal quote; emits embedded ``"`` as ``""``.
+    """
+    if arg == "":
+        return '""'
+    out = ['"']
+    i, n = 0, len(arg)
+    while i < n:
+        backslashes = 0
+        while i < n and arg[i] == "\\":
+            i += 1
+            backslashes += 1
+        if i == n:
+            # Trailing backslashes: double so they don't escape the closing quote.
+            out.append("\\" * (backslashes * 2))
+            break
+        if arg[i] == '"':
+            out.append("\\" * (backslashes * 2))
+            out.append('""')
+            i += 1
+        else:
+            out.append("\\" * backslashes)
+            out.append(arg[i])
+            i += 1
+    out.append('"')
+    return "".join(out)
+
+
+def _reject_cmd_env_expansion(argv: List[str]) -> None:
+    """Reject tokens that cmd.exe would expand as ``%ENV_VAR%``.
+
+    cmd expands these before the batch shim runs, even inside quotes. We cannot
+    safely preserve that exact text through ``cmd.exe /c`` without changing the
+    real nmem shim, so fail closed for the batch-only path. Ordinary percent
+    text without a variable-shaped pair still passes through.
+    """
+    for arg in argv[1:]:
+        if _CMD_ENV_EXPANSION_RE.search(arg):
+            raise ValueError(
+                "nmem Windows .cmd shim cannot safely receive %VAR%-style "
+                "arguments; remove or escape the environment-variable token "
+                "before retrying."
+            )
+
+
+def _comspec() -> str:
+    """Absolute path to Windows' system ``cmd.exe``.
+
+    A poisoned ``ComSpec`` should not redirect execution. Accept it only when it
+    resolves to the same canonical ``%SystemRoot%\\System32\\cmd.exe`` path;
+    otherwise use the expected system path directly.
+    """
+    system_root = os.environ.get("SystemRoot") or r"C:\Windows"
+    if not ntpath.isabs(system_root):
+        system_root = r"C:\Windows"
+    expected = ntpath.join(system_root, "System32", "cmd.exe")
+
+    def _same_windows_path(left: str, right: str) -> bool:
+        return ntpath.normcase(ntpath.normpath(left)) == ntpath.normcase(
+            ntpath.normpath(right)
+        )
+
+    comspec = os.environ.get("ComSpec", "")
+    if (
+        comspec
+        and ntpath.isabs(comspec)
+        and ntpath.basename(comspec).lower() == "cmd.exe"
+        and _same_windows_path(comspec, expected)
+        and os.path.exists(comspec)
+    ):
+        return comspec
+
+    return expected if os.path.exists(expected) else r"C:\Windows\System32\cmd.exe"
+
+
+def _build_cmd_command(argv: List[str]) -> str:
+    """Build the full ``"<cmd.exe>" /d /s /c "<quoted argv>"`` string.
+
+    The outer ``"..."`` is what ``/s`` strips before re-tokenizing, so every
+    inner token's quoting stays intact. See the *Windows .cmd hardening* block
+    above for the threat model and residuals.
+    """
+    _reject_cmd_env_expansion(argv)
+    line = " ".join(_quote_cmd_arg(token) for token in argv)
+    return _quote_cmd_arg(_comspec()) + ' /d /s /c "' + line + '"'
+
+
+def _run_nmem(
+    argv: List[str],
+    *,
+    timeout: float,
+    env: Optional[Dict[str, str]] = None,
+) -> "subprocess.CompletedProcess[str]":
+    """Invoke nmem. Routes ``.cmd``/``.bat`` through the hardened cmd.exe path;
+    everything else (Linux, macOS, real Windows .exe) keeps the plain list form
+    unchanged.
+    """
+    command: Any = _build_cmd_command(argv) if _is_batch(argv[0]) else argv
+    return subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=timeout,
+        env=env,
+    )
 
 
 class NowledgeMemClient:
@@ -44,26 +201,22 @@ class NowledgeMemClient:
     @staticmethod
     def is_available() -> bool:
         """Return True if ``nmem`` CLI is on PATH and responds."""
+        exe = _resolve_nmem()
+        if exe is None:
+            return False
         try:
-            result = subprocess.run(
-                ["nmem", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
+            result = _run_nmem([exe, "--version"], timeout=5)
             return result.returncode == 0
         except Exception:
             return False
 
     def health(self) -> bool:
         """Check that Nowledge Mem is reachable."""
+        exe = _resolve_nmem()
+        if exe is None:
+            return False
         try:
-            result = subprocess.run(
-                ["nmem", "--json", "status"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
+            result = _run_nmem([exe, "--json", "status"], timeout=5)
             return result.returncode == 0
         except Exception:
             return False
@@ -233,7 +386,13 @@ class NowledgeMemClient:
 
     def _cli(self, args: List[str]) -> Any:
         """Run ``nmem --json <args>`` and return parsed JSON."""
-        cmd = ["nmem", "--json"] + args
+        exe = _resolve_nmem()
+        if exe is None:
+            raise RuntimeError(
+                "nmem CLI not found. Install: pip install nmem-cli, "
+                "or enable CLI in Nowledge Mem: Settings > Developer Tools"
+            )
+        cmd = [exe, "--json"] + args
         env = os.environ.copy()
         if self._has_explicit_space:
             env.pop("NMEM_SPACE", None)
@@ -242,13 +401,7 @@ class NowledgeMemClient:
             env["NMEM_SPACE"] = self._space
             env["NMEM_SPACE_ID"] = self._space
         try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=self._timeout,
-                env=env,
-            )
+            result = _run_nmem(cmd, timeout=self._timeout, env=env)
         except FileNotFoundError:
             raise RuntimeError(
                 "nmem CLI not found. Install: pip install nmem-cli, "

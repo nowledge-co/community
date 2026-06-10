@@ -79,6 +79,7 @@ class SearchImportanceTests(unittest.TestCase):
     def test_client_search_adds_importance_flag(self):
         captured: dict[str, object] = {}
         original_run = client_module.subprocess.run
+        original_resolve = client_module._resolve_nmem
 
         def _fake_run(cmd, **kwargs):
             captured["cmd"] = cmd
@@ -92,10 +93,12 @@ class SearchImportanceTests(unittest.TestCase):
 
         try:
             client_module.subprocess.run = _fake_run
+            client_module._resolve_nmem = lambda: "nmem"
             client = client_module.NowledgeMemClient()
             client.search("project context", min_importance=0.7)
         finally:
             client_module.subprocess.run = original_run
+            client_module._resolve_nmem = original_resolve
 
         self.assertEqual(
             captured["cmd"],
@@ -105,6 +108,7 @@ class SearchImportanceTests(unittest.TestCase):
     def test_client_search_omits_importance_when_not_set(self):
         captured: dict[str, object] = {}
         original_run = client_module.subprocess.run
+        original_resolve = client_module._resolve_nmem
 
         def _fake_run(cmd, **kwargs):
             captured["cmd"] = cmd
@@ -118,10 +122,12 @@ class SearchImportanceTests(unittest.TestCase):
 
         try:
             client_module.subprocess.run = _fake_run
+            client_module._resolve_nmem = lambda: "nmem"
             client = client_module.NowledgeMemClient()
             client.search("project context")
         finally:
             client_module.subprocess.run = original_run
+            client_module._resolve_nmem = original_resolve
 
         self.assertNotIn("--importance", captured["cmd"])
 

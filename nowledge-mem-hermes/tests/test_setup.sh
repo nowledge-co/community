@@ -81,4 +81,83 @@ grep -Fq '[*] Detected older Hermes provider discovery' <<<"$legacy_output" || f
 [ -f "$legacy_memory_dir/nowledge-mem/plugin.yaml" ] || fail "legacy compatibility plugin install missing"
 grep -Fq 'provider: "nowledge-mem"' "$legacy_hermes/config.yaml" || fail "legacy config provider not updated"
 
+# --- Cross-platform default HERMES_HOME ---
+# Simulate a Windows shell where HERMES_HOME is unset but LOCALAPPDATA is
+# present (git-bash / MSYS / Cygwin behavior). The installer must land under
+# %LOCALAPPDATA%\hermes instead of the Linux-only ~/.hermes fallback.
+win_home="$TMP_DIR/win-home"
+win_localappdata="$win_home/AppData/Local"
+win_hermes="$win_localappdata/hermes"
+mkdir -p "$win_localappdata"
+
+win_output="$(
+  env -u HERMES_HOME \
+  HOME="$win_home" \
+  USERPROFILE="$win_home" \
+  LOCALAPPDATA="$win_localappdata" \
+  MSYSTEM="MINGW64" \
+  bash -c '
+    # Force the Windows branch of the detection regardless of host uname.
+    uname() { echo "MINGW64_NT-10.0"; }
+    export -f uname
+    bash "'"$SETUP_SH"'"
+  ' 2>&1
+)" || fail "windows-default unexpectedly exited non-zero"
+
+grep -Fq "Hermes home: $win_hermes" <<<"$win_output" \
+  || fail "windows-default did not resolve LOCALAPPDATA-based home (got: ${win_output%%$'\n'*})"
+[ -f "$win_hermes/plugins/nowledge-mem/plugin.yaml" ] \
+  || fail "windows-default did not install plugin under LOCALAPPDATA"
+grep -Fq 'provider: "nowledge-mem"' "$win_hermes/config.yaml" \
+  || fail "windows-default did not write memory.provider"
+# Linux-only fallback must NOT have been used.
+[ ! -d "$win_home/.hermes" ] \
+  || fail "windows-default incorrectly created ~/.hermes alongside LOCALAPPDATA path"
+
+# --- Explicit HERMES_HOME always wins ---
+override_home="$TMP_DIR/override-home"
+mkdir -p "$override_home"
+HOME="$TMP_DIR/elsewhere" LOCALAPPDATA="$TMP_DIR/win-elsewhere/AppData/Local" \
+  HERMES_HOME="$override_home" bash "$SETUP_SH" >/dev/null 2>&1 \
+  || fail "explicit HERMES_HOME run failed"
+[ -f "$override_home/plugins/nowledge-mem/plugin.yaml" ] \
+  || fail "explicit HERMES_HOME was not honored"
+
+# --- MCP-only install must not require Python ---
+# Regression for PR #270: a top-level Python 3 preflight made `setup.sh --mcp`
+# hard-fail on machines without python3/python/py, even though MCP mode never
+# runs the Python config-rewrite helper. Stub the three launchers so
+# `command -v` reports them missing, then assert the MCP install still succeeds
+# and writes the MCP server block. curl/grep/mkdir keep working (only the
+# python launcher lookups are intercepted).
+mcp_home="$TMP_DIR/mcp-no-python-home"
+mcp_hermes="$mcp_home/.hermes"
+mkdir -p "$mcp_hermes"
+
+set +e
+mcp_output="$(
+  HOME="$mcp_home" HERMES_HOME="$mcp_hermes" \
+  bash -c '
+    command() {
+      if [ "$1" = "-v" ]; then
+        case "$2" in
+          python3|python|py) return 1 ;;
+        esac
+      fi
+      builtin command "$@"
+    }
+    export -f command
+    bash "'"$SETUP_SH"'" --mcp
+  ' 2>&1
+)"
+mcp_status=$?
+set -e
+
+[ "$mcp_status" -eq 0 ] \
+  || { echo "$mcp_output" >&2; fail "mcp-no-python exited non-zero without Python"; }
+grep -Fq 'http://127.0.0.1:14242/mcp/' "$mcp_hermes/config.yaml" \
+  || fail "mcp-no-python did not write MCP server config to config.yaml"
+grep -Fq 'nowledge-mem:' "$mcp_hermes/config.yaml" \
+  || fail "mcp-no-python did not write nowledge-mem MCP entry"
+
 echo "[ok] Hermes setup installer regression checks passed"

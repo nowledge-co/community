@@ -11,9 +11,88 @@
 
 set -euo pipefail
 
-HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+# --- Platform-aware HERMES_HOME default ---
+# Hermes stores its home under a platform-native path:
+#   - Linux / macOS: ~/.hermes
+#   - Windows:       %LOCALAPPDATA%\hermes  (e.g. C:\Users\<you>\AppData\Local\hermes)
+# Mirror Hermes' own `_get_platform_default_hermes_home()` so the installer
+# lands in the same directory Hermes actually reads, even when the user runs
+# this script from git-bash / MSYS without HERMES_HOME exported.
+default_hermes_home() {
+  if [ -n "${HERMES_HOME:-}" ]; then
+    printf '%s' "$HERMES_HOME"
+    return
+  fi
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      # git-bash / MSYS / Cygwin on Windows
+      local base="${LOCALAPPDATA:-}"
+      if [ -z "$base" ] && [ -n "${USERPROFILE:-}" ]; then
+        base="$USERPROFILE/AppData/Local"
+      fi
+      if [ -n "$base" ]; then
+        # Normalize backslashes so downstream `$HERMES_HOME/...` works in bash.
+        printf '%s/hermes' "${base//\\//}"
+        return
+      fi
+      ;;
+  esac
+  printf '%s/.hermes' "$HOME"
+}
+
+HERMES_HOME="$(default_hermes_home)"
 CONFIG="$HERMES_HOME/config.yaml"
 BASE_URL="https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes"
+
+# --- Python launcher detection ---
+# Standard python.org Windows installers ship only `python.exe`, not `python3`.
+# Fall back through `python3` -> `python` -> the Windows `py -3` launcher so the
+# config-rewrite helper runs on every supported platform without forcing the
+# user to install an extra shim.
+detect_python() {
+  if command -v python3 >/dev/null 2>&1; then
+    printf 'python3'
+    return
+  fi
+  if command -v python >/dev/null 2>&1; then
+    # Confirm it is Python 3, not a stray Python 2.
+    if python -c 'import sys; sys.exit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+      printf 'python'
+      return
+    fi
+  fi
+  if command -v py >/dev/null 2>&1; then
+    if py -3 -c 'import sys; sys.exit(0 if sys.version_info[0] == 3 else 1)' >/dev/null 2>&1; then
+      printf 'py -3'
+      return
+    fi
+  fi
+  printf ''
+}
+
+# Resolved lazily in plugin mode only — MCP-only installs never touch Python.
+PYTHON_BIN=""
+
+echo "[*] Hermes home: $HERMES_HOME"
+
+# --- Soft preflight: nmem CLI reachability ---
+# On Windows the desktop app installs the CLI as `nmem.cmd` under
+# %LOCALAPPDATA%\Nowledge Mem\cli\, which is added to the user PATH but does
+# not always propagate into the current shell (especially git-bash spawned
+# before the install). Warn but do not fail — Hermes itself uses
+# `shutil.which("nmem")`, which honors PATHEXT and finds the .cmd shim.
+if ! command -v nmem >/dev/null 2>&1; then
+  echo "[warn] 'nmem' is not visible in this shell."
+  echo "       Hermes will still find it via Python's shutil.which (PATHEXT-aware on Windows),"
+  echo "       but you may want to add the CLI directory to PATH for manual use."
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      echo "       Typical Windows location: %LOCALAPPDATA%\\Nowledge Mem\\cli\\nmem.cmd"
+      ;;
+    Darwin*) echo "       macOS: install via the desktop app, or 'pip install nmem-cli'." ;;
+    Linux*)  echo "       Linux: 'pip install nmem-cli' (or 'yay -S nmem-cli' on Arch)." ;;
+  esac
+fi
 
 # Detect local repo directory (for users who cloned the repo)
 SCRIPT_DIR=""
@@ -77,7 +156,7 @@ needs_legacy_memory_provider_copy() {
 
 ensure_memory_provider() {
   local config_path="$1"
-  python3 - "$config_path" <<'PY'
+  $PYTHON_BIN - "$config_path" <<'PY'
 from pathlib import Path
 import re
 import sys
@@ -153,6 +232,15 @@ PY
 # Plugin install
 # =========================================================================
 if [ "$MODE" = "plugin" ]; then
+  # Plugin mode rewrites config.yaml via a Python helper (ensure_memory_provider),
+  # so Python 3 is required here. MCP-only installs skip this entirely.
+  PYTHON_BIN="$(detect_python)"
+  if [ -z "$PYTHON_BIN" ]; then
+    echo "[error] Python 3 not found on PATH (tried python3, python, py -3)."
+    echo "        Install Python 3 from https://www.python.org/ or your package manager and retry."
+    exit 1
+  fi
+
   PLUGIN_DIR="$HERMES_HOME/plugins/nowledge-mem"
 
   # Detect old incorrect path (v0.5.0 installed to plugins/memory/nowledge-mem)
