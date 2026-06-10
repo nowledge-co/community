@@ -32,6 +32,7 @@ We therefore only assert against the production-shaped forwarding oracle.
 from __future__ import annotations
 
 import importlib.util
+import ntpath
 import os
 import subprocess
 import sys
@@ -62,9 +63,9 @@ client_module = _load_client_module()
 
 
 # The exact battery the task specifies, plus an explicit injection payload.
-# %VAR% is intentionally excluded from the verbatim battery: a real env var on
-# the command line is expanded by cmd.exe and percent cannot be escaped in the
-# /c context that forwards %* (documented limitation in client._build_cmd_command).
+# %VAR% is intentionally excluded from the verbatim battery: cmd.exe expands it
+# before the shim runs. The production batch path rejects env-var-shaped tokens
+# before they reach cmd.exe.
 ARG_BATTERY = [
     "normal",
     "a&b",
@@ -280,77 +281,18 @@ class WindowsBatchArgRoundTripTests(_CmdFixtureMixin, unittest.TestCase):
         self.assertEqual(_parse_args(new.stdout), ["a&b"])
         self.assertEqual(_injected_lines(new.stdout), [])
 
-    def test_literal_percent_var_unset_round_trips_verbatim(self):
-        # FIX 2 (a) -- positive safety. A literal `%NAME%` whose NAME is NOT in the
-        # environment is data: cmd.exe leaves the token untouched, so legitimate
-        # content like "%NONEXISTENT_VAR_XYZ%" must arrive verbatim with no
-        # expansion and no injected output. This guards the deliberate decision to
-        # preserve literal `%` (see client._build_cmd_command).
-        var_token = "%NONEXISTENT_VAR_XYZ%"
-        self.assertNotIn(
-            "NONEXISTENT_VAR_XYZ",
-            os.environ,
-            msg="precondition: NONEXISTENT_VAR_XYZ must be unset for this test",
-        )
-        result = self._drive(self.forward_cmd, [var_token])
-        self.assertEqual(_parse_args(result.stdout), [var_token])
-        self.assertEqual(
-            _injected_lines(result.stdout),
-            [],
-            msg=f"unexpected expansion/injection: {result.stdout!r}",
-        )
+    def test_literal_percent_text_without_env_shape_round_trips(self):
+        # Ordinary percent text should not be mangled. Only %NAME%-style tokens
+        # are blocked because cmd.exe expands them before the shim runs.
+        for arg in ["100% done", "50% + 50% = 100%", "%not closed"]:
+            with self.subTest(arg=arg):
+                result = self._drive(self.forward_cmd, [arg])
+                self.assertEqual(_parse_args(result.stdout), [arg])
+                self.assertEqual(_injected_lines(result.stdout), [])
 
-    def test_percent_var_expansion_is_the_known_residual(self):
-        # FIX 2 (b) -- BOUNDARY DOCUMENTATION, *not* a passing security guarantee.
-        #
-        # This test PINS the one residual the force-quoting cannot close: cmd.exe
-        # expands `%NAME%` on the assembled command line BEFORE the shim runs, and
-        # percent cannot be escaped in the `/c` context that forwards `%*`. If an
-        # argument contains a literal `%NAME%` AND an env var NAME exists whose
-        # value carries cmd metacharacters, the expanded value re-enters cmd
-        # syntax and EXECUTES -- command execution in a poisoned environment.
-        #
-        # We deliberately do NOT "fix" this by mangling/rejecting `%` (that would
-        # corrupt real memory content like "100% done"). The test exists so the
-        # threat model stays explicit and nobody silently changes the behavior:
-        # it asserts the CURRENT, OBSERVED residual, empirically verified on this
-        # Windows box. If a future change neutralizes %VAR% (or breaks this path),
-        # this assertion changes and forces a conscious re-decision.
-        marker = "PWNED_RESIDUAL_4F2A9"
-        evil_value = 'x"&echo ' + marker + '&rem "'
-        previous = os.environ.get("NMEM_TEST_EVIL")
-        os.environ["NMEM_TEST_EVIL"] = evil_value
-        try:
-            result = self._drive(self.forward_cmd, ["%NMEM_TEST_EVIL%"])
-        finally:
-            if previous is None:
-                os.environ.pop("NMEM_TEST_EVIL", None)
-            else:
-                os.environ["NMEM_TEST_EVIL"] = previous
-
-        combined = result.stdout + result.stderr
-        # KNOWN RESIDUAL: the env value was expanded onto the command line and the
-        # injected `echo` ran, so the marker surfaces as executed output -- it is
-        # NOT preserved as a single literal `ARG=[%NMEM_TEST_EVIL%]` token. This
-        # is the accepted, documented boundary, not a security pass.
-        self.assertIn(
-            marker,
-            combined,
-            msg=(
-                "Expected the known %VAR% residual (expansion + injection). If "
-                "this no longer holds, the threat model changed -- update the "
-                f"docstring and this test deliberately. stdout={result.stdout!r} "
-                f"stderr={result.stderr!r}"
-            ),
-        )
-        self.assertNotIn(
-            "%NMEM_TEST_EVIL%",
-            _parse_args(result.stdout),
-            msg=(
-                "Residual no longer reproduces: the token was preserved instead "
-                f"of expanded. Re-evaluate the threat model. stdout={result.stdout!r}"
-            ),
-        )
+    def test_percent_var_reference_is_rejected_before_cmd(self):
+        with self.assertRaisesRegex(ValueError, "%VAR%-style"):
+            self._drive(self.forward_cmd, ["%NMEM_TEST_EVIL%"])
 
     def test_run_nmem_production_path_routes_through_safe_batch(self):
         # FIX 3 -- exercise the REAL production entry point, not just the builder.
@@ -422,7 +364,7 @@ class BuildCmdCommandStringTests(unittest.TestCase):
         # PATH / current-directory resolution of cmd.exe.
         comspec = client_module._comspec()
         self.assertTrue(
-            os.path.isabs(comspec),
+            ntpath.isabs(comspec),
             msg=f"comspec must be absolute, got {comspec!r}",
         )
         self.assertTrue(comspec.lower().endswith("cmd.exe"))

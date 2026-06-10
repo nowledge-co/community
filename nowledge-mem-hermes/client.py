@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import json
 import logging
+import ntpath
 import os
+import re
 import shutil
 import subprocess
 from typing import Any, Dict, List, Optional
@@ -27,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_API_URL = "http://127.0.0.1:14242"
 CONFIG_PATH = os.path.expanduser("~/.nowledge-mem/config.json")
+_CMD_ENV_EXPANSION_RE = re.compile(r"%[A-Za-z_][A-Za-z0-9_]*%")
 
 
 def _resolve_nmem() -> Optional[str]:
@@ -59,13 +62,10 @@ def _resolve_nmem() -> Optional[str]:
 #   3. Pass the assembled string to ``subprocess.run(shell=False)`` so Python
 #      does not re-quote it.
 #
-# Residual: ``%VAR%`` expansion. cmd.exe expands ``%NAME%`` on the assembled
-# command line before the shim runs, and percent cannot be escaped in the
-# ``/c`` context that forwards ``%*``. Literal ``%`` is intentionally preserved
-# (so real content like ``100% done`` round-trips); a ``%NAME%`` whose ``NAME``
-# is set to a value containing cmd metacharacters can re-enter cmd syntax in a
-# poisoned-environment scenario. Pinned by tests in
-# ``tests/test_windows_batch_args.py``.
+# Percent handling: literal percent text such as ``100% done`` is preserved, but
+# ``%NAME%``-style tokens are rejected before cmd.exe can expand environment
+# variables. That avoids both data corruption (``%USERNAME%`` changing content)
+# and poisoned-environment command injection.
 
 
 def _is_batch(path: str) -> bool:
@@ -105,36 +105,51 @@ def _quote_cmd_arg(arg: str) -> str:
     return "".join(out)
 
 
-def _comspec() -> str:
-    """Absolute path to ``cmd.exe``, validated.
+def _reject_cmd_env_expansion(argv: List[str]) -> None:
+    """Reject tokens that cmd.exe would expand as ``%ENV_VAR%``.
 
-    Resolution order; each candidate must be absolute + existing + basename
-    ``cmd.exe`` (case-insensitive). The literal fallback exists so a poisoned
-    ``%SystemRoot%`` cannot redirect us:
-      1. ``%ComSpec%``
-      2. ``%SystemRoot%\\System32\\cmd.exe`` (only if ``%SystemRoot%`` is itself
-         absolute + existing)
-      3. ``C:\\Windows\\System32\\cmd.exe`` (literal default)
+    cmd expands these before the batch shim runs, even inside quotes. We cannot
+    safely preserve that exact text through ``cmd.exe /c`` without changing the
+    real nmem shim, so fail closed for the batch-only path. Ordinary percent
+    text without a variable-shaped pair still passes through.
     """
+    for arg in argv[1:]:
+        if _CMD_ENV_EXPANSION_RE.search(arg):
+            raise ValueError(
+                "nmem Windows .cmd shim cannot safely receive %VAR%-style "
+                "arguments; remove or escape the environment-variable token "
+                "before retrying."
+            )
 
-    def _is_cmd_exe(path: str) -> bool:
-        return (
-            os.path.isabs(path)
-            and os.path.exists(path)
-            and os.path.basename(path).lower() == "cmd.exe"
+
+def _comspec() -> str:
+    """Absolute path to Windows' system ``cmd.exe``.
+
+    A poisoned ``ComSpec`` should not redirect execution. Accept it only when it
+    resolves to the same canonical ``%SystemRoot%\\System32\\cmd.exe`` path;
+    otherwise use the expected system path directly.
+    """
+    system_root = os.environ.get("SystemRoot") or r"C:\Windows"
+    if not ntpath.isabs(system_root):
+        system_root = r"C:\Windows"
+    expected = ntpath.join(system_root, "System32", "cmd.exe")
+
+    def _same_windows_path(left: str, right: str) -> bool:
+        return ntpath.normcase(ntpath.normpath(left)) == ntpath.normcase(
+            ntpath.normpath(right)
         )
 
     comspec = os.environ.get("ComSpec", "")
-    if _is_cmd_exe(comspec):
+    if (
+        comspec
+        and ntpath.isabs(comspec)
+        and ntpath.basename(comspec).lower() == "cmd.exe"
+        and _same_windows_path(comspec, expected)
+        and os.path.exists(comspec)
+    ):
         return comspec
 
-    system_root = os.environ.get("SystemRoot", "")
-    if os.path.isabs(system_root) and os.path.exists(system_root):
-        candidate = os.path.join(system_root, "System32", "cmd.exe")
-        if _is_cmd_exe(candidate):
-            return candidate
-
-    return r"C:\Windows\System32\cmd.exe"
+    return expected if os.path.exists(expected) else r"C:\Windows\System32\cmd.exe"
 
 
 def _build_cmd_command(argv: List[str]) -> str:
@@ -144,6 +159,7 @@ def _build_cmd_command(argv: List[str]) -> str:
     inner token's quoting stays intact. See the *Windows .cmd hardening* block
     above for the threat model and residuals.
     """
+    _reject_cmd_env_expansion(argv)
     line = " ".join(_quote_cmd_arg(token) for token in argv)
     return _quote_cmd_arg(_comspec()) + ' /d /s /c "' + line + '"'
 
