@@ -51,8 +51,8 @@
         ]
       },
       "install": {
-        "command": "claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "claude plugin marketplace add nowledge-co/community && claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
+        "command": "claude plugin marketplace add https://github.com/nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "claude plugin marketplace add https://github.com/nowledge-co/community && claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running as Claude Code agent; ~/.claude/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Claude Code. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",

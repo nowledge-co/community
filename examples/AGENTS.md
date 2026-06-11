@@ -138,7 +138,7 @@ pip install nmem-cli
 
 ```bash
 # Add marketplace
-claude plugin marketplace add nowledge-co/community
+claude plugin marketplace add https://github.com/nowledge-co/community
 
 # Install plugin
 claude plugin install nowledge-mem@nowledge-community

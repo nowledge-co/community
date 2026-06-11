@@ -63,7 +63,7 @@ The canonical source for this table is `community/integrations.json`.
 
 | Agent | How to Detect | Native connector setup | Docs |
 |-------|--------------|----------------------|------|
-| **Claude Code** | Running as Claude Code agent; `~/.claude/` exists | `claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
+| **Claude Code** | Running as Claude Code agent; `~/.claude/` exists | `claude plugin marketplace add https://github.com/nowledge-co/community && claude plugin install nowledge-mem@nowledge-community` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
 | **OpenClaw** | Running as OpenClaw agent; `~/.openclaw/` exists | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/openclaw) |
 | **Cursor** | Running inside Cursor IDE | Copy `nowledge-mem-cursor-plugin` from the community repo into `~/.cursor/plugins/local/nowledge-mem-cursor`, then reload Cursor | [Guide](https://mem.nowledge.co/docs/integrations/cursor) |
 | **Gemini CLI** | Running as Gemini CLI agent; `~/.gemini/` exists | `gemini extensions install https://github.com/nowledge-co/nowledge-mem-gemini-cli --auto-update` or install "Nowledge Mem" from the Extensions Gallery | [Guide](https://mem.nowledge.co/docs/integrations/gemini-cli) |
