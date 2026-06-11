@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
@@ -189,6 +190,15 @@ ALL_TOOL_SCHEMAS = [
     _THREAD_SEARCH,
     _THREAD_MESSAGES,
 ]
+
+_MESSAGE_TIMESTAMP_KEYS = (
+    "timestamp",
+    "created_at",
+    "createdAt",
+    "time",
+    "started_at",
+    "startedAt",
+)
 
 
 def tool_error(message: Any, **extra: Any) -> str:
@@ -457,9 +467,9 @@ class NowledgeMemProvider(MemoryProvider):
 
     def _write_thread_messages(
         self,
-        messages: List[Dict[str, str]],
+        messages: List[Dict[str, Any]],
         *,
-        title_messages: Optional[List[Dict[str, str]]] = None,
+        title_messages: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         if not self._client or not messages:
             return
@@ -510,7 +520,7 @@ class NowledgeMemProvider(MemoryProvider):
             return
         self._set_saved_message_count(session_id, saved_count + len(messages))
 
-    def _append_existing_thread(self, session_id: str, messages: List[Dict[str, str]]) -> None:
+    def _append_existing_thread(self, session_id: str, messages: List[Dict[str, Any]]) -> None:
         assert self._client is not None
         result = self._client.append_thread(session_id, messages)
         if not self._response_succeeded(result):
@@ -796,8 +806,8 @@ class NowledgeMemProvider(MemoryProvider):
         return "## Recalled from Nowledge Mem\n" + "\n".join(lines)
 
     @staticmethod
-    def _clean_session_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
-        cleaned: List[Dict[str, str]] = []
+    def _clean_session_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        cleaned: List[Dict[str, Any]] = []
         for message in messages or []:
             if not isinstance(message, dict):
                 continue
@@ -807,8 +817,67 @@ class NowledgeMemProvider(MemoryProvider):
             content = NowledgeMemProvider._extract_message_text(message.get("content"))
             if not content:
                 continue
-            cleaned.append({"role": role, "content": content})
+            cleaned_message: Dict[str, Any] = {"role": role, "content": content}
+            timestamp = NowledgeMemProvider._extract_message_timestamp(message)
+            if timestamp:
+                cleaned_message["timestamp"] = timestamp
+            cleaned.append(cleaned_message)
         return cleaned
+
+    @staticmethod
+    def _extract_message_timestamp(message: Dict[str, Any]) -> str:
+        for key in _MESSAGE_TIMESTAMP_KEYS:
+            if key not in message:
+                continue
+            normalized = NowledgeMemProvider._normalize_message_timestamp(
+                message.get(key)
+            )
+            if normalized:
+                return normalized
+        return ""
+
+    @staticmethod
+    def _normalize_message_timestamp(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, (int, float)):
+            return NowledgeMemProvider._format_unix_timestamp(float(value))
+        if not isinstance(value, str):
+            return ""
+
+        text = value.strip()
+        if not text:
+            return ""
+        try:
+            return NowledgeMemProvider._format_unix_timestamp(float(text))
+        except ValueError:
+            pass
+
+        normalized = text
+        if normalized.endswith("Z"):
+            normalized = f"{normalized[:-1]}+00:00"
+        elif normalized.endswith(" UTC"):
+            normalized = f"{normalized[:-4]}+00:00"
+        try:
+            dt = datetime.fromisoformat(normalized)
+        except ValueError:
+            return ""
+        if dt.tzinfo is None:
+            return dt.isoformat(timespec="seconds")
+        return dt.astimezone().isoformat(timespec="seconds")
+
+    @staticmethod
+    def _format_unix_timestamp(value: float) -> str:
+        magnitude = abs(value)
+        if magnitude > 100_000_000_000_000:
+            value = value / 1_000_000
+        elif magnitude > 10_000_000_000:
+            value = value / 1_000
+        try:
+            dt = datetime.fromtimestamp(value, tz=timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            return ""
+        return dt.astimezone().isoformat(timespec="seconds")
 
     @staticmethod
     def _extract_message_text(content: Any) -> str:
@@ -828,7 +897,7 @@ class NowledgeMemProvider(MemoryProvider):
         return str(content).strip()
 
     @staticmethod
-    def _build_thread_title(messages: List[Dict[str, str]]) -> str:
+    def _build_thread_title(messages: List[Dict[str, Any]]) -> str:
         for message in messages:
             if message.get("role") != "user":
                 continue

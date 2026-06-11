@@ -10,6 +10,7 @@
 - **Windows `.cmd` invocation hardening.** Batch-shim calls now reject `%VAR%`-style arguments before `cmd.exe` can expand environment variables, use the canonical system `cmd.exe`, and keep ordinary percent text such as `100% done` intact.
 - **Config save safety.** The provider now refuses to overwrite an unreadable or corrupt `nowledge-mem.json` and logs the read failure instead of silently replacing the file.
 - Echoes the resolved Hermes home at startup so users can confirm the installer targeted the right directory before files are written.
+- **Hermes transcript timestamps.** Preserves timestamp fields from Hermes lifecycle messages, including Unix seconds and milliseconds from `state.db`, and forwards them to Mem as local-time ISO timestamps with an explicit offset. This keeps auto-analyzed Hermes threads aligned with the user's system timezone instead of displaying UTC wall time.
 
 ### Changed
 
