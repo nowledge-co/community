@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -144,6 +145,36 @@ def test_on_session_end_imports_clean_messages_then_appends_delta():
             "thread_id": "session-1",
             "messages": [{"role": "user", "content": "next step"}],
         }
+    ]
+
+
+def test_clean_session_messages_preserves_unix_timestamp_in_local_timezone():
+    ts = 1762445171.0
+    messages = provider.NowledgeMemProvider._clean_session_messages(
+        [{"role": "user", "content": "hello", "started_at": ts}]
+    )
+
+    expected = (
+        datetime.fromtimestamp(ts, tz=timezone.utc)
+        .astimezone()
+        .isoformat(timespec="seconds")
+    )
+    assert messages == [{"role": "user", "content": "hello", "timestamp": expected}]
+
+
+def test_clean_session_messages_preserves_unix_millisecond_timestamp():
+    ts = 1762445171000
+    messages = provider.NowledgeMemProvider._clean_session_messages(
+        [{"role": "assistant", "content": "world", "timestamp": ts}]
+    )
+
+    expected = (
+        datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+        .astimezone()
+        .isoformat(timespec="seconds")
+    )
+    assert messages == [
+        {"role": "assistant", "content": "world", "timestamp": expected}
     ]
 
 

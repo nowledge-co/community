@@ -6,7 +6,7 @@
 
 ```bash
 # Add the Nowledge community marketplace
-claude plugin marketplace add nowledge-co/community
+claude plugin marketplace add https://github.com/nowledge-co/community
 
 # Install the plugin
 claude plugin install nowledge-mem@nowledge-community

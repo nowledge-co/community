@@ -293,7 +293,7 @@ nmem m add "PostgreSQL over MongoDB: ACID needed for transactions" \
 For Claude Code users, the full plugin with slash commands and real session import is also available:
 
 ```bash
-claude plugin marketplace add nowledge-co/community
+claude plugin marketplace add https://github.com/nowledge-co/community
 claude plugin install nowledge-mem@nowledge-community
 ```
 
