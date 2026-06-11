@@ -171,12 +171,31 @@ function candidateSessionDirs(args) {
 	return dirs;
 }
 
+function isFilesystemError(error) {
+	return Boolean(error && typeof error === "object" && typeof error.code === "string");
+}
+
+function errorMessage(error) {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function warnFilesystem(action, path, error) {
+	console.warn(`Warning: skipped ${path}: ${action} failed: ${errorMessage(error)}`);
+}
+
 function discoverSessionFiles(args) {
 	const seen = new Set();
 	const files = [];
 	for (const dir of candidateSessionDirs(args)) {
 		if (!existsSync(dir)) continue;
-		const stats = statSync(dir);
+		let stats;
+		try {
+			stats = statSync(dir);
+		} catch (error) {
+			if (!isFilesystemError(error)) throw error;
+			warnFilesystem("stat", dir, error);
+			continue;
+		}
 		if (stats.isFile() && dir.endsWith(".jsonl")) {
 			if (!seen.has(dir)) {
 				seen.add(dir);
@@ -198,12 +217,22 @@ function discoverSessionFiles(args) {
 function walkJsonl(root) {
 	const files = [];
 	const visit = (dir) => {
-		for (const name of readdirSync(dir)) {
+		let names;
+		try {
+			names = readdirSync(dir);
+		} catch (error) {
+			if (!isFilesystemError(error)) throw error;
+			warnFilesystem("read directory", dir, error);
+			return;
+		}
+		for (const name of names) {
 			const path = join(dir, name);
 			let stats;
 			try {
 				stats = statSync(path);
-			} catch {
+			} catch (error) {
+				if (!isFilesystemError(error)) throw error;
+				warnFilesystem("stat", path, error);
 				continue;
 			}
 			if (stats.isDirectory()) visit(path);
@@ -215,7 +244,14 @@ function walkJsonl(root) {
 }
 
 function parseSessionFile(file) {
-	const raw = readFileSync(file, "utf8");
+	let raw;
+	try {
+		raw = readFileSync(file, "utf8");
+	} catch (error) {
+		if (!isFilesystemError(error)) throw error;
+		warnFilesystem("read file", file, error);
+		return undefined;
+	}
 	const entries = [];
 	const errors = [];
 	const lines = raw.split(/\r?\n/);
@@ -232,6 +268,16 @@ function parseSessionFile(file) {
 	const header = entries.find((entry) => entry.type === "session") || {};
 	const body = entries.filter((entry) => entry.type !== "session");
 	return { file, header, entries: body, errors };
+}
+
+function fileModifiedAt(file) {
+	try {
+		return statSync(file).mtime.toISOString();
+	} catch (error) {
+		if (!isFilesystemError(error)) throw error;
+		warnFilesystem("stat", file, error);
+		return new Date(0).toISOString();
+	}
 }
 
 function branchEntries(entries) {
@@ -404,7 +450,7 @@ function normalizeSession(parsed, args, config) {
 		sessionId,
 		threadId,
 		cwd,
-		modifiedAt: statSync(parsed.file).mtime.toISOString(),
+		modifiedAt: fileModifiedAt(parsed.file),
 		parseErrors: parsed.errors,
 		messageCount: messages.length,
 		importable,
@@ -525,7 +571,7 @@ async function main() {
 	const args = parseArgs(process.argv.slice(2));
 	const config = resolveConfig(args);
 	const files = discoverSessionFiles(args);
-	const parsed = files.map((file) => parseSessionFile(file));
+	const parsed = files.map((file) => parseSessionFile(file)).filter(Boolean);
 	let sessions = parsed.map((session) => normalizeSession(session, args, config));
 	sessions = filterSessions(sessions, args);
 	if (!args.apply) {

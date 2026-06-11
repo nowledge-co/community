@@ -414,6 +414,9 @@ def test_key_plugin_static_contracts_are_declared():
     assert "historical_import: true" in pi_history_sync
     assert "deduplicate: true" in pi_history_sync
     assert "branchEntries" in pi_history_sync
+    assert "warnFilesystem" in pi_history_sync
+    assert "isFilesystemError" in pi_history_sync
+    assert ".filter(Boolean)" in pi_history_sync
 
 
 def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path):
@@ -533,6 +536,7 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
     finally:
         server.shutdown()
         thread.join(timeout=5)
+        server.server_close()
 
     applied = json.loads(result.stdout)
     assert applied["summary"]["created"] == 0
