@@ -96,6 +96,22 @@ That writes the shared local client config used by `nmem` and the plugin. You ca
 
 In remote mode, the Stop and PreCompact hooks still read Claude session files locally through `nmem t save --from claude-code` on the machine where Claude Code is running, then upload the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` directory.
 
+### Import older sessions
+
+Automatic capture starts after the plugin and hooks are installed. To backfill older Claude Code sessions, preview first:
+
+```bash
+nmem t sync --from claude-code --all-projects --limit 20
+```
+
+Then import:
+
+```bash
+nmem t sync --from claude-code --all-projects --apply
+```
+
+Use `-p /path/to/project` instead of `--all-projects` when you only want one project. The command reads local Claude Code session files and writes to the Mem server configured in `nmem`.
+
 ## Spaces
 
 Spaces are optional. If one Claude Code process naturally belongs to one project or agent lane, launch Claude Code with:

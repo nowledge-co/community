@@ -71,6 +71,39 @@ Then have a short Pi exchange and check recent threads:
 nmem t list --source pi -n 5
 ```
 
+## Import Older Pi Sessions
+
+The extension keeps new Pi conversations synced automatically. To backfill sessions that happened before you installed the package, run the history sync command.
+
+Preview first. This scans Pi session files and makes no changes:
+
+```bash
+nmem t sync --from pi --limit 20
+```
+
+Import after the preview looks right:
+
+```bash
+nmem t sync --from pi --apply
+```
+
+The command uses the same local or remote Mem configuration as the extension: `~/.nowledge-mem/config.json`, `NMEM_API_URL`, `NMEM_API_KEY`, and optional `NMEM_SPACE`. It is safe to rerun: thread IDs come from Pi session IDs, and messages use stable Pi entry IDs with backend deduplication.
+
+Useful options:
+
+```bash
+nmem t sync --from pi --session-dir ~/.pi/agent/sessions --limit 20
+nmem t sync --from pi --space work --apply
+```
+
+When you pass `--session-dir`, only that directory is scanned. Without it, the command uses Pi's standard session locations.
+
+If your installed `nmem` does not have `t sync` yet, use the package fallback:
+
+```bash
+npx -p nowledge-mem-pi nowledge-mem-pi-sync --apply
+```
+
 ## Update
 
 ```bash

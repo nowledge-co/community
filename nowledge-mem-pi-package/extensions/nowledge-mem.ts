@@ -4,7 +4,7 @@ import { basename } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const SOURCE_APP = "pi";
-const PLUGIN_VERSION = "0.8.0";
+const PLUGIN_VERSION = "0.8.1";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const MAX_MESSAGE_CHARS = 20_000;
@@ -249,6 +249,24 @@ function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): 
 				pi_entry_id: stringValue(entry.id),
 				pi_entry_type: entry.type,
 				pi_message_role: stringValue(msg.role),
+				...ambient,
+			},
+		};
+	}
+
+	if (entry.type === "custom_message") {
+		const content = truncate(contentToText(entry.content).trim());
+		if (!content) return undefined;
+		return {
+			role: "user",
+			content: `Pi custom context${stringValue(entry.customType) ? ` (${stringValue(entry.customType)})` : ""}:\n${content}`,
+			timestamp: stringValue(entry.timestamp),
+			metadata: {
+				external_id: `pi-entry-${stringValue(entry.id) || index}`,
+				pi_entry_id: stringValue(entry.id),
+				pi_entry_type: entry.type,
+				pi_custom_type: stringValue(entry.customType),
+				pi_custom_display: typeof entry.display === "boolean" ? entry.display : undefined,
 				...ambient,
 			},
 		};

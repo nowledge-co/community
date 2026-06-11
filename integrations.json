@@ -35,7 +35,8 @@
       "threadSave": {
         "method": "cli-native",
         "runtime": "claude-code",
-        "command": "nmem t save --from claude-code"
+        "command": "nmem t save --from claude-code",
+        "historicalCommand": "nmem t sync --from claude-code --all-projects"
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -45,7 +46,8 @@
         "bestResultRequires": [
           "Install the native connector",
           "Keep nmem available on this machine",
-          "Restart Claude Code after install or update"
+          "Restart Claude Code after install or update",
+          "Run nmem t sync --from claude-code --all-projects --apply only when you want to import older Claude Code sessions"
         ]
       },
       "install": {
@@ -135,7 +137,8 @@
       "threadSave": {
         "method": "cli-native",
         "runtime": "gemini-cli",
-        "command": "nmem t save --from gemini-cli"
+        "command": "nmem t save --from gemini-cli",
+        "historicalCommand": "nmem t sync --from gemini-cli --all-projects"
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -146,7 +149,8 @@
           "Install the Gemini extension",
           "Keep the bundled MCP endpoint local, or use nmem config mcp show --host gemini-cli to override mcpServers.nowledge-mem for remote Mem",
           "Keep nmem available on this machine",
-          "Start a fresh Gemini CLI session after install"
+          "Start a fresh Gemini CLI session after install",
+          "Run nmem t sync --from gemini-cli --all-projects --apply only when you want to import older Gemini CLI sessions"
         ]
       },
       "install": {
@@ -188,7 +192,8 @@
       "threadSave": {
         "method": "hook+cli-native",
         "runtime": "codex",
-        "command": "nmem t save --from codex"
+        "command": "nmem t save --from codex",
+        "historicalCommand": "nmem t sync --from codex --all-projects"
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -200,6 +205,7 @@
           "Run the bundled hook setup after install or update so Codex enables lifecycle hooks, enables plugin-bundled hooks, keeps the Nowledge Mem Stop hook enabled in /hooks, and can install a managed MCP override from nmem config when needed",
           "Use the bundled local MCP server, or use nmem config mcp show --host codex to override mcp_servers.nowledge-mem for remote Mem or authenticated localhost",
           "Keep nmem available on this machine",
+          "Run nmem t sync --from codex --all-projects --apply only when you want to import older Codex sessions",
           "Merge the package AGENTS.md into the project for stronger follow-through"
         ]
       },
@@ -672,7 +678,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -686,7 +692,8 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "The Pi extension syncs completed session branches as Mem threads; save-thread remains available for curated handoff summaries."
+        "historicalCommand": "nmem t sync --from pi",
+        "note": "The Pi extension syncs completed session branches as Mem threads; nmem t sync --from pi can backfill older Pi session files; nowledge-mem-pi-sync remains an older-CLI fallback; save-thread remains available for curated handoff summaries."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -697,6 +704,7 @@
           "Install the Pi package",
           "Keep nmem available on this machine",
           "Restart Pi after install or update so the extension is loaded",
+          "Run nmem t sync --from pi --apply only when you want to import older Pi sessions",
           "Use save-thread only when you want an extra curated handoff summary"
         ]
       },
@@ -786,6 +794,7 @@
       },
       "threadSave": {
         "method": "sdk-extract",
+        "historicalCommand": "nmem t sync --from opencode --all-projects",
         "note": "save_thread reads session messages via OpenCode SDK and posts to Nowledge Mem thread API over HTTP; save_handoff available as lighter alternative"
       },
       "autonomy": {
@@ -797,6 +806,7 @@
           "Install the native OpenCode plugin",
           "Use local mode for real session auto-sync",
           "Keep nmem available for memory operations and handoff flows",
+          "Run nmem t sync --from opencode --all-projects --apply only when you want to import older OpenCode sessions",
           "Run nmem config client set url/api-key once when Mem is remote"
         ]
       },

@@ -4,9 +4,11 @@ import json
 import os
 import shutil
 import subprocess
+import threading
 import time
 import uuid
 from dataclasses import dataclass
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
@@ -248,6 +250,18 @@ def _codex_transcript_meta(transcript: Path) -> dict[str, Any]:
 
 
 def test_key_plugin_static_contracts_are_declared():
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    historical_commands = {
+        item["id"]: item["threadSave"].get("historicalCommand")
+        for item in registry["integrations"]
+        if item.get("id")
+    }
+    assert historical_commands["claude-code"] == "nmem t sync --from claude-code --all-projects"
+    assert historical_commands["codex-cli"] == "nmem t sync --from codex --all-projects"
+    assert historical_commands["gemini-cli"] == "nmem t sync --from gemini-cli --all-projects"
+    assert historical_commands["opencode"] == "nmem t sync --from opencode --all-projects"
+    assert historical_commands["pi"] == "nmem t sync --from pi"
+
     claude_manifest = _read_json(CLAUDE_PLUGIN / ".claude-plugin" / "plugin.json")
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     assert claude_manifest["name"] == "nowledge-mem"
@@ -379,9 +393,11 @@ def test_key_plugin_static_contracts_are_declared():
 
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.0"
+    pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
+    assert pi_pkg["version"] == "0.8.1"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
+    assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
     assert 'pi.on("agent_end"' in pi_extension
     assert 'pi.on("session_shutdown"' in pi_extension
     assert 'pi.on("session_before_switch"' in pi_extension
@@ -392,7 +408,230 @@ def test_key_plugin_static_contracts_are_declared():
     assert "deduplicate: true" in pi_extension
     assert "NMEM_AGENT_ID" in pi_extension
     assert "NMEM_HOST_AGENT_ID" in pi_extension
+    assert "custom_message" in pi_extension
     assert "custom" in pi_extension
+    assert "PI_CODING_AGENT_SESSION_DIR" in pi_history_sync
+    assert "--apply" in pi_history_sync
+    assert "historical_import: true" in pi_history_sync
+    assert "deduplicate: true" in pi_history_sync
+    assert "branchEntries" in pi_history_sync
+    assert "warnFilesystem" in pi_history_sync
+    assert "isFilesystemError" in pi_history_sync
+    assert ".filter(Boolean)" in pi_history_sync
+    assert "fileMtimes" in pi_history_sync
+    assert "stablePathSuffix" in pi_history_sync
+    assert "custom_message" in pi_history_sync
+
+
+def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path):
+    if shutil.which("node") is None:
+        pytest.skip("Pi history sync script smoke requires node on PATH")
+
+    session_dir = tmp_path / "pi-sessions"
+    session_dir.mkdir()
+    session_file = session_dir / "session-one.jsonl"
+    session_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "session",
+                        "version": 3,
+                        "id": "History Session/One",
+                        "timestamp": "2026-06-10T00:00:00Z",
+                        "cwd": "/tmp/pi-history-project",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "message",
+                        "id": "u1",
+                        "parentId": None,
+                        "timestamp": "2026-06-10T00:00:01Z",
+                        "message": {"role": "user", "content": "history user message"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "message",
+                        "id": "old-assistant",
+                        "parentId": "u1",
+                        "timestamp": "2026-06-10T00:00:02Z",
+                        "message": {"role": "assistant", "content": "abandoned branch should not import"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "custom_message",
+                        "id": "ctx",
+                        "parentId": "u1",
+                        "timestamp": "2026-06-10T00:00:03Z",
+                        "customType": "visible-extension",
+                        "content": "visible extension context",
+                        "display": True,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "message",
+                        "id": "hidden-context",
+                        "parentId": "ctx",
+                        "timestamp": "2026-06-10T00:00:03Z",
+                        "message": {"role": "custom", "content": "Context Bundle should not sync"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "message",
+                        "id": "a1",
+                        "parentId": "hidden-context",
+                        "timestamp": "2026-06-10T00:00:04Z",
+                        "message": {"role": "assistant", "content": "history assistant message"},
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    script = PI_PLUGIN / "scripts" / "sync-history.mjs"
+    preview = _run(["node", str(script), "--session-dir", str(session_dir), "--json"], timeout=30)
+    preview_json = json.loads(preview.stdout)
+    assert preview_json["summary"]["apply"] is False
+    assert preview_json["summary"]["found"] == 1
+    assert preview_json["summary"]["importable"] == 1
+    assert preview_json["sessions"][0]["threadId"] == "pi-history-session-one"
+    assert preview_json["sessions"][0]["messageCount"] == 3
+    preview_text = json.dumps(preview_json)
+    assert "Context Bundle should not sync" not in preview_text
+    assert "abandoned branch should not import" not in preview_text
+    assert "visible extension context" in preview_text
+
+    calls: list[dict[str, Any]] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
+            length = int(self.headers.get("content-length", "0"))
+            body = self.rfile.read(length).decode("utf-8")
+            calls.append(
+                {
+                    "path": self.path,
+                    "headers": dict(self.headers),
+                    "body": json.loads(body) if body else {},
+                }
+            )
+            if self.path == "/threads":
+                self.send_response(409)
+                self.send_header("content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"detail":"thread already exists"}')
+                return
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true,"messages_added":0}')
+
+        def log_message(self, format: str, *args: Any) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        env = os.environ.copy()
+        env["NMEM_API_URL"] = f"http://127.0.0.1:{server.server_address[1]}"
+        env["NMEM_SPACE"] = "pi-history-space"
+        env["NMEM_AGENT_ID"] = "PiHistoryAgent"
+        env["NMEM_HOST_AGENT_ID"] = "slock:PiHistoryAgent"
+        result = _run(
+            ["node", str(script), "--session-dir", str(session_dir), "--json", "--apply"],
+            env=env,
+            timeout=30,
+        )
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+
+    applied = json.loads(result.stdout)
+    assert applied["summary"]["created"] == 0
+    assert applied["summary"]["appended"] == 1
+    assert applied["summary"]["failed"] == 0
+    assert [call["path"] for call in calls] == ["/threads", "/threads/pi-history-session-one/append"]
+
+    create_body = calls[0]["body"]
+    append_body = calls[1]["body"]
+    assert create_body["source"] == "pi"
+    assert create_body["space_id"] == "pi-history-space"
+    assert create_body["metadata"]["historical_import"] is True
+    assert create_body["metadata"]["analysis"] == "searchable-now-distill-on-demand"
+    assert create_body["metadata"]["sync_reason"] == "history_sync"
+    assert create_body["metadata"]["agent_id"] == "PiHistoryAgent"
+    assert create_body["metadata"]["host_agent_id"] == "slock:PiHistoryAgent"
+    assert create_body["project"] == "/tmp/pi-history-project"
+    assert create_body["workspace"] == "/tmp/pi-history-project"
+    assert [message["content"] for message in create_body["messages"]] == [
+        "history user message",
+        "Pi custom context (visible-extension):\nvisible extension context",
+        "history assistant message",
+    ]
+    assert all(message["metadata"]["source_app"] == "pi" for message in create_body["messages"])
+    assert append_body["deduplicate"] is True
+    assert append_body["space_id"] == "pi-history-space"
+    assert append_body["historical_import"] is True
+    assert append_body["analysis"] == "searchable-now-distill-on-demand"
+    assert append_body["idempotency_key"] == "pi:history:History Session/One:3"
+
+
+def test_pi_history_sync_script_avoids_ambiguous_session_identity(tmp_path: Path):
+    if shutil.which("node") is None:
+        pytest.skip("Pi history sync script smoke requires node on PATH")
+
+    script = PI_PLUGIN / "scripts" / "sync-history.mjs"
+
+    def write_session(path: Path, *, include_ids: bool = True) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        user_entry = {
+            "type": "message",
+            "timestamp": "2026-06-10T00:00:01Z",
+            "message": {"role": "user", "content": f"user from {path.parent.name}"},
+        }
+        assistant_entry = {
+            "type": "message",
+            "timestamp": "2026-06-10T00:00:02Z",
+            "message": {"role": "assistant", "content": f"assistant from {path.parent.name}"},
+        }
+        if include_ids:
+            user_entry.update({"id": "u1", "parentId": None})
+            assistant_entry.update({"id": "a1", "parentId": "u1"})
+        path.write_text(
+            "\n".join(
+                [
+                    json.dumps({"type": "session", "version": 3, "timestamp": "2026-06-10T00:00:00Z"}),
+                    json.dumps(user_entry),
+                    json.dumps(assistant_entry),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    write_session(tmp_path / "one" / "session.jsonl")
+    write_session(tmp_path / "two" / "session.jsonl")
+    write_session(tmp_path / "broken" / "session.jsonl", include_ids=False)
+
+    preview = _run(["node", str(script), "--session-dir", str(tmp_path), "--json"], timeout=30)
+    preview_json = json.loads(preview.stdout)
+    thread_ids = [session["threadId"] for session in preview_json["sessions"]]
+
+    assert preview_json["summary"]["found"] == 3
+    assert preview_json["summary"]["importable"] == 2
+    assert len({thread_id for thread_id in thread_ids if thread_id.startswith("pi-session-")}) == 3
+    assert len(set(thread_ids)) == 3
+    skipped = [session for session in preview_json["sessions"] if not session["importable"]]
+    assert len(skipped) == 1
+    assert skipped[0]["messageCount"] == 0
 
 
 def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
@@ -428,7 +667,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.26"
     assert by_id["proma"]["version"] == "0.1.1"
     assert by_id["opencode"]["version"] == "0.3.4"
-    assert by_id["pi"]["version"] == "0.8.0"
+    assert by_id["pi"]["version"] == "0.8.1"
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
