@@ -254,6 +254,24 @@ function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): 
 		};
 	}
 
+	if (entry.type === "custom_message") {
+		const content = truncate(contentToText(entry.content).trim());
+		if (!content) return undefined;
+		return {
+			role: "user",
+			content: `Pi custom context${stringValue(entry.customType) ? ` (${stringValue(entry.customType)})` : ""}:\n${content}`,
+			timestamp: stringValue(entry.timestamp),
+			metadata: {
+				external_id: `pi-entry-${stringValue(entry.id) || index}`,
+				pi_entry_id: stringValue(entry.id),
+				pi_entry_type: entry.type,
+				pi_custom_type: stringValue(entry.customType),
+				pi_custom_display: typeof entry.display === "boolean" ? entry.display : undefined,
+				...ambient,
+			},
+		};
+	}
+
 	if (entry.type === "compaction" || entry.type === "branch_summary") {
 		const label = entry.type === "compaction" ? "Pi compaction summary" : "Pi branch summary";
 		const content = truncate(`${label}:\n${stringValue(entry.summary) || ""}`.trim());

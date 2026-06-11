@@ -408,6 +408,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert "deduplicate: true" in pi_extension
     assert "NMEM_AGENT_ID" in pi_extension
     assert "NMEM_HOST_AGENT_ID" in pi_extension
+    assert "custom_message" in pi_extension
     assert "custom" in pi_extension
     assert "PI_CODING_AGENT_SESSION_DIR" in pi_history_sync
     assert "--apply" in pi_history_sync
@@ -417,6 +418,9 @@ def test_key_plugin_static_contracts_are_declared():
     assert "warnFilesystem" in pi_history_sync
     assert "isFilesystemError" in pi_history_sync
     assert ".filter(Boolean)" in pi_history_sync
+    assert "fileMtimes" in pi_history_sync
+    assert "stablePathSuffix" in pi_history_sync
+    assert "custom_message" in pi_history_sync
 
 
 def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path):
@@ -458,9 +462,20 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
                 ),
                 json.dumps(
                     {
-                        "type": "message",
+                        "type": "custom_message",
                         "id": "ctx",
                         "parentId": "u1",
+                        "timestamp": "2026-06-10T00:00:03Z",
+                        "customType": "visible-extension",
+                        "content": "visible extension context",
+                        "display": True,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "message",
+                        "id": "hidden-context",
+                        "parentId": "ctx",
                         "timestamp": "2026-06-10T00:00:03Z",
                         "message": {"role": "custom", "content": "Context Bundle should not sync"},
                     }
@@ -469,7 +484,7 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
                     {
                         "type": "message",
                         "id": "a1",
-                        "parentId": "ctx",
+                        "parentId": "hidden-context",
                         "timestamp": "2026-06-10T00:00:04Z",
                         "message": {"role": "assistant", "content": "history assistant message"},
                     }
@@ -487,10 +502,11 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
     assert preview_json["summary"]["found"] == 1
     assert preview_json["summary"]["importable"] == 1
     assert preview_json["sessions"][0]["threadId"] == "pi-history-session-one"
-    assert preview_json["sessions"][0]["messageCount"] == 2
+    assert preview_json["sessions"][0]["messageCount"] == 3
     preview_text = json.dumps(preview_json)
     assert "Context Bundle should not sync" not in preview_text
     assert "abandoned branch should not import" not in preview_text
+    assert "visible extension context" in preview_text
 
     calls: list[dict[str, Any]] = []
 
@@ -557,6 +573,7 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
     assert create_body["workspace"] == "/tmp/pi-history-project"
     assert [message["content"] for message in create_body["messages"]] == [
         "history user message",
+        "Pi custom context (visible-extension):\nvisible extension context",
         "history assistant message",
     ]
     assert all(message["metadata"]["source_app"] == "pi" for message in create_body["messages"])
@@ -564,7 +581,57 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
     assert append_body["space_id"] == "pi-history-space"
     assert append_body["historical_import"] is True
     assert append_body["analysis"] == "searchable-now-distill-on-demand"
-    assert append_body["idempotency_key"] == "pi:history:History Session/One:2"
+    assert append_body["idempotency_key"] == "pi:history:History Session/One:3"
+
+
+def test_pi_history_sync_script_avoids_ambiguous_session_identity(tmp_path: Path):
+    if shutil.which("node") is None:
+        pytest.skip("Pi history sync script smoke requires node on PATH")
+
+    script = PI_PLUGIN / "scripts" / "sync-history.mjs"
+
+    def write_session(path: Path, *, include_ids: bool = True) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        user_entry = {
+            "type": "message",
+            "timestamp": "2026-06-10T00:00:01Z",
+            "message": {"role": "user", "content": f"user from {path.parent.name}"},
+        }
+        assistant_entry = {
+            "type": "message",
+            "timestamp": "2026-06-10T00:00:02Z",
+            "message": {"role": "assistant", "content": f"assistant from {path.parent.name}"},
+        }
+        if include_ids:
+            user_entry.update({"id": "u1", "parentId": None})
+            assistant_entry.update({"id": "a1", "parentId": "u1"})
+        path.write_text(
+            "\n".join(
+                [
+                    json.dumps({"type": "session", "version": 3, "timestamp": "2026-06-10T00:00:00Z"}),
+                    json.dumps(user_entry),
+                    json.dumps(assistant_entry),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    write_session(tmp_path / "one" / "session.jsonl")
+    write_session(tmp_path / "two" / "session.jsonl")
+    write_session(tmp_path / "broken" / "session.jsonl", include_ids=False)
+
+    preview = _run(["node", str(script), "--session-dir", str(tmp_path), "--json"], timeout=30)
+    preview_json = json.loads(preview.stdout)
+    thread_ids = [session["threadId"] for session in preview_json["sessions"]]
+
+    assert preview_json["summary"]["found"] == 3
+    assert preview_json["summary"]["importable"] == 2
+    assert len({thread_id for thread_id in thread_ids if thread_id.startswith("pi-session-")}) == 3
+    assert len(set(thread_ids)) == 3
+    skipped = [session for session in preview_json["sessions"] if not session["importable"]]
+    assert len(skipped) == 1
+    assert skipped[0]["messageCount"] == 0
 
 
 def test_registry_connect_contract_points_agent_prompts_to_universal_skill():

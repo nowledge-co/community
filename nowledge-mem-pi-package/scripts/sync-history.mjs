@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -11,6 +12,7 @@ const CONFIG_PATH = join(homedir(), ".nowledge-mem", "config.json");
 const DEFAULT_MAX_MESSAGE_CHARS = 20_000;
 const DEFAULT_TIMEOUT_MS = 15_000;
 const VERSION = readPackageVersion();
+const fileMtimes = new Map();
 
 function readPackageVersion() {
 	try {
@@ -183,7 +185,12 @@ function warnFilesystem(action, path, error) {
 	console.warn(`Warning: skipped ${path}: ${action} failed: ${errorMessage(error)}`);
 }
 
+function rememberFileMtime(file, stats) {
+	fileMtimes.set(file, stats.mtime.toISOString());
+}
+
 function discoverSessionFiles(args) {
+	fileMtimes.clear();
 	const seen = new Set();
 	const files = [];
 	for (const dir of candidateSessionDirs(args)) {
@@ -199,6 +206,7 @@ function discoverSessionFiles(args) {
 		if (stats.isFile() && dir.endsWith(".jsonl")) {
 			if (!seen.has(dir)) {
 				seen.add(dir);
+				rememberFileMtime(dir, stats);
 				files.push(dir);
 			}
 			continue;
@@ -236,7 +244,10 @@ function walkJsonl(root) {
 				continue;
 			}
 			if (stats.isDirectory()) visit(path);
-			else if (stats.isFile() && name.endsWith(".jsonl")) files.push(path);
+			else if (stats.isFile() && name.endsWith(".jsonl")) {
+				rememberFileMtime(path, stats);
+				files.push(path);
+			}
 		}
 	};
 	visit(root);
@@ -271,18 +282,28 @@ function parseSessionFile(file) {
 }
 
 function fileModifiedAt(file) {
+	const cached = fileMtimes.get(file);
+	if (cached) return cached;
 	try {
-		return statSync(file).mtime.toISOString();
+		const modifiedAt = statSync(file).mtime.toISOString();
+		fileMtimes.set(file, modifiedAt);
+		return modifiedAt;
 	} catch (error) {
 		if (!isFilesystemError(error)) throw error;
 		warnFilesystem("stat", file, error);
-		return new Date(0).toISOString();
+		return undefined;
 	}
 }
 
-function branchEntries(entries) {
+function isLegacyLinearSession(parsed) {
+	const version = Number.parseInt(String(parsed.header.version ?? ""), 10);
+	return Number.isFinite(version) && version < 2;
+}
+
+function branchEntries(parsed) {
+	const entries = parsed.entries;
 	const withIds = entries.filter((entry) => typeof entry.id === "string" && entry.id);
-	if (!withIds.length) return entries;
+	if (!withIds.length) return isLegacyLinearSession(parsed) ? entries : [];
 	const byId = new Map(withIds.map((entry) => [entry.id, entry]));
 	const leaf = withIds[withIds.length - 1];
 	const branch = [];
@@ -363,6 +384,23 @@ function entryToMessage(entry, index, ambient, maxMessageChars) {
 			},
 		};
 	}
+	if (entry.type === "custom_message") {
+		const content = truncate(contentToText(entry.content).trim(), maxMessageChars);
+		if (!content) return undefined;
+		return {
+			role: "user",
+			content: `Pi custom context${stringValue(entry.customType) ? ` (${stringValue(entry.customType)})` : ""}:\n${content}`,
+			timestamp: stringValue(entry.timestamp),
+			metadata: {
+				external_id: `pi-entry-${stringValue(entry.id) || index}`,
+				pi_entry_id: stringValue(entry.id),
+				pi_entry_type: entry.type,
+				pi_custom_type: stringValue(entry.customType),
+				pi_custom_display: typeof entry.display === "boolean" ? entry.display : undefined,
+				...ambient,
+			},
+		};
+	}
 	if (entry.type === "compaction" || entry.type === "branch_summary") {
 		const label = entry.type === "compaction" ? "Pi compaction summary" : "Pi branch summary";
 		const content = truncate(`${label}:\n${stringValue(entry.summary) || ""}`.trim(), maxMessageChars);
@@ -382,8 +420,12 @@ function entryToMessage(entry, index, ambient, maxMessageChars) {
 	return undefined;
 }
 
+function stablePathSuffix(file) {
+	return createHash("sha256").update(resolve(file)).digest("hex").slice(0, 10);
+}
+
 function sessionIdFor(parsed) {
-	return stringValue(parsed.header.id) || basename(parsed.file).replace(/\.jsonl$/i, "");
+	return stringValue(parsed.header.id) || `${basename(parsed.file).replace(/\.jsonl$/i, "")}-${stablePathSuffix(parsed.file)}`;
 }
 
 function threadIdFor(sessionId) {
@@ -420,11 +462,13 @@ function normalizeSession(parsed, args, config) {
 		...(config.agentId ? { agent_id: config.agentId } : {}),
 		...(config.hostAgentId ? { host_agent_id: config.hostAgentId } : {}),
 	};
-	const branch = branchEntries(parsed.entries);
+	const branch = branchEntries(parsed);
 	const messages = branch
 		.map((entry, index) => entryToMessage(entry, index, ambient, args.maxMessageChars))
 		.filter(Boolean);
 	const importable = shouldSync(messages);
+	const modifiedAt = fileModifiedAt(parsed.file);
+	if (!modifiedAt) return undefined;
 	const body = {
 		thread_id: threadId,
 		title: buildTitle(parsed, messages, branch),
@@ -450,7 +494,7 @@ function normalizeSession(parsed, args, config) {
 		sessionId,
 		threadId,
 		cwd,
-		modifiedAt: fileModifiedAt(parsed.file),
+		modifiedAt,
 		parseErrors: parsed.errors,
 		messageCount: messages.length,
 		importable,
@@ -572,7 +616,7 @@ async function main() {
 	const config = resolveConfig(args);
 	const files = discoverSessionFiles(args);
 	const parsed = files.map((file) => parseSessionFile(file)).filter(Boolean);
-	let sessions = parsed.map((session) => normalizeSession(session, args, config));
+	let sessions = parsed.map((session) => normalizeSession(session, args, config)).filter(Boolean);
 	sessions = filterSessions(sessions, args);
 	if (!args.apply) {
 		const report = summarize(sessions, false);
