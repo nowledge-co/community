@@ -103,11 +103,11 @@ No modal input commands are used. The plugin is designed to stay inside normal c
 
 ## Native Alma Skill
 
-The plugin includes a native Alma Skill at `skills/nowledge-mem/SKILL.md`. Enable it from Alma's Skills surface when you want stronger guidance for when to read Context Bundle, search memory, inspect prior threads, or save durable decisions.
+The plugin includes a native Alma Skill at `skills/nowledge-mem/SKILL.md`. After installing the plugin, open Alma's Skills surface. If the bundled `nowledge-mem` Skill appears there, enable it when you want stronger guidance for when to read Context Bundle, search memory, inspect prior threads, or save durable decisions.
 
 The plugin works without the Skill: tools, auto-recall, and thread sync are registered by the plugin itself. The Skill is supplementary; it improves model intent, especially in chats where Alma exposes Skills prominently.
 
-If the Skill does not appear automatically after installation, copy it into Alma's personal skills folder and refresh Skills:
+If the bundled Skill does not appear after installation, copy it into Alma's personal skills folder and refresh Skills:
 
 ```bash
 mkdir -p ~/.config/alma/skills/nowledge-mem
