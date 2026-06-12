@@ -446,7 +446,7 @@
         "bootstrap": "automatic",
         "recall": "guided",
         "distill": "guided",
-        "threads": "external-import",
+        "threads": "import-only",
         "bestResultRequires": [
           "Copy the local Cursor plugin and reload Cursor",
           "Keep nmem available for session-start bootstrap, handoff, and Cursor Agent transcript import",
