@@ -438,17 +438,18 @@
         "status": false
       },
       "threadSave": {
-        "method": "none",
-        "note": "Cursor lacks a native transcript importer; save-handoff used instead"
+        "method": "external",
+        "historicalCommand": "nmem t sync --from cursor --all-projects",
+        "note": "The Cursor plugin exposes save-handoff. Mem desktop and nmem can import real Cursor Agent transcripts from ~/.cursor/projects."
       },
       "autonomy": {
         "bootstrap": "automatic",
         "recall": "guided",
         "distill": "guided",
-        "threads": "handoff-only",
+        "threads": "import-only",
         "bestResultRequires": [
           "Copy the local Cursor plugin and reload Cursor",
-          "Keep nmem available for session-start bootstrap and handoff",
+          "Keep nmem available for session-start bootstrap, handoff, and Cursor Agent transcript import",
           "If Mem is remote, configure both Cursor MCP and the local nmem client"
         ]
       },
