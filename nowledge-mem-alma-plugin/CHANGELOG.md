@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.3
+
+### Added
+
+- Ships a native Alma Skill at `skills/nowledge-mem/SKILL.md`, so users who use Alma's Skills page can enable Nowledge Mem guidance without copying the legacy prompt by hand.
+
 ## 0.7.2
 
 ### Changed

@@ -30,6 +30,7 @@ CURSOR_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-cursor-plugin"
 PI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-pi-package"
 BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
+ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
 KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
 
 
@@ -423,6 +424,16 @@ def test_key_plugin_static_contracts_are_declared():
     assert "stablePathSuffix" in pi_history_sync
     assert "custom_message" in pi_history_sync
 
+    alma_manifest = _read_json(ALMA_PLUGIN / "manifest.json")
+    alma_pkg = _read_json(ALMA_PLUGIN / "package.json")
+    alma_skill = ALMA_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md"
+    alma_source = (ALMA_PLUGIN / "main.js").read_text(encoding="utf-8")
+    assert alma_manifest["version"] == "0.7.3"
+    assert alma_pkg["version"] == "0.7.3"
+    assert alma_skill.exists()
+    assert "nowledge_mem_context_bundle" in alma_skill.read_text(encoding="utf-8")
+    assert "nowledge_mem_context_bundle" in alma_source
+
 
 def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path):
     if shutil.which("node") is None:
@@ -669,6 +680,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["proma"]["version"] == "0.1.1"
     assert by_id["opencode"]["version"] == "0.3.4"
     assert by_id["pi"]["version"] == "0.8.1"
+    assert by_id["alma"]["version"] == "0.7.3"
+    assert by_id["alma"]["skills"] == ["nowledge-mem"]
+    assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
