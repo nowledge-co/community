@@ -261,6 +261,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert historical_commands["gemini-cli"] == "nmem t sync --from gemini-cli --all-projects"
     assert historical_commands["opencode"] == "nmem t sync --from opencode --all-projects"
     assert historical_commands["pi"] == "nmem t sync --from pi"
+    assert historical_commands["hermes"] == "nmem t sync --from hermes"
 
     claude_manifest = _read_json(CLAUDE_PLUGIN / ".claude-plugin" / "plugin.json")
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
