@@ -744,7 +744,8 @@
       },
       "threadSave": {
         "method": "cli-native",
-        "note": "The native provider captures cleaned Hermes transcripts through the memory-provider lifecycle, with a post-LLM hook fallback for Hermes builds that route user plugins through the general hook loader. The first save imports the thread; later saves in the same live session append only the delta through the Mem API."
+        "historicalCommand": "nmem t sync --from hermes",
+        "note": "The native provider captures cleaned Hermes transcripts through the memory-provider lifecycle, with a post-LLM hook fallback for Hermes builds that route user plugins through the general hook loader. The first save imports the thread; later saves in the same live session append only the delta through the Mem API. Use nmem t sync --from hermes --apply to backfill older sessions from ~/.hermes/state.db, including remote Mem setups."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -754,7 +755,8 @@
         "bestResultRequires": [
           "Install the native Hermes provider or configure the MCP fallback",
           "Point the local nmem client at Mem when using remote mode",
-          "Use the native provider and let Hermes end or reset the session cleanly so the session-boundary hook can flush the transcript"
+          "Use the native provider and let Hermes end or reset the session cleanly so the session-boundary hook can flush the transcript",
+          "Run nmem t sync --from hermes --apply when you want to import older Hermes sessions from state.db"
         ]
       },
       "install": {

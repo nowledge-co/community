@@ -88,6 +88,15 @@ The plugin uses Hermes' memory provider lifecycle to replace manual Context Bund
 
 Durable knowledge saves still happen through the native `nmem_` tools. In addition, the provider captures cleaned Hermes transcript turns as Mem threads while the conversation runs, then performs a final delta flush at real session boundaries such as clean exit, `/new`, and `/reset`. The first write for each Hermes `session_id` imports a thread; later writes for that same session append only the delta. Transcript payloads use the Mem API directly so long sessions are not squeezed into shell arguments.
 
+For conversations that already existed before you installed the provider, run a historical import from the machine where Hermes is installed:
+
+```bash
+nmem t sync --from hermes          # preview only
+nmem t sync --from hermes --apply  # import ~/.hermes/state.db into Mem threads
+```
+
+This also works with remote Mem because the local `nmem` client reads Hermes' local SQLite database and uploads normalized threads to the configured Mem server. The command is safe to rerun: it uses the same Hermes `session_id` thread IDs as the live provider and appends with message deduplication.
+
 ## Tools
 
 Plugin mode exposes tools directly (no prefix):
