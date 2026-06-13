@@ -171,7 +171,7 @@ class TestHookScripts:
         monkeypatch.setenv("PROMA_HOME", str(proma_home))
         module = _load_hook_module("proma_save_hook", PLUGIN_DIR / "hooks" / "save-to-nmem.py")
 
-        session_dir = proma_home / "sdk-config" / ".claude" / "projects" / "workspace-hash"
+        session_dir = proma_home / "sdk-config" / "projects" / "workspace-hash"
         session_dir.mkdir(parents=True)
         session_file = session_dir / "session-123.jsonl"
         session_file.write_text(

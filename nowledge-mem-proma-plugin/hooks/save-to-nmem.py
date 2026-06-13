@@ -58,10 +58,9 @@ REQUEST_TIMEOUT = 15
 SAVE_RETRY_DELAYS = (0.0, 0.5, 1.5, 3.0)
 
 PROMA_HOME = Path(os.environ.get("PROMA_HOME", Path.home() / ".proma")).expanduser()
-PROMA_SDK_CONFIG_DIR = Path(
-    os.environ.get("PROMA_SDK_CONFIG_DIR", PROMA_HOME / "sdk-config" / ".claude")
+SDK_PROJECTS_DIR = Path(
+    os.environ.get("PROMA_PROJECTS_DIR", PROMA_HOME / "sdk-config" / "projects")
 ).expanduser()
-SDK_PROJECTS_DIR = PROMA_SDK_CONFIG_DIR / "projects"
 LEGACY_SESSIONS_DIR = PROMA_HOME / "agent-sessions"
 LOG_DIR = PROMA_HOME / "logs"
 LOG_FILE = LOG_DIR / "nm-hooks.log"

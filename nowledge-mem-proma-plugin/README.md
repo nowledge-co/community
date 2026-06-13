@@ -216,7 +216,7 @@ The MCP server gives Proma agent access to Nowledge Mem search, save, status, sk
 | `NMEM_API_URL` | Nowledge Mem server URL | `~/.nowledge-mem/config.json` or `http://127.0.0.1:14242` |
 | `NMEM_API_KEY` | Nowledge Mem API key | `~/.nowledge-mem/config.json` |
 | `PROMA_HOME` | Proma home directory | `~/.proma` |
-| `PROMA_SDK_CONFIG_DIR` | Proma Claude SDK config directory | `~/.proma/sdk-config/.claude` |
+| `PROMA_PROJECTS_DIR` | Proma transcript directory | `~/.proma/sdk-config/projects` |
 | `PROMA_WORKSPACE_DIR` | Proma workspace directory for `CLAUDE.md` | `~/.proma/agent-workspaces/default` |
 | `PROMA_CLAUDE_MD` | Explicit `CLAUDE.md` output path | `<workspace>/CLAUDE.md` |
 | `PROMA_CLAUDE_TEMPLATE` | Explicit template path | `<workspace>/CLAUDE.md.template` |
