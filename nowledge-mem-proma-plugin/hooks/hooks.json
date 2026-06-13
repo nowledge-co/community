@@ -1,13 +1,37 @@
 {
+  "installPath": "~/.proma/sdk-config/.claude/settings.json",
+  "scriptInstallPath": "~/.proma/scripts/",
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${PROMA_HOME}/scripts/save-to-nmem.py\" --event user-prompt-submit",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PROMA_HOME}/hooks/save-to-nmem.py\"",
-            "timeout": 30,
-            "async": true
+            "command": "python \"${PROMA_HOME}/scripts/save-to-nmem.py\" --event stop",
+            "timeout": 30000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${PROMA_HOME}/scripts/read-working-memory.py\" --rewake",
+            "timeout": 15000,
+            "async": true,
+            "asyncRewake": true,
+            "rewakeMessage": "Nowledge Mem context refreshed"
           }
         ]
       }
@@ -18,9 +42,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PROMA_HOME}/hooks/read-working-memory.py\"",
-            "timeout": 10,
-            "async": true
+            "command": "python \"${PROMA_HOME}/scripts/read-working-memory.py\"",
+            "timeout": 15000
           }
         ]
       }

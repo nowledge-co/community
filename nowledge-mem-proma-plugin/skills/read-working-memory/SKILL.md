@@ -7,6 +7,8 @@ description: Load the Nowledge Mem Working Memory briefing at Proma session star
 
 Read Context Bundle for full Proma startup context when available: owner identity, AI Identity, active scope, active rules, and Working Memory. Read Working Memory alone when you only need current priorities.
 
+Proma's lifecycle hook also writes startup context into the workspace `CLAUDE.md` inside a `nowledge-mem:start` / `nowledge-mem:end` block. Treat that block as the automatic startup layer; call MCP or CLI when you need fresh or more specific retrieval during the session.
+
 ## When to Use
 
 **Session start**: beginning a new Proma conversation, returning after a break, or when recent context would help.

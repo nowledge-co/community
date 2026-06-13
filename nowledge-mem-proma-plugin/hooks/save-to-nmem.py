@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Proma session capture for Nowledge Mem Stop hooks.
+"""Proma session capture for Nowledge Mem lifecycle hooks.
 
-Reads the current Proma session JSONL, converts messages to nmem thread
-format, and uploads via the nmem REST API.
+Proma stores Claude Agent SDK transcripts under:
 
-Configuration is read from the standard nmem config file
-(~/.nowledge-mem/config.json) or NMEM_API_URL / NMEM_API_KEY env vars.
+    ~/.proma/sdk-config/projects/<workspace-hash>/<session-id>.jsonl
 
-Modeled on the Codex hook at nowledge-mem-codex-plugin/hooks/nowledge-mem-stop-save.py.
+Older builds used ~/.proma/agent-sessions/<session-id>.jsonl. This hook
+supports both, converts Proma JSONL into nmem thread messages, and uploads
+them through the nmem REST API as source="proma".
 """
 
 from __future__ import annotations
@@ -17,32 +17,32 @@ import json
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
 import urllib.parse
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Configuration — resolved from env vars, then nmem config, then defaults
-# ---------------------------------------------------------------------------
 
 def _load_nmem_config() -> dict[str, str]:
     config_path = Path.home() / ".nowledge-mem" / "config.json"
     if config_path.exists():
         try:
             with config_path.open("r", encoding="utf-8") as fh:
-                return json.load(fh)
+                loaded = json.load(fh)
+            return loaded if isinstance(loaded, dict) else {}
         except Exception:
             pass
     return {}
 
-_nmem_cfg = _load_nmem_config()
+
+_NMEM_CFG = _load_nmem_config()
+
 
 def _config_value(*keys: str) -> str:
     for key in keys:
-        value = _nmem_cfg.get(key)
+        value = _NMEM_CFG.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
     return ""
@@ -53,18 +53,22 @@ API_BASE = (
     or _config_value("apiUrl", "api_url")
     or "http://127.0.0.1:14242"
 ).rstrip("/")
-API_KEY = (
-    os.environ.get("NMEM_API_KEY")
-    or _config_value("apiKey", "api_key")
-    or ""
-)
+API_KEY = os.environ.get("NMEM_API_KEY") or _config_value("apiKey", "api_key") or ""
 REQUEST_TIMEOUT = 15
 SAVE_RETRY_DELAYS = (0.0, 0.5, 1.5, 3.0)
 
-PROMA_HOME = Path(os.environ.get("PROMA_HOME", Path.home() / ".proma"))
-SESSIONS_DIR = PROMA_HOME / "agent-sessions"
-LOG_DIR = PROMA_HOME / "log"
-LOG_FILE = LOG_DIR / "nmem-hook.log"
+def _env_path(name: str, default: Path) -> Path:
+    raw = os.environ.get(name)
+    if isinstance(raw, str) and raw.strip():
+        return Path(raw.strip()).expanduser()
+    return default.expanduser()
+
+
+PROMA_HOME = _env_path("PROMA_HOME", Path.home() / ".proma")
+SDK_PROJECTS_DIR = _env_path("PROMA_PROJECTS_DIR", PROMA_HOME / "sdk-config" / "projects")
+LEGACY_SESSIONS_DIR = PROMA_HOME / "agent-sessions"
+LOG_DIR = PROMA_HOME / "logs"
+LOG_FILE = LOG_DIR / "nm-hooks.log"
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -74,16 +78,13 @@ if API_KEY:
     HEADERS["Authorization"] = f"Bearer {API_KEY}"
     HEADERS["X-NMEM-API-Key"] = API_KEY
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def log(msg: str) -> None:
     try:
         LOG_DIR.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with LOG_FILE.open("a", encoding="utf-8") as fh:
-            fh.write(f"[{ts}] {msg}\n")
+            fh.write(f"[{ts}] save-to-nmem {msg}\n")
     except Exception:
         pass
 
@@ -93,29 +94,30 @@ def read_hook_input() -> dict[str, Any]:
     if not raw.strip():
         return {}
     try:
-        return json.loads(raw)
+        loaded = json.loads(raw)
+        return loaded if isinstance(loaded, dict) else {}
     except json.JSONDecodeError:
         return {}
 
 
 def payload_value(payload: dict[str, Any], *keys: str) -> str | None:
     containers: list[dict[str, Any]] = [payload]
-    for outer_key in ("input", "data", "payload"):
+    for outer_key in ("input", "data", "payload", "hookInput"):
         nested = payload.get(outer_key)
         if isinstance(nested, dict):
             containers.append(nested)
-            ni = nested.get("input")
-            if isinstance(ni, dict):
-                containers.append(ni)
-    for c in containers:
-        for k in keys:
-            v = c.get(k)
-            if isinstance(v, str) and v.strip():
-                return v.strip()
+            nested_input = nested.get("input")
+            if isinstance(nested_input, dict):
+                containers.append(nested_input)
+    for container in containers:
+        for key in keys:
+            value = container.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
     return None
 
 
-def api_request(method: str, path: str, body: dict | None = None) -> dict[str, Any] | None:
+def api_request(method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any] | None:
     url = f"{API_BASE}{path}"
     data = json.dumps(body).encode("utf-8") if body else None
     req = urllib.request.Request(url, data=data, headers=HEADERS, method=method)
@@ -140,44 +142,76 @@ def api_path_quote(value: str) -> str:
     return urllib.parse.quote(value, safe="")
 
 
-# ---------------------------------------------------------------------------
-# Session parsing
-# ---------------------------------------------------------------------------
+def _session_roots() -> list[Path]:
+    roots = [SDK_PROJECTS_DIR, LEGACY_SESSIONS_DIR]
+    return [root for root in roots if root.exists()]
 
-def find_session_file(session_id: str) -> Path | None:
-    path = SESSIONS_DIR / f"{session_id}.jsonl"
-    if path.exists():
-        return path
-    try:
-        candidates = sorted(
-            SESSIONS_DIR.glob("*.jsonl"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
-        return candidates[0] if candidates else None
-    except Exception:
+
+def _iter_session_files() -> list[Path]:
+    files: list[Path] = []
+    for root in _session_roots():
+        try:
+            if root == SDK_PROJECTS_DIR:
+                files.extend(root.rglob("*.jsonl"))
+            else:
+                files.extend(root.glob("*.jsonl"))
+        except Exception as exc:
+            log(f"scan failed root={root}: {exc}")
+    return files
+
+
+def find_session_file(session_id: str | None = None) -> Path | None:
+    if session_id:
+        legacy_path = LEGACY_SESSIONS_DIR / f"{session_id}.jsonl"
+        if legacy_path.exists():
+            return legacy_path
+        if SDK_PROJECTS_DIR.exists():
+            try:
+                for path in SDK_PROJECTS_DIR.rglob(f"{session_id}.jsonl"):
+                    if path.is_file():
+                        return path
+            except Exception as exc:
+                log(f"targeted scan failed session={session_id}: {exc}")
         return None
 
+    files = _iter_session_files()
+    if not files:
+        return None
 
-def extract_text_from_content(content_blocks: list[dict]) -> str:
+    try:
+        return max(files, key=lambda p: p.stat().st_mtime)
+    except Exception:
+        return files[0] if files else None
+
+
+def extract_text_from_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content.strip()
+
+    if isinstance(content, dict):
+        content_type = content.get("type", "")
+        if content_type == "text":
+            text = content.get("text", "")
+            return text.strip() if isinstance(text, str) else ""
+        if content_type == "tool_use":
+            name = content.get("name", "unknown")
+            return f"[tool: {name}]"
+        if content_type == "tool_result":
+            result = content.get("content", "")
+            if isinstance(result, str) and result:
+                return f"[result: {result[:2000]}]"
+            if isinstance(result, list):
+                return "[result: ...]"
+        return ""
+
+    if not isinstance(content, list):
+        return ""
+
     parts: list[str] = []
-    for block in content_blocks:
-        t = block.get("type", "")
-        if t == "text":
-            text = block.get("text", "")
-            if isinstance(text, str) and text.strip():
-                parts.append(text.strip())
-        elif t == "tool_use":
-            name = block.get("name", "unknown")
-            parts.append(f"[tool: {name}]")
-        elif t == "tool_result":
-            content = block.get("content", "")
-            if isinstance(content, str) and content:
-                parts.append(f"[result: {content[:2000]}]")
-            elif isinstance(content, list):
-                parts.append("[result: ...]")
-        elif t == "thinking":
-            pass
+    for block in content:
+        text = extract_text_from_content(block)
+        if text:
+            parts.append(text)
     return "\n".join(parts)
 
 
@@ -206,44 +240,41 @@ def parse_session_messages(session_path: Path) -> list[dict[str, Any]]:
             if uuid:
                 seen_uuids.add(uuid)
 
+            timestamp = entry.get("timestamp")
             content = message.get("content", [])
-            if not isinstance(content, list):
-                content = []
 
             if msg_type == "user":
-                text = extract_text_from_content(content)
-                if text:
-                    message_body: dict[str, Any] = {"role": "user", "content": text}
-                    if uuid:
-                        message_body["metadata"] = {"external_id": f"proma:{uuid}"}
-                    messages.append(message_body)
+                role = "user"
             elif msg_type == "assistant":
                 role = message.get("role", "assistant")
-                # Proma can emit msg_type="assistant" rows that carry role="user"
-                # for reflected user content. Skip those before calling
-                # extract_text_from_content so messages does not duplicate turns.
                 if role == "user":
                     continue
-                text = extract_text_from_content(content)
-                if text:
-                    message_body = {"role": "assistant", "content": text}
-                    if uuid:
-                        message_body["metadata"] = {"external_id": f"proma:{uuid}"}
-                    messages.append(message_body)
+                role = "assistant"
+            else:
+                continue
+
+            text = extract_text_from_content(content)
+            if not text:
+                continue
+
+            message_body: dict[str, Any] = {"role": role, "content": text}
+            metadata: dict[str, Any] = {}
+            if uuid:
+                metadata["external_id"] = f"proma:{uuid}"
+            if isinstance(timestamp, str) and timestamp:
+                metadata["timestamp"] = timestamp
+            if metadata:
+                message_body["metadata"] = metadata
+            messages.append(message_body)
 
     return messages
 
 
-# ---------------------------------------------------------------------------
-# Upload
-# ---------------------------------------------------------------------------
-
-def upload_thread(session_id: str, messages: list[dict], cwd: str | None) -> bool:
+def upload_thread(session_id: str, messages: list[dict[str, Any]], cwd: str | None) -> bool:
     title = f"Proma session {session_id[:8]}"
     if cwd:
         try:
-            p = Path(cwd)
-            title = f"Proma - {p.name}"
+            title = f"Proma - {Path(cwd).name}"
         except Exception:
             pass
 
@@ -268,13 +299,8 @@ def upload_thread(session_id: str, messages: list[dict], cwd: str | None) -> boo
     if cwd:
         body["project"] = cwd
 
-    result = api_request("POST", "/threads", body)
-    return result is not None
+    return api_request("POST", "/threads", body) is not None
 
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -282,33 +308,17 @@ def main() -> int:
     args, _ = parser.parse_known_args()
 
     payload = read_hook_input()
-    session_id = payload_value(payload, "session_id", "sessionId")
-    cwd = payload_value(payload, "cwd")
+    session_id = payload_value(payload, "session_id", "sessionId", "sessionID")
+    cwd = payload_value(payload, "cwd", "projectDir", "workspace", "workspacePath")
 
-    log(f"start event={args.event} session={session_id or 'missing'} cwd={cwd or 'missing'}")
-
-    if not session_id:
-        try:
-            candidates = sorted(
-                SESSIONS_DIR.glob("*.jsonl"),
-                key=lambda p: p.stat().st_mtime,
-                reverse=True,
-            )
-            if candidates:
-                session_id = candidates[0].stem
-                log(f"fallback session_id={session_id}")
-        except Exception:
-            pass
-
-    if not session_id:
-        log("skip: no session_id")
-        return 0
+    log(f"start event={args.event} session={session_id or 'latest'} cwd={cwd or 'missing'}")
 
     session_file = find_session_file(session_id)
     if not session_file:
-        log(f"skip: session file not found for {session_id}")
+        log(f"skip: session file not found for {session_id or 'latest'}")
         return 0
 
+    resolved_session_id = session_id or session_file.stem
     log(f"parsing: {session_file}")
     messages = parse_session_messages(session_file)
     log(f"parsed {len(messages)} messages")
@@ -321,7 +331,7 @@ def main() -> int:
         if delay:
             time.sleep(delay)
         log(f"upload attempt {attempt + 1}/{len(SAVE_RETRY_DELAYS)}")
-        if upload_thread(session_id, messages, cwd):
+        if upload_thread(resolved_session_id, messages, cwd):
             log("upload ok")
             return 0
         log(f"upload attempt {attempt + 1} failed")
