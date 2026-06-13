@@ -57,10 +57,15 @@ API_KEY = os.environ.get("NMEM_API_KEY") or _config_value("apiKey", "api_key") o
 REQUEST_TIMEOUT = 15
 SAVE_RETRY_DELAYS = (0.0, 0.5, 1.5, 3.0)
 
-PROMA_HOME = Path(os.environ.get("PROMA_HOME", Path.home() / ".proma")).expanduser()
-SDK_PROJECTS_DIR = Path(
-    os.environ.get("PROMA_PROJECTS_DIR", PROMA_HOME / "sdk-config" / "projects")
-).expanduser()
+def _env_path(name: str, default: Path) -> Path:
+    raw = os.environ.get(name)
+    if isinstance(raw, str) and raw.strip():
+        return Path(raw.strip()).expanduser()
+    return default.expanduser()
+
+
+PROMA_HOME = _env_path("PROMA_HOME", Path.home() / ".proma")
+SDK_PROJECTS_DIR = _env_path("PROMA_PROJECTS_DIR", PROMA_HOME / "sdk-config" / "projects")
 LEGACY_SESSIONS_DIR = PROMA_HOME / "agent-sessions"
 LOG_DIR = PROMA_HOME / "logs"
 LOG_FILE = LOG_DIR / "nm-hooks.log"
@@ -156,14 +161,22 @@ def _iter_session_files() -> list[Path]:
 
 
 def find_session_file(session_id: str | None = None) -> Path | None:
+    if session_id:
+        legacy_path = LEGACY_SESSIONS_DIR / f"{session_id}.jsonl"
+        if legacy_path.exists():
+            return legacy_path
+        if SDK_PROJECTS_DIR.exists():
+            try:
+                for path in SDK_PROJECTS_DIR.rglob(f"{session_id}.jsonl"):
+                    if path.is_file():
+                        return path
+            except Exception as exc:
+                log(f"targeted scan failed session={session_id}: {exc}")
+        return None
+
     files = _iter_session_files()
     if not files:
         return None
-
-    if session_id:
-        for path in files:
-            if path.stem == session_id:
-                return path
 
     try:
         return max(files, key=lambda p: p.stat().st_mtime)

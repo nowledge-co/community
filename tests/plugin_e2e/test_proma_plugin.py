@@ -221,6 +221,28 @@ class TestHookScripts:
             },
         ]
 
+    def test_save_script_does_not_fallback_latest_when_session_id_missing(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+        module = _load_hook_module(
+            "proma_save_hook_missing_session",
+            PLUGIN_DIR / "hooks" / "save-to-nmem.py",
+        )
+
+        session_dir = proma_home / "sdk-config" / "projects" / "workspace-hash"
+        session_dir.mkdir(parents=True)
+        (session_dir / "other-session.jsonl").write_text(
+            json.dumps({
+                "type": "user",
+                "uuid": "u1",
+                "message": {"role": "user", "content": "wrong session"},
+            }),
+            encoding="utf-8",
+        )
+
+        assert module.find_session_file("missing-session") is None
+        assert module.find_session_file(None) == session_dir / "other-session.jsonl"
+
     def test_working_memory_script_replaces_managed_claude_block(self, tmp_path, monkeypatch):
         proma_home = tmp_path / ".proma"
         workspace = proma_home / "agent-workspaces" / "default"
@@ -239,6 +261,32 @@ class TestHookScripts:
         assert "second context" in rendered
         assert "first context" not in rendered
         assert rendered.count("nowledge-mem:start") == 1
+
+    def test_working_memory_script_preserves_user_claude_md_when_template_exists(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        workspace = proma_home / "agent-workspaces" / "default"
+        workspace.mkdir(parents=True)
+        (workspace / "CLAUDE.md.template").write_text("# Template\n", encoding="utf-8")
+        claude_md = workspace / "CLAUDE.md"
+        claude_md.write_text(
+            "# User Rules\n\n"
+            "<!-- nowledge-mem:start -->\nold\n<!-- nowledge-mem:end -->\n"
+            "    indented user content\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+
+        module = _load_hook_module(
+            "proma_wm_hook_preserve_user_content",
+            PLUGIN_DIR / "hooks" / "read-working-memory.py",
+        )
+        assert module.update_claude_md("new context") is True
+        rendered = claude_md.read_text(encoding="utf-8")
+        assert "# User Rules" in rendered
+        assert "# Template" not in rendered
+        assert "new context" in rendered
+        assert "old" not in rendered
+        assert "    indented user content" in rendered
 
 
 class TestSkills:

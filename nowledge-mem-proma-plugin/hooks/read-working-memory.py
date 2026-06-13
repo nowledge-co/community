@@ -19,19 +19,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-PROMA_HOME = Path(os.environ.get("PROMA_HOME", Path.home() / ".proma")).expanduser()
-PROMA_WORKSPACE_DIR = Path(
-    os.environ.get("PROMA_WORKSPACE_DIR", PROMA_HOME / "agent-workspaces" / "default")
-).expanduser()
-CLAUDE_MD = Path(os.environ.get("PROMA_CLAUDE_MD", PROMA_WORKSPACE_DIR / "CLAUDE.md")).expanduser()
-CLAUDE_TEMPLATE = Path(
-    os.environ.get("PROMA_CLAUDE_TEMPLATE", PROMA_WORKSPACE_DIR / "CLAUDE.md.template")
-).expanduser()
-LOG_DIR = PROMA_HOME / "logs"
-LOG_FILE = LOG_DIR / "nm-hooks.log"
-
 START_MARKER = "<!-- nowledge-mem:start -->"
 END_MARKER = "<!-- nowledge-mem:end -->"
+
+
+def _env_path(name: str, default: Path) -> Path:
+    raw = os.environ.get(name)
+    if isinstance(raw, str) and raw.strip():
+        return Path(raw.strip()).expanduser()
+    return default.expanduser()
+
+
+PROMA_HOME = _env_path("PROMA_HOME", Path.home() / ".proma")
+PROMA_WORKSPACE_DIR = _env_path("PROMA_WORKSPACE_DIR", PROMA_HOME / "agent-workspaces" / "default")
+CLAUDE_MD = _env_path("PROMA_CLAUDE_MD", PROMA_WORKSPACE_DIR / "CLAUDE.md")
+CLAUDE_TEMPLATE = _env_path("PROMA_CLAUDE_TEMPLATE", PROMA_WORKSPACE_DIR / "CLAUDE.md.template")
+LOG_DIR = PROMA_HOME / "logs"
+LOG_FILE = LOG_DIR / "nm-hooks.log"
 
 
 def log(msg: str) -> None:
@@ -168,10 +172,10 @@ def _managed_block(context_markdown: str) -> str:
 
 
 def _base_claude_md() -> str:
-    if CLAUDE_TEMPLATE.exists():
-        return CLAUDE_TEMPLATE.read_text(encoding="utf-8")
     if CLAUDE_MD.exists():
         return CLAUDE_MD.read_text(encoding="utf-8")
+    if CLAUDE_TEMPLATE.exists():
+        return CLAUDE_TEMPLATE.read_text(encoding="utf-8")
     return (
         "# Proma Workspace Instructions\n\n"
         "This file is loaded by Proma when a workspace session starts. "
@@ -184,7 +188,8 @@ def render_claude_md(base: str, context_markdown: str) -> str:
     if START_MARKER in base and END_MARKER in base:
         before, rest = base.split(START_MARKER, 1)
         _, after = rest.split(END_MARKER, 1)
-        return f"{before.rstrip()}\n\n{block}\n{after.lstrip()}".rstrip() + "\n"
+        after = after.lstrip("\n\r")
+        return f"{before.rstrip()}\n\n{block}\n{after}".rstrip() + "\n"
     return f"{base.rstrip()}\n\n{block}\n"
 
 

@@ -185,7 +185,7 @@ Proma's current Claude Agent SDK does not reliably inject SessionStart stdout in
 ~/.proma/agent-workspaces/default/CLAUDE.md
 ```
 
-If `CLAUDE.md.template` exists in the same workspace, the script uses it as the base and then adds or replaces only this block:
+If `CLAUDE.md` does not exist yet and `CLAUDE.md.template` exists in the same workspace, the script uses the template as the first base. After that, it preserves the existing `CLAUDE.md` and only adds or replaces this block:
 
 ```markdown
 <!-- nowledge-mem:start -->
