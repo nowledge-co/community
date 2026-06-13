@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -50,7 +51,10 @@ class TestHooksConfig:
     def test_hooks_json_valid(self):
         hooks = PLUGIN_DIR / "hooks" / "hooks.json"
         data = json.loads(hooks.read_text(encoding="utf-8"))
+        assert data["installPath"] == "~/.proma/sdk-config/.claude/settings.json"
+        assert data["scriptInstallPath"] == "~/.proma/scripts/"
         assert "hooks" in data
+        assert "UserPromptSubmit" in data["hooks"], "Missing UserPromptSubmit hook"
         assert "Stop" in data["hooks"], "Missing Stop hook"
         assert "SessionStart" in data["hooks"], "Missing SessionStart hook"
 
@@ -65,6 +69,25 @@ class TestHooksConfig:
                     commands.append(h.get("command", ""))
         assert any("save-to-nmem.py" in c for c in commands), (
             f"Stop hook should reference save-to-nmem.py: {commands}"
+        )
+        assert any("--rewake" in c for c in commands), (
+            f"Stop hook should include asyncRewake Working Memory refresh: {commands}"
+        )
+        assert any(h.get("asyncRewake") is True for group in stop_hooks for h in group.get("hooks", [])), (
+            "Stop hook should enable asyncRewake for live Working Memory refresh"
+        )
+
+    def test_user_prompt_submit_has_save_script(self):
+        hooks = PLUGIN_DIR / "hooks" / "hooks.json"
+        data = json.loads(hooks.read_text(encoding="utf-8"))
+        commands = [
+            h.get("command", "")
+            for group in data["hooks"]["UserPromptSubmit"]
+            for h in group.get("hooks", [])
+            if h.get("type") == "command"
+        ]
+        assert any("save-to-nmem.py" in c for c in commands), (
+            f"UserPromptSubmit should reference save-to-nmem.py: {commands}"
         )
 
     def test_session_start_hook_has_wm_script(self):
@@ -130,6 +153,9 @@ class TestHookScripts:
         content = script.read_text(encoding="utf-8")
         assert '"apiUrl", "api_url"' in content
         assert '"apiKey", "api_key"' in content
+        assert "sdk-config" in content
+        assert "projects" in content
+        assert "agent-sessions" in content
 
     def test_save_script_appends_existing_threads(self):
         script = PLUGIN_DIR / "hooks" / "save-to-nmem.py"
@@ -138,7 +164,81 @@ class TestHookScripts:
         assert 'api_request("POST", f"/threads/{thread_path_id}/append", append_body)' in content
         assert '"deduplicate": True' in content
         assert '"idempotency_key": f"proma:{session_id}"' in content
-        assert '"external_id": f"proma:{uuid}"' in content
+        assert 'metadata["external_id"] = f"proma:{uuid}"' in content
+
+    def test_save_script_parses_current_proma_sdk_jsonl(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+        module = _load_hook_module("proma_save_hook", PLUGIN_DIR / "hooks" / "save-to-nmem.py")
+
+        session_dir = proma_home / "sdk-config" / ".claude" / "projects" / "workspace-hash"
+        session_dir.mkdir(parents=True)
+        session_file = session_dir / "session-123.jsonl"
+        session_file.write_text(
+            "\n".join(
+                [
+                    json.dumps({
+                        "type": "user",
+                        "uuid": "u1",
+                        "timestamp": "2026-06-13T01:00:00Z",
+                        "message": {"role": "user", "content": "hello proma"},
+                    }),
+                    json.dumps({
+                        "type": "assistant",
+                        "uuid": "a1",
+                        "timestamp": "2026-06-13T01:00:01Z",
+                        "message": {
+                            "role": "assistant",
+                            "content": [
+                                {"type": "thinking", "text": "hidden"},
+                                {"type": "text", "text": "saved"},
+                                {"type": "tool_use", "name": "Read"},
+                            ],
+                        },
+                    }),
+                    json.dumps({
+                        "type": "assistant",
+                        "uuid": "a1",
+                        "message": {"role": "assistant", "content": [{"type": "text", "text": "duplicate"}]},
+                    }),
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        assert module.find_session_file("session-123") == session_file
+        messages = module.parse_session_messages(session_file)
+        assert messages == [
+            {
+                "role": "user",
+                "content": "hello proma",
+                "metadata": {"external_id": "proma:u1", "timestamp": "2026-06-13T01:00:00Z"},
+            },
+            {
+                "role": "assistant",
+                "content": "saved\n[tool: Read]",
+                "metadata": {"external_id": "proma:a1", "timestamp": "2026-06-13T01:00:01Z"},
+            },
+        ]
+
+    def test_working_memory_script_replaces_managed_claude_block(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        workspace = proma_home / "agent-workspaces" / "default"
+        workspace.mkdir(parents=True)
+        template = workspace / "CLAUDE.md.template"
+        template.write_text("# Project Rules\n\nKeep this line.\n", encoding="utf-8")
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+
+        module = _load_hook_module("proma_wm_hook", PLUGIN_DIR / "hooks" / "read-working-memory.py")
+        assert module.update_claude_md("first context") is True
+        assert "first context" in (workspace / "CLAUDE.md").read_text(encoding="utf-8")
+
+        assert module.update_claude_md("second context") is True
+        rendered = (workspace / "CLAUDE.md").read_text(encoding="utf-8")
+        assert "Keep this line." in rendered
+        assert "second context" in rendered
+        assert "first context" not in rendered
+        assert rendered.count("nowledge-mem:start") == 1
 
 
 class TestSkills:
@@ -217,6 +317,8 @@ class TestIntegrationsJson:
         checklist = "\n".join(entry["autonomy"]["bestResultRequires"])
         assert "skills/nmem" not in checklist
         assert "standard Nowledge Mem skill folders" in checklist
+        assert "~/.proma/sdk-config/.claude/settings.json" in checklist
+        assert "~/.proma/scripts/" in checklist
 
     REQUIRED_SKILLS = TestSkills.REQUIRED_SKILLS
 
@@ -247,5 +349,14 @@ class TestChangelog:
     def test_changelog_has_version(self):
         cl = PLUGIN_DIR / "CHANGELOG.md"
         content = cl.read_text(encoding="utf-8")
+        assert "0.1.2" in content, "CHANGELOG should document version 0.1.2"
         assert "0.1.1" in content, "CHANGELOG should document version 0.1.1"
         assert "0.1.0" in content, "CHANGELOG should document version 0.1.0"
+
+
+def _load_hook_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module

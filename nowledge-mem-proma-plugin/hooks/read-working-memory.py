@@ -1,28 +1,37 @@
 #!/usr/bin/env python3
-"""Read Nowledge Mem startup context for Proma SessionStart hook.
+"""Read Nowledge Mem context for Proma startup and asyncRewake hooks.
 
-Calls `nmem --json context --source-app proma` when available, then falls
-back to `nmem --json wm read`. The result is emitted as JSON for the Proma
-Agent SDK to inject as session context.
-
-Falls back gracefully if nmem is not installed or the server is unreachable.
+Proma's current Claude Agent SDK does not reliably inject SessionStart stdout
+as additional context. For startup, this hook writes a marked Nowledge Mem block
+into Proma's workspace CLAUDE.md, which Proma loads naturally. For asyncRewake,
+it prints a compact Working Memory reminder and exits 2 only when there is
+context worth injecting.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import shutil
 import subprocess
-import sys
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-PROMA_HOME = Path(os.environ.get("PROMA_HOME", Path.home() / ".proma"))
-LOG_DIR = PROMA_HOME / "log"
-LOG_FILE = LOG_DIR / "nmem-hook.log"
+PROMA_HOME = Path(os.environ.get("PROMA_HOME", Path.home() / ".proma")).expanduser()
+PROMA_WORKSPACE_DIR = Path(
+    os.environ.get("PROMA_WORKSPACE_DIR", PROMA_HOME / "agent-workspaces" / "default")
+).expanduser()
+CLAUDE_MD = Path(os.environ.get("PROMA_CLAUDE_MD", PROMA_WORKSPACE_DIR / "CLAUDE.md")).expanduser()
+CLAUDE_TEMPLATE = Path(
+    os.environ.get("PROMA_CLAUDE_TEMPLATE", PROMA_WORKSPACE_DIR / "CLAUDE.md.template")
+).expanduser()
+LOG_DIR = PROMA_HOME / "logs"
+LOG_FILE = LOG_DIR / "nm-hooks.log"
+
+START_MARKER = "<!-- nowledge-mem:start -->"
+END_MARKER = "<!-- nowledge-mem:end -->"
 
 
 def log(msg: str) -> None:
@@ -30,40 +39,37 @@ def log(msg: str) -> None:
         LOG_DIR.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with LOG_FILE.open("a", encoding="utf-8") as fh:
-            fh.write(f"[{ts}] {msg}\n")
+            fh.write(f"[{ts}] read-working-memory {msg}\n")
     except Exception:
         pass
 
 
 def _nmem_command_prefix() -> list[str] | None:
-    """Return the command prefix for invoking nmem."""
     found = shutil.which("nmem") or shutil.which("nmem.cmd")
     if found:
         return [found]
-    # Check common install paths on Windows
+
     candidates = [
         Path(os.environ.get("LOCALAPPDATA", "")) / "Nowledge Mem" / "cli" / "nmem.cmd",
         Path.home() / ".pixi" / "envs" / "python" / "Scripts" / "nmem.exe",
     ]
-    for p in candidates:
-        if p.exists():
-            return [str(p)]
-    # uvx fallback (per plugin development guide)
+    for path in candidates:
+        if path.exists():
+            return [str(path)]
+
     uvx = shutil.which("uvx")
     if uvx:
         return [uvx, "--from", "nmem-cli", "nmem"]
     return None
 
 
-def _run_nmem_json(args: list[str], label: str) -> dict[str, Any] | None:
+def _run_nmem_json(args: list[str], label: str, timeout: int = 15) -> dict[str, Any] | None:
     prefix = _nmem_command_prefix()
     if not prefix:
         log("nmem CLI not found")
         return None
 
     cmd = [*prefix, "--json", *args]
-    # Wrap Windows batch launchers through cmd.exe; keep argv split so quoted
-    # paths and following arguments are not flattened into one brittle string.
     if Path(prefix[0]).name.lower().endswith(".cmd"):
         cmd = ["cmd.exe", "/d", "/c", "call", *cmd]
 
@@ -73,16 +79,17 @@ def _run_nmem_json(args: list[str], label: str) -> dict[str, Any] | None:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=15,
+            timeout=timeout,
             check=False,
         )
         if proc.returncode != 0:
-            log(f"{label} exit={proc.returncode} stderr={proc.stderr.strip()[:200]}")
+            log(f"{label} exit={proc.returncode} stderr={proc.stderr.strip()[:240]}")
             return None
         raw = proc.stdout.strip()
         if not raw:
             return None
-        return json.loads(raw)
+        loaded = json.loads(raw)
+        return loaded if isinstance(loaded, dict) else None
     except subprocess.TimeoutExpired:
         log(f"{label} timed out")
         return None
@@ -117,20 +124,116 @@ def _working_memory_args() -> list[str]:
     return args
 
 
-def main() -> int:
-    log("read-startup-context start")
+def _payload_text(payload: dict[str, Any] | None) -> str:
+    if not payload:
+        return ""
 
+    for key in ("rendered_markdown", "markdown", "content", "text"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    working_memory = payload.get("working_memory")
+    if isinstance(working_memory, dict):
+        value = working_memory.get("content")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    context = payload.get("context")
+    if isinstance(context, str) and context.strip():
+        return context.strip()
+
+    return ""
+
+
+def _startup_context() -> dict[str, Any] | None:
     context = _run_nmem_json(_context_args(), "nmem context")
-    if context is None:
-        context = _run_nmem_json(_working_memory_args(), "nmem wm read")
+    if context is not None:
+        return context
+    return _run_nmem_json(_working_memory_args(), "nmem wm read")
 
-    if context is None:
-        log("read-startup-context: no data")
-        print(json.dumps({"context": None, "working_memory": None, "status": "empty"}))
+
+def _managed_block(context_markdown: str) -> str:
+    generated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return (
+        f"{START_MARKER}\n"
+        "## Nowledge Mem Context\n\n"
+        f"_Updated automatically by the Nowledge Mem Proma plugin at {generated}._\n\n"
+        "Use this context before planning, writing, or deciding. Search Nowledge Mem "
+        "with `mcp__nowledge-mem__*` tools when the task depends on past decisions, "
+        "brand rules, preferences, or earlier Proma conversations.\n\n"
+        f"{context_markdown.strip()}\n"
+        f"{END_MARKER}"
+    )
+
+
+def _base_claude_md() -> str:
+    if CLAUDE_TEMPLATE.exists():
+        return CLAUDE_TEMPLATE.read_text(encoding="utf-8")
+    if CLAUDE_MD.exists():
+        return CLAUDE_MD.read_text(encoding="utf-8")
+    return (
+        "# Proma Workspace Instructions\n\n"
+        "This file is loaded by Proma when a workspace session starts. "
+        "Add your stable project guidance above or below the Nowledge Mem block.\n"
+    )
+
+
+def render_claude_md(base: str, context_markdown: str) -> str:
+    block = _managed_block(context_markdown)
+    if START_MARKER in base and END_MARKER in base:
+        before, rest = base.split(START_MARKER, 1)
+        _, after = rest.split(END_MARKER, 1)
+        return f"{before.rstrip()}\n\n{block}\n{after.lstrip()}".rstrip() + "\n"
+    return f"{base.rstrip()}\n\n{block}\n"
+
+
+def update_claude_md(context_markdown: str) -> bool:
+    if not context_markdown.strip():
+        return False
+    try:
+        CLAUDE_MD.parent.mkdir(parents=True, exist_ok=True)
+        rendered = render_claude_md(_base_claude_md(), context_markdown)
+        CLAUDE_MD.write_text(rendered, encoding="utf-8")
+        log(f"updated CLAUDE.md path={CLAUDE_MD}")
+        return True
+    except Exception as exc:
+        log(f"failed to update CLAUDE.md: {exc}")
+        return False
+
+
+def _print_rewake() -> int:
+    payload = _run_nmem_json(_working_memory_args(), "nmem wm read", timeout=10)
+    text = _payload_text(payload)
+    if not text:
+        log("rewake: no working memory")
         return 0
 
-    log(f"read-startup-context: got data keys={list(context.keys())}")
-    print(json.dumps(context, ensure_ascii=False, indent=2))
+    print("## Nowledge Mem Working Memory")
+    print()
+    print(text)
+    log("rewake: emitted working memory")
+    return 2
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--rewake", action="store_true", help="Emit compact Working Memory for asyncRewake")
+    args = parser.parse_args()
+
+    if args.rewake:
+        return _print_rewake()
+
+    log("startup context refresh start")
+    payload = _startup_context()
+    text = _payload_text(payload)
+    if not text:
+        log("startup context refresh: no data")
+        print(json.dumps({"status": "empty"}))
+        return 0
+
+    ok = update_claude_md(text)
+    print(json.dumps({"status": "updated" if ok else "failed", "path": str(CLAUDE_MD)}))
     return 0
 
 

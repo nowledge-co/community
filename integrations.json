@@ -838,7 +838,7 @@
       "name": "Proma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-proma-plugin",
       "transport": "mcp",
       "capabilities": {
@@ -852,7 +852,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Stop hook runs save-to-nmem.py which parses Proma session JSONL from ~/.proma/agent-sessions/ and appends messages to nmem via REST API. SessionStart hook injects Working Memory via read-working-memory.py."
+        "note": "UserPromptSubmit and Stop hooks run save-to-nmem.py, which parses Proma SDK JSONL from ~/.proma/sdk-config/projects/**/ and appends messages to nmem via REST API as source=proma. SessionStart writes Context Bundle into the workspace CLAUDE.md; Stop asyncRewake can push fresh Working Memory."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -861,16 +861,16 @@
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Add Nowledge Mem MCP server to ~/.proma/agent-workspaces/default/mcp.json (key: servers)",
-          "Copy hook scripts to ~/.proma/hooks/",
-          "Add Stop and SessionStart hooks to ~/.proma/settings.json",
+          "Copy hook scripts to ~/.proma/scripts/",
+          "Add SessionStart, UserPromptSubmit, and Stop hooks to ~/.proma/sdk-config/.claude/settings.json",
           "Copy the standard Nowledge Mem skill folders to ~/.proma/agent-workspaces/default/skills/",
-          "Add nmem usage guidance to CLAUDE.md for tool selection (nmem vs built-in MemOS)",
+          "Let the SessionStart hook maintain the marked Nowledge Mem block in ~/.proma/agent-workspaces/default/CLAUDE.md",
           "Restart Proma after configuration changes"
         ]
       },
       "install": {
         "command": "Manual setup — see plugin README for step-by-step instructions",
-        "updateCommand": "Replace hook scripts and skill files from latest plugin release",
+        "updateCommand": "Replace ~/.proma/scripts/save-to-nmem.py, ~/.proma/scripts/read-working-memory.py, Proma skill folders, and merge the latest hooks/hooks.json into ~/.proma/sdk-config/.claude/settings.json",
         "detectionHint": "~/.proma/agent-workspaces/default/mcp.json contains nowledge-mem server",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Proma. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",

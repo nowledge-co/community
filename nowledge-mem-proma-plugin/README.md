@@ -1,23 +1,40 @@
 # Nowledge Mem Plugin for Proma
 
-Integrates Nowledge Mem's personal knowledge graph into [Proma](https://github.com/proma-ai/proma), an extensible desktop AI agent built on the Claude Agent SDK. Provides persistent cross-session memory through MCP tools, lifecycle hooks, and companion skills.
+Connects [Proma](https://github.com/proma-ai/proma) to Nowledge Mem so Proma can:
 
-> **What is Proma?** Proma is a desktop AI agent application that combines a chat UI with an extensible plugin/skill system. It uses the Claude Agent SDK under the hood, giving it access to the same MCP and hook infrastructure as Claude Code, but with its own configuration surface (`mcp.json` with `"servers"` key, `settings.json` for hooks, workspace-level skills). Think of it as "Claude Code with a desktop GUI and plugin marketplace." [GitHub: proma-ai/proma](https://github.com/proma-ai/proma)
+- save Proma agent conversations into Nowledge Mem threads
+- load Nowledge Mem context when a Proma workspace starts
+- search and write memories through the Nowledge Mem MCP tools
+- use the standard Nowledge Mem skills as a manual fallback
+
+Proma is built on the Claude Agent SDK, but it keeps its own configuration under `~/.proma/`. Use the Proma paths below, not the Claude Code paths.
 
 ## Prerequisites
 
-- [Proma](https://github.com/proma-ai/proma) desktop app
-- Nowledge Mem server running (desktop app or remote)
-- Python 3.9+ (for hook scripts)
-- `nmem` CLI in PATH (bundled with [Nowledge Mem desktop app](https://mem.nowledge.co/), `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`)
+- Proma desktop app
+- Nowledge Mem desktop app or remote server
+- Python 3.9+
+- `nmem` CLI in PATH, or `uvx` available as fallback
 
-## Installation
+Check Nowledge Mem first:
 
-### 1. Configure MCP Server
+```bash
+nmem status
+```
 
-Add the Nowledge Mem MCP server to your Proma workspace `mcp.json`:
+## Install
 
-**Path:** `~/.proma/agent-workspaces/default/mcp.json`
+### 1. Configure MCP
+
+Add Nowledge Mem to your Proma workspace MCP config.
+
+Path:
+
+```text
+~/.proma/agent-workspaces/default/mcp.json
+```
+
+Local Nowledge Mem:
 
 ```json
 {
@@ -33,7 +50,7 @@ Add the Nowledge Mem MCP server to your Proma workspace `mcp.json`:
 }
 ```
 
-Local Nowledge Mem usually does not require an API key. For remote Mem setups, replace the URL with your remote server and add your key:
+Remote Nowledge Mem:
 
 ```json
 {
@@ -51,44 +68,72 @@ Local Nowledge Mem usually does not require an API key. For remote Mem setups, r
 }
 ```
 
-### 2. Install Hook Scripts
+### 2. Install hook scripts
 
-Copy the hook scripts to your Proma hooks directory:
+Copy the bundled hook scripts into Proma's script directory:
 
 ```bash
-mkdir -p ~/.proma/hooks/
-cp hooks/save-to-nmem.py ~/.proma/hooks/
-cp hooks/read-working-memory.py ~/.proma/hooks/
+mkdir -p ~/.proma/scripts
+cp hooks/save-to-nmem.py ~/.proma/scripts/
+cp hooks/read-working-memory.py ~/.proma/scripts/
+chmod +x ~/.proma/scripts/save-to-nmem.py ~/.proma/scripts/read-working-memory.py
 ```
 
-### 3. Enable Lifecycle Hooks
+### 3. Enable lifecycle hooks
 
-Merge the hooks configuration from `hooks/hooks.json` into `~/.proma/settings.json`:
+Merge `hooks/hooks.json` into Proma's Claude SDK hook config:
+
+```text
+~/.proma/sdk-config/.claude/settings.json
+```
+
+The important pieces are:
 
 ```json
 {
   "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python \"<proma-home>/hooks/save-to-nmem.py\"",
-            "timeout": 30,
-            "async": true
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "matcher": "startup|resume",
         "hooks": [
           {
             "type": "command",
-            "command": "python \"<proma-home>/hooks/read-working-memory.py\"",
-            "timeout": 10,
-            "async": true
+            "command": "python \"$HOME/.proma/scripts/read-working-memory.py\"",
+            "timeout": 15000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$HOME/.proma/scripts/save-to-nmem.py\" --event user-prompt-submit",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$HOME/.proma/scripts/save-to-nmem.py\" --event stop",
+            "timeout": 30000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$HOME/.proma/scripts/read-working-memory.py\" --rewake",
+            "timeout": 15000,
+            "async": true,
+            "asyncRewake": true,
+            "rewakeMessage": "Nowledge Mem context refreshed"
           }
         ]
       }
@@ -97,106 +142,126 @@ Merge the hooks configuration from `hooks/hooks.json` into `~/.proma/settings.js
 }
 ```
 
-Replace `<proma-home>` with your actual Proma home path (usually `~/.proma` on macOS/Linux or `C:\Users\<user>\.proma` on Windows).
+If your Proma build expands environment variables, you can set `PROMA_HOME="$HOME/.proma"` and keep the `${PROMA_HOME}` commands from `hooks/hooks.json`. If not, use absolute paths in `settings.json`.
 
-If your Proma build expands environment variables in hook commands, you can instead set `PROMA_HOME` and keep the bundled `${PROMA_HOME}` paths from `hooks/hooks.json`:
+### 4. Install skills
 
-```bash
-export PROMA_HOME="$HOME/.proma"
-```
-
-The Python scripts also default to `~/.proma` when `PROMA_HOME` is not set, but the hook command itself still needs a path Proma can execute. The most portable setup is to use the literal path in `settings.json`.
-
-### 4. Install the Skills
-
-Copy the skill files to your Proma workspace:
+Copy the standard Nowledge Mem skills into the Proma workspace:
 
 ```bash
-cp -r skills/read-working-memory ~/.proma/agent-workspaces/default/skills/
-cp -r skills/search-memory ~/.proma/agent-workspaces/default/skills/
-cp -r skills/distill-memory ~/.proma/agent-workspaces/default/skills/
-cp -r skills/save-thread ~/.proma/agent-workspaces/default/skills/
-cp -r skills/status ~/.proma/agent-workspaces/default/skills/
+mkdir -p ~/.proma/agent-workspaces/default/skills
+cp -R skills/read-working-memory ~/.proma/agent-workspaces/default/skills/
+cp -R skills/search-memory ~/.proma/agent-workspaces/default/skills/
+cp -R skills/distill-memory ~/.proma/agent-workspaces/default/skills/
+cp -R skills/save-thread ~/.proma/agent-workspaces/default/skills/
+cp -R skills/status ~/.proma/agent-workspaces/default/skills/
 ```
 
-### 5. (Recommended) Add CLAUDE.md Guidance
+### 5. Restart Proma
 
-Add the following guidance to your CLAUDE.md so Proma knows when to use nmem vs built-in memory:
+Restart Proma after changing MCP, hooks, or skills.
+
+## What each part does
+
+### Thread sync
+
+`UserPromptSubmit` and `Stop` run `save-to-nmem.py`.
+
+The script reads Proma's current transcript from:
+
+```text
+~/.proma/sdk-config/projects/<workspace-hash>/<session-id>.jsonl
+```
+
+It saves the conversation as a Nowledge Mem thread with source `proma`, message-level deduplication, and stable IDs. Older Proma builds that still write `~/.proma/agent-sessions/*.jsonl` remain supported as a fallback.
+
+### Startup context
+
+`SessionStart` runs `read-working-memory.py`.
+
+Proma's current Claude Agent SDK does not reliably inject SessionStart stdout into the model context. To keep this path dependable, the script writes a marked Nowledge Mem block into:
+
+```text
+~/.proma/agent-workspaces/default/CLAUDE.md
+```
+
+If `CLAUDE.md.template` exists in the same workspace, the script uses it as the base and then adds or replaces only this block:
 
 ```markdown
-## Nowledge Mem (nmem) Usage
-
-When nmem MCP tools (`mcp__nowledge-mem__*`) are available:
-
-- **Cross-session persistence** -> nmem (`mcp__nowledge-mem__add_memory`)
-- **Within-session context** -> built-in `mcp__mem__*`
-- **Historical decisions, past discussions** -> `mcp__nowledge-mem__search_memories`
-- **Session archiving** -> `mcp__nowledge-mem__save_thread`
-
-**Proactive behaviors:**
-- Read Context Bundle at session start when available, with Working Memory fallback
-- Distill key decisions to nmem Memories
-- When user says "before", "last time": search nmem + built-in memory
+<!-- nowledge-mem:start -->
+...
+<!-- nowledge-mem:end -->
 ```
 
-### 6. Restart Proma
+Keep your own Proma instructions outside that marked block, or in `CLAUDE.md.template`.
 
-Restart Proma for the MCP server and hooks to take effect. Verify with `/nmem-status` in a new session.
+### Live Working Memory refresh
 
-## Architecture
+After each assistant turn, the asyncRewake Stop hook runs:
 
-```
-Proma Agent
-  |
-  |-- mcp.json  -->  nmem MCP server (tools: search, save, status)
-  |-- Stop Hook -->  save-to-nmem.py   (auto-capture sessions)
-  |-- SessionStart Hook --> read-working-memory.py (inject context)
-  |-- Skills -->  read-working-memory, search-memory, distill-memory,
-  |               save-thread, status
+```bash
+python "$HOME/.proma/scripts/read-working-memory.py" --rewake
 ```
 
-## How It Works
+When Nowledge Mem has useful Working Memory, the hook prints it and exits with code `2`, which lets Proma wake the agent with the latest reminder. Empty or unavailable context exits cleanly without interrupting the session.
 
-1. **MCP Tools** — `mcp__nowledge-mem__*` tools are available to the agent for on-demand memory operations: search past decisions, save new learnings, read Context Bundle or Working Memory.
-2. **Stop Hook** — After every agent response, `save-to-nmem.py` parses the current Proma session JSONL (`~/.proma/agent-sessions/<id>.jsonl`) and appends new messages to the matching nmem thread via REST API.
-3. **SessionStart Hook** — On new or resumed sessions, `read-working-memory.py` calls `nmem context --source-app proma` when available, then falls back to `nmem wm read` for context injection.
-4. **Skills** — Standard skills for read-working-memory, search-memory, distill-memory, save-thread, and status. Slash commands (`/nmem-save`, `/nmem-search`, `/nmem-status`) provide manual control as a fallback.
+### MCP tools
 
-### Session Format
-
-Proma stores sessions as JSONL files in `~/.proma/agent-sessions/`. Each line is a JSON object with:
-- `type`: `"user"` or `"assistant"`
-- `message.content`: array of content blocks (text, tool_use, tool_result, thinking)
-- `uuid`: unique message identifier
-
-The save script deduplicates by UUID, attaches message-level external IDs, and extracts human-readable text from content blocks.
+The MCP server gives Proma agent access to Nowledge Mem search, save, status, skills, and KFS tools. This is the intelligent retrieval path; lifecycle hooks are the automatic capture and startup-context path.
 
 ## Configuration
 
-| Environment Variable | Purpose | Default |
-|---------------------|---------|---------|
-| `NMEM_API_URL` | nmem server URL | From `~/.nowledge-mem/config.json` |
-| `NMEM_API_KEY` | nmem API key | From `~/.nowledge-mem/config.json` |
+| Environment variable | Purpose | Default |
+| --- | --- | --- |
+| `NMEM_API_URL` | Nowledge Mem server URL | `~/.nowledge-mem/config.json` or `http://127.0.0.1:14242` |
+| `NMEM_API_KEY` | Nowledge Mem API key | `~/.nowledge-mem/config.json` |
 | `PROMA_HOME` | Proma home directory | `~/.proma` |
+| `PROMA_SDK_CONFIG_DIR` | Proma Claude SDK config directory | `~/.proma/sdk-config/.claude` |
+| `PROMA_WORKSPACE_DIR` | Proma workspace directory for `CLAUDE.md` | `~/.proma/agent-workspaces/default` |
+| `PROMA_CLAUDE_MD` | Explicit `CLAUDE.md` output path | `<workspace>/CLAUDE.md` |
+| `PROMA_CLAUDE_TEMPLATE` | Explicit template path | `<workspace>/CLAUDE.md.template` |
 
-The hook scripts read credentials from standard nmem config (`~/.nowledge-mem/config.json`), so no duplicate configuration is needed if nmem is already set up on the machine.
+Logs are written to:
+
+```text
+~/.proma/logs/nm-hooks.log
+```
 
 ## Troubleshooting
 
-**MCP tools not showing up:**
-- Verify `mcp.json` uses `"servers"` (not `"mcpServers"`) as the top-level key
-- Check the API URL and key are correct
-- Restart Proma after changing `mcp.json`
+**MCP tools do not show up**
 
-**Hooks not firing:**
-- Check `~/.proma/log/nmem-hook.log` for errors
-- Verify Python 3.9+ is installed and in PATH
-- Ensure hook commands use correct absolute paths
+- Proma uses `"servers"` as the top-level key in `mcp.json`, not `"mcpServers"`.
+- Confirm the endpoint ends with `/mcp/`.
+- Restart Proma after changing `mcp.json`.
 
-**"nmem CLI not found":**
-- Install via the Nowledge Mem desktop app, `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`
-- Verify `nmem --version` works in your terminal
+**Hooks do not run**
 
-**Session not saved:**
-- Run the save script manually: `echo '{"session_id":"<id>"}' | python hooks/save-to-nmem.py`
-- Check the log at `~/.proma/log/nmem-hook.log`
+- Check `~/.proma/sdk-config/.claude/settings.json`, not `~/.proma/settings.json`.
+- Use absolute script paths if your Proma build does not expand environment variables.
+- Check `~/.proma/logs/nm-hooks.log`.
+
+**Proma starts but does not see Nowledge Mem context**
+
+- Open `~/.proma/agent-workspaces/default/CLAUDE.md`.
+- Confirm it contains a `<!-- nowledge-mem:start -->` block.
+- Run `python ~/.proma/scripts/read-working-memory.py` manually and check the log.
+
+**Threads are not saved**
+
+- Confirm Proma is writing JSONL files under `~/.proma/sdk-config/projects/`.
+- Run:
+
+```bash
+echo '{"session_id":"<session-id>"}' | python ~/.proma/scripts/save-to-nmem.py
+```
+
+- Then check Nowledge Mem for a thread with source `proma`.
+
+## Development
+
+Static tests:
+
+```bash
+uv run --with pytest pytest tests/plugin_e2e -q -k proma
+```

@@ -1,5 +1,13 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## 0.1.2 (2026-06-13)
+
+- Align hooks with current Proma builds: install into `~/.proma/sdk-config/.claude/settings.json`, copy scripts to `~/.proma/scripts/`, and read transcripts from `~/.proma/sdk-config/projects/**/<session-id>.jsonl`.
+- Add `UserPromptSubmit` capture for near-real-time thread sync, with `Stop` remaining as the fallback save.
+- Replace stdout-only startup context with an idempotent Nowledge Mem block in Proma's workspace `CLAUDE.md`, preserving user-authored content and `CLAUDE.md.template`.
+- Add `Stop` asyncRewake Working Memory refresh for live context reminders after assistant turns.
+- Keep local/remote nmem config support and legacy `~/.proma/agent-sessions/` transcript fallback.
+
 ## 0.1.1 (2026-06-06)
 
 - SessionStart now loads Context Bundle when available, then falls back to Working Memory. Proma receives identity, active scope, active rules, and current priorities on newer Nowledge Mem installs without losing compatibility with older `nmem` clients.
