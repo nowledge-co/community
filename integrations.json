@@ -915,7 +915,8 @@
         "bestResultRequires": [
           "Install the shared skills package",
           "Keep nmem available on this machine",
-          "Use a native connector instead when your host has one"
+          "Use a native connector instead when your host has one",
+          "For Gemini CLI or Antigravity 2.0, confirm global skills are under ~/.gemini/config/skills"
         ]
       },
       "install": {

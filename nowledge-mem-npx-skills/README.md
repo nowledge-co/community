@@ -47,7 +47,13 @@ The `skills` CLI automatically detects and installs to:
 - Cursor
 - OpenCode
 - Codex
+- Gemini CLI and Antigravity 2.0, using Gemini's current global skills folder at `~/.gemini/config/skills`
 - And 20+ more agents
+
+If you previously connected Gemini-family skills through `~/.gemini/skills` or
+`~/.gemini/antigravity/skills`, update the skills installer or reconnect skills
+from the Mem app. New links should live under `~/.gemini/config/skills`, which
+is the location Antigravity 2.0 reads.
 
 ## Prerequisites
 
