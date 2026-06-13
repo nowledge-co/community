@@ -9,10 +9,11 @@ This file is a practical continuation guide for future agent sessions working on
 - Runtime: plain ESM (`main.js`), no build step
 - Memory backend: direct HTTP to Nowledge Mem API (default `http://127.0.0.1:14242`). CLI (`nmem`) is only used for diagnostic in the status tool.
 
-## Current Status (as of v0.6.15)
+## Current Status (as of v0.7.3)
 
-- Plugin is installed/activated and registers 12 tools successfully in Alma logs.
+- Plugin is installed/activated and registers 13 tools successfully in Alma logs.
 - Live thread sync works via three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
+- The plugin ships a native Alma Skill at `skills/nowledge-mem/SKILL.md`; it is supplementary guidance on top of tools/hooks.
 - Thread IDs are deterministic: `alma-{sha1(almaThreadId)[:12]}`. Survives plugin restarts, LRU eviction, and Alma relaunches. First flush tries append (thread may exist from prior session), falls back to create.
 - All message data from hook payloads, never `context.chat.getMessages()`.
 - Titles resolved at flush time via `context.chat.getThread()` with 4-strategy fallback.
@@ -33,7 +34,8 @@ This file is a practical continuation guide for future agent sessions working on
 - `main.js`: all logic (tool registration, hooks, nmem client, validation/error mapping)
 - `manifest.json`: plugin metadata + contributed tools + settings schema
 - `README.md`: user-facing behavior, response contract examples
-- `alma-skill-nowledge-mem.md`: optional skill policy for better tool-calling
+- `skills/nowledge-mem/SKILL.md`: native Alma Skill policy for better tool-calling
+- `alma-skill-nowledge-mem.md`: legacy copy/paste skill policy for older manual setups
 - `CHANGELOG.md`: versioned changes
 
 ## Tool Inventory
@@ -46,6 +48,7 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 - `nowledge_mem_show`
 - `nowledge_mem_update`
 - `nowledge_mem_delete`
+- `nowledge_mem_context_bundle`
 - `nowledge_mem_working_memory`
 - `nowledge_mem_status`
 - `nowledge_mem_thread_search`
@@ -95,7 +98,9 @@ curl -s 'http://127.0.0.1:14242/memories/search?q=alma&limit=3'   # Test search 
 ## Reinstall / Reload in Alma
 
 ```bash
+mkdir -p ~/.config/alma/plugins/nowledge-mem
 cp manifest.json main.js package.json README.md CHANGELOG.md alma-skill-nowledge-mem.md ~/.config/alma/plugins/nowledge-mem/
+cp -R skills ~/.config/alma/plugins/nowledge-mem/
 osascript -e 'tell application "Alma" to quit' || true
 node -e "const fs=require('fs');const p=process.env.HOME+'/Library/Application Support/alma/plugin-cache';if(fs.existsSync(p))for(const f of fs.readdirSync(p))if(f.endsWith('.mjs'))fs.unlinkSync(p+'/'+f)"
 open -a Alma
@@ -131,7 +136,7 @@ All three hooks used by live sync are confirmed working in Alma (verified v0.6.1
 
 ## Known Limitations
 
-1. **Skill file requires manual setup** — Alma has no `contributes.skills` or programmatic skill registration API. The `alma-skill-nowledge-mem.md` file must be manually loaded into Alma's settings by the user. The plugin injects core behavioral guidance via the `chat.message.willSend` hook, so the skill file is supplementary.
+1. **Skill file is supplementary** — Alma reads native `SKILL.md` folders, and the plugin now ships `skills/nowledge-mem/SKILL.md`. If Alma does not surface the bundled skill from the plugin package, users can copy it to `~/.config/alma/skills/nowledge-mem/SKILL.md` and refresh Skills. The plugin still injects core behavioral guidance via the `chat.message.willSend` hook, so memory tools and thread sync do not depend on the Skill.
 2. **`recallPolicy` live reload is incomplete** — `recallInjectionEnabled` and `recallFrequency` are `const` computed once at activation. If the user changes `recallPolicy` at runtime via `onDidChange`, the hook registration state doesn't change. Fix requires disposing and re-registering the hook.
 
 ## Recommended Next Improvements

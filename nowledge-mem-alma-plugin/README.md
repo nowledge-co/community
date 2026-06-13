@@ -11,6 +11,7 @@ This plugin gives Alma chat-native persistent memory:
 - Dedup guard: prevents saving near-identical memories (>=90% similarity)
 - Inject Context Bundle + relevant recall context before first send, with Working Memory fallback for older servers
 - Behavioral guidance: proactive save nudge + thread awareness in every turn
+- Native Alma Skill bundle for stronger tool-selection guidance in Alma's Skills surface
 - Save thread snapshots back to Nowledge Mem on quit (optional)
 
 Data operations use the Nowledge Mem HTTP API, so local desktop and remote Access Anywhere setups share the same behavior. The status tool may still use `nmem` / `uvx --from nmem-cli nmem` for diagnostics.
@@ -51,6 +52,7 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
 | `nowledge_mem_delete` | Delete memory |
 | `nowledge_mem_context_bundle` | Read startup context: owner identity, AI Identity, active scope, active rules, Working Memory, and KFS paths. |
 | `nowledge_mem_working_memory` | Read daily Working Memory. Use Context Bundle for full startup identity/scope/rules context. |
+| `nowledge_mem_status` | Check connection mode, server health, CLI availability, and current plugin settings. |
 | `nowledge_mem_thread_search` | Search conversation threads with optional `source` filter |
 | `nowledge_mem_thread_show` | Fetch thread messages with pagination (`offset`/`limit`). Returns `hasMore`. |
 | `nowledge_mem_thread_create` | Create thread from content/messages |
@@ -99,17 +101,27 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
 
 No modal input commands are used. The plugin is designed to stay inside normal chat flow via tool calls and hooks.
 
-## Optional Skill Prompt
+## Native Alma Skill
 
-For deeper tool-usage guidance (execution order, query heuristics, write heuristics, CLI fallback), load `alma-skill-nowledge-mem.md` into an Alma skill and enable it for chats that should prioritize external memory operations.
+The plugin includes a native Alma Skill at `skills/nowledge-mem/SKILL.md`. After installing the plugin, open Alma's Skills surface. If the bundled `nowledge-mem` Skill appears there, enable it when you want stronger guidance for when to read Context Bundle, search memory, inspect prior threads, or save durable decisions.
 
-Note: Alma does not have a programmatic skill registration API. The skill file must be loaded manually into Alma's settings. The plugin already injects core behavioral guidance via the `chat.message.willSend` hook, so the skill file is supplementary — it adds more detailed instructions for power users.
+The plugin works without the Skill: tools, auto-recall, and thread sync are registered by the plugin itself. The Skill is supplementary; it improves model intent, especially in chats where Alma exposes Skills prominently.
+
+If the bundled Skill does not appear after installation, copy it into Alma's personal skills folder and refresh Skills:
+
+```bash
+mkdir -p ~/.config/alma/skills/nowledge-mem
+cp ~/.config/alma/plugins/nowledge-mem/skills/nowledge-mem/SKILL.md \
+  ~/.config/alma/skills/nowledge-mem/SKILL.md
+```
+
+`alma-skill-nowledge-mem.md` remains as a legacy copy/paste prompt for older Alma builds or manual setups.
 
 ## Customize without editing the plugin
 
 Alma does not currently have a separate packaged override file in this integration.
 
-- Use Alma's own settings and manually loaded skill prompt for extra behavior guidance.
+- Use Alma's own settings and the bundled native Skill for extra behavior guidance.
 - Keep plugin-level behavior changes in Alma settings such as recall policy, capture policy, remote settings, and space selection.
 - Do not patch the installed plugin bundle under `~/.config/alma/plugins/nowledge-mem`.
 
