@@ -2,6 +2,15 @@
 
 All notable changes to the Nowledge Mem npx Skills will be documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- Documented the Antigravity 2.0 / Gemini-family global skills path change:
+  global skills should now land in `~/.gemini/config/skills`, not the older
+  `~/.gemini/skills` or `~/.gemini/antigravity/skills` locations. Thanks to
+  [@abn](https://github.com/abn) for the report and reference setup.
+
 ## [0.6.0] - 2026-03-23
 
 ### Added
