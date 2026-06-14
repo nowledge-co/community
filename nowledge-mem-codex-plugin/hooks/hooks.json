@@ -8,6 +8,7 @@
           {
             "type": "command",
             "command": "python3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\"",
+            "commandWindows": "python \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\" || py -3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\" || python3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\"",
             "timeout": 40,
             "statusMessage": "Saving Codex thread to Nowledge Mem..."
           }

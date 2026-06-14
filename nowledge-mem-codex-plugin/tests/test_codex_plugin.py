@@ -60,6 +60,31 @@ class HookTests(unittest.TestCase):
             ],
         )
 
+    def test_build_command_invokes_windows_cmd_directly_on_windows(self):
+        nmem = r"C:\Users\jockie\AppData\Local\Nowledge Mem\cli\nmem.CMD"
+        with mock.patch.object(self.module.os, "name", "nt"):
+            command = self.module._build_save_command(
+                nmem,
+                {"session_id": "019abc", "cwd": r"D:\server-prod-env-setting"},
+                include_session_id=True,
+            )
+
+        self.assertEqual(command[0], nmem)
+        self.assertNotIn("cmd.exe", command)
+        self.assertIn(r"D:\server-prod-env-setting", command)
+
+    def test_build_command_keeps_cmd_bridge_for_wsl(self):
+        nmem = "/mnt/c/Users/jockie/AppData/Local/Nowledge Mem/cli/nmem.CMD"
+        with mock.patch.object(self.module.os, "name", "posix"):
+            command = self.module._build_save_command(
+                nmem,
+                {"session_id": "019abc", "cwd": "/home/jockie/project"},
+                include_session_id=True,
+            )
+
+        self.assertEqual(command[:2], ["cmd.exe", "/c"])
+        self.assertIn("nmem.CMD", command[2])
+
     def test_retry_without_session_id_on_lookup_miss(self):
         calls = []
 

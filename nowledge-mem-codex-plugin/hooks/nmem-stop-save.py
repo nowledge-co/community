@@ -219,9 +219,10 @@ def _cmd_exe_path(path: str) -> str:
 
 def _build_nmem_command(nmem: str, *args: str) -> list[str]:
     if nmem.lower().endswith(".cmd"):
+        if os.name == "nt":
+            return [nmem, *args]
         return [
             "cmd.exe",
-            "/s",
             "/c",
             subprocess.list2cmdline([_cmd_exe_path(nmem), *args]),
         ]
