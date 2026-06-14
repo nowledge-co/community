@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.15] - 2026-06-14
+
+### Fixed
+
+- Packaged Codex Stop hooks now prefer the stable host-level hook at `~/.codex/hooks/nowledge-mem-stop-save.py` when it exists, then fall back to the packaged `${PLUGIN_ROOT}` script. This prevents an already-running Codex session from calling a removed plugin-cache path after the plugin is updated.
+
 ## [0.1.14] - 2026-06-14
 
 ### Fixed

@@ -9,6 +9,7 @@ from unittest import mock
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 HOOK_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem-stop-save.py"
 INSTALL_MODULE_PATH = PLUGIN_ROOT / "scripts" / "install_hooks.py"
+HOOKS_JSON_PATH = PLUGIN_ROOT / "hooks" / "hooks.json"
 
 
 def load_module(module_name: str, module_path: Path):
@@ -184,6 +185,17 @@ class HookTests(unittest.TestCase):
         with mock.patch.object(self.module, "_nmem_command", return_value=None), \
              mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: "{}")):
             self.assertEqual(self.module.main(), 0)
+
+
+class PackagedHookConfigTests(unittest.TestCase):
+    def test_packaged_stop_hook_prefers_stable_installed_runtime(self):
+        payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
+        hook = payload["hooks"]["Stop"][0]["hooks"][0]
+
+        self.assertIn('$HOME/.codex/hooks/nowledge-mem-stop-save.py', hook["command"])
+        self.assertIn('"${PLUGIN_ROOT}/hooks/nmem-stop-save.py"', hook["command"])
+        self.assertIn('%USERPROFILE%\\.codex\\hooks\\nowledge-mem-stop-save.py', hook["commandWindows"])
+        self.assertIn('"${PLUGIN_ROOT}/hooks/nmem-stop-save.py"', hook["commandWindows"])
 
 
 class InstallHookTests(unittest.TestCase):
