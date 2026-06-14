@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Codex Stop hooks now use a Windows-specific `python` launcher instead of assuming `python3` exists on Windows.
+- Codex Stop hooks now use a Windows-specific launcher chain (`python`, then `py -3`, then `python3`) instead of assuming `python3` exists on Windows.
 - Codex Stop hook capture now invokes `nmem.CMD` directly on native Windows, avoiding `cmd.exe /s /c` quoting that could make paths with spaces fail.
 
 ## [0.1.13] - 2026-05-15

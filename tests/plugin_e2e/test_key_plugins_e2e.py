@@ -300,6 +300,7 @@ def test_key_plugin_static_contracts_are_declared():
         if isinstance(hook, dict)
     ]
     assert any('python "${PLUGIN_ROOT}/hooks/nmem-stop-save.py"' in command for command in codex_windows_commands)
+    assert any('py -3 "${PLUGIN_ROOT}/hooks/nmem-stop-save.py"' in command for command in codex_windows_commands)
     assert (CODEX_PLUGIN / "scripts" / "install_hooks.py").exists()
     assert (CODEX_PLUGIN / "skills" / "working-memory" / "SKILL.md").exists()
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()

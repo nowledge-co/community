@@ -119,6 +119,9 @@ if (hooks) {
     if (!commands.some((command) => command.includes("python \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\""))) {
       fail("Stop hook must declare a Windows command using python");
     } else ok("Stop hook Windows Python launcher");
+    if (!commands.some((command) => command.includes("py -3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\""))) {
+      fail("Stop hook must declare a Windows py launcher fallback");
+    } else ok("Stop hook Windows py fallback");
   }
 }
 
