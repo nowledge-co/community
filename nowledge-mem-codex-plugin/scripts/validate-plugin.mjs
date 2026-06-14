@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.14";
+const expectedVersion = "0.1.15";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -116,6 +116,12 @@ if (hooks) {
     if (!commands.some((command) => command.includes("\"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\""))) {
       fail("Stop hook command must quote the ${PLUGIN_ROOT} script path");
     } else ok("Stop hook path quoting");
+    if (!commands.some((command) => command.includes("$HOME/.codex/hooks/nowledge-mem-stop-save.py"))) {
+      fail("Stop hook command must prefer the stable host hook on POSIX");
+    } else ok("Stop hook POSIX stable host fallback");
+    if (!commands.some((command) => command.includes("%USERPROFILE%\\.codex\\hooks\\nowledge-mem-stop-save.py"))) {
+      fail("Stop hook command must prefer the stable host hook on Windows");
+    } else ok("Stop hook Windows stable host fallback");
     if (!commands.some((command) => command.includes("python \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\""))) {
       fail("Stop hook must declare a Windows command using python");
     } else ok("Stop hook Windows Python launcher");

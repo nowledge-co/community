@@ -7,8 +7,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\"",
-            "commandWindows": "python \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\" || py -3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\" || python3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\"",
+            "command": "if [ -f \"$HOME/.codex/hooks/nowledge-mem-stop-save.py\" ]; then python3 \"$HOME/.codex/hooks/nowledge-mem-stop-save.py\" --event stop; else python3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\" --event stop; fi",
+            "commandWindows": "if exist \"%USERPROFILE%\\.codex\\hooks\\nowledge-mem-stop-save.py\" (python \"%USERPROFILE%\\.codex\\hooks\\nowledge-mem-stop-save.py\" --event stop || py -3 \"%USERPROFILE%\\.codex\\hooks\\nowledge-mem-stop-save.py\" --event stop || python3 \"%USERPROFILE%\\.codex\\hooks\\nowledge-mem-stop-save.py\" --event stop) else (python \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\" --event stop || py -3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\" --event stop || python3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\" --event stop)",
             "timeout": 40,
             "statusMessage": "Saving Codex thread to Nowledge Mem..."
           }
