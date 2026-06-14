@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.13";
+const expectedVersion = "0.1.14";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -105,6 +105,7 @@ if (hooks) {
       }
       if (value && typeof value === "object") {
         if (typeof value.command === "string") commands.push(value.command);
+        if (typeof value.commandWindows === "string") commands.push(value.commandWindows);
         for (const item of Object.values(value)) collectCommands(item);
       }
     };
@@ -115,6 +116,9 @@ if (hooks) {
     if (!commands.some((command) => command.includes("\"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\""))) {
       fail("Stop hook command must quote the ${PLUGIN_ROOT} script path");
     } else ok("Stop hook path quoting");
+    if (!commands.some((command) => command.includes("python \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\""))) {
+      fail("Stop hook must declare a Windows command using python");
+    } else ok("Stop hook Windows Python launcher");
   }
 }
 
