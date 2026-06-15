@@ -7,8 +7,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${PLUGIN_ROOT}/hooks/nmem-stop-launch.py\" --event stop || python \"${PLUGIN_ROOT}/hooks/nmem-stop-launch.py\" --event stop || py -3 \"${PLUGIN_ROOT}/hooks/nmem-stop-launch.py\" --event stop",
-            "commandWindows": "python \"%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py\" --event stop || py -3 \"%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py\" --event stop || python3 \"%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py\" --event stop",
+            "command": "python3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || python -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || py -3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop",
+            "commandWindows": "python -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || py -3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || python3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop",
             "timeout": 40,
             "statusMessage": "Saving Codex thread to Nowledge Mem..."
           }

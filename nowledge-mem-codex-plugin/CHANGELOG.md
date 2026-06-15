@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.18] - 2026-06-15
+
+### Fixed
+
+- Packaged Codex Stop hooks no longer depend on shell expansion or Codex placeholder replacement for `PLUGIN_ROOT`. The hook command now reads `PLUGIN_ROOT` inside Python, covering Windows runs where Codex executes the generic `command` field through PowerShell.
+
 ## [0.1.17] - 2026-06-15
 
 ### Fixed

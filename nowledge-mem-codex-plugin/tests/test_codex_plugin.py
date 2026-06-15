@@ -193,13 +193,18 @@ class PackagedHookConfigTests(unittest.TestCase):
         payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
         hook = payload["hooks"]["Stop"][0]["hooks"][0]
 
-        self.assertIn('"${PLUGIN_ROOT}/hooks/nmem-stop-launch.py"', hook["command"])
-        self.assertIn('python3 "${PLUGIN_ROOT}/hooks/nmem-stop-launch.py"', hook["command"])
-        self.assertIn('python "${PLUGIN_ROOT}/hooks/nmem-stop-launch.py"', hook["command"])
+        self.assertIn("os.environ['PLUGIN_ROOT']", hook["command"])
+        self.assertIn("nmem-stop-launch.py", hook["command"])
+        self.assertIn('python3 -c "import os, runpy, sys', hook["command"])
+        self.assertIn('python -c "import os, runpy, sys', hook["command"])
+        self.assertNotIn("${PLUGIN_ROOT}", hook["command"])
+        self.assertNotIn("%PLUGIN_ROOT%", hook["command"])
         self.assertNotIn("if [", hook["command"])
         self.assertNotIn("$HOME/.codex/hooks/nowledge-mem-stop-save.py", hook["command"])
+        self.assertIn("os.environ['PLUGIN_ROOT']", hook["commandWindows"])
+        self.assertIn("nmem-stop-launch.py", hook["commandWindows"])
         self.assertNotIn("${PLUGIN_ROOT}", hook["commandWindows"])
-        self.assertIn('"%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py"', hook["commandWindows"])
+        self.assertNotIn("%PLUGIN_ROOT%", hook["commandWindows"])
 
 
 class LauncherTests(unittest.TestCase):

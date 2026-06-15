@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.17";
+const expectedVersion = "0.1.18";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -118,13 +118,19 @@ if (hooks) {
     if (!commands.some((command) => command.includes("nmem-stop-launch.py"))) {
       fail("Stop hooks must run nmem-stop-launch.py");
     } else ok("Stop hook capture");
-    if (!commands.some((command) => command.includes("\"${PLUGIN_ROOT}/hooks/nmem-stop-launch.py\""))) {
-      fail("Stop hook command must quote the ${PLUGIN_ROOT} launcher path");
-    } else ok("Stop hook launcher path quoting");
-    if (!commands.some((command) => command.includes("python3 \"${PLUGIN_ROOT}/hooks/nmem-stop-launch.py\""))) {
+    if (!commands.some((command) => command.includes("os.environ['PLUGIN_ROOT']"))) {
+      fail("Stop hook commands must read PLUGIN_ROOT from Python, not shell expansion");
+    } else ok("Stop hook launcher env lookup");
+    if (commands.some((command) => command.includes("${PLUGIN_ROOT}"))) {
+      fail("Stop hook commands must not rely on ${PLUGIN_ROOT} placeholder expansion");
+    } else ok("Stop hook command avoids Codex placeholder dependency");
+    if (commands.some((command) => command.includes("%PLUGIN_ROOT%"))) {
+      fail("Stop hook commands must not rely on %PLUGIN_ROOT% shell expansion");
+    } else ok("Stop hook command avoids Windows shell env expansion");
+    if (!commands.some((command) => command.includes("python3 -c \"import os, runpy, sys"))) {
       fail("Stop hook generic command must keep the POSIX python3 launcher first");
     } else ok("Stop hook POSIX Python launcher");
-    if (!commands.some((command) => command.includes("python \"${PLUGIN_ROOT}/hooks/nmem-stop-launch.py\""))) {
+    if (!commands.some((command) => command.includes("python -c \"import os, runpy, sys"))) {
       fail("Stop hook generic command must include a python fallback");
     } else ok("Stop hook generic python fallback");
     if (commands.some((command) => command.includes("if ["))) {
@@ -133,17 +139,14 @@ if (hooks) {
     if (commands.some((command) => command.includes("$HOME/.codex/hooks/nowledge-mem-stop-save.py"))) {
       fail("Stop hook command must not branch on $HOME in shell");
     } else ok("Stop hook stable fallback lives in launcher");
-    if (windowsCommands.some((command) => command.includes("${PLUGIN_ROOT}"))) {
-      fail("Stop hook commandWindows must not rely on ${PLUGIN_ROOT} placeholder expansion");
-    } else ok("Stop hook Windows env var syntax");
-    if (!windowsCommands.some((command) => command.includes("python \"%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py\""))) {
-      fail("Stop hook must declare a Windows command using python and %PLUGIN_ROOT%");
+    if (!windowsCommands.some((command) => command.includes("python -c \"import os, runpy, sys"))) {
+      fail("Stop hook must declare a Windows command using python");
     } else ok("Stop hook Windows Python launcher");
-    if (!windowsCommands.some((command) => command.includes("py -3 \"%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py\""))) {
-      fail("Stop hook must declare a Windows py launcher fallback using %PLUGIN_ROOT%");
+    if (!windowsCommands.some((command) => command.includes("py -3 -c \"import os, runpy, sys"))) {
+      fail("Stop hook must declare a Windows py launcher fallback");
     } else ok("Stop hook Windows py fallback");
-    if (!windowsCommands.some((command) => command.includes("python3 \"%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py\""))) {
-      fail("Stop hook must declare a Windows python3 fallback using %PLUGIN_ROOT%");
+    if (!windowsCommands.some((command) => command.includes("python3 -c \"import os, runpy, sys"))) {
+      fail("Stop hook must declare a Windows python3 fallback");
     } else ok("Stop hook Windows python3 fallback");
   }
 }
