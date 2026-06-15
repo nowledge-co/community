@@ -283,7 +283,10 @@ def test_key_plugin_static_contracts_are_declared():
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
     assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
     assert "Stop" in codex_hooks
-    assert "nmem-stop-save.py" in json.dumps(codex_hooks)
+    assert "nmem-stop-launch.py" in json.dumps(codex_hooks)
+    codex_launcher = (CODEX_PLUGIN / "hooks" / "nmem-stop-launch.py").read_text(encoding="utf-8")
+    assert "nowledge-mem-stop-save.py" in codex_launcher
+    assert "nmem-stop-save.py" in codex_launcher
     codex_stop_commands = [
         hook.get("command", "")
         for entry in codex_hooks.get("Stop", [])
@@ -291,7 +294,11 @@ def test_key_plugin_static_contracts_are_declared():
         for hook in entry.get("hooks", [])
         if isinstance(hook, dict)
     ]
-    assert any('"${PLUGIN_ROOT}/hooks/nmem-stop-save.py"' in command for command in codex_stop_commands)
+    assert any('"${PLUGIN_ROOT}/hooks/nmem-stop-launch.py"' in command for command in codex_stop_commands)
+    assert any('python3 "${PLUGIN_ROOT}/hooks/nmem-stop-launch.py"' in command for command in codex_stop_commands)
+    assert any('python "${PLUGIN_ROOT}/hooks/nmem-stop-launch.py"' in command for command in codex_stop_commands)
+    assert all("if [" not in command for command in codex_stop_commands)
+    assert all("$HOME/.codex/hooks/nowledge-mem-stop-save.py" not in command for command in codex_stop_commands)
     codex_windows_commands = [
         hook.get("commandWindows", "")
         for entry in codex_hooks.get("Stop", [])
@@ -300,9 +307,9 @@ def test_key_plugin_static_contracts_are_declared():
         if isinstance(hook, dict)
     ]
     assert all("${PLUGIN_ROOT}" not in command for command in codex_windows_commands)
-    assert any('python "%PLUGIN_ROOT%\\hooks\\nmem-stop-save.py"' in command for command in codex_windows_commands)
-    assert any('py -3 "%PLUGIN_ROOT%\\hooks\\nmem-stop-save.py"' in command for command in codex_windows_commands)
-    assert any('python3 "%PLUGIN_ROOT%\\hooks\\nmem-stop-save.py"' in command for command in codex_windows_commands)
+    assert any('python "%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py"' in command for command in codex_windows_commands)
+    assert any('py -3 "%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py"' in command for command in codex_windows_commands)
+    assert any('python3 "%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py"' in command for command in codex_windows_commands)
     assert (CODEX_PLUGIN / "scripts" / "install_hooks.py").exists()
     assert (CODEX_PLUGIN / "skills" / "working-memory" / "SKILL.md").exists()
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()

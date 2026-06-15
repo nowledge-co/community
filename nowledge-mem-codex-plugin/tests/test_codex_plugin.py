@@ -8,6 +8,7 @@ from unittest import mock
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 HOOK_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem-stop-save.py"
+LAUNCH_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem-stop-launch.py"
 INSTALL_MODULE_PATH = PLUGIN_ROOT / "scripts" / "install_hooks.py"
 HOOKS_JSON_PATH = PLUGIN_ROOT / "hooks" / "hooks.json"
 
@@ -192,11 +193,58 @@ class PackagedHookConfigTests(unittest.TestCase):
         payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
         hook = payload["hooks"]["Stop"][0]["hooks"][0]
 
-        self.assertIn('$HOME/.codex/hooks/nowledge-mem-stop-save.py', hook["command"])
-        self.assertIn('"${PLUGIN_ROOT}/hooks/nmem-stop-save.py"', hook["command"])
-        self.assertIn('%USERPROFILE%\\.codex\\hooks\\nowledge-mem-stop-save.py', hook["commandWindows"])
+        self.assertIn('"${PLUGIN_ROOT}/hooks/nmem-stop-launch.py"', hook["command"])
+        self.assertIn('python3 "${PLUGIN_ROOT}/hooks/nmem-stop-launch.py"', hook["command"])
+        self.assertIn('python "${PLUGIN_ROOT}/hooks/nmem-stop-launch.py"', hook["command"])
+        self.assertNotIn("if [", hook["command"])
+        self.assertNotIn("$HOME/.codex/hooks/nowledge-mem-stop-save.py", hook["command"])
         self.assertNotIn("${PLUGIN_ROOT}", hook["commandWindows"])
-        self.assertIn('"%PLUGIN_ROOT%\\hooks\\nmem-stop-save.py"', hook["commandWindows"])
+        self.assertIn('"%PLUGIN_ROOT%\\hooks\\nmem-stop-launch.py"', hook["commandWindows"])
+
+
+class LauncherTests(unittest.TestCase):
+    def setUp(self):
+        self.module = load_module("nmem_stop_launch", LAUNCH_MODULE_PATH)
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_path = Path(self.temp_dir.name)
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_launcher_prefers_stable_host_hook(self):
+        codex_home = self.temp_path / ".codex"
+        stable_hook = codex_home / "hooks" / "nowledge-mem-stop-save.py"
+        stable_hook.parent.mkdir(parents=True)
+        stable_hook.write_text("# stable", encoding="utf-8")
+        calls = []
+
+        def fake_run_path(path, *, run_name):
+            calls.append((Path(path), run_name, list(self.module.sys.argv)))
+            return {}
+
+        with mock.patch.dict(self.module.os.environ, {"CODEX_HOME": str(codex_home)}, clear=False), \
+             mock.patch.object(self.module.runpy, "run_path", side_effect=fake_run_path), \
+             mock.patch.object(self.module.sys, "argv", ["launcher", "--event", "stop"]):
+            self.assertEqual(self.module.main(), 0)
+
+        self.assertEqual(calls, [(stable_hook, "__main__", [str(stable_hook), "--event", "stop"])])
+
+    def test_launcher_falls_back_to_packaged_hook(self):
+        missing_hook = self.temp_path / "missing.py"
+        packaged_hook = self.temp_path / "nmem-stop-save.py"
+        calls = []
+
+        def fake_run_path(path, *, run_name):
+            calls.append((Path(path), run_name, list(self.module.sys.argv)))
+            return {}
+
+        with mock.patch.object(self.module, "_stable_host_hook", return_value=missing_hook), \
+             mock.patch.object(self.module, "_packaged_hook", return_value=packaged_hook), \
+             mock.patch.object(self.module.runpy, "run_path", side_effect=fake_run_path), \
+             mock.patch.object(self.module.sys, "argv", ["launcher", "--event", "stop"]):
+            self.assertEqual(self.module.main(), 0)
+
+        self.assertEqual(calls, [(packaged_hook, "__main__", [str(packaged_hook), "--event", "stop"])])
 
 
 class InstallHookTests(unittest.TestCase):

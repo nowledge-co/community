@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.17] - 2026-06-15
+
+### Fixed
+
+- Packaged Codex Stop hooks now route through a small Python launcher instead of using Bash-only shell conditionals in the generic `command` field. This keeps automatic thread capture working on Windows builds that execute `command` instead of `commandWindows`.
+
 ## [0.1.16] - 2026-06-15
 
 ### Fixed
