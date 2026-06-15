@@ -195,7 +195,8 @@ class PackagedHookConfigTests(unittest.TestCase):
         self.assertIn('$HOME/.codex/hooks/nowledge-mem-stop-save.py', hook["command"])
         self.assertIn('"${PLUGIN_ROOT}/hooks/nmem-stop-save.py"', hook["command"])
         self.assertIn('%USERPROFILE%\\.codex\\hooks\\nowledge-mem-stop-save.py', hook["commandWindows"])
-        self.assertIn('"${PLUGIN_ROOT}/hooks/nmem-stop-save.py"', hook["commandWindows"])
+        self.assertNotIn("${PLUGIN_ROOT}", hook["commandWindows"])
+        self.assertIn('"%PLUGIN_ROOT%\\hooks\\nmem-stop-save.py"', hook["commandWindows"])
 
 
 class InstallHookTests(unittest.TestCase):

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.16] - 2026-06-15
+
+### Fixed
+
+- Windows packaged Codex Stop hooks now use `%PLUGIN_ROOT%` for the clean-install fallback path. This keeps automatic thread capture working when the old host-level fallback hook is absent and Codex runs hooks through `cmd.exe`.
+
 ## [0.1.15] - 2026-06-14
 
 ### Fixed

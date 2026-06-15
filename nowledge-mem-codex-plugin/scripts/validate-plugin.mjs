@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.15";
+const expectedVersion = "0.1.16";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -98,6 +98,7 @@ if (hooks) {
   if (!Array.isArray(stopHooks)) fail("hooks/hooks.json must declare Stop hooks");
   else {
     const commands = [];
+    const windowsCommands = [];
     const collectCommands = (value) => {
       if (Array.isArray(value)) {
         for (const item of value) collectCommands(item);
@@ -105,7 +106,10 @@ if (hooks) {
       }
       if (value && typeof value === "object") {
         if (typeof value.command === "string") commands.push(value.command);
-        if (typeof value.commandWindows === "string") commands.push(value.commandWindows);
+        if (typeof value.commandWindows === "string") {
+          commands.push(value.commandWindows);
+          windowsCommands.push(value.commandWindows);
+        }
         for (const item of Object.values(value)) collectCommands(item);
       }
     };
@@ -122,12 +126,18 @@ if (hooks) {
     if (!commands.some((command) => command.includes("%USERPROFILE%\\.codex\\hooks\\nowledge-mem-stop-save.py"))) {
       fail("Stop hook command must prefer the stable host hook on Windows");
     } else ok("Stop hook Windows stable host fallback");
-    if (!commands.some((command) => command.includes("python \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\""))) {
-      fail("Stop hook must declare a Windows command using python");
+    if (windowsCommands.some((command) => command.includes("${PLUGIN_ROOT}"))) {
+      fail("Stop hook commandWindows must not rely on ${PLUGIN_ROOT} placeholder expansion");
+    } else ok("Stop hook Windows env var syntax");
+    if (!windowsCommands.some((command) => command.includes("python \"%PLUGIN_ROOT%\\hooks\\nmem-stop-save.py\""))) {
+      fail("Stop hook must declare a Windows command using python and %PLUGIN_ROOT%");
     } else ok("Stop hook Windows Python launcher");
-    if (!commands.some((command) => command.includes("py -3 \"${PLUGIN_ROOT}/hooks/nmem-stop-save.py\""))) {
-      fail("Stop hook must declare a Windows py launcher fallback");
+    if (!windowsCommands.some((command) => command.includes("py -3 \"%PLUGIN_ROOT%\\hooks\\nmem-stop-save.py\""))) {
+      fail("Stop hook must declare a Windows py launcher fallback using %PLUGIN_ROOT%");
     } else ok("Stop hook Windows py fallback");
+    if (!windowsCommands.some((command) => command.includes("python3 \"%PLUGIN_ROOT%\\hooks\\nmem-stop-save.py\""))) {
+      fail("Stop hook must declare a Windows python3 fallback using %PLUGIN_ROOT%");
+    } else ok("Stop hook Windows python3 fallback");
   }
 }
 
