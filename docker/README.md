@@ -203,6 +203,29 @@ on the host (`/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json`
 inside the container); it survives `docker compose pull && up -d` upgrades.
 **Backing up `./config` backs up the key.**
 
+#### One-click installs (NAS app stores) — no terminal needed
+
+All four methods above need a shell. A user who installed from a NAS app
+store (Synology, QNAP, Unraid, etc.) with one click may not have one. For that
+case set **`NOWLEDGE_NAS_BOOTSTRAP: "1"`** in the compose `environment` block
+(it ships commented out, default OFF). Then on first run the user opens the web
+UI from a browser on the same network → **Settings → Access Anywhere** and a
+"Finish setup: copy your access key" card lets them copy the key directly — no
+terminal, no `docker exec`.
+
+This is hardened and deliberately narrow:
+
+- **Opt-in only** — nothing changes unless you set the variable.
+- **Same-LAN only** — the reveal works only from a private/LAN address and is
+  refused for anything arriving over the Access Anywhere tunnel or the
+  `/remote-api` gateway, so it is never reachable from the internet.
+- **One-time** — the window closes for good the moment the key is first used
+  (the user has clearly received it), reverting to terminal/loopback only.
+
+Only enable it on a trusted LAN. **Do not** set it on an instance you expose
+directly to the public internet — there, retrieve the key with `./nmemctl key`
+or read `remote-access.json` instead.
+
 If you rotate the key, every existing client (web UI, MCP clients, the
 `nmem` CLI on remote machines) needs the new value pasted in.
 
