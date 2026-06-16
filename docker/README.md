@@ -216,15 +216,20 @@ terminal, no `docker exec`.
 This is hardened and deliberately narrow:
 
 - **Opt-in only** — nothing changes unless you set the variable.
-- **Same-LAN only** — the reveal works only from a private/LAN address and is
-  refused for anything arriving over the Access Anywhere tunnel or the
-  `/remote-api` gateway, so it is never reachable from the internet.
 - **One-time** — the window closes for good the moment the key is first used
   (the user has clearly received it), reverting to terminal/loopback only.
+- **Refuses the tunnel/gateway** — a request arriving over the Access Anywhere
+  tunnel or the `/remote-api` gateway is always rejected.
+- **LAN-checked, best-effort** — the reveal is allowed only from a
+  private/LAN address. Behind a reverse proxy it reads the forwarded client
+  address (`X-Forwarded-For` / `X-Real-IP`) and rejects public visitors.
 
-Only enable it on a trusted LAN. **Do not** set it on an instance you expose
-directly to the public internet — there, retrieve the key with `./nmemctl key`
-or read `remote-access.json` instead.
+One honest caveat: if you publish the container's port **straight** to the
+internet (no reverse proxy), Docker's NAT replaces the visitor's address with
+the bridge gateway, so the server can't tell a LAN client from an outside one.
+That's why this is for **trusted LANs only** — **do not** enable it on an
+instance whose port is exposed directly to the public internet. There, retrieve
+the key with `./nmemctl key` or read `remote-access.json` instead.
 
 If you rotate the key, every existing client (web UI, MCP clients, the
 `nmem` CLI on remote machines) needs the new value pasted in.
