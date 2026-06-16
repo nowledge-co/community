@@ -224,12 +224,14 @@ This is hardened and deliberately narrow:
   private/LAN address. Behind a reverse proxy it reads the forwarded client
   address (`X-Forwarded-For` / `X-Real-IP`) and rejects public visitors.
 
-One honest caveat: if you publish the container's port **straight** to the
-internet (no reverse proxy), Docker's NAT replaces the visitor's address with
-the bridge gateway, so the server can't tell a LAN client from an outside one.
-That's why this is for **trusted LANs only** — **do not** enable it on an
-instance whose port is exposed directly to the public internet. There, retrieve
-the key with `./nmemctl key` or read `remote-access.json` instead.
+One honest caveat: whether the server sees a visitor's real address depends on
+your Docker networking. On a standard Linux bridge (most NAS boxes) the real
+client IP is preserved, so the gate does reject public visitors — but some
+setups present the bridge gateway instead, where a LAN client and an outside one
+can't be told apart. Because you can't always be sure which you have, treat this
+as **trusted-LAN only** — **do not** enable it on an instance whose port is
+exposed directly to the public internet. There, retrieve the key with
+`./nmemctl key` or read `remote-access.json` instead.
 
 If you rotate the key, every existing client (web UI, MCP clients, the
 `nmem` CLI on remote machines) needs the new value pasted in.
