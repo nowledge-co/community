@@ -223,10 +223,6 @@ This is hardened and deliberately narrow:
 - **LAN-checked, best-effort** — the reveal is allowed only from a
   private/LAN address. Behind a reverse proxy it reads the forwarded client
   address (`X-Forwarded-For` / `X-Real-IP`) and rejects public visitors.
-- **LazyCat** — requests reach the container only through the authenticated
-  `lzc-ingress`, so a logged-in LazyCat user (even off-LAN) can copy the key
-  from the web UI during the one-time window. A LazyCat package just sets
-  `NOWLEDGE_NAS_BOOTSTRAP` for you.
 
 One honest caveat: whether the server sees a visitor's real address depends on
 your Docker networking. On a standard Linux bridge (most NAS boxes) the real
