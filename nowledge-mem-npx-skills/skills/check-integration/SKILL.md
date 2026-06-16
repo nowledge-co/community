@@ -21,10 +21,14 @@ description: Check Nowledge Mem setup, detect your agent, and guide native conne
 nmem --json status
 ```
 
-If the command is missing, pick the path that matches this machine:
+Use this rule before repairing anything:
 
-- **Same machine as the user's desktop app:** ask the user to open Nowledge Mem and use **Settings → Preferences → Developer Tools → Install bundled CLI**.
-- **Remote server, dev box, CI runner, or hosted agent:** install the standalone PyPI package `nmem-cli` (Python 3.11+), then point it at the user's Mem server:
+- **Same machine as Nowledge Mem Desktop:** use the desktop app's bundled `nmem`. Ask the user to open Nowledge Mem; if the command is still missing, use **Settings → Preferences → Developer Tools → Install bundled CLI**.
+- **Different machine:** install the standalone PyPI package `nmem-cli` on this machine, then point it at the user's Mem server. This covers remote servers, dev boxes, CI runners, hosted agents, and SSH machines. Python 3.11+ is required.
+
+Do not install the PyPI CLI over the desktop-bundled CLI on the user's own desktop unless the user explicitly asks for a standalone CLI.
+
+If the agent is not on the desktop machine and `nmem` is missing, install the PyPI CLI:
 
 ```bash
 python3 -m pip install --user nmem-cli
