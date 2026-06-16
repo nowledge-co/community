@@ -70,6 +70,15 @@ services:
     #   # list. Leave unset for no allowlist (the gateway still requires a
     #   # token; see docs for the auth header contract).
     #   NOWLEDGE_IP_ALLOWLIST: "10.0.0.0/8,192.168.0.0/16"
+    #
+    #   # First-run key bootstrap for one-click installs (NAS app stores, etc.).
+    #   # DEFAULT OFF. When "1", the auto-generated Access Anywhere key can be
+    #   # revealed once from the same-LAN web UI (Settings -> Access Anywhere),
+    #   # so a user who can't open a terminal can still copy it. Hardened: works
+    #   # only from a private/LAN address, never via the tunnel, and closes for
+    #   # good the first time the key is used. Only enable on a trusted LAN —
+    #   # never on an instance exposed directly to the internet.
+    #   NOWLEDGE_NAS_BOOTSTRAP: "1"
 
     # ---- Security hardening -------------------------------------------------
     # The image is built so it never needs to write outside the three bind

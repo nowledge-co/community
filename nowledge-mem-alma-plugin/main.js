@@ -220,7 +220,7 @@ export class NowledgeMemClient {
 				return candidate;
 			}
 		}
-		throw new Error("nmem CLI not found. Install with `pip install nmem` or use `uvx --from nmem-cli nmem`.");
+		throw new Error("nmem CLI not found. Install with `pip install nmem-cli` or use `uvx --from nmem-cli nmem`.");
 	}
 
 	// --- Memory operations ---

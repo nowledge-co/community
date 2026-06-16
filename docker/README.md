@@ -203,6 +203,36 @@ on the host (`/etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json`
 inside the container); it survives `docker compose pull && up -d` upgrades.
 **Backing up `./config` backs up the key.**
 
+#### One-click installs (NAS app stores) — no terminal needed
+
+All four methods above need a shell. A user who installed from a NAS app
+store (Synology, QNAP, Unraid, etc.) with one click may not have one. For that
+case set **`NOWLEDGE_NAS_BOOTSTRAP: "1"`** in the compose `environment` block
+(it ships commented out, default OFF). Then on first run the user opens the web
+UI from a browser on the same network → **Settings → Access Anywhere** and a
+"Finish setup: copy your access key" card lets them copy the key directly — no
+terminal, no `docker exec`.
+
+This is hardened and deliberately narrow:
+
+- **Opt-in only** — nothing changes unless you set the variable.
+- **One-time** — the window closes for good the moment the key is first used
+  (the user has clearly received it), reverting to terminal/loopback only.
+- **Refuses the tunnel/gateway** — a request arriving over the Access Anywhere
+  tunnel or the `/remote-api` gateway is always rejected.
+- **LAN-checked, best-effort** — the reveal is allowed only from a
+  private/LAN address. Behind a reverse proxy it reads the forwarded client
+  address (`X-Forwarded-For` / `X-Real-IP`) and rejects public visitors.
+
+One honest caveat: whether the server sees a visitor's real address depends on
+your Docker networking. On a standard Linux bridge (most NAS boxes) the real
+client IP is preserved, so the gate does reject public visitors — but some
+setups present the bridge gateway instead, where a LAN client and an outside one
+can't be told apart. Because you can't always be sure which you have, treat this
+as **trusted-LAN only** — **do not** enable it on an instance whose port is
+exposed directly to the public internet. There, retrieve the key with
+`./nmemctl key` or read `remote-access.json` instead.
+
 If you rotate the key, every existing client (web UI, MCP clients, the
 `nmem` CLI on remote machines) needs the new value pasted in.
 
