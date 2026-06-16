@@ -21,9 +21,26 @@ description: Check Nowledge Mem setup, detect your agent, and guide native conne
 nmem --json status
 ```
 
-If this fails, Nowledge Mem is not installed or not running. Guide the user:
-- Install: https://mem.nowledge.co/docs/installation
-- Start: open the Nowledge Mem desktop app, or run the server
+If the command is missing, pick the path that matches this machine:
+
+- **Same machine as the user's desktop app:** ask the user to open Nowledge Mem and use **Settings → Preferences → Developer Tools → Install bundled CLI**.
+- **Remote server, dev box, CI runner, or hosted agent:** install the standalone PyPI package `nmem-cli` (Python 3.11+), then point it at the user's Mem server:
+
+```bash
+python3 -m pip install --user nmem-cli
+# or: pipx install nmem-cli
+# or for one-off checks: uvx --from nmem-cli nmem --json status
+
+nmem config client set url https://<their-mem-server>
+nmem config client set api-key nmem_...
+nmem --json status
+```
+
+If `nmem` exists but status fails, Nowledge Mem is not reachable from this machine. Guide the user:
+- Local desktop: open the Nowledge Mem app, then retry `nmem --json status`
+- Remote/client machine: verify the URL/API key with `nmem config client show`
+- Full install guide: https://mem.nowledge.co/docs/installation
+- Remote access guide: https://mem.nowledge.co/docs/remote-access
 
 ## Step 2: Detect Agent and Recommend The Best Path
 
