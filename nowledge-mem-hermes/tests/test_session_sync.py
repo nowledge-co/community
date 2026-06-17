@@ -411,6 +411,38 @@ def test_session_end_does_not_append_parent_prefix_when_only_delta_count_is_know
     assert instance._client.append_calls == []
 
 
+def test_delta_only_sync_turn_with_messages_uses_current_turn_not_parent_history():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-old"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("old question", "old answer", session_id="session-old")
+    instance.on_session_switch("session-branch", parent_session_id="session-old", reset=False)
+    instance.sync_turn(
+        "branch question",
+        "branch answer",
+        session_id="session-branch",
+        messages=[
+            {"role": "user", "content": "old question"},
+            {"role": "assistant", "content": "old answer"},
+            {"role": "user", "content": "branch question"},
+            {"role": "assistant", "content": "branch answer"},
+        ],
+    )
+
+    assert instance._client.import_calls[-1] == {
+        "thread_id": "session-branch",
+        "messages": [
+            {"role": "user", "content": "branch question"},
+            {"role": "assistant", "content": "branch answer"},
+        ],
+        "title": "branch question",
+        "source": "hermes",
+    }
+
+
 def test_session_end_catches_up_delta_only_session_tail_without_parent_prefix():
     instance = provider.NowledgeMemProvider()
     instance._client = FakeClient()

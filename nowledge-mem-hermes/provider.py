@@ -381,7 +381,7 @@ class NowledgeMemProvider(MemoryProvider):
             return
 
         self._activate_session(active_session_id)
-        if messages:
+        if messages and active_session_id not in self._delta_only_sessions:
             cleaned_messages = self._clean_session_messages(messages)
             if cleaned_messages:
                 self._sync_cleaned_messages(cleaned_messages, title_messages=cleaned_messages)
@@ -500,7 +500,7 @@ class NowledgeMemProvider(MemoryProvider):
     ) -> List[Dict[str, Any]]:
         written = list(self._written_message_signatures.get(session_id) or [])
         if not written:
-            return list(messages)
+            return []
 
         signatures = [self._message_signature(message) for message in messages]
         search_from = 0
