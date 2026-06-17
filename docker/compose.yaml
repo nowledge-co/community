@@ -22,7 +22,7 @@
 #   NMEM_COMPOSE_FILES='-f compose.yaml -f compose.tls.yaml' ./nmemctl up
 #
 # Verify the image is signed by Nowledge Labs (anyone, anywhere):
-#   cosign verify docker.io/nowledgelabs/mem:0.9.4 \
+#   cosign verify docker.io/nowledgelabs/mem:0.9.15 \
 #     --certificate-identity-regexp='https://github.com/nowledge-co/mem/.github/workflows/release-docker.yml@.*' \
 #     --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 
@@ -32,7 +32,7 @@ services:
     # optional `./nmemctl auto-update` sidecar can flip versions by
     # writing `NMEM_IMAGE_TAG=<ver>` to `.env` (mode 0600, gitignored)
     # without rewriting this file. Fresh installs use the default.
-    image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-0.9.4}
+    image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-0.9.15}
     container_name: nowledge-mem
     restart: unless-stopped
     labels:
@@ -72,12 +72,12 @@ services:
     #   NOWLEDGE_IP_ALLOWLIST: "10.0.0.0/8,192.168.0.0/16"
     #
     #   # First-run key bootstrap for one-click installs (NAS app stores, etc.).
-    #   # DEFAULT OFF. When "1", the auto-generated Access Anywhere key can be
-    #   # revealed once from the same-LAN web UI (Settings -> Access Anywhere),
-    #   # so a user who can't open a terminal can still copy it. Hardened: works
-    #   # only from a private/LAN address, never via the tunnel, and closes for
-    #   # good the first time the key is used. Only enable on a trusted LAN —
-    #   # never on an instance exposed directly to the internet.
+    #   # DEFAULT OFF. When "1", the very first web visit on the same LAN shows a
+    #   # "Set up this device" screen with the auto-generated Access Anywhere key
+    #   # for the user to copy, so someone who can't open a terminal can still get
+    #   # it. Hardened: works only from a private/LAN address, never via the
+    #   # tunnel, and closes for good the first time the key is used. Only enable
+    #   # on a trusted LAN, never on an instance exposed directly to the internet.
     #   NOWLEDGE_NAS_BOOTSTRAP: "1"
 
     # ---- Security hardening -------------------------------------------------

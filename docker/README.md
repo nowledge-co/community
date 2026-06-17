@@ -209,9 +209,9 @@ All four methods above need a shell. A user who installed from a NAS app
 store (Synology, QNAP, Unraid, etc.) with one click may not have one. For that
 case set **`NOWLEDGE_NAS_BOOTSTRAP: "1"`** in the compose `environment` block
 (it ships commented out, default OFF). Then on first run the user opens the web
-UI from a browser on the same network → **Settings → Access Anywhere** and a
-"Finish setup: copy your access key" card lets them copy the key directly — no
-terminal, no `docker exec`.
+UI from a browser on the same network and the very first screen, **"Set up this
+device"**, shows the access key for them to copy directly. No terminal, no
+`docker exec`.
 
 This is hardened and deliberately narrow:
 
@@ -220,9 +220,10 @@ This is hardened and deliberately narrow:
   (the user has clearly received it), reverting to terminal/loopback only.
 - **Refuses the tunnel/gateway** — a request arriving over the Access Anywhere
   tunnel or the `/remote-api` gateway is always rejected.
-- **LAN-checked, best-effort** — the reveal is allowed only from a
-  private/LAN address. Behind a reverse proxy it reads the forwarded client
-  address (`X-Forwarded-For` / `X-Real-IP`) and rejects public visitors.
+- **LAN-checked** — the reveal is allowed only from a private/LAN address. The
+  check is peer-first: the real TCP peer must be private. A forwarded address
+  (`X-Forwarded-For` / `X-Real-IP`) is consulted only when the peer is already a
+  trusted private proxy, so a public visitor cannot spoof a LAN header to get in.
 
 One honest caveat: whether the server sees a visitor's real address depends on
 your Docker networking. On a standard Linux bridge (most NAS boxes) the real
@@ -326,7 +327,7 @@ public keys to download or rotate — verification uses the GitHub Actions OIDC
 identity that produced the build.
 
 ```bash
-cosign verify docker.io/nowledgelabs/mem:0.9.4 \
+cosign verify docker.io/nowledgelabs/mem:0.9.15 \
   --certificate-identity-regexp='https://github.com/nowledge-co/mem/.github/workflows/release-docker.yml@.*' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 ```
@@ -357,7 +358,7 @@ The image ships a multi-arch manifest for **`linux/amd64`** and
 If you need a specific arch, pin it explicitly:
 
 ```bash
-docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:0.9.4
+docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:0.9.15
 ```
 
 ---
