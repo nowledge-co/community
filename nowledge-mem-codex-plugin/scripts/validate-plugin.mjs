@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.18";
+const expectedVersion = "0.1.19";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -95,6 +95,10 @@ if (manifest) {
 
 const hooks = parseJsonIfPresent(path.join(pluginRoot, "hooks/hooks.json"), "hooks/hooks.json");
 if (hooks) {
+  const hookTopLevelKeys = Object.keys(hooks).sort();
+  if (hookTopLevelKeys.length !== 1 || hookTopLevelKeys[0] !== "hooks") {
+    fail("hooks/hooks.json must only contain the top-level hooks key");
+  } else ok("hooks/hooks.json strict top-level schema");
   const stopHooks = hooks.hooks?.Stop;
   if (!Array.isArray(stopHooks)) fail("hooks/hooks.json must declare Stop hooks");
   else {

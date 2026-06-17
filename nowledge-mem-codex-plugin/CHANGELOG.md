@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.19] - 2026-06-17
+
+### Fixed
+
+- Removed package metadata from `hooks/hooks.json` so current Codex builds can parse the bundled Stop hook config. This fixes startup warnings such as `unknown field description, expected hooks`.
+
 ## [0.1.18] - 2026-06-15
 
 ### Fixed

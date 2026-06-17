@@ -189,6 +189,11 @@ class HookTests(unittest.TestCase):
 
 
 class PackagedHookConfigTests(unittest.TestCase):
+    def test_packaged_hooks_json_uses_strict_codex_schema(self):
+        payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
+
+        self.assertEqual(set(payload.keys()), {"hooks"})
+
     def test_packaged_stop_hook_prefers_stable_installed_runtime(self):
         payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
         hook = payload["hooks"]["Stop"][0]["hooks"][0]

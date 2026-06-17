@@ -1,5 +1,4 @@
 {
-  "description": "Nowledge Mem Codex lifecycle hook — best-effort transcript capture after each turn",
   "hooks": {
     "Stop": [
       {
