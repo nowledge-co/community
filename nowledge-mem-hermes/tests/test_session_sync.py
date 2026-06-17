@@ -200,6 +200,59 @@ def test_sync_turn_imports_completed_one_shot_turn():
     ]
 
 
+def test_sync_turn_accepts_hermes_messages_payload_and_appends_transcript_delta():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-messages"
+    instance._saved_message_count = 0
+
+    first_messages = [
+        {"role": "system", "content": "skip"},
+        {"role": "user", "content": "question"},
+        {"role": "assistant", "content": "answer"},
+    ]
+    instance.sync_turn(
+        "question",
+        "answer",
+        session_id="session-messages",
+        messages=first_messages,
+    )
+
+    second_messages = [
+        *first_messages,
+        {"role": "user", "content": "next"},
+        {"role": "assistant", "content": "done"},
+    ]
+    instance.sync_turn(
+        "next",
+        "done",
+        session_id="session-messages",
+        messages=second_messages,
+    )
+
+    assert instance._client.import_calls == [
+        {
+            "thread_id": "session-messages",
+            "messages": [
+                {"role": "user", "content": "question"},
+                {"role": "assistant", "content": "answer"},
+            ],
+            "title": "question",
+            "source": "hermes",
+        }
+    ]
+    assert instance._client.append_calls == [
+        {
+            "thread_id": "session-messages",
+            "messages": [
+                {"role": "user", "content": "next"},
+                {"role": "assistant", "content": "done"},
+            ],
+        }
+    ]
+
+
 def test_initial_import_existing_thread_falls_back_to_dedup_append():
     instance = provider.NowledgeMemProvider()
     instance._client = FakeClient()
@@ -335,7 +388,7 @@ def test_session_switch_without_reset_does_not_reuse_previous_session_count():
     assert "session-branch" in instance._delta_only_sessions
 
 
-def test_session_end_skips_full_flush_when_only_delta_count_is_known():
+def test_session_end_does_not_append_parent_prefix_when_only_delta_count_is_known():
     instance = provider.NowledgeMemProvider()
     instance._client = FakeClient()
     instance._cron_skipped = False
@@ -358,6 +411,39 @@ def test_session_end_skips_full_flush_when_only_delta_count_is_known():
     assert instance._client.append_calls == []
 
 
+def test_session_end_catches_up_delta_only_session_tail_without_parent_prefix():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-old"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("old question", "old answer", session_id="session-old")
+    instance.on_session_switch("session-branch", parent_session_id="session-old", reset=False)
+    instance.sync_turn("branch question", "branch answer", session_id="session-branch")
+
+    instance.on_session_end(
+        [
+            {"role": "user", "content": "old question"},
+            {"role": "assistant", "content": "old answer"},
+            {"role": "user", "content": "branch question"},
+            {"role": "assistant", "content": "branch answer"},
+            {"role": "user", "content": "tail question"},
+            {"role": "assistant", "content": "tail answer"},
+        ]
+    )
+
+    assert instance._client.append_calls == [
+        {
+            "thread_id": "session-branch",
+            "messages": [
+                {"role": "user", "content": "tail question"},
+                {"role": "assistant", "content": "tail answer"},
+            ],
+        }
+    ]
+
+
 def test_register_supports_provider_collector_and_hook_only_contexts():
     plugin = _load_plugin_module()
 
@@ -369,6 +455,49 @@ def test_register_supports_provider_collector_and_hook_only_contexts():
     hook_ctx = HookOnlyContext()
     plugin.register(hook_ctx)
     assert "post_llm_call" in hook_ctx.hooks
+
+
+def test_post_llm_call_fallback_forwards_conversation_history(monkeypatch):
+    plugin = _load_plugin_module()
+    calls = []
+
+    class StubProvider:
+        def sync_turn(self, user_content, assistant_content, *, session_id="", messages=None):
+            calls.append(
+                {
+                    "user_content": user_content,
+                    "assistant_content": assistant_content,
+                    "session_id": session_id,
+                    "messages": messages,
+                }
+            )
+
+    monkeypatch.setattr(
+        plugin,
+        "_get_fallback_provider",
+        lambda *, session_id, kwargs: StubProvider(),
+    )
+
+    conversation_history = [
+        {"role": "system", "content": "skip"},
+        {"role": "user", "content": "question"},
+        {"role": "assistant", "content": "answer"},
+    ]
+    plugin._post_llm_call(
+        session_id="session-hook",
+        user_message="question",
+        assistant_response="answer",
+        conversation_history=conversation_history,
+    )
+
+    assert calls == [
+        {
+            "user_content": "question",
+            "assistant_content": "answer",
+            "session_id": "session-hook",
+            "messages": conversation_history,
+        }
+    ]
 
 
 def test_on_session_end_skips_malformed_messages_and_failed_import_does_not_advance_count():

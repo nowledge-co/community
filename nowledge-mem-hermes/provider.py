@@ -238,6 +238,7 @@ class NowledgeMemProvider(MemoryProvider):
         self._saved_message_count = 0
         self._saved_message_counts: Dict[str, int] = {}
         self._delta_only_sessions: Set[str] = set()
+        self._written_message_signatures: Dict[str, List[str]] = {}
 
     @property
     def name(self) -> str:
@@ -362,17 +363,30 @@ class NowledgeMemProvider(MemoryProvider):
         thread.start()
         self._bg_threads.append(thread)
 
-    def sync_turn(self, user_content: str, assistant_content: str, *, session_id: str = "") -> None:
+    def sync_turn(
+        self,
+        user_content: str,
+        assistant_content: str,
+        *,
+        session_id: str = "",
+        messages: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
         if self._cron_skipped or not self._client:
             return
 
         active_session_id = (session_id or self._session_id or "").strip()
         if not active_session_id:
             return
-        if not user_content and not assistant_content:
+        if not user_content and not assistant_content and not messages:
             return
 
         self._activate_session(active_session_id)
+        if messages:
+            cleaned_messages = self._clean_session_messages(messages)
+            if cleaned_messages:
+                self._sync_cleaned_messages(cleaned_messages, title_messages=cleaned_messages)
+                return
+
         cleaned_messages = self._clean_session_messages(
             [
                 {"role": "user", "content": user_content},
@@ -401,6 +415,7 @@ class NowledgeMemProvider(MemoryProvider):
         if reset:
             count = 0
             self._delta_only_sessions.discard(session_id)
+            self._written_message_signatures.pop(session_id, None)
         elif session_id in self._saved_message_counts:
             count = self._get_saved_message_count(session_id)
         elif session_id == previous_session_id:
@@ -444,11 +459,24 @@ class NowledgeMemProvider(MemoryProvider):
         cleaned_messages = self._clean_session_messages(messages)
         if not cleaned_messages:
             return
+
+        self._sync_cleaned_messages(cleaned_messages, title_messages=cleaned_messages)
+
+    def _sync_cleaned_messages(
+        self,
+        cleaned_messages: List[Dict[str, Any]],
+        *,
+        title_messages: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
+        session_id = (self._session_id or "").strip()
+        if not session_id or not cleaned_messages:
+            return
+
         if session_id in self._delta_only_sessions:
-            logger.debug(
-                "Skipping Nowledge Mem session-end flush for %s: only per-turn deltas are tracked",
-                session_id,
-            )
+            delta = self._unsynced_messages(session_id, cleaned_messages)
+            if not delta:
+                return
+            self._write_thread_messages(delta, title_messages=title_messages or cleaned_messages)
             return
 
         saved_count = self._get_saved_message_count(session_id)
@@ -464,6 +492,44 @@ class NowledgeMemProvider(MemoryProvider):
         if not delta:
             return
         self._write_thread_messages(delta, title_messages=cleaned_messages)
+
+    def _unsynced_messages(
+        self,
+        session_id: str,
+        messages: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        written = list(self._written_message_signatures.get(session_id) or [])
+        if not written:
+            return list(messages)
+
+        signatures = [self._message_signature(message) for message in messages]
+        search_from = 0
+        last_match = -1
+        for expected in written:
+            try:
+                match_at = signatures.index(expected, search_from)
+            except ValueError:
+                return []
+            last_match = match_at
+            search_from = match_at + 1
+        return messages[last_match + 1 :]
+
+    def _remember_written_messages(
+        self,
+        session_id: str,
+        messages: List[Dict[str, Any]],
+    ) -> None:
+        if not session_id or not messages:
+            return
+        bucket = self._written_message_signatures.setdefault(session_id, [])
+        for message in messages:
+            bucket.append(self._message_signature(message))
+
+    @staticmethod
+    def _message_signature(message: Dict[str, Any]) -> str:
+        role = str(message.get("role") or "")
+        content = str(message.get("content") or "")
+        return f"{role}\0{content}"
 
     def _write_thread_messages(
         self,
@@ -491,6 +557,7 @@ class NowledgeMemProvider(MemoryProvider):
                     if self._thread_already_exists(result):
                         self._delta_only_sessions.add(session_id)
                         self._append_existing_thread(session_id, messages)
+                        self._remember_written_messages(session_id, messages)
                         self._set_saved_message_count(session_id, saved_count + len(messages))
                         return
                     logger.warning(
@@ -506,6 +573,7 @@ class NowledgeMemProvider(MemoryProvider):
                     error,
                 )
                 return
+            self._remember_written_messages(session_id, messages)
             self._set_saved_message_count(session_id, saved_count + len(messages))
             return
 
@@ -518,6 +586,7 @@ class NowledgeMemProvider(MemoryProvider):
                 error,
             )
             return
+        self._remember_written_messages(session_id, messages)
         self._set_saved_message_count(session_id, saved_count + len(messages))
 
     def _append_existing_thread(self, session_id: str, messages: List[Dict[str, Any]]) -> None:
@@ -646,6 +715,7 @@ class NowledgeMemProvider(MemoryProvider):
         self._saved_message_count = 0
         self._saved_message_counts.clear()
         self._delta_only_sessions.clear()
+        self._written_message_signatures.clear()
 
     @staticmethod
     def _parse_csv(value: Any) -> Optional[List[str]]:

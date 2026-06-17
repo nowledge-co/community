@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.17] - 2026-06-17
+
+### Fixed
+
+- Restored Hermes automatic thread capture on current lifecycle builds. The provider now accepts Hermes' full `messages` payload during completed-turn sync, uses it for transcript deltas, and keeps the session-boundary flush as a catch-up path when a turn write was missed.
+- Final session flushes no longer skip delta-only sessions outright. For resume, branch, compression, or existing-thread cases, the provider aligns against messages it already wrote and appends only the missing tail, avoiding parent-history duplication while still recovering missed messages.
+- The `post_llm_call` compatibility fallback now forwards Hermes `conversation_history` into the same transcript-sync path instead of reducing the write to only the latest user/assistant strings.
+
 ## [0.5.16] - 2026-06-11
 
 ### Fixed

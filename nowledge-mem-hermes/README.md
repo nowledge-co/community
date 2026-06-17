@@ -192,7 +192,7 @@ Use `SOUL.md` for your own durable memory preferences and `HERMES.md` for repo-s
 - **"nmem CLI not found"**: Install with `pip install nmem-cli`, or enable CLI in the desktop app: Settings > Developer Tools.
 - **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. On older Hermes builds, rerun the setup command; it also places a compatibility copy under `~/.hermes/hermes-agent/plugins/memory/nowledge-mem/` when that runtime still discovers providers from the bundled memory directory. Restart Hermes after reinstalling.
 - **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
-- **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`.
+- **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`. If sessions were missed before an update, run `nmem t sync --from hermes --apply` once from the Hermes machine to import local history.
 - **Tool call fails immediately at 0.0s**: Update to v0.5.6 or later. Earlier builds had two separate failure modes: v0.5.3 and below could reject Hermes list-shaped tool arguments for labels or bulk IDs, and v0.5.4 could still advertise `nmem_*` tools before Hermes had actually indexed them for dispatch.
 - **Slow responses**: Default timeout is 30 seconds. Increase in `nowledge-mem.json` for remote setups.
 

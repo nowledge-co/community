@@ -37,13 +37,29 @@ def _post_llm_call(**kwargs: Any) -> None:
     session_id = str(kwargs.get("session_id") or "").strip()
     user_message = str(kwargs.get("user_message") or "")
     assistant_response = str(kwargs.get("assistant_response") or "")
+    messages = _message_list(kwargs.get("conversation_history") or kwargs.get("messages"))
     if not session_id or (not user_message and not assistant_response):
         return
 
     provider = _get_fallback_provider(session_id=session_id, kwargs=kwargs)
     if provider is None:
         return
-    provider.sync_turn(user_message, assistant_response, session_id=session_id)
+    provider.sync_turn(
+        user_message,
+        assistant_response,
+        session_id=session_id,
+        messages=messages,
+    )
+
+
+def _message_list(value: Any) -> Optional[list[dict[str, Any]]]:
+    if not isinstance(value, list):
+        return None
+    messages: list[dict[str, Any]] = []
+    for item in value:
+        if isinstance(item, dict):
+            messages.append(item)
+    return messages or None
 
 
 def _get_fallback_provider(
