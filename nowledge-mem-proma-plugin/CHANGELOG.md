@@ -1,5 +1,9 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## 0.1.3 (unreleased)
+
+- Add `PROMA_ALLOWED_WORKSPACES` env var to `save-to-nmem.py` so users can restrict thread sync to a subset of Proma workspaces. Defaults to `default`, preserving current behavior for single-workspace installs. Sessions whose cwd lives under a non-allowlisted workspace are skipped with a log entry.
+
 ## 0.1.2 (2026-06-13)
 
 - Align hooks with current Proma builds: install into `~/.proma/sdk-config/.claude/settings.json`, copy scripts to `~/.proma/scripts/`, and read transcripts from `~/.proma/sdk-config/projects/**/<session-id>.jsonl`.

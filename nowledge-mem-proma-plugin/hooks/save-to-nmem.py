@@ -70,6 +70,15 @@ LEGACY_SESSIONS_DIR = PROMA_HOME / "agent-sessions"
 LOG_DIR = PROMA_HOME / "logs"
 LOG_FILE = LOG_DIR / "nm-hooks.log"
 
+# Only sync sessions whose cwd lives under one of these workspace dirs
+# (relative to PROMA_HOME/agent-workspaces). Override with
+# PROMA_ALLOWED_WORKSPACES="default,other" (comma-separated).
+_DEFAULT_ALLOWED = "default"
+_ALLOWED_RAW = os.environ.get("PROMA_ALLOWED_WORKSPACES", _DEFAULT_ALLOWED)
+ALLOWED_WORKSPACE_DIRS: set[str] = {
+    part.strip() for part in _ALLOWED_RAW.split(",") if part.strip()
+}
+
 HEADERS = {
     "Content-Type": "application/json",
     "APP": "Proma",
@@ -312,6 +321,24 @@ def main() -> int:
     cwd = payload_value(payload, "cwd", "projectDir", "workspace", "workspacePath")
 
     log(f"start event={args.event} session={session_id or 'latest'} cwd={cwd or 'missing'}")
+
+    if cwd:
+        try:
+            cwd_path = Path(cwd).expanduser().resolve()
+            workspaces_root = (PROMA_HOME / "agent-workspaces").resolve()
+            rel = cwd_path.relative_to(workspaces_root)
+            workspace_dir = rel.parts[0] if rel.parts else ""
+        except Exception:
+            workspace_dir = ""
+        if workspace_dir not in ALLOWED_WORKSPACE_DIRS:
+            log(
+                f"skip: workspace '{workspace_dir}' not in allowed "
+                f"{sorted(ALLOWED_WORKSPACE_DIRS)}"
+            )
+            return 0
+    else:
+        log("skip: cwd missing, cannot determine workspace")
+        return 0
 
     session_file = find_session_file(session_id)
     if not session_file:
