@@ -905,19 +905,20 @@
         "status": true
       },
       "threadSave": {
-        "method": "none",
-        "note": "Kimi Code stores sessions under ~/.kimi-code/sessions, but Nowledge Mem does not yet ship a Kimi parser or lifecycle hook package. Use MCP and skills for retrieval and saving; use manual handoff summaries until parser-backed import is released."
+        "method": "cli-native",
+        "historicalCommand": "nmem t sync --from kimi-code",
+        "note": "Kimi Code stores durable sessions under ~/.kimi-code/sessions. nmem can import those wire.jsonl transcripts for local or remote Mem with nmem t sync --from kimi-code --apply. Nowledge Mem does not yet publish a Kimi lifecycle hook package, so live auto-capture remains manual/import-driven."
       },
       "autonomy": {
         "bootstrap": "guided",
         "recall": "guided",
         "distill": "guided",
-        "threads": "handoff-only",
+        "threads": "import-only",
         "bestResultRequires": [
           "Add Nowledge Mem as an MCP server in Kimi Code",
           "Import or copy the Nowledge Mem skills into Kimi Code",
           "Keep nmem configured on this machine for local or remote Mem",
-          "Ask Kimi Code to save durable decisions and handoff summaries when useful"
+          "Run nmem t sync --from kimi-code --apply when you want to import Kimi Code sessions"
         ]
       },
       "install": {
@@ -1005,19 +1006,20 @@
         "status": true
       },
       "threadSave": {
-        "method": "none",
-        "note": "MiMo Code is OpenCode-derived and exposes a plugin SDK, but Nowledge Mem does not yet publish a MiMo-native package. Use MCP and skills now; do not reuse the OpenCode package blindly because package names, config roots, and session APIs differ."
+        "method": "cli-native",
+        "historicalCommand": "nmem t sync --from mimo-code",
+        "note": "MiMo Code is OpenCode-derived and stores sessions in mimocode.db. nmem can import those local transcripts for local or remote Mem with nmem t sync --from mimo-code --apply. Nowledge Mem does not yet publish a MiMo lifecycle hook package; do not reuse the OpenCode package blindly because package names, config roots, and session APIs differ."
       },
       "autonomy": {
         "bootstrap": "guided",
         "recall": "guided",
         "distill": "guided",
-        "threads": "handoff-only",
+        "threads": "import-only",
         "bestResultRequires": [
           "Add Nowledge Mem as an MCP server or import it from an existing compatible config",
           "Add Nowledge Mem guidance to MiMo Code's project or global instruction surface",
           "Keep nmem configured on this machine",
-          "Use handoff summaries until a MiMo-native package is published"
+          "Run nmem t sync --from mimo-code --apply when you want to import MiMo Code sessions"
         ]
       },
       "install": {
@@ -1055,19 +1057,20 @@
         "status": true
       },
       "threadSave": {
-        "method": "none",
-        "note": "OMP is Pi-derived and stores sessions under ~/.omp/agent/sessions with Pi-like extension events, but Nowledge Mem does not yet publish an OMP-native package or nmem t sync parser. Use MCP and skills now; automatic capture should be added as a dedicated OMP package."
+        "method": "cli-native",
+        "historicalCommand": "nmem t sync --from omp",
+        "note": "OMP is Pi-derived and stores sessions under ~/.omp/agent/sessions. nmem can import those JSONL transcripts for local or remote Mem with nmem t sync --from omp --apply. Nowledge Mem does not yet publish an OMP lifecycle hook package, so live auto-capture should be added as a dedicated OMP package."
       },
       "autonomy": {
         "bootstrap": "guided",
         "recall": "guided",
         "distill": "guided",
-        "threads": "handoff-only",
+        "threads": "import-only",
         "bestResultRequires": [
           "Add Nowledge Mem to OMP's MCP config",
           "Install or import Nowledge Mem skills into OMP",
           "Keep nmem configured on this machine",
-          "Use handoff summaries until the OMP-native extension is published"
+          "Run nmem t sync --from omp --apply when you want to import OMP sessions"
         ]
       },
       "install": {
