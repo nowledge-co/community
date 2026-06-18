@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.18] - 2026-06-18
+
+### Changed
+
+- The setup script now prints the installed provider version and the thread import endpoint from the files it actually wrote. This makes stale local Hermes runtime copies easy to spot after an update.
+- Reinstall coverage now verifies that a stale `client.py` is overwritten by the current runtime copy.
+
 ## [0.5.17] - 2026-06-17
 
 ### Fixed

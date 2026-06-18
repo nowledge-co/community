@@ -98,6 +98,8 @@ The canonical source for this table is `community/integrations.json`.
 | **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | `opencode plugin opencode-nowledge-mem -g` | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
 | **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Install the native Hermes provider (or use MCP only as fallback) | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
 
+For Hermes updates, run the setup command from the guide and confirm it prints `Thread import endpoint: /threads/import`. If it prints an old endpoint or no endpoint, the user is likely launching Hermes with a different `HERMES_HOME`; set that explicitly and rerun setup before restart.
+
 If the agent is not listed above:
 
 - use the shared `npx skills` package when the host supports it

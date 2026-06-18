@@ -10,6 +10,8 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
   global skills should now land in `~/.gemini/config/skills`, not the older
   `~/.gemini/skills` or `~/.gemini/antigravity/skills` locations. Thanks to
   [@abn](https://github.com/abn) for the report and reference setup.
+- Clarified Hermes update verification so agents can detect stale local
+  provider files and rerun setup against the correct `HERMES_HOME`.
 
 ## [0.6.0] - 2026-03-23
 

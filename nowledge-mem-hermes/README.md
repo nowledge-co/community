@@ -193,12 +193,26 @@ Use `SOUL.md` for your own durable memory preferences and `HERMES.md` for repo-s
 - **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. On older Hermes builds, rerun the setup command; it also places a compatibility copy under `~/.hermes/hermes-agent/plugins/memory/nowledge-mem/` when that runtime still discovers providers from the bundled memory directory. Restart Hermes after reinstalling.
 - **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
 - **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`. If sessions were missed before an update, run `nmem t sync --from hermes --apply` once from the Hermes machine to import local history.
+- **Installed file differs from community/main**: Re-run the setup command and restart Hermes. The installer overwrites stale plugin runtime files and prints the installed version plus thread endpoint so you can verify the copy Hermes will load.
 - **Tool call fails immediately at 0.0s**: Update to v0.5.6 or later. Earlier builds had two separate failure modes: v0.5.3 and below could reject Hermes list-shaped tool arguments for labels or bulk IDs, and v0.5.4 could still advertise `nmem_*` tools before Hermes had actually indexed them for dispatch.
 - **Slow responses**: Default timeout is 30 seconds. Increase in `nowledge-mem.json` for remote setups.
 
 ## Update
 
 The MCP tools are defined by the Nowledge Mem server. When you update the desktop app, tool capabilities update automatically. For plugin updates, re-run the setup command.
+
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)
+```
+
+After updating, the script prints the version and endpoint from the files it actually wrote:
+
+```text
+Installed version: 0.5.18
+Thread import endpoint: /threads/import
+```
+
+If those lines still show an old version or a different endpoint, Hermes is reading a different `HERMES_HOME`; set `HERMES_HOME` explicitly and run the setup command again.
 
 ## Links
 

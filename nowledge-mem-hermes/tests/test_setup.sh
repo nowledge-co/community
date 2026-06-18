@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SETUP_SH="$ROOT_DIR/setup.sh"
+EXPECTED_VERSION="$(sed -n "s/^version:[[:space:]]*//p" "$ROOT_DIR/plugin.yaml" | head -n 1 | tr -d "\"'")"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -31,6 +32,8 @@ run_with_config() {
   grep -Fq "$expected_line" "$hermes_home/config.yaml" || fail "$fixture_name did not update config.yaml"
   grep -Fq "$expected_output" <<<"$output" || fail "$fixture_name did not report expected installer output"
   [ -f "$hermes_home/plugins/nowledge-mem/plugin.yaml" ] || fail "$fixture_name did not install plugin files"
+  grep -Fq "Installed version: $EXPECTED_VERSION" <<<"$output" || fail "$fixture_name did not report installed version"
+  grep -Fq 'Thread import endpoint: /threads/import' <<<"$output" || fail "$fixture_name did not report thread import endpoint"
 }
 
 run_with_config \
@@ -113,6 +116,33 @@ grep -Fq 'provider: "nowledge-mem"' "$win_hermes/config.yaml" \
 # Linux-only fallback must NOT have been used.
 [ ! -d "$win_home/.hermes" ] \
   || fail "windows-default incorrectly created ~/.hermes alongside LOCALAPPDATA path"
+
+# --- Reinstall overwrites stale runtime files ---
+# Users often ask an agent to diff the installed runtime against community/main.
+# A stale client.py used to be indistinguishable from a deliberate local patch.
+# Re-running setup must replace the runtime copy and print the endpoint Hermes
+# will load after restart.
+stale_home="$TMP_DIR/stale-home"
+stale_hermes="$stale_home/.hermes"
+stale_plugin="$stale_hermes/plugins/nowledge-mem"
+mkdir -p "$stale_plugin"
+cat > "$stale_hermes/config.yaml" <<'YAML'
+memory:
+  provider: "nowledge-mem"
+YAML
+cat > "$stale_plugin/client.py" <<'PY'
+def import_thread(self, payload):
+    return self._api_post("/threads", payload)
+PY
+
+stale_output="$(HOME="$stale_home" HERMES_HOME="$stale_hermes" bash "$SETUP_SH" 2>&1)" \
+  || { echo "$stale_output" >&2; fail "stale-runtime reinstall failed"; }
+grep -Fq 'Thread import endpoint: /threads/import' <<<"$stale_output" \
+  || fail "stale-runtime did not report refreshed import endpoint"
+grep -Fq '"/threads/import"' "$stale_plugin/client.py" \
+  || fail "stale-runtime client.py was not overwritten"
+! grep -Fq '"/threads"' "$stale_plugin/client.py" \
+  || fail "stale-runtime left old /threads-only client.py content behind"
 
 # --- Explicit HERMES_HOME always wins ---
 override_home="$TMP_DIR/override-home"
