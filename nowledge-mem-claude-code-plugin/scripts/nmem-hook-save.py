@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Best-effort Claude Code / Grok transcript capture for Nowledge Mem hooks."""
+"""Best-effort Claude Code / Grok Build transcript capture for Nowledge Mem hooks."""
 
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ def _host_runtime() -> str:
 
 
 def _runtime_label(runtime: str) -> str:
-    return "Grok" if runtime == "grok" else "Claude Code"
+    return "Grok Build" if runtime == "grok" else "Claude Code"
 
 
 def _cmd_exe_path(path: str) -> str:

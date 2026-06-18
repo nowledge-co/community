@@ -1,5 +1,5 @@
 #!/bin/sh
-# Best-effort Context Bundle / Working Memory injection for Claude Code / Grok lifecycle hooks.
+# Best-effort Context Bundle / Working Memory injection for Claude Code / Grok Build lifecycle hooks.
 
 if ! command -v nmem >/dev/null 2>&1; then
   if command -v nmem.cmd >/dev/null 2>&1; then

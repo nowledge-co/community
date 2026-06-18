@@ -89,7 +89,7 @@
         "runtime": "grok",
         "command": "nmem t save --from grok",
         "historicalCommand": "nmem t sync --from grok --all-projects",
-        "note": "Grok loads Claude-compatible plugin assets. The shared Nowledge Mem hook detects Grok's hook environment and routes Context Bundle reads and transcript capture as source_app=grok."
+        "note": "Grok Build loads Claude-compatible plugin assets. The shared Nowledge Mem hook detects Grok Build's hook environment and routes Context Bundle reads and transcript capture as source_app=grok."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -97,25 +97,25 @@
         "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
-          "Install the Grok plugin from the community repository subdirectory",
+          "Install the Grok Build plugin from the community repository subdirectory",
           "Keep nmem available on this machine",
-          "Restart Grok after install or update",
-          "Run nmem t sync --from grok --all-projects --apply only when you want to import older Grok sessions"
+          "Restart Grok Build after install or update",
+          "Run nmem t sync --from grok --all-projects --apply only when you want to import older Grok Build sessions"
         ]
       },
       "install": {
         "command": "grok plugin install nowledge-co/community#nowledge-mem-claude-code-plugin --trust",
         "updateCommand": "grok plugin update nowledge-mem",
-        "detectionHint": "Running as Grok; ~/.grok/ exists",
+        "detectionHint": "Running as Grok Build; ~/.grok/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Grok. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Grok 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Grok Build. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Grok Build 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/grok"
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "Grok loads the shared Claude-compatible plugin package; hook scripts detect Grok and call nmem with source_app=grok."
+        "note": "Grok Build loads the shared Claude-compatible plugin package; hook scripts detect Grok Build and call nmem with source_app=grok."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
       "slashCommands": ["/save", "/search", "/sum", "/status"]

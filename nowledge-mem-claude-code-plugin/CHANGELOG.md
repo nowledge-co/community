@@ -9,17 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Grok hook routing now also treats `GROK_PLUGIN_ROOT` as a Grok runtime signal. This keeps Context Bundle reads and automatic transcript capture labeled as Grok even on hook launches that only expose the plugin root.
+- Grok Build hook routing now also treats `GROK_PLUGIN_ROOT` as a Grok Build runtime signal. This keeps Context Bundle reads and automatic transcript capture labeled as Grok Build even on hook launches that only expose the plugin root.
 
 ## [0.7.11] - 2026-06-18
 
 ### Added
 
-- Added Grok-aware hook routing. When Grok runs the plugin through its Claude-compatible plugin layer, Context Bundle reads now use `--source-app grok` and automatic capture uses `nmem t save --from grok`.
+- Added Grok Build-aware hook routing. When Grok Build runs the plugin through its Claude-compatible plugin layer, Context Bundle reads now use `--source-app grok` and automatic capture uses `nmem t save --from grok`.
 
 ### Fixed
 
-- Grok sessions no longer get mislabeled as Claude Code sessions when the shared hook package is loaded by Grok.
+- Grok Build sessions no longer get mislabeled as Claude Code sessions when the shared hook package is loaded by Grok Build.
 
 ## [0.7.10] - 2026-05-20
 
