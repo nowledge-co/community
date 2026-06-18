@@ -1,5 +1,9 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## 0.1.3 (unreleased)
+
+- Add optional `PROMA_ALLOWED_WORKSPACES` filtering to `save-to-nmem.py` for multi-workspace Proma users. Leaving it unset keeps the previous behavior and syncs every workspace; setting a comma-separated list such as `default,research` skips other workspaces with a log entry.
+
 ## 0.1.2 (2026-06-13)
 
 - Align hooks with current Proma builds: install into `~/.proma/sdk-config/.claude/settings.json`, copy scripts to `~/.proma/scripts/`, and read transcripts from `~/.proma/sdk-config/projects/**/<session-id>.jsonl`.

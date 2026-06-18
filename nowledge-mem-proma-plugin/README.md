@@ -217,9 +217,18 @@ The MCP server gives Proma agent access to Nowledge Mem search, save, status, sk
 | `NMEM_API_KEY` | Nowledge Mem API key | `~/.nowledge-mem/config.json` |
 | `PROMA_HOME` | Proma home directory | `~/.proma` |
 | `PROMA_PROJECTS_DIR` | Proma transcript directory | `~/.proma/sdk-config/projects` |
+| `PROMA_ALLOWED_WORKSPACES` | Optional comma-separated workspace dir names whose sessions get synced to Nowledge Mem. Leave unset to sync every Proma workspace. Use `*` or `all` for an explicit allow-all value. | unset |
 | `PROMA_WORKSPACE_DIR` | Proma workspace directory for `CLAUDE.md` | `~/.proma/agent-workspaces/default` |
 | `PROMA_CLAUDE_MD` | Explicit `CLAUDE.md` output path | `<workspace>/CLAUDE.md` |
 | `PROMA_CLAUDE_TEMPLATE` | Explicit template path | `<workspace>/CLAUDE.md.template` |
+
+If you keep several Proma workspaces and only want Nowledge Mem to capture some of them, set:
+
+```bash
+export PROMA_ALLOWED_WORKSPACES="default,research"
+```
+
+The names are the directory names under `~/.proma/agent-workspaces/`.
 
 Logs are written to:
 

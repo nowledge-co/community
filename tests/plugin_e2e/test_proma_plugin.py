@@ -9,10 +9,10 @@ Live smoke test (requires Proma + nmem):
 
 from __future__ import annotations
 
-import json
-import os
-import sys
 import importlib.util
+import io
+import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -165,6 +165,120 @@ class TestHookScripts:
         assert '"deduplicate": True' in content
         assert '"idempotency_key": f"proma:{session_id}"' in content
         assert 'metadata["external_id"] = f"proma:{uuid}"' in content
+
+    def test_save_script_workspace_filter_defaults_to_allow_all(self, monkeypatch):
+        monkeypatch.delenv("PROMA_ALLOWED_WORKSPACES", raising=False)
+        module = _load_hook_module(
+            "proma_save_hook_workspace_filter_unset",
+            PLUGIN_DIR / "hooks" / "save-to-nmem.py",
+        )
+
+        assert module.ALLOWED_WORKSPACE_DIRS is None
+        assert module._parse_allowed_workspaces("") is None
+        assert module._parse_allowed_workspaces("   ") is None
+        assert module._parse_allowed_workspaces("*") is None
+        assert module._parse_allowed_workspaces("all") is None
+
+    def test_save_script_workspace_filter_parses_explicit_allowlist(self, monkeypatch):
+        monkeypatch.setenv("PROMA_ALLOWED_WORKSPACES", "default, research ,personal")
+        module = _load_hook_module(
+            "proma_save_hook_workspace_filter_allowlist",
+            PLUGIN_DIR / "hooks" / "save-to-nmem.py",
+        )
+
+        assert module.ALLOWED_WORKSPACE_DIRS == {"default", "research", "personal"}
+
+    def test_save_script_resolves_workspace_dir_from_cwd(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        workspace = proma_home / "agent-workspaces" / "research" / "project"
+        workspace.mkdir(parents=True)
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+
+        module = _load_hook_module(
+            "proma_save_hook_workspace_filter_resolution",
+            PLUGIN_DIR / "hooks" / "save-to-nmem.py",
+        )
+
+        assert module.workspace_dir_from_cwd(str(workspace)) == "research"
+        assert module.workspace_dir_from_cwd(str(outside)) is None
+        assert module.workspace_dir_from_cwd(None) is None
+
+    def test_save_script_without_allowlist_accepts_missing_cwd(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+        monkeypatch.delenv("PROMA_ALLOWED_WORKSPACES", raising=False)
+        module = _load_hook_module(
+            "proma_save_hook_workspace_filter_missing_cwd_allowed",
+            PLUGIN_DIR / "hooks" / "save-to-nmem.py",
+        )
+
+        session_dir = proma_home / "sdk-config" / "projects" / "workspace-hash"
+        session_dir.mkdir(parents=True)
+        (session_dir / "session-123.jsonl").write_text(
+            json.dumps({
+                "type": "user",
+                "uuid": "u1",
+                "message": {"role": "user", "content": "sync without cwd"},
+            }),
+            encoding="utf-8",
+        )
+
+        uploads = []
+        monkeypatch.setattr(
+            module,
+            "upload_thread",
+            lambda session_id, messages, cwd: (
+                uploads.append((session_id, messages, cwd)) or True
+            ),
+        )
+        monkeypatch.setattr(sys, "argv", ["save-to-nmem.py"])
+        monkeypatch.setattr(
+            sys,
+            "stdin",
+            io.StringIO(json.dumps({"session_id": "session-123"})),
+        )
+
+        assert module.main() == 0
+        assert uploads == [
+            (
+                "session-123",
+                [
+                    {
+                        "role": "user",
+                        "content": "sync without cwd",
+                        "metadata": {"external_id": "proma:u1"},
+                    }
+                ],
+                None,
+            )
+        ]
+
+    def test_save_script_with_allowlist_skips_missing_cwd(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+        monkeypatch.setenv("PROMA_ALLOWED_WORKSPACES", "default")
+        module = _load_hook_module(
+            "proma_save_hook_workspace_filter_missing_cwd_skipped",
+            PLUGIN_DIR / "hooks" / "save-to-nmem.py",
+        )
+
+        uploads = []
+        monkeypatch.setattr(
+            module,
+            "upload_thread",
+            lambda *args: uploads.append(args) or True,
+        )
+        monkeypatch.setattr(sys, "argv", ["save-to-nmem.py"])
+        monkeypatch.setattr(
+            sys,
+            "stdin",
+            io.StringIO(json.dumps({"session_id": "session-123"})),
+        )
+
+        assert module.main() == 0
+        assert uploads == []
 
     def test_save_script_parses_current_proma_sdk_jsonl(self, tmp_path, monkeypatch):
         proma_home = tmp_path / ".proma"
