@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Best-effort Claude Code transcript capture for Nowledge Mem hooks."""
+"""Best-effort Claude Code / Grok transcript capture for Nowledge Mem hooks."""
 
 from __future__ import annotations
 
@@ -56,6 +56,20 @@ def _payload_value(payload: dict[str, Any], *keys: str) -> str | None:
 def _nmem_command() -> str | None:
     # Windows shims are wrapped by _build_nmem_command before execution.
     return shutil.which("nmem") or shutil.which("nmem.cmd")
+
+
+def _host_runtime() -> str:
+    if (
+        os.environ.get("GROK_SESSION_ID")
+        or os.environ.get("GROK_HOOK_EVENT")
+        or os.environ.get("GROK_WORKSPACE_ROOT")
+    ):
+        return "grok"
+    return "claude-code"
+
+
+def _runtime_label(runtime: str) -> str:
+    return "Grok" if runtime == "grok" else "Claude Code"
 
 
 def _cmd_exe_path(path: str) -> str:
@@ -155,19 +169,26 @@ def _build_command(
     *,
     json_output: bool = True,
 ) -> list[str]:
+    runtime = _host_runtime()
     args = (["--json"] if json_output else []) + [
         "t",
         "save",
         "--from",
-        "claude-code",
+        runtime,
         "--truncate",
     ]
 
-    session_id = _payload_value(payload, "session_id", "sessionId")
+    session_id = _payload_value(payload, "session_id", "sessionId") or os.environ.get(
+        "GROK_SESSION_ID", ""
+    ).strip()
     if session_id:
         args.extend(["--session-id", session_id])
 
-    cwd = _payload_value(payload, "cwd")
+    cwd = (
+        _payload_value(payload, "cwd")
+        or os.environ.get("GROK_WORKSPACE_ROOT", "").strip()
+        or os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
+    )
     if cwd:
         project_path = Path(cwd).expanduser()
         project = str(project_path if nmem.lower().endswith(".cmd") else project_path.resolve())
@@ -310,7 +331,7 @@ def main() -> int:
 
     if args.event == "pre-compact":
         print(
-            "Nowledge Mem saved the current Claude Code thread before compaction."
+            f"Nowledge Mem saved the current {_runtime_label(_host_runtime())} thread before compaction."
         )
 
     return 0

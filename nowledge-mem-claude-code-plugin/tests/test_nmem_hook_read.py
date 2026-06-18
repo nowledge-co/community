@@ -118,6 +118,38 @@ esac
     assert "context --source-app claude-code --agent-id reviewer --host-agent-id lody:reviewer" in command_log
 
 
+def test_read_hook_uses_grok_source_app_when_grok_env_is_present(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls = tmp_path / "calls.log"
+    _write_fake_nmem(
+        bin_dir,
+        f"""
+printf '%s\\n' "$*" >> "{calls}"
+case "$*" in
+  *"--source-app grok"*) printf '%s\\n' '{{"rendered_markdown": "grok context"}}' ;;
+  *) exit 2 ;;
+esac
+""",
+    )
+
+    result = _run_hook(
+        tmp_path,
+        cwd=tmp_path,
+        env={
+            "PATH": f"{bin_dir}:{os.environ['PATH']}",
+            "GROK_SESSION_ID": "grok-session",
+            "GROK_HOOK_EVENT": "SessionStart",
+            "NMEM_SPACE": "",
+        },
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "grok context"
+    command_log = calls.read_text(encoding="utf-8")
+    assert "context --source-app grok" in command_log
+
+
 def test_read_hook_falls_back_to_default_space_when_project_space_empty(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()

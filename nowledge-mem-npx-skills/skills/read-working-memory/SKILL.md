@@ -66,7 +66,7 @@ The Working Memory briefing contains:
 3. **Continuation handoff** — if the task looks like a review, regression, release, resume, or prior-decision question, move straight into `search-memory` after the briefing instead of stopping here
 4. **Don't overwhelm** — share only the parts relevant to what the user is working on
 5. **Avoid duplicate startup reads** — if Context Bundle was already loaded and includes Working Memory, do not read Working Memory again
-6. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Codex) appear here
+6. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Grok, Codex) appear here
 
 ## Examples
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Best-effort Context Bundle / Working Memory injection for Claude Code lifecycle hooks.
+# Best-effort Context Bundle / Working Memory injection for Claude Code / Grok lifecycle hooks.
 
 if ! command -v nmem >/dev/null 2>&1; then
   if command -v nmem.cmd >/dev/null 2>&1; then
@@ -40,6 +40,10 @@ resolve_space() {
 SPACE="$(resolve_space)"
 AGENT_ID="${NMEM_AGENT_ID:-}"
 HOST_AGENT_ID="${NMEM_HOST_AGENT_ID:-}"
+SOURCE_APP="claude-code"
+if [ -n "${GROK_SESSION_ID:-}" ] || [ -n "${GROK_HOOK_EVENT:-}" ] || [ -n "${GROK_WORKSPACE_ROOT:-}" ]; then
+  SOURCE_APP="grok"
+fi
 
 parse_context='import sys,json; d=json.load(sys.stdin); c=d.get("rendered_markdown") or d.get("content") or ""; print(c) if c else sys.exit(1)'
 parse_existing_space_wm='import sys,json; d=json.load(sys.stdin); c=d.get("content",""); print(c) if d.get("exists") and c else sys.exit(1)'
@@ -47,7 +51,7 @@ parse_default_wm='import sys,json; d=json.load(sys.stdin); c=d.get("content","")
 
 try_context() {
   target_space="$1"
-  set -- context --source-app claude-code
+  set -- context --source-app "$SOURCE_APP"
   [ -n "$AGENT_ID" ] && set -- "$@" --agent-id "$AGENT_ID"
   [ -n "$HOST_AGENT_ID" ] && set -- "$@" --host-agent-id "$HOST_AGENT_ID"
   [ -n "$target_space" ] && set -- "$@" --space "$target_space"

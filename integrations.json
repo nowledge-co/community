@@ -8,7 +8,7 @@
     "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为我当前使用的 AI 工具安装或更新 Nowledge Mem。",
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
-      "claude-code", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
+      "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
       "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode",
       "claude-desktop", "proma", "slock", "lody", "multica", "cumora", "mcp-direct"
     ],
@@ -20,7 +20,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.10",
+      "version": "0.7.11",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -63,6 +63,59 @@
       "toolNaming": {
         "convention": "cli-direct",
         "note": "Declarative skills and slash commands invoke nmem CLI directly"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
+      "slashCommands": ["/save", "/search", "/sum", "/status"]
+    },
+    {
+      "id": "grok",
+      "name": "Grok Build",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.7.11",
+      "directory": "nowledge-mem-claude-code-plugin",
+      "transport": "cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "grok",
+        "command": "nmem t save --from grok",
+        "historicalCommand": "nmem t sync --from grok --all-projects",
+        "note": "Grok loads Claude-compatible plugin assets. The shared Nowledge Mem hook detects Grok's hook environment and routes Context Bundle reads and transcript capture as source_app=grok."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the Grok plugin from the community repository subdirectory",
+          "Keep nmem available on this machine",
+          "Restart Grok after install or update",
+          "Run nmem t sync --from grok --all-projects --apply only when you want to import older Grok sessions"
+        ]
+      },
+      "install": {
+        "command": "grok plugin install nowledge-co/community#nowledge-mem-claude-code-plugin --trust",
+        "updateCommand": "grok plugin update nowledge-mem",
+        "detectionHint": "Running as Grok; ~/.grok/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Grok. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Grok 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+        },
+        "docsUrl": "/docs/integrations/grok"
+      },
+      "toolNaming": {
+        "convention": "cli-direct",
+        "note": "Grok loads the shared Claude-compatible plugin package; hook scripts detect Grok and call nmem with source_app=grok."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
       "slashCommands": ["/save", "/search", "/sum", "/status"]
