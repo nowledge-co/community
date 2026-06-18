@@ -119,6 +119,28 @@ def test_build_command_uses_grok_runtime_env(tmp_path):
     assert command[command.index("--project") + 1] == str(tmp_path.resolve())
 
 
+def test_build_command_uses_grok_runtime_from_plugin_root_only(tmp_path):
+    with patch.dict(
+        os.environ,
+        {
+            "GROK_PLUGIN_ROOT": str(tmp_path / "plugin"),
+            "GROK_SESSION_ID": "",
+            "GROK_WORKSPACE_ROOT": "",
+            "GROK_HOOK_EVENT": "",
+            "NMEM_SPACE": "",
+        },
+    ):
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "plugin-root-session", "cwd": str(tmp_path)},
+        )
+
+    assert "--from" in command
+    assert command[command.index("--from") + 1] == "grok"
+    assert "--session-id" in command
+    assert command[command.index("--session-id") + 1] == "plugin-root-session"
+
+
 def test_build_command_resolves_project_symlink(tmp_path):
     real_project = tmp_path / "real-project"
     real_project.mkdir()

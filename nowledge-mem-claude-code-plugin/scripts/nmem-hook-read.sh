@@ -41,7 +41,7 @@ SPACE="$(resolve_space)"
 AGENT_ID="${NMEM_AGENT_ID:-}"
 HOST_AGENT_ID="${NMEM_HOST_AGENT_ID:-}"
 SOURCE_APP="claude-code"
-if [ -n "${GROK_SESSION_ID:-}" ] || [ -n "${GROK_HOOK_EVENT:-}" ] || [ -n "${GROK_WORKSPACE_ROOT:-}" ]; then
+if [ -n "${GROK_SESSION_ID:-}" ] || [ -n "${GROK_HOOK_EVENT:-}" ] || [ -n "${GROK_WORKSPACE_ROOT:-}" ] || [ -n "${GROK_PLUGIN_ROOT:-}" ]; then
   SOURCE_APP="grok"
 fi
 

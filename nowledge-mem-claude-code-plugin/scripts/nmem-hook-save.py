@@ -63,6 +63,7 @@ def _host_runtime() -> str:
         os.environ.get("GROK_SESSION_ID")
         or os.environ.get("GROK_HOOK_EVENT")
         or os.environ.get("GROK_WORKSPACE_ROOT")
+        or os.environ.get("GROK_PLUGIN_ROOT")
     ):
         return "grok"
     return "claude-code"
