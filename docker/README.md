@@ -327,7 +327,7 @@ public keys to download or rotate — verification uses the GitHub Actions OIDC
 identity that produced the build.
 
 ```bash
-cosign verify docker.io/nowledgelabs/mem:0.9.15 \
+cosign verify docker.io/nowledgelabs/mem:latest \
   --certificate-identity-regexp='https://github.com/nowledge-co/mem/.github/workflows/release-docker.yml@.*' \
   --certificate-oidc-issuer='https://token.actions.githubusercontent.com'
 ```
@@ -358,7 +358,7 @@ The image ships a multi-arch manifest for **`linux/amd64`** and
 If you need a specific arch, pin it explicitly:
 
 ```bash
-docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:0.9.15
+docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:latest
 ```
 
 ---

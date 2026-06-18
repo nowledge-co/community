@@ -138,6 +138,28 @@ install_plugin_files() {
   done
 }
 
+plugin_version_for_dir() {
+  local target_dir="$1"
+  if [ ! -f "$target_dir/plugin.yaml" ]; then
+    printf 'unknown'
+    return
+  fi
+  sed -n "s/^version:[[:space:]]*//p" "$target_dir/plugin.yaml" | head -n 1 | tr -d "\"'"
+}
+
+thread_endpoint_for_dir() {
+  local target_dir="$1"
+  if grep -qF '"/threads/import"' "$target_dir/client.py" 2>/dev/null; then
+    printf '/threads/import'
+    return
+  fi
+  if grep -qF '"/threads"' "$target_dir/client.py" 2>/dev/null; then
+    printf '/threads'
+    return
+  fi
+  printf 'unknown'
+}
+
 needs_legacy_memory_provider_copy() {
   local memory_dir="$1"
   local discovery_file="$memory_dir/__init__.py"
@@ -330,8 +352,12 @@ YAML
 
   echo ""
   echo "Plugin installed to $PLUGIN_DIR"
+  echo "Installed version: $(plugin_version_for_dir "$PLUGIN_DIR")"
+  echo "Thread import endpoint: $(thread_endpoint_for_dir "$PLUGIN_DIR")"
   if $LEGACY_COMPAT_INSTALLED; then
     echo "Compatibility copy installed to $LEGACY_PLUGIN_DIR"
+    echo "Compatibility copy version: $(plugin_version_for_dir "$LEGACY_PLUGIN_DIR")"
+    echo "Compatibility copy thread import endpoint: $(thread_endpoint_for_dir "$LEGACY_PLUGIN_DIR")"
   fi
   echo "Restart Hermes, then test:"
   echo '  "Search my memories for recent decisions"'

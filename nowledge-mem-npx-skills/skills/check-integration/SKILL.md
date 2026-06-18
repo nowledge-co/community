@@ -85,6 +85,7 @@ The canonical source for this table is `community/integrations.json`.
 | Agent | How to Detect | Native connector setup | Docs |
 |-------|--------------|----------------------|------|
 | **Claude Code** | Running as Claude Code agent; `~/.claude/` exists | `claude plugin marketplace add https://github.com/nowledge-co/community && claude plugin install nowledge-mem@nowledge-community` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
+| **Grok** | Running as Grok; `~/.grok/` exists | `grok plugin install nowledge-co/community#nowledge-mem-claude-code-plugin --trust` | [Guide](https://mem.nowledge.co/docs/integrations/grok) |
 | **OpenClaw** | Running as OpenClaw agent; `~/.openclaw/` exists | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/openclaw) |
 | **Cursor** | Running inside Cursor IDE | Copy `nowledge-mem-cursor-plugin` from the community repo into `~/.cursor/plugins/local/nowledge-mem-cursor`, then reload Cursor | [Guide](https://mem.nowledge.co/docs/integrations/cursor) |
 | **Gemini CLI** | Running as Gemini CLI agent; `~/.gemini/` exists | `gemini extensions install https://github.com/nowledge-co/nowledge-mem-gemini-cli --auto-update` or install "Nowledge Mem" from the Extensions Gallery | [Guide](https://mem.nowledge.co/docs/integrations/gemini-cli) |
@@ -96,6 +97,8 @@ The canonical source for this table is `community/integrations.json`.
 | **Pi** | Running as Pi agent; `~/.pi/` exists | `pi install npm:nowledge-mem-pi` | [Guide](https://mem.nowledge.co/docs/integrations/pi) |
 | **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | `opencode plugin opencode-nowledge-mem -g` | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
 | **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Install the native Hermes provider (or use MCP only as fallback) | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
+
+For Hermes updates, run the setup command from the guide and confirm it prints `Thread import endpoint: /threads/import`. If it prints an old endpoint or no endpoint, the user is likely launching Hermes with a different `HERMES_HOME`; set that explicitly and rerun setup before restart.
 
 If the agent is not listed above:
 

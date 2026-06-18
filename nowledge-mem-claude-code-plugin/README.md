@@ -1,8 +1,10 @@
-# Nowledge Mem -- Claude Code Plugin
+# Nowledge Mem -- Claude Code / Grok Build Plugin
 
-> Your personal knowledge graph, built into Claude Code. Claude remembers your decisions, searches past work, and captures sessions -- without you asking.
+> Your personal knowledge graph, built into Claude Code and Grok Build. Your agent remembers decisions, searches past work, and captures sessions -- without you asking.
 
 ## Install
+
+Claude Code:
 
 ```bash
 # Add the Nowledge community marketplace
@@ -10,6 +12,12 @@ claude plugin marketplace add https://github.com/nowledge-co/community
 
 # Install the plugin
 claude plugin install nowledge-mem@nowledge-community
+```
+
+Grok Build:
+
+```bash
+grok plugin install nowledge-co/community#nowledge-mem-claude-code-plugin --trust
 ```
 
 **Prerequisite:** `nmem` CLI must be in your PATH. Hook capture also needs `python3` or `python` available on the same machine:
@@ -71,12 +79,12 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 | `SessionStart` | New, resume, or clear | Loads Context Bundle via `nmem context`, then falls back to `nmem wm read` |
 | `SessionStart` | After compaction | Re-loads Context Bundle or Working Memory + checkpoint prompt |
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
-| `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code session by hook `session_id` before context is compressed |
+| `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code or Grok Build session by hook `session_id` before context is compressed |
 | `Stop` | Model finishes responding | Captures session to knowledge graph |
 
 The `SessionStart` hook tries `nmem context` first so Claude receives owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths when the installed CLI supports it. It falls back to `nmem wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
-The `PreCompact` hook runs the same client-side thread save before Claude Code compresses the context. The `Stop` hook runs it again after every response with a bounded retry window, so short transcript-flush delays do not turn into silent no-op saves. Both paths pass Claude's hook `session_id` into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
+The `PreCompact` hook runs the same client-side thread save before the host compresses context. The `Stop` hook runs it again after every response with a bounded retry window, so short transcript-flush delays do not turn into silent no-op saves. Claude Code uses `nmem t save --from claude-code`; Grok Build uses `nmem t save --from grok`. Both paths pass the host session id into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
 
 If the desktop app's Claude Code file watcher is also enabled, you can leave it on. The watcher and plugin hooks converge on the same `claude-code-<sessionId>` thread, so repeated saves update the existing thread instead of creating a second one.
 
@@ -102,12 +110,16 @@ Automatic capture starts after the plugin and hooks are installed. To backfill o
 
 ```bash
 nmem t sync --from claude-code --all-projects --limit 20
+# Grok Build:
+nmem t sync --from grok --all-projects --limit 20
 ```
 
 Then import:
 
 ```bash
 nmem t sync --from claude-code --all-projects --apply
+# Grok Build:
+nmem t sync --from grok --all-projects --apply
 ```
 
 Use `-p /path/to/project` instead of `--all-projects` when you only want one project. The command reads local Claude Code session files and writes to the Mem server configured in `nmem`.

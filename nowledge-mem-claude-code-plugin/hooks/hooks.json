@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-read.sh\"; { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\"; } || cat \"$HOME/ai-now/memory.md\" 2>/dev/null || true"
+            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\"; } || cat \"$HOME/ai-now/memory.md\" 2>/dev/null || true"
           }
         ]
       },
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-read.sh\"; { { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\"; } || cat \"$HOME/ai-now/memory.md\" 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
+            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; { { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\"; } || cat \"$HOME/ai-now/memory.md\" 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
           }
         ]
       }
@@ -36,8 +36,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PY=\"$(command -v python3 || command -v python || true)\"; SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-save.py\"; [ -n \"$PY\" ] && [ -f \"$SCRIPT\" ] && \"$PY\" \"$SCRIPT\" --event pre-compact || true",
-            "statusMessage": "Saving Claude Code thread before compaction...",
+            "command": "PY=\"$(command -v python3 || command -v python || true)\"; ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-save.py\"; [ -n \"$PY\" ] && [ -f \"$SCRIPT\" ] && \"$PY\" \"$SCRIPT\" --event pre-compact || true",
+            "statusMessage": "Saving current thread before compaction...",
             "timeout": 35
           }
         ]
@@ -48,8 +48,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PY=\"$(command -v python3 || command -v python || true)\"; SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-}/scripts/nmem-hook-save.py\"; [ -n \"$PY\" ] && [ -f \"$SCRIPT\" ] && \"$PY\" \"$SCRIPT\" --event stop || true",
-            "statusMessage": "Saving Claude Code thread to Nowledge Mem...",
+            "command": "PY=\"$(command -v python3 || command -v python || true)\"; ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-save.py\"; [ -n \"$PY\" ] && [ -f \"$SCRIPT\" ] && \"$PY\" \"$SCRIPT\" --event stop || true",
+            "statusMessage": "Saving current thread to Nowledge Mem...",
             "timeout": 35
           }
         ]

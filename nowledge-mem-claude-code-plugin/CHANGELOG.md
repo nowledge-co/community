@@ -5,6 +5,22 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.12] - 2026-06-18
+
+### Fixed
+
+- Grok Build hook routing now also treats `GROK_PLUGIN_ROOT` as a Grok Build runtime signal. This keeps Context Bundle reads and automatic transcript capture labeled as Grok Build even on hook launches that only expose the plugin root.
+
+## [0.7.11] - 2026-06-18
+
+### Added
+
+- Added Grok Build-aware hook routing. When Grok Build runs the plugin through its Claude-compatible plugin layer, Context Bundle reads now use `--source-app grok` and automatic capture uses `nmem t save --from grok`.
+
+### Fixed
+
+- Grok Build sessions no longer get mislabeled as Claude Code sessions when the shared hook package is loaded by Grok Build.
+
 ## [0.7.10] - 2026-05-20
 
 ### Changed
