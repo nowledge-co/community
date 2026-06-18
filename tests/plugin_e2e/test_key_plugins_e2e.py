@@ -713,6 +713,16 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["proma"]["version"] == "0.1.2"
     assert by_id["opencode"]["version"] == "0.3.4"
     assert by_id["pi"]["version"] == "0.8.1"
+    for connector_id in ["kimi-code", "zcode", "mimo-code", "omp"]:
+        connector = by_id[connector_id]
+        assert connector["version"] is None
+        assert connector["transport"] == "mcp+skills"
+        assert connector["capabilities"]["autoCapture"] is False
+        assert connector["threadSave"]["method"] == "none"
+        assert connector["autonomy"]["threads"] == "handoff-only"
+        assert connector["install"]["command"] == f"nmem config mcp show --host {connector_id}"
+        assert "save-handoff" in connector["skills"]
+        assert "save-thread" not in connector["skills"]
     assert by_id["alma"]["version"] == "0.7.3"
     assert by_id["alma"]["skills"] == ["nowledge-mem"]
     assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
