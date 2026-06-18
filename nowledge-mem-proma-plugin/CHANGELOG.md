@@ -2,7 +2,7 @@
 
 ## 0.1.3 (unreleased)
 
-- Add `PROMA_ALLOWED_WORKSPACES` env var to `save-to-nmem.py` so users can restrict thread sync to a subset of Proma workspaces. Defaults to `default`, preserving current behavior for single-workspace installs. Sessions whose cwd lives under a non-allowlisted workspace are skipped with a log entry.
+- Add optional `PROMA_ALLOWED_WORKSPACES` filtering to `save-to-nmem.py` for multi-workspace Proma users. Leaving it unset keeps the previous behavior and syncs every workspace; setting a comma-separated list such as `default,research` skips other workspaces with a log entry.
 
 ## 0.1.2 (2026-06-13)
 

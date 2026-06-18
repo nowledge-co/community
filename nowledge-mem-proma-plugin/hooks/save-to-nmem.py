@@ -70,14 +70,23 @@ LEGACY_SESSIONS_DIR = PROMA_HOME / "agent-sessions"
 LOG_DIR = PROMA_HOME / "logs"
 LOG_FILE = LOG_DIR / "nm-hooks.log"
 
-# Only sync sessions whose cwd lives under one of these workspace dirs
-# (relative to PROMA_HOME/agent-workspaces). Override with
-# PROMA_ALLOWED_WORKSPACES="default,other" (comma-separated).
-_DEFAULT_ALLOWED = "default"
-_ALLOWED_RAW = os.environ.get("PROMA_ALLOWED_WORKSPACES", _DEFAULT_ALLOWED)
-ALLOWED_WORKSPACE_DIRS: set[str] = {
-    part.strip() for part in _ALLOWED_RAW.split(",") if part.strip()
-}
+# Optional filter for sessions whose cwd lives under one of these workspace dirs
+# (relative to PROMA_HOME/agent-workspaces). Unset or blank preserves the
+# historical behavior and syncs all Proma workspaces. Set
+# PROMA_ALLOWED_WORKSPACES="default,other" to restrict capture.
+_ALLOW_ALL_WORKSPACES = {"*", "all"}
+
+
+def _parse_allowed_workspaces(raw: str | None) -> set[str] | None:
+    if not raw or not raw.strip():
+        return None
+    names = {part.strip() for part in raw.split(",") if part.strip()}
+    if not names or any(name.lower() in _ALLOW_ALL_WORKSPACES for name in names):
+        return None
+    return names
+
+
+ALLOWED_WORKSPACE_DIRS = _parse_allowed_workspaces(os.environ.get("PROMA_ALLOWED_WORKSPACES"))
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -191,6 +200,21 @@ def find_session_file(session_id: str | None = None) -> Path | None:
         return max(files, key=lambda p: p.stat().st_mtime)
     except Exception:
         return files[0] if files else None
+
+
+def workspace_dir_from_cwd(cwd: str | None) -> str | None:
+    if not cwd:
+        return None
+    try:
+        cwd_path = Path(cwd).expanduser().resolve()
+        workspaces_root = (PROMA_HOME / "agent-workspaces").resolve()
+        rel = cwd_path.relative_to(workspaces_root)
+    except ValueError:
+        return None
+    except (OSError, RuntimeError) as exc:
+        log(f"workspace resolution failed for cwd={cwd}: {exc}")
+        return None
+    return rel.parts[0] if rel.parts else None
 
 
 def extract_text_from_content(content: Any) -> str:
@@ -322,23 +346,14 @@ def main() -> int:
 
     log(f"start event={args.event} session={session_id or 'latest'} cwd={cwd or 'missing'}")
 
-    if cwd:
-        try:
-            cwd_path = Path(cwd).expanduser().resolve()
-            workspaces_root = (PROMA_HOME / "agent-workspaces").resolve()
-            rel = cwd_path.relative_to(workspaces_root)
-            workspace_dir = rel.parts[0] if rel.parts else ""
-        except Exception:
-            workspace_dir = ""
+    if ALLOWED_WORKSPACE_DIRS is not None:
+        workspace_dir = workspace_dir_from_cwd(cwd)
         if workspace_dir not in ALLOWED_WORKSPACE_DIRS:
             log(
-                f"skip: workspace '{workspace_dir}' not in allowed "
+                f"skip: workspace '{workspace_dir or 'unknown'}' not in allowed "
                 f"{sorted(ALLOWED_WORKSPACE_DIRS)}"
             )
             return 0
-    else:
-        log("skip: cwd missing, cannot determine workspace")
-        return 0
 
     session_file = find_session_file(session_id)
     if not session_file:
