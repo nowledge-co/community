@@ -432,7 +432,7 @@ guaranteed-consistent snapshot, then `./nmemctl up` afterward.
 Two independent things you might want to upgrade:
 
 ```bash
-./nmemctl upgrade 0.9.4                   # the docker image: pull, bump .env, recreate
+./nmemctl upgrade 0.9.18                  # the docker image: pull, bump .env, recreate
 ./nmemctl self-update                     # the controller + compose stack files themselves
 ./nmemctl self-update --check             # see what would change without applying
 ```
@@ -448,7 +448,7 @@ files from `raw.githubusercontent.com/nowledge-co/community/main/docker/`,
 diffs them against local, and prompts before overwriting anything. Backups
 are left as `<file>.bak.<timestamp>`.
 
-`upgrade` refuses pre-release tags (`0.9.4-rc1`, etc.) by default — set
+`upgrade` refuses pre-release tags (`0.9.18-rc1`, etc.) by default — set
 `NMEM_ALLOW_PRERELEASE=1` to override when you're testing a release candidate.
 
 `upgrade` writes the target tag to `.env` (`NMEM_IMAGE_TAG=X.Y.Z`, mode 0600).
@@ -459,7 +459,7 @@ the time you cloned; `self-update` may bump it but `.env` always wins.
 
 The backend runs schema migrations on startup. There is **no downgrade path**;
 once a newer image has opened the database, an older image will refuse to.
-Skipping versions (0.9.2 → 0.9.4 without 0.9.3) **is supported** — schema
+Skipping versions (0.9.16 → 0.9.18 without 0.9.17) **is supported** — schema
 migrations run forward in order on the new image's first boot.
 
 ### Click-to-update from the web UI (optional)
