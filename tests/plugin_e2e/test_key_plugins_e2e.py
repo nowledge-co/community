@@ -4,8 +4,10 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import time
+import tomllib
 import uuid
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -28,6 +30,7 @@ GEMINI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-gemini-cli"
 PROMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-proma-plugin"
 CURSOR_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-cursor-plugin"
 PI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-pi-package"
+KIMI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-kimi-code-plugin"
 BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
@@ -457,6 +460,29 @@ def test_key_plugin_static_contracts_are_declared():
     assert "stablePathSuffix" in pi_history_sync
     assert "custom_message" in pi_history_sync
 
+    kimi_manifest = _read_json(KIMI_PLUGIN / "kimi.plugin.json")
+    kimi_skill = (KIMI_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md").read_text(encoding="utf-8")
+    kimi_installer = (KIMI_PLUGIN / "scripts" / "install_hooks.py").read_text(encoding="utf-8")
+    kimi_hook = (KIMI_PLUGIN / "scripts" / "kimi-sync-hook.py").read_text(encoding="utf-8")
+    assert kimi_manifest["name"] == "nowledge-mem"
+    assert kimi_manifest["version"] == "0.1.0"
+    assert kimi_manifest["skills"] == "./skills/"
+    assert kimi_manifest["sessionStart"]["skill"] == "nowledge-mem"
+    assert kimi_manifest["mcpServers"]["nowledge-mem"]["url"] == "http://127.0.0.1:14242/mcp/"
+    assert "hooks" not in kimi_manifest
+    assert "nmem --json context --source-app kimi-code" in kimi_skill
+    assert "nmem --json t sync --from kimi-code --session-id <session-id> --apply" in kimi_skill
+    assert "source_app=kimi-code" in kimi_skill
+    assert "Stop" in kimi_installer
+    assert "SessionEnd" in kimi_installer
+    assert "PreCompact" in kimi_installer
+    assert "BEGIN Nowledge Mem Kimi Code hooks" in kimi_installer
+    assert "--from" in kimi_hook
+    assert "kimi-code" in kimi_hook
+    assert "--session-id" in kimi_hook
+    assert "--apply" in kimi_hook
+    assert "NMEM_KIMI_SYNC_TIMEOUT" in kimi_hook
+
     alma_manifest = _read_json(ALMA_PLUGIN / "manifest.json")
     alma_pkg = _read_json(ALMA_PLUGIN / "package.json")
     alma_skill = ALMA_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md"
@@ -466,6 +492,143 @@ def test_key_plugin_static_contracts_are_declared():
     assert alma_skill.exists()
     assert "nowledge_mem_context_bundle" in alma_skill.read_text(encoding="utf-8")
     assert "nowledge_mem_context_bundle" in alma_source
+
+
+def test_kimi_code_hook_installer_uses_isolated_kimi_home(tmp_path: Path):
+    kimi_home = tmp_path / ".kimi-code"
+    config = kimi_home / "config.toml"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        "\n".join(
+            [
+                '[model]',
+                'default = "kimi-k2"',
+                "",
+                "[[hooks]]",
+                'event = "Notification"',
+                "matcher = 'task\\.completed'",
+                'command = "echo done"',
+                "timeout = 5",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    env = os.environ.copy()
+    env["KIMI_CODE_HOME"] = str(kimi_home)
+    installer = KIMI_PLUGIN / "scripts" / "install_hooks.py"
+    _run([sys.executable, str(installer)], env=env, timeout=30)
+    _run([sys.executable, str(installer)], env=env, timeout=30)
+
+    hook_path = kimi_home / "hooks" / "nowledge-mem-sync-hook.py"
+    assert hook_path.exists()
+    assert os.access(hook_path, os.X_OK)
+
+    text = config.read_text(encoding="utf-8")
+    assert text.count("BEGIN Nowledge Mem Kimi Code hooks") == 1
+    assert 'event = "Notification"' in text
+    assert "nowledge-mem-sync-hook.py" in text
+    assert "python3" in text or "py -3" in text
+    assert str(sys.executable) not in text
+    parsed = tomllib.loads(text)
+    events = [hook["event"] for hook in parsed["hooks"]]
+    assert events == ["Notification", "Stop", "SessionEnd", "PreCompact"]
+    assert any(path.name.startswith("config.toml.") and path.name.endswith(".bak") for path in kimi_home.iterdir())
+
+
+def test_kimi_code_hook_installer_preserves_config_on_broken_managed_block(tmp_path: Path):
+    kimi_home = tmp_path / ".kimi-code"
+    config = kimi_home / "config.toml"
+    config.parent.mkdir(parents=True)
+    original = "\n".join(
+        [
+            '[model]',
+            'default = "kimi-k2"',
+            "",
+            "# BEGIN Nowledge Mem Kimi Code hooks (managed by nowledge-mem-kimi-code-plugin)",
+            "[[hooks]]",
+            'event = "Stop"',
+            'command = "python3 old-hook.py"',
+            "",
+            "[ui]",
+            'theme = "dark"',
+            "",
+        ]
+    )
+    config.write_text(original, encoding="utf-8")
+
+    env = os.environ.copy()
+    env["KIMI_CODE_HOME"] = str(kimi_home)
+    installer = KIMI_PLUGIN / "scripts" / "install_hooks.py"
+    result = subprocess.run(
+        [sys.executable, str(installer)],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "missing its END marker" in result.stderr
+    assert config.read_text(encoding="utf-8") == original
+    assert not any(path.name.endswith(".bak") for path in kimi_home.iterdir())
+
+
+def test_kimi_code_sync_hook_invokes_nmem_for_session_id(tmp_path: Path):
+    kimi_home = tmp_path / ".kimi-code"
+    bin_dir = tmp_path / "bin"
+    calls_file = tmp_path / "nmem-calls.jsonl"
+    bin_dir.mkdir()
+    fake_nmem = bin_dir / "nmem"
+    fake_nmem.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env python3",
+                "import json, os, sys",
+                "with open(os.environ['NMEM_FAKE_CALLS'], 'a', encoding='utf-8') as handle:",
+                "    handle.write(json.dumps(sys.argv[1:]) + '\\n')",
+                "print('{\"status\":\"ok\"}')",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    fake_nmem.chmod(0o755)
+
+    env = os.environ.copy()
+    env["KIMI_CODE_HOME"] = str(kimi_home)
+    env["NMEM_FAKE_CALLS"] = str(calls_file)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+    hook = KIMI_PLUGIN / "scripts" / "kimi-sync-hook.py"
+    payload = json.dumps({"hook_event_name": "Stop", "session_id": "kimi-session-123"})
+
+    result = subprocess.run(
+        [sys.executable, str(hook)],
+        input=payload,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    calls = [json.loads(line) for line in calls_file.read_text(encoding="utf-8").splitlines()]
+    assert calls == [
+        [
+            "--json",
+            "t",
+            "sync",
+            "--from",
+            "kimi-code",
+            "--session-id",
+            "kimi-session-123",
+            "--apply",
+        ]
+    ]
+    log_text = (kimi_home / "logs" / "nowledge-mem-hook.log").read_text(encoding="utf-8")
+    assert "synced Stop kimi-session-123" in log_text
 
 
 def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path):
@@ -713,7 +876,14 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["proma"]["version"] == "0.1.2"
     assert by_id["opencode"]["version"] == "0.3.4"
     assert by_id["pi"]["version"] == "0.8.1"
-    for connector_id in ["kimi-code", "zcode", "mimo-code", "omp"]:
+    assert by_id["kimi-code"]["version"] == "0.1.0"
+    assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
+    assert by_id["kimi-code"]["transport"] == "mcp+skills+hook"
+    assert by_id["kimi-code"]["capabilities"]["autoCapture"] is True
+    assert by_id["kimi-code"]["threadSave"]["method"] == "hook+cli-native"
+    assert by_id["kimi-code"]["autonomy"]["threads"] == "automatic-capture"
+    assert by_id["kimi-code"]["skills"] == ["nowledge-mem"]
+    for connector_id in ["zcode", "mimo-code", "omp"]:
         connector = by_id[connector_id]
         assert connector["version"] is None
         assert connector["transport"] == "mcp+skills"
@@ -721,7 +891,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert connector["install"]["command"] == f"nmem config mcp show --host {connector_id}"
         assert "save-handoff" in connector["skills"]
         assert "save-thread" not in connector["skills"]
-    for connector_id in ["kimi-code", "mimo-code", "omp"]:
+    for connector_id in ["mimo-code", "omp"]:
         connector = by_id[connector_id]
         assert connector["threadSave"]["method"] == "cli-native"
         assert connector["autonomy"]["threads"] == "import-only"
