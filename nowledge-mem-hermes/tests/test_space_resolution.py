@@ -108,7 +108,7 @@ class SpaceResolutionTests(unittest.TestCase):
         try:
             resolved = provider.NowledgeMemProvider._resolve_space(
                 {"space": ""},
-                {},
+                "",
             )
             self.assertEqual(resolved, "")
         finally:
@@ -137,7 +137,7 @@ class SpaceResolutionTests(unittest.TestCase):
                     "space_by_identity": {"default": "Default Agent"},
                     "space_template": "agent-{identity}",
                 },
-                {},
+                "",
             )
             self.assertIsNone(resolved)
         finally:
