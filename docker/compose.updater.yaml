@@ -38,7 +38,14 @@ services:
       NOWLEDGE_UPDATER_TOKEN: ${NOWLEDGE_UPDATER_TOKEN:?run `./nmemctl auto-update enable` first}
 
   updater:
-    image: docker.io/nowledgelabs/mem-updater:${NMEM_UPDATER_TAG:-0.9.18}
+    # The updater sidecar has its OWN release cadence: it is only rebuilt
+    # when the updater code changes, NOT every app release. So this default
+    # tracks the latest published `mem-updater` image, which is independent
+    # of the app version above. Do NOT bump it to the app version unless a
+    # matching `mem-updater:<app-version>` was actually published — that
+    # phantom-image mistake shipped a broken sidecar default in 0.9.18.
+    # (preflight-release.sh verifies this tag points at a real image.)
+    image: docker.io/nowledgelabs/mem-updater:${NMEM_UPDATER_TAG:-0.9.4}
     container_name: nowledge-mem-updater
     restart: unless-stopped
 
