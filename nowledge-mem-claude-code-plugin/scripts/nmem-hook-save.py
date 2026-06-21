@@ -224,6 +224,10 @@ def _build_command(
         "--truncate",
     ]
 
+    # NOTE: --host-agent-id requires nmem CLI >= TBD (currently unrecognized).
+    # The nmem maintainer has been asked to add this flag to 'nmem t save'.
+    # Until then, this is a no-op — the process will still succeed; nmem simply
+    # ignores unrecognized flags in subprocess mode.
     host_agent_id = _host_agent_fingerprint(runtime)
     if host_agent_id:
         args.extend(["--host-agent-id", host_agent_id])
