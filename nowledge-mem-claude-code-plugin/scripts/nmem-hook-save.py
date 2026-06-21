@@ -112,16 +112,20 @@ def _cmd_exe_path(path: str) -> str:
 
 _FINGERPRINT_SOURCES = (
     "/etc/machine-id",
+    "__mac__",
     "/proc/1/mountinfo",
 )
 
 
 def _host_agent_fingerprint(runtime: str) -> str:
     for source in _FINGERPRINT_SOURCES:
-        try:
-            raw = Path(source).read_text(encoding="utf-8").strip()
-        except (OSError, UnicodeDecodeError):
-            continue
+        if source == "__mac__":
+            raw = _read_mac_address()
+        else:
+            try:
+                raw = Path(source).read_text(encoding="utf-8").strip()
+            except (OSError, UnicodeDecodeError):
+                continue
         if not raw:
             continue
         if source == "/proc/1/mountinfo":
@@ -129,17 +133,35 @@ def _host_agent_fingerprint(runtime: str) -> str:
             if not extracted:
                 continue
             raw = extracted
-        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
-        return f"{runtime}-{digest[:8]}"
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:8]
+        if source == "/proc/1/mountinfo":
+            return f"overlay-{digest}"
+        return f"{runtime}-{digest}"
     return ""
 
 
-    """Pull the overlay upperdir layer hash from /proc/1/mountinfo.
+def _read_mac_address() -> str:
+    net_dir = Path("/sys/class/net")
+    if not net_dir.is_dir():
+        return ""
+    try:
+        ifaces = sorted(p.name for p in net_dir.iterdir() if p.is_dir())
+    except OSError:
+        return ""
+    for iface in ifaces:
+        if iface == "lo":
+            continue
+        addr_path = net_dir / iface / "address"
+        try:
+            addr = addr_path.read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if addr and addr != "00:00:00:00:00:00":
+            return addr
+    return ""
 
-    Looks for a line containing ``upperdir=`` and walks path components in
-    reverse to find a ≥32 hex-character directory name (the Docker/LazyCat
-    overlay2 writable layer ID).
-    """
+
+def _extract_overlay_id(mountinfo: str) -> str:
     import re as _re
     for line in mountinfo.splitlines():
         if "upperdir=" not in line:
@@ -152,17 +174,6 @@ def _host_agent_fingerprint(runtime: str) -> str:
             if len(part) >= 32 and all(c in "0123456789abcdef" for c in part):
                 return part
     return ""
-
-def _build_nmem_command(nmem: str, *args: str) -> list[str]:
-    if nmem.lower().endswith(".cmd"):
-        return [
-            "cmd.exe",
-            "/s",
-            "/c",
-            subprocess.list2cmdline([_cmd_exe_path(nmem), *args]),
-        ]
-    return [nmem, *args]
-
 
 def _resolve_space_from_cwd(project_path: Path) -> str | None:
     """Resolve the per-project Nowledge Mem space name from a working directory.
