@@ -201,12 +201,8 @@ _MESSAGE_TIMESTAMP_KEYS = (
     "startedAt",
 )
 
-# Ordered by preference (universal across bare metal, VMs, Docker, LPK):
-#   1) /etc/machine-id    — systemd hosts (gold standard, unique per machine)
-#   2) __mac__            — primary non-loopback MAC address (universal on Linux;
-#                           Docker assigns per-host IP to MAC, unique in practice)
-#   3) /proc/1/mountinfo  — overlay upperdir layer hash (last resort for
-#                           containers; content-addressed, NOT machine-unique)
+# Ordered by preference: /etc/machine-id (systemd/Linux standard),
+# then overlay root mountinfo (Docker/LazyCat containers).
 _FINGERPRINT_SOURCES = (
     "/etc/machine-id",
     "__mac__",
@@ -835,51 +831,58 @@ class NowledgeMemProvider(MemoryProvider):
         Tries each source in ``_FINGERPRINT_SOURCES`` in order:
 
         * ``/etc/machine-id`` — standard on systemd hosts.
-        * ``__mac__`` — first non-loopback MAC address (universal on Linux).
-        * ``/proc/1/mountinfo`` — overlay upperdir layer hash (last resort).
+        * ``__mac__`` — first non-loopback MAC address from /sys/class/net.
+        * ``/proc/1/mountinfo`` — overlay upperdir layer hash (Docker/LazyCat).
 
-        Prefix by source: ``hermes-`` for machine-id/MAC, ``overlay-`` for mountinfo.
+        Prefixes:
+        * machine-id / MAC → ``"hermes-XXXXXXXX"``
+        * overlay → ``"overlay-XXXXXXXX"``
+
+        Returns a fingerprint string or an empty string.
         """
         for source in _FINGERPRINT_SOURCES:
-            try:
-                if source == "/proc/1/mountinfo":
+            if source == "__mac__":
+                raw = NowledgeMemProvider._read_mac_address()
+            else:
+                try:
                     raw = Path(source).read_text(encoding="utf-8").strip()
-                    if not raw:
-                        continue
-                    raw = NowledgeMemProvider._extract_overlay_id(raw)
-                    if not raw:
-                        continue
-                    prefix = "overlay"
-                elif source == "__mac__":
-                    raw = NowledgeMemProvider._read_primary_mac()
-                    if not raw:
-                        continue
-                    prefix = "hermes"
-                else:
-                    raw = Path(source).read_text(encoding="utf-8").strip()
-                    if not raw:
-                        continue
-                    prefix = "hermes"
-            except (OSError, UnicodeDecodeError):
+                except (OSError, UnicodeDecodeError):
+                    continue
+            if not raw:
                 continue
 
+            if source == "/proc/1/mountinfo":
+                raw = NowledgeMemProvider._extract_overlay_id(raw)
+                if not raw:
+                    continue
+
             suffix = hashlib.sha256(raw.encode()).hexdigest()[:8]
-            return f"{prefix}-{suffix}"
+            if source == "/proc/1/mountinfo":
+                return f"overlay-{suffix}"
+            return f"hermes-{suffix}"
 
         return ""
 
     @staticmethod
-    def _read_primary_mac() -> str:
-        """Return the MAC address of the first non-loopback interface.
+    def _read_mac_address() -> str:
+        """Return the first non-loopback MAC address from /sys/class/net.
 
-        Scans ``/sys/class/net/*/address``, skips loopback
-        (``00:00:00:00:00:00``), and returns the first valid MAC found.
-        Returns an empty string if none is available.
+        Skips ``lo`` and addresses that are all zeros.
+        Returns a string like ``"02:42:ac:1c:02:04"`` or an empty string.
         """
-        import glob as _glob
-        for addr_path in sorted(_glob.glob("/sys/class/net/*/address")):
+        net_dir = Path("/sys/class/net")
+        if not net_dir.is_dir():
+            return ""
+        try:
+            ifaces = sorted(p.name for p in net_dir.iterdir() if p.is_dir())
+        except OSError:
+            return ""
+        for iface in ifaces:
+            if iface == "lo":
+                continue
+            addr_path = net_dir / iface / "address"
             try:
-                addr = Path(addr_path).read_text(encoding="utf-8").strip()
+                addr = addr_path.read_text(encoding="utf-8").strip()
             except (OSError, UnicodeDecodeError):
                 continue
             if addr and addr != "00:00:00:00:00:00":
@@ -918,7 +921,7 @@ class NowledgeMemProvider(MemoryProvider):
             if config_path.exists():
                 try:
                     cfg = json.loads(config_path.read_text(encoding="utf-8"))
-                except (OSError, json.JSONDecodeError):
+                except Exception:
                     cfg = {}
             else:
                 cfg = {}
