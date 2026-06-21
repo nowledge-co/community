@@ -93,6 +93,13 @@ PLACEHOLDER_HINTS = (
     "test",
 )
 
+# Ordered by preference: /etc/machine-id (systemd/Linux standard),
+# then overlay root mountinfo (Docker/LazyCat containers).
+_FINGERPRINT_SOURCES = (
+    "/etc/machine-id",
+    "/proc/1/mountinfo",
+)
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -194,6 +201,47 @@ def has_sensitive_content(text: str) -> bool:
         ):
             return True
     return False
+
+
+def _host_agent_fingerprint() -> str:
+    """Derive a stable agent-identity fingerprint from system sources.
+
+    Returns ``"copilot-cli-XXXXXXXX"`` (8 hex chars) or an empty string.
+    """
+    for source in _FINGERPRINT_SOURCES:
+        try:
+            raw = Path(source).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if not raw:
+            continue
+        if source == "/proc/1/mountinfo":
+            extracted = _extract_overlay_id(raw)
+            if not extracted:
+                continue
+            raw = extracted
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        return f"copilot-cli-{digest[:8]}"
+    return ""
+
+
+def _extract_overlay_id(mountinfo: str) -> str:
+    """Pull the writable layer id from a Docker/LazyCat overlay mount."""
+    for line in mountinfo.splitlines():
+        if "upperdir=" not in line:
+            continue
+        marker = "upperdir="
+        idx = line.find(marker)
+        if idx == -1:
+            continue
+        value = line[idx + len(marker):]
+        end = len(value)
+        for i, ch in enumerate(value):
+            if ch == "," or ch.isspace():
+                end = i
+                break
+        return Path(value[:end]).name
+    return ""
 
 
 def build_nmem_command(nmem_bin: str, *args: str) -> list[str]:
@@ -585,22 +633,19 @@ def main() -> int:
 
             thread_exists = False
             try:
-                run_json(
-                    build_nmem_command(
-                        nmem_bin,
-                        "--json",
-                        "t",
-                        "import",
-                        "-f",
-                        import_file.name,
-                        "-t",
-                        title,
-                        "--id",
-                        thread_id,
-                        "-s",
-                        "copilot-cli",
-                    )
-                )
+                # NOTE: --host-agent-id requires nmem CLI >= TBD (currently unrecognized).
+                # The nmem maintainer has been asked to add this flag to 'nmem t import'.
+                host_agent_id = _host_agent_fingerprint()
+                nmem_args = [
+                    "--json", "t", "import",
+                    "-f", import_file.name,
+                    "-t", title,
+                    "--id", thread_id,
+                    "-s", "copilot-cli",
+                ]
+                if host_agent_id:
+                    nmem_args.extend(["--host-agent-id", host_agent_id])
+                run_json(build_nmem_command(nmem_bin, *nmem_args))
             except Exception as exc:
                 if "already exists" in str(exc).lower():
                     thread_exists = True
