@@ -202,23 +202,23 @@ def _host_agent_fingerprint() -> str:
     return ""
 
 
-def _extract_overlay_id(mountinfo: str) -> str:
+    """Pull the overlay upperdir layer hash from /proc/1/mountinfo.
+
+    Looks for a line containing ``upperdir=`` and walks path components in
+    reverse to find a ≥32 hex-character directory name (the Docker/LazyCat
+    overlay2 writable layer ID).
+    """
+    import re as _re
     for line in mountinfo.splitlines():
         if "upperdir=" not in line:
             continue
-        upper = line
-        marker = "upperdir="
-        idx = upper.find(marker)
-        if idx == -1:
+        m = _re.search(r"upperdir=([^,]+)", line)
+        if not m:
             continue
-        value = upper[idx + len(marker):]
-        end = len(value)
-        for i, ch in enumerate(value):
-            if ch == "," or ch.isspace():
-                end = i
-                break
-        upperdir = value[:end]
-        return Path(upperdir).parent.name
+        parts = m.group(1).rstrip("/").split("/")
+        for part in reversed(parts):
+            if len(part) >= 32 and all(c in "0123456789abcdef" for c in part):
+                return part
     return ""
 
 
