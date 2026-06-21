@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -108,6 +109,72 @@ def _cmd_exe_path(path: str) -> str:
     return "nmem.cmd" if Path(path).name.lower() == "nmem.cmd" else path
 
 
+_FINGERPRINT_SOURCES = (
+    "/etc/machine-id",
+    "/proc/1/mountinfo",
+)
+
+def _host_agent_fingerprint(runtime: str) -> str:
+    """Derive a stable agent-identity fingerprint from system sources.
+
+    Tries each source in ``_FINGERPRINT_SOURCES`` in order:
+
+    * ``/etc/machine-id`` — standard on systemd hosts.
+    * ``/proc/1/mountinfo`` — extracts the overlay upperdir layer hash
+      (Docker / LazyCat containers).
+
+    Returns ``"{runtime}-XXXXXXXX"`` (8 hex chars) or an empty string.
+    """
+    for source in _FINGERPRINT_SOURCES:
+        try:
+            raw = Path(source).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if not raw:
+            continue
+
+        # For /proc/1/mountinfo, extract the overlay upperdir layer hash.
+        if source == "/proc/1/mountinfo":
+            extracted = _extract_overlay_id(raw)
+            if not extracted:
+                continue
+            raw = extracted
+
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        return f"{runtime}-{digest[:8]}"
+
+    return ""
+
+
+def _extract_overlay_id(mountinfo: str) -> str:
+    """Pull the writable layer id from a Docker/LazyCat overlay mount.
+
+    Looks for a line containing ``upperdir=`` and returns the basename
+    of the upperdir path, e.g.
+    ``3f5a6e77235c373fdf96c583b0b4acafc14ca19825ed54bd009f5dca2d34a78d``.
+    """
+    for line in mountinfo.splitlines():
+        if "upperdir=" not in line:
+            continue
+        upper = line
+        # Extract upperdir=value (stop at comma or space)
+        marker = "upperdir="
+        idx = upper.find(marker)
+        if idx == -1:
+            continue
+        value = upper[idx + len(marker):]
+        # Stop at the first comma (overlay options separator) or whitespace
+        end = len(value)
+        for i, ch in enumerate(value):
+            if ch == "," or ch.isspace():
+                end = i
+                break
+        upperdir = value[:end]
+        # Return the basename (the layer hash)
+        return Path(upperdir).name
+
+    return ""
+
 def _build_nmem_command(nmem: str, *args: str) -> list[str]:
     if nmem.lower().endswith(".cmd"):
         return [
@@ -178,6 +245,10 @@ def _build_command(
         runtime,
         "--truncate",
     ]
+
+    host_agent_id = _host_agent_fingerprint(runtime)
+    if host_agent_id:
+        args.extend(["--host-agent-id", host_agent_id])
 
     session_id = _payload_value(payload, "session_id", "sessionId") or os.environ.get(
         "GROK_SESSION_ID", ""

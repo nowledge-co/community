@@ -19,6 +19,13 @@ from typing import Any
 ATTEMPT_TIMEOUT_SECONDS = 8
 SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5, 3.0)
 CAPTURE_LOCK_STALE_SECONDS = 90
+
+# Ordered by preference: /etc/machine-id (systemd/Linux standard),
+# then overlay root mountinfo (Docker/LazyCat containers).
+_FINGERPRINT_SOURCES = (
+    "/etc/machine-id",
+    "/proc/1/mountinfo",
+)
 SESSION_NOT_FOUND_MARKERS = (
     "No codex sessions found",
     "Codex sessions directory not found",
@@ -178,6 +185,68 @@ def _claim_capture_event(payload: dict[str, Any]) -> bool:
     return True
 
 
+def _host_agent_fingerprint() -> str:
+    """Derive a stable agent-identity fingerprint from system sources.
+
+    Tries each source in ``_FINGERPRINT_SOURCES`` in order:
+
+    * ``/etc/machine-id`` — standard on systemd hosts.
+    * ``/proc/1/mountinfo`` — extracts the overlay upperdir layer hash
+      (Docker / LazyCat containers).
+
+    Returns ``"codex-XXXXXXXX"`` (8 hex chars) or an empty string.
+    """
+    for source in _FINGERPRINT_SOURCES:
+        try:
+            raw = Path(source).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if not raw:
+            continue
+
+        # For /proc/1/mountinfo, extract the overlay upperdir layer hash.
+        if source == "/proc/1/mountinfo":
+            extracted = _extract_overlay_id(raw)
+            if not extracted:
+                continue
+            raw = extracted
+
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        return f"codex-{digest[:8]}"
+
+    return ""
+
+
+def _extract_overlay_id(mountinfo: str) -> str:
+    """Pull the writable layer id from a Docker/LazyCat overlay mount.
+
+    Looks for a line containing ``upperdir=`` and returns the basename
+    of the upperdir path, e.g.
+    ``3f5a6e77235c373fdf96c583b0b4acafc14ca19825ed54bd009f5dca2d34a78d``.
+    """
+    for line in mountinfo.splitlines():
+        if "upperdir=" not in line:
+            continue
+        upper = line
+        # Extract upperdir=value (stop at comma or space)
+        marker = "upperdir="
+        idx = upper.find(marker)
+        if idx == -1:
+            continue
+        value = upper[idx + len(marker):]
+        # Stop at the first comma (overlay options separator) or whitespace
+        end = len(value)
+        for i, ch in enumerate(value):
+            if ch == "," or ch.isspace():
+                end = i
+                break
+        upperdir = value[:end]
+        # Return the basename (the layer hash)
+        return Path(upperdir).name
+
+    return ""
+
+
 def _nmem_command() -> str | None:
     return shutil.which("nmem") or shutil.which("nmem.cmd")
 
@@ -263,6 +332,10 @@ def _build_save_command(
         "--truncate",
     ]
 
+    host_agent_id = _host_agent_fingerprint()
+    if host_agent_id:
+        args.extend(["--host-agent-id", host_agent_id])
+
     cwd = _payload_value(payload, "cwd")
     if cwd:
         project = str(Path(cwd).expanduser())
@@ -275,8 +348,6 @@ def _build_save_command(
         args.extend(["--session-id", session_id])
 
     return _build_nmem_command(nmem, *args)
-
-
 def _run_save(
     nmem: str,
     payload: dict[str, Any],
