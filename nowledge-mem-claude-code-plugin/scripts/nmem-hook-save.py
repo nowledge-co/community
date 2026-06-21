@@ -150,7 +150,7 @@ def _extract_overlay_id(mountinfo: str) -> str:
                 end = i
                 break
         upperdir = value[:end]
-        return Path(upperdir).name
+        return Path(upperdir).parent.name
     return ""
 
 def _build_nmem_command(nmem: str, *args: str) -> list[str]:

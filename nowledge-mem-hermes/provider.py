@@ -918,7 +918,7 @@ class NowledgeMemProvider(MemoryProvider):
             if config_path.exists():
                 try:
                     cfg = json.loads(config_path.read_text(encoding="utf-8"))
-                except Exception:
+                except (OSError, json.JSONDecodeError):
                     cfg = {}
             else:
                 cfg = {}

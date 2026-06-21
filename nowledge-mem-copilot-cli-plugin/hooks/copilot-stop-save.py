@@ -240,7 +240,7 @@ def _extract_overlay_id(mountinfo: str) -> str:
             if ch == "," or ch.isspace():
                 end = i
                 break
-        return Path(value[:end]).name
+        return Path(value[:end]).parent.name
     return ""
 
 
