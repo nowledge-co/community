@@ -283,7 +283,10 @@ class NowledgeMemProvider(MemoryProvider):
             return
 
         raw_identity = kwargs.get("agent_identity")
-        host_agent_id = str(raw_identity).strip() if raw_identity else None
+        identity = str(raw_identity).strip() if raw_identity else ""
+        if identity == "default":
+            identity = config.get("agent_identity", identity)
+        host_agent_id = identity or None
         try:
             context_bundle = getattr(self._client, "context_bundle")(
                 source_app="hermes",
@@ -804,6 +807,8 @@ class NowledgeMemProvider(MemoryProvider):
 
         raw_identity = kwargs.get("agent_identity")
         identity = str(raw_identity or "").strip()
+        if identity == "default":
+            identity = config.get("agent_identity", identity)
         identity_map = config.get("space_by_identity")
         if isinstance(identity_map, str):
             try:
