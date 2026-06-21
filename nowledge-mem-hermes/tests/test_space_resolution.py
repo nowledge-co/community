@@ -50,8 +50,7 @@ class SpaceResolutionTests(unittest.TestCase):
         os.environ["NMEM_SPACE"] = "Env Space"
         try:
             resolved = provider.NowledgeMemProvider._resolve_space(
-                {"space": "Configured Space"},
-                {"agent_identity": "research"},
+                {"space": "Configured Space"}, "research",
             )
             self.assertEqual(resolved, "Configured Space")
         finally:
@@ -68,15 +67,13 @@ class SpaceResolutionTests(unittest.TestCase):
                     "ops": "Operations Agent",
                 },
                 "space_template": "agent-{identity}",
-            },
-            {"agent_identity": "research"},
+            }, "research",
         )
         self.assertEqual(resolved, "Research Agent")
 
     def test_template_falls_back_when_no_mapping(self):
         resolved = provider.NowledgeMemProvider._resolve_space(
-            {"space_template": "agent-{identity}"},
-            {"agent_identity": "ops"},
+            {"space_template": "agent-{identity}"}, "ops",
         )
         self.assertEqual(resolved, "agent-ops")
 
@@ -125,8 +122,7 @@ class SpaceResolutionTests(unittest.TestCase):
             {
                 "space": None,
                 "space_by_identity": {"research": "Research Agent"},
-            },
-            {"agent_identity": "research"},
+            }, "research",
         )
         self.assertEqual(resolved, "Research Agent")
 
