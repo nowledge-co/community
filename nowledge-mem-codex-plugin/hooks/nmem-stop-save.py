@@ -24,172 +24,29 @@ CAPTURE_LOCK_STALE_SECONDS = 90
 # then overlay root mountinfo (Docker/LazyCat containers).
 _FINGERPRINT_SOURCES = (
     "/etc/machine-id",
+    "__mac__",
     "/proc/1/mountinfo",
 )
-SESSION_NOT_FOUND_MARKERS = (
-    "No codex sessions found",
-    "Codex sessions directory not found",
-    "Make sure Codex has created sessions",
-)
-JSON_FLAG_UNSUPPORTED_MARKERS = (
-    "no such option: --json",
-    "unrecognized arguments: --json",
-    "unknown option --json",
-    "unexpected argument '--json'",
-)
-
-
-def _read_hook_input() -> dict[str, Any]:
-    raw = sys.stdin.read()
-    if not raw.strip():
-        return {}
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    return payload if isinstance(payload, dict) else {}
-
-
-def _payload_value(payload: dict[str, Any], *keys: str) -> str | None:
-    containers: list[dict[str, Any]] = [payload]
-    for outer_key in ("input", "data", "payload"):
-        nested = payload.get(outer_key)
-        if isinstance(nested, dict):
-            containers.append(nested)
-            nested_input = nested.get("input")
-            if isinstance(nested_input, dict):
-                containers.append(nested_input)
-
-    for container in containers:
-        for key in keys:
-            value = container.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-    return None
-
-
-def _log_path() -> Path:
-    plugin_data = os.environ.get("PLUGIN_DATA") or os.environ.get("CLAUDE_PLUGIN_DATA")
-    if plugin_data:
-        return Path(plugin_data).expanduser() / "nowledge-mem-stop-hook.log"
-
-    codex_home = os.environ.get("CODEX_HOME")
-    if codex_home:
-        return Path(codex_home).expanduser() / "log" / "nowledge-mem-stop-hook.log"
-
-    return Path.home() / ".codex" / "log" / "nowledge-mem-stop-hook.log"
-
-
-def _log(message: str) -> None:
-    try:
-        path = _log_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(f"[{timestamp}] {message}\n")
-    except Exception:
-        pass
-
-
-def _capture_lock_root(payload: dict[str, Any]) -> Path:
-    codex_home = os.environ.get("CODEX_HOME")
-    if codex_home:
-        return Path(codex_home).expanduser() / "log" / "nowledge-mem-stop-hook-locks"
-
-    derived = _derive_codex_home(_payload_value(payload, "transcript_path", "transcriptPath"))
-    if derived:
-        return derived / "log" / "nowledge-mem-stop-hook-locks"
-
-    return Path.home() / ".codex" / "log" / "nowledge-mem-stop-hook-locks"
-
-
-def _transcript_fingerprint(transcript_path: str | None) -> dict[str, Any]:
-    if not transcript_path:
-        return {"path": "", "exists": False}
-
-    path = Path(transcript_path).expanduser()
-    try:
-        stat_result = path.stat()
-    except OSError:
-        return {"path": str(path), "exists": False}
-
-    return {
-        "path": str(path),
-        "exists": True,
-        "size": stat_result.st_size,
-        "mtime_ns": stat_result.st_mtime_ns,
-    }
-
-
-def _capture_lock_key(payload: dict[str, Any]) -> str:
-    basis = {
-        "event": "Stop",
-        "session_id": _payload_value(payload, "session_id", "sessionId") or "",
-        "cwd": _payload_value(payload, "cwd") or "",
-        "transcript": _transcript_fingerprint(
-            _payload_value(payload, "transcript_path", "transcriptPath")
-        ),
-    }
-    encoded = json.dumps(basis, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-
-
-def _cleanup_stale_capture_locks(lock_root: Path, now: float) -> None:
-    try:
-        for lock_path in lock_root.glob("*.lock"):
-            try:
-                age = now - lock_path.stat().st_mtime
-                if age > CAPTURE_LOCK_STALE_SECONDS:
-                    lock_path.unlink()
-            except OSError:
-                continue
-    except OSError:
-        pass
-
-
-def _claim_capture_event(payload: dict[str, Any]) -> bool:
-    lock_root = _capture_lock_root(payload)
-    try:
-        lock_root.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        _log(f"lock: unavailable ({exc}); continuing without duplicate guard")
-        return True
-
-    now = time.time()
-    _cleanup_stale_capture_locks(lock_root, now)
-    lock_path = lock_root / f"{_capture_lock_key(payload)}.lock"
-
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-    try:
-        fd = os.open(lock_path, flags, 0o600)
-    except FileExistsError:
-        try:
-            age = now - lock_path.stat().st_mtime
-            if age > CAPTURE_LOCK_STALE_SECONDS:
-                lock_path.unlink()
-                fd = os.open(lock_path, flags, 0o600)
-            else:
-                return False
-        except FileExistsError:
-            return False
-        except OSError:
-            return False
-    except OSError as exc:
-        _log(f"lock: failed to claim ({exc}); continuing without duplicate guard")
-        return True
-
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(str(now))
-        handle.write("\n")
-    return True
 
 
 def _host_agent_fingerprint() -> str:
+    """Derive a stable agent-identity fingerprint from system sources.
+
+    Ordered by preference:
+    1. /etc/machine-id — systemd / standard Linux hosts.
+    2. MAC address — first non-loopback interface from /sys/class/net.
+    3. /proc/1/mountinfo — overlay upperdir layer hash (Docker/LazyCat).
+
+    Prefixes: machine-id/MAC → "codex-XXXXXXXX", overlay → "overlay-XXXXXXXX".
+    """
     for source in _FINGERPRINT_SOURCES:
-        try:
-            raw = Path(source).read_text(encoding="utf-8").strip()
-        except (OSError, UnicodeDecodeError):
-            continue
+        if source == "__mac__":
+            raw = _read_mac_address()
+        else:
+            try:
+                raw = Path(source).read_text(encoding="utf-8").strip()
+            except (OSError, UnicodeDecodeError):
+                continue
         if not raw:
             continue
         if source == "/proc/1/mountinfo":
@@ -197,17 +54,37 @@ def _host_agent_fingerprint() -> str:
             if not extracted:
                 continue
             raw = extracted
-        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
-        return f"codex-{digest[:8]}"
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:8]
+        if source == "/proc/1/mountinfo":
+            return f"overlay-{digest}"
+        return f"{prefix}-{digest}"
     return ""
 
 
-    """Pull the overlay upperdir layer hash from /proc/1/mountinfo.
+def _read_mac_address() -> str:
+    """Return the first non-loopback MAC address from /sys/class/net."""
+    net_dir = Path("/sys/class/net")
+    if not net_dir.is_dir():
+        return ""
+    try:
+        ifaces = sorted(p.name for p in net_dir.iterdir() if p.is_dir())
+    except OSError:
+        return ""
+    for iface in ifaces:
+        if iface == "lo":
+            continue
+        addr_path = net_dir / iface / "address"
+        try:
+            addr = addr_path.read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if addr and addr != "00:00:00:00:00:00":
+            return addr
+    return ""
 
-    Looks for a line containing ``upperdir=`` and walks path components in
-    reverse to find a ≥32 hex-character directory name (the Docker/LazyCat
-    overlay2 writable layer ID).
-    """
+
+def _extract_overlay_id(mountinfo: str) -> str:
+    """Pull the overlay upperdir layer hash from /proc/1/mountinfo."""
     import re as _re
     for line in mountinfo.splitlines():
         if "upperdir=" not in line:
@@ -219,10 +96,7 @@ def _host_agent_fingerprint() -> str:
         for part in reversed(parts):
             if len(part) >= 32 and all(c in "0123456789abcdef" for c in part):
                 return part
-    return ""
-
-
-def _nmem_command() -> str | None:
+    return ""def _nmem_command() -> str | None:
     return shutil.which("nmem") or shutil.which("nmem.cmd")
 
 
