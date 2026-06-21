@@ -201,10 +201,15 @@ _MESSAGE_TIMESTAMP_KEYS = (
     "startedAt",
 )
 
-# Ordered by preference: /etc/machine-id (systemd/Linux standard),
-# then overlay root mountinfo (Docker/LazyCat containers).
+# Ordered by preference (universal across bare metal, VMs, Docker, LPK):
+#   1) /etc/machine-id    — systemd hosts (gold standard, unique per machine)
+#   2) __mac__            — primary non-loopback MAC address (universal on Linux;
+#                           Docker assigns per-host IP to MAC, unique in practice)
+#   3) /proc/1/mountinfo  — overlay upperdir layer hash (last resort for
+#                           containers; content-addressed, NOT machine-unique)
 _FINGERPRINT_SOURCES = (
     "/etc/machine-id",
+    "__mac__",
     "/proc/1/mountinfo",
 )
 
@@ -830,27 +835,55 @@ class NowledgeMemProvider(MemoryProvider):
         Tries each source in ``_FINGERPRINT_SOURCES`` in order:
 
         * ``/etc/machine-id`` — standard on systemd hosts.
-        * ``/proc/1/mountinfo`` — extracts the overlay upperdir layer hash
-          (unique per Docker/LazyCat container, persistent across restarts).
+        * ``__mac__`` — first non-loopback MAC address (universal on Linux).
+        * ``/proc/1/mountinfo`` — overlay upperdir layer hash (last resort).
 
-        Returns ``"hermes-XXXXXXXX"`` (8 hex chars) or an empty string.
+        Prefix by source: ``hermes-`` for machine-id/MAC, ``overlay-`` for mountinfo.
         """
         for source in _FINGERPRINT_SOURCES:
             try:
-                raw = Path(source).read_text(encoding="utf-8").strip()
+                if source == "/proc/1/mountinfo":
+                    raw = Path(source).read_text(encoding="utf-8").strip()
+                    if not raw:
+                        continue
+                    raw = NowledgeMemProvider._extract_overlay_id(raw)
+                    if not raw:
+                        continue
+                    prefix = "overlay"
+                elif source == "__mac__":
+                    raw = NowledgeMemProvider._read_primary_mac()
+                    if not raw:
+                        continue
+                    prefix = "hermes"
+                else:
+                    raw = Path(source).read_text(encoding="utf-8").strip()
+                    if not raw:
+                        continue
+                    prefix = "hermes"
             except (OSError, UnicodeDecodeError):
                 continue
-            if not raw:
-                continue
-
-            if source == "/proc/1/mountinfo":
-                raw = NowledgeMemProvider._extract_overlay_id(raw)
-                if not raw:
-                    continue
 
             suffix = hashlib.sha256(raw.encode()).hexdigest()[:8]
-            return f"hermes-{suffix}"
+            return f"{prefix}-{suffix}"
 
+        return ""
+
+    @staticmethod
+    def _read_primary_mac() -> str:
+        """Return the MAC address of the first non-loopback interface.
+
+        Scans ``/sys/class/net/*/address``, skips loopback
+        (``00:00:00:00:00:00``), and returns the first valid MAC found.
+        Returns an empty string if none is available.
+        """
+        import glob as _glob
+        for addr_path in sorted(_glob.glob("/sys/class/net/*/address")):
+            try:
+                addr = Path(addr_path).read_text(encoding="utf-8").strip()
+            except (OSError, UnicodeDecodeError):
+                continue
+            if addr and addr != "00:00:00:00:00:00":
+                return addr
         return ""
 
     @staticmethod
