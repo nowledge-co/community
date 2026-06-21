@@ -891,39 +891,44 @@
       "id": "kimi-code",
       "name": "Kimi Code",
       "category": "coding",
-      "type": "connector",
-      "version": null,
-      "directory": null,
-      "transport": "mcp+skills",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-kimi-code-plugin",
+      "transport": "mcp+skills+hook",
       "capabilities": {
         "workingMemory": true,
         "search": true,
         "distill": true,
         "autoRecall": false,
-        "autoCapture": false,
+        "autoCapture": true,
         "graphExploration": false,
         "status": true
       },
       "threadSave": {
-        "method": "cli-native",
+        "method": "hook+cli-native",
+        "runtime": "kimi-code",
+        "command": "nmem t sync --from kimi-code --session-id <session-id> --apply",
         "historicalCommand": "nmem t sync --from kimi-code",
-        "note": "Kimi Code stores durable sessions under ~/.kimi-code/sessions. nmem can import those wire.jsonl transcripts for local or remote Mem with nmem t sync --from kimi-code --apply. Nowledge Mem does not yet publish a Kimi lifecycle hook package, so live auto-capture remains manual/import-driven."
+        "note": "The Kimi Code package ships Kimi-native plugin metadata, a session-start skill, and a local MCP declaration. Kimi does not execute plugin install scripts and ignores hooks in plugin manifests, so users must run scripts/install_hooks.py once after install or update. That installer adds managed Stop, SessionEnd, and PreCompact hooks to ~/.kimi-code/config.toml; the hook calls nmem t sync --from kimi-code --session-id <session-id> --apply. Older sessions still backfill with nmem t sync --from kimi-code --apply."
       },
       "autonomy": {
         "bootstrap": "guided",
         "recall": "guided",
         "distill": "guided",
-        "threads": "import-only",
+        "threads": "automatic-capture",
         "bestResultRequires": [
-          "Add Nowledge Mem as an MCP server in Kimi Code",
-          "Import or copy the Nowledge Mem skills into Kimi Code",
+          "Install the Nowledge Mem Kimi Code package",
+          "Use nmem 0.9.19 or newer on the same machine as Kimi Code",
+          "Run the bundled scripts/install_hooks.py once after install or update",
+          "Use the bundled local MCP server, or use nmem config mcp show --host kimi-code for remote Mem or authenticated localhost",
           "Keep nmem configured on this machine for local or remote Mem",
-          "Run nmem t sync --from kimi-code --apply when you want to import Kimi Code sessions"
+          "Run nmem t sync --from kimi-code --apply when you want to import older Kimi Code sessions"
         ]
       },
       "install": {
-        "command": "nmem config mcp show --host kimi-code",
-        "updateCommand": "nmem config mcp show --host kimi-code",
+        "command": "git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; in Kimi Code run /plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin, /plugins enable nowledge-mem, /reload, then run python3 ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin/scripts/install_hooks.py",
+        "updateCommand": "git -C ~/.cache/nowledge-community pull --ff-only || git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; in Kimi Code rerun /plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin, /reload, then run python3 ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin/scripts/install_hooks.py",
+        "configRequired": "Kimi Code plugin install does not execute scripts and kimi.plugin.json does not support hooks. After installing the package, run scripts/install_hooks.py from the package source or managed copy. For remote Mem, use nmem config mcp show --host kimi-code and paste the generated nowledge-mem server into $KIMI_CODE_HOME/mcp.json or ~/.kimi-code/mcp.json.",
         "detectionHint": "Running inside Kimi Code; ~/.kimi-code/ exists or KIMI_CODE_HOME is set",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Kimi Code. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
@@ -932,10 +937,10 @@
         "docsUrl": "/docs/integrations/kimi-code"
       },
       "toolNaming": {
-        "convention": "mcp-backend",
-        "note": "Use Nowledge Mem MCP tools plus imported SKILL.md guidance."
+        "convention": "kimi-plugin+mcp+cli",
+        "note": "Kimi namespaces plugin MCP servers as plugin-nowledge-mem:nowledge-mem. Host-level MCP config can still define nowledge-mem for remote/custom endpoints. Lifecycle hooks invoke nmem CLI for real transcript capture."
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
+      "skills": ["nowledge-mem"],
       "slashCommands": []
     },
     {
