@@ -1,8 +1,10 @@
 # Changelog — nowledge-mem-proma-plugin
 
-## 0.1.3 (unreleased)
+## 0.1.3 (2026-06-22)
 
 - Add optional `PROMA_ALLOWED_WORKSPACES` filtering to `save-to-nmem.py` for multi-workspace Proma users. Leaving it unset keeps the previous behavior and syncs every workspace; setting a comma-separated list such as `default,research` skips other workspaces with a log entry.
+- Use `$HOME/.proma` and `python3` in the packaged `hooks/hooks.json` commands instead of relying on a `PROMA_HOME` environment variable. Proma v0.13.0 does not set `PROMA_HOME` for SDK hook commands by default, so copied hook templates now work without extra shell environment setup.
+- Document Proma v0.13.0's built-in Nowledge Mem setup card as the easiest starting point, while keeping this package as the canonical hook/script source.
 
 ## 0.1.2 (2026-06-13)
 

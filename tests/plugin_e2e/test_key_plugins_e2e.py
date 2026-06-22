@@ -425,11 +425,13 @@ def test_key_plugin_static_contracts_are_declared():
     proma_hook = (PROMA_PLUGIN / "hooks" / "read-working-memory.py").read_text(encoding="utf-8")
     proma_save_hook = (PROMA_PLUGIN / "hooks" / "save-to-nmem.py").read_text(encoding="utf-8")
     proma_hooks = _read_json(PROMA_PLUGIN / "hooks" / "hooks.json")
-    assert proma_manifest["version"] == "0.1.2"
+    assert proma_manifest["version"] == "0.1.3"
     assert proma_hooks["installPath"] == "~/.proma/sdk-config/.claude/settings.json"
     assert proma_hooks["scriptInstallPath"] == "~/.proma/scripts/"
     assert "UserPromptSubmit" in proma_hooks["hooks"]
     assert "asyncRewake" in json.dumps(proma_hooks)
+    assert "${PROMA_HOME}" not in json.dumps(proma_hooks)
+    assert "$HOME/.proma/scripts/" in json.dumps(proma_hooks)
     assert '"context", "--source-app", "proma"' in proma_hook
     assert "NMEM_AGENT_ID" in proma_hook
     assert "NMEM_HOST_AGENT_ID" in proma_hook
@@ -892,7 +894,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["cursor"]["version"] == "0.1.6"
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.26"
-    assert by_id["proma"]["version"] == "0.1.2"
+    assert by_id["proma"]["version"] == "0.1.3"
     assert by_id["opencode"]["version"] == "0.3.4"
     assert by_id["pi"]["version"] == "0.8.1"
     assert by_id["kimi-code"]["version"] == "0.1.0"
