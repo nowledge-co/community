@@ -267,6 +267,25 @@ def test_key_plugin_static_contracts_are_declared():
     assert historical_commands["pi"] == "nmem t sync --from pi"
     assert historical_commands["hermes"] == "nmem t sync --from hermes"
 
+    marketplace_files = [
+        COMMUNITY_ROOT / ".agents" / "plugins" / "marketplace.json",
+        COMMUNITY_ROOT / ".claude-plugin" / "marketplace.json",
+        COMMUNITY_ROOT / ".cursor-plugin" / "marketplace.json",
+        COMMUNITY_ROOT / ".factory-plugin" / "marketplace.json",
+        COMMUNITY_ROOT / ".github" / "plugin" / "marketplace.json",
+    ]
+    for marketplace_file in marketplace_files:
+        marketplace_text = marketplace_file.read_text(encoding="utf-8")
+        assert "git@github.com" not in marketplace_text
+        assert "ssh://git@github.com" not in marketplace_text
+        assert "github.com:" not in marketplace_text
+
+    claude_marketplace = _read_json(COMMUNITY_ROOT / ".claude-plugin" / "marketplace.json")
+    for plugin in claude_marketplace["plugins"]:
+        source = plugin.get("source", {})
+        if source.get("source") == "git-subdir":
+            assert source["url"].startswith("https://github.com/")
+
     claude_manifest = _read_json(CLAUDE_PLUGIN / ".claude-plugin" / "plugin.json")
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     assert claude_manifest["name"] == "nowledge-mem"
