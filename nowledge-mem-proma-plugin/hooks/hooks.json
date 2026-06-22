@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PROMA_HOME}/scripts/save-to-nmem.py\" --event user-prompt-submit",
+            "command": "python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event user-prompt-submit",
             "timeout": 30000
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PROMA_HOME}/scripts/save-to-nmem.py\" --event stop",
+            "command": "python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event stop",
             "timeout": 30000
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PROMA_HOME}/scripts/read-working-memory.py\" --rewake",
+            "command": "python3 \"$HOME/.proma/scripts/read-working-memory.py\" --rewake",
             "timeout": 15000,
             "async": true,
             "asyncRewake": true,
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PROMA_HOME}/scripts/read-working-memory.py\"",
+            "command": "python3 \"$HOME/.proma/scripts/read-working-memory.py\"",
             "timeout": 15000
           }
         ]

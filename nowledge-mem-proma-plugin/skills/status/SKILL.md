@@ -43,7 +43,7 @@ nmem status
 | No `mcp__nowledge-mem__*` tools | mcp.json not found or wrong key name; restart Proma |
 | MCP tools return errors | Server unreachable; check `nmem status` |
 | Hook scripts not firing | Python not in PATH; check `~/.proma/logs/nm-hooks.log` |
-| Startup context missing | Run `python ~/.proma/scripts/read-working-memory.py`; check `CLAUDE.md` and the hook log |
+| Startup context missing | Run `python3 ~/.proma/scripts/read-working-memory.py`; check `CLAUDE.md` and the hook log |
 | "nmem CLI not found" | Install via `pip install nmem-cli` or desktop app |
 
 For remote Mem setups, verify `NMEM_API_URL` and `NMEM_API_KEY` are set, or check `~/.nowledge-mem/config.json`.

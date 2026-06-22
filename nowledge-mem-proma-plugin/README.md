@@ -13,8 +13,13 @@ Proma is built on the Claude Agent SDK, but it keeps its own configuration under
 
 - Proma desktop app
 - Nowledge Mem desktop app or remote server
-- Python 3.9+
+- Python 3.9+ available as `python3`
 - `nmem` CLI in PATH, or `uvx` available as fallback
+
+Proma v0.13.0 and newer include a Nowledge Mem card in Proma's Memory settings. You can start from that card and let Proma copy the setup prompt into Agent mode. This package remains the source for the hook scripts, standard skills, and the exact `settings.json` contract.
+
+The examples below use Proma's `default` workspace. If you use another workspace, replace `default` with the directory name under `~/.proma/agent-workspaces/`.
+If your platform exposes Python only as `python`, replace `python3` with `python` in the hook commands below.
 
 Check Nowledge Mem first:
 
@@ -98,7 +103,7 @@ The important pieces are:
         "hooks": [
           {
             "type": "command",
-            "command": "python \"$HOME/.proma/scripts/read-working-memory.py\"",
+            "command": "python3 \"$HOME/.proma/scripts/read-working-memory.py\"",
             "timeout": 15000
           }
         ]
@@ -109,7 +114,7 @@ The important pieces are:
         "hooks": [
           {
             "type": "command",
-            "command": "python \"$HOME/.proma/scripts/save-to-nmem.py\" --event user-prompt-submit",
+            "command": "python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event user-prompt-submit",
             "timeout": 30000
           }
         ]
@@ -120,7 +125,7 @@ The important pieces are:
         "hooks": [
           {
             "type": "command",
-            "command": "python \"$HOME/.proma/scripts/save-to-nmem.py\" --event stop",
+            "command": "python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event stop",
             "timeout": 30000
           }
         ]
@@ -129,7 +134,7 @@ The important pieces are:
         "hooks": [
           {
             "type": "command",
-            "command": "python \"$HOME/.proma/scripts/read-working-memory.py\" --rewake",
+            "command": "python3 \"$HOME/.proma/scripts/read-working-memory.py\" --rewake",
             "timeout": 15000,
             "async": true,
             "asyncRewake": true,
@@ -142,7 +147,7 @@ The important pieces are:
 }
 ```
 
-If your Proma build expands environment variables, you can set `PROMA_HOME="$HOME/.proma"` and keep the `${PROMA_HOME}` commands from `hooks/hooks.json`. If not, use absolute paths in `settings.json`.
+The packaged `hooks/hooks.json` uses `$HOME/.proma` for the same reason. Proma sets `CLAUDE_CONFIG_DIR`, but it does not set `PROMA_HOME` for hook commands by default.
 
 ### 4. Install skills
 
@@ -200,7 +205,7 @@ Keep your own Proma instructions outside that marked block, or in `CLAUDE.md.tem
 After each assistant turn, the asyncRewake Stop hook runs:
 
 ```bash
-python "$HOME/.proma/scripts/read-working-memory.py" --rewake
+python3 "$HOME/.proma/scripts/read-working-memory.py" --rewake
 ```
 
 When Nowledge Mem has useful Working Memory, the hook prints it and exits with code `2`, which lets Proma wake the agent with the latest reminder. Empty or unavailable context exits cleanly without interrupting the session.
@@ -254,7 +259,7 @@ Logs are written to:
 
 - Open `~/.proma/agent-workspaces/default/CLAUDE.md`.
 - Confirm it contains a `<!-- nowledge-mem:start -->` block.
-- Run `python ~/.proma/scripts/read-working-memory.py` manually and check the log.
+- Run `python3 ~/.proma/scripts/read-working-memory.py` manually and check the log.
 
 **Threads are not saved**
 
@@ -262,7 +267,7 @@ Logs are written to:
 - Run:
 
 ```bash
-echo '{"session_id":"<session-id>"}' | python ~/.proma/scripts/save-to-nmem.py
+echo '{"session_id":"<session-id>"}' | python3 ~/.proma/scripts/save-to-nmem.py
 ```
 
 - Then check Nowledge Mem for a thread with source `proma`.

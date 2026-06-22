@@ -28,7 +28,7 @@ mcp__nowledge-mem__save_thread
 
 **Manual script (if MCP unavailable)**:
 ```bash
-echo '{"session_id":"<id>","cwd":"<project dir>"}' | python ~/.proma/scripts/save-to-nmem.py
+echo '{"session_id":"<id>","cwd":"<project dir>"}' | python3 ~/.proma/scripts/save-to-nmem.py
 ```
 
 ## Behavior

@@ -1100,7 +1100,7 @@
       "name": "Proma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-proma-plugin",
       "transport": "mcp",
       "capabilities": {
@@ -1114,7 +1114,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "UserPromptSubmit and Stop hooks run save-to-nmem.py, which parses Proma SDK JSONL from ~/.proma/sdk-config/projects/**/ and appends messages to nmem via REST API as source=proma. SessionStart writes Context Bundle into the workspace CLAUDE.md; Stop asyncRewake can push fresh Working Memory."
+        "note": "UserPromptSubmit and Stop hooks run save-to-nmem.py, which parses Proma SDK JSONL from ~/.proma/sdk-config/projects/**/ and appends messages to nmem via REST API as source=proma. SessionStart writes Context Bundle into the selected workspace CLAUDE.md; Stop asyncRewake can push fresh Working Memory."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -1122,11 +1122,11 @@
         "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
-          "Add Nowledge Mem MCP server to ~/.proma/agent-workspaces/default/mcp.json (key: servers)",
+          "Choose the Proma workspace first, then add Nowledge Mem MCP server to that workspace's mcp.json (key: servers)",
           "Copy hook scripts to ~/.proma/scripts/",
           "Add SessionStart, UserPromptSubmit, and Stop hooks to ~/.proma/sdk-config/.claude/settings.json",
-          "Copy the standard Nowledge Mem skill folders to ~/.proma/agent-workspaces/default/skills/",
-          "Let the SessionStart hook maintain the marked Nowledge Mem block in ~/.proma/agent-workspaces/default/CLAUDE.md",
+          "Copy the standard Nowledge Mem skill folders to the selected workspace's skills/ directory",
+          "Let the SessionStart hook maintain the marked Nowledge Mem block in the selected workspace CLAUDE.md",
           "Restart Proma after configuration changes"
         ]
       },

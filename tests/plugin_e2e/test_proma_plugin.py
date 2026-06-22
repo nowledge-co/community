@@ -511,6 +511,7 @@ class TestChangelog:
     def test_changelog_has_version(self):
         cl = PLUGIN_DIR / "CHANGELOG.md"
         content = cl.read_text(encoding="utf-8")
+        assert "0.1.3" in content, "CHANGELOG should document version 0.1.3"
         assert "0.1.2" in content, "CHANGELOG should document version 0.1.2"
         assert "0.1.1" in content, "CHANGELOG should document version 0.1.1"
         assert "0.1.0" in content, "CHANGELOG should document version 0.1.0"
