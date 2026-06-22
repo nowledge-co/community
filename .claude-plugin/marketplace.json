@@ -22,7 +22,7 @@
       "tags": ["ai-powered", "knowledge-management", "context-management", "memory-management"],
       "source": {
         "source": "git-subdir",
-        "url": "nowledge-co/community",
+        "url": "https://github.com/nowledge-co/community",
         "path": "nowledge-mem-claude-code-plugin"
       }
     }
