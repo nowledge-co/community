@@ -10,7 +10,7 @@
     "appliesTo": [
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
       "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode",
-      "kimi-code", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
+      "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
       "slock", "lody", "multica", "cumora", "mcp-direct"
     ],
     "doesNotApplyTo": ["browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
@@ -939,6 +939,60 @@
       "toolNaming": {
         "convention": "kimi-plugin+mcp+cli",
         "note": "Kimi namespaces plugin MCP servers as plugin-nowledge-mem:nowledge-mem. Host-level MCP config can still define nowledge-mem for remote/custom endpoints. Lifecycle hooks invoke nmem CLI for real transcript capture."
+      },
+      "skills": ["nowledge-mem"],
+      "slashCommands": []
+    },
+    {
+      "id": "kimi-work",
+      "name": "Kimi Work",
+      "category": "coding",
+      "type": "connector",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-kimi-work-connector",
+      "transport": "mcp+skills",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "kimi-work",
+        "historicalCommand": "nmem t sync --from kimi-work",
+        "note": "Kimi Work uses a private embedded Kimi Code runtime and does not expose Kimi Code's /plugins install flow or lifecycle hooks. The connector installs a session-start skill and local MCP declaration into that embedded runtime. Conversation import is explicit: run nmem t sync --from kimi-work --apply on the machine where Kimi Work stores its sessions. The adapter reuses the Kimi wire-jsonl parser while preserving source=kimi-work and stable kimi-work thread IDs."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "import-only",
+        "bestResultRequires": [
+          "Install the Nowledge Mem Kimi Work connector into Kimi Work's embedded runtime",
+          "Use nmem 0.9.23 or newer on the same machine as Kimi Work",
+          "Use the bundled local MCP server, or use nmem config mcp show --host kimi-work for remote Mem or authenticated localhost",
+          "Keep nmem configured on this machine for local or remote Mem",
+          "Run nmem t sync --from kimi-work --apply when you want to import Kimi Work sessions"
+        ]
+      },
+      "install": {
+        "command": "git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; python3 ~/.cache/nowledge-community/nowledge-mem-kimi-work-connector/scripts/install_kimi_work_plugin.py",
+        "updateCommand": "git -C ~/.cache/nowledge-community pull --ff-only || git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; python3 ~/.cache/nowledge-community/nowledge-mem-kimi-work-connector/scripts/install_kimi_work_plugin.py",
+        "configRequired": "Kimi Work runs an embedded Kimi Code runtime that is separate from ~/.kimi-code. The installer writes to KIMI_WORK_HOME when set, otherwise to the macOS Kimi Work runtime path. For remote Mem, use nmem config mcp show --host kimi-work and paste the generated server into the embedded runtime's mcp.json.",
+        "detectionHint": "Kimi Work desktop is installed; KIMI_WORK_HOME is set or ~/Library/Application Support/kimi-desktop/daimon-share/daimon/runtime/kimi-code/home exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Kimi Work. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Kimi Work 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+        },
+        "docsUrl": "/docs/integrations/kimi-work"
+      },
+      "toolNaming": {
+        "convention": "kimi-plugin+mcp+cli",
+        "note": "Kimi Work loads the same Kimi plugin manifest format from its embedded runtime. Plugin MCP is local by default; host-level mcp.json can override remote/custom Mem. There are no lifecycle hooks, so real transcript import belongs to nmem t sync."
       },
       "skills": ["nowledge-mem"],
       "slashCommands": []

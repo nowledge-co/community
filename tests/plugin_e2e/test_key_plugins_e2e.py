@@ -31,6 +31,7 @@ PROMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-proma-plugin"
 CURSOR_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-cursor-plugin"
 PI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-pi-package"
 KIMI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-kimi-code-plugin"
+KIMI_WORK_CONNECTOR = COMMUNITY_ROOT / "nowledge-mem-kimi-work-connector"
 BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
@@ -504,6 +505,28 @@ def test_key_plugin_static_contracts_are_declared():
     assert "--apply" in kimi_hook
     assert "NMEM_KIMI_SYNC_TIMEOUT" in kimi_hook
 
+    kimi_work_manifest = _read_json(KIMI_WORK_CONNECTOR / "kimi.plugin.json")
+    kimi_work_skill = (
+        KIMI_WORK_CONNECTOR / "skills" / "nowledge-mem" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    kimi_work_installer = (
+        KIMI_WORK_CONNECTOR / "scripts" / "install_kimi_work_plugin.py"
+    ).read_text(encoding="utf-8")
+    assert kimi_work_manifest["name"] == "nowledge-mem"
+    assert kimi_work_manifest["version"] == "0.1.0"
+    assert kimi_work_manifest["skills"] == "./skills/"
+    assert kimi_work_manifest["sessionStart"]["skill"] == "nowledge-mem"
+    assert (
+        kimi_work_manifest["mcpServers"]["nowledge-mem"]["url"]
+        == "http://127.0.0.1:14242/mcp/"
+    )
+    assert "hooks" not in kimi_work_manifest
+    assert "nmem --json context --source-app kimi-work" in kimi_work_skill
+    assert "nmem t sync --from kimi-work --apply" in kimi_work_skill
+    assert "source_app=kimi-work" in kimi_work_skill
+    assert "KIMI_WORK_HOME" in kimi_work_installer
+    assert "installed.json" in kimi_work_installer
+
     alma_manifest = _read_json(ALMA_PLUGIN / "manifest.json")
     alma_pkg = _read_json(ALMA_PLUGIN / "package.json")
     alma_skill = ALMA_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md"
@@ -650,6 +673,52 @@ def test_kimi_code_sync_hook_invokes_nmem_for_session_id(tmp_path: Path):
     ]
     log_text = (kimi_home / "logs" / "nowledge-mem-hook.log").read_text(encoding="utf-8")
     assert "synced Stop kimi-session-123" in log_text
+
+
+def test_kimi_work_installer_writes_managed_plugin_record(tmp_path: Path):
+    kimi_home = tmp_path / "kimi-work-home"
+    existing_root = kimi_home / "plugins" / "managed" / "nowledge-mem"
+    existing_root.mkdir(parents=True)
+    installed = kimi_home / "plugins" / "installed.json"
+    installed.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "plugins": [
+                    {
+                        "id": "nowledge-mem",
+                        "root": str(existing_root),
+                        "source": "local-path",
+                        "enabled": False,
+                        "installedAt": "2026-01-01T00:00:00+00:00",
+                        "capabilities": {
+                            "mcpServers": {"nowledge-mem": {"enabled": False}}
+                        },
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run(
+        [
+            sys.executable,
+            str(KIMI_WORK_CONNECTOR / "scripts" / "install_kimi_work_plugin.py"),
+        ],
+        env={**os.environ, "KIMI_WORK_HOME": str(kimi_home)},
+    )
+
+    assert "Restart Kimi Work" in result.stdout
+    assert (existing_root / "kimi.plugin.json").exists()
+    assert (existing_root / "skills" / "nowledge-mem" / "SKILL.md").exists()
+    data = _read_json(installed)
+    record = next(item for item in data["plugins"] if item["id"] == "nowledge-mem")
+    assert record["root"] == str(existing_root)
+    assert record["enabled"] is False
+    assert record["installedAt"] == "2026-01-01T00:00:00+00:00"
+    assert record["capabilities"]["mcpServers"]["nowledge-mem"]["enabled"] is False
+    assert record["originalSource"] == str(KIMI_WORK_CONNECTOR)
 
 
 def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path):
@@ -904,6 +973,16 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["kimi-code"]["threadSave"]["method"] == "hook+cli-native"
     assert by_id["kimi-code"]["autonomy"]["threads"] == "automatic-capture"
     assert by_id["kimi-code"]["skills"] == ["nowledge-mem"]
+    assert by_id["kimi-work"]["version"] == "0.1.0"
+    assert by_id["kimi-work"]["directory"] == "nowledge-mem-kimi-work-connector"
+    assert by_id["kimi-work"]["transport"] == "mcp+skills"
+    assert by_id["kimi-work"]["capabilities"]["autoCapture"] is False
+    assert by_id["kimi-work"]["threadSave"]["method"] == "cli-native"
+    assert by_id["kimi-work"]["threadSave"]["historicalCommand"] == (
+        "nmem t sync --from kimi-work"
+    )
+    assert by_id["kimi-work"]["autonomy"]["threads"] == "import-only"
+    assert by_id["kimi-work"]["skills"] == ["nowledge-mem"]
     for connector_id in ["zcode", "mimo-code", "omp"]:
         connector = by_id[connector_id]
         assert connector["version"] is None
