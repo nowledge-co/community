@@ -111,7 +111,7 @@ NMEM_SPACE="Research Agent"
 
 The session-start Context Bundle / Working Memory read, per-turn guidance, skills, and background capture will then stay in that lane automatically.
 
-For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Copilot CLI worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=copilot-cli` for provenance.
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Copilot CLI worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced external aliases. Context Bundle will use the stable identity while keeping `source_app=copilot-cli` for provenance.
 
 ## Update
 

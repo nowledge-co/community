@@ -162,7 +162,7 @@ NMEM_SPACE="Research Agent" opencode
 
 The plugin's Context Bundle, Working Memory, search, save, and full-session thread save paths will follow that lane. Environment variables take priority over the shared config. If you do not have a real ambient lane, stay on `Default`.
 
-For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned OpenCode worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced host-id aliases. Context Bundle will use the stable identity while keeping `source_app=opencode` for provenance.
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned OpenCode worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced external aliases. Context Bundle will use the stable identity while keeping `source_app=opencode` for provenance.
 
 Shared spaces, default retrieval, and agent guidance still come from Mem's own space profile. OpenCode should pick the lane once, not invent a second plugin-local memory partition.
 

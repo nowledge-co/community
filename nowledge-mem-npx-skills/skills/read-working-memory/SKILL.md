@@ -35,7 +35,7 @@ Prefer Context Bundle for startup or multi-agent sessions:
 nmem --json context --source-app generic-agent
 ```
 
-Multi-agent orchestrators can set `NMEM_AGENT_ID="<agent-slug>"` before launching the child agent. Add `NMEM_SPACE` only when that whole run should override the identity's default space. Use `NMEM_HOST_AGENT_ID` only for advanced host-id aliases.
+Multi-agent orchestrators can set `NMEM_AGENT_ID="<agent-slug>"` before launching the child agent. Add `NMEM_SPACE` only when that whole run should override the identity's default space. Use `NMEM_HOST_AGENT_ID` only for advanced external aliases.
 
 Read Working Memory alone when you only need current priorities:
 
