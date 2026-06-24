@@ -12,7 +12,6 @@ URL, API key, and remote access.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -201,14 +200,6 @@ _MESSAGE_TIMESTAMP_KEYS = (
     "startedAt",
 )
 
-# Ordered by preference: /etc/machine-id (systemd/Linux standard),
-# then overlay root mountinfo (Docker/LazyCat containers).
-_FINGERPRINT_SOURCES = (
-    "/etc/machine-id",
-    "__mac__",
-    "/proc/1/mountinfo",
-)
-
 
 def tool_error(message: Any, **extra: Any) -> str:
     """Return Hermes-style JSON error payloads across old and new releases."""
@@ -246,9 +237,9 @@ class NowledgeMemProvider(MemoryProvider):
         self._session_id = ""
         self._saved_message_count = 0
         self._saved_message_counts: Dict[str, int] = {}
-        self._agent_identity = ""
         self._delta_only_sessions: Set[str] = set()
         self._written_message_signatures: Dict[str, List[str]] = {}
+        self._agent_identity = ""
 
     @property
     def name(self) -> str:
@@ -271,8 +262,7 @@ class NowledgeMemProvider(MemoryProvider):
             self._cron_skipped = True
             return
 
-        hermes_home = kwargs.get("hermes_home", "")
-        config = self._load_config(hermes_home)
+        config = self._load_config(kwargs.get("hermes_home", ""))
         raw_timeout = config.get("timeout", 30)
         try:
             timeout = int(raw_timeout or 30)
@@ -284,12 +274,7 @@ class NowledgeMemProvider(MemoryProvider):
             timeout = 30
         if timeout <= 0:
             timeout = 30
-
-        # Resolve agent identity once, auto-generating a fingerprint if needed.
         self._agent_identity = self._resolve_agent_identity(config, kwargs)
-        if self._agent_identity and not config.get("agent_identity"):
-            self._save_agent_identity(hermes_home, self._agent_identity)
-
         self._resolved_space = self._resolve_space(config, self._agent_identity)
         self._client = NowledgeMemClient(timeout=timeout, space=self._resolved_space)
         self._activate_session(session_id or "", reset=True)
@@ -299,11 +284,10 @@ class NowledgeMemProvider(MemoryProvider):
             self._client = None
             return
 
-        host_agent_id = self._agent_identity or None
         try:
             context_bundle = getattr(self._client, "context_bundle")(
                 source_app="hermes",
-                host_agent_id=host_agent_id,
+                host_agent_id=self._agent_identity or None,
             )
             self._context_bundle = self._format_context_bundle(context_bundle)
         except Exception as error:
@@ -796,155 +780,6 @@ class NowledgeMemProvider(MemoryProvider):
                 errors.append(str(item.get("error")))
         return "; ".join(errors) or json.dumps(result, ensure_ascii=False)[:300]
 
-    # ── agent identity resolution ────────────────────────────────────
-
-    @staticmethod
-    def _resolve_agent_identity(
-        config: Dict[str, Any],
-        kwargs: Dict[str, Any],
-    ) -> str:
-        """Resolve the agent identity for this client.
-
-        1. Hermes gives a named profile identity (not "default") → use it.
-        2. ``nowledge-mem.json`` has an explicit ``agent_identity`` → use it.
-        3. Otherwise → generate a stable fingerprint from system sources.
-        """
-        raw_identity = kwargs.get("agent_identity")
-        identity = str(raw_identity).strip() if raw_identity else ""
-        if identity and identity != "default":
-            return identity
-        config_identity = config.get("agent_identity")
-        if isinstance(config_identity, str) and config_identity.strip():
-            return config_identity.strip()
-        fingerprint = NowledgeMemProvider._generate_fingerprint()
-        if fingerprint:
-            logger.info(
-                "Auto-generated agent identity fingerprint: %s", fingerprint
-            )
-            return fingerprint
-        return identity
-
-    @staticmethod
-    def _generate_fingerprint() -> str:
-        """Derive a stable agent-identity fingerprint from system sources.
-
-        Tries each source in ``_FINGERPRINT_SOURCES`` in order:
-
-        * ``/etc/machine-id`` — standard on systemd hosts.
-        * ``__mac__`` — first non-loopback MAC address from /sys/class/net.
-        * ``/proc/1/mountinfo`` — overlay upperdir layer hash (Docker/LazyCat).
-
-        Prefixes:
-        * machine-id / MAC → ``"hermes-XXXXXXXX"``
-        * overlay → ``"overlay-XXXXXXXX"``
-
-        Returns a fingerprint string or an empty string.
-        """
-        for source in _FINGERPRINT_SOURCES:
-            if source == "__mac__":
-                raw = NowledgeMemProvider._read_mac_address()
-            else:
-                try:
-                    raw = Path(source).read_text(encoding="utf-8").strip()
-                except (OSError, UnicodeDecodeError):
-                    continue
-            if not raw:
-                continue
-
-            if source == "/proc/1/mountinfo":
-                raw = NowledgeMemProvider._extract_overlay_id(raw)
-                if not raw:
-                    continue
-
-            suffix = hashlib.sha256(raw.encode()).hexdigest()[:8]
-            if source == "/proc/1/mountinfo":
-                return f"overlay-{suffix}"
-            return f"hermes-{suffix}"
-
-        return ""
-
-    @staticmethod
-    def _read_mac_address() -> str:
-        """Return the first non-loopback MAC address from /sys/class/net.
-
-        Skips ``lo`` and addresses that are all zeros.
-        Returns a string like ``"02:42:ac:1c:02:04"`` or an empty string.
-        """
-        net_dir = Path("/sys/class/net")
-        if not net_dir.is_dir():
-            return ""
-        try:
-            ifaces = sorted(p.name for p in net_dir.iterdir() if p.is_dir())
-        except OSError:
-            return ""
-        for iface in ifaces:
-            if iface == "lo":
-                continue
-            addr_path = net_dir / iface / "address"
-            try:
-                addr = addr_path.read_text(encoding="utf-8").strip()
-            except (OSError, UnicodeDecodeError):
-                continue
-            if addr and addr != "00:00:00:00:00:00":
-                return addr
-        return ""
-
-    @staticmethod
-    def _extract_overlay_id(mountinfo: str) -> str:
-        """Extract the overlay upperdir layer ID from /proc/1/mountinfo.
-
-        Docker's overlay2 driver stores container-specific layers in
-        ``upperdir``.  The directory name is a SHA256 hash unique to
-        the container and stable across restarts.
-        """
-        import re as _re
-        for line in mountinfo.splitlines():
-            if " / " not in line or "overlay" not in line:
-                continue
-            m = _re.search(r"upperdir=([^,]+)", line)
-            if not m:
-                continue
-            parts = m.group(1).rstrip("/").split("/")
-            for part in reversed(parts):
-                if len(part) >= 32 and all(c in "0123456789abcdef" for c in part):
-                    return part
-        return ""
-
-    @staticmethod
-    def _save_agent_identity(hermes_home: str, agent_identity: str) -> None:
-        """Persist the resolved agent identity into ``nowledge-mem.json``
-        so the fingerprint survives restarts and is not regenerated."""
-        if not hermes_home or not agent_identity:
-            return
-        config_path = Path(hermes_home) / "nowledge-mem.json"
-        try:
-            if config_path.exists():
-                try:
-                    cfg = json.loads(config_path.read_text(encoding="utf-8"))
-                except Exception:
-                    cfg = {}
-            else:
-                cfg = {}
-            if not isinstance(cfg, dict):
-                cfg = {}
-            if cfg.get("agent_identity") == agent_identity:
-                return
-            cfg["agent_identity"] = agent_identity
-            config_path.parent.mkdir(parents=True, exist_ok=True)
-            config_path.write_text(
-                json.dumps(cfg, indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8",
-            )
-            logger.info(
-                "Persisted agent_identity=%s to %s", agent_identity, config_path
-            )
-        except OSError as exc:
-            logger.debug(
-                "Could not save agent_identity to %s: %s", config_path, exc
-            )
-
-    # ── config loading / space resolution ────────────────────────────
-
     @staticmethod
     def _load_config(hermes_home: str) -> Dict[str, Any]:
         if hermes_home:
@@ -964,13 +799,36 @@ class NowledgeMemProvider(MemoryProvider):
         return {}
 
     @staticmethod
+    def _resolve_agent_identity(
+        config: Dict[str, Any],
+        kwargs: Dict[str, Any],
+    ) -> str:
+        """Resolve an explicit Hermes agent identity.
+
+        Hermes may pass ``agent_identity`` for a named profile. If Hermes sends
+        ``default`` (or nothing), an explicit ``nowledge-mem.json`` value may
+        still map this provider to a Mem AI Identity. The provider never
+        invents a machine/container fingerprint as identity.
+        """
+        raw_identity = kwargs.get("agent_identity")
+        identity = str(raw_identity).strip() if raw_identity else ""
+        if identity and identity != "default":
+            return identity
+
+        config_identity = config.get("agent_identity")
+        if isinstance(config_identity, str) and config_identity.strip():
+            return config_identity.strip()
+
+        return ""
+
+    @staticmethod
     def _resolve_space(config: Dict[str, Any], identity: str) -> str | None:
         if "space" in config:
             raw_space = config.get("space")
             if isinstance(raw_space, str):
                 return raw_space.strip()
 
-        identity = (identity or "").strip()
+        identity = str(identity or "").strip()
         identity_map = config.get("space_by_identity")
         if isinstance(identity_map, str):
             try:

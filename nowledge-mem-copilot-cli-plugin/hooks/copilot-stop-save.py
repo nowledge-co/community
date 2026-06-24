@@ -93,83 +93,109 @@ PLACEHOLDER_HINTS = (
     "test",
 )
 
-# Ordered by preference: /etc/machine-id (systemd/Linux standard),
-# then overlay root mountinfo (Docker/LazyCat containers).
-_FINGERPRINT_SOURCES = (
-    "/etc/machine-id",
-    "__mac__",
-    "/proc/1/mountinfo",
-)
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
-def _host_agent_fingerprint() -> str:
-    """Derive a stable agent-identity fingerprint from system sources.
+def log(payload: dict) -> None:
+    ROOT.mkdir(parents=True, exist_ok=True)
+    with LOG_FILE.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
-    Ordered by preference:
-    1. /etc/machine-id — systemd / standard Linux hosts.
-    2. MAC address — first non-loopback interface from /sys/class/net.
-    3. /proc/1/mountinfo — overlay upperdir layer hash (Docker/LazyCat).
 
-    Prefixes: machine-id/MAC → "copilot-cli-XXXXXXXX", overlay → "overlay-XXXXXXXX".
-    """
-    for source in _FINGERPRINT_SOURCES:
-        if source == "__mac__":
-            raw = _read_mac_address()
+def extract_input(payload: dict) -> dict:
+    if isinstance(payload, dict):
+        if isinstance(payload.get("input"), dict):
+            return payload["input"]
+        if isinstance(payload.get("data"), dict):
+            data = payload["data"]
+            if isinstance(data.get("input"), dict):
+                return data["input"]
+            return data
+    return payload if isinstance(payload, dict) else {}
+
+
+def input_value(payload: dict, *keys: str) -> object:
+    """Return the first non-empty hook payload value across naming variants."""
+    for key in keys:
+        value = payload.get(key)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def normalize_hook_event(value: object) -> str:
+    text = str(value or "").strip()
+    return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
+def strip_wrappers(text: str) -> str:
+    text = text or ""
+    text = TAG_BLOCK_RE.sub("", text)
+    text = TAG_LINE_RE.sub("", text)
+    return text.strip()
+
+
+def redact(text: str) -> str:
+    redacted = text or ""
+    for pattern in SECRET_PATTERNS:
+        if pattern.groups == 0:
+            redacted = pattern.sub("[REDACTED]", redacted)
+        elif pattern.groups == 1:
+            redacted = pattern.sub("[REDACTED]", redacted)
         else:
-            try:
-                raw = Path(source).read_text(encoding="utf-8").strip()
-            except (OSError, UnicodeDecodeError):
-                continue
-        if not raw:
-            continue
-        if source == "/proc/1/mountinfo":
-            extracted = _extract_overlay_id(raw)
-            if not extracted:
-                continue
-            raw = extracted
-        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:8]
-        if source == "/proc/1/mountinfo":
-            return f"overlay-{digest}"
-        return f"{prefix}-{digest}"
-    return ""
+            redacted = pattern.sub(r"\1[REDACTED]", redacted)
+    return redacted
 
 
-def _read_mac_address() -> str:
-    """Return the first non-loopback MAC address from /sys/class/net."""
-    net_dir = Path("/sys/class/net")
-    if not net_dir.is_dir():
+def clean_user_text(event: dict) -> str:
+    data = event.get("data", {})
+    text = (data.get("content") or "").strip()
+    if not text:
         return ""
-    try:
-        ifaces = sorted(p.name for p in net_dir.iterdir() if p.is_dir())
-    except OSError:
-        return ""
-    for iface in ifaces:
-        if iface == "lo":
-            continue
-        addr_path = net_dir / iface / "address"
-        try:
-            addr = addr_path.read_text(encoding="utf-8").strip()
-        except (OSError, UnicodeDecodeError):
-            continue
-        if addr and addr != "00:00:00:00:00:00":
-            return addr
-    return ""
+    return redact(strip_wrappers(text)).strip()
 
 
-def _extract_overlay_id(mountinfo: str) -> str:
-    """Pull the overlay upperdir layer hash from /proc/1/mountinfo."""
-    import re as _re
-    for line in mountinfo.splitlines():
-        if "upperdir=" not in line:
+def clean_assistant_text(event: dict) -> str:
+    data = event.get("data", {})
+    return redact((data.get("content") or "").strip())
+
+
+def raw_visible_text(events: list) -> str:
+    parts: list[str] = []
+    for event in events:
+        data = event.get("data", {})
+        if event.get("type") == "user.message":
+            text = (data.get("content") or "").strip()
+            if text:
+                parts.append(text)
+        elif event.get("type") == "assistant.message":
+            text = (data.get("content") or "").strip()
+            if text:
+                parts.append(text)
+    return "\n\n".join(parts)
+
+
+def has_sensitive_content(text: str) -> bool:
+    if any(pattern.search(text) for pattern in SENSITIVE_SKIP_PATTERNS):
+        return True
+    for match in SENSITIVE_ASSIGN_RE.finditer(text):
+        value = match.group(1)
+        lower_value = value.lower()
+        if any(hint in lower_value for hint in PLACEHOLDER_HINTS):
             continue
-        m = _re.search(r"upperdir=([^,]+)", line)
-        if not m:
-            continue
-        parts = m.group(1).rstrip("/").split("/")
-        for part in reversed(parts):
-            if len(part) >= 32 and all(c in "0123456789abcdef" for c in part):
-                return part
-    return ""
+        if len(value) >= 24:
+            return True
+        if len(value) >= 20 and (
+            any(ch.isdigit() for ch in value)
+            or any(ch in "._~+/=-" for ch in value)
+        ):
+            return True
+    return False
+
+
 def build_nmem_command(nmem_bin: str, *args: str) -> list[str]:
     if nmem_bin.lower().endswith(".cmd"):
         return ["cmd.exe", "/d", "/c", "call", nmem_bin, *args]
@@ -559,19 +585,22 @@ def main() -> int:
 
             thread_exists = False
             try:
-                # NOTE: --host-agent-id requires nmem CLI >= TBD (currently unrecognized).
-                # The nmem maintainer has been asked to add this flag to 'nmem t import'.
-                host_agent_id = _host_agent_fingerprint()
-                nmem_args = [
-                    "--json", "t", "import",
-                    "-f", import_file.name,
-                    "-t", title,
-                    "--id", thread_id,
-                    "-s", "copilot-cli",
-                ]
-                if host_agent_id:
-                    nmem_args.extend(["--host-agent-id", host_agent_id])
-                run_json(build_nmem_command(nmem_bin, *nmem_args))
+                run_json(
+                    build_nmem_command(
+                        nmem_bin,
+                        "--json",
+                        "t",
+                        "import",
+                        "-f",
+                        import_file.name,
+                        "-t",
+                        title,
+                        "--id",
+                        thread_id,
+                        "-s",
+                        "copilot-cli",
+                    )
+                )
             except Exception as exc:
                 if "already exists" in str(exc).lower():
                     thread_exists = True

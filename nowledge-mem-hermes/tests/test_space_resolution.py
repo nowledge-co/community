@@ -50,7 +50,8 @@ class SpaceResolutionTests(unittest.TestCase):
         os.environ["NMEM_SPACE"] = "Env Space"
         try:
             resolved = provider.NowledgeMemProvider._resolve_space(
-                {"space": "Configured Space"}, "research",
+                {"space": "Configured Space"},
+                "research",
             )
             self.assertEqual(resolved, "Configured Space")
         finally:
@@ -67,13 +68,15 @@ class SpaceResolutionTests(unittest.TestCase):
                     "ops": "Operations Agent",
                 },
                 "space_template": "agent-{identity}",
-            }, "research",
+            },
+            "research",
         )
         self.assertEqual(resolved, "Research Agent")
 
     def test_template_falls_back_when_no_mapping(self):
         resolved = provider.NowledgeMemProvider._resolve_space(
-            {"space_template": "agent-{identity}"}, "ops",
+            {"space_template": "agent-{identity}"},
+            "ops",
         )
         self.assertEqual(resolved, "agent-ops")
 
@@ -122,7 +125,8 @@ class SpaceResolutionTests(unittest.TestCase):
             {
                 "space": None,
                 "space_by_identity": {"research": "Research Agent"},
-            }, "research",
+            },
+            "research",
         )
         self.assertEqual(resolved, "Research Agent")
 
@@ -149,6 +153,24 @@ class SpaceResolutionTests(unittest.TestCase):
                 os.environ.pop("NMEM_SPACE_ID", None)
             else:
                 os.environ["NMEM_SPACE_ID"] = previous_space_id
+
+    def test_named_hermes_identity_beats_config_identity(self):
+        resolved = provider.NowledgeMemProvider._resolve_agent_identity(
+            {"agent_identity": "configured"},
+            {"agent_identity": "research"},
+        )
+        self.assertEqual(resolved, "research")
+
+    def test_default_hermes_identity_uses_explicit_config_identity(self):
+        resolved = provider.NowledgeMemProvider._resolve_agent_identity(
+            {"agent_identity": "configured"},
+            {"agent_identity": "default"},
+        )
+        self.assertEqual(resolved, "configured")
+
+    def test_missing_identity_does_not_generate_fingerprint(self):
+        resolved = provider.NowledgeMemProvider._resolve_agent_identity({}, {})
+        self.assertEqual(resolved, "")
 
     def test_client_explicit_empty_space_clears_inherited_environment(self):
         captured: dict[str, object] = {}
