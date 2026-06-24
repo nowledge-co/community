@@ -136,3 +136,7 @@ Restart Kimi Work after updating.
 - [Kimi Work guide](https://mem.nowledge.co/docs/integrations/kimi-work)
 - [All Connectors](https://mem.nowledge.co/docs/integrations)
 - [Nowledge Mem](https://mem.nowledge.co)
+
+## Credits
+
+Thanks to [Versun](https://github.com/versun) for discovering Kimi Work's embedded Kimi runtime and contributing the first connector draft.
