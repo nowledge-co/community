@@ -239,6 +239,7 @@ class NowledgeMemProvider(MemoryProvider):
         self._saved_message_counts: Dict[str, int] = {}
         self._delta_only_sessions: Set[str] = set()
         self._written_message_signatures: Dict[str, List[str]] = {}
+        self._agent_identity = ""
 
     @property
     def name(self) -> str:
@@ -273,7 +274,8 @@ class NowledgeMemProvider(MemoryProvider):
             timeout = 30
         if timeout <= 0:
             timeout = 30
-        self._resolved_space = self._resolve_space(config, kwargs)
+        self._agent_identity = self._resolve_agent_identity(config, kwargs)
+        self._resolved_space = self._resolve_space(config, self._agent_identity)
         self._client = NowledgeMemClient(timeout=timeout, space=self._resolved_space)
         self._activate_session(session_id or "", reset=True)
 
@@ -282,12 +284,10 @@ class NowledgeMemProvider(MemoryProvider):
             self._client = None
             return
 
-        raw_identity = kwargs.get("agent_identity")
-        host_agent_id = str(raw_identity).strip() if raw_identity else None
         try:
             context_bundle = getattr(self._client, "context_bundle")(
                 source_app="hermes",
-                host_agent_id=host_agent_id,
+                host_agent_id=self._agent_identity or None,
             )
             self._context_bundle = self._format_context_bundle(context_bundle)
         except Exception as error:
@@ -304,7 +304,10 @@ class NowledgeMemProvider(MemoryProvider):
 
         logger.info(
             "Nowledge Mem provider initialized (CLI transport)",
-            extra={"space": self._resolved_space or "default"},
+            extra={
+                "space": self._resolved_space or "default",
+                "agent_identity": self._agent_identity or "default",
+            },
         )
 
     def system_prompt_block(self) -> str:
@@ -796,14 +799,36 @@ class NowledgeMemProvider(MemoryProvider):
         return {}
 
     @staticmethod
-    def _resolve_space(config: Dict[str, Any], kwargs: Dict[str, Any]) -> str | None:
+    def _resolve_agent_identity(
+        config: Dict[str, Any],
+        kwargs: Dict[str, Any],
+    ) -> str:
+        """Resolve an explicit Hermes agent identity.
+
+        Hermes may pass ``agent_identity`` for a named profile. If Hermes sends
+        ``default`` (or nothing), an explicit ``nowledge-mem.json`` value may
+        still map this provider to a Mem AI Identity. The provider never
+        invents a machine/container fingerprint as identity.
+        """
+        raw_identity = kwargs.get("agent_identity")
+        identity = str(raw_identity).strip() if raw_identity else ""
+        if identity and identity != "default":
+            return identity
+
+        config_identity = config.get("agent_identity")
+        if isinstance(config_identity, str) and config_identity.strip():
+            return config_identity.strip()
+
+        return ""
+
+    @staticmethod
+    def _resolve_space(config: Dict[str, Any], identity: str) -> str | None:
         if "space" in config:
             raw_space = config.get("space")
             if isinstance(raw_space, str):
                 return raw_space.strip()
 
-        raw_identity = kwargs.get("agent_identity")
-        identity = str(raw_identity or "").strip()
+        identity = str(identity or "").strip()
         identity_map = config.get("space_by_identity")
         if isinstance(identity_map, str):
             try:
