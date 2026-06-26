@@ -4,6 +4,13 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.27] - 2026-06-26
+
+### Fixed
+
+- OpenClaw 2026.6.10+ now loads the plugin correctly. The plugin manifest declares all Nowledge Mem agent tools through `contracts.tools`, matching OpenClaw's newer tool-ownership contract and preventing startup failures such as `must declare contracts.tools before registering agent tools`.
+- Thread sync, memory search, and `nowledge_mem_status` are available again after upgrading OpenClaw and restarting the gateway.
+
 ## [0.8.26] - 2026-06-10
 
 ### Fixed

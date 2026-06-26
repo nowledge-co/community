@@ -556,6 +556,8 @@ All 10 plugin tools register automatically when the plugin loads. No tool-level 
 }
 ```
 
+If OpenClaw logs `must declare contracts.tools before registering agent tools`, update the plugin to `0.8.27` or newer and restart OpenClaw. That error means a newer OpenClaw build is enforcing plugin tool ownership metadata before it accepts runtime tool registration.
+
 **`corpusSupplement: true` is set, but startup still logs `corpus=false`**
 
 Update to `0.8.15` or newer. Older builds could disable the plugin too early when `memory-core` owned the memory slot, which made supplement mode look unavailable even on new OpenClaw builds.

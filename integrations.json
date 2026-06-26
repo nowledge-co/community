@@ -579,7 +579,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.26",
+      "version": "0.8.27",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -605,6 +605,7 @@
         "bestResultRequires": [
           "Install the native OpenClaw plugin",
           "Use OpenClaw 2026.5.3 or later for current ClawHub packages",
+          "Use plugin 0.8.27 or later with OpenClaw 2026.6.10+ tool-contract enforcement",
           "Keep nmem available on this machine",
           "Restart OpenClaw after install or config changes"
         ]

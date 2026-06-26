@@ -48,6 +48,25 @@ test("manifest declares the plugin as dual-role memory plus context-engine", () 
 	assert.deepEqual(manifest.kind, ["memory", "context-engine"]);
 });
 
+test("manifest declares every OpenClaw agent tool contract", () => {
+	const manifest = JSON.parse(
+		readFileSync(new URL("../openclaw.plugin.json", import.meta.url), "utf8"),
+	);
+
+	assert.deepEqual(manifest.contracts?.tools, [
+		"memory_search",
+		"memory_get",
+		"nowledge_mem_save",
+		"nowledge_mem_context",
+		"nowledge_mem_connections",
+		"nowledge_mem_timeline",
+		"nowledge_mem_forget",
+		"nowledge_mem_thread_search",
+		"nowledge_mem_thread_fetch",
+		"nowledge_mem_status",
+	]);
+});
+
 test("context engine ids include the canonical id plus the plugin-id compatibility alias", () => {
 	assert.deepEqual(NOWLEDGE_MEM_CONTEXT_ENGINE_IDS, [
 		NOWLEDGE_MEM_CONTEXT_ENGINE_ID,

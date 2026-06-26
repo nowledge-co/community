@@ -254,6 +254,7 @@ What to expect:
 | Remote config seems ignored | Check whether `~/.nowledge-mem/openclaw.json` is overriding plugin settings |
 | Local mode unexpectedly talks to a remote server | Check for stale `NMEM_API_URL` / `NMEM_API_KEY` in the environment or an overriding `~/.nowledge-mem/openclaw.json` |
 | Plugin tools missing | Ensure the plugin is in `plugins.allow: ["openclaw-nowledge-mem"]`. Do **not** put `nowledge_mem_*` tool names in `tools.allow` — OpenClaw silently strips plugin-only allowlists. No `tools.*` config is needed; plugin tools load automatically when the plugin is allowed. |
+| `must declare contracts.tools before registering agent tools` | Update the plugin to `0.8.27+` and restart OpenClaw. Newer OpenClaw builds require plugin authors to declare tool ownership in the manifest before runtime tool registration. |
 
 ## Notes for Agents
 

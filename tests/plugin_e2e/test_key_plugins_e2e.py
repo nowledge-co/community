@@ -348,9 +348,21 @@ def test_key_plugin_static_contracts_are_declared():
     openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
     openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
-    assert openclaw_manifest["version"] == "0.8.26"
-    assert openclaw_pkg["version"] == "0.8.26"
+    assert openclaw_manifest["version"] == "0.8.27"
+    assert openclaw_pkg["version"] == "0.8.27"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
+    assert openclaw_manifest["contracts"]["tools"] == [
+        "memory_search",
+        "memory_get",
+        "nowledge_mem_save",
+        "nowledge_mem_context",
+        "nowledge_mem_connections",
+        "nowledge_mem_timeline",
+        "nowledge_mem_forget",
+        "nowledge_mem_thread_search",
+        "nowledge_mem_thread_fetch",
+        "nowledge_mem_status",
+    ]
     assert "skills/memory-guide" in openclaw_manifest["skills"]
     assert schema["sessionDigest"]["default"] is True
     assert schema["sessionContext"]["default"] is False
@@ -962,7 +974,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["gemini-cli"]["version"] == "0.1.9"
     assert by_id["cursor"]["version"] == "0.1.6"
     assert by_id["droid"]["version"] == "0.1.1"
-    assert by_id["openclaw"]["version"] == "0.8.26"
+    assert by_id["openclaw"]["version"] == "0.8.27"
     assert by_id["proma"]["version"] == "0.1.3"
     assert by_id["opencode"]["version"] == "0.3.4"
     assert by_id["pi"]["version"] == "0.8.1"

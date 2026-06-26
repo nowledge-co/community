@@ -58,6 +58,7 @@ function assertSameJsonValue(actual, expected, label) {
 
 async function main() {
   const pkg = await readJson("package.json");
+  const lock = await readJson("package-lock.json");
   const manifest = await readJson("openclaw.plugin.json");
   const changelog = await assertNonEmpty("CHANGELOG.md");
   const clawhubIgnore = await assertNonEmpty(".clawhubignore");
@@ -151,6 +152,9 @@ async function main() {
   if (manifest.version !== pkg.version) {
     fail("package.json version and openclaw.plugin.json version must match");
   }
+  if (lock.version !== pkg.version || lock.packages?.[""]?.version !== pkg.version) {
+    fail("package-lock.json version must match package.json version");
+  }
   const changelogVersionMatch = changelog.match(/^##\s+\[?v?(\d+\.\d+\.\d+(?:[-+][^\]\s]+)?)\]?/m);
   if (!changelogVersionMatch) {
     fail("CHANGELOG.md must contain a top release header with a semver version");
@@ -170,6 +174,27 @@ async function main() {
   if (!Array.isArray(manifest.skills) || !manifest.skills.includes("skills/memory-guide")) {
     fail("openclaw.plugin.json must expose skills/memory-guide");
   }
+
+  const expectedToolContracts = [
+    "memory_search",
+    "memory_get",
+    "nowledge_mem_save",
+    "nowledge_mem_context",
+    "nowledge_mem_connections",
+    "nowledge_mem_timeline",
+    "nowledge_mem_forget",
+    "nowledge_mem_thread_search",
+    "nowledge_mem_thread_fetch",
+    "nowledge_mem_status",
+  ];
+  if (!manifest.contracts || typeof manifest.contracts !== "object") {
+    fail("openclaw.plugin.json must declare contracts.tools");
+  }
+  assertSameJsonValue(
+    manifest.contracts.tools,
+    expectedToolContracts,
+    "openclaw.plugin.json contracts.tools",
+  );
 
   const configSchema = manifest.configSchema?.properties;
   if (!configSchema || typeof configSchema !== "object") {
