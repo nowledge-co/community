@@ -144,6 +144,10 @@ docker compose exec -T mem nmem license activate <CODE>       # optional
 # Windows: start http://localhost:14242/app
 ```
 
+The interactive terminal UI is bundled too:
+
+    docker compose exec -it mem nmem tui      # Settings, Access Anywhere, status, all in a TUI
+
 ---
 
 ## TLS (Let's Encrypt) via Caddy sidecar
@@ -166,6 +170,14 @@ You need:
 
 The mem container is rebound to `127.0.0.1` so the only reachable surface is
 Caddy.
+
+---
+
+## Access Anywhere (Cloudflare Tunnel) is turnkey
+
+`cloudflared` is bundled in the image (both the CPU and `:cuda` builds). You no longer install or run a separate Cloudflare Tunnel container. Configure your tunnel through the web UI (Settings, Access Anywhere) or the `nmem` CLI inside the container, and the server manages the tunnel itself. This is the same Access Anywhere experience as the desktop app.
+
+Earlier images did not bundle `cloudflared` and asked you to run a sidecar. That step is gone.
 
 ---
 
@@ -338,6 +350,13 @@ you pulled was not produced by our pipeline.
 
 `cosign` install: <https://docs.sigstore.dev/cosign/installation/>.
 
+To confirm exactly which commit a running container was built from:
+
+    docker compose exec -T mem nmem-server --build-info     # version + build sha
+    curl -s http://127.0.0.1:14242/health | jq '.build_sha'  # same sha over HTTP
+
+See `docs/implementation/BUILD_PROVENANCE_AND_CACHE_INTEGRITY.md` for the `nmem-build-sha:` stamp contract.
+
 ---
 
 ## Architecture support
@@ -360,6 +379,26 @@ If you need a specific arch, pin it explicitly:
 ```bash
 docker pull --platform linux/amd64 docker.io/nowledgelabs/mem:latest
 ```
+
+---
+
+## GPU acceleration (optional `:cuda` image)
+
+The default `nowledgelabs/mem:<version>` tag is CPU-only and runs anywhere.
+For NVIDIA hosts there is a separate GPU build:
+
+    docker run --gpus all -p 14242:14242 \
+      -v ./data:/var/lib/nowledge-mem \
+      -v ./config:/etc/nowledge-mem \
+      -v ./cache:/var/cache/nowledge-mem \
+      docker.io/nowledgelabs/mem:<version>-cuda
+
+- **`linux/amd64` only.** The `:cuda` tag is single-arch; there is no arm64 CUDA variant. The base is the official `nvidia/cuda` runtime image, and the server is compiled with the `cuda` cargo feature.
+- **Requires the NVIDIA Container Toolkit on the host** so Docker can pass the GPU through with `--gpus all`. Without it the container still starts but runs on CPU.
+- **You still supply the GGUF model.** The image bundles the local-embedding runtime (GPU-accelerated), not a model file. Point it at your model the same way as the CPU image; with no local model and no remote embedding configured, embeddings fall back to hash mode (see "Embedding status and search quality" below).
+- **The default `:<version>` tag stays CPU.** Use the GPU tag only when you have an NVIDIA GPU to give it.
+
+To pin the GPU image in compose, set `NMEM_IMAGE_TAG=<version>-cuda` in `.env` and add the GPU device reservation (or the `--gpus all` equivalent) to the `mem` service.
 
 ---
 
@@ -560,6 +599,37 @@ rotation (`max-size: 10m`, `max-file: 5`). To follow:
 - `GET /health` — process is up **and** the database is open. Use this for
   readiness gating (k8s readinessProbe, load balancer health check).
 
+### Embedding status and search quality
+
+A bare container with no local model and no remote embedding configured runs in hash-fallback mode: keyword/FTS search works, but semantic search quality is degraded. `/health` reports this explicitly:
+
+    curl -s http://127.0.0.1:14242/health | jq '.embedding'
+    # { "mode": "remote" | "local-gguf" | "local-hash-fallback",
+    #   "degraded": true | false }
+
+- `remote`: embeddings come from a configured remote/managed provider.
+- `local-gguf`: a local GGUF embedding model is loaded (CPU, or GPU on the `:cuda` image).
+- `local-hash-fallback`: no real embedder available; `degraded: true`. Search falls back to FTS. Configure a remote embedding provider or supply a local GGUF model to get full semantic search.
+
+### Reindex lifecycle (no blocking rebuild on boot)
+
+When the embedding identity changes (new model, new dimension), the server no longer blocks startup on a full reindex. It boots immediately and serves search in an FTS-degraded mode while the semantic index is stale. It surfaces `reindex_needed`:
+
+- `GET /models/bge-m3/status` (the desktop/web titlebar banner reads this), and
+- `GET /health` under the embedding block.
+
+You trigger the rebuild yourself when ready:
+
+    curl -s -X POST -H "Authorization: Bearer $(./nmemctl key)" \
+      http://127.0.0.1:14242/search-index/reindex
+
+The rebuild runs asynchronously with progress; search keeps serving (FTS-degraded) throughout. A stale or dimension-mismatched index fails soft to FTS; it no longer returns a 500.
+
+To restore the old eager behavior (rebuild during boot), set:
+
+    environment:
+      NMEM_BOOT_AUTO_REINDEX: "1"
+
 ### Memory and recovery
 
 The server uses KuzuDB for the graph, and KuzuDB has a per-process buffer
@@ -655,8 +725,6 @@ The backend reads the same file; nothing else changes.
 - The Tauri desktop GUI. Use the platform installer.
 - Bundled OCR tooling for PDF/image ingestion. API-driven workflows are not
   affected; only drag-and-drop scanned-document ingest is.
-- Bundled `cloudflared`. Use a Cloudflare Tunnel container as a sidecar if you
-  need that pattern; the headless image is intentionally network-agnostic.
 
 ---
 
@@ -664,7 +732,10 @@ The backend reads the same file; nothing else changes.
 
 **`/health` returns `degraded` shortly after start.** Normal during the first
 ~60 s while Kuzu opens and the content store reconciles. The image's
-`start_period` (90 s) accounts for this; `/livez` is green immediately.
+`start_period` (90 s) accounts for this; `/livez` is green immediately. This is
+distinct from `/health.embedding.degraded` (hash-fallback mode), which reflects
+embedding configuration, not boot timing. See "Embedding status and search
+quality" above.
 
 **`nmem license activate` says "license file not found".** Make sure the
 `./config` bind is mounted (`docker compose config` should list
