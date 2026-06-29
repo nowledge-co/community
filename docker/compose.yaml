@@ -32,7 +32,7 @@ services:
     # optional `./nmemctl auto-update` sidecar can flip versions by
     # writing `NMEM_IMAGE_TAG=<ver>` to `.env` (mode 0600, gitignored)
     # without rewriting this file. Fresh installs use the default.
-    image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-0.9.29}
+    image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-0.10.0}
     container_name: nowledge-mem
     restart: unless-stopped
     labels:
@@ -115,7 +115,10 @@ services:
     # cadence if you want a different policy; the defaults below match the
     # image. start_period accounts for first-run model warmup and Kuzu open.
     healthcheck:
-      test: ["CMD", "/opt/nowledge-mem/python/bin/python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:14242/livez', timeout=4).status==200 else 1)"]
+      # 0.10.0 ships the Rust headless image (native nmem-server, no bundled
+      # Python); it carries `curl` for this probe. The prior python3 urllib probe
+      # pointed at /opt/nowledge-mem/python which no longer exists.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:14242/livez"]
       interval: 30s
       timeout: 5s
       retries: 3
