@@ -5,7 +5,7 @@ import { basename, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const SOURCE_APP = "pi";
-const PLUGIN_VERSION = "0.8.1";
+const PLUGIN_VERSION = "0.8.2";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -13,20 +13,16 @@ const MAX_MESSAGE_CHARS = 20_000;
 const FLUSH_DELAY_MS = 750;
 const API_TIMEOUT_MS = 8_000;
 
-const BEHAVIORAL_GUIDANCE = `## Nowledge Mem
+const STARTUP_GUIDANCE = `## Nowledge Mem Guidance
 
-You have access to the user's cross-tool knowledge through the \`nmem\` CLI. Use it proactively when it helps.
+Nowledge Mem is available through the installed Pi skills and the \`nmem\` CLI. Use it when past context would make the work better.
 
-- Context Bundle and Working Memory may already be injected above. Do not re-read them unless the user asks or session context changes materially.
-- Search when the task connects to prior work, a past decision, or a recurring workflow: \`nmem --json m search "query"\`.
-- Don't search speculatively for every message. Search when past context would improve the response.
-- Use thread search for prior conversations: \`nmem --json t search "query" --limit 5\`.
-- Save durable decisions, preferences, plans, procedures, learnings, or important context. Do not wait to be asked.
-- Search first. If a related memory exists, update it with \`nmem --json m update <id> -c "updated content"\`.
-- If the insight is genuinely new, save it with \`nmem --json m add "content" -t "Title" --unit-type decision -i 0.8\`.
-- One strong memory is better than three weak ones.
-- When the user asks for a checkpoint or handoff, create a curated summary with \`nmem --json t create\`.
-- When this runtime has an ambient lane (profile- or provider-owned space), include \`--space "<space>"\` on agent-initiated \`m\`, \`t\`, \`wm\`, and \`context\` CLI commands so reads and writes land in the correct lane.
+- Context Bundle or Working Memory may already be injected above. Do not read it again unless the user asks or the session context changes.
+- Search memory when the task resumes prior work, mentions an earlier decision, or would benefit from the user's established preferences and procedures.
+- Search threads when the user asks about a previous conversation or when a memory points back to source conversation history.
+- Save or update durable decisions, preferences, plans, procedures, learnings, events, or important context. Search first; keep one strong memory rather than several weak duplicates.
+- Create an explicit handoff thread only when the user asks for a checkpoint. The Pi extension already syncs completed Pi conversation history automatically.
+- Keep provenance as \`source_app=pi\`. Use \`NMEM_AGENT_ID\` only when this Pi process is intentionally running as a named Nowledge AI Identity.
 `;
 
 type JsonObject = Record<string, unknown>;
@@ -66,7 +62,7 @@ type StartupContextEntry = {
 const syncStates = new Map<string, SyncState>();
 const startupContextCache = new Map<string, StartupContextEntry>();
 const startupContextWarnings = new Set<string>();
-const WINDOWS_CMD_ENV_EXPANSION_RE = /%[A-Za-z_][A-Za-z0-9_]*%/
+const WINDOWS_CMD_ENV_EXPANSION_RE = /%[A-Za-z_][A-Za-z0-9_]*%/;
 
 function readSharedConfig(): JsonObject {
 	try {
@@ -587,8 +583,8 @@ function spawnNmem(args: string[], timeoutMs = API_TIMEOUT_MS): Promise<NmemResu
 				const line = windowsCommandLine(["nmem.cmd", ...baseArgs]);
 				execFile(
 					windowsComspec(),
-					[`/d /s /c "${line}"`],
-					{ timeout: timeoutMs, windowsHide: true, windowsVerbatimArguments: true, encoding: "utf8" },
+					["/d", "/s", "/c", line],
+					{ timeout: timeoutMs, windowsHide: true, encoding: "utf8" },
 					handle,
 				);
 			} catch (error) {
@@ -614,7 +610,9 @@ function parseNmemObject(output: string): JsonObject | undefined {
 
 function parseContextBundleMarkdown(output: string): string | undefined {
 	const parsed = parseNmemObject(output);
-	return parsed ? stringValue(parsed.rendered_markdown) || stringValue(parsed.content) : undefined;
+	return parsed
+		? stringValue(parsed.rendered_markdown) || stringValue(parsed.markdown) || stringValue(parsed.content)
+		: undefined;
 }
 
 function parseWorkingMemoryMarkdown(output: string): string | undefined {
@@ -631,6 +629,11 @@ function readLocalWorkingMemory(): string | undefined {
 		warnStartupContextFailure("local-file", error instanceof Error ? error.message : String(error));
 		return undefined;
 	}
+}
+
+function shouldUseLocalWorkingMemoryFallback(config: ReturnType<typeof resolveConfig>): boolean {
+	if (config.space || config.agentId || config.hostAgentId) return false;
+	return config.apiUrl === DEFAULT_API_URL;
 }
 
 async function readStartupContext(): Promise<StartupContextEntry> {
@@ -663,9 +666,11 @@ async function readStartupContext(): Promise<StartupContextEntry> {
 		}
 	}
 
-	const local = readLocalWorkingMemory();
-	if (local) return { context: local };
-	warnStartupContextFailure("fallback", "no Context Bundle, Working Memory, or local memory file available; using guidance only");
+	if (shouldUseLocalWorkingMemoryFallback(config)) {
+		const local = readLocalWorkingMemory();
+		if (local) return { context: local };
+	}
+	warnStartupContextFailure("fallback", "no Context Bundle or Working Memory available; using guidance only");
 	if (timedOut) return { degradedReason: "startup context reads timed out" };
 	if (sawReadFailure) return { degradedReason: "startup context reads failed" };
 	return {};
@@ -698,14 +703,14 @@ async function appendMemoryContext(systemPrompt: string, ctx: ExtensionContext):
 	if (key && !startupContextCache.has(key)) {
 		await refreshStartupContext(ctx);
 	}
-	const entry = key ? startupContextCache.get(key) : undefined;
+	const entry = key ? startupContextCache.get(key) : await readStartupContext();
 	const sections: string[] = [];
 	if (entry?.context) {
 		sections.push(`## Nowledge Mem Context Bundle\n\n${entry.context}`);
 	} else if (entry?.degradedReason) {
 		sections.push(`## Nowledge Mem Context Bundle\n\n[Nowledge Mem startup context unavailable: ${entry.degradedReason}.]`);
 	}
-	sections.push(BEHAVIORAL_GUIDANCE);
+	sections.push(STARTUP_GUIDANCE);
 	return `${systemPrompt}\n\n${sections.join("\n\n")}`;
 }
 

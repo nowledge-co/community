@@ -7,7 +7,8 @@ Cross-tool memory for Pi. Your decisions, preferences, and procedures persist ac
 Pi gains a native extension plus five skills:
 
 - Completed Pi conversations sync into Nowledge Mem as searchable threads
-- Context Bundle / Working Memory, search, and distillation stay available through skills
+- Context Bundle or Working Memory is injected at Pi startup when available
+- Search, thread lookup, and distillation stay available through skills and the `nmem` CLI
 - Remote Mem works through `~/.nowledge-mem/config.json` or `NMEM_API_URL` / `NMEM_API_KEY`
 
 | Skill | What it does |
@@ -70,6 +71,8 @@ Then have a short Pi exchange and check recent threads:
 ```bash
 nmem t list --source pi -n 5
 ```
+
+To confirm startup context injection, start a new Pi session and ask what Nowledge Mem context was provided. Pi should reference the injected Context Bundle or Working Memory without needing to run the `read-working-memory` skill again.
 
 ## Import Older Pi Sessions
 

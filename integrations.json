@@ -735,14 +735,14 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.1",
+      "version": "0.8.2",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
         "workingMemory": true,
         "search": true,
         "distill": true,
-        "autoRecall": false,
+        "autoRecall": true,
         "autoCapture": true,
         "graphExploration": false,
         "status": true
@@ -750,17 +750,17 @@
       "threadSave": {
         "method": "plugin-capture",
         "historicalCommand": "nmem t sync --from pi",
-        "note": "The Pi extension syncs completed session branches as Mem threads; nmem t sync --from pi can backfill older Pi session files; nowledge-mem-pi-sync remains an older-CLI fallback; save-thread remains available for curated handoff summaries."
+        "note": "The Pi extension injects startup Context Bundle or Working Memory, syncs completed session branches as Mem threads, and nmem t sync --from pi can backfill older Pi session files. nowledge-mem-pi-sync remains an older-CLI fallback; save-thread remains available for curated handoff summaries."
       },
       "autonomy": {
         "bootstrap": "guided",
-        "recall": "guided",
+        "recall": "startup-context-injection",
         "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the Pi package",
           "Keep nmem available on this machine",
-          "Restart Pi after install or update so the extension is loaded",
+          "Restart Pi after install or update so the extension loads startup Context Bundle injection and thread sync",
           "Run nmem t sync --from pi --apply only when you want to import older Pi sessions",
           "Use save-thread only when you want an extra curated handoff summary"
         ]
@@ -777,7 +777,7 @@
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "Skills teach agent to invoke nmem CLI directly; the extension handles automatic thread capture."
+        "note": "The extension injects startup Context Bundle or Working Memory and handles automatic thread capture. Skills teach Pi when to search, save, and inspect prior threads through nmem."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": []

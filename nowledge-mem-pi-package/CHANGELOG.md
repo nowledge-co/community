@@ -5,6 +5,18 @@ All notable changes to the Nowledge Mem Pi package will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-06-30
+
+### Added
+
+- Inject Context Bundle at Pi session startup through the native `before_agent_start` hook, with Working Memory fallback for older or unavailable clients.
+- Refresh startup context after Pi compaction so long sessions keep the latest AI Context without re-reading on every turn.
+
+### Changed
+
+- Keep the startup guidance compact and aligned with the shared Nowledge Mem guidance instead of duplicating full skill instructions inside the extension.
+- Restrict the legacy `~/ai-now/memory.md` fallback to default local mode so explicit spaces, AI Identities, and remote servers do not receive stale Default-space context.
+
 ## [0.8.1] - 2026-06-10
 
 ### Fixed

@@ -466,7 +466,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.1"
+    assert pi_pkg["version"] == "0.8.2"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
@@ -484,10 +484,11 @@ def test_key_plugin_static_contracts_are_declared():
     assert "custom" in pi_extension
     assert 'import { execFile } from "node:child_process";' in pi_extension
     assert "LOCAL_WORKING_MEMORY_PATH" in pi_extension
-    assert "BEHAVIORAL_GUIDANCE" in pi_extension
+    assert "STARTUP_GUIDANCE" in pi_extension
     assert '["context", "--source-app", SOURCE_APP]' in pi_extension
     assert '["wm", "read"]' in pi_extension
     assert "rendered_markdown" in pi_extension
+    assert "shouldUseLocalWorkingMemoryFallback" in pi_extension
     assert "readFileSync(LOCAL_WORKING_MEMORY_PATH" in pi_extension
     assert "withAmbientNmemArgs" in pi_extension
     assert 'pi.on("session_start"' in pi_extension
@@ -499,8 +500,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert "degradedReason" in pi_extension
     assert "quoteWindowsBatchArg" in pi_extension
     assert "rejectWindowsCmdEnvExpansion" in pi_extension
-    assert '/d /s /c' in pi_extension
-    assert '--space "<space>"' in pi_extension
+    assert '["/d", "/s", "/c", line]' in pi_extension
+    assert "source_app=pi" in pi_extension
     before_agent_start_block = pi_extension.split('pi.on("before_agent_start"', 1)[1].split('pi.on("agent_end"', 1)[0]
     assert "message:" not in before_agent_start_block
     assert "PI_CODING_AGENT_SESSION_DIR" in pi_history_sync
@@ -998,7 +999,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.27"
     assert by_id["proma"]["version"] == "0.1.3"
     assert by_id["opencode"]["version"] == "0.3.4"
-    assert by_id["pi"]["version"] == "0.8.1"
+    assert by_id["pi"]["version"] == "0.8.2"
+    assert by_id["pi"]["capabilities"]["autoRecall"] is True
+    assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["kimi-code"]["version"] == "0.1.0"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "mcp+skills+hook"
@@ -1247,6 +1250,13 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
         }
         if ("message" in injection) {
           throw new Error("before_agent_start returned a message property");
+        }
+        const noKeyInjection = await handlers.get("before_agent_start")?.(
+          { systemPrompt: "No key pi smoke system prompt." },
+          { sessionManager: {} },
+        );
+        if (!noKeyInjection?.systemPrompt?.includes("Pi smoke Context Bundle")) {
+          throw new Error("Context Bundle not injected when session key is unavailable");
         }
 
         await handlers.get("agent_end")?.({ type: "agent_end" }, ctx);
