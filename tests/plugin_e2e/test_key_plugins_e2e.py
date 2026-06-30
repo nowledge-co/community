@@ -482,6 +482,27 @@ def test_key_plugin_static_contracts_are_declared():
     assert "NMEM_HOST_AGENT_ID" in pi_extension
     assert "custom_message" in pi_extension
     assert "custom" in pi_extension
+    assert 'import { execFile } from "node:child_process";' in pi_extension
+    assert "LOCAL_WORKING_MEMORY_PATH" in pi_extension
+    assert "BEHAVIORAL_GUIDANCE" in pi_extension
+    assert '["context", "--source-app", SOURCE_APP]' in pi_extension
+    assert '["wm", "read"]' in pi_extension
+    assert "rendered_markdown" in pi_extension
+    assert "readFileSync(LOCAL_WORKING_MEMORY_PATH" in pi_extension
+    assert "withAmbientNmemArgs" in pi_extension
+    assert 'pi.on("session_start"' in pi_extension
+    assert 'pi.on("before_agent_start"' in pi_extension
+    assert 'pi.on("session_compact"' in pi_extension
+    assert "await appendMemoryContext(event.systemPrompt, ctx)" in pi_extension
+    assert "startupContextCacheKey" in pi_extension
+    assert "evictStartupContext" in pi_extension
+    assert "degradedReason" in pi_extension
+    assert "quoteWindowsBatchArg" in pi_extension
+    assert "rejectWindowsCmdEnvExpansion" in pi_extension
+    assert '/d /s /c' in pi_extension
+    assert '--space "<space>"' in pi_extension
+    before_agent_start_block = pi_extension.split('pi.on("before_agent_start"', 1)[1].split('pi.on("agent_end"', 1)[0]
+    assert "message:" not in before_agent_start_block
     assert "PI_CODING_AGENT_SESSION_DIR" in pi_history_sync
     assert "--apply" in pi_history_sync
     assert "historical_import: true" in pi_history_sync
@@ -1094,6 +1115,51 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
     listing = _run(["pi", "list", "--no-approve"], env=env, timeout=30)
     assert str(PI_PLUGIN) in listing.stdout
 
+    # Fake `nmem` CLI so the runtime smoke exercises startup Context Bundle
+    # injection without depending on the real Nowledge Mem server. The fake
+    # records every argv it receives to a JSONL file and returns a Context
+    # Bundle payload for `context --source-app pi`.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    record_path = tmp_path / "nmem-calls.jsonl"
+    python = sys.executable
+    fake_script = bin_dir / "nmem_fake.py"
+    fake_script.write_text(
+        dedent(
+            f'''
+            import json
+            import os
+            import sys
+
+            args = sys.argv[1:]
+            record_path = os.environ.get("NMEM_FAKE_RECORD")
+            if record_path:
+                with open(record_path, "a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(args) + "\\n")
+            if "context" in args:
+                payload = {{
+                    "rendered_markdown": "# Pi smoke Context Bundle\\n\\nInjected by fake nmem.",
+                    "content": "# Pi smoke Context Bundle fallback",
+                }}
+            elif "wm" in args:
+                payload = {{"exists": True, "content": "# Working Memory fallback"}}
+            else:
+                payload = {{}}
+            sys.stdout.write(json.dumps(payload))
+            '''
+        ),
+        encoding="utf-8",
+    )
+    (bin_dir / "nmem").write_text(
+        f'#!/bin/sh\nexec "{python}" "$(dirname "$0")/nmem_fake.py" "$@"\n',
+        encoding="utf-8",
+    )
+    (bin_dir / "nmem.cmd").write_text(
+        f'@echo off\r\n"{python}" "%~dp0nmem_fake.py" %*\r\n',
+        encoding="utf-8",
+    )
+    (bin_dir / "nmem").chmod(0o755)
+
     script = dedent(
         """
         import http from "node:http";
@@ -1156,6 +1222,33 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
             return manager;
           },
         };
+
+        // Startup context injection: session_start loads the Context Bundle via
+        // the fake nmem, then before_agent_start appends it to the system prompt.
+        await handlers.get("session_start")?.({ type: "session_start" }, ctx);
+        const injection = await handlers.get("before_agent_start")?.(
+          { systemPrompt: "Original pi smoke system prompt." },
+          ctx,
+        );
+        if (!injection || typeof injection !== "object") {
+          throw new Error("before_agent_start returned no value");
+        }
+        if (typeof injection.systemPrompt !== "string") {
+          throw new Error("before_agent_start missing systemPrompt");
+        }
+        if (!injection.systemPrompt.includes("Original pi smoke system prompt.")) {
+          throw new Error("original system prompt not preserved");
+        }
+        if (!injection.systemPrompt.includes("Pi smoke Context Bundle")) {
+          throw new Error("Context Bundle not injected into systemPrompt");
+        }
+        if (!injection.systemPrompt.includes("## Nowledge Mem")) {
+          throw new Error("behavioral guidance not injected");
+        }
+        if ("message" in injection) {
+          throw new Error("before_agent_start returned a message property");
+        }
+
         await handlers.get("agent_end")?.({ type: "agent_end" }, ctx);
         stale = true;
         await new Promise((resolve) => setTimeout(resolve, 1100));
@@ -1192,8 +1285,31 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
     )
     smoke_env = env.copy()
     smoke_env["PI_EXTENSION_URL"] = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").resolve().as_uri()
+    smoke_env["PATH"] = str(bin_dir) + os.pathsep + smoke_env.get("PATH", "")
+    smoke_env["NMEM_FAKE_RECORD"] = str(record_path)
     result = _run(["bun", "--eval", script], env=smoke_env, timeout=30)
     assert '"ok":true' in result.stdout.replace(" ", "")
+
+    # The fake nmem recorded every argv it received. Confirm the startup
+    # context read used the Context Bundle command with the ambient flags.
+    recorded = []
+    if record_path.exists():
+        for line in record_path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                recorded.append(json.loads(line))
+    context_calls = [c for c in recorded if "context" in c and "--source-app" in c]
+    assert context_calls, f"no context call recorded: {recorded}"
+    context_call = context_calls[0]
+    assert "pi" in context_call, f"context call missing --source-app pi: {context_call}"
+    if smoke_env.get("NMEM_SPACE"):
+        assert "--space" in context_call, f"context call missing --space: {context_call}"
+        assert "pi-smoke-space" in context_call, f"context call missing space value: {context_call}"
+    if smoke_env.get("NMEM_AGENT_ID"):
+        assert "--agent-id" in context_call, f"context call missing --agent-id: {context_call}"
+        assert "PiSmokeAgent" in context_call, f"context call missing agent id value: {context_call}"
+    if smoke_env.get("NMEM_HOST_AGENT_ID"):
+        assert "--host-agent-id" in context_call, f"context call missing --host-agent-id: {context_call}"
+        assert "slock:PiSmokeAgent" in context_call, f"context call missing host agent id value: {context_call}"
 
 
 @pytest.mark.skipif(_skip_live_host("claude"), reason="Claude live E2E not requested")
