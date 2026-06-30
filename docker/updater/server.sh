@@ -579,9 +579,10 @@ case "$method $path" in
       # Step 6: wait for /livez green. Up to NOWLEDGE_LIVEZ_TIMEOUT_SECONDS.
       deadline=$(( $(date +%s) + NOWLEDGE_LIVEZ_TIMEOUT_SECONDS ))
       while :; do
+        # Rust mem:0.10.0+ image is zero-Python; probe /livez with the
+        # bundled curl (present for the Docker HEALTHCHECK) instead.
         if docker exec "$NOWLEDGE_MEM_CONTAINER" \
-             /opt/nowledge-mem/python/bin/python3 -c \
-             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:14242/livez', timeout=4).status==200 else 1)" \
+             curl -fsS http://127.0.0.1:14242/livez \
              >/dev/null 2>&1; then
           audit "APPLY done ref=$ref"
           break

@@ -4,9 +4,12 @@
 #
 # Naming follows the systemctl/kubectl convention: this tool *controls* the
 # deployment (compose stack lifecycle, volume wipe, version upgrade) while the
-# in-container `nmem` CLI handles application operations (keys, license, data).
-# Commands like `nmemctl key` forward to the in-container `nmem` so a user
-# never has to remember whether something lives in or out of the container.
+# in-container nmem-server handles application operations (keys, license, data).
+# The Rust mem:0.10.0+ image is zero-Python and ships no `nmem` CLI, so commands
+# like `nmemctl key` / `nmemctl license` reach the server's loopback REST API
+# (via the bundled `curl`, treated as local-authorized) instead of an embedded
+# CLI — the operator never has to remember whether something lives in or out of
+# the container.
 #
 # Run from the directory containing compose.yaml. All commands are idempotent
 # where it's safe to be (up, key, license status); destructive commands (wipe)
@@ -36,7 +39,7 @@ set -euo pipefail
 # Version of the controller itself. Bump when nmemctl semantics or
 # command surface change. Independent of the docker image version
 # (which `./nmemctl version` reports separately).
-NMEMCTL_VERSION="2.2.0"
+NMEMCTL_VERSION="2.3.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -144,6 +147,31 @@ warn()  { printf "    \033[1;33mwarn\033[0m %s\n" "$*"; }
 fail()  { printf "\033[1;31merror:\033[0m %s\n" "$*" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
+# Internal: tiny JSON field extractor (host-side, no jq dependency)
+#
+# The Rust mem:0.10.0+ image is zero-Python and ships no `nmem` CLI — it
+# exposes the same operations over the loopback REST API (curl is present in
+# the image and is treated as local-authorized). We pull JSON from inside the
+# container with `curl` and parse it here on the host, where tooling is
+# unconstrained. We avoid a hard `jq` dependency by parsing a single scalar
+# (string, number, or boolean) field with grep/sed. Robust to missing fields
+# (prints nothing) and to surrounding whitespace; not a general JSON parser,
+# but sufficient for the flat top-level fields these endpoints return.
+# ---------------------------------------------------------------------------
+_json_field() {
+  # $1 = field name, JSON on stdin. Prints the value (unquoted) or nothing.
+  local name="$1"
+  sed -n "s/.*\"${name}\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" 2>/dev/null
+}
+
+_json_field_raw() {
+  # $1 = field name, JSON on stdin. Prints an unquoted scalar (number/bool/
+  # null) value or nothing. Used for fields like booleans.
+  local name="$1"
+  sed -n "s/.*\"${name}\"[[:space:]]*:[[:space:]]*\\([a-zA-Z0-9._-]*\\).*/\\1/p" 2>/dev/null
+}
+
+# ---------------------------------------------------------------------------
 # Internal: container state probing
 # ---------------------------------------------------------------------------
 
@@ -155,11 +183,11 @@ is_running() {
   [[ "$(docker inspect -f '{{.State.Running}}' "$id" 2>/dev/null)" == "true" ]]
 }
 
-# Hit /livez via the bundled python (no curl in slim image). Returns 0 when ready.
+# Hit /livez from inside the container. The Rust mem:0.10.0+ image ships curl
+# (used by the Docker HEALTHCHECK) but no Python and no `nmem` CLI; the REST
+# surface on loopback is local-authorized. Returns 0 when ready.
 probe_livez() {
-  "${DC[@]}" exec -T "$SVC" \
-    /opt/nowledge-mem/python/bin/python3 -c \
-      'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen("http://127.0.0.1:14242/livez", timeout=4).status==200 else 1)' \
+  "${DC[@]}" exec -T "$SVC" curl -fsS http://127.0.0.1:14242/livez \
     >/dev/null 2>&1
 }
 
@@ -217,8 +245,45 @@ print_url() {
 }
 
 # Read the current API key from inside the container. Empty on failure.
+#
+# The Rust image has no `nmem` CLI; the key lives behind the loopback REST
+# surface. `reveal-key` returns the configured key, or HTTP 400 if none is
+# configured yet. The old `nmem key` auto-generated on first read, so we
+# preserve that behavior by bootstrapping via `rotate-key` when reveal-key
+# reports no key. Both return JSON with an `.api_key` field.
 read_key() {
-  "${DC[@]}" exec -T "$SVC" nmem key 2>/dev/null | tr -d '\r\n' || true
+  local out key
+  out="$("${DC[@]}" exec -T "$SVC" curl -fsS -X POST \
+    http://127.0.0.1:14242/api/remote-access/reveal-key 2>/dev/null || true)"
+  key="$(printf '%s' "$out" | _json_field api_key | tr -d '\r\n')"
+  if [[ -z "$key" ]]; then
+    # No key configured yet (reveal-key 400). Bootstrap one to match the old
+    # `nmem key` auto-generate behavior.
+    out="$("${DC[@]}" exec -T "$SVC" curl -fsS -X POST \
+      http://127.0.0.1:14242/api/remote-access/rotate-key 2>/dev/null || true)"
+    key="$(printf '%s' "$out" | _json_field api_key | tr -d '\r\n')"
+  fi
+  printf '%s' "$key"
+}
+
+# Print a human-readable license summary from GET /api/license/status.
+# Returns 0 on success (status fetched), 1 if the endpoint couldn't be reached.
+print_license_status() {
+  local out tier state full
+  out="$("${DC[@]}" exec -T "$SVC" curl -fsS \
+    http://127.0.0.1:14242/api/license/status 2>/dev/null || true)"
+  [[ -n "$out" ]] || return 1
+  tier="$(printf '%s' "$out" | _json_field tier)"
+  state="$(printf '%s' "$out" | _json_field pro_access_state)"
+  full="$(printf '%s' "$out" | _json_field_raw has_full_pro_access)"
+  [[ -n "$tier" ]] && note "tier: $tier"
+  [[ -n "$state" ]] && note "pro access: $state"
+  [[ -n "$full" ]] && note "full pro access: $full"
+  if [[ -z "$tier" && -z "$state" && -z "$full" ]]; then
+    # Endpoint answered but in a shape we didn't recognize — show raw.
+    printf '%s\n' "$out" | sed 's/^/    /'
+  fi
+  return 0
 }
 
 # Read the image tag the container is currently running (from compose).
@@ -273,7 +338,7 @@ cmd_up() {
   note "rotate with:  ./nmemctl key --rotate"
 
   step "License status"
-  "${DC[@]}" exec -T "$SVC" nmem license status || true
+  print_license_status || warn "license status unavailable"
 
   step "Open the web UI"
   print_url
@@ -321,7 +386,7 @@ cmd_status() {
   fi
 
   step "License"
-  "${DC[@]}" exec -T "$SVC" nmem license status 2>/dev/null || warn "license status unavailable"
+  print_license_status || warn "license status unavailable"
 
   step "Version"
   cmd_version_inner
@@ -347,11 +412,18 @@ cmd_version_inner() {
   image_tag="$(read_image_tag 2>/dev/null || true)"
   [[ -n "$image_tag" ]] && note "image:   $image_tag"
   if is_running; then
-    binary_ver="$("${DC[@]}" exec -T "$SVC" \
-        /opt/nowledge-mem/python/bin/python3 -c \
-          'import urllib.request,json; print(json.load(urllib.request.urlopen("http://127.0.0.1:14242/health",timeout=4)).get("version",""))' \
-        2>/dev/null | tr -d '\r\n' || true)"
-    [[ -n "$binary_ver" ]] && note "binary:  $binary_ver"
+    local health sha
+    health="$("${DC[@]}" exec -T "$SVC" curl -fsS \
+        http://127.0.0.1:14242/health 2>/dev/null || true)"
+    binary_ver="$(printf '%s' "$health" | _json_field version | tr -d '\r\n')"
+    sha="$(printf '%s' "$health" | _json_field build_sha_short | tr -d '\r\n')"
+    if [[ -n "$binary_ver" ]]; then
+      if [[ -n "$sha" ]]; then
+        note "binary:  $binary_ver ($sha)"
+      else
+        note "binary:  $binary_ver"
+      fi
+    fi
   fi
 }
 cmd_version() {
@@ -367,25 +439,39 @@ cmd_version() {
   cmd_version_inner
 }
 
+# Rotate the Access Anywhere API key via POST /api/remote-access/rotate-key.
+# Prints the new key on success. Empty on failure.
+rotate_key() {
+  local out
+  out="$("${DC[@]}" exec -T "$SVC" curl -fsS -X POST \
+    http://127.0.0.1:14242/api/remote-access/rotate-key 2>/dev/null || true)"
+  printf '%s' "$out" | _json_field api_key | tr -d '\r\n'
+}
+
 cmd_key() {
   require_docker
   local arg="${1:-}"
   case "$arg" in
     --rotate)
-      # Up first — exec requires a running container.
+      # Up first — the REST surface requires a running container.
       bring_up_and_wait
       step "Rotating Access Anywhere API key"
       note "Old key will stop working immediately. Web UI sessions and MCP"
       note "clients must be re-authed with the new value."
-      "${DC[@]}" exec -T "$SVC" nmem key --rotate
+      local newkey
+      newkey="$(rotate_key)"
+      [[ -n "$newkey" ]] || fail "could not rotate API key (rotate-key returned empty)."
       step "New key"
-      "${DC[@]}" exec -T "$SVC" nmem key
+      note "$newkey"
       ;;
     ""|--show)
       if ! is_running; then
         bring_up_and_wait
       fi
-      "${DC[@]}" exec -T "$SVC" nmem key
+      local key
+      key="$(read_key)"
+      [[ -n "$key" ]] || fail "could not retrieve API key."
+      note "$key"
       ;;
     *)
       fail "usage: ./nmemctl key [--rotate]"
@@ -399,19 +485,31 @@ cmd_license() {
   case "$sub" in
     status)
       if ! is_running; then bring_up_and_wait; fi
-      "${DC[@]}" exec -T "$SVC" nmem license status
+      print_license_status || fail "license status unavailable"
       ;;
     activate)
       local code="${2:-}"
-      [[ -n "$code" ]] || fail "usage: ./nmemctl license activate <BASE64-CODE>"
+      [[ -n "$code" ]] || fail "usage: ./nmemctl license activate <LICENSE-ID>"
       bring_up_and_wait
       step "Activating license"
-      "${DC[@]}" exec -T "$SVC" nmem license activate "$code"
+      # POST /api/license/activate with {"license_id":"..."}. The license id
+      # is embedded verbatim in a JSON body; reject characters that would
+      # break out of the quoted string so we never emit malformed JSON.
+      case "$code" in
+        *\"*|*\\*) fail "invalid license id (contains quote or backslash)" ;;
+      esac
+      local out
+      out="$("${DC[@]}" exec -T "$SVC" curl -fsS -X POST \
+        -H 'Content-Type: application/json' \
+        -d "{\"license_id\":\"${code}\"}" \
+        http://127.0.0.1:14242/api/license/activate 2>/dev/null || true)"
+      [[ -n "$out" ]] || fail "license activation request failed (no response from /api/license/activate)."
+      printf '%s\n' "$out" | sed 's/^/    /'
       step "License status"
-      "${DC[@]}" exec -T "$SVC" nmem license status
+      print_license_status || warn "license status unavailable"
       ;;
     *)
-      fail "usage: ./nmemctl license [status | activate CODE]"
+      fail "usage: ./nmemctl license [status | activate LICENSE-ID]"
       ;;
   esac
 }
@@ -998,11 +1096,11 @@ LIFECYCLE
   nmemctl logs [-f] [--tail N]    View server logs (pass-through to compose)
   nmemctl version                 Image tag + binary version
 
-CONFIG (forwards to in-container nmem CLI)
+CONFIG (talks to the in-container nmem-server REST API over loopback)
   nmemctl key                     Print the Access Anywhere API key
   nmemctl key --rotate            Rotate the key (old one invalidated)
   nmemctl license                 License status
-  nmemctl license activate CODE   Activate a Pro license
+  nmemctl license activate ID     Activate a Pro license (license id)
 
 RELEASE
   nmemctl upgrade VERSION         Pull docker.io/nowledgelabs/mem:VERSION,
