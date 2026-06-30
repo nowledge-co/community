@@ -489,6 +489,9 @@ def test_key_plugin_static_contracts_are_declared():
     assert '["wm", "read"]' in pi_extension
     assert "rendered_markdown" in pi_extension
     assert "shouldUseLocalWorkingMemoryFallback" in pi_extension
+    assert "truncateStartupContext" in pi_extension
+    assert 'normalizedId.toLowerCase() !== "unknown"' in pi_extension
+    assert "sawReadFailure = true;" in pi_extension
     assert "readFileSync(LOCAL_WORKING_MEMORY_PATH" in pi_extension
     assert "withAmbientNmemArgs" in pi_extension
     assert 'pi.on("session_start"' in pi_extension
@@ -1129,7 +1132,7 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
     fake_script = bin_dir / "nmem_fake.py"
     fake_script.write_text(
         dedent(
-            f'''
+            '''
             import json
             import os
             import sys
@@ -1140,14 +1143,14 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
                 with open(record_path, "a", encoding="utf-8") as handle:
                     handle.write(json.dumps(args) + "\\n")
             if "context" in args:
-                payload = {{
+                payload = {
                     "rendered_markdown": "# Pi smoke Context Bundle\\n\\nInjected by fake nmem.",
                     "content": "# Pi smoke Context Bundle fallback",
-                }}
+                }
             elif "wm" in args:
-                payload = {{"exists": True, "content": "# Working Memory fallback"}}
+                payload = {"exists": True, "content": "# Working Memory fallback"}
             else:
-                payload = {{}}
+                payload = {}
             sys.stdout.write(json.dumps(payload))
             '''
         ),
@@ -1311,15 +1314,12 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
     assert context_calls, f"no context call recorded: {recorded}"
     context_call = context_calls[0]
     assert "pi" in context_call, f"context call missing --source-app pi: {context_call}"
-    if smoke_env.get("NMEM_SPACE"):
-        assert "--space" in context_call, f"context call missing --space: {context_call}"
-        assert "pi-smoke-space" in context_call, f"context call missing space value: {context_call}"
-    if smoke_env.get("NMEM_AGENT_ID"):
-        assert "--agent-id" in context_call, f"context call missing --agent-id: {context_call}"
-        assert "PiSmokeAgent" in context_call, f"context call missing agent id value: {context_call}"
-    if smoke_env.get("NMEM_HOST_AGENT_ID"):
-        assert "--host-agent-id" in context_call, f"context call missing --host-agent-id: {context_call}"
-        assert "slock:PiSmokeAgent" in context_call, f"context call missing host agent id value: {context_call}"
+    assert "--space" in context_call, f"context call missing --space: {context_call}"
+    assert "pi-smoke-space" in context_call, f"context call missing space value: {context_call}"
+    assert "--agent-id" in context_call, f"context call missing --agent-id: {context_call}"
+    assert "PiSmokeAgent" in context_call, f"context call missing agent id value: {context_call}"
+    assert "--host-agent-id" in context_call, f"context call missing --host-agent-id: {context_call}"
+    assert "slock:PiSmokeAgent" in context_call, f"context call missing host agent id value: {context_call}"
 
 
 @pytest.mark.skipif(_skip_live_host("claude"), reason="Claude live E2E not requested")

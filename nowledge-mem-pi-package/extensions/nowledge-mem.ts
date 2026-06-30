@@ -621,10 +621,17 @@ function parseWorkingMemoryMarkdown(output: string): string | undefined {
 	return stringValue(parsed.content);
 }
 
+function truncateStartupContext(text: string, stage: string): string {
+	if (text.length <= MAX_MESSAGE_CHARS) return text;
+	warnStartupContextFailure(stage, `context truncated to ${MAX_MESSAGE_CHARS} characters`);
+	return `${text.slice(0, MAX_MESSAGE_CHARS)}\n\n[Nowledge Mem startup context truncated by Pi plugin]`;
+}
+
 function readLocalWorkingMemory(): string | undefined {
 	try {
 		if (!existsSync(LOCAL_WORKING_MEMORY_PATH)) return undefined;
-		return readFileSync(LOCAL_WORKING_MEMORY_PATH, "utf8").trim() || undefined;
+		const content = readFileSync(LOCAL_WORKING_MEMORY_PATH, "utf8").trim();
+		return content ? truncateStartupContext(content, "local-file") : undefined;
 	} catch (error) {
 		warnStartupContextFailure("local-file", error instanceof Error ? error.message : String(error));
 		return undefined;
@@ -658,7 +665,8 @@ async function readStartupContext(): Promise<StartupContextEntry> {
 		const result = await spawnNmem(attempt.args, remainingStartupContextTimeout(deadline));
 		if (result.ok) {
 			const parsed = attempt.parse(result.stdout);
-			if (parsed) return { context: parsed };
+			if (parsed) return { context: truncateStartupContext(parsed, attempt.stage) };
+			sawReadFailure = true;
 			warnStartupContextFailure(attempt.stage, "empty or invalid output");
 		} else {
 			sawReadFailure = true;
@@ -682,7 +690,8 @@ function startupContextCacheKey(ctx: ExtensionContext): string | undefined {
 		getSessionFile?: () => string | undefined;
 	};
 	const id = manager.getSessionId?.();
-	if (id) return id;
+	const normalizedId = id?.trim();
+	if (normalizedId && normalizedId.toLowerCase() !== "unknown") return normalizedId;
 	const file = manager.getSessionFile?.();
 	return file ? basename(file).replace(/\.jsonl$/i, "") : undefined;
 }
