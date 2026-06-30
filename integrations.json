@@ -1119,7 +1119,7 @@
       "threadSave": {
         "method": "cli-native",
         "historicalCommand": "nmem t sync --from omp",
-        "note": "OMP is Pi-derived and stores sessions under ~/.omp/agent/sessions. nmem can import those JSONL transcripts for local or remote Mem with nmem t sync --from omp --apply. Nowledge Mem does not yet publish an OMP lifecycle hook package, so live auto-capture should be added as a dedicated OMP package."
+        "note": "OMP is Pi-derived and stores sessions under ~/.omp/agent/sessions, but the Pi package is not an OMP package. nmem can import OMP JSONL transcripts for local or remote Mem with nmem t sync --from omp --apply. Nowledge Mem does not yet publish an OMP lifecycle hook package, so live auto-capture should be added as a dedicated OMP package."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -1145,7 +1145,7 @@
       },
       "toolNaming": {
         "convention": "mcp-backend",
-        "note": "Use Nowledge Mem MCP tools plus OMP skills until a native OMP extension is published."
+        "note": "Use Nowledge Mem MCP tools plus OMP skills until a dedicated OMP extension is published. Do not install the Pi package for OMP."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
       "slashCommands": []
