@@ -20,6 +20,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from typing import Any, Dict, List, Optional
 from urllib import error as urlerror
 from urllib import parse as urlparse
@@ -175,14 +176,17 @@ def _run_nmem(
     unchanged.
     """
     command: Any = _build_cmd_command(argv) if _is_batch(argv[0]) else argv
-    return subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=timeout,
-        env=env,
-    )
+    # Hide console window when spawned from pythonw.exe (gateway/desktop)
+    popen_kwargs: Dict[str, Any] = {
+        "capture_output": True,
+        "text": True,
+        "encoding": "utf-8",
+        "timeout": timeout,
+        "env": env,
+    }
+    if sys.platform == "win32":
+        popen_kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
+    return subprocess.run(command, **popen_kwargs)
 
 
 class NowledgeMemClient:
