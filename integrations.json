@@ -29,7 +29,7 @@
         "search": true,
         "distill": true,
         "autoRecall": true,
-        "autoCapture": true,
+        "autoCapture": false,
         "graphExploration": false,
         "status": true
       },
@@ -487,21 +487,24 @@
         "search": true,
         "distill": true,
         "autoRecall": false,
-        "autoCapture": false,
+        "autoCapture": true,
         "graphExploration": false,
         "status": false
       },
       "threadSave": {
-        "method": "child-runtime",
-        "note": "Paseo orchestrates Claude Code, Codex, Copilot, OpenCode, and Pi on the user's own machine. Thread capture and MCP behavior come from the launched AI tool's Nowledge Mem connector. Paseo's own agent records and terminal activity are separate unless Paseo later exposes a transcript export, API, or hook."
+        "method": "registry-guided-child-runtime",
+        "runtime": "paseo",
+        "historicalCommand": "nmem t sync --from paseo --all-projects --apply",
+        "note": "Paseo stores agent registry records, not full transcript bodies. The nmem sync command reads those records, resolves supported child sessions, and imports the underlying Codex, Claude Code, OpenCode, Pi, or OMP transcript while preserving the child source_app."
       },
       "autonomy": {
         "bootstrap": "guided",
         "recall": "guided",
         "distill": "guided",
-        "threads": "none",
+        "threads": "import-only",
         "bestResultRequires": [
           "Install the Nowledge Mem connector for each AI tool Paseo launches, such as Codex, Claude Code, OpenCode, or Pi",
+          "Run nmem t sync --from paseo --all-projects --apply when you want to import supported child-session history from Paseo's agent registry",
           "If a Paseo agent represents a durable role, pass NMEM_AGENT_ID=<agent-slug> into that launched child runtime",
           "Leave NMEM_AGENT_ID unset for one-off Paseo agents or generic provider presets",
           "Keep source_app as the launched AI tool so thread provenance and capture stay correct"
@@ -511,8 +514,8 @@
         "command": "Connect the AI tool Paseo launches first. Set NMEM_AGENT_ID=<agent-slug> only when that Paseo agent is a stable role.",
         "detectionHint": "Running inside an AI tool launched by Paseo, or the user asks about Paseo agents",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Paseo path. Connect the AI tool Paseo launches first, such as Codex, Claude Code, OpenCode, or Pi. Set NMEM_AGENT_ID=<agent-slug> only when this Paseo agent represents a durable role. Verify with nmem status and the Context Bundle or Working Memory check inside the launched tool, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Paseo 路径配置。先连接 Paseo 启动的 AI 工具，例如 Codex、Claude Code、OpenCode 或 Pi。只有当这个 Paseo Agent 代表稳定角色时，才设置 NMEM_AGENT_ID=<agent-slug>。在被启动的工具里用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Paseo path. Connect the AI tool Paseo launches first, such as Codex, Claude Code, OpenCode, or Pi. Set NMEM_AGENT_ID=<agent-slug> only when this Paseo agent represents a durable role. If I want older Paseo-managed sessions, run nmem t sync --from paseo --all-projects --apply and confirm imported threads keep the child source, such as codex or pi. Verify with nmem status and the Context Bundle or Working Memory check inside the launched tool, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Paseo 路径配置。先连接 Paseo 启动的 AI 工具，例如 Codex、Claude Code、OpenCode 或 Pi。只有当这个 Paseo Agent 代表稳定角色时，才设置 NMEM_AGENT_ID=<agent-slug>。如果我想导入 Paseo 管理的旧会话，运行 nmem t sync --from paseo --all-projects --apply，并确认导入的线程仍保留 codex 或 pi 等子工具来源。在被启动的工具里用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/paseo"
       },
