@@ -31,8 +31,12 @@ services:
     # The tag is parameterized so `./nmemctl upgrade <ver>` and the
     # optional `./nmemctl auto-update` sidecar can flip versions by
     # writing `NMEM_IMAGE_TAG=<ver>` to `.env` (mode 0600, gitignored)
-    # without rewriting this file. Fresh installs use the default.
-    image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-0.10.0}
+    # without rewriting this file. Fresh installs default to `latest`, which
+    # the GA release always publishes (rc's do not), so a fresh clone gets the
+    # newest GA and this file never needs a per-release bump. Existing
+    # deployments stay pinned to whatever they already pulled until an explicit
+    # `nmemctl upgrade`, so `latest` never causes a surprise in-place upgrade.
+    image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-latest}
     container_name: nowledge-mem
     restart: unless-stopped
     labels:
