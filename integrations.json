@@ -11,7 +11,7 @@
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
       "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode",
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
-      "slock", "lody", "multica", "cumora", "mcp-direct"
+      "slock", "lody", "multica", "cumora", "paseo", "mcp-direct"
     ],
     "doesNotApplyTo": ["browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
@@ -470,6 +470,55 @@
       "toolNaming": {
         "convention": "child-runtime",
         "note": "Keep source_app as the launched AI tool. Use NMEM_AGENT_ID only at a per-agent boundary; otherwise use persona-level agent_id on MCP calls or shared Mem context without identity override."
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "paseo",
+      "name": "Paseo",
+      "category": "orchestrator",
+      "type": "orchestrator",
+      "version": null,
+      "directory": null,
+      "transport": "child-runtime",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "child-runtime",
+        "note": "Paseo orchestrates Claude Code, Codex, Copilot, OpenCode, and Pi on the user's own machine. Thread capture and MCP behavior come from the launched AI tool's Nowledge Mem connector. Paseo's own agent records and terminal activity are separate unless Paseo later exposes a transcript export, API, or hook."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Install the Nowledge Mem connector for each AI tool Paseo launches, such as Codex, Claude Code, OpenCode, or Pi",
+          "If a Paseo agent represents a durable role, pass NMEM_AGENT_ID=<agent-slug> into that launched child runtime",
+          "Leave NMEM_AGENT_ID unset for one-off Paseo agents or generic provider presets",
+          "Keep source_app as the launched AI tool so thread provenance and capture stay correct"
+        ]
+      },
+      "install": {
+        "command": "Connect the AI tool Paseo launches first. Set NMEM_AGENT_ID=<agent-slug> only when that Paseo agent is a stable role.",
+        "detectionHint": "Running inside an AI tool launched by Paseo, or the user asks about Paseo agents",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Paseo path. Connect the AI tool Paseo launches first, such as Codex, Claude Code, OpenCode, or Pi. Set NMEM_AGENT_ID=<agent-slug> only when this Paseo agent represents a durable role. Verify with nmem status and the Context Bundle or Working Memory check inside the launched tool, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Paseo 路径配置。先连接 Paseo 启动的 AI 工具，例如 Codex、Claude Code、OpenCode 或 Pi。只有当这个 Paseo Agent 代表稳定角色时，才设置 NMEM_AGENT_ID=<agent-slug>。在被启动的工具里用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+        },
+        "docsUrl": "/docs/integrations/paseo"
+      },
+      "toolNaming": {
+        "convention": "child-runtime",
+        "note": "Keep source_app as the launched AI tool (codex, claude-code, opencode, pi, etc.). Use NMEM_AGENT_ID only for durable Paseo agent roles; do not label all child sessions as paseo."
       },
       "skills": [],
       "slashCommands": []
