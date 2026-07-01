@@ -120,48 +120,22 @@ def _build_nmem_command(nmem: str, *args: str) -> list[str]:
 
 
 def _resolve_space_from_cwd(project_path: Path) -> str | None:
-    """Resolve the per-project Nowledge Mem space name from a working directory.
+    """Resolve the Nowledge Mem space ONLY from an explicit ``$NMEM_SPACE``.
 
-    Resolution order:
-    1. ``$NMEM_SPACE`` env var (explicit override).
-    2. Lowercased basename of the directory that holds ``git rev-parse --git-common-dir``.
-       Using ``--git-common-dir`` (rather than ``--show-toplevel``) means worktrees
-       share the main repo's space, which is the desired grouping.
+    Space is a user-owned concept: the plugin must never infer or invent one.
+    We deliberately do NOT derive a space from the repo / cwd. The old
+    git-basename derivation tagged every captured thread with a repo-named space
+    the user never created, which then surfaced as an auto-created space in the
+    app (e.g. just reading an open-source project spawned a "space"). When
+    ``$NMEM_SPACE`` is unset, no ``--space`` is passed and the thread lands in
+    the user's default space, exactly as if the user had not opted into spaces.
 
-    Returns ``None`` when the cwd is not inside a Git repo or the lookup fails.
+    ``project_path`` is retained for call-site compatibility but is intentionally
+    unused now that no cwd-based inference happens.
     """
+    del project_path  # no cwd/git inference — space must be explicit
     env_space = (os.environ.get("NMEM_SPACE") or "").strip().lower()
-    if env_space:
-        return env_space
-
-    try:
-        proc = subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
-            cwd=str(project_path),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            timeout=2,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        return None
-
-    if proc.returncode != 0:
-        return None
-
-    common_dir = (proc.stdout or "").strip()
-    if not common_dir:
-        return None
-
-    common_path = Path(common_dir)
-    if not common_path.is_absolute():
-        common_path = (project_path / common_path).resolve()
-    repo_root = common_path.parent
-    if not repo_root.exists():
-        return None
-
-    name = repo_root.name.strip().lower()
-    return name or None
+    return env_space or None
 
 
 def _build_command(

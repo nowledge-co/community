@@ -21,7 +21,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.12",
+      "version": "0.7.13",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -73,7 +73,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.12",
+      "version": "0.7.13",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {

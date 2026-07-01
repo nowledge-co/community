@@ -5,6 +5,12 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.13] - 2026-07-01
+
+### Fixed
+
+- **Never derive a Nowledge Mem space from the project folder.** The SessionStart read hook and the Stop/PreCompact save hook used to infer a space name from the git repo basename (`cwd`) and pass `--space <repo>` automatically. Because Nowledge Mem surfaces any space id observed on a saved thread, this made captured threads spawn repo-named spaces the user never created (e.g. just reading an open-source project auto-created a "space"). Space is a user-owned concept: the hooks now select a lane **only** from an explicit `$NMEM_SPACE`. With no `$NMEM_SPACE` set, reads and thread saves target the default space, exactly as if spaces were never enabled. Set `NMEM_SPACE="<existing space>"` to opt a session into a lane.
+
 ## [0.7.12] - 2026-06-18
 
 ### Fixed

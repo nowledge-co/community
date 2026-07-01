@@ -28,7 +28,10 @@ def _run_hook(tmp_path: Path, *, cwd: Path, env: dict[str, str]) -> subprocess.C
     )
 
 
-def test_read_hook_prefers_git_common_dir_space(tmp_path):
+def test_read_hook_never_derives_git_space(tmp_path):
+    # Space is user-owned: inside a git repo but with no explicit $NMEM_SPACE,
+    # the hook must NOT derive a repo-named space. It reads the default space
+    # instead, and never passes `--space examplerepo`.
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls.log"
@@ -54,9 +57,9 @@ esac
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "space briefing"
+    assert result.stdout.strip() == "default briefing"
     command_log = calls.read_text(encoding="utf-8")
-    assert "context --source-app claude-code --space examplerepo" in command_log
+    assert "--space examplerepo" not in command_log
 
 
 def test_read_hook_honors_nmem_space_override(tmp_path):

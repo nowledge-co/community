@@ -20,21 +20,14 @@ fi
 PY="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
 
 resolve_space() {
+  # Space is a user-owned concept: only an explicit $NMEM_SPACE selects a lane.
+  # We deliberately do NOT infer a space from cwd/git — the old repo-basename
+  # derivation made captured threads surface repo-named spaces the user never
+  # created. With no $NMEM_SPACE set, we read the user's default space.
   if [ -n "${NMEM_SPACE:-}" ]; then
     printf '%s\n' "$NMEM_SPACE"
-    return 0
   fi
-
-  common_dir="$(git rev-parse --git-common-dir 2>/dev/null)" || return 0
-  [ -n "$common_dir" ] || return 0
-
-  case "$common_dir" in
-    /*) common_path="$common_dir" ;;
-    *) common_path="$(pwd -P)/$common_dir" ;;
-  esac
-
-  common_parent="$(cd "$(dirname "$common_path")" 2>/dev/null && pwd -P)" || return 0
-  basename "$common_parent" 2>/dev/null | tr '[:upper:]' '[:lower:]'
+  return 0
 }
 
 SPACE="$(resolve_space)"
