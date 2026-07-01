@@ -14,7 +14,19 @@ from pathlib import Path
 from typing import Any
 
 
-ATTEMPT_TIMEOUT_SECONDS = 8
+# The Stop / PreCompact hooks in hooks.json kill this process at 35s. Keep the
+# whole retry loop under that with headroom (TOTAL_BUDGET). A single
+# `nmem t save` of a large session on the 0.10.x Rust CLI routinely needs well
+# over the old 8s per-attempt cap: it is a fresh process (cold start) that parses
+# the full transcript and persists to the backend. An 8s cap timed out every
+# attempt on big sessions / slower machines / cold backends, so the hook reported
+# "no flushed transcript found" even though nothing was wrong — the capture just
+# needed more time. We now give each attempt real room (PER_ATTEMPT_TIMEOUT) and
+# bound the TOTAL instead. Retries still exist to ride out a backend that is
+# briefly not ready right after SessionStart (those attempts fail fast, so the
+# short early delays let a later attempt succeed once the server is up).
+TOTAL_BUDGET_SECONDS = 30.0
+PER_ATTEMPT_TIMEOUT_SECONDS = 20
 SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5, 3.0)
 JSON_FLAG_UNSUPPORTED_MARKERS = (
     "no such option: --json",
@@ -197,13 +209,13 @@ def _capture_has_result(stdout: str) -> bool:
     return isinstance(results, list) and len(results) > 0
 
 
-def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+def _run_command(command: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        timeout=ATTEMPT_TIMEOUT_SECONDS,
+        timeout=timeout,
     )
 
 
@@ -213,17 +225,26 @@ def _run_capture_with_retries(
 ) -> tuple[bool, int, str]:
     last_returncode = 0
     last_stderr = ""
+    start = time.monotonic()
 
     for delay in SAVE_RETRY_DELAYS_SECONDS:
         if delay:
             time.sleep(delay)
 
+        # Bound the whole loop under the hooks.json 35s kill: give this attempt
+        # what is left of the budget, capped at PER_ATTEMPT_TIMEOUT. Stop once
+        # there is no meaningful time left rather than starting a doomed attempt.
+        remaining = TOTAL_BUDGET_SECONDS - (time.monotonic() - start)
+        if remaining <= 1.0:
+            break
+        attempt_timeout = min(PER_ATTEMPT_TIMEOUT_SECONDS, remaining)
+
         try:
-            proc = _run_command(command)
+            proc = _run_command(command, attempt_timeout)
         except subprocess.TimeoutExpired:
             last_returncode = 124
             last_stderr = (
-                f"capture attempt timed out after {ATTEMPT_TIMEOUT_SECONDS}s"
+                f"capture attempt timed out after {attempt_timeout:.0f}s"
             )
             continue
 
@@ -235,13 +256,16 @@ def _run_capture_with_retries(
         )
 
         if proc.returncode != 0 and legacy_command and _json_flag_unsupported(proc):
+            legacy_remaining = TOTAL_BUDGET_SECONDS - (time.monotonic() - start)
+            if legacy_remaining <= 1.0:
+                break
             try:
-                legacy_proc = _run_command(legacy_command)
+                legacy_proc = _run_command(
+                    legacy_command, min(PER_ATTEMPT_TIMEOUT_SECONDS, legacy_remaining)
+                )
             except subprocess.TimeoutExpired:
                 last_returncode = 124
-                last_stderr = (
-                    f"legacy capture attempt timed out after {ATTEMPT_TIMEOUT_SECONDS}s"
-                )
+                last_stderr = "legacy capture attempt timed out"
                 continue
 
             last_returncode = legacy_proc.returncode
