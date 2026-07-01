@@ -39,7 +39,7 @@ set -euo pipefail
 # Version of the controller itself. Bump when nmemctl semantics or
 # command surface change. Independent of the docker image version
 # (which `./nmemctl version` reports separately).
-NMEMCTL_VERSION="2.3.0"
+NMEMCTL_VERSION="2.4.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -773,9 +773,11 @@ cmd_self_update() {
 #       remote nmem CLI) keep working at the new host without re-auth.
 #
 # Layer 2: application-level dump (backup-app / restore-app)
-#   Wraps the in-container `nmem export` / `nmem import` which produces a
-#   schema-aware JSONL dump portable across image versions. Use this when
-#   moving between non-matching versions, or when you want a dump you can
+#   Drives the in-container nmem-server's `/data/export` + `/data/import`
+#   loopback REST API (the Rust mem:0.10.0+ image ships no `nmem` CLI; the
+#   CLI was itself only a thin wrapper over these endpoints). Produces a
+#   schema-aware JSONL-in-zip dump portable across image versions. Use this
+#   when moving between non-matching versions, or when you want a dump you can
 #   inspect with normal tools.
 #
 # Why both: layer 1 is fast and complete (license + key + agent state +
@@ -967,12 +969,60 @@ cmd_import() {
 }
 
 # ---------------------------------------------------------------------------
-# Application-level dump — wraps the in-container `nmem export`/`nmem import`.
+# Application-level dump — drives the in-container nmem-server's `/data/*`
+# transfer REST API over loopback.
+#
+# The Rust mem:0.10.0+ image is zero-Python and ships NO `nmem` CLI, so the
+# old `docker exec … nmem export/import` path fails with
+# `exec: "nmem": executable file not found`. We reach the SAME functionality
+# (the `nmem` CLI itself was only a thin wrapper over these endpoints — see
+# nmem-cli/src/commands/data_transfer.rs, task #139) through the server's
+# loopback REST surface via the bundled `curl`, exactly like `nmemctl key` /
+# `nmemctl license`. Loopback traffic is local-authorized (no API key needed
+# unless `require_auth_loopback` is set), matching the rest of this tool.
+#
+# Scope is UNCHANGED from the old `nmem export`: a portable, schema-aware
+# `nowledge-mem-export` v3 zip carrying graph nodes/relationships, the Content
+# Store snapshot (thread messages) when SQLite is authoritative, working
+# memory + archive, sources, skill bundles, and the non-secret settings
+# snapshot (agent profiles + guidance rules). It deliberately does NOT carry
+# the rebuildable search index/embeddings, nor the license / API key / device
+# identity (those ride the volume-level `export`/`import` layer above).
 #
 # Operator never types `docker cp` or `docker exec`. Files move via the
-# bind-mounted `./cache` directory: the in-container CLI writes there
-# (which the operator sees at ./cache/), or we copy operator-side files
-# there before kicking off `nmem import` inside the container.
+# bind-mounted `./cache` directory: the server writes the export there
+# (`/var/cache/nowledge-mem/…`, which the operator sees at ./cache/), and we
+# stage an operator-side file there before kicking off the import.
+
+# Poll GET /data/import/status/<job_id> from inside the container until the
+# job leaves "processing". Prints nothing on success; fails on error/timeout.
+# $1 = job id. Mirrors the CLI's poll loop (data_transfer.rs:116-141).
+wait_for_import_job() {
+  local job_id="$1"
+  local waited=0
+  local status_json status
+  while :; do
+    status_json="$("${DC[@]}" exec -T "$SVC" curl -fsS \
+      "http://127.0.0.1:14242/data/import/status/${job_id}" 2>/dev/null || true)"
+    status="$(printf '%s' "$status_json" | _json_field status | tr -d '\r\n')"
+    case "$status" in
+      completed) return 0 ;;
+      error)
+        local msg
+        msg="$(printf '%s' "$status_json" | _json_field error | tr -d '\r\n')"
+        [[ -n "$msg" ]] || msg="import failed (see server logs)"
+        fail "import failed: $msg"
+        ;;
+      # processing / unknown / transient empty: keep polling.
+      *) : ;;
+    esac
+    if [[ "$waited" -ge 7200 ]]; then
+      fail "import did not finish within 2h; check progress with './nmemctl status'."
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
+}
 
 cmd_backup_app() {
   require_docker
@@ -995,19 +1045,38 @@ cmd_backup_app() {
   local stamp
   stamp="$(date -u +%Y%m%dT%H%M%SZ)"
   local in_container_name="mem-app-export-${host_tag:-host}-${stamp}.zip"
+  # The server writes into the cache bind mount (writable under the read-only
+  # rootfs). We consume the file on the host and remove the staged copy after.
+  local in_container_path="/var/cache/nowledge-mem/${in_container_name}"
 
-  step "Running nmem export inside the container"
-  note "writes to /var/cache/nowledge-mem/${in_container_name}  (visible at ./cache/${in_container_name})"
-  "${DC[@]}" exec -T "$SVC" nmem export "/var/cache/nowledge-mem/${in_container_name}"
+  step "Exporting via POST /data/export inside the container"
+  note "writes to ${in_container_path}  (visible at ./cache/${in_container_name})"
+  # Ask the server to serialize a compressed schema-aware zip to the shared
+  # cache mount. Loopback = local-authorized, so no API key header is needed.
+  # The JSON body carries only export_path (the rest default to the full
+  # include set — same defaults as `nmem export`).
+  local resp
+  resp="$("${DC[@]}" exec -T "$SVC" curl -fsS -X POST \
+    -H 'Content-Type: application/json' \
+    -d "{\"export_path\":\"${in_container_path}\",\"compress\":true,\"overwrite\":true}" \
+    http://127.0.0.1:14242/data/export 2>/dev/null || true)"
+  [[ -n "$resp" ]] || fail "export request failed (no response from /data/export). Is the server healthy? Try './nmemctl status'."
+  local success
+  success="$(printf '%s' "$resp" | _json_field_raw success | tr -d '\r\n')"
+  if [[ "$success" != "true" ]]; then
+    printf '%s\n' "$resp" | sed 's/^/    /' >&2
+    fail "export did not report success — see the response above."
+  fi
 
   # File appears on the host through the bind mount.
   local host_path="$DIR_CACHE/${in_container_name}"
   if [[ ! -f "$host_path" ]]; then
-    fail "nmem export reported success but the archive isn't visible at $host_path — file a bug."
+    fail "/data/export reported success but the archive isn't visible at $host_path — file a bug."
   fi
 
   # If operator specified --out, move it there. Else leave next to the
-  # compose for them to grab.
+  # compose for them to grab. Use the helper container to read the
+  # UID-10001-owned file without sudo.
   local final
   if [[ -n "$out_path" ]]; then
     final="$out_path"
@@ -1032,6 +1101,10 @@ cmd_backup_app() {
   step "Application export complete"
   note "archive: $final"
   note "size:    $(du -h "$final" | awk '{print $1}')"
+  # Surface the export counts if the response carried them (nice sanity signal).
+  local mem_count
+  mem_count="$(printf '%s' "$resp" | sed -n 's/.*"Memory"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -1)"
+  [[ -n "$mem_count" ]] && note "memories: $mem_count"
   echo
   note "This is a portable, schema-aware dump. Restore on a different version with:"
   note "    ./nmemctl restore-app $(basename "$final")"
@@ -1059,9 +1132,9 @@ cmd_restore_app() {
   fi
 
   # Stage the archive into the bind-mounted cache. The container reads it
-  # at /var/cache/nowledge-mem/_nmemctl-import.zip, then we clean up.
+  # at /var/cache/nowledge-mem/<stage>, then we clean up.
   local stage_name="_nmemctl-restore-$$.zip"
-  local stage_path="$DIR_CACHE/$stage_name"
+  local in_container_path="/var/cache/nowledge-mem/${stage_name}"
 
   step "Staging archive into ./cache"
   docker run --rm \
@@ -1069,19 +1142,70 @@ cmd_restore_app() {
     -v "$SCRIPT_DIR/cache:/cache" \
     "$HELPER_IMG" \
     cp "/in/$(basename "$infile")" "/cache/${stage_name}"
+  # The server runs as UID 10001 and the cache mount is chowned to it, but a
+  # helper-written file lands as root:root — re-chown so the server can read it.
+  docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" \
+    chown "${CONTAINER_UID}:${CONTAINER_GID}" "/cache/${stage_name}" >/dev/null 2>&1 || true
 
-  step "Running nmem import inside the container"
-  local extra=""
-  $force && extra="--mode overwrite"
-  if ! "${DC[@]}" exec -T "$SVC" nmem import $extra "/var/cache/nowledge-mem/${stage_name}"; then
-    docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" || true
-    fail "nmem import failed — see output above"
+  # merge (default) fills empty fields on existing rows; overwrite (--force)
+  # replaces existing values. Matches `nmem import [--mode overwrite]`.
+  local mode="merge"
+  $force && mode="overwrite"
+
+  step "Importing via POST /data/import inside the container (mode: ${mode})"
+  local resp
+  resp="$("${DC[@]}" exec -T "$SVC" curl -fsS -X POST \
+    -H 'Content-Type: application/json' \
+    -d "{\"import_path\":\"${in_container_path}\",\"mode\":\"${mode}\"}" \
+    http://127.0.0.1:14242/data/import 2>/dev/null || true)"
+  if [[ -z "$resp" ]]; then
+    docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" >/dev/null 2>&1 || true
+    fail "import request failed (no response from /data/import)."
   fi
 
-  docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" >/dev/null
+  # /data/import enqueues a BACKGROUND job ({job_id, status:"processing"}). Poll
+  # it to completion so we don't clean up the staged file (or print success)
+  # while the import is still replaying rows. A second import 409s while one is
+  # in flight, so we must wait.
+  local job_id job_status
+  job_id="$(printf '%s' "$resp" | _json_field job_id | tr -d '\r\n')"
+  job_status="$(printf '%s' "$resp" | _json_field status | tr -d '\r\n')"
+  if [[ -n "$job_id" && "$job_status" == "processing" ]]; then
+    step "Waiting for the import job to finish"
+    if ! wait_for_import_job "$job_id"; then
+      docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" >/dev/null 2>&1 || true
+      fail "import job did not complete"
+    fi
+  else
+    # Some builds may answer inline. Treat a non-processing, non-success reply
+    # as a failure so we don't silently claim victory.
+    local success
+    success="$(printf '%s' "$resp" | _json_field_raw success | tr -d '\r\n')"
+    if [[ "$success" != "true" ]]; then
+      printf '%s\n' "$resp" | sed 's/^/    /' >&2
+      docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" >/dev/null 2>&1 || true
+      fail "import did not report success — see the response above."
+    fi
+  fi
+
+  docker run --rm -v "$SCRIPT_DIR/cache:/cache" "$HELPER_IMG" rm -f "/cache/${stage_name}" >/dev/null 2>&1 || true
 
   step "Application restore complete"
-  "${DC[@]}" exec -T "$SVC" nmem stats 2>&1 | sed 's/^/    /' | head -10
+  # Show the resulting graph size as a sanity signal via /stats. (The old
+  # `nmem stats` CLI is gone; the REST surface is the equivalent.)
+  local stats
+  stats="$("${DC[@]}" exec -T "$SVC" curl -fsS \
+    http://127.0.0.1:14242/stats 2>/dev/null || true)"
+  if [[ -n "$stats" ]]; then
+    local nodes edges
+    nodes="$(printf '%s' "$stats" | _json_field_raw total_nodes | tr -d '\r\n')"
+    edges="$(printf '%s' "$stats" | _json_field_raw total_relationships | tr -d '\r\n')"
+    [[ -n "$nodes" ]] && note "graph nodes: $nodes"
+    [[ -n "$edges" ]] && note "graph relationships: $edges"
+    if [[ -z "$nodes" && -z "$edges" ]]; then
+      printf '%s\n' "$stats" | sed 's/^/    /' | head -10
+    fi
+  fi
 }
 
 cmd_help() {
@@ -1126,10 +1250,11 @@ MIGRATION
                    [--force]      Refuses a non-empty deploy without --force.
 
   Application-level (cross-version, schema-aware, portable):
-    nmemctl backup-app            Run nmem export inside the container,
+    nmemctl backup-app            Call the server's /data/export over loopback,
                    [--out PATH]   write a portable schema-aware .zip dump.
-    nmemctl restore-app <file>    Stage the dump via ./cache, run nmem
-                   [--force]      import inside. Use --force for overwrite.
+    nmemctl restore-app <file>    Stage the dump via ./cache, POST it to
+                   [--force]      /data/import inside. Use --force to overwrite
+                                  existing rows (default merges empty fields).
 
 DESTRUCTIVE
   nmemctl wipe                    Factory reset (type WIPE to confirm).
@@ -1147,7 +1272,9 @@ ENV
   NMEM_ALLOW_PRERELEASE           Set to 1 to allow `upgrade` to non-stable tags
 
 SEE ALSO
-  README.md in this directory; the in-container nmem CLI for data operations.
+  README.md in this directory. Data operations (key, license, backup-app,
+  restore-app) drive the in-container nmem-server /data/* + /api/* loopback
+  REST API; the mem:0.10.0+ image ships no `nmem` CLI.
 EOF
 }
 
