@@ -396,7 +396,7 @@
       },
       "threadSave": {
         "method": "child-runtime",
-        "note": "Multica launches the AI coding tool locally. Thread capture and MCP behavior come from that launched tool's connector."
+        "note": "Multica launches the AI coding tool locally. Thread capture and MCP behavior come from that launched tool's connector. For Claude Code agents, save the Mem MCP config on the Multica agent so Multica forwards it with --mcp-config."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -405,16 +405,17 @@
         "threads": "none",
         "bestResultRequires": [
           "Install the Nowledge Mem connector for the AI tool Multica launches",
+          "If the Multica agent runs Claude Code, save the Nowledge Mem MCP config in the agent's MCP settings",
           "Set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment",
           "Avoid broad secrets in agent custom environment variables"
         ]
       },
       "install": {
-        "command": "Connect the AI tool Multica launches, then set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment.",
+        "command": "Connect the AI tool Multica launches. For Claude Code agents, save the Mem MCP config in the Multica agent MCP settings. Then set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment.",
         "detectionHint": "Running inside a Multica-daemon-launched child agent",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Multica path. Connect the AI tool Multica launches first, then set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment. Supported sessions inside that AI tool can sync through its Nowledge Mem connector. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Multica 路径配置。先连接 Multica 启动的 AI 工具，再在 Multica Agent custom env 中设置 NMEM_AGENT_ID=<agent-slug>。这个 AI 工具里的受支持会话会通过它自己的 Nowledge Mem 连接同步。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Multica path. Connect the AI tool Multica launches first. If the Multica agent runs Claude Code, save the Nowledge Mem MCP config in the agent's MCP settings so Multica forwards it with --mcp-config. Then set NMEM_AGENT_ID=<agent-slug> in the Multica agent custom environment. Supported sessions inside that AI tool can sync through its Nowledge Mem connector. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Multica 路径配置。先连接 Multica 启动的 AI 工具。如果这个 Multica Agent 使用 Claude Code，把 Nowledge Mem MCP 配置保存到该 Agent 的 MCP 设置里，让 Multica 通过 --mcp-config 传给 Claude Code。然后在 Multica Agent custom env 中设置 NMEM_AGENT_ID=<agent-slug>。这个 AI 工具里的受支持会话会通过它自己的 Nowledge Mem 连接同步。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/multica"
       },
