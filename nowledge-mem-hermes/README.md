@@ -95,6 +95,42 @@ nmem t sync --from hermes          # preview only
 nmem t sync --from hermes --apply  # import ~/.hermes/state.db into Mem threads
 ```
 
+### Hermes Studio coding-agent backfill
+
+Hermes Studio can also launch external coding agents such as Codex and Claude Code
+through its own `coding-agent-run` wrapper. Those runs are flushed into the
+Hermes Web UI database, but some wrapper builds do not trigger the coding
+agent's native Stop hook. If a Hermes Studio coding-agent session is missing
+from Nowledge Mem, use the helper script to map the Hermes Studio session id to
+the native agent transcript and run the existing thread save command.
+
+Preview a single Codex or Claude Code session:
+
+```bash
+python nowledge-mem-hermes/scripts/sync_hermes_studio_coding_agent.py \
+  --session-id mr3eoys1vax19g \
+  --webui-home ~/.hermes-web-ui \
+  --cwd /path/to/project
+```
+
+Apply the save:
+
+```bash
+python nowledge-mem-hermes/scripts/sync_hermes_studio_coding_agent.py \
+  --session-id mr3eoys1vax19g \
+  --webui-home ~/.hermes-web-ui \
+  --cwd /path/to/project \
+  --apply
+```
+
+For Codex, the helper uses the `nativeSessionId` recorded by Hermes Studio and
+sets `CODEX_HOME` to the Hermes-managed runtime when it can be discovered. For
+Claude Code, Hermes Studio currently does not log the native session id, so the
+helper infers the closest `~/.claude/projects/<project>/*.jsonl` transcript by
+runner completion time. This is a recovery tool; the preferred long-term fix is
+for Hermes Studio to call `nmem threads save` directly after `coding-agent-run`
+completion.
+
 This also works with remote Mem because the local `nmem` client reads Hermes' local SQLite database and uploads normalized threads to the configured Mem server. The command is safe to rerun: it uses the same Hermes `session_id` thread IDs as the live provider and appends with message deduplication.
 
 ## Tools

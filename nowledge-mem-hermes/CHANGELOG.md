@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added `scripts/sync_hermes_studio_coding_agent.py`, a recovery helper for Hermes Studio external coding-agent sessions whose `codex exec` or `claude print` wrapper completed without triggering the agent's native Nowledge Stop hook. The helper maps Hermes Studio session IDs to Codex/Claude Code transcripts and runs `nmem threads save` for backfill.
+
 ## [0.5.19] - 2026-07-02
 
 ### Fixed
