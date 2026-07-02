@@ -38,6 +38,17 @@ def _write_hook_response() -> None:
     sys.stdout.write("\n")
 
 
+def _run_entrypoint() -> object:
+    exit_code: object = 0
+    try:
+        exit_code = main()
+    except SystemExit as exc:
+        exit_code = exc.code
+    finally:
+        _write_hook_response()
+    return exit_code
+
+
 def _read_hook_input() -> dict[str, Any]:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -438,6 +449,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    exit_code = main()
-    _write_hook_response()
-    raise SystemExit(exit_code)
+    raise SystemExit(_run_entrypoint())

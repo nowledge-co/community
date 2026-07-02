@@ -224,6 +224,18 @@ class HookTests(unittest.TestCase):
             {"continue": True, "suppressOutput": True},
         )
 
+    def test_hook_entrypoint_emits_response_when_main_exits_early(self):
+        stdout = io.StringIO()
+
+        with mock.patch.object(self.module, "main", side_effect=SystemExit(7)), \
+             mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(self.module._run_entrypoint(), 7)
+
+        self.assertEqual(
+            json.loads(stdout.getvalue()),
+            {"continue": True, "suppressOutput": True},
+        )
+
 
 class PackagedHookConfigTests(unittest.TestCase):
     def test_packaged_hooks_json_uses_strict_codex_schema(self):
