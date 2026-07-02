@@ -387,5 +387,54 @@ class BuildCmdCommandStringTests(unittest.TestCase):
         self.assertEqual(command, expected)
 
 
+class RunNmemSubprocessKwargsTests(unittest.TestCase):
+    """OS-independent coverage for subprocess kwargs around the Windows launcher."""
+
+    def test_windows_run_uses_create_no_window(self):
+        original_run = client_module.subprocess.run
+        original_platform = client_module.sys.platform
+        calls = []
+
+        def _fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            return subprocess.CompletedProcess(command, 0, stdout="{}", stderr="")
+
+        try:
+            client_module.subprocess.run = _fake_run
+            client_module.sys.platform = "win32"
+            result = client_module._run_nmem(["nmem.exe", "--version"], timeout=5)
+        finally:
+            client_module.subprocess.run = original_run
+            client_module.sys.platform = original_platform
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], ["nmem.exe", "--version"])
+        self.assertEqual(calls[0][1].get("creationflags"), 0x08000000)
+        self.assertEqual(calls[0][1]["timeout"], 5)
+        self.assertTrue(calls[0][1]["capture_output"])
+
+    def test_posix_run_does_not_pass_windows_creationflags(self):
+        original_run = client_module.subprocess.run
+        original_platform = client_module.sys.platform
+        calls = []
+
+        def _fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            return subprocess.CompletedProcess(command, 0, stdout="{}", stderr="")
+
+        try:
+            client_module.subprocess.run = _fake_run
+            client_module.sys.platform = "darwin"
+            result = client_module._run_nmem(["nmem", "--version"], timeout=5)
+        finally:
+            client_module.subprocess.run = original_run
+            client_module.sys.platform = original_platform
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertNotIn("creationflags", calls[0][1])
+
+
 if __name__ == "__main__":
     unittest.main()
