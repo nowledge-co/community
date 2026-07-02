@@ -293,6 +293,28 @@ class LauncherTests(unittest.TestCase):
 
         self.assertEqual(calls, [(packaged_hook, "__main__", [str(packaged_hook), "--event", "stop"])])
 
+    def test_launcher_entrypoint_emits_valid_stop_hook_json(self):
+        codex_home = self.temp_path / ".codex"
+        env = os.environ.copy()
+        env["CODEX_HOME"] = str(codex_home)
+        env["PATH"] = ""
+
+        proc = subprocess.run(
+            [sys.executable, str(LAUNCH_MODULE_PATH), "--event", "stop"],
+            input="{}",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+            check=False,
+        )
+
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(
+            json.loads(proc.stdout),
+            {"continue": True, "suppressOutput": True},
+        )
+
 
 class InstallHookTests(unittest.TestCase):
     def setUp(self):
