@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.3 (2026-07-02)
+
+- Fixed: Windows CLI calls now hide the child console window when Bub invokes `nmem`, avoiding visible `cmd.exe` flashes during memory operations.
+
 ## 0.7.2 (2026-06-07)
 
 - Fixed: `mem.save` no longer defaults an omitted memory type to `fact`. When the agent is unsure, Nowledge Mem now classifies the memory type itself.

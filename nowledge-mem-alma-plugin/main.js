@@ -213,6 +213,7 @@ export class NowledgeMemClient {
 			const result = spawnSync(candidate.cmd, [...candidate.prefix, "--version"], {
 				encoding: "utf-8",
 				timeout: 10_000,
+				windowsHide: true,
 			});
 			if (result.status === 0) {
 				this.command = candidate;

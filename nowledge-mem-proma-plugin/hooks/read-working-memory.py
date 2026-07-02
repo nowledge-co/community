@@ -15,6 +15,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,12 @@ CLAUDE_MD = _env_path("PROMA_CLAUDE_MD", PROMA_WORKSPACE_DIR / "CLAUDE.md")
 CLAUDE_TEMPLATE = _env_path("PROMA_CLAUDE_TEMPLATE", PROMA_WORKSPACE_DIR / "CLAUDE.md.template")
 LOG_DIR = PROMA_HOME / "logs"
 LOG_FILE = LOG_DIR / "nm-hooks.log"
+
+
+def _windows_no_window_kwargs() -> dict[str, int]:
+    if sys.platform != "win32":
+        return {}
+    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
 
 
 def log(msg: str) -> None:
@@ -85,6 +92,7 @@ def _run_nmem_json(args: list[str], label: str, timeout: int = 15) -> dict[str, 
             text=True,
             timeout=timeout,
             check=False,
+            **_windows_no_window_kwargs(),
         )
         if proc.returncode != 0:
             log(f"{label} exit={proc.returncode} stderr={proc.stderr.strip()[:240]}")

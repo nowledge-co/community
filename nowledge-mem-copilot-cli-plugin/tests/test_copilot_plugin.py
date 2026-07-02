@@ -14,6 +14,7 @@ Tests cover:
 import json
 import io
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -593,3 +594,31 @@ class TestBuildNmemCommand:
     def test_windows_cmd(self):
         cmd = copilot_stop_save.build_nmem_command("C:\\nmem.cmd", "--json", "wm", "read")
         assert cmd == ["cmd.exe", "/d", "/c", "call", "C:\\nmem.cmd", "--json", "wm", "read"]
+
+    def test_windows_run_hides_child_console(self, monkeypatch):
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append((args, kwargs))
+            return subprocess.CompletedProcess(args, 0, stdout="{}", stderr="")
+
+        monkeypatch.setattr(copilot_stop_save.sys, "platform", "win32")
+        monkeypatch.setattr(copilot_stop_save.subprocess, "run", fake_run)
+
+        copilot_stop_save.run_json(["nmem.cmd", "--json", "wm", "read"])
+
+        assert calls[0][1]["creationflags"] == 0x08000000
+
+    def test_posix_run_does_not_pass_windows_creationflags(self, monkeypatch):
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append((args, kwargs))
+            return subprocess.CompletedProcess(args, 0, stdout="{}", stderr="")
+
+        monkeypatch.setattr(copilot_stop_save.sys, "platform", "linux")
+        monkeypatch.setattr(copilot_stop_save.subprocess, "run", fake_run)
+
+        copilot_stop_save.run_json(["nmem", "--json", "wm", "read"])
+
+        assert "creationflags" not in calls[0][1]

@@ -208,6 +208,26 @@ def test_run_capture_retries_until_nmem_reports_saved_result():
     assert run.call_count == 2
 
 
+def test_run_command_hides_child_console_on_windows():
+    proc = CompletedProcess(["nmem"], 0, stdout='{"results":[]}', stderr="")
+
+    with patch.object(nmem_hook_save.sys, "platform", "win32"), \
+        patch.object(nmem_hook_save.subprocess, "run", return_value=proc) as run:
+        nmem_hook_save._run_command(["nmem.cmd", "--version"], 5)
+
+    assert run.call_args.kwargs["creationflags"] == 0x08000000
+
+
+def test_run_command_does_not_pass_windows_creationflags_on_posix():
+    proc = CompletedProcess(["nmem"], 0, stdout='{"results":[]}', stderr="")
+
+    with patch.object(nmem_hook_save.sys, "platform", "darwin"), \
+        patch.object(nmem_hook_save.subprocess, "run", return_value=proc) as run:
+        nmem_hook_save._run_command(["nmem", "--version"], 5)
+
+    assert "creationflags" not in run.call_args.kwargs
+
+
 def test_run_capture_reports_uncaptured_when_transcript_never_flushes():
     proc = CompletedProcess(["nmem"], 0, stdout='{"results":[]}', stderr="")
 

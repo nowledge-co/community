@@ -1,5 +1,9 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## 0.1.4 (2026-07-02)
+
+- Hide the child console window when the Proma startup/asyncRewake hook reads Nowledge Mem context through `nmem` on Windows.
+
 ## 0.1.3 (2026-06-22)
 
 - Add optional `PROMA_ALLOWED_WORKSPACES` filtering to `save-to-nmem.py` for multi-workspace Proma users. Leaving it unset keeps the previous behavior and syncs every workspace; setting a comma-separated list such as `default,research` skips other workspaces with a log entry.

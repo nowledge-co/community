@@ -94,6 +94,12 @@ PLACEHOLDER_HINTS = (
 )
 
 
+def windows_no_window_kwargs() -> dict[str, int]:
+    if sys.platform != "win32":
+        return {}
+    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -245,6 +251,7 @@ def run_json(args: list[str]) -> dict:
             capture_output=True,
             text=True,
             timeout=NMEM_TIMEOUT_SECS,
+            **windows_no_window_kwargs(),
         )
     except subprocess.TimeoutExpired as exc:
         def _decode_timeout_output(value: object) -> str:

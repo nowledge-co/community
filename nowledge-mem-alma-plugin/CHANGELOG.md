@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.4
+
+### Fixed
+
+- Windows CLI preflight now hides the child console window while resolving `nmem`, avoiding visible console flashes from GUI-launched Alma sessions.
+
 ## 0.7.3
 
 ### Added

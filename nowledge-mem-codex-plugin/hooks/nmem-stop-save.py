@@ -33,6 +33,12 @@ JSON_FLAG_UNSUPPORTED_MARKERS = (
 CODEX_HOOK_SUCCESS_RESPONSE = {"continue": True, "suppressOutput": True}
 
 
+def _windows_no_window_kwargs() -> dict[str, int]:
+    if sys.platform != "win32":
+        return {}
+    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+
+
 def _write_hook_response() -> None:
     json.dump(CODEX_HOOK_SUCCESS_RESPONSE, sys.stdout)
     sys.stdout.write("\n")
@@ -316,6 +322,7 @@ def _run_save(
         text=True,
         timeout=ATTEMPT_TIMEOUT_SECONDS,
         check=False,
+        **_windows_no_window_kwargs(),
     )
 
 

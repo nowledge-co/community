@@ -289,10 +289,13 @@ def test_key_plugin_static_contracts_are_declared():
 
     claude_manifest = _read_json(CLAUDE_PLUGIN / ".claude-plugin" / "plugin.json")
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
+    claude_save_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
+    assert claude_manifest["version"] == "0.7.15"
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
     assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
+    assert "CREATE_NO_WINDOW" in claude_save_hook
     assert "wm read" not in json.dumps(claude_hooks)
     assert (CLAUDE_PLUGIN / "scripts" / "nmem-hook-read.sh").exists()
     assert (CLAUDE_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
@@ -300,7 +303,9 @@ def test_key_plugin_static_contracts_are_declared():
     codex_manifest = _read_json(CODEX_PLUGIN / ".codex-plugin" / "plugin.json")
     codex_mcp = _read_json(CODEX_PLUGIN / ".mcp.json")
     codex_hooks = _read_json(CODEX_PLUGIN / "hooks" / "hooks.json")["hooks"]
+    codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
+    assert codex_manifest["version"] == "0.1.22"
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
@@ -341,6 +346,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert (CODEX_PLUGIN / "scripts" / "install_hooks.py").exists()
     assert (CODEX_PLUGIN / "skills" / "working-memory" / "SKILL.md").exists()
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
+    assert "CREATE_NO_WINDOW" in codex_save_hook
 
     openclaw_manifest = _read_json(OPENCLAW_PLUGIN / "openclaw.plugin.json")
     openclaw_pkg = _read_json(OPENCLAW_PLUGIN / "package.json")
@@ -409,12 +415,14 @@ def test_key_plugin_static_contracts_are_declared():
 
     copilot_manifest = _read_json(COPILOT_PLUGIN / ".claude-plugin" / "plugin.json")
     copilot_hooks = _read_json(COPILOT_PLUGIN / "hooks" / "hooks.json")
-    assert copilot_manifest["version"] == "0.1.3"
+    copilot_capture = (COPILOT_PLUGIN / "hooks" / "copilot-stop-save.py").read_text(encoding="utf-8")
+    assert copilot_manifest["version"] == "0.1.4"
     assert "--source-app copilot-cli" in json.dumps(copilot_hooks)
     assert "NMEM_AGENT_ID" in json.dumps(copilot_hooks)
     assert "NMEM_HOST_AGENT_ID" in json.dumps(copilot_hooks)
     assert "rendered_markdown" in json.dumps(copilot_hooks)
     assert "wm read" in json.dumps(copilot_hooks)
+    assert "CREATE_NO_WINDOW" in copilot_capture
 
     droid_manifest = _read_json(DROID_PLUGIN / ".factory-plugin" / "plugin.json")
     droid_hooks = _read_json(DROID_PLUGIN / "hooks" / "hooks.json")
@@ -438,7 +446,7 @@ def test_key_plugin_static_contracts_are_declared():
     proma_hook = (PROMA_PLUGIN / "hooks" / "read-working-memory.py").read_text(encoding="utf-8")
     proma_save_hook = (PROMA_PLUGIN / "hooks" / "save-to-nmem.py").read_text(encoding="utf-8")
     proma_hooks = _read_json(PROMA_PLUGIN / "hooks" / "hooks.json")
-    assert proma_manifest["version"] == "0.1.3"
+    assert proma_manifest["version"] == "0.1.4"
     assert proma_hooks["installPath"] == "~/.proma/sdk-config/.claude/settings.json"
     assert proma_hooks["scriptInstallPath"] == "~/.proma/scripts/"
     assert "UserPromptSubmit" in proma_hooks["hooks"]
@@ -449,6 +457,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert "NMEM_AGENT_ID" in proma_hook
     assert "NMEM_HOST_AGENT_ID" in proma_hook
     assert '"wm", "read"' in proma_hook
+    assert "CREATE_NO_WINDOW" in proma_hook
     assert "nowledge-mem:start" in proma_hook
     assert "CLAUDE.md" in proma_hook
     assert "sdk-config" in proma_save_hook
@@ -524,7 +533,7 @@ def test_key_plugin_static_contracts_are_declared():
     kimi_installer = (KIMI_PLUGIN / "scripts" / "install_hooks.py").read_text(encoding="utf-8")
     kimi_hook = (KIMI_PLUGIN / "scripts" / "kimi-sync-hook.py").read_text(encoding="utf-8")
     assert kimi_manifest["name"] == "nowledge-mem"
-    assert kimi_manifest["version"] == "0.1.0"
+    assert kimi_manifest["version"] == "0.1.1"
     assert kimi_manifest["skills"] == "./skills/"
     assert kimi_manifest["sessionStart"]["skill"] == "nowledge-mem"
     assert kimi_manifest["mcpServers"]["nowledge-mem"]["url"] == "http://127.0.0.1:14242/mcp/"
@@ -541,6 +550,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert "--session-id" in kimi_hook
     assert "--apply" in kimi_hook
     assert "NMEM_KIMI_SYNC_TIMEOUT" in kimi_hook
+    assert "CREATE_NO_WINDOW" in kimi_hook
 
     kimi_work_manifest = _read_json(KIMI_WORK_CONNECTOR / "kimi.plugin.json")
     kimi_work_skill = (
@@ -568,11 +578,12 @@ def test_key_plugin_static_contracts_are_declared():
     alma_pkg = _read_json(ALMA_PLUGIN / "package.json")
     alma_skill = ALMA_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md"
     alma_source = (ALMA_PLUGIN / "main.js").read_text(encoding="utf-8")
-    assert alma_manifest["version"] == "0.7.3"
-    assert alma_pkg["version"] == "0.7.3"
+    assert alma_manifest["version"] == "0.7.4"
+    assert alma_pkg["version"] == "0.7.4"
     assert alma_skill.exists()
     assert "nowledge_mem_context_bundle" in alma_skill.read_text(encoding="utf-8")
     assert "nowledge_mem_context_bundle" in alma_source
+    assert "windowsHide: true" in alma_source
 
 
 def test_kimi_code_hook_installer_uses_isolated_kimi_home(tmp_path: Path):
@@ -995,17 +1006,17 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
 
     by_id = {entry["id"]: entry for entry in integrations}
-    assert by_id["copilot-cli"]["version"] == "0.1.3"
+    assert by_id["copilot-cli"]["version"] == "0.1.4"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
     assert by_id["cursor"]["version"] == "0.1.6"
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.27"
-    assert by_id["proma"]["version"] == "0.1.3"
+    assert by_id["proma"]["version"] == "0.1.4"
     assert by_id["opencode"]["version"] == "0.3.4"
     assert by_id["pi"]["version"] == "0.8.2"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
-    assert by_id["kimi-code"]["version"] == "0.1.0"
+    assert by_id["kimi-code"]["version"] == "0.1.1"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "mcp+skills+hook"
     assert by_id["kimi-code"]["capabilities"]["autoCapture"] is True
@@ -1039,9 +1050,10 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         )
     assert by_id["zcode"]["threadSave"]["method"] == "none"
     assert by_id["zcode"]["autonomy"]["threads"] == "handoff-only"
-    assert by_id["alma"]["version"] == "0.7.3"
+    assert by_id["alma"]["version"] == "0.7.4"
     assert by_id["alma"]["skills"] == ["nowledge-mem"]
     assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
+    assert by_id["bub"]["version"] == "0.7.3"
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
@@ -1049,9 +1061,15 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
 
 
 def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
+    bub_pyproject = (BUB_PLUGIN / "pyproject.toml").read_text(encoding="utf-8")
+    bub_client = (
+        BUB_PLUGIN / "src" / "nowledge_mem_bub" / "client.py"
+    ).read_text(encoding="utf-8")
     bub_tools = (
         BUB_PLUGIN / "src" / "nowledge_mem_bub" / "tools.py"
     ).read_text(encoding="utf-8")
+    assert 'version = "0.7.3"' in bub_pyproject
+    assert "CREATE_NO_WINDOW" in bub_client
     assert "unit_type: str | None = Field(" in bub_tools
     assert "unit_type: str = Field(" not in bub_tools
     assert "Omit when unsure so Nowledge Mem can" in bub_tools

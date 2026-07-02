@@ -12,9 +12,17 @@ import json
 import logging
 import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _windows_no_window_kwargs() -> dict[str, int]:
+    if sys.platform != "win32":
+        return {}
+    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
 
 
 class NmemError(Exception):
@@ -106,6 +114,7 @@ class NmemClient:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=self._build_env(),
+                **_windows_no_window_kwargs(),
             )
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
