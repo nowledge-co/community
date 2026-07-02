@@ -1,5 +1,9 @@
 import importlib.util
+import io
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -187,6 +191,51 @@ class HookTests(unittest.TestCase):
              mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: "{}")):
             self.assertEqual(self.module.main(), 0)
 
+    def test_hook_response_is_valid_stop_hook_json(self):
+        stdout = io.StringIO()
+
+        with mock.patch.object(self.module.sys, "stdout", stdout):
+            self.module._write_hook_response()
+
+        self.assertEqual(
+            json.loads(stdout.getvalue()),
+            {"continue": True, "suppressOutput": True},
+        )
+        self.assertTrue(stdout.getvalue().endswith("\n"))
+
+    def test_hook_entrypoint_emits_valid_stop_hook_json(self):
+        env = os.environ.copy()
+        env["CODEX_HOME"] = str(self.temp_path / ".codex")
+        env["PATH"] = ""
+
+        proc = subprocess.run(
+            [sys.executable, str(HOOK_MODULE_PATH), "--event", "stop"],
+            input="{}",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+            check=False,
+        )
+
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(
+            json.loads(proc.stdout),
+            {"continue": True, "suppressOutput": True},
+        )
+
+    def test_hook_entrypoint_emits_response_when_main_exits_early(self):
+        stdout = io.StringIO()
+
+        with mock.patch.object(self.module, "main", side_effect=SystemExit(7)), \
+             mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(self.module._run_entrypoint(), 7)
+
+        self.assertEqual(
+            json.loads(stdout.getvalue()),
+            {"continue": True, "suppressOutput": True},
+        )
+
 
 class PackagedHookConfigTests(unittest.TestCase):
     def test_packaged_hooks_json_uses_strict_codex_schema(self):
@@ -255,6 +304,28 @@ class LauncherTests(unittest.TestCase):
             self.assertEqual(self.module.main(), 0)
 
         self.assertEqual(calls, [(packaged_hook, "__main__", [str(packaged_hook), "--event", "stop"])])
+
+    def test_launcher_entrypoint_emits_valid_stop_hook_json(self):
+        codex_home = self.temp_path / ".codex"
+        env = os.environ.copy()
+        env["CODEX_HOME"] = str(codex_home)
+        env["PATH"] = ""
+
+        proc = subprocess.run(
+            [sys.executable, str(LAUNCH_MODULE_PATH), "--event", "stop"],
+            input="{}",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+            check=False,
+        )
+
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(
+            json.loads(proc.stdout),
+            {"continue": True, "suppressOutput": True},
+        )
 
 
 class InstallHookTests(unittest.TestCase):

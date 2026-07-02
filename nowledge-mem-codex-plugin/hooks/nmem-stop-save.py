@@ -30,6 +30,23 @@ JSON_FLAG_UNSUPPORTED_MARKERS = (
     "unknown option --json",
     "unexpected argument '--json'",
 )
+CODEX_HOOK_SUCCESS_RESPONSE = {"continue": True, "suppressOutput": True}
+
+
+def _write_hook_response() -> None:
+    json.dump(CODEX_HOOK_SUCCESS_RESPONSE, sys.stdout)
+    sys.stdout.write("\n")
+
+
+def _run_entrypoint() -> object:
+    exit_code: object = 0
+    try:
+        exit_code = main()
+    except SystemExit as exc:
+        exit_code = exc.code
+    finally:
+        _write_hook_response()
+    return exit_code
 
 
 def _read_hook_input() -> dict[str, Any]:
@@ -432,4 +449,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(_run_entrypoint())

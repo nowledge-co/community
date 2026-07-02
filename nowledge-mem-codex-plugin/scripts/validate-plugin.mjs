@@ -165,6 +165,8 @@ const hookRuntime = readTextIfPresent(path.join(pluginRoot, "hooks/nmem-stop-sav
 if (hookRuntime !== null) {
   if (!hookRuntime.includes("def _claim_capture_event")) fail("Stop hook runtime must guard duplicate hook sources");
   else ok("Stop hook duplicate guard");
+  if (!hookRuntime.includes("def _write_hook_response")) fail("Stop hook runtime must emit a Codex JSON response");
+  else ok("Stop hook JSON response");
 }
 
 const hookLauncher = readTextIfPresent(path.join(pluginRoot, "hooks/nmem-stop-launch.py"), "hooks/nmem-stop-launch.py");

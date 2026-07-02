@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Codex Stop hook capture now emits a minimal JSON hook response after saving the transcript, preventing current Codex builds from treating successful captures as invalid Stop hook output.
+
 ## [0.1.19] - 2026-06-17
 
 ### Fixed
