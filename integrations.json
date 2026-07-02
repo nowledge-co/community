@@ -229,7 +229,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.20",
+      "version": "0.1.21",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -264,9 +264,9 @@
         ]
       },
       "install": {
-        "command": "codex plugin marketplace add nowledge-co/community && codex plugin add nowledge-mem@nowledge-community",
-        "updateCommand": "(codex plugin marketplace upgrade nowledge-community || codex plugin marketplace add nowledge-co/community) && codex plugin add nowledge-mem@nowledge-community",
-        "configRequired": "After marketplace add or upgrade, install or update nowledge-mem@nowledge-community with codex plugin add nowledge-mem@nowledge-community or from Codex /plugins, then set [features] plugins = true, hooks = true, plugin_hooks = true, and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. Run the installed scripts/install_hooks.py once after the package itself is installed; it enables Stop-hook thread capture, keeps the Nowledge Mem Stop hook enabled in /hooks, and, when nmem has saved credentials, writes a managed mcp_servers.nowledge-mem override. Add your own [mcp_servers.nowledge-mem] only for a deliberate custom endpoint.",
+        "command": "codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin && codex plugin add nowledge-mem@nowledge-community",
+        "updateCommand": "(codex plugin marketplace remove nowledge-community || codex marketplace remove nowledge-community || true) && codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin && codex plugin add nowledge-mem@nowledge-community",
+        "configRequired": "After marketplace add or update, install or update nowledge-mem@nowledge-community with codex plugin add nowledge-mem@nowledge-community or from Codex /plugins, then set [features] plugins = true, hooks = true, plugin_hooks = true, and [plugins.\"nowledge-mem@nowledge-community\"] enabled = true in ~/.codex/config.toml. The marketplace command uses Codex sparse checkout so it does not clone the whole community repository. If an older full-clone marketplace gets stuck or times out, remove nowledge-community and add it again with the sparse command. Run the installed scripts/install_hooks.py once after the package itself is installed; it enables Stop-hook thread capture, keeps the Nowledge Mem Stop hook enabled in /hooks, and, when nmem has saved credentials, writes a managed mcp_servers.nowledge-mem override. Add your own [mcp_servers.nowledge-mem] only for a deliberate custom endpoint.",
         "detectionHint": "Running inside Codex desktop or Codex CLI; ~/.codex/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Codex. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",

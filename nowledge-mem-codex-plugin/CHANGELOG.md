@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.21] - 2026-07-02
+
+### Fixed
+
+- Codex marketplace setup now documents sparse checkout for `nowledge-co/community`, avoiding full-repository clone timeouts during install or update.
+
 ## [0.1.20] - 2026-07-02
 
 ### Fixed
