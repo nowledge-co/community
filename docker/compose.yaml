@@ -64,11 +64,15 @@ services:
       - ./config:/etc/nowledge-mem
       - ./cache:/var/cache/nowledge-mem
 
-    # Optional environment knobs. All env vars listed in the image have sane
-    # defaults; uncomment this block to override any. The image's full
-    # environment surface is documented in community/docker/README.md.
+    # Environment knobs. All env vars listed in the image have sane defaults;
+    # override these in `.env` or add more entries here when needed. The image's
+    # full environment surface is documented in community/docker/README.md.
+    environment:
+      # Max HTTP request body accepted by the Mem server. Large ChatGPT, Alma,
+      # and ChatWise conversation exports can exceed 512MB; raise this only if
+      # your container memory limit leaves enough headroom for large uploads.
+      NOWLEDGE_MAX_REQUEST_BODY_SIZE: ${NOWLEDGE_MAX_REQUEST_BODY_SIZE:-2048MB}
     #
-    # environment:
     #   # Restrict client source IPs permitted through the /remote-api gateway
     #   # (network-level allowlist, not CORS origins). Comma-separated CIDR
     #   # list. Leave unset for no allowlist (the gateway still requires a

@@ -328,11 +328,14 @@ services:
 
 Or front the container with a reverse proxy (Caddy in `compose.tls.yaml`,
 nginx, Traefik, …) and bind the upstream to `127.0.0.1`. The TLS overlay we
-ship already does this and sets the proxy upload ceiling to **512 MiB**, matching
-the Rust server. If you bring your own reverse proxy, configure the same order
-of request-body limit (for example nginx `client_max_body_size 512m;`) or large
-ChatGPT / Alma / ChatWise backup uploads can fail with HTTP 413 before Mem sees
-the request.
+ship already does this and sets the proxy upload ceiling from
+`NOWLEDGE_MAX_REQUEST_BODY_SIZE` (default **2048MB**), matching the Rust server.
+If you bring your own reverse proxy, configure the same or higher request-body
+limit (for example nginx `client_max_body_size 2048m;`, or the Traefik
+equivalent) or large ChatGPT / Alma / ChatWise backup uploads can fail with HTTP
+413 before Mem sees the request. If the Mem app log itself records 413, raise
+`NOWLEDGE_MAX_REQUEST_BODY_SIZE` and make sure the container memory limit leaves
+enough headroom for that upload.
 
 ---
 

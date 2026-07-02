@@ -36,6 +36,7 @@ services:
     environment:
       NOWLEDGE_DOMAIN: ${NOWLEDGE_DOMAIN:?set NOWLEDGE_DOMAIN to your fully qualified hostname}
       NOWLEDGE_LE_EMAIL: ${NOWLEDGE_LE_EMAIL:?set NOWLEDGE_LE_EMAIL for Let's Encrypt account}
+      NOWLEDGE_MAX_REQUEST_BODY_SIZE: ${NOWLEDGE_MAX_REQUEST_BODY_SIZE:-2048MB}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # Caddy's TLS account + cert + config live next to the compose file.
