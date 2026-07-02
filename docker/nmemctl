@@ -332,7 +332,7 @@ cmd_up() {
   step "Access Anywhere API key"
   local key
   key="$(read_key)"
-  [[ -n "$key" ]] || fail "could not retrieve API key (\`nmem key\` returned empty)."
+  [[ -n "$key" ]] || fail "could not retrieve API key (remote-access reveal/rotate returned empty)."
   note "$key"
   note "stored at /etc/nowledge-mem/co.nowledge.mem.desktop/remote-access.json (mode 0600)"
   note "rotate with:  ./nmemctl key --rotate"

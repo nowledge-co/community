@@ -28,6 +28,13 @@
 {$NOWLEDGE_DOMAIN} {
 	encode zstd gzip
 
+	# Match the Rust server's 512 MiB request-body ceiling so large ChatGPT,
+	# Claude, Alma, and ChatWise export uploads are rejected consistently by Mem
+	# instead of failing early at the TLS reverse proxy with HTTP 413.
+	request_body {
+		max_size 512MB
+	}
+
 	# Per-request HTTP access logs in JSON to the caddy container's stdout.
 	# Pair with `docker compose logs -f caddy` (or your log aggregator).
 	log {

@@ -135,7 +135,7 @@ certificate for you.
 ```bash
 docker compose up -d
 docker compose logs -f mem                                    # wait for "Application startup complete"
-docker compose exec -T mem nmem key                           # show the API key
+./nmemctl key                                                 # show the API key
 docker compose exec -T mem nmem license status                # license tier
 docker compose exec -T mem nmem license activate <CODE>       # optional
 
@@ -278,10 +278,10 @@ This file is generated on first start. Backing up `./config` backs up the key.
 
 ```bash
 # Show the current key
-./nmemctl key                             # or: docker compose exec -T mem nmem key
+./nmemctl key
 
 # Rotate (invalidates the old value immediately; re-paste in clients)
-./nmemctl key --rotate                    # or: docker compose exec -T mem nmem key --rotate
+./nmemctl key --rotate
 
 # Pre-seed a known key (useful for fleets managed by a secret manager).
 # Write the file before first `./nmemctl up`:
@@ -328,7 +328,11 @@ services:
 
 Or front the container with a reverse proxy (Caddy in `compose.tls.yaml`,
 nginx, Traefik, …) and bind the upstream to `127.0.0.1`. The TLS overlay we
-ship already does this.
+ship already does this and sets the proxy upload ceiling to **512 MiB**, matching
+the Rust server. If you bring your own reverse proxy, configure the same order
+of request-body limit (for example nginx `client_max_body_size 512m;`) or large
+ChatGPT / Alma / ChatWise backup uploads can fail with HTTP 413 before Mem sees
+the request.
 
 ---
 
