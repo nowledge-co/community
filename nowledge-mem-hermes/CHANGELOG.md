@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.19] - 2026-07-02
+
+### Fixed
+
+- Windows Hermes runs no longer flash a console window for each `nmem` CLI call when Hermes is launched through `pythonw.exe`. The provider now hides the child console for Windows subprocesses while keeping macOS and Linux behavior unchanged.
+
 ## [0.5.18] - 2026-06-18
 
 ### Changed
