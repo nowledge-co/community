@@ -5,6 +5,12 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.15] - 2026-07-02
+
+### Fixed
+
+- Windows lifecycle hooks now hide the child console window when running `nmem`, so Claude Code and Grok Build session capture no longer flashes a `cmd.exe` window during Stop or PreCompact.
+
 ## [0.7.14] - 2026-07-01
 
 ### Fixed

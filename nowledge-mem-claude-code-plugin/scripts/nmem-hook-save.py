@@ -36,6 +36,12 @@ JSON_FLAG_UNSUPPORTED_MARKERS = (
 )
 
 
+def _windows_no_window_kwargs() -> dict[str, int]:
+    if sys.platform != "win32":
+        return {}
+    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+
+
 def _read_hook_input() -> dict[str, Any]:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -216,6 +222,7 @@ def _run_command(command: list[str], timeout: float) -> subprocess.CompletedProc
         stderr=subprocess.PIPE,
         text=True,
         timeout=timeout,
+        **_windows_no_window_kwargs(),
     )
 
 

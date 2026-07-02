@@ -1,7 +1,7 @@
 {
   "name": "nowledge-mem",
   "description": "Personal knowledge graph for GitHub Copilot CLI — remembers decisions, searches past work, captures sessions",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",

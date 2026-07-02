@@ -5,6 +5,12 @@ All notable changes to the Nowledge Mem Copilot CLI plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-07-02
+
+### Fixed
+
+- Windows capture hooks now hide the child console window when running `nmem`, so Copilot CLI session saves do not flash `cmd.exe` windows.
+
 ## [0.1.3] - 2026-06-06
 
 ### Improved

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.22] - 2026-07-02
+
+### Fixed
+
+- Windows Stop hook capture now hides the child console window when running `nmem`, avoiding visible `cmd.exe` flashes while Codex saves the session.
+
 ## [0.1.21] - 2026-07-02
 
 ### Fixed

@@ -1,7 +1,7 @@
 {
   "name": "nowledge-mem",
   "description": "Personal knowledge graph for Proma — saves Proma conversations, writes startup context into CLAUDE.md, and keeps nmem tools available during work",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",

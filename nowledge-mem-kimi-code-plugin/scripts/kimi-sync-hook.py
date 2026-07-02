@@ -22,6 +22,12 @@ DEFAULT_TIMEOUT_SECONDS = 35
 DEFAULT_RETRIES = 2
 
 
+def _windows_no_window_kwargs() -> dict[str, int]:
+    if sys.platform != "win32":
+        return {}
+    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+
+
 def _kimi_home() -> Path:
     raw = os.environ.get("KIMI_CODE_HOME")
     if raw and raw.strip():
@@ -81,6 +87,7 @@ def _run_sync(session_id: str) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         timeout=_positive_int_env("NMEM_KIMI_SYNC_TIMEOUT", DEFAULT_TIMEOUT_SECONDS),
         check=False,
+        **_windows_no_window_kwargs(),
     )
 
 

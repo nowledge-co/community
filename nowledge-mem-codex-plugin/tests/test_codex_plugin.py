@@ -132,6 +132,34 @@ class HookTests(unittest.TestCase):
         self.assertEqual(proc.stdout, '{"results":[{"action":"created"}]}')
         self.assertEqual(run.call_count, 2)
 
+    def test_run_save_hides_child_console_on_windows(self):
+        with mock.patch.object(self.module, "_build_save_command", return_value=["nmem.cmd", "--version"]), \
+             mock.patch.object(self.module, "_build_env", return_value={}), \
+             mock.patch.object(self.module.sys, "platform", "win32"), \
+             mock.patch.object(self.module.subprocess, "run") as run:
+            run.return_value = mock.Mock(returncode=0, stdout='{"results":[]}', stderr="")
+            self.module._run_save(
+                "nmem.cmd",
+                {},
+                include_session_id=True,
+            )
+
+        self.assertEqual(run.call_args.kwargs["creationflags"], 0x08000000)
+
+    def test_run_save_does_not_pass_windows_creationflags_on_posix(self):
+        with mock.patch.object(self.module, "_build_save_command", return_value=["nmem", "--version"]), \
+             mock.patch.object(self.module, "_build_env", return_value={}), \
+             mock.patch.object(self.module.sys, "platform", "linux"), \
+             mock.patch.object(self.module.subprocess, "run") as run:
+            run.return_value = mock.Mock(returncode=0, stdout='{"results":[]}', stderr="")
+            self.module._run_save(
+                "nmem",
+                {},
+                include_session_id=True,
+            )
+
+        self.assertNotIn("creationflags", run.call_args.kwargs)
+
     def test_run_save_falls_back_for_legacy_nmem_without_json_support(self):
         calls = [
             mock.Mock(returncode=2, stdout="", stderr="No such option: --json"),

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Hide the child console window when Kimi Code lifecycle hooks run `nmem` on Windows.
+
 ## 0.1.0
 
 - Add the first Kimi Code package with Kimi-native plugin metadata, a session-start skill, and a local Nowledge Mem MCP declaration.
