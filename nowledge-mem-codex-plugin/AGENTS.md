@@ -104,6 +104,10 @@ nmem --json t search "query" --limit 5
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
+## Skills
+
+Nowledge Mem can hold managed skills: proven procedures for the user's recurring, multi-step work. Once connected (`nmem skills connect --host codex`), they load as native Codex skills, so use them like any other skill when one fits. If MCP is available, `find_skills` finds a matching skill on demand for a recurring or procedural task; after using one, report how it went with `report_skill_outcome` (or `nmem skills outcome <id>`). Best-effort: don't force a skill onto a task it doesn't fit, and don't check for every question.
+
 ## Distill
 
 Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Don't wait to be asked.

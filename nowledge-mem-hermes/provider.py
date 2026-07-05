@@ -56,7 +56,13 @@ one is created. Use this when you have a natural key (for example a topic or \
 decision name) instead of the search-then-update dance.
 
 Without an id, search first (nmem_search); if existing knowledge covers the \
-topic, use nmem_update rather than create a duplicate."""
+topic, use nmem_update rather than create a duplicate.
+
+**Managed skills:** Nowledge Mem can also hold proven procedures for the \
+user's recurring, multi-step work. When the Nowledge Mem MCP is connected, \
+check find_skills before a recurring or procedural task; if one matches, \
+follow its SKILL.md, then call report_skill_outcome afterward. Best-effort, \
+not for every question."""
 
 _SEARCH = {
     "name": "nmem_search",

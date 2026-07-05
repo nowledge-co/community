@@ -202,3 +202,14 @@ Thread save capabilities depend on the runtime:
 - **Real thread save**: use `nmem t save --from <runtime>` when the CLI has a built-in parser for the runtime (claude-code, codex, gemini-cli) or when the plugin implements its own session capture (OpenClaw, Alma, Bub).
 - **Handoff save**: use `nmem --json t create -t "Session Handoff - <topic>" -c "Goal: ... Decisions: ... Files: ... Risks: ... Next: ..." -s generic-agent` in generic environments where no real transcript importer exists.
 - **Never fake it**: do not claim `save-thread` performs a real transcript import when the runtime does not support one. Users will believe later retrieval reflects the actual full session.
+
+---
+
+## 8. Managed Skills
+
+Nowledge Mem can also hold *managed skills*: compiled, proven procedures for the recurring, multi-step work this user does. They are optional and best-effort. Never force one onto a task it does not fit, and never claim a skill ran when it did not.
+
+- **Native-skill hosts** (for example Claude Code, Codex): the user connects skills once with `nmem skills connect --host <host>` (or the desktop Connections view), and the host then loads them as its own skills automatically. Nothing to call at runtime; `nmem skills hosts` shows what is connected.
+- **MCP or CLI hosts** (no native skills directory): before a recurring or procedural task, check for a matching skill — `find_skills` (MCP) or `nmem skills match "<task>"` (CLI) — and if one matches, read and follow its SKILL.md (`mem_fs cat /skills/<name>/SKILL.md` or `nmem skills show <id>`). Afterward report how it went with `report_skill_outcome` (MCP) or `nmem skills outcome <id>` (CLI) so it improves.
+
+Do this for recurring, procedural work, not for every question.
