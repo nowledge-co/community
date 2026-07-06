@@ -71,6 +71,20 @@ The Working Memory briefing contains:
 4. **Don't overwhelm** — share only the parts relevant to what the user is working on
 5. **Cross-tool continuity** — insights saved in other tools (Cursor, Claude Code, Grok Build, Codex) appear here
 
+## Managed Skills
+
+Nowledge Mem can hold managed skills: proven procedures for recurring, multi-step work. If the task is procedural and the Nowledge Mem MCP server exposes `find_skills`, check for a matching skill before starting. If one matches, read and follow its `SKILL.md`, then report the outcome with `report_skill_outcome` when the task is done.
+
+If MCP is unavailable but `nmem` is present, use:
+
+```bash
+nmem skills match "<task>"
+nmem skills show <skill_id>
+nmem skills outcome <skill_id> --version <version> --outcome completed
+```
+
+Do this for recurring or procedural work, not for every question.
+
 ## Troubleshooting
 
 If `nmem` is not in PATH: `pip install nmem-cli`, `pipx install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`

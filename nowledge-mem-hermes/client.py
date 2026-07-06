@@ -388,6 +388,50 @@ class NowledgeMemClient:
             payload["space_id"] = self._space
         return self._api_post(path, payload)
 
+    def report_skill_outcome(
+        self,
+        skill_id: str,
+        version: str,
+        *,
+        outcome: str = "completed",
+    ) -> bool:
+        """Best-effort managed-skill outcome report.
+
+        This uses the CLI without `--json` because the command is a side-effect
+        report and older clients may only expose human-readable output here.
+        """
+        exe = _resolve_nmem()
+        if exe is None:
+            return False
+        cmd = [
+            exe,
+            "skills",
+            "outcome",
+            skill_id,
+            "--version",
+            version,
+            "--outcome",
+            outcome,
+        ]
+        env = os.environ.copy()
+        try:
+            result = _run_nmem(cmd, timeout=min(float(self._timeout), 8.0), env=env)
+        except Exception:
+            logger.debug(
+                "Failed to report Nowledge Mem skill outcome",
+                exc_info=True,
+                extra={"skill_id": skill_id, "version": version},
+            )
+            return False
+        if result.returncode != 0:
+            logger.debug(
+                "nmem skills outcome exited %s: %s",
+                result.returncode,
+                (result.stderr or result.stdout or "").strip()[:300],
+            )
+            return False
+        return True
+
     def _cli(self, args: List[str]) -> Any:
         """Run ``nmem --json <args>`` and return parsed JSON."""
         exe = _resolve_nmem()

@@ -33,6 +33,7 @@ except ImportError:
     _registry_tool_result = None
 
 from .client import NowledgeMemClient
+from .skill_outcome import extract_skill_outcomes
 
 logger = logging.getLogger(__name__)
 
@@ -245,6 +246,7 @@ class NowledgeMemProvider(MemoryProvider):
         self._saved_message_counts: Dict[str, int] = {}
         self._delta_only_sessions: Set[str] = set()
         self._written_message_signatures: Dict[str, List[str]] = {}
+        self._reported_skill_outcomes: Set[tuple[str, str]] = set()
         self._agent_identity = ""
 
     @property
@@ -394,6 +396,7 @@ class NowledgeMemProvider(MemoryProvider):
             cleaned_messages = self._clean_session_messages(messages)
             if cleaned_messages:
                 self._sync_cleaned_messages(cleaned_messages, title_messages=cleaned_messages)
+                self._report_skill_outcomes(messages)
                 return
 
         cleaned_messages = self._clean_session_messages(
@@ -403,6 +406,8 @@ class NowledgeMemProvider(MemoryProvider):
             ]
         )
         self._write_thread_messages(cleaned_messages, title_messages=cleaned_messages)
+        if messages:
+            self._report_skill_outcomes(messages)
 
     def on_session_switch(
         self,
@@ -470,6 +475,17 @@ class NowledgeMemProvider(MemoryProvider):
             return
 
         self._sync_cleaned_messages(cleaned_messages, title_messages=cleaned_messages)
+        self._report_skill_outcomes(messages)
+
+    def _report_skill_outcomes(self, messages: List[Dict[str, Any]]) -> None:
+        if not self._client or not messages:
+            return
+        for skill_id, version in extract_skill_outcomes(messages):
+            key = (skill_id, version)
+            if key in self._reported_skill_outcomes:
+                continue
+            if self._client.report_skill_outcome(skill_id, version):
+                self._reported_skill_outcomes.add(key)
 
     def _sync_cleaned_messages(
         self,
@@ -725,6 +741,7 @@ class NowledgeMemProvider(MemoryProvider):
         self._saved_message_counts.clear()
         self._delta_only_sessions.clear()
         self._written_message_signatures.clear()
+        self._reported_skill_outcomes.clear()
 
     @staticmethod
     def _parse_csv(value: Any) -> Optional[List[str]]:

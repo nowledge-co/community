@@ -51,6 +51,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 
 - Context Bundle loaded at every session start, resume, and clear when available, with Working Memory fallback
 - Per-turn behavioral nudge with memory search, thread search, and save syntax
+- Per-turn managed-skills nudge for recurring procedural work (`find_skills` / `nmem skills match`)
 - Session conversations captured to your knowledge graph on each response
 - Session conversations captured again before context compaction
 - Context recovered after compaction events

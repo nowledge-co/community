@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -27,6 +28,7 @@ from typing import Any
 # short early delays let a later attempt succeed once the server is up).
 TOTAL_BUDGET_SECONDS = 30.0
 PER_ATTEMPT_TIMEOUT_SECONDS = 20
+SKILL_OUTCOME_TIMEOUT_SECONDS = 8
 SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5, 3.0)
 JSON_FLAG_UNSUPPORTED_MARKERS = (
     "no such option: --json",
@@ -34,6 +36,16 @@ JSON_FLAG_UNSUPPORTED_MARKERS = (
     "unknown option --json",
     "unexpected argument '--json'",
 )
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+
+try:
+    from skill_outcome import build_outcome_args, extract_skill_outcomes_from_file
+except Exception:  # pragma: no cover - defensive for partial installs
+    build_outcome_args = None
+    extract_skill_outcomes_from_file = None
 
 
 def _windows_no_window_kwargs() -> dict[str, int]:
@@ -226,6 +238,115 @@ def _run_command(command: list[str], timeout: float) -> subprocess.CompletedProc
     )
 
 
+def _transcript_fingerprint(transcript_path: str | None) -> dict[str, Any]:
+    if not transcript_path:
+        return {"path": "", "exists": False}
+    path = Path(transcript_path).expanduser()
+    try:
+        stat_result = path.stat()
+    except OSError:
+        return {"path": str(path), "exists": False}
+    return {
+        "path": str(path),
+        "exists": True,
+        "size": stat_result.st_size,
+        "mtime_ns": stat_result.st_mtime_ns,
+    }
+
+
+def _skill_outcome_state_root() -> Path:
+    plugin_data = os.environ.get("CLAUDE_PLUGIN_DATA") or os.environ.get("GROK_PLUGIN_DATA")
+    if plugin_data:
+        return Path(plugin_data).expanduser() / "skill-outcomes"
+    cache_home = os.environ.get("XDG_CACHE_HOME")
+    cache_root = Path(cache_home).expanduser() if cache_home else Path.home() / ".cache"
+    return cache_root / "nowledge-mem" / "hook-skill-outcomes"
+
+
+def _skill_outcome_lock_path(
+    payload: dict[str, Any],
+    skill_id: str,
+    version: str,
+) -> Path:
+    transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
+    basis = {
+        "host": _host_runtime(),
+        "session_id": _payload_value(payload, "session_id", "sessionId")
+        or os.environ.get("GROK_SESSION_ID", "").strip(),
+        "transcript": _transcript_fingerprint(transcript_path),
+        "skill_id": skill_id,
+        "version": version,
+    }
+    encoded = json.dumps(basis, sort_keys=True, separators=(",", ":"))
+    key = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    return _skill_outcome_state_root() / f"{key}.reported"
+
+
+def _claim_skill_outcome_report(
+    payload: dict[str, Any],
+    skill_id: str,
+    version: str,
+) -> Path | None:
+    lock_path = _skill_outcome_lock_path(payload, skill_id, version)
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        return None
+    except OSError:
+        return lock_path
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(str(time.time()))
+        handle.write("\n")
+    return lock_path
+
+
+def _release_skill_outcome_claim(lock_path: Path | None) -> None:
+    if lock_path is None:
+        return
+    try:
+        lock_path.unlink()
+    except OSError:
+        pass
+
+
+def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
+    if extract_skill_outcomes_from_file is None or build_outcome_args is None:
+        return
+    transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
+    outcomes = extract_skill_outcomes_from_file(transcript_path)
+    for skill_id, version in outcomes:
+        lock_path = _claim_skill_outcome_report(payload, skill_id, version)
+        if lock_path is None:
+            continue
+        command = _build_nmem_command(nmem, *build_outcome_args(skill_id, version))
+        try:
+            proc = _run_command(command, SKILL_OUTCOME_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            _release_skill_outcome_claim(lock_path)
+            print(
+                f"nowledge-mem: skill outcome report timed out for {skill_id}@{version}",
+                file=sys.stderr,
+            )
+            continue
+        except Exception as exc:
+            _release_skill_outcome_claim(lock_path)
+            print(
+                f"nowledge-mem: skill outcome report failed for {skill_id}@{version}: {exc}",
+                file=sys.stderr,
+            )
+            continue
+        if proc.returncode == 0:
+            continue
+        _release_skill_outcome_claim(lock_path)
+        message = (proc.stderr or proc.stdout or "").strip()
+        if message:
+            print(
+                f"nowledge-mem: skill outcome report skipped for {skill_id}@{version}: {message}",
+                file=sys.stderr,
+            )
+
+
 def _run_capture_with_retries(
     command: list[str],
     legacy_command: list[str] | None = None,
@@ -334,6 +455,8 @@ def main() -> int:
             file=sys.stderr,
         )
         return 0
+
+    _report_skill_outcomes(nmem, payload)
 
     if args.event == "pre-compact":
         print(

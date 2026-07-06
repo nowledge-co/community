@@ -291,13 +291,16 @@ def test_key_plugin_static_contracts_are_declared():
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     claude_save_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.15"
+    assert claude_manifest["version"] == "0.7.16"
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
     assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
+    assert "find_skills" in json.dumps(claude_hooks)
     assert "CREATE_NO_WINDOW" in claude_save_hook
+    assert "extract_skill_outcomes_from_file" in claude_save_hook
     assert "wm read" not in json.dumps(claude_hooks)
     assert (CLAUDE_PLUGIN / "scripts" / "nmem-hook-read.sh").exists()
+    assert (CLAUDE_PLUGIN / "scripts" / "skill_outcome.py").exists()
     assert (CLAUDE_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
 
     codex_manifest = _read_json(CODEX_PLUGIN / ".codex-plugin" / "plugin.json")
@@ -305,7 +308,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_hooks = _read_json(CODEX_PLUGIN / "hooks" / "hooks.json")["hooks"]
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.22"
+    assert codex_manifest["version"] == "0.1.23"
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
@@ -315,6 +318,8 @@ def test_key_plugin_static_contracts_are_declared():
     codex_launcher = (CODEX_PLUGIN / "hooks" / "nmem-stop-launch.py").read_text(encoding="utf-8")
     assert "nowledge-mem-stop-save.py" in codex_launcher
     assert "nmem-stop-save.py" in codex_launcher
+    assert "extract_skill_outcomes_from_file" in codex_save_hook
+    assert (CODEX_PLUGIN / "hooks" / "skill_outcome.py").exists()
     codex_stop_commands = [
         hook.get("command", "")
         for entry in codex_hooks.get("Stop", [])
@@ -386,6 +391,7 @@ def test_key_plugin_static_contracts_are_declared():
 
     hermes_manifest = (HERMES_PLUGIN / "plugin.yaml").read_text(encoding="utf-8")
     assert "name: nowledge-mem" in hermes_manifest
+    assert "version: 0.5.20" in hermes_manifest
     for hook in (
         "prefetch",
         "post_llm_call",
@@ -396,6 +402,7 @@ def test_key_plugin_static_contracts_are_declared():
         assert f"  - {hook}" in hermes_manifest
     assert (HERMES_PLUGIN / "provider.py").exists()
     assert (HERMES_PLUGIN / "client.py").exists()
+    assert (HERMES_PLUGIN / "skill_outcome.py").exists()
 
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")

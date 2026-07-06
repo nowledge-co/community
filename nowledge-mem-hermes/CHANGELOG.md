@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.20] - 2026-07-06
+
+### Added
+
+- Hermes transcript sync now scans structured conversation history for Nowledge Mem `find_skills` results and best-effort reports `completed` outcomes through `nmem skills outcome`. Reports are deduplicated per live provider session.
+
 ## [0.5.19] - 2026-07-02
 
 ### Fixed

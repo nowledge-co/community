@@ -180,6 +180,83 @@ class HookTests(unittest.TestCase):
         self.assertTrue(run.call_args_list[0].kwargs["json_output"])
         self.assertFalse(run.call_args_list[1].kwargs["json_output"])
 
+    def test_extract_skill_outcomes_from_mcp_tool_call_end(self):
+        transcript = self.temp_path / "codex-transcript.jsonl"
+        transcript.write_text(
+            json.dumps(
+                {
+                    "type": "mcp_tool_call_end",
+                    "server": "nowledge-mem",
+                    "tool": "find_skills",
+                    "result": {
+                        "matches": [
+                            {
+                                "skill_id": "skill-alpha",
+                                "version": 3,
+                                "name": "Alpha",
+                            }
+                        ]
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(
+            self.module.extract_skill_outcomes_from_file(str(transcript)),
+            [("skill-alpha", "3")],
+        )
+
+    def test_report_skill_outcomes_runs_once_per_transcript_skill_version(self):
+        transcript = self.temp_path / "codex-transcript.jsonl"
+        transcript.write_text(
+            json.dumps(
+                {
+                    "type": "mcp_tool_call_end",
+                    "server": "nowledge-mem",
+                    "tool": "find_skills",
+                    "result": {
+                        "matches": [
+                            {
+                                "skill_id": "skill-alpha",
+                                "version": "3",
+                                "name": "Alpha",
+                            }
+                        ]
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        payload = {
+            "session_id": "019abc",
+            "cwd": str(self.temp_path),
+            "transcript_path": str(transcript),
+        }
+        proc = mock.Mock(returncode=0, stdout="", stderr="")
+
+        with mock.patch.object(self.module.subprocess, "run", return_value=proc) as run:
+            self.module._report_skill_outcomes("/usr/local/bin/nmem", payload)
+            self.module._report_skill_outcomes("/usr/local/bin/nmem", payload)
+
+        self.assertEqual(run.call_count, 1)
+        command = run.call_args.args[0]
+        self.assertEqual(
+            command,
+            [
+                "/usr/local/bin/nmem",
+                "skills",
+                "outcome",
+                "skill-alpha",
+                "--version",
+                "3",
+                "--outcome",
+                "completed",
+            ],
+        )
+
     def test_derive_codex_home_from_transcript_path(self):
         transcript = self.temp_path / "sessions" / "2026" / "05" / "02" / "rollout-abc.jsonl"
         transcript.parent.mkdir(parents=True)

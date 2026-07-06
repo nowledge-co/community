@@ -67,6 +67,7 @@ class FakeClient:
     def __init__(self):
         self.import_calls = []
         self.append_calls = []
+        self.skill_outcome_calls = []
         self.fail_import = False
         self.fail_append = False
 
@@ -88,6 +89,12 @@ class FakeClient:
             raise RuntimeError("append failed")
         self.append_calls.append({"thread_id": thread_id, "messages": messages})
         return {"success": True, "thread_id": thread_id}
+
+    def report_skill_outcome(self, skill_id, version, *, outcome="completed"):
+        self.skill_outcome_calls.append(
+            {"skill_id": skill_id, "version": version, "outcome": outcome}
+        )
+        return True
 
 
 class HookOnlyContext:
@@ -250,6 +257,57 @@ def test_sync_turn_accepts_hermes_messages_payload_and_appends_transcript_delta(
                 {"role": "assistant", "content": "done"},
             ],
         }
+    ]
+
+
+def test_sync_turn_reports_managed_skill_outcome_from_messages_once():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-skills"
+    instance._saved_message_count = 0
+
+    messages = [
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "call-1",
+                    "name": "mcp__nowledge-mem__find_skills",
+                    "input": {"query": "polish UI"},
+                }
+            ],
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": "call-1",
+                    "content": '{"skills":[{"id":"skill-hermes","version":2,"name":"Hermes"}]}',
+                }
+            ],
+        },
+        {"role": "user", "content": "question"},
+        {"role": "assistant", "content": "answer"},
+    ]
+
+    instance.sync_turn(
+        "question",
+        "answer",
+        session_id="session-skills",
+        messages=messages,
+    )
+    instance.sync_turn(
+        "next",
+        "done",
+        session_id="session-skills",
+        messages=[*messages, {"role": "user", "content": "next"}, {"role": "assistant", "content": "done"}],
+    )
+
+    assert instance._client.skill_outcome_calls == [
+        {"skill_id": "skill-hermes", "version": "2", "outcome": "completed"}
     ]
 
 

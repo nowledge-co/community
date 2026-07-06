@@ -284,3 +284,101 @@ def test_run_capture_falls_back_for_legacy_nmem_without_json_support():
     assert stderr == ""
     assert run.call_count == 2
     assert "--json" not in run.call_args_list[1].args[0]
+
+
+def test_extract_skill_outcomes_from_claude_tool_use_pair(tmp_path):
+    transcript = tmp_path / "claude-transcript.jsonl"
+    transcript.write_text(
+        "\n".join(
+            [
+                json_line(
+                    {
+                        "message": {
+                            "content": [
+                                {
+                                    "type": "tool_use",
+                                    "id": "toolu_1",
+                                    "name": "mcp__nowledge-mem__find_skills",
+                                    "input": {"query": "optimize UI"},
+                                }
+                            ]
+                        }
+                    }
+                ),
+                json_line(
+                    {
+                        "message": {
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": "toolu_1",
+                                    "content": json_line(
+                                        {
+                                            "skills": [
+                                                {
+                                                    "id": "skill-bravo",
+                                                    "version": 7,
+                                                    "name": "Bravo",
+                                                }
+                                            ]
+                                        }
+                                    ),
+                                }
+                            ]
+                        }
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert nmem_hook_save.extract_skill_outcomes_from_file(str(transcript)) == [
+        ("skill-bravo", "7")
+    ]
+
+
+def test_report_skill_outcomes_runs_once_per_transcript_skill_version(tmp_path):
+    transcript = tmp_path / "claude-transcript.jsonl"
+    transcript.write_text(
+        json_line(
+            {
+                "type": "mcp_tool_call_end",
+                "server": "nowledge-mem",
+                "tool": "find_skills",
+                "result": {
+                    "matches": [
+                        {"skill_id": "skill-bravo", "version": "7", "name": "Bravo"}
+                    ]
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    payload = {"session_id": "claude-session", "transcript_path": str(transcript)}
+    proc = CompletedProcess(["nmem"], 0, stdout="", stderr="")
+
+    with patch.dict(os.environ, {"XDG_CACHE_HOME": str(tmp_path / "cache")}), \
+        patch.object(nmem_hook_save, "_run_command", return_value=proc) as run:
+        nmem_hook_save._report_skill_outcomes("/usr/local/bin/nmem", payload)
+        nmem_hook_save._report_skill_outcomes("/usr/local/bin/nmem", payload)
+
+    assert run.call_count == 1
+    assert run.call_args.args[0] == [
+        "/usr/local/bin/nmem",
+        "skills",
+        "outcome",
+        "skill-bravo",
+        "--version",
+        "7",
+        "--outcome",
+        "completed",
+    ]
+
+
+def json_line(value):
+    import json
+
+    return json.dumps(value, separators=(",", ":"))

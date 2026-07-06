@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.23] - 2026-07-06
+
+### Added
+
+- Codex Stop hook capture now scans the saved transcript for structured Nowledge Mem `find_skills` results and best-effort reports `completed` outcomes with `nmem skills outcome`. Reports are deduplicated per transcript/skill/version so repeated Stop hooks do not over-count the same skill use.
+
 ## [0.1.22] - 2026-07-02
 
 ### Fixed

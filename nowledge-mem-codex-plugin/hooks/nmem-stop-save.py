@@ -19,6 +19,7 @@ from typing import Any
 ATTEMPT_TIMEOUT_SECONDS = 8
 SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5, 3.0)
 CAPTURE_LOCK_STALE_SECONDS = 90
+SKILL_OUTCOME_TIMEOUT_SECONDS = 8
 SESSION_NOT_FOUND_MARKERS = (
     "No codex sessions found",
     "Codex sessions directory not found",
@@ -31,6 +32,16 @@ JSON_FLAG_UNSUPPORTED_MARKERS = (
     "unexpected argument '--json'",
 )
 CODEX_HOOK_SUCCESS_RESPONSE = {"continue": True, "suppressOutput": True}
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+
+try:
+    from skill_outcome import build_outcome_args, extract_skill_outcomes_from_file
+except Exception:  # pragma: no cover - defensive for partial installs
+    build_outcome_args = None
+    extract_skill_outcomes_from_file = None
 
 
 def _windows_no_window_kwargs() -> dict[str, int]:
@@ -326,6 +337,104 @@ def _run_save(
     )
 
 
+def _skill_outcome_lock_root(payload: dict[str, Any]) -> Path:
+    return _capture_lock_root(payload) / "skill-outcomes"
+
+
+def _skill_outcome_lock_path(
+    payload: dict[str, Any],
+    skill_id: str,
+    version: str,
+) -> Path:
+    basis = {
+        "host": "codex",
+        "session_id": _payload_value(payload, "session_id", "sessionId") or "",
+        "transcript": _transcript_fingerprint(
+            _payload_value(payload, "transcript_path", "transcriptPath")
+        ),
+        "skill_id": skill_id,
+        "version": version,
+    }
+    encoded = json.dumps(basis, sort_keys=True, separators=(",", ":"))
+    key = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    return _skill_outcome_lock_root(payload) / f"{key}.reported"
+
+
+def _claim_skill_outcome_report(
+    payload: dict[str, Any],
+    skill_id: str,
+    version: str,
+) -> Path | None:
+    lock_path = _skill_outcome_lock_path(payload, skill_id, version)
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        return None
+    except OSError as exc:
+        _log(f"skill-outcome: lock unavailable ({exc}); reporting without guard")
+        return lock_path
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(str(time.time()))
+        handle.write("\n")
+    return lock_path
+
+
+def _release_skill_outcome_claim(lock_path: Path | None) -> None:
+    if lock_path is None:
+        return
+    try:
+        lock_path.unlink()
+    except OSError:
+        pass
+
+
+def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
+    if extract_skill_outcomes_from_file is None or build_outcome_args is None:
+        _log("skill-outcome: extractor unavailable")
+        return
+    transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
+    outcomes = extract_skill_outcomes_from_file(transcript_path)
+    if not outcomes:
+        return
+
+    env = _build_env(payload)
+    for skill_id, version in outcomes:
+        lock_path = _claim_skill_outcome_report(payload, skill_id, version)
+        if lock_path is None:
+            continue
+        command = _build_nmem_command(nmem, *build_outcome_args(skill_id, version))
+        try:
+            proc = subprocess.run(
+                command,
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=SKILL_OUTCOME_TIMEOUT_SECONDS,
+                check=False,
+                **_windows_no_window_kwargs(),
+            )
+        except subprocess.TimeoutExpired:
+            _release_skill_outcome_claim(lock_path)
+            _log(f"skill-outcome: timed out reporting {skill_id}@{version}")
+            continue
+        except Exception as exc:
+            _release_skill_outcome_claim(lock_path)
+            _log(f"skill-outcome: failed reporting {skill_id}@{version}: {exc}")
+            continue
+
+        if proc.returncode == 0:
+            _log(f"skill-outcome: reported {skill_id}@{version}")
+        else:
+            _release_skill_outcome_claim(lock_path)
+            detail = (proc.stderr or proc.stdout or "").strip()
+            _log(
+                f"skill-outcome: nmem exited {proc.returncode} for "
+                f"{skill_id}@{version}: {detail[:300]}"
+            )
+
+
 def _json_flag_unsupported(proc: subprocess.CompletedProcess[str]) -> bool:
     text = f"{proc.stdout}\n{proc.stderr}".lower()
     return any(marker in text for marker in JSON_FLAG_UNSUPPORTED_MARKERS)
@@ -445,6 +554,8 @@ def main() -> int:
 
     if proc.returncode == 0 and not captured:
         _log("skip: no flushed transcript found")
+    if captured:
+        _report_skill_outcomes(nmem, payload)
 
     _log(f"nmem_exit={proc.returncode}")
     if proc.stdout.strip():
