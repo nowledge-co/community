@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Declare the bundled Nowledge Mem MCP connection as Streamable HTTP so Kimi Code uses the intended local transport consistently.
+
 ## 0.1.1
 
 - Hide the child console window when Kimi Code lifecycle hooks run `nmem` on Windows.

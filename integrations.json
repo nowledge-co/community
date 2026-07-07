@@ -946,7 +946,7 @@
       "name": "Kimi Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-kimi-code-plugin",
       "transport": "mcp+skills+hook",
       "capabilities": {

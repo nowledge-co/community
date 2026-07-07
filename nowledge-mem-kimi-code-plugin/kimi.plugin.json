@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cross-tool memory for Kimi Code. Recall past decisions, search prior threads, and keep Kimi Code sessions searchable in Nowledge Mem.",
   "keywords": ["memory", "mcp", "skills", "thread-sync"],
   "author": {
@@ -16,6 +16,7 @@
   "mcpServers": {
     "nowledge-mem": {
       "url": "http://127.0.0.1:14242/mcp/",
+      "type": "streamableHttp",
       "enabled": true
     }
   },
