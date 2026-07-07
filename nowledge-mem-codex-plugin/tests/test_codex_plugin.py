@@ -208,6 +208,35 @@ class HookTests(unittest.TestCase):
             [("skill-alpha", "3")],
         )
 
+    def test_extract_skill_outcomes_defaults_missing_version_to_v1(self):
+        transcript = self.temp_path / "codex-transcript-v1.jsonl"
+        transcript.write_text(
+            json.dumps(
+                {
+                    "type": "mcp_tool_call_end",
+                    "server": "nowledge-mem",
+                    "tool": "find_skills",
+                    "result": {
+                        "matches": [
+                            {
+                                "id": "skill-alpha",
+                                "name": "Alpha",
+                                "title": "Alpha Skill",
+                                "description": "A managed skill",
+                            }
+                        ]
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(
+            self.module.extract_skill_outcomes_from_file(str(transcript)),
+            [("skill-alpha", "1")],
+        )
+
     def test_report_skill_outcomes_runs_once_per_transcript_skill_version(self):
         transcript = self.temp_path / "codex-transcript.jsonl"
         transcript.write_text(

@@ -5,6 +5,13 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.17] - 2026-07-07
+
+### Fixed
+
+- Managed skill outcome extraction now handles `find_skills` matches that omit an explicit version by defaulting matching skill records to version `1`.
+- Claude Code managed-skills guidance now explicitly prioritizes `find_skills` before filesystem or memory searches when looking for skills.
+
 ## [0.7.16] - 2026-07-06
 
 ### Added

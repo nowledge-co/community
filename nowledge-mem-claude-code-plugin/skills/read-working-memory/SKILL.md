@@ -73,7 +73,7 @@ The Working Memory briefing contains:
 
 ## Managed Skills
 
-Nowledge Mem can hold managed skills: proven procedures for recurring, multi-step work. If the task is procedural and the Nowledge Mem MCP server exposes `find_skills`, check for a matching skill before starting. If one matches, read and follow its `SKILL.md`, then report the outcome with `report_skill_outcome` when the task is done.
+Nowledge Mem can hold managed skills: proven procedures for recurring, multi-step work. If the task is procedural and the Nowledge Mem MCP server exposes `find_skills`, check for a matching skill before starting. When looking for skills, always use `find_skills` first; do not search the filesystem or memory for skills. If one matches, read and follow its `SKILL.md`, then report the outcome with `report_skill_outcome` when the task is done.
 
 If MCP is unavailable but `nmem` is present, use:
 

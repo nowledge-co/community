@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.24] - 2026-07-07
+
+### Fixed
+
+- Managed skill outcome extraction now handles `find_skills` matches that omit an explicit version by defaulting matching skill records to version `1`.
+- Codex managed-skills guidance now explicitly prioritizes `find_skills` before filesystem or memory searches when looking for skills.
+
 ## [0.1.23] - 2026-07-06
 
 ### Added

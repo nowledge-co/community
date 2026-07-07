@@ -339,6 +339,35 @@ def test_extract_skill_outcomes_from_claude_tool_use_pair(tmp_path):
     ]
 
 
+def test_extract_skill_outcomes_defaults_missing_version_to_v1(tmp_path):
+    transcript = tmp_path / "claude-transcript-v1.jsonl"
+    transcript.write_text(
+        json_line(
+            {
+                "type": "mcp_tool_call_end",
+                "server": "nowledge-mem",
+                "tool": "find_skills",
+                "result": {
+                    "matches": [
+                        {
+                            "id": "skill-bravo",
+                            "name": "Bravo",
+                            "title": "Bravo Skill",
+                            "description": "A managed skill",
+                        }
+                    ]
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert nmem_hook_save.extract_skill_outcomes_from_file(str(transcript)) == [
+        ("skill-bravo", "1")
+    ]
+
+
 def test_report_skill_outcomes_runs_once_per_transcript_skill_version(tmp_path):
     transcript = tmp_path / "claude-transcript.jsonl"
     transcript.write_text(

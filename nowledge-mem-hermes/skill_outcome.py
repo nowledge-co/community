@@ -217,9 +217,19 @@ def _skill_id(node: dict[str, Any]) -> str:
         if isinstance(value, str) and value.strip():
             return value.strip()
     value = node.get("id")
-    if isinstance(value, str) and value.strip() and _looks_like_skill_record(node):
+    if (
+        isinstance(value, str)
+        and value.strip()
+        and _looks_like_skill_id(value)
+        and _looks_like_skill_record(node)
+    ):
         return value.strip()
     return ""
+
+
+def _looks_like_skill_id(value: str) -> bool:
+    normalized = value.strip().lower()
+    return normalized.startswith("skill_") or normalized.startswith("skill-")
 
 
 def _skill_version(node: dict[str, Any]) -> str:
@@ -232,11 +242,13 @@ def _skill_version(node: dict[str, Any]) -> str:
         value = metadata.get("version")
         if isinstance(value, (str, int, float)) and str(value).strip():
             return str(value).strip()
+    if _looks_like_skill_record(node):
+        return "1"
     return ""
 
 
 def _looks_like_skill_record(node: dict[str, Any]) -> bool:
-    return "version" in node and any(
+    return any(
         key in node
         for key in (
             "name",
