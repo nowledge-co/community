@@ -96,7 +96,7 @@ The canonical source for this table is `community/integrations.json`.
 | **Bub** | Running inside Bub | `pip install nowledge-mem-bub` | [Guide](https://mem.nowledge.co/docs/integrations/bub) |
 | **Pi** | Running as Pi agent; `~/.pi/` exists | `pi install npm:nowledge-mem-pi` | [Guide](https://mem.nowledge.co/docs/integrations/pi) |
 | **OMP** | Running as OMP agent; `~/.omp/` exists | `omp plugin install nowledge-mem-omp` | [Guide](https://mem.nowledge.co/docs/integrations/omp) |
-| **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | `opencode plugin opencode-nowledge-mem -g` | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
+| **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | `opencode plugin opencode-nowledge-mem -g`; restart OpenCode so idle-event capture hooks load | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
 | **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Install the native Hermes provider (or use MCP only as fallback) | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
 
 For Hermes updates, run the setup command from the guide and confirm it prints `Thread import endpoint: /threads/import`. If it prints an old endpoint or no endpoint, the user is likely launching Hermes with a different `HERMES_HOME`; set that explicitly and rerun setup before restart.

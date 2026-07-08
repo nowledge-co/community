@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.5] - 2026-07-08
+
+### Added
+
+- OpenCode sessions now auto-sync after the host reports `session.status=idle`, with compatibility for the older `session.idle` event. The plugin reads the current session through OpenCode's SDK and creates or appends the Mem thread with stable `opencode-<sessionID>` IDs, per-message `external_id`s, dedupe, ambient space, and source metadata.
+- The compaction hook now flushes the live OpenCode thread before adding the post-compaction Mem reminder, so long sessions preserve the pre-compaction transcript.
+
+### Changed
+
+- `nowledge_mem_save_thread` now shares the same capture path as automatic sync instead of maintaining a separate upload implementation.
+- `nowledge_mem_save` now stamps memories with `--source opencode`, aligning manual memory saves with OpenCode thread provenance.
+
 ## [0.3.4] - 2026-06-06
 
 ### Fixed

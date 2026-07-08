@@ -35,7 +35,7 @@ Save proactively when the conversation produces a decision, preference, plan, pr
 export default {
   id: "nowledge-mem",
   server: async (input) => {
-    const { $, client } = input
+    const { $, client, directory } = input
 
     // --- CLI transport (for memory operations) ---
 
@@ -141,6 +141,7 @@ export default {
     async function nmemApi(
       path: string,
       body: unknown,
+      timeoutMs = 30_000,
     ): Promise<{ ok: boolean; status: number; data: any }> {
       const headers: Record<string, string> = { "Content-Type": "application/json" }
       if (apiKey) {
@@ -148,7 +149,7 @@ export default {
         headers["X-NMEM-API-Key"] = apiKey
       }
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 30_000)
+      const timeout = setTimeout(() => controller.abort(), timeoutMs)
       try {
         const res = await fetch(`${apiUrl}${path}`, {
           method: "POST",
@@ -160,7 +161,7 @@ export default {
         return { ok: res.ok, status: res.status, data }
       } catch (err: any) {
         if (err.name === "AbortError") {
-          return { ok: false, status: 504, data: { error: "Request timed out after 30s" } }
+          return { ok: false, status: 504, data: { error: `Request timed out after ${Math.round(timeoutMs / 1000)}s` } }
         }
         return { ok: false, status: 0, data: { error: err.message } }
       } finally {
@@ -229,6 +230,7 @@ export default {
           timestamp: safeTimestamp(info.time?.created ?? Date.now()),
           metadata: {
             external_id: `opencode-msg-${info.id}`,
+            source_app: "opencode",
             ...(info.agent ? { agent: info.agent } : {}),
             ...(info.role === "assistant" && info.modelID ? { model: info.modelID } : {}),
           },
@@ -270,7 +272,211 @@ export default {
       return []
     }
 
+    type SyncReason = "manual_tool" | "session_status_idle" | "session_idle" | "session_compacting"
+    type SessionSyncState = {
+      timer?: ReturnType<typeof setTimeout>
+      inFlight?: Promise<void>
+      pending?: boolean
+      lastSignature?: string
+    }
+    const syncStates = new Map<string, SessionSyncState>()
+    const autoSyncDebounceMs = Math.max(
+      250,
+      Number(process.env.NMEM_OPENCODE_AUTO_SYNC_DEBOUNCE_MS ?? "1500") || 1500,
+    )
+    const autoSyncEnabled = !["0", "false", "off", "no"].includes(
+      (process.env.NMEM_OPENCODE_AUTO_SYNC ?? "1").trim().toLowerCase(),
+    )
+
+    function syncStateFor(sessionID: string): SessionSyncState {
+      const existing = syncStates.get(sessionID)
+      if (existing) return existing
+      const created: SessionSyncState = {}
+      syncStates.set(sessionID, created)
+      return created
+    }
+
+    function lastExternalId(messages: any[]): string {
+      for (let i = messages.length - 1; i >= 0; i -= 1) {
+        const id = messages[i]?.metadata?.external_id
+        if (typeof id === "string" && id) return id
+      }
+      return ""
+    }
+
+    function threadMetadata(sessionID: string, reason: SyncReason): Record<string, unknown> {
+      return {
+        opencode_session_id: sessionID,
+        source_app: "opencode",
+        sync_reason: reason,
+        live_capture: reason !== "manual_tool",
+        ...(ambientAgentId ? { agent_id: ambientAgentId } : {}),
+        ...(ambientHostAgentId ? { host_agent_id: ambientHostAgentId } : {}),
+      }
+    }
+
+    async function mergeThreadMetadata(
+      threadId: string,
+      metadata: Record<string, unknown>,
+      timeoutMs: number,
+    ): Promise<void> {
+      await nmemApi(
+        `/threads/${encodeURIComponent(threadId)}/metadata/merge`,
+        { metadata, only_missing: true },
+        timeoutMs,
+      )
+    }
+
+    async function syncSessionThread(
+      ctx: { sessionID?: string; directory?: string },
+      options: {
+        reason: SyncReason
+        summary?: string
+        force?: boolean
+        timeoutMs?: number
+      },
+    ): Promise<Record<string, unknown>> {
+      if (!ctx.sessionID) {
+        return { error: "No session ID available. Use nowledge_mem_save_handoff instead." }
+      }
+
+      const timeoutMs = options.timeoutMs ?? 30_000
+      const sdkMessages = await fetchSessionMessages({
+        ...ctx,
+        directory: ctx.directory ?? directory,
+      })
+
+      if (!sdkMessages || sdkMessages.length === 0) {
+        return { skipped: true, reason: "no_messages", session_id: ctx.sessionID }
+      }
+
+      const threadMessages = toThreadMessages(sdkMessages)
+      if (threadMessages.length === 0) {
+        return { skipped: true, reason: "no_extractable_messages", session_id: ctx.sessionID }
+      }
+      const hasUser = threadMessages.some((message) => message.role === "user")
+      const hasAssistant = threadMessages.some((message) => message.role === "assistant")
+      if (!hasUser || !hasAssistant) {
+        return { skipped: true, reason: "incomplete_turn", session_id: ctx.sessionID }
+      }
+
+      const signature = `${threadMessages.length}:${lastExternalId(threadMessages)}`
+      const state = syncStateFor(ctx.sessionID)
+      if (!options.force && state.lastSignature === signature) {
+        return { skipped: true, reason: "already_synced", session_id: ctx.sessionID }
+      }
+
+      // Match import service convention: lowercase for dedup consistency.
+      const threadId = `opencode-${ctx.sessionID}`.toLowerCase()
+      const title =
+        options.summary ||
+        threadMessages.find((message) => message.role === "user")?.content?.slice(0, 120) ||
+        threadMessages[0]?.content?.slice(0, 120) ||
+        "OpenCode Session"
+      const metadata = threadMetadata(ctx.sessionID, options.reason)
+      const projectPath = ctx.directory ?? directory
+
+      let res = await nmemApi(
+        "/threads",
+        {
+          thread_id: threadId,
+          title,
+          messages: threadMessages,
+          source: "opencode",
+          project: projectPath,
+          workspace: projectPath,
+          metadata,
+        },
+        timeoutMs,
+      )
+      let action = "created"
+
+      if (!res.ok) {
+        await mergeThreadMetadata(threadId, metadata, timeoutMs).catch(() => undefined)
+        res = await nmemApi(
+          `/threads/${encodeURIComponent(threadId)}/append`,
+          {
+            messages: threadMessages,
+            deduplicate: true,
+            idempotency_key: `opencode:live:${ctx.sessionID}`,
+            ...(ambientSpaceId ? { space_id: ambientSpaceId } : {}),
+          },
+          timeoutMs,
+        )
+        action = "appended"
+      }
+
+      if (!res.ok) {
+        return {
+          error: `Thread save failed (${res.status}): ${JSON.stringify(res.data)}`,
+          thread_id: threadId,
+          session_id: ctx.sessionID,
+        }
+      }
+
+      state.lastSignature = signature
+      return {
+        success: true,
+        action,
+        thread_id: threadId,
+        messages_saved: threadMessages.length,
+        title,
+        sync_reason: options.reason,
+      }
+    }
+
+    function scheduleAutoThreadSync(sessionID: string, reason: SyncReason): void {
+      if (!autoSyncEnabled) return
+      const state = syncStateFor(sessionID)
+      if (state.timer) clearTimeout(state.timer)
+      state.timer = setTimeout(() => {
+        state.timer = undefined
+        void runAutoThreadSync(sessionID, reason)
+      }, autoSyncDebounceMs)
+    }
+
+    async function runAutoThreadSync(sessionID: string, reason: SyncReason): Promise<void> {
+      const state = syncStateFor(sessionID)
+      if (state.inFlight) {
+        state.pending = true
+        return
+      }
+      state.inFlight = syncSessionThread(
+        { sessionID, directory },
+        { reason, force: false, timeoutMs: 10_000 },
+      )
+        .then((result) => {
+          if ("error" in result) {
+            console.warn("[nowledge-mem] automatic OpenCode thread sync failed:", result.error)
+          }
+        })
+        .catch((err: any) => {
+          console.warn("[nowledge-mem] automatic OpenCode thread sync failed:", err?.message ?? err)
+        })
+        .finally(() => {
+          state.inFlight = undefined
+          if (state.pending) {
+            state.pending = false
+            scheduleAutoThreadSync(sessionID, reason)
+          }
+        })
+      await state.inFlight
+    }
+
+    function sessionIdFromEvent(event: any): string | undefined {
+      const props = event?.properties ?? {}
+      const sessionID = props.sessionID ?? props.sessionId ?? props.session?.id
+      return typeof sessionID === "string" && sessionID ? sessionID : undefined
+    }
+
     return {
+      dispose: async () => {
+        for (const state of syncStates.values()) {
+          if (state.timer) clearTimeout(state.timer)
+        }
+        syncStates.clear()
+      },
+
       tool: {
         nowledge_mem_context_bundle: tool({
           description:
@@ -360,7 +566,7 @@ export default {
               ),
           },
           async execute(args, _ctx) {
-            const cmd = ["m", "add", args.content, "-t", args.title]
+            const cmd = ["m", "add", args.content, "-t", args.title, "--source", "opencode"]
             if (args.unit_type) cmd.push("--unit-type", args.unit_type)
             if (args.labels) {
               for (const label of args.labels.split(",").map((l: string) => l.trim())) {
@@ -430,61 +636,13 @@ export default {
               .describe("Brief description of what was discussed (used as thread title)"),
           },
           async execute(args, ctx) {
-            if (!ctx.sessionID) {
-              return JSON.stringify({
-                error: "No session ID available. Use nowledge_mem_save_handoff instead.",
-              })
-            }
-
             try {
-              // Fetch full session messages via OpenCode SDK
-              const sdkMessages = await fetchSessionMessages(ctx)
-
-              if (!sdkMessages || sdkMessages.length === 0) {
-                return JSON.stringify({ error: "No messages found in current session" })
-              }
-
-              const threadMessages = toThreadMessages(sdkMessages)
-              if (threadMessages.length === 0) {
-                return JSON.stringify({ error: "No extractable messages in current session" })
-              }
-              // Match import service convention: lowercase for dedup consistency
-              const threadId = `opencode-${ctx.sessionID}`.toLowerCase()
-              const title =
-                args.summary ||
-                threadMessages[0]?.content?.slice(0, 120) ||
-                "OpenCode Session"
-
-              // Try create first; if it fails (thread may already exist from
-              // auto-sync or a previous save), fall back to append with dedup
-              let res = await nmemApi("/threads", {
-                thread_id: threadId,
-                title,
-                messages: threadMessages,
-                source: "opencode",
-                project: ctx.directory,
-                metadata: { opencode_session_id: ctx.sessionID },
-              })
-
-              if (!res.ok) {
-                res = await nmemApi(
-                  `/threads/${encodeURIComponent(threadId)}/append`,
-                  { messages: threadMessages, deduplicate: true },
-                )
-              }
-
-              if (!res.ok) {
-                return JSON.stringify({
-                  error: `Thread save failed (${res.status}): ${JSON.stringify(res.data)}`,
-                })
-              }
-
-              return JSON.stringify({
-                success: true,
-                thread_id: threadId,
-                messages_saved: threadMessages.length,
-                title,
-              })
+              return JSON.stringify(await syncSessionThread(ctx, {
+                reason: "manual_tool",
+                summary: args.summary,
+                force: true,
+                timeoutMs: 30_000,
+              }))
             } catch (err: any) {
               return JSON.stringify({
                 error: `Session capture failed: ${err.message}. Use nowledge_mem_save_handoff for a curated summary instead.`,
@@ -526,7 +684,30 @@ export default {
         output.system.push(BEHAVIORAL_GUIDANCE)
       },
 
-      "experimental.session.compacting": async (_input, output) => {
+      event: async ({ event }) => {
+        const sessionID = sessionIdFromEvent(event)
+        if (!sessionID) return
+        if (event.type === "session.status") {
+          const statusType = event.properties?.status?.type
+          if (statusType === "idle") {
+            scheduleAutoThreadSync(sessionID, "session_status_idle")
+          }
+          return
+        }
+        if (event.type === "session.idle") {
+          scheduleAutoThreadSync(sessionID, "session_idle")
+        }
+      },
+
+      "experimental.session.compacting": async (input, output) => {
+        if (input.sessionID) {
+          await syncSessionThread(
+            { sessionID: input.sessionID, directory },
+            { reason: "session_compacting", force: false, timeoutMs: 10_000 },
+          ).catch((err: any) => {
+            console.warn("[nowledge-mem] pre-compaction OpenCode thread sync failed:", err?.message ?? err)
+          })
+        }
         output.prompt += [
           "",
           "",

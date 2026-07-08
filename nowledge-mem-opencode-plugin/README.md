@@ -9,6 +9,7 @@ Nowledge Mem gives OpenCode access to knowledge from all your other AI tools: in
 - **Start every session informed.** The plugin can load your Context Bundle at session start: owner identity, AI Identity, active space, active rules, and Working Memory.
 - **The agent searches for you.** When past context would improve the answer, OpenCode finds it through your knowledge graph without being asked.
 - **Insights stick around.** Key decisions and learnings are saved to Nowledge Mem, ready for any future session in any tool.
+- **Sessions are captured automatically.** When OpenCode goes idle after a turn, the plugin saves the conversation as a searchable Mem thread.
 - **Resumable handoffs.** Save structured session summaries that any future session in any tool can pick up from.
 
 ## Prerequisites
@@ -56,7 +57,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.4"]
+  "plugin": ["opencode-nowledge-mem@0.3.5"]
 }
 ```
 
@@ -76,15 +77,19 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ## How session capture works
 
-Nowledge Mem captures OpenCode sessions in three complementary ways:
+Nowledge Mem captures OpenCode sessions in four complementary ways:
 
-1. **Background auto-sync (local mode).** The desktop app periodically polls OpenCode's session database and imports conversations based on your sync policy. Enable OpenCode in **Settings > Thread Sync**. No plugin needed for this part.
+1. **Plugin automatic live capture.** When OpenCode reports `session.status=idle` (or the older `session.idle` event), the plugin waits briefly for messages to flush, reads the current session through OpenCode's SDK, and creates or appends the matching `opencode-<sessionID>` thread in Nowledge Mem. This works in local and remote mode because the plugin runs where OpenCode owns the session.
 
-2. **Plugin full session capture.** `nowledge_mem_save_thread` reads the current session's messages via OpenCode's SDK and posts them to Nowledge Mem's thread API. Idempotent (safe to call multiple times) and handles large sessions via HTTP, not shell arguments. Works in both local and remote mode.
+2. **Pre-compaction flush.** Before OpenCode compacts a long session, the plugin saves the current transcript through the same thread path, then reminds the agent to reload Mem context after compaction.
 
-3. **Plugin proactive knowledge save.** `nowledge_mem_save` captures individual decisions and insights as they happen. `nowledge_mem_save_handoff` creates a curated summary at wrap-up.
+3. **Manual full session capture.** `nowledge_mem_save_thread` uses the same capture path on demand. It is idempotent (safe to call multiple times) and handles large sessions via HTTP, not shell arguments.
 
-**Remote mode note:** Background auto-sync (1) reads OpenCode's local SQLite database, so it only works when both tools run on the same machine. The plugin tools (2, 3) work in both local and remote mode.
+4. **Plugin proactive knowledge save.** `nowledge_mem_save` captures individual decisions and insights as they happen, stamped with `source=opencode`. `nowledge_mem_save_handoff` creates a curated summary at wrap-up.
+
+**Desktop backfill note:** The desktop app can still import OpenCode sessions from the local session database in **Threads > Import**. That is a historical/backfill path, not the only live-capture path.
+
+**Remote mode note:** Desktop database polling reads files on the Mem server machine. Plugin automatic capture and `nmem t sync` run on the machine where OpenCode stores the session, then upload to the configured local or remote Mem server.
 
 To backfill older OpenCode sessions, preview first:
 
@@ -98,14 +103,15 @@ Then import:
 nmem t sync --from opencode --all-projects --apply
 ```
 
-Use `-p /path/to/project` instead of `--all-projects` when you only want one project. The command reads OpenCode's local session database or legacy JSON storage and writes to the Mem server configured in `nmem`.
+Use `-p /path/to/project` instead of `--all-projects` when you only want one project. The command reads OpenCode's local session database or legacy JSON storage and writes to the Mem server configured in `nmem`. Historical imports are marked searchable immediately and leave expensive distillation for an explicit review path.
 
 ## Hooks
 
-The plugin uses two OpenCode hooks:
+The plugin uses three OpenCode hooks:
 
 - **System prompt injection** (`experimental.chat.system.transform`): teaches the agent when to read Context Bundle, use Working Memory fallback, search proactively, and save autonomously. Active on every turn.
-- **Compaction resilience** (`experimental.session.compacting`): injects a reminder to restore Nowledge Mem context after long sessions trigger context compaction. Ensures the agent doesn't lose awareness of your knowledge tools.
+- **Session event capture** (`event`): listens for `session.status=idle` and legacy `session.idle`, debounces briefly, then saves the current session as a Mem thread with stable dedupe metadata.
+- **Compaction resilience** (`experimental.session.compacting`): flushes the current transcript before compaction and injects a reminder to restore Nowledge Mem context after long sessions trigger context compaction. Ensures the agent doesn't lose awareness of your knowledge tools.
 
 For project-specific behavioral guidance, add to your `AGENTS.md` or OpenCode instructions. The included `AGENTS.md` in this package serves as a reference.
 

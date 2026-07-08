@@ -426,11 +426,15 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.3.4"
+    assert opencode_pkg["version"] == "0.3.5"
+    assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
+    assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
+    assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
     assert "fetchSessionMessages" in opencode_source
     assert "path: { id: ctx.sessionID }" in opencode_source
     assert "nowledge_mem_context_bundle" in opencode_source
     assert 'nmem(["context", "--source-app", "opencode"])' in opencode_source
+    assert '"--source", "opencode"' in opencode_source
     assert "withAmbientSpaceArg(args)" in opencode_source
     assert "ambientAgentId" in opencode_source
     assert "ambientHostAgentId" in opencode_source
@@ -438,6 +442,12 @@ def test_key_plugin_static_contracts_are_declared():
     assert "NMEM_HOST_AGENT_ID" in opencode_source
     assert '["context", "ctx", "wm", "m", "memories", "t", "threads"]' in opencode_source
     assert "nowledge_mem_save_thread" in opencode_source
+    assert "event: async ({ event })" in opencode_source
+    assert 'event.type === "session.status"' in opencode_source
+    assert 'statusType === "idle"' in opencode_source
+    assert 'event.type === "session.idle"' in opencode_source
+    assert "syncSessionThread" in opencode_source
+    assert "idempotency_key: `opencode:live:${ctx.sessionID}`" in opencode_source
 
     copilot_manifest = _read_json(COPILOT_PLUGIN / ".claude-plugin" / "plugin.json")
     copilot_hooks = _read_json(COPILOT_PLUGIN / "hooks" / "hooks.json")
@@ -1059,7 +1069,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.27"
     assert by_id["proma"]["version"] == "0.1.4"
-    assert by_id["opencode"]["version"] == "0.3.4"
+    assert by_id["opencode"]["version"] == "0.3.5"
     assert by_id["pi"]["version"] == "0.8.3"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"

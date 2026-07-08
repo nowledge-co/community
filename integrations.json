@@ -892,7 +892,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.3.4",
+      "version": "0.3.5",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -900,24 +900,24 @@
         "search": true,
         "distill": true,
         "autoRecall": false,
-        "autoCapture": false,
+        "autoCapture": true,
         "graphExploration": false,
         "status": true
       },
       "threadSave": {
-        "method": "sdk-extract",
+        "method": "sdk-extract+event-idle",
         "historicalCommand": "nmem t sync --from opencode --all-projects",
-        "note": "save_thread reads session messages via OpenCode SDK and posts to Nowledge Mem thread API over HTTP; save_handoff available as lighter alternative"
+        "note": "Plugin listens for OpenCode session idle events and pre-compaction, reads session messages via OpenCode SDK, and posts to Nowledge Mem thread API over HTTP; save_thread remains an explicit idempotent fallback"
       },
       "autonomy": {
         "bootstrap": "guided",
         "recall": "guided",
         "distill": "guided",
-        "threads": "explicit-save",
+        "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the native OpenCode plugin",
-          "Use local mode for real session auto-sync",
-          "Keep nmem available for memory operations and handoff flows",
+          "Restart OpenCode so the plugin registers its event and compaction hooks",
+          "Keep nmem available for memory operations, provenance-stamped saves, and handoff flows",
           "Run nmem t sync --from opencode --all-projects --apply only when you want to import older OpenCode sessions",
           "Run nmem config client set url/api-key once when Mem is remote"
         ]
