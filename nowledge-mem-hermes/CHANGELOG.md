@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.21] - 2026-07-07
+
+### Fixed
+
+- Managed skill outcome extraction now handles `find_skills` matches that omit an explicit version by defaulting matching skill records to version `1`.
+- Managed-skills guidance now explicitly tells agents to call `find_skills` before filesystem or memory searches when looking for skills.
+
 ## [0.5.20] - 2026-07-06
 
 ### Added

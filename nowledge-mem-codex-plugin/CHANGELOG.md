@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.24] - 2026-07-07
+
+### Fixed
+
+- Managed skill outcome extraction now handles `find_skills` matches that omit an explicit version by defaulting matching skill records to version `1`.
+- Codex managed-skills guidance now explicitly prioritizes `find_skills` before filesystem or memory searches when looking for skills.
+- Codex hook installation now treats `skill_outcome.py` as a required runtime file, so broken installs fail loudly instead of silently disabling managed skill outcome reporting.
+
 ## [0.1.23] - 2026-07-06
 
 ### Added

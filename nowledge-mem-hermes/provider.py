@@ -62,8 +62,9 @@ topic, use nmem_update rather than create a duplicate.
 **Managed skills:** Nowledge Mem can also hold proven procedures for the \
 user's recurring, multi-step work. When the Nowledge Mem MCP is connected, \
 check find_skills before a recurring or procedural task; if one matches, \
-follow its SKILL.md, then call report_skill_outcome afterward. Best-effort, \
-not for every question."""
+follow its SKILL.md, then call report_skill_outcome afterward. When looking \
+for skills, always use find_skills first; do not search the filesystem or \
+memory for skills. Best-effort, not for every question."""
 
 _SEARCH = {
     "name": "nmem_search",

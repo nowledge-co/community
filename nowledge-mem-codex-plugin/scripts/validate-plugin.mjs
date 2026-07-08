@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.23";
+const expectedVersion = "0.1.24";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -67,6 +67,7 @@ for (const file of [
   "hooks/hooks.json",
   "hooks/nmem-stop-launch.py",
   "hooks/nmem-stop-save.py",
+  "hooks/skill_outcome.py",
   "scripts/install_hooks.py",
   "scripts/validate-plugin.mjs",
   "skills/working-memory/SKILL.md",

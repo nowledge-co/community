@@ -208,6 +208,63 @@ class HookTests(unittest.TestCase):
             [("skill-alpha", "3")],
         )
 
+    def test_extract_skill_outcomes_defaults_missing_version_to_v1(self):
+        transcript = self.temp_path / "codex-transcript-v1.jsonl"
+        transcript.write_text(
+            json.dumps(
+                {
+                    "type": "mcp_tool_call_end",
+                    "server": "nowledge-mem",
+                    "tool": "find_skills",
+                    "result": {
+                        "matches": [
+                            {
+                                "id": "skill-alpha",
+                                "name": "Alpha",
+                                "title": "Alpha Skill",
+                                "description": "A managed skill",
+                            }
+                        ]
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(
+            self.module.extract_skill_outcomes_from_file(str(transcript)),
+            [("skill-alpha", "1")],
+        )
+
+    def test_extract_skill_outcomes_ignores_non_skill_style_ids(self):
+        transcript = self.temp_path / "codex-transcript-non-skill-id.jsonl"
+        transcript.write_text(
+            json.dumps(
+                {
+                    "type": "mcp_tool_call_end",
+                    "server": "nowledge-mem",
+                    "tool": "find_skills",
+                    "result": {
+                        "matches": [
+                            {
+                                "skill_id": "alpha",
+                                "version": "3",
+                                "name": "Alpha",
+                            }
+                        ]
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(
+            self.module.extract_skill_outcomes_from_file(str(transcript)),
+            [],
+        )
+
     def test_report_skill_outcomes_runs_once_per_transcript_skill_version(self):
         transcript = self.temp_path / "codex-transcript.jsonl"
         transcript.write_text(
@@ -437,12 +494,13 @@ class InstallHookTests(unittest.TestCase):
     def setUp(self):
         self.module = load_module("install_hooks", INSTALL_MODULE_PATH)
         self.temp_dir = tempfile.TemporaryDirectory()
-        temp_path = Path(self.temp_dir.name)
-        self.module.CODEX_DIR = temp_path / ".codex"
+        self.temp_path = Path(self.temp_dir.name)
+        self.module.CODEX_DIR = self.temp_path / ".codex"
         self.module.HOOKS_DIR = self.module.CODEX_DIR / "hooks"
         self.module.GLOBAL_HOOKS_FILE = self.module.CODEX_DIR / "hooks.json"
         self.module.CONFIG_FILE = self.module.CODEX_DIR / "config.toml"
         self.module.INSTALLED_HOOK = self.module.HOOKS_DIR / "nowledge-mem-stop-save.py"
+        self.module.INSTALLED_SKILL_OUTCOME = self.module.HOOKS_DIR / "skill_outcome.py"
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -612,6 +670,20 @@ class InstallHookTests(unittest.TestCase):
 
         self.assertTrue(self.module.INSTALLED_HOOK.exists())
         self.assertIn("Best-effort Codex transcript capture", self.module.INSTALLED_HOOK.read_text())
+        self.assertTrue(self.module.INSTALLED_SKILL_OUTCOME.exists())
+        self.assertIn(
+            "extract_skill_outcomes_from_file",
+            self.module.INSTALLED_SKILL_OUTCOME.read_text(),
+        )
+
+    def test_install_runtime_hook_fails_when_skill_outcome_extractor_missing(self):
+        self.module.SOURCE_SKILL_OUTCOME = self.temp_path / "missing-skill-outcome.py"
+
+        with self.assertRaises(SystemExit) as raised:
+            self.module.install_runtime_hook()
+
+        self.assertIn("missing skill outcome extractor", str(raised.exception))
+        self.assertFalse(self.module.INSTALLED_SKILL_OUTCOME.exists())
 
     def test_install_codex_mcp_config_writes_managed_authenticated_override(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)

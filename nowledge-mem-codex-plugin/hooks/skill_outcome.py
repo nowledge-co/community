@@ -1,9 +1,9 @@
 """Extract Nowledge Mem managed-skill use from host transcripts.
 
 The extractor is deliberately conservative: it only reports structured
-`find_skills` tool results that contain both a skill id and version. It does not
-regex free-form assistant text, so normal conversation cannot create false
-skill outcome records.
+`find_skills` tool results with skill-style ids. Missing versions default to
+version 1 for matching skill records. It does not regex free-form assistant
+text, so normal conversation cannot create false skill outcome records.
 """
 
 from __future__ import annotations
@@ -214,12 +214,22 @@ def _parse_json_text(value: str) -> Any | None:
 def _skill_id(node: dict[str, Any]) -> str:
     for key in ("skill_id", "skillId"):
         value = node.get(key)
-        if isinstance(value, str) and value.strip():
+        if isinstance(value, str) and value.strip() and _looks_like_skill_id(value):
             return value.strip()
     value = node.get("id")
-    if isinstance(value, str) and value.strip() and _looks_like_skill_record(node):
+    if (
+        isinstance(value, str)
+        and value.strip()
+        and _looks_like_skill_id(value)
+        and _looks_like_skill_record(node)
+    ):
         return value.strip()
     return ""
+
+
+def _looks_like_skill_id(value: str) -> bool:
+    normalized = value.strip().lower()
+    return normalized.startswith("skill_") or normalized.startswith("skill-")
 
 
 def _skill_version(node: dict[str, Any]) -> str:
@@ -232,11 +242,13 @@ def _skill_version(node: dict[str, Any]) -> str:
         value = metadata.get("version")
         if isinstance(value, (str, int, float)) and str(value).strip():
             return str(value).strip()
+    if _looks_like_skill_record(node):
+        return "1"
     return ""
 
 
 def _looks_like_skill_record(node: dict[str, Any]) -> bool:
-    return "version" in node and any(
+    return any(
         key in node
         for key in (
             "name",

@@ -291,7 +291,7 @@ def test_key_plugin_static_contracts_are_declared():
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     claude_save_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.16"
+    assert claude_manifest["version"] == "0.7.17"
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
     assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
@@ -308,7 +308,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_hooks = _read_json(CODEX_PLUGIN / "hooks" / "hooks.json")["hooks"]
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.23"
+    assert codex_manifest["version"] == "0.1.24"
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
@@ -391,7 +391,7 @@ def test_key_plugin_static_contracts_are_declared():
 
     hermes_manifest = (HERMES_PLUGIN / "plugin.yaml").read_text(encoding="utf-8")
     assert "name: nowledge-mem" in hermes_manifest
-    assert "version: 0.5.20" in hermes_manifest
+    assert "version: 0.5.21" in hermes_manifest
     for hook in (
         "prefetch",
         "post_llm_call",

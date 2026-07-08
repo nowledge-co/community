@@ -21,6 +21,8 @@ GLOBAL_HOOKS_FILE = CODEX_DIR / "hooks.json"
 CONFIG_FILE = CODEX_DIR / "config.toml"
 SOURCE_HOOK = PLUGIN_ROOT / "hooks" / "nmem-stop-save.py"
 INSTALLED_HOOK = HOOKS_DIR / "nowledge-mem-stop-save.py"
+SOURCE_SKILL_OUTCOME = PLUGIN_ROOT / "hooks" / "skill_outcome.py"
+INSTALLED_SKILL_OUTCOME = HOOKS_DIR / "skill_outcome.py"
 CODEX_HOOKS_KEY_RE = re.compile(r"^\s*codex_hooks\s*=")
 CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*hooks\s*=")
 CODEX_PLUGIN_HOOKS_KEY_RE = re.compile(r"^\s*plugin_hooks\s*=")
@@ -108,6 +110,9 @@ def install_runtime_hook() -> None:
     shutil.copy2(SOURCE_HOOK, INSTALLED_HOOK)
     mode = INSTALLED_HOOK.stat().st_mode
     INSTALLED_HOOK.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    if not SOURCE_SKILL_OUTCOME.exists():
+        raise SystemExit(f"missing skill outcome extractor: {SOURCE_SKILL_OUTCOME}")
+    shutil.copy2(SOURCE_SKILL_OUTCOME, INSTALLED_SKILL_OUTCOME)
 
 
 def _quote_for_hook_command(path: Path) -> str:
@@ -507,6 +512,7 @@ def main() -> int:
 
     print("Installed Nowledge Mem Codex Stop hook")
     print(f"- runtime hook: {INSTALLED_HOOK}")
+    print(f"- skill outcome extractor: {INSTALLED_SKILL_OUTCOME}")
     print(f"- hooks config: {GLOBAL_HOOKS_FILE}")
     print(f"- hook feature flags ensured in: {CONFIG_FILE}")
     print(f"- plugin Stop hook enabled in: {CONFIG_FILE}")
