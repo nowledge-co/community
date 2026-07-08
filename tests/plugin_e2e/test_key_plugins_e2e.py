@@ -256,6 +256,7 @@ def _codex_transcript_meta(transcript: Path) -> dict[str, Any]:
 
 def test_key_plugin_static_contracts_are_declared():
     registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    registry_by_id = {item["id"]: item for item in registry["integrations"] if item.get("id")}
     historical_commands = {
         item["id"]: item["threadSave"].get("historicalCommand")
         for item in registry["integrations"]
@@ -282,6 +283,13 @@ def test_key_plugin_static_contracts_are_declared():
         assert "github.com:" not in marketplace_text
 
     claude_marketplace = _read_json(COMMUNITY_ROOT / ".claude-plugin" / "marketplace.json")
+    claude_marketplace_plugin = next(
+        plugin for plugin in claude_marketplace["plugins"] if plugin.get("name") == "nowledge-mem"
+    )
+    copilot_marketplace = _read_json(COMMUNITY_ROOT / ".github" / "plugin" / "marketplace.json")
+    copilot_marketplace_plugin = next(
+        plugin for plugin in copilot_marketplace["plugins"] if plugin.get("name") == "nowledge-mem"
+    )
     for plugin in claude_marketplace["plugins"]:
         source = plugin.get("source", {})
         if source.get("source") == "git-subdir":
@@ -292,6 +300,9 @@ def test_key_plugin_static_contracts_are_declared():
     claude_save_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
     assert claude_manifest["version"] == "0.7.17"
+    assert claude_marketplace_plugin["version"] == claude_manifest["version"]
+    assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
+    assert registry_by_id["grok"]["version"] == claude_manifest["version"]
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
     assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
@@ -309,6 +320,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
     assert codex_manifest["version"] == "0.1.24"
+    assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
@@ -390,8 +402,14 @@ def test_key_plugin_static_contracts_are_declared():
     assert (OPENCLAW_PLUGIN / "src" / "index.js").exists()
 
     hermes_manifest = (HERMES_PLUGIN / "plugin.yaml").read_text(encoding="utf-8")
+    hermes_version = next(
+        line.removeprefix("version:").strip()
+        for line in hermes_manifest.splitlines()
+        if line.startswith("version:")
+    )
     assert "name: nowledge-mem" in hermes_manifest
     assert "version: 0.5.21" in hermes_manifest
+    assert registry_by_id["hermes"]["version"] == hermes_version
     for hook in (
         "prefetch",
         "post_llm_call",
@@ -424,6 +442,8 @@ def test_key_plugin_static_contracts_are_declared():
     copilot_hooks = _read_json(COPILOT_PLUGIN / "hooks" / "hooks.json")
     copilot_capture = (COPILOT_PLUGIN / "hooks" / "copilot-stop-save.py").read_text(encoding="utf-8")
     assert copilot_manifest["version"] == "0.1.4"
+    assert copilot_marketplace_plugin["version"] == copilot_manifest["version"]
+    assert registry_by_id["copilot-cli"]["version"] == copilot_manifest["version"]
     assert "--source-app copilot-cli" in json.dumps(copilot_hooks)
     assert "NMEM_AGENT_ID" in json.dumps(copilot_hooks)
     assert "NMEM_HOST_AGENT_ID" in json.dumps(copilot_hooks)

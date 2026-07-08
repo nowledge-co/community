@@ -12,7 +12,7 @@
     {
       "name": "nowledge-mem",
       "description": "Personal knowledge graph for Claude Code and Grok — remembers decisions, searches past work, captures sessions",
-      "version": "0.7.15",
+      "version": "0.7.17",
       "author": {
         "name": "Nowledge Labs",
         "url": "https://www.nowledge-labs.ai/",
