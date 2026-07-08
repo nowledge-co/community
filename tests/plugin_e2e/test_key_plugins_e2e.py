@@ -30,6 +30,7 @@ GEMINI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-gemini-cli"
 PROMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-proma-plugin"
 CURSOR_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-cursor-plugin"
 PI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-pi-package"
+OMP_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-omp-plugin"
 KIMI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-kimi-code-plugin"
 KIMI_WORK_CONNECTOR = COMMUNITY_ROOT / "nowledge-mem-kimi-work-connector"
 BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
@@ -502,15 +503,17 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.2"
+    assert pi_pkg["version"] == "0.8.3"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
+    assert "NMEM_PLUGIN_SOURCE_APP" in pi_extension
+    assert "NMEM_PLUGIN_HOST_LABEL" in pi_extension
     assert 'pi.on("agent_end"' in pi_extension
     assert 'pi.on("session_shutdown"' in pi_extension
     assert 'pi.on("session_before_switch"' in pi_extension
     assert 'pi.on("session_before_compact"' in pi_extension
-    assert 'source: SOURCE_APP' in pi_extension
+    assert 'source: sourceApp()' in pi_extension
     assert 'metadata: {' in pi_extension
     assert "external_id" in pi_extension
     assert "deduplicate: true" in pi_extension
@@ -520,8 +523,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert "custom" in pi_extension
     assert 'import { execFile } from "node:child_process";' in pi_extension
     assert "LOCAL_WORKING_MEMORY_PATH" in pi_extension
-    assert "STARTUP_GUIDANCE" in pi_extension
-    assert '["context", "--source-app", SOURCE_APP]' in pi_extension
+    assert "startupGuidance()" in pi_extension
+    assert '["context", "--source-app", sourceApp()]' in pi_extension
     assert '["wm", "read"]' in pi_extension
     assert "rendered_markdown" in pi_extension
     assert "shouldUseLocalWorkingMemoryFallback" in pi_extension
@@ -540,9 +543,25 @@ def test_key_plugin_static_contracts_are_declared():
     assert "quoteWindowsBatchArg" in pi_extension
     assert "rejectWindowsCmdEnvExpansion" in pi_extension
     assert '["/d", "/s", "/c", line]' in pi_extension
-    assert "source_app=pi" in pi_extension
+    assert "source_app=${source}" in pi_extension
     before_agent_start_block = pi_extension.split('pi.on("before_agent_start"', 1)[1].split('pi.on("agent_end"', 1)[0]
     assert "message:" not in before_agent_start_block
+
+    omp_pkg = _read_json(OMP_PLUGIN / "package.json")
+    omp_extension = (OMP_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
+    omp_agent = (OMP_PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
+    assert omp_pkg["version"] == "0.1.0"
+    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.3"
+    assert "./extensions/nowledge-mem.ts" in omp_pkg["omp"]["extensions"]
+    assert "./skills" in omp_pkg["omp"]["skills"]
+    assert "pi" not in omp_pkg
+    assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "omp"' in omp_extension
+    assert 'process.env.NMEM_PLUGIN_HOST_LABEL = "OMP"' in omp_extension
+    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.0"' in omp_extension
+    assert 'import("nowledge-mem-pi/extensions/nowledge-mem.ts")' in omp_extension
+    assert "nmem --json context --source-app omp" in omp_agent
+    assert "source_app=omp" in omp_agent
+
     assert "PI_CODING_AGENT_SESSION_DIR" in pi_history_sync
     assert "--apply" in pi_history_sync
     assert "historical_import: true" in pi_history_sync
@@ -1041,7 +1060,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.27"
     assert by_id["proma"]["version"] == "0.1.4"
     assert by_id["opencode"]["version"] == "0.3.4"
-    assert by_id["pi"]["version"] == "0.8.2"
+    assert by_id["pi"]["version"] == "0.8.3"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["kimi-code"]["version"] == "0.1.2"
@@ -1061,7 +1080,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     )
     assert by_id["kimi-work"]["autonomy"]["threads"] == "import-only"
     assert by_id["kimi-work"]["skills"] == ["nowledge-mem"]
-    for connector_id in ["zcode", "mimo-code", "omp"]:
+    for connector_id in ["zcode", "mimo-code"]:
         connector = by_id[connector_id]
         assert connector["version"] is None
         assert connector["transport"] == "mcp+skills"
@@ -1069,7 +1088,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert connector["install"]["command"] == f"nmem config mcp show --host {connector_id}"
         assert "save-handoff" in connector["skills"]
         assert "save-thread" not in connector["skills"]
-    for connector_id in ["mimo-code", "omp"]:
+    for connector_id in ["mimo-code"]:
         connector = by_id[connector_id]
         assert connector["threadSave"]["method"] == "cli-native"
         assert connector["autonomy"]["threads"] == "import-only"
@@ -1085,6 +1104,17 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
+    assert by_id["omp"]["version"] == "0.1.0"
+    assert by_id["omp"]["directory"] == "nowledge-mem-omp-plugin"
+    assert by_id["omp"]["transport"] == "plugin+cli"
+    assert by_id["omp"]["capabilities"]["autoRecall"] is True
+    assert by_id["omp"]["capabilities"]["autoCapture"] is True
+    assert by_id["omp"]["threadSave"]["method"] == "plugin-capture"
+    assert by_id["omp"]["threadSave"]["historicalCommand"] == "nmem t sync --from omp"
+    assert by_id["omp"]["autonomy"]["recall"] == "startup-context-injection"
+    assert by_id["omp"]["autonomy"]["threads"] == "automatic-capture"
+    assert by_id["omp"]["install"]["command"] == "omp plugin install nowledge-mem-omp"
+    assert "save-thread" in by_id["omp"]["skills"]
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
 
 

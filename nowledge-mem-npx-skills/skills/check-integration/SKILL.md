@@ -95,6 +95,7 @@ The canonical source for this table is `community/integrations.json`.
 | **Codex** | Running inside Codex desktop or Codex CLI; `~/.codex/` exists | `codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin && codex plugin add nowledge-mem@nowledge-community`, enable `[features] plugins = true`, `hooks = true`, `plugin_hooks = true`, and `[plugins."nowledge-mem@nowledge-community"] enabled = true`, then run the installed `scripts/install_hooks.py` once for automatic thread capture. Add `mcp_servers.nowledge-mem` only when overriding the bundled local MCP endpoint. The desktop app and CLI share the same `~/.codex` config. | [Guide](https://mem.nowledge.co/docs/integrations/codex-cli) |
 | **Bub** | Running inside Bub | `pip install nowledge-mem-bub` | [Guide](https://mem.nowledge.co/docs/integrations/bub) |
 | **Pi** | Running as Pi agent; `~/.pi/` exists | `pi install npm:nowledge-mem-pi` | [Guide](https://mem.nowledge.co/docs/integrations/pi) |
+| **OMP** | Running as OMP agent; `~/.omp/` exists | `omp plugin install nowledge-mem-omp` | [Guide](https://mem.nowledge.co/docs/integrations/omp) |
 | **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | `opencode plugin opencode-nowledge-mem -g` | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
 | **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Install the native Hermes provider (or use MCP only as fallback) | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
 

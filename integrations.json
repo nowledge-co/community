@@ -504,7 +504,7 @@
         "distill": "guided",
         "threads": "import-only",
         "bestResultRequires": [
-          "Install the Nowledge Mem connector for each AI tool Paseo launches, such as Codex, Claude Code, OpenCode, or Pi, when you want automatic capture during use",
+          "Install the Nowledge Mem connector for each AI tool Paseo launches, such as Codex, Claude Code, OpenCode, Pi, or OMP, when you want automatic capture during use",
           "Run nmem t sync --from paseo --all-projects --apply when you want to import supported child-session history from Paseo's agent registry; reruns reuse the child thread id and deduplicate",
           "If a Paseo agent represents a durable role, pass NMEM_AGENT_ID=<agent-slug> into that launched child runtime",
           "Leave NMEM_AGENT_ID unset for one-off Paseo agents or generic provider presets",
@@ -515,8 +515,8 @@
         "command": "Connect the AI tool Paseo launches first. Set NMEM_AGENT_ID=<agent-slug> only when that Paseo agent is a stable role.",
         "detectionHint": "Running inside an AI tool launched by Paseo, or the user asks about Paseo agents",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Paseo path. Connect the AI tool Paseo launches first, such as Codex, Claude Code, OpenCode, or Pi; automatic new-thread capture depends on that child connector. Set NMEM_AGENT_ID=<agent-slug> only when this Paseo agent represents a durable role. If I want older Paseo-managed sessions, run nmem t sync --from paseo --all-projects --apply and confirm imported threads keep the child source and thread id, such as codex or pi. Verify with nmem status and the Context Bundle or Working Memory check inside the launched tool, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Paseo 路径配置。先连接 Paseo 启动的 AI 工具，例如 Codex、Claude Code、OpenCode 或 Pi；工作中新会话的自动同步依赖这个子工具连接。只有当这个 Paseo Agent 代表稳定角色时，才设置 NMEM_AGENT_ID=<agent-slug>。如果我想导入 Paseo 管理的旧会话，运行 nmem t sync --from paseo --all-projects --apply，并确认导入的线程仍保留 codex 或 pi 等子工具来源和 thread id。在被启动的工具里用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Paseo path. Connect the AI tool Paseo launches first, such as Codex, Claude Code, OpenCode, Pi, or OMP; automatic new-thread capture depends on that child connector. Set NMEM_AGENT_ID=<agent-slug> only when this Paseo agent represents a durable role. If I want older Paseo-managed sessions, run nmem t sync --from paseo --all-projects --apply and confirm imported threads keep the child source and thread id, such as codex, pi, or omp. Verify with nmem status and the Context Bundle or Working Memory check inside the launched tool, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Paseo 路径配置。先连接 Paseo 启动的 AI 工具，例如 Codex、Claude Code、OpenCode、Pi 或 OMP；工作中新会话的自动同步依赖这个子工具连接。只有当这个 Paseo Agent 代表稳定角色时，才设置 NMEM_AGENT_ID=<agent-slug>。如果我想导入 Paseo 管理的旧会话，运行 nmem t sync --from paseo --all-projects --apply，并确认导入的线程仍保留 codex、pi 或 omp 等子工具来源和 thread id。在被启动的工具里用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/paseo"
       },
@@ -788,7 +788,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.2",
+      "version": "0.8.3",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1156,39 +1156,40 @@
       "id": "omp",
       "name": "OMP",
       "category": "coding",
-      "type": "connector",
-      "version": null,
-      "directory": null,
-      "transport": "mcp+skills",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-omp-plugin",
+      "transport": "plugin+cli",
       "capabilities": {
         "workingMemory": true,
         "search": true,
         "distill": true,
-        "autoRecall": false,
-        "autoCapture": false,
+        "autoRecall": true,
+        "autoCapture": true,
         "graphExploration": false,
         "status": true
       },
       "threadSave": {
-        "method": "cli-native",
+        "method": "plugin-capture",
         "historicalCommand": "nmem t sync --from omp",
-        "note": "OMP is Pi-derived and stores sessions under ~/.omp/agent/sessions, but the Pi package is not an OMP package. nmem can import OMP JSONL transcripts for local or remote Mem with nmem t sync --from omp --apply. Nowledge Mem does not yet publish an OMP lifecycle hook package, so live auto-capture should be added as a dedicated OMP package."
+        "note": "The OMP plugin injects startup Context Bundle or Working Memory, syncs completed OMP session branches as Mem threads with source_app=omp, and nmem t sync --from omp can backfill older OMP session files. The Pi package remains separate and should not be installed as the OMP connector."
       },
       "autonomy": {
         "bootstrap": "guided",
-        "recall": "guided",
+        "recall": "startup-context-injection",
         "distill": "guided",
-        "threads": "import-only",
+        "threads": "automatic-capture",
         "bestResultRequires": [
-          "Add Nowledge Mem to OMP's MCP config",
-          "Install or import Nowledge Mem skills into OMP",
+          "Install the OMP plugin",
           "Keep nmem configured on this machine",
-          "Run nmem t sync --from omp --apply when you want to import OMP sessions"
+          "Restart OMP after install or update so the extension loads startup Context Bundle injection and thread sync",
+          "Run nmem t sync --from omp --apply only when you want to import older OMP sessions",
+          "Use save-thread only when you want an extra curated handoff summary"
         ]
       },
       "install": {
-        "command": "nmem config mcp show --host omp",
-        "updateCommand": "nmem config mcp show --host omp",
+        "command": "omp plugin install nowledge-mem-omp",
+        "updateCommand": "omp plugin install nowledge-mem-omp",
         "detectionHint": "Running inside OMP; ~/.omp/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for OMP. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
@@ -1198,9 +1199,9 @@
       },
       "toolNaming": {
         "convention": "mcp-backend",
-        "note": "Use Nowledge Mem MCP tools plus OMP skills until a dedicated OMP extension is published. Do not install the Pi package for OMP."
+        "note": "Use the OMP plugin for startup context and thread capture. MCP can still be added through user-owned OMP config for direct structured tool calls or remote/custom endpoint overrides."
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": []
     },
     {

@@ -4,8 +4,8 @@ import { homedir } from "node:os";
 import { basename, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-const SOURCE_APP = "pi";
-const PLUGIN_VERSION = "0.8.2";
+const DEFAULT_SOURCE_APP = "pi";
+const DEFAULT_PLUGIN_VERSION = "0.8.3";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -13,17 +13,33 @@ const MAX_MESSAGE_CHARS = 20_000;
 const FLUSH_DELAY_MS = 750;
 const API_TIMEOUT_MS = 8_000;
 
-const STARTUP_GUIDANCE = `## Nowledge Mem Guidance
+function sourceApp(): string {
+	return process.env.NMEM_PLUGIN_SOURCE_APP?.trim() || DEFAULT_SOURCE_APP;
+}
 
-Nowledge Mem is available through the installed Pi skills and the \`nmem\` CLI. Use it when past context would make the work better.
+function hostLabel(): string {
+	return process.env.NMEM_PLUGIN_HOST_LABEL?.trim() || (sourceApp() === "omp" ? "OMP" : "Pi");
+}
+
+function pluginVersion(): string {
+	return process.env.NMEM_PLUGIN_VERSION?.trim() || DEFAULT_PLUGIN_VERSION;
+}
+
+function startupGuidance(): string {
+	const label = hostLabel();
+	const source = sourceApp();
+	return `## Nowledge Mem Guidance
+
+Nowledge Mem is available through the installed ${label} skills and the \`nmem\` CLI. Use it when past context would make the work better.
 
 - Context Bundle or Working Memory may already be injected above. Do not read it again unless the user asks or the session context changes.
 - Search memory when the task resumes prior work, mentions an earlier decision, or would benefit from the user's established preferences and procedures.
 - Search threads when the user asks about a previous conversation or when a memory points back to source conversation history.
 - Save or update durable decisions, preferences, plans, procedures, learnings, events, or important context. Search first; keep one strong memory rather than several weak duplicates.
-- Create an explicit handoff thread only when the user asks for a checkpoint. The Pi extension already syncs completed Pi conversation history automatically.
-- Keep provenance as \`source_app=pi\`. Use \`NMEM_AGENT_ID\` only when this Pi process is intentionally running as a named Nowledge AI Identity.
+- Create an explicit handoff thread only when the user asks for a checkpoint. The ${label} extension already syncs completed ${label} conversation history automatically.
+- Keep provenance as \`source_app=${source}\`. Use \`NMEM_AGENT_ID\` only when this ${label} process is intentionally running as a named Nowledge AI Identity.
 `;
+}
 
 type JsonObject = Record<string, unknown>;
 
@@ -130,7 +146,7 @@ function withAmbientNmemArgs(args: string[], config = resolveConfig()): string[]
 }
 
 function contextArgs(config = resolveConfig()): string[] {
-	return withAmbientNmemArgs(["context", "--source-app", SOURCE_APP], config);
+	return withAmbientNmemArgs(["context", "--source-app", sourceApp()], config);
 }
 
 function workingMemoryArgs(config = resolveConfig()): string[] {
@@ -224,7 +240,7 @@ function isThreadNotFound(result: { status: number; data: unknown }): boolean {
 
 function truncate(text: string): string {
 	if (text.length <= MAX_MESSAGE_CHARS) return text;
-	return `${text.slice(0, MAX_MESSAGE_CHARS)}\n\n[Pi message truncated by Nowledge Mem plugin]`;
+	return `${text.slice(0, MAX_MESSAGE_CHARS)}\n\n[${hostLabel()} message truncated by Nowledge Mem plugin]`;
 }
 
 function partToText(part: unknown): string {
@@ -269,10 +285,10 @@ function messageToText(message: JsonObject): string {
 		return `Ran \`${command}\`\n\`\`\`\n${output}\n\`\`\`${suffix}`;
 	}
 	if (role === "branchSummary") {
-		return `Pi branch summary:\n${stringValue(message.summary) || ""}`;
+		return `${hostLabel()} branch summary:\n${stringValue(message.summary) || ""}`;
 	}
 	if (role === "compactionSummary") {
-		return `Pi compaction summary:\n${stringValue(message.summary) || ""}`;
+		return `${hostLabel()} compaction summary:\n${stringValue(message.summary) || ""}`;
 	}
 	return contentToText(message.content);
 }
@@ -301,7 +317,7 @@ function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): 
 			content,
 			timestamp: stringValue(entry.timestamp),
 			metadata: {
-				external_id: `pi-entry-${stringValue(entry.id) || index}`,
+				external_id: `${sourceApp()}-entry-${stringValue(entry.id) || index}`,
 				pi_entry_id: stringValue(entry.id),
 				pi_entry_type: entry.type,
 				pi_message_role: stringValue(msg.role),
@@ -315,10 +331,10 @@ function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): 
 		if (!content) return undefined;
 		return {
 			role: "user",
-			content: `Pi custom context${stringValue(entry.customType) ? ` (${stringValue(entry.customType)})` : ""}:\n${content}`,
+			content: `${hostLabel()} custom context${stringValue(entry.customType) ? ` (${stringValue(entry.customType)})` : ""}:\n${content}`,
 			timestamp: stringValue(entry.timestamp),
 			metadata: {
-				external_id: `pi-entry-${stringValue(entry.id) || index}`,
+				external_id: `${sourceApp()}-entry-${stringValue(entry.id) || index}`,
 				pi_entry_id: stringValue(entry.id),
 				pi_entry_type: entry.type,
 				pi_custom_type: stringValue(entry.customType),
@@ -329,7 +345,7 @@ function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): 
 	}
 
 	if (entry.type === "compaction" || entry.type === "branch_summary") {
-		const label = entry.type === "compaction" ? "Pi compaction summary" : "Pi branch summary";
+		const label = entry.type === "compaction" ? `${hostLabel()} compaction summary` : `${hostLabel()} branch summary`;
 		const content = truncate(`${label}:\n${stringValue(entry.summary) || ""}`.trim());
 		if (!content) return undefined;
 		return {
@@ -337,7 +353,7 @@ function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): 
 			content,
 			timestamp: stringValue(entry.timestamp),
 			metadata: {
-				external_id: `pi-entry-${stringValue(entry.id) || index}`,
+				external_id: `${sourceApp()}-entry-${stringValue(entry.id) || index}`,
 				pi_entry_id: stringValue(entry.id),
 				pi_entry_type: entry.type,
 				...ambient,
@@ -351,7 +367,7 @@ function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): 
 function buildMessages(ctx: ExtensionContext): ThreadMessage[] {
 	const config = resolveConfig();
 	const ambient: JsonObject = {
-		source_app: SOURCE_APP,
+		source_app: sourceApp(),
 		...(config.agentId ? { agent_id: config.agentId } : {}),
 		...(config.hostAgentId ? { host_agent_id: config.hostAgentId } : {}),
 	};
@@ -376,7 +392,7 @@ function sessionId(ctx: ExtensionContext): string {
 }
 
 function threadIdFor(ctx: ExtensionContext): string {
-	return `pi-${sessionId(ctx)}`.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
+	return `${sourceApp()}-${sessionId(ctx)}`.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
 }
 
 function buildTitle(ctx: ExtensionContext, messages: ThreadMessage[]): string {
@@ -389,7 +405,7 @@ function buildTitle(ctx: ExtensionContext, messages: ThreadMessage[]): string {
 	const firstUser = messages.find((msg) => msg.role === "user")?.content.trim();
 	if (firstUser) return firstUser.slice(0, 120);
 	const cwd = manager.getCwd?.();
-	return cwd ? `Pi session - ${basename(cwd)}` : "Pi session";
+	return cwd ? `${hostLabel()} session - ${basename(cwd)}` : `${hostLabel()} session`;
 }
 
 function shouldSync(messages: ThreadMessage[]): boolean {
@@ -411,9 +427,9 @@ function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | 
 		thread_id: threadId,
 		title: buildTitle(ctx, messages),
 		messages,
-		source: SOURCE_APP,
+		source: sourceApp(),
 		project: manager.getCwd?.(),
-		tool_version: PLUGIN_VERSION,
+		tool_version: pluginVersion(),
 		metadata: {
 			pi_session_id: id,
 			pi_session_file: manager.getSessionFile?.(),
@@ -439,7 +455,7 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 	result = await postJson(`/threads/${encodeURIComponent(payload.threadId)}/append`, {
 		messages: payload.messages,
 		deduplicate: true,
-		idempotency_key: `pi:${payload.sessionId}:${payload.messages.length}`,
+		idempotency_key: `${sourceApp()}:${payload.sessionId}:${payload.messages.length}`,
 	});
 	if (!result.ok && state.created && isThreadNotFound(result)) {
 		state.created = false;
@@ -447,7 +463,7 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 	}
 	if (!result.ok) {
 		const detail = JSON.stringify(result.data);
-		state.lastError = `Pi thread sync failed (${result.status}): ${detail}`;
+		state.lastError = `${hostLabel()} thread sync failed (${result.status}): ${detail}`;
 		console.warn(`[nowledge-mem] ${state.lastError}`);
 		return;
 	}
@@ -624,7 +640,7 @@ function parseWorkingMemoryMarkdown(output: string): string | undefined {
 function truncateStartupContext(text: string, stage: string): string {
 	if (text.length <= MAX_MESSAGE_CHARS) return text;
 	warnStartupContextFailure(stage, `context truncated to ${MAX_MESSAGE_CHARS} characters`);
-	return `${text.slice(0, MAX_MESSAGE_CHARS)}\n\n[Nowledge Mem startup context truncated by Pi plugin]`;
+	return `${text.slice(0, MAX_MESSAGE_CHARS)}\n\n[Nowledge Mem startup context truncated by ${hostLabel()} plugin]`;
 }
 
 function readLocalWorkingMemory(): string | undefined {
@@ -719,7 +735,7 @@ async function appendMemoryContext(systemPrompt: string, ctx: ExtensionContext):
 	} else if (entry?.degradedReason) {
 		sections.push(`## Nowledge Mem Context Bundle\n\n[Nowledge Mem startup context unavailable: ${entry.degradedReason}.]`);
 	}
-	sections.push(STARTUP_GUIDANCE);
+	sections.push(startupGuidance());
 	return `${systemPrompt}\n\n${sections.join("\n\n")}`;
 }
 
