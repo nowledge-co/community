@@ -110,8 +110,9 @@ def install_runtime_hook() -> None:
     shutil.copy2(SOURCE_HOOK, INSTALLED_HOOK)
     mode = INSTALLED_HOOK.stat().st_mode
     INSTALLED_HOOK.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-    if SOURCE_SKILL_OUTCOME.exists():
-        shutil.copy2(SOURCE_SKILL_OUTCOME, INSTALLED_SKILL_OUTCOME)
+    if not SOURCE_SKILL_OUTCOME.exists():
+        raise SystemExit(f"missing skill outcome extractor: {SOURCE_SKILL_OUTCOME}")
+    shutil.copy2(SOURCE_SKILL_OUTCOME, INSTALLED_SKILL_OUTCOME)
 
 
 def _quote_for_hook_command(path: Path) -> str:
@@ -511,8 +512,7 @@ def main() -> int:
 
     print("Installed Nowledge Mem Codex Stop hook")
     print(f"- runtime hook: {INSTALLED_HOOK}")
-    if INSTALLED_SKILL_OUTCOME.exists():
-        print(f"- skill outcome extractor: {INSTALLED_SKILL_OUTCOME}")
+    print(f"- skill outcome extractor: {INSTALLED_SKILL_OUTCOME}")
     print(f"- hooks config: {GLOBAL_HOOKS_FILE}")
     print(f"- hook feature flags ensured in: {CONFIG_FILE}")
     print(f"- plugin Stop hook enabled in: {CONFIG_FILE}")

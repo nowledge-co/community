@@ -67,6 +67,7 @@ for (const file of [
   "hooks/hooks.json",
   "hooks/nmem-stop-launch.py",
   "hooks/nmem-stop-save.py",
+  "hooks/skill_outcome.py",
   "scripts/install_hooks.py",
   "scripts/validate-plugin.mjs",
   "skills/working-memory/SKILL.md",

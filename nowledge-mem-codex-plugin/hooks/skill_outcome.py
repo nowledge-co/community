@@ -1,9 +1,9 @@
 """Extract Nowledge Mem managed-skill use from host transcripts.
 
 The extractor is deliberately conservative: it only reports structured
-`find_skills` tool results that contain both a skill id and version. It does not
-regex free-form assistant text, so normal conversation cannot create false
-skill outcome records.
+`find_skills` tool results with skill-style ids. Missing versions default to
+version 1 for matching skill records. It does not regex free-form assistant
+text, so normal conversation cannot create false skill outcome records.
 """
 
 from __future__ import annotations
@@ -214,7 +214,7 @@ def _parse_json_text(value: str) -> Any | None:
 def _skill_id(node: dict[str, Any]) -> str:
     for key in ("skill_id", "skillId"):
         value = node.get(key)
-        if isinstance(value, str) and value.strip():
+        if isinstance(value, str) and value.strip() and _looks_like_skill_id(value):
             return value.strip()
     value = node.get("id")
     if (

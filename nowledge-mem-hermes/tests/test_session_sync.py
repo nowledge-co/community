@@ -356,6 +356,49 @@ def test_sync_turn_reports_find_skills_match_without_version_as_v1():
     ]
 
 
+def test_sync_turn_ignores_find_skills_match_with_non_skill_style_id():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-skills-non-skill-id"
+    instance._saved_message_count = 0
+
+    messages = [
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "call-non-skill-id",
+                    "name": "mcp__nowledge-mem__find_skills",
+                    "input": {"query": "Hermes Studio LPK"},
+                }
+            ],
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": "call-non-skill-id",
+                    "content": '{"matches":[{"skill_id":"hermes","version":2,"name":"Hermes"}]}',
+                }
+            ],
+        },
+        {"role": "user", "content": "question"},
+        {"role": "assistant", "content": "answer"},
+    ]
+
+    instance.sync_turn(
+        "question",
+        "answer",
+        session_id="session-skills-non-skill-id",
+        messages=messages,
+    )
+
+    assert instance._client.skill_outcome_calls == []
+
+
 def test_initial_import_existing_thread_falls_back_to_dedup_append():
     instance = provider.NowledgeMemProvider()
     instance._client = FakeClient()
