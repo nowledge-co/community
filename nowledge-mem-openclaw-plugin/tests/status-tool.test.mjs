@@ -59,6 +59,65 @@ test("status tool reports the configured context engine slot", async () => {
 	assert.match(result.content[0].text, /Ambient space:/);
 });
 
+test("status tool separates CLI health from thread sync HTTP health", async () => {
+	const client = {
+		resolveCommand: async () => ["nmem"],
+		checkHealth: async () => true,
+		apiJson: async (_method, path) => {
+			if (path === "/threads/sources") {
+				throw new Error("HTTP 401");
+			}
+			return { version: "0.10.22", database_connected: true };
+		},
+	};
+	const cfg = {
+		sessionContext: false,
+		sessionDigest: true,
+		digestMinInterval: 300,
+		maxContextResults: 5,
+		recallMinScore: 55,
+		maxThreadMessageChars: 4000,
+		corpusSupplement: false,
+		apiUrl: "https://example.nowledge-mem.com",
+		apiKey: "",
+		space: "",
+		_sources: {
+			sessionContext: "default",
+			sessionDigest: "default",
+			digestMinInterval: "default",
+			maxContextResults: "default",
+			recallMinScore: "default",
+			maxThreadMessageChars: "default",
+			corpusSupplement: "default",
+			apiUrl: "pluginConfig",
+			apiKey: "default",
+			space: "default",
+		},
+	};
+	const tool = createStatusTool(client, logger, cfg, {
+		memorySlot: "openclaw-nowledge-mem",
+		contextEngineRegistered: false,
+	});
+
+	const result = await tool.execute();
+
+	assert.equal(result.details.cliBackendReachable, true);
+	assert.equal(result.details.healthy, false);
+	assert.equal(result.details.httpBackendReachable, true);
+	assert.equal(result.details.threadSyncHttpReachable, false);
+	assert.equal(result.details.threadSyncHttpError, "HTTP 401");
+	assert.match(result.content[0].text, /CLI backend: reachable/);
+	assert.match(
+		result.content[0].text,
+		/Thread sync HTTP API: not reachable/,
+	);
+	assert.match(result.content[0].text, /Backend: partially reachable/);
+	assert.match(
+		result.content[0].text,
+		/Conversation capture writes to the Mem HTTP API/,
+	);
+});
+
 test("status tool treats the plugin id as a compatible context engine slot", async () => {
 	const client = {
 		resolveCommand: async () => ["nmem"],

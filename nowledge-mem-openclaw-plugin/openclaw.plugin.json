@@ -2,7 +2,7 @@
 	"id": "openclaw-nowledge-mem",
 	"name": "Nowledge Mem",
 	"description": "Cross-tool knowledge graph memory for OpenClaw with startup context, graph search, and session distillation.",
-	"version": "0.8.27",
+	"version": "0.8.28",
 	"kind": ["memory", "context-engine"],
 	"contracts": {
 		"tools": [

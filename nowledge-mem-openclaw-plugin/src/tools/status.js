@@ -228,38 +228,68 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				lines.push("CLI: not found (install with: pip install nmem-cli)");
 			}
 
-			// 3. Backend health
-			let healthy = false;
+			// 3. Backend health. Memory tools and thread capture travel through
+			// different surfaces: most reads/writes use the nmem CLI, while thread
+			// auto-sync writes directly to the HTTP API so large transcripts do not
+			// become argv-sized blobs. Report them separately; otherwise `nmem status`
+			// can produce a false green for users whose conversation capture is broken.
+			let cliHealthy = false;
 			try {
-				healthy = await client.checkHealth();
+				cliHealthy = await client.checkHealth();
 			} catch {
 				// checkHealth already returns false on error
 			}
-			details.healthy = healthy;
+			details.cliBackendReachable = cliHealthy;
 
-			if (healthy) {
-				lines.push("Backend: reachable");
-				// Fetch detailed health info
-				try {
-					const health = await client.apiJson(
-						"GET",
-						"/health",
-						undefined,
-						5000,
-					);
-					if (health.version) {
-						details.version = health.version;
-						lines.push(`Version: ${health.version}`);
-					}
-					if (health.database_connected !== undefined) {
-						details.databaseConnected = health.database_connected;
-						lines.push(
-							`Database: ${health.database_connected ? "connected" : "disconnected"}`,
-						);
-					}
-				} catch {
-					// Health endpoint not available on older backends
+			lines.push(`CLI backend: ${cliHealthy ? "reachable" : "not reachable"}`);
+
+			let httpHealthy = false;
+			try {
+				const health = await client.apiJson("GET", "/health", undefined, 5000);
+				httpHealthy = true;
+				if (health.version) {
+					details.version = health.version;
+					lines.push(`Version: ${health.version}`);
 				}
+				if (health.database_connected !== undefined) {
+					details.databaseConnected = health.database_connected;
+					lines.push(
+						`Database: ${health.database_connected ? "connected" : "disconnected"}`,
+					);
+				}
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				details.httpHealthError = message;
+			}
+			details.httpBackendReachable = httpHealthy;
+
+			let threadApiHealthy = false;
+			try {
+				await client.apiJson("GET", "/threads/sources", undefined, 5000);
+				threadApiHealthy = true;
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				details.threadSyncHttpError = message;
+			}
+			details.threadSyncHttpReachable = threadApiHealthy;
+			details.healthy = cliHealthy && threadApiHealthy;
+
+			if (threadApiHealthy) {
+				lines.push("Thread sync HTTP API: reachable");
+			} else {
+				lines.push("Thread sync HTTP API: not reachable");
+				lines.push(
+					"  Conversation capture writes to the Mem HTTP API. It will not sync while this is unreachable, even if memory tools still work through the CLI.",
+				);
+				if (details.threadSyncHttpError) {
+					lines.push(`  Detail: ${details.threadSyncHttpError}`);
+				}
+			}
+
+			if (cliHealthy && threadApiHealthy) {
+				lines.push("Backend: reachable");
+			} else if (cliHealthy || threadApiHealthy || httpHealthy) {
+				lines.push("Backend: partially reachable");
 			} else {
 				lines.push("Backend: not reachable");
 				if (remote) {

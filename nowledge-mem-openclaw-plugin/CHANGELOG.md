@@ -4,6 +4,12 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.28] - 2026-07-08
+
+### Improved
+
+- `nowledge_mem_status` now checks OpenClaw's Mem HTTP thread-sync API separately from the `nmem` CLI. This makes session-capture issues visible when memory tools still work but conversation sync cannot reach `/threads`.
+
 ## [0.8.27] - 2026-06-26
 
 ### Fixed
