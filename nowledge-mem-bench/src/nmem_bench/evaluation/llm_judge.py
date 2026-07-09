@@ -10,6 +10,8 @@ import json
 import logging
 from typing import Any
 
+from nmem_bench.llm import completion_kwargs
+
 logger = logging.getLogger(__name__)
 
 # ── Judge Prompts (adapted from MemoryBench) ──
@@ -102,12 +104,7 @@ async def judge_answer(
     )
 
     try:
-        response = await acompletion(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=200,
-        )
+        response = await acompletion(**completion_kwargs(model, prompt, max_tokens=200))
         content = response.choices[0].message.content.strip()
 
         # Parse JSON from response

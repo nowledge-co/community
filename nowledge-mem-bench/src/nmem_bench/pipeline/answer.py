@@ -7,6 +7,7 @@ import logging
 import time
 
 from nmem_bench.benchmarks.types import UnifiedQuestion
+from nmem_bench.llm import completion_kwargs
 from nmem_bench.pipeline.checkpoint import RunCheckpoint
 
 logger = logging.getLogger(__name__)
@@ -57,12 +58,7 @@ async def _generate_answer(
 
     prompt = QA_PROMPT.format(context=context, question=question.question)
 
-    response = await acompletion(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-        max_tokens=150,
-    )
+    response = await acompletion(**completion_kwargs(model, prompt, max_tokens=150))
     return response.choices[0].message.content.strip()
 
 
