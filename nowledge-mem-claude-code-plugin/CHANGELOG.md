@@ -5,6 +5,12 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.18] - 2026-07-09
+
+### Fixed
+
+- Space routing guidance now matches the hook behavior: Claude Code and Grok Build never infer a Mem space from the current folder or git repository. The plugin uses the default space unless the user explicitly sets `NMEM_SPACE` or names an existing space in a command.
+
 ## [0.7.17] - 2026-07-07
 
 ### Fixed

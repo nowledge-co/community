@@ -135,6 +135,8 @@ NMEM_SPACE="Research Agent"
 
 The session-start Context Bundle / Working Memory read, per-turn guidance, slash-command flows, and hook-driven `nmem t save --from claude-code` capture will then stay in that lane automatically.
 
+The plugin never invents a space from the current folder, git repository, branch, or project name. Without `NMEM_SPACE`, it reads and saves in your default Mem space. This keeps opening an unfamiliar repo from creating a new space in your graph.
+
 For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Claude Code worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced external aliases. Context Bundle will use the stable identity while keeping `source_app=claude-code` for provenance.
 
 Shared spaces, default retrieval, and agent guidance still live in Mem's own space profile. Claude Code does not need a second plugin-local space config.

@@ -45,7 +45,7 @@ nmem --json m search "authentication" -l backend -l security
 nmem --json m search "meeting notes" -t week
 ```
 
-If the runtime already knows the active project or agent lane, add `--space "<space name>"`.
+Only add `--space "<space name>"` when the user or environment explicitly provided that existing Mem space (for example `NMEM_SPACE`). Never infer a space from the current folder, git repository, branch, or project name.
 
 **Query:** Extract semantic core, preserve terminology, multi-language aware
 
