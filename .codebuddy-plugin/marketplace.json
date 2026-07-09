@@ -1,0 +1,22 @@
+{
+  "name": "nowledge-community",
+  "displayName": "Nowledge Community",
+  "description": "Nowledge Mem connectors for WorkBuddy and CodeBuddy runtimes.",
+  "version": "1.0.0",
+  "maintainer": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai",
+    "url": "https://nowledge-labs.ai"
+  },
+  "plugins": [
+    {
+      "name": "nowledge-mem",
+      "version": "0.1.0",
+      "source": "./nowledge-mem-codebuddy-plugin",
+      "description": "Cross-tool memory, MCP tools, and lifecycle thread sync for WorkBuddy and CodeBuddy.",
+      "tags": ["memory", "mcp", "hooks", "thread-sync", "workbuddy", "codebuddy"],
+      "homepage": "https://mem.nowledge.co/docs/integrations/codebuddy",
+      "repository": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-codebuddy-plugin"
+    }
+  ]
+}

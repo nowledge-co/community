@@ -1,0 +1,20 @@
+{
+  "name": "nowledge-mem",
+  "version": "0.1.0",
+  "description": "Cross-tool memory for CodeBuddy. Recall past decisions, search prior threads, and keep CodeBuddy sessions searchable in Nowledge Mem.",
+  "author": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai",
+    "url": "https://nowledge-labs.ai"
+  },
+  "homepage": "https://mem.nowledge.co/docs/integrations/codebuddy",
+  "repository": "https://github.com/nowledge-co/community.git",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "mcp",
+    "skills",
+    "thread-sync",
+    "codebuddy"
+  ]
+}

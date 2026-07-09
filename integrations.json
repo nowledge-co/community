@@ -9,7 +9,7 @@
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
-      "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode", "craft-agent",
+      "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
       "slock", "lody", "multica", "cumora", "paseo", "mcp-direct"
     ],
@@ -1257,6 +1257,116 @@
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": []
+    },
+    {
+      "id": "codebuddy",
+      "name": "CodeBuddy",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-codebuddy-plugin",
+      "transport": "plugin+mcp+cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "codebuddy",
+        "command": "nmem t sync --from codebuddy --session-id <session-id> --session-dir <transcript_path> --all-projects --apply",
+        "historicalCommand": "nmem t sync --from codebuddy",
+        "note": "CodeBuddy Code v1.16+ exposes native plugin hooks with session_id and transcript_path. The Nowledge Mem plugin uses Stop, SessionEnd, PreCompact, and SubagentStop hooks to run nmem on the same machine as CodeBuddy's ~/.codebuddy/projects transcripts. MCP handles memory tools; nmem owns real transcript import."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the CodeBuddy plugin from the Nowledge community marketplace",
+          "Keep nmem configured on the machine where CodeBuddy stores $CODEBUDDY_CONFIG_DIR/projects or ~/.codebuddy/projects",
+          "Restart or reload CodeBuddy after install or update so hooks and MCP config are active",
+          "Use nmem config mcp show --host codebuddy for remote Mem or authenticated localhost",
+          "Run nmem t sync --from codebuddy --apply only when you want to import older CodeBuddy sessions"
+        ]
+      },
+      "install": {
+        "command": "codebuddy plugin marketplace add nowledge-co/community && codebuddy plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "codebuddy plugin marketplace update nowledge-community && codebuddy plugin update nowledge-mem@nowledge-community",
+        "configRequired": "The community repo exposes .codebuddy-plugin/marketplace.json. The plugin ships .codebuddy-plugin/plugin.json, skills, slash commands, hooks/hooks.json, and a bundled local .mcp.json. For remote Mem, generate a user-owned MCP override with nmem config mcp show --host codebuddy and paste it into ~/.codebuddy/.mcp.json, $CODEBUDDY_CONFIG_DIR/.mcp.json, or project .mcp.json.",
+        "detectionHint": "Running inside CodeBuddy Code; ~/.codebuddy/ exists, CODEBUDDY_CONFIG_DIR is set, or codebuddy is on PATH",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for CodeBuddy. Add the nowledge-community marketplace, install nowledge-mem@nowledge-community, verify with nmem status and the Context Bundle or Working Memory check, then run a short session and confirm nmem t list --source codebuddy shows the imported thread.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 CodeBuddy 安装或更新 Nowledge Mem。添加 nowledge-community marketplace，安装 nowledge-mem@nowledge-community；用 nmem status 和 Context Bundle 或 Working Memory 检查验证，再跑一个短会话并确认 nmem t list --source codebuddy 能看到导入的线程。"
+        },
+        "docsUrl": "/docs/integrations/codebuddy"
+      },
+      "toolNaming": {
+        "convention": "codebuddy-plugin+mcp+cli",
+        "note": "CodeBuddy loads skills, commands, hooks, and MCP from the plugin package. MCP is for retrieval and structured saves; thread sync stays in nmem using CodeBuddy's transcript_path."
+      },
+      "skills": ["nowledge-mem"],
+      "slashCommands": ["/nowledge-mem:status", "/nowledge-mem:sync-now", "/nowledge-mem:import-history"]
+    },
+    {
+      "id": "workbuddy",
+      "name": "WorkBuddy",
+      "category": "office",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-codebuddy-plugin",
+      "transport": "plugin+mcp+cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "workbuddy",
+        "command": "nmem t sync --from workbuddy --session-id <session-id> --session-dir <transcript_path> --all-projects --apply",
+        "historicalCommand": "nmem t sync --from workbuddy",
+        "note": "WorkBuddy uses the CodeBuddy plugin abstraction and an independent ~/.workbuddy configuration directory. The Nowledge Mem plugin uses lifecycle transcript_path hooks to run nmem on the same machine as WorkBuddy's local transcripts. MCP handles memory tools; nmem owns real transcript import."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the Nowledge Mem plugin from the Nowledge community marketplace inside WorkBuddy",
+          "Keep nmem configured on the machine where WorkBuddy stores $WORKBUDDY_CONFIG_DIR/projects or ~/.workbuddy/projects",
+          "Restart or reload WorkBuddy after install or update so hooks and MCP config are active",
+          "Use nmem config mcp show --host workbuddy for remote Mem or authenticated localhost",
+          "Run nmem t sync --from workbuddy --apply only when you want to import older WorkBuddy sessions"
+        ]
+      },
+      "install": {
+        "command": "/plugin marketplace add nowledge-co/community && /plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "/plugin marketplace update nowledge-community && /plugin update nowledge-mem@nowledge-community",
+        "configRequired": "The community repo exposes .workbuddy-plugin/marketplace.json and .codebuddy-plugin/marketplace.json. The shared plugin ships .workbuddy-plugin/plugin.json, .codebuddy-plugin/plugin.json, skills, slash commands, hooks/hooks.json, and a bundled local .mcp.json. For remote Mem, generate a user-owned MCP override with nmem config mcp show --host workbuddy and paste it into ~/.workbuddy/.mcp.json, $WORKBUDDY_CONFIG_DIR/.mcp.json, or project .mcp.json.",
+        "detectionHint": "Running inside WorkBuddy; ~/.workbuddy/ exists, WORKBUDDY_CONFIG_DIR is set, or WorkBuddy exposes the CodeBuddy-compatible plugin runtime",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for WorkBuddy. Add the nowledge-community marketplace, install nowledge-mem@nowledge-community, verify with nmem status and the Context Bundle or Working Memory check, then run a short session and confirm nmem t list --source workbuddy shows the imported thread.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 WorkBuddy 安装或更新 Nowledge Mem。添加 nowledge-community marketplace，安装 nowledge-mem@nowledge-community；用 nmem status 和 Context Bundle 或 Working Memory 检查验证，再跑一个短会话并确认 nmem t list --source workbuddy 能看到导入的线程。"
+        },
+        "docsUrl": "/docs/integrations/workbuddy"
+      },
+      "toolNaming": {
+        "convention": "workbuddy-plugin+mcp+cli",
+        "note": "WorkBuddy loads the CodeBuddy-compatible plugin package from .workbuddy-plugin. MCP is for retrieval and structured saves; thread sync stays in nmem using WorkBuddy's transcript_path."
+      },
+      "skills": ["nowledge-mem"],
+      "slashCommands": ["/nowledge-mem:status", "/nowledge-mem:sync-now", "/nowledge-mem:import-history"]
     },
     {
       "id": "proma",

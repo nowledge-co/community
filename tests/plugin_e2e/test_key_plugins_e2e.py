@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -34,6 +35,7 @@ OMP_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-omp-plugin"
 KIMI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-kimi-code-plugin"
 KIMI_WORK_CONNECTOR = COMMUNITY_ROOT / "nowledge-mem-kimi-work-connector"
 BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
+CODEBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-codebuddy-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
 KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
@@ -41,6 +43,15 @@ KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
 
 def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_python_module(path: Path, name: str) -> Any:
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise AssertionError(f"could not load module spec for {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _run(
@@ -676,6 +687,32 @@ def test_key_plugin_static_contracts_are_declared():
     assert "nowledge_mem_context_bundle" in alma_skill.read_text(encoding="utf-8")
     assert "nowledge_mem_context_bundle" in alma_source
     assert "windowsHide: true" in alma_source
+
+
+def test_codebuddy_hook_distinguishes_workbuddy_config_dirs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    hook = _load_python_module(
+        CODEBUDDY_PLUGIN / "scripts" / "codebuddy-sync-hook.py",
+        "nowledge_mem_codebuddy_sync_hook",
+    )
+    workbuddy_home = tmp_path / "custom-workbuddy"
+    codebuddy_home = tmp_path / "custom-codebuddy"
+    workbuddy_session = workbuddy_home / "projects" / "p" / "session.jsonl"
+    codebuddy_session = codebuddy_home / "projects" / "p" / "session.jsonl"
+    workbuddy_session.parent.mkdir(parents=True)
+    codebuddy_session.parent.mkdir(parents=True)
+    workbuddy_session.write_text("{}", encoding="utf-8")
+    codebuddy_session.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("WORKBUDDY_CONFIG_DIR", str(workbuddy_home))
+    monkeypatch.setenv("CODEBUDDY_CONFIG_DIR", str(codebuddy_home))
+    monkeypatch.delenv("NMEM_SOURCE_APP", raising=False)
+
+    assert hook._source_app_for_payload({"transcript_path": str(workbuddy_session)}) == "workbuddy"
+    assert hook._source_app_for_payload({"transcript_path": str(codebuddy_session)}) == "codebuddy"
+
+    monkeypatch.setenv("NMEM_SOURCE_APP", "workbuddy")
+    assert hook._source_app_for_payload({"transcript_path": str(codebuddy_session)}) == "workbuddy"
 
 
 def test_kimi_code_hook_installer_uses_isolated_kimi_home(tmp_path: Path):

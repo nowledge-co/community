@@ -1,0 +1,72 @@
+{
+  "description": "Nowledge Mem lifecycle hooks for WorkBuddy and CodeBuddy thread capture and startup context",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "nmem --json context --source-app workbuddy 2>/dev/null || nmem --json context --source-app codebuddy 2>/dev/null || nmem --json wm read 2>/dev/null || true",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Use memory when past decisions, preferences, or prior threads would help. Prefer MCP tools when connected; fallback commands: nmem --json context --source-app workbuddy, nmem --json m search \"query\", nmem --json m add \"content\" -t \"Title\" -s workbuddy. Real thread sync uses local WorkBuddy transcripts via nmem t sync --from workbuddy; use codebuddy when the transcript path is under .codebuddy.' || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || python \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || py -3 \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || true",
+            "timeout": 40
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || python \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || py -3 \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || true",
+            "timeout": 40
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || python \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || py -3 \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || true",
+            "timeout": 40
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || python \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || py -3 \"${CODEBUDDY_PLUGIN_ROOT}/scripts/codebuddy-sync-hook.py\" || true",
+            "timeout": 40
+          }
+        ]
+      }
+    ]
+  }
+}

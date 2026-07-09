@@ -66,6 +66,8 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[OMP Plugin](nowledge-mem-omp-plugin)** | `omp plugin install nowledge-mem-omp` | OMP-native plugin with startup Context Bundle / Working Memory injection, automatic conversation capture, and bundled memory skills. |
 | **[OpenCode Plugin](nowledge-mem-opencode-plugin)** | Add `"opencode-nowledge-mem"` to `opencode.json` plugins | Native OpenCode plugin with Context Bundle, Working Memory, search/save tools, idle-event automatic thread capture, pre-compaction flush, handoff, and status. |
 | **[Craft Agent Connector](nowledge-mem-craft-agent-connector)** | `nmem config mcp show --host craft-agent` | Craft workspace source + guide setup: MCP memory tools inside Craft Agent, plus `nmem t sync --from craft-agent` for real local session import from Craft `session.jsonl` files. |
+| **[WorkBuddy Plugin](nowledge-mem-codebuddy-plugin)** | In WorkBuddy: `/plugin marketplace add nowledge-co/community`, then `/plugin install nowledge-mem@nowledge-community` | WorkBuddy-native setup through the CodeBuddy-compatible plugin abstraction: startup context, bundled MCP, slash commands, lifecycle hooks, and real WorkBuddy thread capture through `nmem` using WorkBuddy's `transcript_path`. |
+| **[CodeBuddy Plugin](nowledge-mem-codebuddy-plugin)** | `codebuddy plugin marketplace add nowledge-co/community` then `codebuddy plugin install nowledge-mem@nowledge-community` | CodeBuddy-native plugin with startup context, bundled MCP, slash commands, lifecycle hooks, and real CodeBuddy thread capture through `nmem` using CodeBuddy's `transcript_path`. |
 | **[Kimi Code Plugin](nowledge-mem-kimi-code-plugin)** | `/plugins install https://github.com/nowledge-co/community`, then `/plugins enable nowledge-mem` and `/reload` | Kimi-native plugin metadata, session-start skill, bundled local MCP, native lifecycle hooks, slash commands, and real Kimi Code thread capture through `nmem`. |
 | **[Kimi Work Connector](nowledge-mem-kimi-work-connector)** | `python3 ~/.cache/nowledge-community/nowledge-mem-kimi-work-connector/scripts/install_kimi_work_plugin.py` | Kimi Work desktop connector for its embedded Kimi Code runtime: session-start skill, bundled local MCP, and explicit `nmem t sync --from kimi-work` session import. |
 | **[Hermes Agent](nowledge-mem-hermes)** | `bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)` | Native Hermes memory provider with Context Bundle / Working Memory startup context, pre-turn recall, clean `nmem_` tools, and session-end transcript capture into Mem threads. MCP remains available as a fallback mode. |
@@ -99,6 +101,7 @@ nmem config mcp show --host cursor
 nmem config mcp show --host codex
 nmem config mcp show --host gemini-cli
 nmem config mcp show --host craft-agent
+nmem config mcp show --host codebuddy
 ```
 
 Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically; paste the generated block into the host's own MCP settings.

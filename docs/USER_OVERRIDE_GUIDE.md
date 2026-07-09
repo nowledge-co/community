@@ -23,6 +23,8 @@ Use the host's own user-owned instruction surface instead. That is the only over
 | Pi | `AGENTS.md` next to the project config | repo-local `AGENTS.md` | Pi package skills stay default; project guidance is the real override path. |
 | Kimi Code | project `AGENTS.md` or `.kimi-code/AGENTS.md` | `$KIMI_CODE_HOME/AGENTS.md` | Keep the managed plugin copy untouched; Kimi Code loads user and project instructions outside the plugin. |
 | Craft Agent | Workspace `skills/{slug}/SKILL.md` or `sources/{slug}/guide.md` | Global `~/.agents/skills/{slug}/SKILL.md` | Keep the community connector templates as defaults; put durable behavior changes in Craft's own source guide or skill files. |
+| WorkBuddy | project `CODEBUDDY.md` or `.workbuddy/rules/*.md` if exposed by the workspace | `~/.workbuddy/CODEBUDDY.md`, `~/.workbuddy/MEMORY.md`, or `$WORKBUDDY_CONFIG_DIR/CODEBUDDY.md` | Keep the plugin package untouched; WorkBuddy has its own `.workbuddy` config directory separate from CodeBuddy. |
+| CodeBuddy | project `CODEBUDDY.md` or `.codebuddy/rules/*.md` | `~/.codebuddy/CODEBUDDY.md` or `$CODEBUDDY_CONFIG_DIR/CODEBUDDY.md` | Keep the plugin package untouched; CodeBuddy loads user/project memory and rules outside marketplace installs. |
 
 ## Integrations without a first-class override file
 
