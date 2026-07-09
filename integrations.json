@@ -946,7 +946,7 @@
       "name": "Kimi Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "directory": "nowledge-mem-kimi-code-plugin",
       "transport": "mcp+skills+hook",
       "capabilities": {
@@ -972,7 +972,7 @@
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the Nowledge Mem Kimi Code package",
-          "Use nmem 0.9.19 or newer on the same machine as Kimi Code",
+          "Use nmem 0.9.19 or newer on the same machine as Kimi Code; if nmem rejects Kimi Code commands, upgrade the CLI from the same source before retrying",
           "Reload Kimi Code after install so plugin skills, hooks, MCP, and slash commands activate",
           "Use the bundled local MCP server, or use nmem config mcp show --host kimi-code for remote Mem or authenticated localhost",
           "Keep nmem configured on this machine for local or remote Mem",
@@ -980,9 +980,9 @@
         ]
       },
       "install": {
-        "command": "git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; in Kimi Code run /plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin, /plugins enable nowledge-mem, /reload",
-        "updateCommand": "git -C ~/.cache/nowledge-community pull --ff-only || git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; in Kimi Code rerun /plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin, /plugins enable nowledge-mem, /reload",
-        "configRequired": "Modern Kimi Code reads Nowledge Mem lifecycle hooks and slash commands directly from kimi.plugin.json after /reload. For remote Mem, use nmem config mcp show --host kimi-code and paste the generated nowledge-mem server into $KIMI_CODE_HOME/mcp.json or ~/.kimi-code/mcp.json. scripts/install_hooks.py is only a fallback for older Kimi Code builds that do not load plugin manifest hooks.",
+        "command": "in Kimi Code run /plugins install https://github.com/nowledge-co/community, /plugins enable nowledge-mem, /reload",
+        "updateCommand": "in Kimi Code rerun /plugins install https://github.com/nowledge-co/community, /plugins enable nowledge-mem, /reload",
+        "configRequired": "The community repo has a root kimi.plugin.json shim that points Kimi Code to nowledge-mem-kimi-code-plugin; Kimi's GitHub installer downloads the repository zip and does not clone submodules. Modern Kimi Code reads Nowledge Mem lifecycle hooks and slash commands directly from kimi.plugin.json after /reload. For remote Mem, use nmem config mcp show --host kimi-code and paste the generated nowledge-mem server into $KIMI_CODE_HOME/mcp.json or ~/.kimi-code/mcp.json. scripts/install_hooks.py is only a fallback for older Kimi Code builds that do not load plugin manifest hooks.",
         "detectionHint": "Running inside Kimi Code; ~/.kimi-code/ exists or KIMI_CODE_HOME is set",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Kimi Code. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",

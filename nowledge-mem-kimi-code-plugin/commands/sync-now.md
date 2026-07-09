@@ -4,6 +4,8 @@ description: Sync recent Kimi Code sessions into Nowledge Mem Threads.
 
 Sync Kimi Code work into Nowledge Mem.
 
+If `nmem` exists but rejects `t sync --from kimi-code`, stop and report that the CLI is outdated. Ask the user to refresh the same CLI source first: desktop-bundled CLI via Mem Settings -> Preferences -> Developer Tools -> Install bundled CLI, PyPI via `python3 -m pip install --user --upgrade nmem-cli`, or pipx via `pipx upgrade nmem-cli`. Then retry the sync.
+
 First run:
 
 ```bash

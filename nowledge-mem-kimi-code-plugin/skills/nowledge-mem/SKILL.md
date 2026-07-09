@@ -23,6 +23,8 @@ nmem --json wm read
 
 Do not read both Context Bundle and Working Memory unless the user asks. Summarize only the parts relevant to the current task.
 
+If `nmem` exists but rejects a Kimi Code command, flag, or MCP host helper, treat it as an outdated CLI rather than a broken Mem server. Check `nmem --version`, refresh the CLI from the same source, then retry. For the desktop-bundled CLI, ask the user to open Mem and run Settings -> Preferences -> Developer Tools -> Install bundled CLI. For standalone installs, use `python3 -m pip install --user --upgrade nmem-cli` or `pipx upgrade nmem-cli`.
+
 ## Recall
 
 Search memory when the user references prior work, asks for rationale, resumes a named project, investigates a regression, or asks about something that may already have been decided.
@@ -97,6 +99,8 @@ When setup seems broken or the user asks whether Mem is connected:
 ```bash
 nmem --json status
 ```
+
+If `nmem --json status` works but Kimi-specific commands fail, do not keep using the old CLI. Upgrade it first, then rerun the failed command.
 
 If the desktop app is on the same machine, `nmem` usually comes from the app. If Kimi Code runs on another machine, install the standalone CLI:
 

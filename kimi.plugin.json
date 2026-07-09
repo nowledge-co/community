@@ -8,12 +8,12 @@
   },
   "homepage": "https://mem.nowledge.co/docs/integrations/kimi-code",
   "license": "MIT",
-  "skills": "./skills/",
+  "skills": "./nowledge-mem-kimi-code-plugin/skills/",
   "sessionStart": {
     "skill": "nowledge-mem"
   },
   "skillInstructions": "Use Nowledge Mem for durable cross-tool memory. Prefer MCP tools when they are connected; use nmem CLI as the fallback and for real Kimi Code transcript import. If nmem exists but rejects Kimi Code commands or MCP host helpers, treat it as outdated and upgrade the CLI before retrying.",
-  "commands": "./commands/",
+  "commands": "./nowledge-mem-kimi-code-plugin/commands/",
   "mcpServers": {
     "nowledge-mem": {
       "url": "http://127.0.0.1:14242/mcp/",
@@ -24,27 +24,27 @@
   "hooks": [
     {
       "event": "Stop",
-      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "command": "python3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || python ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || py -3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py",
       "timeout": 40
     },
     {
       "event": "SessionEnd",
-      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "command": "python3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || python ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || py -3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py",
       "timeout": 40
     },
     {
       "event": "PreCompact",
-      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "command": "python3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || python ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || py -3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py",
       "timeout": 40
     },
     {
       "event": "SubagentStop",
-      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "command": "python3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || python ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || py -3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py",
       "timeout": 40
     },
     {
       "event": "Interrupt",
-      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "command": "python3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || python ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || py -3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py",
       "timeout": 40
     }
   ],

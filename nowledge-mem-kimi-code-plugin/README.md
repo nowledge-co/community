@@ -25,6 +25,12 @@ nmem status
 nmem --version
 ```
 
+If `nmem` exists but rejects `t sync --from kimi-code`, `config mcp show --host kimi-code`, or another Kimi-specific command, update the CLI before debugging MCP or session sync:
+
+- Desktop-bundled CLI: open Mem and run **Settings -> Preferences -> Developer Tools -> Install bundled CLI** again.
+- PyPI CLI: `python3 -m pip install --user --upgrade nmem-cli`
+- pipx CLI: `pipx upgrade nmem-cli`
+
 If Kimi Code runs on another machine, install the standalone CLI there:
 
 ```bash
@@ -42,16 +48,10 @@ nmem config client set api-key your-key
 
 ## Install
 
-Get the community checkout if you do not already have it:
-
-```bash
-git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community
-```
-
-Install the Kimi Code plugin from the package directory:
+Install the Kimi Code plugin from the community repo:
 
 ```text
-/plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin
+/plugins install https://github.com/nowledge-co/community
 /plugins enable nowledge-mem
 /reload
 ```
@@ -65,7 +65,17 @@ The plugin bundles:
 
 Kimi namespaces plugin MCP servers, so this does not overwrite user-level MCP entries.
 
-This package is ready for a dedicated GitHub repo or Kimi marketplace entry. While it lives inside the Nowledge community monorepo, install it from the local package path shown above; Kimi Code's GitHub installer downloads whole repositories or release zips, not arbitrary monorepo subdirectories.
+The community repo has a root `kimi.plugin.json` shim that points Kimi Code to this package directory. Kimi's GitHub installer downloads the repository zip; it does not clone submodules. If you are developing locally or need an offline install, you can still install from the package directory:
+
+```bash
+git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community
+```
+
+```text
+/plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin
+/plugins enable nowledge-mem
+/reload
+```
 
 For remote Mem or authenticated localhost, generate a user-level MCP config with the version of `nmem` that includes Kimi Code support:
 
@@ -163,7 +173,7 @@ tail -n 50 ~/.kimi-code/logs/nowledge-mem-hook.log
 Reinstall the plugin package from the new source, run `/reload`, and start a new session if needed:
 
 ```text
-/plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin
+/plugins install https://github.com/nowledge-co/community
 /plugins enable nowledge-mem
 /reload
 ```

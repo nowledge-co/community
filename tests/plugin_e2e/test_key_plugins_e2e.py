@@ -584,12 +584,26 @@ def test_key_plugin_static_contracts_are_declared():
     assert "stablePathSuffix" in pi_history_sync
     assert "custom_message" in pi_history_sync
 
+    kimi_root_manifest = _read_json(COMMUNITY_ROOT / "kimi.plugin.json")
     kimi_manifest = _read_json(KIMI_PLUGIN / "kimi.plugin.json")
     kimi_skill = (KIMI_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md").read_text(encoding="utf-8")
     kimi_installer = (KIMI_PLUGIN / "scripts" / "install_hooks.py").read_text(encoding="utf-8")
     kimi_hook = (KIMI_PLUGIN / "scripts" / "kimi-sync-hook.py").read_text(encoding="utf-8")
+    assert kimi_root_manifest["name"] == "nowledge-mem"
+    assert kimi_root_manifest["version"] == kimi_manifest["version"]
+    assert kimi_root_manifest["skills"] == "./nowledge-mem-kimi-code-plugin/skills/"
+    assert kimi_root_manifest["commands"] == "./nowledge-mem-kimi-code-plugin/commands/"
+    assert set(hook["event"] for hook in kimi_root_manifest["hooks"]) == {
+        "Stop",
+        "SessionEnd",
+        "PreCompact",
+        "SubagentStop",
+        "Interrupt",
+    }
+    for hook in kimi_root_manifest["hooks"]:
+        assert "nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py" in hook["command"]
     assert kimi_manifest["name"] == "nowledge-mem"
-    assert kimi_manifest["version"] == "0.2.0"
+    assert kimi_manifest["version"] == "0.2.1"
     assert kimi_manifest["skills"] == "./skills/"
     assert kimi_manifest["sessionStart"]["skill"] == "nowledge-mem"
     assert kimi_manifest["mcpServers"]["nowledge-mem"]["url"] == "http://127.0.0.1:14242/mcp/"
@@ -605,9 +619,13 @@ def test_key_plugin_static_contracts_are_declared():
     for command_name in ["status", "sync-now", "import-history"]:
         command_path = KIMI_PLUGIN / "commands" / f"{command_name}.md"
         assert command_path.exists()
-        assert "description:" in command_path.read_text(encoding="utf-8")
+        command_text = command_path.read_text(encoding="utf-8")
+        assert "description:" in command_text
+        assert "outdated" in command_text
+        assert "CLI" in command_text
     assert "nmem --json context --source-app kimi-code" in kimi_skill
     assert "nmem --json t sync --from kimi-code --session-id <session-id> --apply" in kimi_skill
+    assert "outdated CLI" in kimi_skill
     assert "source_app=kimi-code" in kimi_skill
     assert "Stop" in kimi_installer
     assert "SessionEnd" in kimi_installer
@@ -1086,7 +1104,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["pi"]["version"] == "0.8.3"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
-    assert by_id["kimi-code"]["version"] == "0.2.0"
+    assert by_id["kimi-code"]["version"] == "0.2.1"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "mcp+skills+hook"
     assert by_id["kimi-code"]["capabilities"]["autoCapture"] is True

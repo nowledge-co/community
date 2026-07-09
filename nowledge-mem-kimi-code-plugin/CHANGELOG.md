@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Kimi Code setup and slash-command guidance now treats `nmem` command/flag drift as an outdated CLI, not a broken Mem server. Agents are told to upgrade the same CLI source before retrying Kimi-specific MCP or thread-sync commands.
+
 ## 0.2.0
 
 - Move Kimi Code thread capture into native `kimi.plugin.json` lifecycle hooks. Installing and enabling the plugin now registers sync hooks for `Stop`, `SessionEnd`, `PreCompact`, `SubagentStop`, and `Interrupt`; `scripts/install_hooks.py` remains as a fallback for older Kimi Code builds.
