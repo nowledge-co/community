@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Install Nowledge Mem Kimi Code lifecycle hooks.
 
-Kimi plugins do not execute installation scripts and do not support hooks in the
-plugin manifest. Users or the desktop app must call this explicit setup script.
+Modern Kimi Code loads these hooks directly from kimi.plugin.json. This script
+is kept as a host-level fallback for older Kimi Code builds or environments
+where users deliberately want hooks in ~/.kimi-code/config.toml.
 """
 
 from __future__ import annotations
@@ -76,10 +77,11 @@ def _toml_string(value: str) -> str:
 
 def _managed_block() -> str:
     command = _toml_string(_command_string())
-    # Stop gives near-live capture after each completed turn. SessionEnd and
-    # PreCompact cover clean exit and compaction boundaries.
+    # Stop gives near-live capture after each completed turn. SessionEnd,
+    # PreCompact, Interrupt, and SubagentStop cover clean exit, compaction,
+    # interrupted turns, and Kimi's delegated agent work.
     parts = [MANAGED_BEGIN]
-    for event in ("Stop", "SessionEnd", "PreCompact"):
+    for event in ("Stop", "SessionEnd", "PreCompact", "SubagentStop", "Interrupt"):
         parts.extend(
             [
                 "[[hooks]]",

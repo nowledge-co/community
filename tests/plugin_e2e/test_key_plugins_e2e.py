@@ -372,8 +372,8 @@ def test_key_plugin_static_contracts_are_declared():
     openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
     openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
-    assert openclaw_manifest["version"] == "0.8.27"
-    assert openclaw_pkg["version"] == "0.8.27"
+    assert openclaw_manifest["version"] == "0.8.28"
+    assert openclaw_pkg["version"] == "0.8.28"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
     assert openclaw_manifest["contracts"]["tools"] == [
         "memory_search",
@@ -589,18 +589,31 @@ def test_key_plugin_static_contracts_are_declared():
     kimi_installer = (KIMI_PLUGIN / "scripts" / "install_hooks.py").read_text(encoding="utf-8")
     kimi_hook = (KIMI_PLUGIN / "scripts" / "kimi-sync-hook.py").read_text(encoding="utf-8")
     assert kimi_manifest["name"] == "nowledge-mem"
-    assert kimi_manifest["version"] == "0.1.2"
+    assert kimi_manifest["version"] == "0.2.0"
     assert kimi_manifest["skills"] == "./skills/"
     assert kimi_manifest["sessionStart"]["skill"] == "nowledge-mem"
     assert kimi_manifest["mcpServers"]["nowledge-mem"]["url"] == "http://127.0.0.1:14242/mcp/"
     assert kimi_manifest["mcpServers"]["nowledge-mem"]["type"] == "streamableHttp"
-    assert "hooks" not in kimi_manifest
+    assert kimi_manifest["commands"] == "./commands/"
+    kimi_hook_events = {hook["event"] for hook in kimi_manifest["hooks"]}
+    assert kimi_hook_events == {"Stop", "SessionEnd", "PreCompact", "SubagentStop", "Interrupt"}
+    for hook in kimi_manifest["hooks"]:
+        assert hook["command"].startswith("python3 ./scripts/kimi-sync-hook.py")
+        assert "python ./scripts/kimi-sync-hook.py" in hook["command"]
+        assert "py -3 ./scripts/kimi-sync-hook.py" in hook["command"]
+        assert hook["timeout"] == 40
+    for command_name in ["status", "sync-now", "import-history"]:
+        command_path = KIMI_PLUGIN / "commands" / f"{command_name}.md"
+        assert command_path.exists()
+        assert "description:" in command_path.read_text(encoding="utf-8")
     assert "nmem --json context --source-app kimi-code" in kimi_skill
     assert "nmem --json t sync --from kimi-code --session-id <session-id> --apply" in kimi_skill
     assert "source_app=kimi-code" in kimi_skill
     assert "Stop" in kimi_installer
     assert "SessionEnd" in kimi_installer
     assert "PreCompact" in kimi_installer
+    assert "SubagentStop" in kimi_installer
+    assert "Interrupt" in kimi_installer
     assert "BEGIN Nowledge Mem Kimi Code hooks" in kimi_installer
     assert "--from" in kimi_hook
     assert "kimi-code" in kimi_hook
@@ -682,7 +695,7 @@ def test_kimi_code_hook_installer_uses_isolated_kimi_home(tmp_path: Path):
     assert str(sys.executable) not in text
     parsed = tomllib.loads(text)
     events = [hook["event"] for hook in parsed["hooks"]]
-    assert events == ["Notification", "Stop", "SessionEnd", "PreCompact"]
+    assert events == ["Notification", "Stop", "SessionEnd", "PreCompact", "SubagentStop", "Interrupt"]
     assert any(path.name.startswith("config.toml.") and path.name.endswith(".bak") for path in kimi_home.iterdir())
 
 
@@ -1067,19 +1080,24 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["gemini-cli"]["version"] == "0.1.9"
     assert by_id["cursor"]["version"] == "0.1.6"
     assert by_id["droid"]["version"] == "0.1.1"
-    assert by_id["openclaw"]["version"] == "0.8.27"
+    assert by_id["openclaw"]["version"] == "0.8.28"
     assert by_id["proma"]["version"] == "0.1.4"
     assert by_id["opencode"]["version"] == "0.3.5"
     assert by_id["pi"]["version"] == "0.8.3"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
-    assert by_id["kimi-code"]["version"] == "0.1.2"
+    assert by_id["kimi-code"]["version"] == "0.2.0"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "mcp+skills+hook"
     assert by_id["kimi-code"]["capabilities"]["autoCapture"] is True
     assert by_id["kimi-code"]["threadSave"]["method"] == "hook+cli-native"
     assert by_id["kimi-code"]["autonomy"]["threads"] == "automatic-capture"
     assert by_id["kimi-code"]["skills"] == ["nowledge-mem"]
+    assert by_id["kimi-code"]["slashCommands"] == [
+        "nowledge-mem:status",
+        "nowledge-mem:sync-now",
+        "nowledge-mem:import-history",
+    ]
     assert by_id["kimi-work"]["version"] == "0.1.0"
     assert by_id["kimi-work"]["directory"] == "nowledge-mem-kimi-work-connector"
     assert by_id["kimi-work"]["transport"] == "mcp+skills"

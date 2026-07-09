@@ -21,6 +21,8 @@ Use the host's own user-owned instruction surface instead. That is the only over
 | Hermes | `HERMES.md` | `~/.hermes/SOUL.md` | SOUL is the reliable always-loaded personal layer. |
 | OpenCode | `AGENTS.md` or files listed in `opencode.json` `instructions` | `~/.config/opencode/AGENTS.md` | OpenCode can combine explicit instruction files cleanly. |
 | Pi | `AGENTS.md` next to the project config | repo-local `AGENTS.md` | Pi package skills stay default; project guidance is the real override path. |
+| Kimi Code | project `AGENTS.md` or `.kimi-code/AGENTS.md` | `$KIMI_CODE_HOME/AGENTS.md` | Keep the managed plugin copy untouched; Kimi Code loads user and project instructions outside the plugin. |
+| Craft Agent | Workspace `skills/{slug}/SKILL.md` or `sources/{slug}/guide.md` | Global `~/.agents/skills/{slug}/SKILL.md` | Keep the community connector templates as defaults; put durable behavior changes in Craft's own source guide or skill files. |
 
 ## Integrations without a first-class override file
 

@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Cross-tool memory for Kimi Code. Recall past decisions, search prior threads, and keep Kimi Code sessions searchable in Nowledge Mem.",
   "keywords": ["memory", "mcp", "skills", "thread-sync"],
   "author": {
@@ -13,6 +13,7 @@
     "skill": "nowledge-mem"
   },
   "skillInstructions": "Use Nowledge Mem for durable cross-tool memory. Prefer MCP tools when they are connected; use nmem CLI as the fallback and for real Kimi Code transcript import.",
+  "commands": "./commands/",
   "mcpServers": {
     "nowledge-mem": {
       "url": "http://127.0.0.1:14242/mcp/",
@@ -20,10 +21,37 @@
       "enabled": true
     }
   },
+  "hooks": [
+    {
+      "event": "Stop",
+      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "timeout": 40
+    },
+    {
+      "event": "SessionEnd",
+      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "timeout": 40
+    },
+    {
+      "event": "PreCompact",
+      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "timeout": 40
+    },
+    {
+      "event": "SubagentStop",
+      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "timeout": 40
+    },
+    {
+      "event": "Interrupt",
+      "command": "python3 ./scripts/kimi-sync-hook.py || python ./scripts/kimi-sync-hook.py || py -3 ./scripts/kimi-sync-hook.py",
+      "timeout": 40
+    }
+  ],
   "interface": {
     "displayName": "Nowledge Mem",
     "shortDescription": "Memory that follows you across Kimi Code and your other AI tools",
-    "longDescription": "Loads startup context, guides memory retrieval and distillation, and can sync Kimi Code conversations into Nowledge Mem threads through the explicit hook installer.",
+    "longDescription": "Loads startup context, guides memory retrieval and distillation, exposes quick slash commands, and syncs Kimi Code conversations into Nowledge Mem threads through native plugin lifecycle hooks.",
     "developerName": "Nowledge Labs",
     "websiteURL": "https://mem.nowledge.co"
   }

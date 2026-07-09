@@ -9,7 +9,7 @@
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
-      "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode",
+      "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode", "craft-agent",
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
       "slock", "lody", "multica", "cumora", "paseo", "mcp-direct"
     ],
@@ -946,7 +946,7 @@
       "name": "Kimi Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "directory": "nowledge-mem-kimi-code-plugin",
       "transport": "mcp+skills+hook",
       "capabilities": {
@@ -963,7 +963,7 @@
         "runtime": "kimi-code",
         "command": "nmem t sync --from kimi-code --session-id <session-id> --apply",
         "historicalCommand": "nmem t sync --from kimi-code",
-        "note": "The Kimi Code package ships Kimi-native plugin metadata, a session-start skill, and a local MCP declaration. Kimi does not execute plugin install scripts and ignores hooks in plugin manifests, so users must run scripts/install_hooks.py once after install or update. That installer adds managed Stop, SessionEnd, and PreCompact hooks to ~/.kimi-code/config.toml; the hook calls nmem t sync --from kimi-code --session-id <session-id> --apply. Older sessions still backfill with nmem t sync --from kimi-code --apply."
+        "note": "The Kimi Code package ships Kimi-native plugin metadata, a session-start skill, a local MCP declaration, native manifest hooks, and slash commands. Modern Kimi Code loads plugin hooks from kimi.plugin.json for Stop, SessionEnd, PreCompact, SubagentStop, and Interrupt; each hook calls nmem t sync --from kimi-code --session-id <session-id> --apply. scripts/install_hooks.py remains only as a host-level fallback for older Kimi Code builds. Older sessions still backfill with nmem t sync --from kimi-code --apply."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -973,16 +973,16 @@
         "bestResultRequires": [
           "Install the Nowledge Mem Kimi Code package",
           "Use nmem 0.9.19 or newer on the same machine as Kimi Code",
-          "Run the bundled scripts/install_hooks.py once after install or update",
+          "Reload Kimi Code after install so plugin skills, hooks, MCP, and slash commands activate",
           "Use the bundled local MCP server, or use nmem config mcp show --host kimi-code for remote Mem or authenticated localhost",
           "Keep nmem configured on this machine for local or remote Mem",
           "Run nmem t sync --from kimi-code --apply when you want to import older Kimi Code sessions"
         ]
       },
       "install": {
-        "command": "git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; in Kimi Code run /plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin, /plugins enable nowledge-mem, /reload, then run python3 ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin/scripts/install_hooks.py",
-        "updateCommand": "git -C ~/.cache/nowledge-community pull --ff-only || git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; in Kimi Code rerun /plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin, /reload, then run python3 ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin/scripts/install_hooks.py",
-        "configRequired": "Kimi Code plugin install does not execute scripts and kimi.plugin.json does not support hooks. After installing the package, run scripts/install_hooks.py from the package source or managed copy. For remote Mem, use nmem config mcp show --host kimi-code and paste the generated nowledge-mem server into $KIMI_CODE_HOME/mcp.json or ~/.kimi-code/mcp.json.",
+        "command": "git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; in Kimi Code run /plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin, /plugins enable nowledge-mem, /reload",
+        "updateCommand": "git -C ~/.cache/nowledge-community pull --ff-only || git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community; in Kimi Code rerun /plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin, /plugins enable nowledge-mem, /reload",
+        "configRequired": "Modern Kimi Code reads Nowledge Mem lifecycle hooks and slash commands directly from kimi.plugin.json after /reload. For remote Mem, use nmem config mcp show --host kimi-code and paste the generated nowledge-mem server into $KIMI_CODE_HOME/mcp.json or ~/.kimi-code/mcp.json. scripts/install_hooks.py is only a fallback for older Kimi Code builds that do not load plugin manifest hooks.",
         "detectionHint": "Running inside Kimi Code; ~/.kimi-code/ exists or KIMI_CODE_HOME is set",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Kimi Code. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
@@ -995,7 +995,7 @@
         "note": "Kimi namespaces plugin MCP servers as plugin-nowledge-mem:nowledge-mem. Host-level MCP config can still define nowledge-mem for remote/custom endpoints. Lifecycle hooks invoke nmem CLI for real transcript capture."
       },
       "skills": ["nowledge-mem"],
-      "slashCommands": []
+      "slashCommands": ["nowledge-mem:status", "nowledge-mem:sync-now", "nowledge-mem:import-history"]
     },
     {
       "id": "kimi-work",
@@ -1200,6 +1200,60 @@
       "toolNaming": {
         "convention": "mcp-backend",
         "note": "Use the OMP plugin for startup context and thread capture. MCP can still be added through user-owned OMP config for direct structured tool calls or remote/custom endpoint overrides."
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
+      "slashCommands": []
+    },
+    {
+      "id": "craft-agent",
+      "name": "Craft Agent",
+      "category": "coding",
+      "type": "connector",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-craft-agent-connector",
+      "transport": "mcp+cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "craft-agent",
+        "command": "nmem t save --from craft-agent",
+        "historicalCommand": "nmem t sync --from craft-agent --all-projects",
+        "note": "Craft Agent stores structured session JSONL under each Craft workspace. The connector uses Craft's MCP source abstraction for memory tools and nmem t save/sync for real local transcript import. Craft automations can be used as an advanced webhook trigger later, but v1 keeps transcript import in the CLI where the files live."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "import-only",
+        "bestResultRequires": [
+          "Add Nowledge Mem as a Craft Agent MCP source with nmem config mcp show --host craft-agent",
+          "Add the Nowledge Mem guide or skill to the Craft workspace so the agent knows when to read, search, and save",
+          "Keep nmem configured on the machine where Craft Agent stores ~/.craft-agent/workspaces",
+          "Run nmem t sync --from craft-agent --all-projects --apply when you want to import Craft Agent sessions",
+          "Use direct Craft automations only as an advanced trigger; transcript fidelity comes from the local JSONL importer"
+        ]
+      },
+      "install": {
+        "command": "nmem config mcp show --host craft-agent",
+        "updateCommand": "nmem config mcp show --host craft-agent",
+        "detectionHint": "Running inside Craft Agent; ~/.craft-agent/ exists or CRAFT_CONFIG_DIR is set",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Craft Agent. Generate the Craft source config with nmem config mcp show --host craft-agent, add it to the active Craft workspace, verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Craft Agent 安装或更新 Nowledge Mem。用 nmem config mcp show --host craft-agent 生成 Craft source 配置，加入当前 Craft workspace；再用 nmem status 和 Context Bundle 或 Working Memory 检查验证，并总结你改了什么。"
+        },
+        "docsUrl": "/docs/integrations/craft-agent"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "Craft Agent exposes Nowledge Mem through a workspace MCP source named nowledge-mem. Craft may display MCP tools with a source-derived prefix; nmem owns real transcript import."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": []

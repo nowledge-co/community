@@ -65,7 +65,8 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[Pi Package](nowledge-mem-pi-package)** | `pi install npm:nowledge-mem-pi` | Pi-native package with startup Context Bundle / Working Memory injection, automatic conversation capture, and bundled memory skills. |
 | **[OMP Plugin](nowledge-mem-omp-plugin)** | `omp plugin install nowledge-mem-omp` | OMP-native plugin with startup Context Bundle / Working Memory injection, automatic conversation capture, and bundled memory skills. |
 | **[OpenCode Plugin](nowledge-mem-opencode-plugin)** | Add `"opencode-nowledge-mem"` to `opencode.json` plugins | Native OpenCode plugin with Context Bundle, Working Memory, search/save tools, idle-event automatic thread capture, pre-compaction flush, handoff, and status. |
-| **[Kimi Code Plugin](nowledge-mem-kimi-code-plugin)** | `/plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin`, then `python3 ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin/scripts/install_hooks.py` | Kimi-native plugin metadata, session-start skill, bundled local MCP, and explicit lifecycle hook setup for real Kimi Code thread capture through `nmem`. |
+| **[Craft Agent Connector](nowledge-mem-craft-agent-connector)** | `nmem config mcp show --host craft-agent` | Craft workspace source + guide setup: MCP memory tools inside Craft Agent, plus `nmem t sync --from craft-agent` for real local session import from Craft `session.jsonl` files. |
+| **[Kimi Code Plugin](nowledge-mem-kimi-code-plugin)** | `/plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin`, then `/plugins enable nowledge-mem` and `/reload` | Kimi-native plugin metadata, session-start skill, bundled local MCP, native lifecycle hooks, slash commands, and real Kimi Code thread capture through `nmem`. |
 | **[Kimi Work Connector](nowledge-mem-kimi-work-connector)** | `python3 ~/.cache/nowledge-community/nowledge-mem-kimi-work-connector/scripts/install_kimi_work_plugin.py` | Kimi Work desktop connector for its embedded Kimi Code runtime: session-start skill, bundled local MCP, and explicit `nmem t sync --from kimi-work` session import. |
 | **[Hermes Agent](nowledge-mem-hermes)** | `bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)` | Native Hermes memory provider with Context Bundle / Working Memory startup context, pre-turn recall, clean `nmem_` tools, and session-end transcript capture into Mem threads. MCP remains available as a fallback mode. |
 | **[Proma Plugin](nowledge-mem-proma-plugin)** | Manual setup with MCP, hooks, and skills; see [Proma guide](https://mem.nowledge.co/docs/integrations/proma) | Proma desktop agent setup with startup context, Stop-hook thread capture, MCP memory tools, and standard Nowledge Mem skills. |
@@ -97,6 +98,7 @@ For remote Mem, configure this machine once with `nmem config client set url ...
 nmem config mcp show --host cursor
 nmem config mcp show --host codex
 nmem config mcp show --host gemini-cli
+nmem config mcp show --host craft-agent
 ```
 
 Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically; paste the generated block into the host's own MCP settings.
@@ -140,6 +142,7 @@ Use one ambient space only when the host already has a real lane, such as one AI
 | Bub | Full ambient lane through `NMEM_SPACE` | Treat Bub as one process-wide lane. If you need separate lanes, run separate Bub processes or profiles. |
 | OpenClaw | Full ambient lane through plugin `space`, plugin `spaceTemplate`, or fallback `NMEM_SPACE`, preserved across CLI memory calls and API-backed thread/feed paths | Use `space` for one stable profile. Use `spaceTemplate` only when the launcher already exports the lane signal. Do not fake per-agent routing if the runtime does not expose identity. |
 | OpenCode | Full ambient lane through `NMEM_SPACE`, preserved across CLI memory calls and HTTP session save | Set one `NMEM_SPACE` when the OpenCode process belongs to one real lane. |
+| Craft Agent | Partial today | MCP source calls use the configured Mem endpoint. `nmem t save/sync --from craft-agent` can use `--space` or `NMEM_SPACE` for imports; keep one lane only when the Craft workspace represents one real lane. |
 | Cursor | Partial today | `sessionStart` and handoff flows can follow `NMEM_SPACE`, but MCP tool calls still need Cursor/runtime support to forward `space_id`. |
 | Raycast | One fixed lane through Raycast preferences or shared config | Use one named space when that launcher profile always belongs to one lane. Leave it empty to stay on `Default`. |
 | Browser extension | One fixed lane through extension settings | Use one named space when that browser profile always belongs to one lane. Leave it empty to stay on `Default`. |

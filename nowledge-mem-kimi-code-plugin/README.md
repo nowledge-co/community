@@ -7,7 +7,9 @@ Cross-tool memory for Kimi Code. Your decisions, preferences, procedures, and us
 - Kimi Code can read Context Bundle / Working Memory before important work.
 - Kimi Code can search memories and prior threads through MCP, with `nmem` CLI fallback.
 - Kimi Code can save durable decisions and procedures into Nowledge Mem.
-- Kimi Code conversations can sync into Mem Threads through a local lifecycle hook.
+- Kimi Code conversations sync into Mem Threads through native plugin lifecycle hooks.
+- Kimi Code subagent work is picked up through `SubagentStop` plus `agents/*/wire.jsonl` import support.
+- Quick commands are available as `/nowledge-mem:status`, `/nowledge-mem:sync-now`, and `/nowledge-mem:import-history`.
 - Older Kimi Code sessions can be backfilled with `nmem t sync --from kimi-code`.
 
 ## Prerequisites
@@ -54,7 +56,16 @@ Install the Kimi Code plugin from the package directory:
 /reload
 ```
 
-The plugin bundles a local MCP server declaration for `http://127.0.0.1:14242/mcp/` and a session-start skill. Kimi namespaces plugin MCP servers, so this does not overwrite user-level MCP entries.
+The plugin bundles:
+
+- a session-start skill
+- a local MCP server declaration for `http://127.0.0.1:14242/mcp/`
+- native lifecycle hooks for `Stop`, `SessionEnd`, `PreCompact`, `SubagentStop`, and `Interrupt`
+- slash commands under `/nowledge-mem:*`
+
+Kimi namespaces plugin MCP servers, so this does not overwrite user-level MCP entries.
+
+This package is ready for a dedicated GitHub repo or Kimi marketplace entry. While it lives inside the Nowledge community monorepo, install it from the local package path shown above; Kimi Code's GitHub installer downloads whole repositories or release zips, not arbitrary monorepo subdirectories.
 
 For remote Mem or authenticated localhost, generate a user-level MCP config with the version of `nmem` that includes Kimi Code support:
 
@@ -66,9 +77,25 @@ Paste the generated block into `$KIMI_CODE_HOME/mcp.json` or `~/.kimi-code/mcp.j
 
 If your installed `nmem` does not recognize `--host kimi-code` yet, update `nmem-cli` first. As a temporary fallback, add the generic streamable HTTP MCP block from the Mem docs and set the URL/API key manually.
 
-## Install Automatic Thread Capture
+## Automatic Thread Capture
 
-Kimi Code plugins do not execute scripts at install time and do not support hooks inside `kimi.plugin.json`. Run the explicit hook setup once after installing or updating this package:
+Modern Kimi Code reads the hook declarations from `kimi.plugin.json`. After `/plugins install`, `/plugins enable nowledge-mem`, and `/reload`, the plugin syncs the current session at these lifecycle points:
+
+- `Stop` after a completed turn
+- `SessionEnd` when the session closes
+- `PreCompact` before context compression
+- `SubagentStop` after a delegated subagent completes
+- `Interrupt` when a turn is interrupted
+
+The hook calls:
+
+```bash
+nmem --json t sync --from kimi-code --session-id <session-id> --apply
+```
+
+It is safe to rerun. Thread IDs come from Kimi Code session IDs, message IDs are stable, and the Mem backend deduplicates reruns or partial attempts.
+
+If you are on an older Kimi Code build that does not load plugin manifest hooks, run the host-level fallback installer once after installing or updating this package:
 
 ```bash
 python3 ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin/scripts/install_hooks.py
@@ -78,16 +105,22 @@ The installer:
 
 - Copies `scripts/kimi-sync-hook.py` to `$KIMI_CODE_HOME/hooks/nowledge-mem-sync-hook.py`.
 - Backs up `$KIMI_CODE_HOME/config.toml`.
-- Adds one managed hook block for `Stop`, `SessionEnd`, and `PreCompact`.
+- Adds one managed hook block for `Stop`, `SessionEnd`, `PreCompact`, `SubagentStop`, and `Interrupt`.
 - Leaves existing Kimi Code config and hooks outside the managed block untouched.
 
-The hook calls:
+Do not run both the manifest hooks and the fallback installer unless you need host-level config intentionally. If both paths fire, `nmem` and Mem still deduplicate repeated imports, but you may see duplicate hook log lines.
 
-```bash
-nmem --json t sync --from kimi-code --session-id <session-id> --apply
+## Slash Commands
+
+After `/reload`, Kimi Code exposes these commands:
+
+```text
+/nowledge-mem:status
+/nowledge-mem:sync-now
+/nowledge-mem:import-history
 ```
 
-It is safe to rerun. Thread IDs come from Kimi Code session IDs, message IDs are stable, and the Mem backend deduplicates reruns or partial attempts.
+Use `status` to check MCP and CLI connectivity, `sync-now` to import the current or most recent Kimi Code session, and `import-history` to backfill older sessions deliberately.
 
 ## Backfill Older Sessions
 
@@ -127,11 +160,15 @@ tail -n 50 ~/.kimi-code/logs/nowledge-mem-hook.log
 
 ## Update
 
-Reinstall the plugin package from the new source, run `/reload`, then rerun:
+Reinstall the plugin package from the new source, run `/reload`, and start a new session if needed:
 
-```bash
-python3 ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin/scripts/install_hooks.py
+```text
+/plugins install ~/.cache/nowledge-community/nowledge-mem-kimi-code-plugin
+/plugins enable nowledge-mem
+/reload
 ```
+
+Only rerun `scripts/install_hooks.py` when you are using the older host-level fallback hook setup.
 
 ## Customize Without Editing The Package
 

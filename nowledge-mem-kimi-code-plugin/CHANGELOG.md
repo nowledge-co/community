@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Move Kimi Code thread capture into native `kimi.plugin.json` lifecycle hooks. Installing and enabling the plugin now registers sync hooks for `Stop`, `SessionEnd`, `PreCompact`, `SubagentStop`, and `Interrupt`; `scripts/install_hooks.py` remains as a fallback for older Kimi Code builds.
+- Add plugin slash commands: `/nowledge-mem:status`, `/nowledge-mem:sync-now`, and `/nowledge-mem:import-history`.
+- Capture Kimi subagent work by pairing the plugin's `SubagentStop` hook with `nmem` importer support for `agents/*/wire.jsonl`.
+
 ## 0.1.2
 
 - Declare the bundled Nowledge Mem MCP connection as Streamable HTTP so Kimi Code uses the intended local transport consistently.

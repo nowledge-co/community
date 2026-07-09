@@ -1,0 +1,19 @@
+{
+  "id": "nowledge-mem",
+  "name": "Nowledge Mem",
+  "slug": "nowledge-mem",
+  "enabled": true,
+  "provider": "nowledge-mem",
+  "type": "mcp",
+  "mcp": {
+    "transport": "http",
+    "url": "http://127.0.0.1:14242/mcp/",
+    "authType": "none",
+    "headers": {
+      "APP": "Craft Agent"
+    }
+  },
+  "icon": "🧠",
+  "tagline": "Search, read, and save shared memory from Craft Agent",
+  "connectionStatus": "untested"
+}
