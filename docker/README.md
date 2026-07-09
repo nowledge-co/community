@@ -637,6 +637,32 @@ To restore the old eager behavior (rebuild during boot), set:
     environment:
       NMEM_BOOT_AUTO_REINDEX: "1"
 
+### Background intelligence throughput
+
+Background intelligence has two kinds of work, paced differently:
+
+- **Reactive / user work** — everything a saved or imported thread triggers
+  (thread analysis, memory creation, knowledge-graph extraction, Working Memory
+  refresh, follow-up review). This is **never** throttled by a task-count cap; it
+  runs as fast as your model, provider, and database allow, bounded only by your
+  hourly AI token budget and the provider rate-limit backoff. So a freshly saved
+  conversation is processed promptly.
+- **Periodic maintenance** — the scheduled scouts (insights, crystallization,
+  decay, community/label upkeep) that run every few days. These are gently paced
+  at a small number of runs per hour so they never dominate the box.
+
+You normally do not need to tune anything. A `wait_reason=task_rate` line in the
+logs only ever refers to that periodic-maintenance pacing, not to your saves. If
+you run a busy server and want the periodic maintenance to run more aggressively,
+raise or remove the cap:
+
+    environment:
+      NMEM_MAX_TASKS_PER_HOUR: "60"   # a number, or "0"/"unlimited" to disable pacing
+
+Setting the in-app hourly AI limit to "unlimited" also disables this pacing.
+Either way, your total AI usage stays bounded by the hourly/daily token budget,
+so removing the count cap does not raise your spend ceiling.
+
 ### Memory and recovery
 
 The server uses KuzuDB for the graph, and KuzuDB has a per-process buffer
