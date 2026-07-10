@@ -83,4 +83,3 @@ nmem config mcp show --host craft-agent
 Paste the regenerated source config into Craft Agent. Thread import still runs
 on this machine because this is where Craft stores the transcripts; the CLI then
 uploads normalized threads to your configured Mem server.
-

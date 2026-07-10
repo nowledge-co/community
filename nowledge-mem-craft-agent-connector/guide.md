@@ -38,4 +38,3 @@ nmem t sync --from craft-agent --all-projects --apply
 
 This keeps transcript discovery beside Craft Agent's local
 `session.jsonl` files and works the same whether Mem is local or remote.
-
