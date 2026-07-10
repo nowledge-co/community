@@ -498,10 +498,11 @@ are left as `<file>.bak.<timestamp>`.
 `NMEM_ALLOW_PRERELEASE=1` to override when you're testing a release candidate.
 
 `upgrade` writes the target tag to `.env` (`NMEM_IMAGE_TAG=X.Y.Z`, mode 0600).
-`compose.yaml` reads that env var as `${NMEM_IMAGE_TAG:-X.Y.Z}` so future
-`up`/`restart` invocations stay on the new version without touching
-`compose.yaml`. The fallback default in `compose.yaml` is the release tag at
-the time you cloned; `self-update` may bump it but `.env` always wins.
+`compose.yaml` reads that env var as `${NMEM_IMAGE_TAG:-latest}`. Fresh installs
+start on the current stable image; after an upgrade, the `.env` value pins the
+selected version, so future `up`/`restart` invocations stay there without
+touching `compose.yaml`. The `latest` fallback only applies before a version is
+pinned; `self-update` may refresh the compose file, but `.env` always wins.
 
 The backend runs schema migrations on startup. There is **no downgrade path**;
 once a newer image has opened the database, an older image will refuse to.
