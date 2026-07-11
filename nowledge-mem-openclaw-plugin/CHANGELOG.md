@@ -4,6 +4,12 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.29] - 2026-07-11
+
+### Fixed
+
+- Conversation capture now converts OpenClaw's numeric message timestamps to the textual timestamp format required by Mem. Automatic thread sync no longer stops while memory tools continue to work.
+
 ## [0.8.28] - 2026-07-08
 
 ### Improved

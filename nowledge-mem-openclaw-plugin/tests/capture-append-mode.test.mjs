@@ -25,6 +25,28 @@ function fallbackExternalId(seed) {
 	return `oc-msg:${createHash("sha1").update(seed).digest("hex")}`;
 }
 
+test("normalizes OpenClaw epoch-millisecond timestamps for the Mem API", () => {
+	const normalized = normalizeRoleMessage(
+		message("user", "remember this", { timestamp: 1_751_881_234_567 }),
+	);
+
+	assert.equal(normalized.timestamp, "2025-07-07T09:40:34.567Z");
+	assert.equal(
+		normalizeRoleMessage(
+			message("assistant", "already textual", {
+				timestamp: "2025-07-07T14:20:34.567Z",
+			}),
+		).timestamp,
+		"2025-07-07T14:20:34.567Z",
+	);
+	assert.equal(
+		normalizeRoleMessage(
+			message("assistant", "invalid timestamp", { timestamp: Number.NaN }),
+		).timestamp,
+		undefined,
+	);
+});
+
 class FakeThreadClient {
 	constructor({ existingCount = null, existingExternalIds = [] } = {}) {
 		this.existingCount = existingCount;
@@ -99,6 +121,34 @@ test("auto capture appends latest OpenClaw Codex per-turn agent_end batches", as
 	assert.deepEqual(
 		client.appendCalls[0].messages.map((msg) => msg.metadata.external_id),
 		["oc:turn-2-prompt", "oc:turn-2-assistant"],
+	);
+});
+
+test("auto capture sends textual timestamps to the thread append API", async () => {
+	const client = new FakeThreadClient({ existingCount: 1 });
+	await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [
+				message("assistant", "captured", {
+					timestamp: 1_751_881_234_567,
+					__openclaw: { mirrorIdentity: "turn-2:assistant" },
+				}),
+			],
+		},
+		ctx: {
+			sessionId: "session-timestamp",
+			sessionKey: "agent:main:telegram:direct:timestamp",
+			runId: "run-2",
+		},
+		reason: "agent_end",
+		messageMode: "delta",
+	});
+
+	assert.equal(
+		client.appendCalls[0].messages[0].timestamp,
+		"2025-07-07T09:40:34.567Z",
 	);
 });
 

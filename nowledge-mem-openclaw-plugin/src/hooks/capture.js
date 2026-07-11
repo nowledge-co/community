@@ -246,8 +246,15 @@ export function normalizeRoleMessage(
 	if (role === "user" && text.startsWith("/")) return null;
 
 	let timestamp;
-	if (typeof msg.timestamp === "string" || typeof msg.timestamp === "number") {
+	if (typeof msg.timestamp === "string") {
 		timestamp = msg.timestamp;
+	} else if (
+		typeof msg.timestamp === "number" &&
+		Number.isFinite(msg.timestamp)
+	) {
+		// OpenClaw emits epoch milliseconds, while Mem's thread API deliberately
+		// accepts textual timestamps so every connector shares one wire contract.
+		timestamp = new Date(msg.timestamp).toISOString();
 	}
 
 	const openclawMeta =
