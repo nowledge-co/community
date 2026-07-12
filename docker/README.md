@@ -175,7 +175,9 @@ Caddy.
 
 ## Access Anywhere (Cloudflare Tunnel) is turnkey
 
-`cloudflared` is bundled in the image (both the CPU and `:cuda` builds). You no longer install or run a separate Cloudflare Tunnel container. Configure your tunnel through the web UI (Settings, Access Anywhere) or the `nmem` CLI inside the container, and the server manages the tunnel itself. This is the same Access Anywhere experience as the desktop app.
+`cloudflared` is bundled in the image (both the CPU and `:cuda` builds). You no longer install or run a separate Cloudflare Tunnel container. Bundled does not mean enabled by default: configure Access Anywhere once, then the server starts and maintains the tunnel.
+
+For a headless Docker host, run `docker compose exec -it mem nmem tui` and open **Access Anywhere**. A browser or desktop app already connected to this server is a remote client, so it intentionally shows the connection URL/key instead of privileged tunnel controls. Those controls are only available from the server host. After setup, the experience matches Access Anywhere in the desktop app.
 
 Earlier images did not bundle `cloudflared` and asked you to run a sidecar. That step is gone.
 
