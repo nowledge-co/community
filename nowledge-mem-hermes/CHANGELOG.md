@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.23] - 2026-07-12
+
+### Added
+
+- Windows users can now install or update the Hermes provider directly from PowerShell with `setup.ps1`; the native installer uses Hermes' `%LOCALAPPDATA%\hermes` home, validates the complete plugin before publishing files, preserves other active memory providers, and supports the MCP fallback without Git Bash or WSL.
+
 ## [0.5.22] - 2026-07-12
 
 ### Fixed

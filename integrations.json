@@ -840,7 +840,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.22",
+      "version": "0.5.23",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
@@ -871,7 +871,9 @@
       },
       "install": {
         "command": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
+        "windowsCommand": "irm https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.ps1 | iex",
         "updateCommand": "bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)",
+        "windowsUpdateCommand": "irm https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.ps1 | iex",
         "detectionHint": "Running as Hermes agent; ~/.hermes/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Hermes Agent. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",

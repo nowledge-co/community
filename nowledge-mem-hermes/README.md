@@ -16,6 +16,12 @@ The plugin integrates at the memory-provider level: Context Bundle loads automat
 bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)
 ```
 
+On Windows, use the native PowerShell installer. Git Bash and WSL are not required:
+
+```powershell
+irm https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.ps1 | iex
+```
+
 The installer is idempotent. If `~/.hermes/config.yaml` already has a `memory:` block, it now fills a missing or empty `provider` automatically. It still stops and explains the change when `memory.provider` already points at a different non-empty provider.
 
 Or with the interactive setup:
@@ -50,6 +56,12 @@ If you prefer the standard MCP connection or are on Hermes < v0.7.0:
 bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh) --mcp
 ```
 
+Windows PowerShell:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.ps1))) -Mcp
+```
+
 This adds the MCP server to `config.yaml` and installs behavioral guidance in `~/.hermes/SOUL.md`. Tools appear with the `mcp_nowledge_mem_` prefix.
 
 ## Prerequisites
@@ -68,7 +80,7 @@ The installer is the same `setup.sh` on every platform but adapts where files la
 | macOS    | `~/.hermes`                            | `nmem` (PATH)    |
 | Windows  | `%LOCALAPPDATA%\hermes` (e.g. `C:\Users\<you>\AppData\Local\hermes`) | `%LOCALAPPDATA%\Nowledge Mem\cli\nmem.cmd` (PATHEXT) |
 
-On Windows, run the installer from **git-bash** (ships with Git for Windows) or **WSL**. The script uses `python3`, falling back to `python` or the `py -3` launcher, so a standard python.org install works without extra shims. If you've never set `HERMES_HOME`, the installer mirrors Hermes' own platform-native path resolution and writes to `%LOCALAPPDATA%\hermes`, not `~/.hermes`. The Hermes Python runtime locates `nmem.cmd` via `shutil.which` (which honors `PATHEXT`), so the plugin works even when `nmem` is not directly callable from the shell you ran the installer in.
+Windows users can run the native `setup.ps1` from PowerShell; Git Bash and WSL remain supported through `setup.sh` but are no longer prerequisites. Both installers mirror Hermes' platform-native path resolution and write to `%LOCALAPPDATA%\hermes`, not `~/.hermes`. They detect `python`, `python3`, or the `py -3` launcher, validate the complete plugin before replacing managed files, and never overwrite another active memory provider. The Hermes Python runtime locates `nmem.cmd` via `shutil.which` (which honors `PATHEXT`).
 
 ## What the plugin does
 
