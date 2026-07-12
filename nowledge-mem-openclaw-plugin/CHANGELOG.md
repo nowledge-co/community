@@ -4,6 +4,14 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.30] - 2026-07-12
+
+### Fixed
+
+- Setup guidance now preserves existing OpenClaw tool policy while granting the complete plugin contract under restrictive profiles such as `coding`. It uses the plugin id in `tools.alsoAllow` (or an existing `tools.allow`) instead of fragile individual tool names.
+- Setup now explicitly grants `plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true`, which current OpenClaw releases require before non-bundled plugins can use `agent_end` as the thread-capture safety net.
+- `nowledge_mem_status` now reports restricted tool profiles and blocked conversation hooks instead of claiming all tools and both capture paths are active.
+
 ## [0.8.29] - 2026-07-11
 
 ### Fixed

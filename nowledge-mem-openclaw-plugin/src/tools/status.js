@@ -27,10 +27,10 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			const lines = [];
 			const details = {};
 			const sources = cfg._sources || {};
+			const pluginId = "openclaw-nowledge-mem";
 
 			// 0a. Plugin trust check — detect missing plugins.allow
 			const pluginsAllow = runtimeInfo.pluginsAllow;
-			const pluginId = "openclaw-nowledge-mem";
 			details.pluginsAllow = !Array.isArray(pluginsAllow)
 				? "(not set)"
 				: pluginsAllow.includes(pluginId)
@@ -64,7 +64,48 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				lines.push(`Plugin trust: ${pluginId} (allowlisted)`);
 			}
 
-			// 0b. Memory slot check — show current mode and options
+			// 0b. Effective tool policy. OpenClaw profiles are restrictive; the
+			// plugin id expands to this plugin's declared tool contract.
+			const toolsProfile = runtimeInfo.toolsProfile;
+			const toolsAllow = Array.isArray(runtimeInfo.toolsAllow)
+				? runtimeInfo.toolsAllow
+				: null;
+			const toolsAlsoAllow = Array.isArray(runtimeInfo.toolsAlsoAllow)
+				? runtimeInfo.toolsAlsoAllow
+				: null;
+			const profileRestrictsPlugins =
+				typeof toolsProfile === "string" && toolsProfile !== "full";
+			const pluginExplicitlyAllowed =
+				toolsAllow?.includes(pluginId) || toolsAlsoAllow?.includes(pluginId);
+			const toolPolicyBlocksPlugin =
+				(toolsAllow !== null && !toolsAllow.includes(pluginId)) ||
+				(profileRestrictsPlugins && !pluginExplicitlyAllowed);
+			details.toolsProfile = toolsProfile ?? "(not set)";
+			details.pluginToolsAllowed = !toolPolicyBlocksPlugin;
+			if (toolPolicyBlocksPlugin) {
+				lines.push(
+					`⚠ Tool policy does not expose the complete ${pluginId} tool contract.`,
+				);
+				if (toolsAllow !== null) {
+					lines.push(
+						`  Fix: preserve tools.allow and add "${pluginId}" to that list.`,
+					);
+				} else {
+					lines.push(
+						`  Fix: preserve tools.alsoAllow and add "${pluginId}" to that list.`,
+					);
+				}
+				lines.push(
+					"  Do not list individual nowledge_mem_* tools; use the plugin id so the manifest contract stays complete.",
+				);
+				lines.push("");
+			} else if (toolsProfile) {
+				lines.push(
+					`Tool policy: ${toolsProfile} profile + ${pluginId} (complete contract allowed)`,
+				);
+			}
+
+			// 0c. Memory slot check — show current mode and options
 			const memorySlot = runtimeInfo.memorySlot;
 			const contextEngineSlot = runtimeInfo.contextEngineSlot;
 			const contextEngineRegistered =
@@ -135,14 +176,20 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 				lines.push("Memory slot: openclaw-nowledge-mem (active)");
 			}
 
-			// 0c. Capture routing — hooks vs context engine
+			// 0d. Capture routing — hooks vs context engine
 			const ceActive =
 				isNowledgeMemContextEngineSlot(ceSlot) && contextEngineRegistered;
+			const hookCaptureAllowed = runtimeInfo.allowConversationAccess === true;
+			details.allowConversationAccess = hookCaptureAllowed;
 			const captureMode = !cfg.sessionDigest
 				? "disabled"
 				: ceActive
-					? "context-engine+hooks"
-					: "hooks";
+					? hookCaptureAllowed
+						? "context-engine+hooks"
+						: "context-engine"
+					: hookCaptureAllowed
+						? "hooks"
+						: "blocked";
 			details.captureMode = captureMode;
 			if (ceActive) {
 				if (ceSlot === NOWLEDGE_MEM_CONTEXT_ENGINE_COMPAT_ALIAS) {
@@ -158,7 +205,9 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 					);
 				}
 				lines.push(
-					"  Thread capture runs through Context Engine afterTurn with hook fallback (agent_end, after_compaction, before_reset).",
+					hookCaptureAllowed
+						? "  Thread capture runs through Context Engine afterTurn with hook fallback (agent_end, after_compaction, before_reset)."
+						: "  Thread capture runs through Context Engine afterTurn; the agent_end fallback is blocked by OpenClaw policy.",
 				);
 			} else if (isNowledgeMemContextEngineSlot(ceSlot)) {
 				if (ceSlot === NOWLEDGE_MEM_CONTEXT_ENGINE_COMPAT_ALIAS) {
@@ -194,6 +243,14 @@ export function createStatusTool(client, _logger, cfg, runtimeInfo = {}) {
 			if (!cfg.sessionDigest) {
 				lines.push("Thread capture: disabled (sessionDigest=false)");
 			} else {
+				if (!hookCaptureAllowed) {
+					lines.push(
+						"⚠ Hook fallback blocked: set plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true.",
+					);
+					lines.push(
+						"  OpenClaw requires this explicit grant before a non-bundled plugin can read agent_end conversation content.",
+					);
+				}
 				lines.push(
 					"  Thread identity follows OpenClaw session lifecycle: /new or /reset starts a fresh thread, while compaction stays in the same thread.",
 				);

@@ -129,6 +129,37 @@ Important facts:
 
 Do not tell the user to hand-edit those settings unless they are using a manual/path setup.
 
+### Step 3a — Grant the Runtime Capabilities the Plugin Uses
+
+Current OpenClaw releases require an explicit grant before a non-bundled plugin
+can read conversation content from `agent_end`. Set it after install:
+
+```bash
+openclaw config set plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess true --strict-json
+```
+
+Then inspect the host's effective tool policy:
+
+```bash
+openclaw config get tools
+```
+
+- If `tools.allow` already exists, preserve that list and add
+  `openclaw-nowledge-mem` to it.
+- Otherwise, when a restrictive profile such as `coding`, `messaging`, or
+  `minimal` is set, preserve `tools.alsoAllow` and add
+  `openclaw-nowledge-mem` to it.
+- If no restrictive profile or allowlist exists, no tool-policy change is
+  needed.
+- Never replace an existing list, and never add individual `nowledge_mem_*`
+  names. The plugin id expands to the complete manifest-declared tool contract.
+
+Example for a `coding` profile with no prior `alsoAllow` entries:
+
+```bash
+openclaw config set tools.alsoAllow '["openclaw-nowledge-mem"]' --strict-json
+```
+
 ### Step 4 — Configure Remote Only When Needed
 
 Local mode:
@@ -189,7 +220,7 @@ First check the plugin status:
 openclaw nowledge-mem status
 ```
 
-If only `memory_search` and `memory_get` tools are available (other Nowledge Mem tools missing), the memory slot may still point to the built-in `memory-core`. Verify the slot in `~/.openclaw/openclaw.json`:
+If only `memory_search` and `memory_get` tools are available (other Nowledge Mem tools missing), inspect `openclaw config get tools` first. A restrictive profile needs the plugin id in `tools.alsoAllow`, or in the existing `tools.allow` list. Then verify the memory slot in `~/.openclaw/openclaw.json`:
 
 ```json
 {
@@ -253,7 +284,8 @@ What to expect:
 | `plugins.allow is empty` warning | Add `openclaw-nowledge-mem` to `plugins.allow` if the user wants explicit trust |
 | Remote config seems ignored | Check whether `~/.nowledge-mem/openclaw.json` is overriding plugin settings |
 | Local mode unexpectedly talks to a remote server | Check for stale `NMEM_API_URL` / `NMEM_API_KEY` in the environment or an overriding `~/.nowledge-mem/openclaw.json` |
-| Plugin tools missing | Ensure the plugin is in `plugins.allow: ["openclaw-nowledge-mem"]`. Do **not** put `nowledge_mem_*` tool names in `tools.allow` — OpenClaw silently strips plugin-only allowlists. No `tools.*` config is needed; plugin tools load automatically when the plugin is allowed. |
+| Plugin tools missing | Inspect `openclaw config get tools`. Under a restrictive profile, preserve `tools.alsoAllow` and add `openclaw-nowledge-mem`; if `tools.allow` already exists, add the plugin id there instead. Do not add individual `nowledge_mem_*` names. Also ensure the plugin is trusted in `plugins.allow`. |
+| Memory tools work but Threads do not sync | Update to `0.8.30+`, set `plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true`, restart the gateway, and verify with `nmem t list --source openclaw -n 20`. |
 | `must declare contracts.tools before registering agent tools` | Update the plugin to `0.8.27+` and restart OpenClaw. Newer OpenClaw builds require plugin authors to declare tool ownership in the manifest before runtime tool registration. |
 
 ## Notes for Agents

@@ -17,7 +17,15 @@ This is not a flat note store. Nowledge Mem links related knowledge into a graph
 openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
 ```
 
-OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. On current OpenClaw builds, that same install flow may also set `plugins.slots.contextEngine` to `openclaw-nowledge-mem`. Plugin `0.8.18+` accepts that automatically as a compatibility alias, so you do not need to hand-edit the file after install. If you manage config manually, keep using the canonical context engine id `nowledge-mem`.
+OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. On current OpenClaw builds, that same install flow may also set `plugins.slots.contextEngine` to `openclaw-nowledge-mem`. Plugin `0.8.18+` accepts that automatically as a compatibility alias.
+
+Grant the conversation hook used as the thread-sync safety net:
+
+```bash
+openclaw config set plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess true --strict-json
+```
+
+If `openclaw config get tools` shows a restrictive profile such as `coding`, preserve its existing policy and add `openclaw-nowledge-mem` to `tools.alsoAllow`. If `tools.allow` already exists, add the plugin id there instead. The plugin id expands to all manifest-declared tools; do not list individual `nowledge_mem_*` names.
 
 To update the plugin, re-run the ClawHub install with `--force`:
 
@@ -434,7 +442,7 @@ openclaw nowledge-mem status
 
 ## Configuration
 
-No config is required for a normal npm install. The defaults work for local mode, and `openclaw plugins install` already enables the plugin and selects the memory slot.
+The plugin defaults work for local Mem, and `openclaw plugins install` enables the plugin and selects the memory slot. Current OpenClaw releases still require one explicit conversation-hook grant for the `agent_end` capture fallback. Restrictive tool profiles also need the plugin id added to their effective allow policy; see Installation above.
 
 To change settings, use the OpenClaw plugin settings UI. Changes take effect on restart.
 

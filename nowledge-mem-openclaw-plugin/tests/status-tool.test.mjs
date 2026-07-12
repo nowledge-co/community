@@ -44,6 +44,9 @@ test("status tool reports the configured context engine slot", async () => {
 		memorySlot: "openclaw-nowledge-mem",
 		contextEngineSlot: "nowledge-mem",
 		contextEngineRegistered: true,
+		toolsProfile: "coding",
+		toolsAlsoAllow: ["openclaw-nowledge-mem"],
+		allowConversationAccess: true,
 	});
 
 	const result = await tool.execute();
@@ -57,6 +60,21 @@ test("status tool reports the configured context engine slot", async () => {
 		/Context Engine slot: nowledge-mem \(active\)/,
 	);
 	assert.match(result.content[0].text, /Ambient space:/);
+	assert.equal(result.details.pluginToolsAllowed, true);
+	assert.equal(result.details.allowConversationAccess, true);
+
+	const blocked = await createStatusTool(client, logger, cfg, {
+		memorySlot: "openclaw-nowledge-mem",
+		contextEngineSlot: "nowledge-mem",
+		contextEngineRegistered: true,
+		toolsProfile: "coding",
+		toolsAlsoAllow: [],
+		allowConversationAccess: false,
+	}).execute();
+	assert.equal(blocked.details.pluginToolsAllowed, false);
+	assert.equal(blocked.details.captureMode, "context-engine");
+	assert.match(blocked.content[0].text, /Tool policy does not expose/);
+	assert.match(blocked.content[0].text, /Hook fallback blocked/);
 });
 
 test("status tool separates CLI health from thread sync HTTP health", async () => {
@@ -152,6 +170,7 @@ test("status tool treats the plugin id as a compatible context engine slot", asy
 		memorySlot: "openclaw-nowledge-mem",
 		contextEngineSlot: "openclaw-nowledge-mem",
 		contextEngineRegistered: true,
+		allowConversationAccess: true,
 	});
 
 	const result = await tool.execute();
@@ -201,6 +220,7 @@ test("status tool reports legacy context engine when slot is unset", async () =>
 	const tool = createStatusTool(client, logger, cfg, {
 		memorySlot: "openclaw-nowledge-mem",
 		contextEngineRegistered: false,
+		allowConversationAccess: true,
 	});
 
 	const result = await tool.execute();

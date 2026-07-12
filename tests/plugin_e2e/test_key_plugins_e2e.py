@@ -387,8 +387,8 @@ def test_key_plugin_static_contracts_are_declared():
     openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
     openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
-    assert openclaw_manifest["version"] == "0.8.29"
-    assert openclaw_pkg["version"] == "0.8.29"
+    assert openclaw_manifest["version"] == "0.8.30"
+    assert openclaw_pkg["version"] == "0.8.30"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
     assert openclaw_manifest["contracts"]["tools"] == [
         "memory_search",
@@ -1139,7 +1139,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["gemini-cli"]["version"] == "0.1.9"
     assert by_id["cursor"]["version"] == "0.1.6"
     assert by_id["droid"]["version"] == "0.1.1"
-    assert by_id["openclaw"]["version"] == "0.8.29"
+    assert by_id["openclaw"]["version"] == "0.8.30"
     assert by_id["proma"]["version"] == "0.1.4"
     assert by_id["opencode"]["version"] == "0.3.5"
     assert by_id["pi"]["version"] == "0.8.3"
@@ -1737,6 +1737,25 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
         shutil.copy2(real_config, isolated_config)
     else:
         isolated_config.write_text("{}", encoding="utf-8")
+    isolated_config_data = _read_json(isolated_config)
+    plugins_config = isolated_config_data.get("plugins")
+    if isinstance(plugins_config, dict):
+        entries = plugins_config.get("entries")
+        if isinstance(entries, dict):
+            entries.pop("openclaw-nowledge-mem", None)
+        allow = plugins_config.get("allow")
+        if isinstance(allow, list):
+            plugins_config["allow"] = [
+                plugin_id for plugin_id in allow if plugin_id != "openclaw-nowledge-mem"
+            ]
+        slots = plugins_config.get("slots")
+        if isinstance(slots, dict):
+            for slot_name in ("memory", "contextEngine"):
+                if slots.get(slot_name) in ("openclaw-nowledge-mem", "nowledge-mem"):
+                    slots.pop(slot_name)
+    isolated_config.write_text(
+        json.dumps(isolated_config_data, indent=2) + "\n", encoding="utf-8"
+    )
     for dirname in ("agents", "credentials", "identity"):
         source = real_state / dirname
         if source.exists():
@@ -1749,11 +1768,37 @@ def test_openclaw_live_hooks_and_context_engine_capture(e2e_context: E2EContext,
     }
     config_ops: list[dict[str, Any]] = [
         {"path": "plugins.entries.openclaw-nowledge-mem.enabled", "value": True},
+        {
+            "path": "plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess",
+            "value": True,
+        },
         {"path": "plugins.entries.openclaw-nowledge-mem.config.sessionDigest", "value": True},
         {"path": "plugins.entries.openclaw-nowledge-mem.config.sessionContext", "value": True},
         {"path": "plugins.entries.openclaw-nowledge-mem.config.space", "value": e2e_context.space},
         {"path": "plugins.slots.contextEngine", "value": "nowledge-mem"},
     ]
+    tools_config = isolated_config_data.get("tools", {})
+    tools_allow = tools_config.get("allow")
+    tools_also_allow = tools_config.get("alsoAllow")
+    if isinstance(tools_allow, list):
+        config_ops.append(
+            {
+                "path": "tools.allow",
+                "value": [*tools_allow, "openclaw-nowledge-mem"]
+                if "openclaw-nowledge-mem" not in tools_allow
+                else tools_allow,
+            }
+        )
+    elif tools_config.get("profile") not in (None, "full"):
+        existing_also_allow = tools_also_allow if isinstance(tools_also_allow, list) else []
+        config_ops.append(
+            {
+                "path": "tools.alsoAllow",
+                "value": [*existing_also_allow, "openclaw-nowledge-mem"]
+                if "openclaw-nowledge-mem" not in existing_also_allow
+                else existing_also_allow,
+            }
+        )
     if os.environ.get("NMEM_E2E_API_URL"):
         config_ops.append(
             {

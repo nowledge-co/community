@@ -632,7 +632,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.29",
+      "version": "0.8.30",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -648,7 +648,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Plugin captures interactive sessions via hooks (agent_end, after_compaction, before_reset) and Context Engine afterTurn; hook capture remains a safety net even when the Context Engine slot is active. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron/session keys excluded (OpenClaw isCronSessionKey via plugin-sdk/routing). Memory tools still use nmem CLI."
+        "note": "Plugin captures interactive sessions through Context Engine afterTurn and, when plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true, agent_end as a safety net. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron/session keys excluded (OpenClaw isCronSessionKey via plugin-sdk/routing). Memory tools still use nmem CLI."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -658,7 +658,9 @@
         "bestResultRequires": [
           "Install the native OpenClaw plugin",
           "Use OpenClaw 2026.5.3 or later for current ClawHub packages",
-          "Use plugin 0.8.29 or later for reliable OpenClaw session capture and 2026.6.10+ tool-contract enforcement",
+          "Use plugin 0.8.30 or later for OpenClaw 2026.6.11 timestamp compatibility and tool-contract diagnostics",
+          "Grant plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess for the agent_end capture safety net",
+          "When tools.profile is restrictive, add openclaw-nowledge-mem to tools.alsoAllow or the existing tools.allow list",
           "Keep nmem available on this machine",
           "Restart OpenClaw after install or config changes"
         ]

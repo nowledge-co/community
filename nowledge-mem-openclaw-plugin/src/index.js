@@ -78,6 +78,12 @@ export default {
 		//   - memory/context-engine slot routing for capture and recall
 		const contextEngineSlot = api.config?.plugins?.slots?.contextEngine;
 		const pluginsAllow = api.config?.plugins?.allow;
+		const pluginEntry = api.config?.plugins?.entries?.[api.id];
+		const toolsProfile = api.config?.tools?.profile;
+		const toolsAllow = api.config?.tools?.allow;
+		const toolsAlsoAllow = api.config?.tools?.alsoAllow;
+		const allowConversationAccess =
+			pluginEntry?.hooks?.allowConversationAccess === true;
 		let contextEngineRegistered = false;
 		let contextEngineRegistrationError = null;
 		let corpusSupplementActive = false;
@@ -140,6 +146,10 @@ export default {
 				contextEngineSlot,
 				contextEngineIds: NOWLEDGE_MEM_CONTEXT_ENGINE_IDS,
 				pluginsAllow,
+				toolsProfile,
+				toolsAllow,
+				toolsAlsoAllow,
+				allowConversationAccess,
 				contextEngineRegistered,
 				contextEngineRegistrationError,
 				corpusSupplementActive,
