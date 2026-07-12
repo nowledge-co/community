@@ -4,6 +4,12 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.31] - 2026-07-12
+
+### Improved
+
+- New OpenClaw Threads use the first meaningful user message as their title instead of exposing an internal `agent:...` session key. When no user turn is available, the plugin falls back to a readable channel label such as `OpenClaw · WeChat`.
+
 ## [0.8.30] - 2026-07-12
 
 ### Fixed

@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
 	appendOrCreateThread,
+	buildThreadTitle,
 	normalizeRoleMessage,
 } from "../src/hooks/capture.js";
 
@@ -44,6 +45,30 @@ test("normalizes OpenClaw epoch-millisecond timestamps for the Mem API", () => {
 			message("assistant", "invalid timestamp", { timestamp: Number.NaN }),
 		).timestamp,
 		undefined,
+	);
+});
+
+test("uses the first user message as a readable thread title", () => {
+	assert.equal(
+		buildThreadTitle(
+			{ sessionKey: "agent:main:dashboard:b17192bf-149b-41ec" },
+			[
+				{ role: "user", fullContent: "  帮我检查一下 OpenClaw 的线程同步  \n" },
+				{ role: "assistant", fullContent: "好的" },
+			],
+		),
+		"帮我检查一下 OpenClaw 的线程同步",
+	);
+	assert.equal(
+		buildThreadTitle(
+			{ sessionKey: "agent:main:openclaw-weixin:direct:user-id" },
+			[{ role: "assistant", fullContent: "No user turn available" }],
+		),
+		"OpenClaw · WeChat",
+	);
+	assert.equal(
+		buildThreadTitle({}, []),
+		"OpenClaw conversation",
 	);
 });
 

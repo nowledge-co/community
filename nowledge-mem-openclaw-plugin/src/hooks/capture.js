@@ -12,6 +12,7 @@ export const DEFAULT_MAX_MESSAGE_CHARS = 800;
 export const MAX_DISTILL_MESSAGE_CHARS = 2000;
 export const MAX_CONVERSATION_CHARS = 30_000;
 export const MIN_MESSAGES_FOR_DISTILL = 4;
+export const MAX_THREAD_TITLE_CHARS = 80;
 const SESSION_RESET_PROMPT_PREFIX =
 	"A new session was started via /new or /reset.";
 const OPENCLAW_DIRECTIVE_TAG_RE =
@@ -309,9 +310,47 @@ export function normalizeRoleMessage(
 	};
 }
 
-export function buildThreadTitle(ctx) {
-	const session = ctx?.sessionKey || ctx?.sessionId || "session";
-	return `OpenClaw ${session}`;
+function humanizeChannel(value) {
+	const normalized = String(value || "")
+		.trim()
+		.toLowerCase();
+	if (!normalized) return "";
+	const known = {
+		dashboard: "Dashboard",
+		"openclaw-weixin": "WeChat",
+		weixin: "WeChat",
+		wechat: "WeChat",
+		telegram: "Telegram",
+		discord: "Discord",
+		whatsapp: "WhatsApp",
+	};
+	if (known[normalized]) return known[normalized];
+	return normalized
+		.replace(/^openclaw[-_]/, "")
+		.split(/[-_]+/)
+		.filter(Boolean)
+		.map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+		.join(" ");
+}
+
+export function buildThreadTitle(ctx, normalizedMessages = []) {
+	const firstUserMessage = normalizedMessages.find(
+		(message) => message?.role === "user",
+	);
+	const userText = String(
+		firstUserMessage?.fullContent || firstUserMessage?.content || "",
+	)
+		.replace(/\s+/gu, " ")
+		.trim();
+	if (userText) return truncate(userText, MAX_THREAD_TITLE_CHARS);
+
+	const explicitChannel = ctx?.channel || ctx?.channelId;
+	const sessionKey = String(ctx?.sessionKey || "");
+	const sessionParts = sessionKey.split(":").filter(Boolean);
+	const sessionChannel =
+		sessionParts[0]?.toLowerCase() === "agent" ? sessionParts[2] : "";
+	const channel = humanizeChannel(explicitChannel || sessionChannel);
+	return channel ? `OpenClaw · ${channel}` : "OpenClaw conversation";
 }
 
 function sanitizeIdPart(input, max = 48) {
@@ -423,11 +462,11 @@ export async function appendOrCreateThread({
 	const threadId = buildStableThreadId(event, ctx);
 	const sessionKey = String(ctx?.sessionKey || ctx?.sessionId || "session");
 	const sessionId = String(ctx?.sessionId || "").trim();
-	const title = buildThreadTitle(ctx);
 	const normalized = rawMessages
 		.map((message) => normalizeRoleMessage(message, maxMessageChars))
 		.filter(Boolean);
 	if (normalized.length === 0) return;
+	const title = buildThreadTitle(ctx, normalized);
 
 	const buildMessages = (resolvedMessageMode) =>
 		normalized.map((message, index) => ({
@@ -669,7 +708,7 @@ export async function triageAndDistill({
 
 		const distillResult = await client.distillThread({
 			threadId: captureResult.threadId,
-			title: buildThreadTitle(ctx),
+			title: buildThreadTitle(ctx, captureResult.normalized),
 			content: conversationText,
 		});
 
