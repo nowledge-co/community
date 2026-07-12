@@ -32,6 +32,8 @@ run_with_config() {
   grep -Fq "$expected_line" "$hermes_home/config.yaml" || fail "$fixture_name did not update config.yaml"
   grep -Fq "$expected_output" <<<"$output" || fail "$fixture_name did not report expected installer output"
   [ -f "$hermes_home/plugins/nowledge-mem/plugin.yaml" ] || fail "$fixture_name did not install plugin files"
+  [ -f "$hermes_home/plugins/nowledge-mem/skill_outcome.py" ] || fail "$fixture_name omitted skill_outcome.py"
+  grep -Fq 'Plugin module closure validated' <<<"$output" || fail "$fixture_name did not validate plugin module closure"
   grep -Fq "Installed version: $EXPECTED_VERSION" <<<"$output" || fail "$fixture_name did not report installed version"
   grep -Fq 'Thread import endpoint: /threads/import' <<<"$output" || fail "$fixture_name did not report thread import endpoint"
 }
@@ -82,6 +84,8 @@ legacy_output="$(HOME="$legacy_home" HERMES_HOME="$legacy_hermes" bash "$SETUP_S
 grep -Fq '[*] Detected older Hermes provider discovery' <<<"$legacy_output" || fail "legacy runtime was not detected"
 [ -f "$legacy_hermes/plugins/nowledge-mem/plugin.yaml" ] || fail "legacy canonical plugin install missing"
 [ -f "$legacy_memory_dir/nowledge-mem/plugin.yaml" ] || fail "legacy compatibility plugin install missing"
+[ -f "$legacy_memory_dir/nowledge-mem/skill_outcome.py" ] || fail "legacy compatibility plugin omitted skill_outcome.py"
+grep -Fq 'Legacy plugin module closure validated' <<<"$legacy_output" || fail "legacy compatibility plugin was not validated"
 grep -Fq 'provider: "nowledge-mem"' "$legacy_hermes/config.yaml" || fail "legacy config provider not updated"
 
 # --- Cross-platform default HERMES_HOME ---

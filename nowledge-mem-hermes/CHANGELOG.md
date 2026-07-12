@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.22] - 2026-07-12
+
+### Fixed
+
+- The one-command installer now includes the managed-skill outcome module required by the provider. It also validates the installed Python module closure before reporting success, so an incomplete plugin cannot appear installed and then fail when Hermes loads it.
+
 ## [0.5.21] - 2026-07-07
 
 ### Fixed

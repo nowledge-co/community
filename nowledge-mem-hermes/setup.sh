@@ -138,6 +138,49 @@ install_plugin_files() {
   done
 }
 
+publish_plugin_files() {
+  local source_dir="$1"
+  local target_dir="$2"
+  local output_prefix="${3:-}"
+
+  mkdir -p "$target_dir"
+  for f in $PLUGIN_FILES; do
+    cp "$source_dir/$f" "$target_dir/$f"
+    echo "  [ok] ${output_prefix}$f"
+  done
+}
+
+validate_plugin_files() {
+  local target_dir="$1"
+  $PYTHON_BIN - "$target_dir" <<'PY'
+import ast
+from pathlib import Path
+import sys
+
+target = Path(sys.argv[1])
+python_files = sorted(target.glob("*.py"))
+if not python_files:
+    raise SystemExit("installed plugin contains no Python modules")
+
+missing = []
+for path in python_files:
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(path))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or node.level < 1 or not node.module:
+            continue
+        module = node.module.split(".", 1)[0]
+        if not (target / f"{module}.py").is_file() and not (target / module / "__init__.py").is_file():
+            missing.append(f"{path.name}: .{node.module}")
+
+if missing:
+    raise SystemExit("missing installed plugin modules: " + ", ".join(sorted(set(missing))))
+
+for path in python_files:
+    compile(path.read_text(encoding="utf-8"), str(path), "exec")
+PY
+}
+
 plugin_version_for_dir() {
   local target_dir="$1"
   if [ ! -f "$target_dir/plugin.yaml" ]; then
@@ -273,27 +316,37 @@ if [ "$MODE" = "plugin" ]; then
     MIGRATE_OLD=true
   fi
 
-  mkdir -p "$PLUGIN_DIR"
-
   echo "[*] Installing Nowledge Mem memory provider plugin..."
 
-  PLUGIN_FILES="plugin.yaml __init__.py provider.py client.py"
+  PLUGIN_FILES="plugin.yaml __init__.py provider.py client.py skill_outcome.py"
   ALL_OK=true
+  PLUGIN_STAGE="$(mktemp -d "${TMPDIR:-/tmp}/nowledge-mem-hermes.XXXXXX")"
+  trap 'rm -rf "$PLUGIN_STAGE"' EXIT
+  install_plugin_files "$PLUGIN_STAGE" "download:"
 
-  install_plugin_files "$PLUGIN_DIR"
+  if ! $ALL_OK; then
+    echo "[error] Some files failed to download. Your existing plugin was not changed."
+    exit 1
+  fi
+  if ! validate_plugin_files "$PLUGIN_STAGE"; then
+    echo "[error] Downloaded plugin files are incomplete or invalid. Your existing plugin was not changed."
+    exit 1
+  fi
+  echo "  [ok] Downloaded plugin module closure validated"
 
   LEGACY_MEMORY_PROVIDER_DIR="$HERMES_HOME/hermes-agent/plugins/memory"
   LEGACY_PLUGIN_DIR="$LEGACY_MEMORY_PROVIDER_DIR/nowledge-mem"
   LEGACY_COMPAT_INSTALLED=false
   if needs_legacy_memory_provider_copy "$LEGACY_MEMORY_PROVIDER_DIR"; then
     echo "[*] Detected older Hermes provider discovery; installing compatibility copy..."
-    install_plugin_files "$LEGACY_PLUGIN_DIR" "legacy:"
     LEGACY_COMPAT_INSTALLED=true
   fi
 
-  if ! $ALL_OK; then
-    echo "[error] Some files failed to download. Check your network."
-    exit 1
+  publish_plugin_files "$PLUGIN_STAGE" "$PLUGIN_DIR"
+  echo "  [ok] Plugin module closure validated"
+  if $LEGACY_COMPAT_INSTALLED; then
+    publish_plugin_files "$PLUGIN_STAGE" "$LEGACY_PLUGIN_DIR" "legacy:"
+    echo "  [ok] Legacy plugin module closure validated"
   fi
 
   # Now safe to remove old install path (download succeeded)
