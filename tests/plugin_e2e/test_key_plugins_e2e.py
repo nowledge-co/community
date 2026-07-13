@@ -335,7 +335,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_hooks = _read_json(CODEX_PLUGIN / "hooks" / "hooks.json")["hooks"]
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.24"
+    assert codex_manifest["version"] == "0.1.25"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -347,6 +347,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert "nowledge-mem-stop-save.py" in codex_launcher
     assert "nmem-stop-save.py" in codex_launcher
     assert "extract_skill_outcomes_from_file" in codex_save_hook
+    assert "DELEGATED_CONVERSATION_ORIGINATORS" in codex_save_hook
     assert (CODEX_PLUGIN / "hooks" / "skill_outcome.py").exists()
     codex_stop_commands = [
         hook.get("command", "")

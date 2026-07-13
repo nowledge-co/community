@@ -321,6 +321,58 @@ class HookTests(unittest.TestCase):
 
         self.assertEqual(self.module._derive_codex_home(str(transcript)), self.temp_path)
 
+    def _write_session_meta(self, originator: str) -> Path:
+        transcript = self.temp_path / "sessions" / f"{originator}.jsonl"
+        transcript.parent.mkdir(parents=True, exist_ok=True)
+        transcript.write_text(
+            json.dumps(
+                {
+                    "type": "session_meta",
+                    "payload": {"id": "session-1", "originator": originator},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return transcript
+
+    def test_delegated_conversation_originator_is_session_scoped(self):
+        for originator in ("slock-daemon", "raft-daemon"):
+            transcript = self._write_session_meta(originator)
+            self.assertEqual(
+                self.module._delegated_conversation_originator(
+                    {"transcript_path": str(transcript)}
+                ),
+                originator,
+            )
+
+        for originator in ("codex_sdk_ts", "codex_exec", "codex_cli_rs"):
+            transcript = self._write_session_meta(originator)
+            self.assertIsNone(
+                self.module._delegated_conversation_originator(
+                    {"transcript_path": str(transcript)}
+                )
+            )
+
+    def test_main_skips_only_delegated_thread_capture_but_reports_skills(self):
+        transcript = self._write_session_meta("slock-daemon")
+        hook_payload = json.dumps(
+            {
+                "session_id": "session-1",
+                "transcript_path": str(transcript),
+            }
+        )
+
+        with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+             mock.patch.object(self.module, "_claim_capture_event", return_value=True), \
+             mock.patch.object(self.module, "_run_save_with_retries") as save, \
+             mock.patch.object(self.module, "_report_skill_outcomes") as report, \
+             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: hook_payload)):
+            self.assertEqual(self.module.main(), 0)
+
+        save.assert_not_called()
+        report.assert_called_once()
+
     def test_claim_capture_event_suppresses_duplicate_same_transcript_state(self):
         transcript = self.temp_path / "sessions" / "2026" / "05" / "02" / "rollout-abc.jsonl"
         transcript.parent.mkdir(parents=True)

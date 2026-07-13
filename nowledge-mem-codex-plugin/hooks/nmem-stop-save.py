@@ -32,6 +32,8 @@ JSON_FLAG_UNSUPPORTED_MARKERS = (
     "unexpected argument '--json'",
 )
 CODEX_HOOK_SUCCESS_RESPONSE = {"continue": True, "suppressOutput": True}
+DELEGATED_CONVERSATION_ORIGINATORS = frozenset({"slock-daemon", "raft-daemon"})
+MAX_SESSION_META_BYTES = 256 * 1024
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
@@ -92,6 +94,45 @@ def _payload_value(payload: dict[str, Any], *keys: str) -> str | None:
             value = container.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
+    return None
+
+
+def _transcript_originator(transcript_path: str | None) -> str | None:
+    """Read Codex's authoritative session originator without parsing the rollout."""
+    if not transcript_path:
+        return None
+
+    try:
+        with Path(transcript_path).expanduser().open("r", encoding="utf-8") as handle:
+            for _ in range(8):
+                line = handle.readline(MAX_SESSION_META_BYTES + 1)
+                if not line:
+                    return None
+                if len(line) > MAX_SESSION_META_BYTES:
+                    return None
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                if not isinstance(record, dict) or record.get("type") != "session_meta":
+                    return None
+                session = record.get("payload")
+                if not isinstance(session, dict):
+                    return None
+                originator = session.get("originator")
+                if isinstance(originator, str) and originator.strip():
+                    return originator.strip().lower()
+                return None
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    return None
+
+
+def _delegated_conversation_originator(payload: dict[str, Any]) -> str | None:
+    originator = _transcript_originator(
+        _payload_value(payload, "transcript_path", "transcriptPath")
+    )
+    if originator in DELEGATED_CONVERSATION_ORIGINATORS:
+        return originator
     return None
 
 
@@ -532,6 +573,19 @@ def main() -> int:
 
     if not _claim_capture_event(payload):
         _log("skip: duplicate Stop hook event already claimed")
+        return 0
+
+    delegated_originator = _delegated_conversation_originator(payload)
+    if delegated_originator:
+        # Raft owns the real channel/thread boundary. Its long-lived Codex
+        # rollout is an execution trace containing inbox control notices and
+        # empty final answers, not a user conversation. Keep skill telemetry,
+        # but never persist that rollout as a Codex Thread.
+        _report_skill_outcomes(nmem, payload)
+        _log(
+            "skip: delegated conversation host owns thread capture "
+            f"originator={delegated_originator}"
+        )
         return 0
 
     try:

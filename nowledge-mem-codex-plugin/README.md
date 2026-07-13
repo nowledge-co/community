@@ -140,6 +140,8 @@ if ($null -eq $HookSetup) {
 
 This enables Codex lifecycle hooks and plugin-bundled hooks, keeps the Nowledge Mem packaged Stop hook enabled in `/hooks`, then installs a small host-level Stop hook for Codex builds that still need `~/.codex/hooks.json`. The Stop hook shells out to `nmem t save --from codex`, so local mode and remote Mem mode use the same `nmem` client configuration. If both the bundled hook and the host-level fallback are visible, the hook runtime suppresses the duplicate save for the same transcript state.
 
+Raft (formerly Slock) can run a managed Codex worker on the same computer as your normal Codex sessions. The hook reads Codex's structured `session_meta.originator` for each transcript: normal Codex sessions still capture automatically, while `slock-daemon` and `raft-daemon` rollouts are skipped because they contain Raft inbox/control traffic rather than the human-visible conversation. Memory skills and MCP remain available inside the Raft worker.
+
 To backfill older Codex sessions, preview first:
 
 ```bash

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.25] - 2026-07-14
+
+### Fixed
+
+- Codex Stop capture now recognizes Raft-managed sessions by their structured `session_meta.originator`. Those long-lived execution traces are no longer imported as conversations full of inbox notices, while normal Codex sessions on the same computer continue to sync automatically.
+- Managed skill outcome reporting remains active for Raft-hosted Codex sessions even when transcript capture is delegated to Raft's conversation boundary.
+- Existing installations should rerun the plugin's `scripts/install_hooks.py` after updating so the host-level fallback hook receives the same boundary fix.
+
 ## [0.1.24] - 2026-07-07
 
 ### Fixed
