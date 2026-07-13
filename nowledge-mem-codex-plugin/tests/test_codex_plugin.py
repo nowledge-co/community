@@ -62,43 +62,31 @@ class HookTests(unittest.TestCase):
                 "codex",
                 "--truncate",
                 "--project",
-                "/tmp/project",
+                str(Path("/tmp/project").expanduser()),
                 "--session-id",
                 "019abc",
             ],
         )
 
-    def test_build_command_invokes_windows_cmd_through_comspec(self):
+    def test_build_save_command_delegates_windows_shim_to_runtime(self):
         nmem = r"C:\Users\jockie\AppData\Local\Nowledge Mem\cli\nmem.CMD"
-        with mock.patch.object(self.module.os, "name", "nt"), mock.patch.dict(
-            self.module.os.environ,
-            {"COMSPEC": r"C:\Windows\System32\cmd.exe"},
-            clear=False,
-        ):
+        bridged = [r"C:\Windows\System32\cmd.exe", "/d", "/s", "/c", "command"]
+        with mock.patch.object(
+            self.module,
+            "_build_nmem_command",
+            return_value=bridged,
+        ) as build:
             command = self.module._build_save_command(
                 nmem,
                 {"session_id": "019abc", "cwd": r"D:\server-prod-env-setting"},
                 include_session_id=True,
             )
 
-        self.assertEqual(
-            command[:4],
-            [r"C:\Windows\System32\cmd.exe", "/d", "/s", "/c"],
-        )
-        self.assertIn(r'"C:\Users\jockie\AppData\Local\Nowledge Mem\cli\nmem.CMD"', command[4])
-        self.assertIn(r"D:\server-prod-env-setting", command[4])
-
-    def test_build_command_keeps_cmd_bridge_for_wsl(self):
-        nmem = "/mnt/c/Users/jockie/AppData/Local/Nowledge Mem/cli/nmem.CMD"
-        with mock.patch.object(self.module.os, "name", "posix"):
-            command = self.module._build_save_command(
-                nmem,
-                {"session_id": "019abc", "cwd": "/home/jockie/project"},
-                include_session_id=True,
-            )
-
-        self.assertEqual(command[:4], ["cmd.exe", "/d", "/s", "/c"])
-        self.assertIn("nmem.CMD", command[4])
+        self.assertEqual(command, bridged)
+        build.assert_called_once()
+        self.assertEqual(build.call_args.args[0], nmem)
+        self.assertIn("--project", build.call_args.args)
+        self.assertIn("--session-id", build.call_args.args)
 
     def test_retry_without_session_id_on_lookup_miss(self):
         calls = []
@@ -710,6 +698,7 @@ class InstallHookTests(unittest.TestCase):
         self.module.CONFIG_FILE = self.module.CODEX_DIR / "config.toml"
         self.module.INSTALLED_HOOK = self.module.HOOKS_DIR / "nowledge-mem-stop-save.py"
         self.module.INSTALLED_SKILL_OUTCOME = self.module.HOOKS_DIR / "skill_outcome.py"
+        self.module.INSTALLED_NMEM_RUNTIME = self.module.HOOKS_DIR / "nmem_runtime.py"
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -1022,7 +1011,8 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn(self.module.MCP_MANAGED_BEGIN, updated)
         self.assertIn('Authorization = "Bearer nmem_test"', updated)
         self.assertIn(self.module.MCP_MANAGED_END, updated)
-        self.assertEqual(self.module.CONFIG_FILE.stat().st_mode & 0o777, 0o600)
+        if os.name != "nt":
+            self.assertEqual(self.module.CONFIG_FILE.stat().st_mode & 0o777, 0o600)
 
     def test_install_codex_mcp_config_preserves_user_owned_mcp_override(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
