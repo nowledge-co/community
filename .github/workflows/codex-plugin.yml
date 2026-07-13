@@ -1,0 +1,43 @@
+name: Codex plugin
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/codex-plugin.yml"
+      - "integrations.json"
+      - "nowledge-mem-codex-plugin/**"
+      - "tests/plugin_e2e/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/codex-plugin.yml"
+      - "integrations.json"
+      - "nowledge-mem-codex-plugin/**"
+      - "tests/plugin_e2e/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Test hook runtime and installer
+        run: python -m unittest nowledge-mem-codex-plugin/tests/test_codex_plugin.py
+      - name: Validate package contract
+        run: node nowledge-mem-codex-plugin/scripts/validate-plugin.mjs

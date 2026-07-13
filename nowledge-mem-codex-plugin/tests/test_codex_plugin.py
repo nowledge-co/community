@@ -13,6 +13,8 @@ from unittest import mock
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 HOOK_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem-stop-save.py"
 LAUNCH_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem-stop-launch.py"
+CONTEXT_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem-context.py"
+RUNTIME_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem_runtime.py"
 INSTALL_MODULE_PATH = PLUGIN_ROOT / "scripts" / "install_hooks.py"
 HOOKS_JSON_PATH = PLUGIN_ROOT / "hooks" / "hooks.json"
 
@@ -66,18 +68,25 @@ class HookTests(unittest.TestCase):
             ],
         )
 
-    def test_build_command_invokes_windows_cmd_directly_on_windows(self):
+    def test_build_command_invokes_windows_cmd_through_comspec(self):
         nmem = r"C:\Users\jockie\AppData\Local\Nowledge Mem\cli\nmem.CMD"
-        with mock.patch.object(self.module.os, "name", "nt"):
+        with mock.patch.object(self.module.os, "name", "nt"), mock.patch.dict(
+            self.module.os.environ,
+            {"COMSPEC": r"C:\Windows\System32\cmd.exe"},
+            clear=False,
+        ):
             command = self.module._build_save_command(
                 nmem,
                 {"session_id": "019abc", "cwd": r"D:\server-prod-env-setting"},
                 include_session_id=True,
             )
 
-        self.assertEqual(command[0], nmem)
-        self.assertNotIn("cmd.exe", command)
-        self.assertIn(r"D:\server-prod-env-setting", command)
+        self.assertEqual(
+            command[:4],
+            [r"C:\Windows\System32\cmd.exe", "/d", "/s", "/c"],
+        )
+        self.assertIn(r'"C:\Users\jockie\AppData\Local\Nowledge Mem\cli\nmem.CMD"', command[4])
+        self.assertIn(r"D:\server-prod-env-setting", command[4])
 
     def test_build_command_keeps_cmd_bridge_for_wsl(self):
         nmem = "/mnt/c/Users/jockie/AppData/Local/Nowledge Mem/cli/nmem.CMD"
@@ -88,8 +97,8 @@ class HookTests(unittest.TestCase):
                 include_session_id=True,
             )
 
-        self.assertEqual(command[:2], ["cmd.exe", "/c"])
-        self.assertIn("nmem.CMD", command[2])
+        self.assertEqual(command[:4], ["cmd.exe", "/d", "/s", "/c"])
+        self.assertIn("nmem.CMD", command[4])
 
     def test_retry_without_session_id_on_lookup_miss(self):
         calls = []
@@ -474,6 +483,154 @@ class PackagedHookConfigTests(unittest.TestCase):
         self.assertNotIn("${PLUGIN_ROOT}", hook["commandWindows"])
         self.assertNotIn("%PLUGIN_ROOT%", hook["commandWindows"])
 
+    def test_packaged_context_hooks_use_strict_cross_platform_launchers(self):
+        hooks = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))["hooks"]
+
+        self.assertEqual(
+            set(hooks), {"SessionStart", "UserPromptSubmit", "Stop"}
+        )
+        self.assertEqual(hooks["SessionStart"][0]["matcher"], "startup|resume|clear|compact")
+        for event_name in ("SessionStart", "UserPromptSubmit"):
+            hook = hooks[event_name][0]["hooks"][0]
+            self.assertIn("os.environ['PLUGIN_ROOT']", hook["command"])
+            self.assertIn("nmem-context.py", hook["command"])
+            self.assertIn("nmem-context.py", hook["commandWindows"])
+            self.assertNotIn("${PLUGIN_ROOT}", hook["command"])
+            self.assertNotIn("%PLUGIN_ROOT%", hook["commandWindows"])
+            self.assertTrue(hook["commandWindows"].startswith("py -3 -c "))
+
+        session_timeout = hooks["SessionStart"][0]["hooks"][0]["timeout"]
+        context_module = load_module("nmem_context_timeout", CONTEXT_MODULE_PATH)
+        self.assertGreater(
+            session_timeout,
+            context_module.CONTEXT_TOTAL_TIMEOUT_SECONDS,
+        )
+
+
+class ContextHookTests(unittest.TestCase):
+    def setUp(self):
+        self.module = load_module("nmem_context", CONTEXT_MODULE_PATH)
+
+    def test_session_start_injects_routing_and_context_bundle(self):
+        stdout = io.StringIO()
+        with mock.patch.object(
+            self.module, "_load_startup_context", return_value="# Bundle\nCurrent work"
+        ), mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(
+                self.module.main({"hook_event_name": "SessionStart"}), 0
+            )
+
+        response = json.loads(stdout.getvalue())
+        output = response["hookSpecificOutput"]
+        self.assertEqual(output["hookEventName"], "SessionStart")
+        self.assertIn("Nowledge Mem routing", output["additionalContext"])
+        self.assertIn("# Bundle", output["additionalContext"])
+
+    def test_user_prompt_injects_routing_without_reloading_context(self):
+        stdout = io.StringIO()
+        with mock.patch.object(self.module, "_load_startup_context") as load, \
+             mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(
+                self.module.main({"hook_event_name": "UserPromptSubmit"}), 0
+            )
+
+        load.assert_not_called()
+        output = json.loads(stdout.getvalue())["hookSpecificOutput"]
+        self.assertEqual(output["hookEventName"], "UserPromptSubmit")
+        self.assertIn("Codex local Memory", output["additionalContext"])
+        self.assertNotIn("Current Nowledge context", output["additionalContext"])
+
+    def test_session_output_is_ascii_safe_for_windows_codepages(self):
+        stdout = io.StringIO()
+        with mock.patch.object(
+            self.module, "_load_startup_context", return_value="中文上下文"
+        ), mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(
+                self.module.main({"hook_event_name": "SessionStart"}), 0
+            )
+
+        encoded = stdout.getvalue()
+        self.assertTrue(encoded.isascii())
+        self.assertIn("中文上下文", json.loads(encoded)["hookSpecificOutput"]["additionalContext"])
+
+    def test_context_command_uses_shared_cmd_bridge_and_utf8(self):
+        with mock.patch.object(
+            self.module,
+            "_build_nmem_command",
+            return_value=["cmd.exe", "/d", "/s", "/c", "nmem.cmd --json context"],
+        ) as build, mock.patch.object(self.module.subprocess, "run") as run:
+            run.return_value = mock.Mock(
+                returncode=0,
+                stdout='{"rendered_markdown":"ok"}',
+                stderr="",
+            )
+            payload = self.module._run_nmem_json(
+                "nmem.cmd",
+                ["context"],
+                timeout_seconds=3.0,
+            )
+
+        self.assertEqual(payload, {"rendered_markdown": "ok"})
+        build.assert_called_once_with("nmem.cmd", "--json", "context")
+        self.assertEqual(run.call_args.kwargs["encoding"], "utf-8")
+        self.assertEqual(run.call_args.kwargs["errors"], "replace")
+
+    def test_context_args_preserve_explicit_identity_and_space(self):
+        with mock.patch.dict(
+            self.module.os.environ,
+            {
+                "NMEM_AGENT_ID": "reviewer",
+                "NMEM_HOST_AGENT_ID": "raft-worker",
+                "NMEM_SPACE": "release",
+            },
+            clear=False,
+        ):
+            self.assertEqual(
+                self.module._context_args(),
+                [
+                    "context",
+                    "--source-app",
+                    "codex",
+                    "--agent-id",
+                    "reviewer",
+                    "--host-agent-id",
+                    "raft-worker",
+                    "--space",
+                    "release",
+                ],
+            )
+
+
+class RuntimeHelperTests(unittest.TestCase):
+    def setUp(self):
+        self.module = load_module("nmem_runtime_test", RUNTIME_MODULE_PATH)
+
+    def test_wsl_cmd_shim_uses_cmd_bridge_and_windows_path(self):
+        nmem = "/mnt/c/Users/test/AppData/Local/Nowledge Mem/cli/nmem.cmd"
+        with mock.patch.object(self.module.os, "name", "posix"):
+            command = self.module.build_nmem_command(nmem, "--json", "context")
+
+        self.assertEqual(command[:4], ["cmd.exe", "/d", "/s", "/c"])
+        self.assertIn(r"C:\Users\test\AppData\Local\Nowledge Mem\cli\nmem.cmd", command[4])
+
+    def test_native_windows_batch_shim_uses_comspec(self):
+        with mock.patch.object(self.module.os, "name", "nt"), mock.patch.dict(
+            self.module.os.environ,
+            {"COMSPEC": r"C:\Windows\System32\cmd.exe"},
+            clear=False,
+        ):
+            command = self.module.build_nmem_command(
+                r"C:\Program Files\Nowledge Mem\nmem.bat",
+                "--json",
+                "context",
+            )
+
+        self.assertEqual(
+            command[:4],
+            [r"C:\Windows\System32\cmd.exe", "/d", "/s", "/c"],
+        )
+        self.assertIn(r'"C:\Program Files\Nowledge Mem\nmem.bat"', command[4])
+
 
 class LauncherTests(unittest.TestCase):
     def setUp(self):
@@ -641,6 +798,50 @@ class InstallHookTests(unittest.TestCase):
 
         self.assertIn("[features]\nplugins = true\nhooks = true\nplugin_hooks = true", updated)
 
+    def test_modern_codex_does_not_add_removed_plugin_hooks_flag(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "[features]\nplugins = true\nhooks = false\n",
+            encoding="utf-8",
+        )
+
+        self.module.ensure_codex_hooks_enabled(plugin_hooks_required=False)
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+
+        self.assertIn("hooks = true", updated)
+        self.assertNotIn("plugin_hooks", updated)
+
+    def test_modern_codex_preserves_existing_removed_plugin_hooks_value(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "[features]\nhooks = false\nplugin_hooks = false\n",
+            encoding="utf-8",
+        )
+
+        self.module.ensure_codex_hooks_enabled(plugin_hooks_required=False)
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+
+        self.assertIn("hooks = true", updated)
+        self.assertIn("plugin_hooks = false", updated)
+
+    def test_codex_feature_probe_distinguishes_removed_legacy_gate(self):
+        removed = mock.Mock(
+            returncode=0,
+            stdout="hooks stable true\nplugin_hooks removed false\n",
+            stderr="",
+        )
+        active = mock.Mock(
+            returncode=0,
+            stdout="hooks experimental true\nplugin_hooks experimental false\n",
+            stderr="",
+        )
+        with mock.patch.object(self.module.shutil, "which", return_value="codex"), \
+             mock.patch.object(self.module.subprocess, "run", return_value=removed):
+            self.assertFalse(self.module.codex_requires_legacy_plugin_hooks_gate())
+        with mock.patch.object(self.module.shutil, "which", return_value="codex"), \
+             mock.patch.object(self.module.subprocess, "run", return_value=active):
+            self.assertTrue(self.module.codex_requires_legacy_plugin_hooks_gate())
+
     def test_ensure_codex_hooks_enabled_ignores_bracket_values_inside_features(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.module.CONFIG_FILE.write_text(
@@ -692,6 +893,7 @@ class InstallHookTests(unittest.TestCase):
                     "",
                     '[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"]',
                     "enabled = false",
+                    'trusted_hash = "user-approved-command-hash"',
                     "",
                 ]
             ),
@@ -703,7 +905,7 @@ class InstallHookTests(unittest.TestCase):
 
         self.assertIn(
             '[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"]\n'
-            "enabled = true",
+            'enabled = true\ntrusted_hash = "user-approved-command-hash"',
             updated,
         )
         self.assertIn(
@@ -711,11 +913,61 @@ class InstallHookTests(unittest.TestCase):
             "enabled = true",
             updated,
         )
+        for event_name in ("session_start", "user_prompt_submit"):
+            self.assertIn(
+                f'[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:{event_name}:0:0"]\n'
+                "enabled = true",
+                updated,
+            )
+            self.assertIn(
+                f'[hooks.state."nowledge-mem@local:hooks/hooks.json:{event_name}:0:0"]\n'
+                "enabled = true",
+                updated,
+            )
 
         self.module.ensure_nowledge_plugin_hook_state_enabled()
         rerun = self.module.CONFIG_FILE.read_text(encoding="utf-8")
         self.assertEqual(rerun.count("nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"), 1)
         self.assertEqual(rerun.count("nowledge-mem@local:hooks/hooks.json:stop:0:0"), 1)
+        self.assertEqual(rerun.count("trusted_hash"), 1)
+
+    def test_memory_coexistence_guidance_warns_without_mutating_config(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        original = "[features]\nmemories = true\n\n[memories]\ngenerate_memories = true\n"
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        stderr = io.StringIO()
+
+        with mock.patch.object(self.module.sys, "stderr", stderr):
+            self.module.print_codex_memory_coexistence_guidance()
+
+        self.assertIn("Allow memory generation from tool-assisted tasks", stderr.getvalue())
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+
+    def test_memory_coexistence_guidance_accepts_external_context_isolation(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "[features]\nmemories = true\n\n[memories]\ndisable_on_external_context = true\n",
+            encoding="utf-8",
+        )
+        stderr = io.StringIO()
+
+        with mock.patch.object(self.module.sys, "stderr", stderr):
+            self.module.print_codex_memory_coexistence_guidance()
+
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_memory_coexistence_guidance_skips_when_generation_is_disabled(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(
+            "[features]\nmemories = true\n\n[memories]\ngenerate_memories = false\n",
+            encoding="utf-8",
+        )
+        stderr = io.StringIO()
+
+        with mock.patch.object(self.module.sys, "stderr", stderr):
+            self.module.print_codex_memory_coexistence_guidance()
+
+        self.assertEqual(stderr.getvalue(), "")
 
     def test_install_runtime_hook_copies_runtime(self):
         self.module.install_runtime_hook()
@@ -726,6 +978,11 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn(
             "extract_skill_outcomes_from_file",
             self.module.INSTALLED_SKILL_OUTCOME.read_text(),
+        )
+        self.assertTrue(self.module.INSTALLED_NMEM_RUNTIME.exists())
+        self.assertIn(
+            "def build_nmem_command",
+            self.module.INSTALLED_NMEM_RUNTIME.read_text(),
         )
 
     def test_install_runtime_hook_fails_when_skill_outcome_extractor_missing(self):

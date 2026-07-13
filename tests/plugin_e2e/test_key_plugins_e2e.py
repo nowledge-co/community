@@ -149,6 +149,24 @@ def _require_live_host(host: str) -> None:
         raise AssertionError("requested live plugin E2E requires nmem on PATH")
 
 
+def _codex_requires_legacy_plugin_hooks(env: dict[str, str]) -> bool:
+    result = subprocess.run(
+        ["codex", "features", "list"],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=15,
+        check=False,
+    )
+    if result.returncode != 0:
+        return True
+    for line in result.stdout.splitlines():
+        fields = line.split()
+        if fields and fields[0] == "plugin_hooks":
+            return len(fields) < 2 or fields[1].lower() != "removed"
+    return True
+
+
 def _skip_live_host(host: str) -> bool:
     return (not _bool_env("NMEM_PLUGIN_E2E")) or host not in _requested_hosts()
 
@@ -334,14 +352,19 @@ def test_key_plugin_static_contracts_are_declared():
     codex_mcp = _read_json(CODEX_PLUGIN / ".mcp.json")
     codex_hooks = _read_json(CODEX_PLUGIN / "hooks" / "hooks.json")["hooks"]
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
+    codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.25"
+    assert codex_manifest["version"] == "0.1.26"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
     assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
-    assert "Stop" in codex_hooks
+    assert {"SessionStart", "UserPromptSubmit", "Stop"} <= set(codex_hooks)
+    assert "nmem-context.py" in json.dumps(codex_hooks["SessionStart"])
+    assert "nmem-context.py" in json.dumps(codex_hooks["UserPromptSubmit"])
+    assert (CODEX_PLUGIN / "hooks" / "nmem-context.py").exists()
+    assert (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").exists()
     assert "nmem-stop-launch.py" in json.dumps(codex_hooks)
     codex_launcher = (CODEX_PLUGIN / "hooks" / "nmem-stop-launch.py").read_text(encoding="utf-8")
     assert "nowledge-mem-stop-save.py" in codex_launcher
@@ -380,7 +403,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert (CODEX_PLUGIN / "scripts" / "install_hooks.py").exists()
     assert (CODEX_PLUGIN / "skills" / "working-memory" / "SKILL.md").exists()
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
-    assert "CREATE_NO_WINDOW" in codex_save_hook
+    assert "from nmem_runtime import" in codex_save_hook
+    assert "CREATE_NO_WINDOW" in codex_runtime
 
     openclaw_manifest = _read_json(OPENCLAW_PLUGIN / "openclaw.plugin.json")
     openclaw_pkg = _read_json(OPENCLAW_PLUGIN / "package.json")
@@ -1587,6 +1611,18 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
             shutil.copy2(source_file, codex_home / name)
     codex_env = e2e_context.env.copy()
     codex_env["CODEX_HOME"] = str(codex_home)
+    legacy_plugin_hooks = _codex_requires_legacy_plugin_hooks(codex_env)
+    if not legacy_plugin_hooks and (codex_home / "config.toml").exists():
+        # Exercise a clean modern install. The installer deliberately preserves
+        # an old removed key when a user's existing config still contains it.
+        config_lines = (codex_home / "config.toml").read_text(encoding="utf-8").splitlines()
+        config_lines = [
+            line for line in config_lines if not line.strip().startswith("plugin_hooks =")
+        ]
+        (codex_home / "config.toml").write_text(
+            "\n".join(config_lines) + "\n",
+            encoding="utf-8",
+        )
 
     (workspace / ".agents" / "plugins").mkdir(parents=True)
     shutil.copytree(
@@ -1603,7 +1639,7 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
                         "name": "nowledge-mem",
                         "source": {"source": "local", "path": "./.agents/nowledge-mem"},
                         "policy": {
-                            "installation": "INSTALLED_BY_DEFAULT",
+                            "installation": "AVAILABLE",
                             "authentication": "ON_INSTALL",
                         },
                         "category": "Productivity",
@@ -1619,13 +1655,29 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
         encoding="utf-8",
     )
     _run(
-        ["python3", str(workspace / ".agents" / "nowledge-mem" / "scripts" / "install_hooks.py")],
+        ["codex", "plugin", "marketplace", "add", str(workspace), "--json"],
+        env=codex_env,
+        timeout=30,
+    )
+    install_result = _run(
+        ["codex", "plugin", "add", "nowledge-mem@local", "--json"],
+        env=codex_env,
+        timeout=30,
+    )
+    installed_plugin = Path(json.loads(install_result.stdout)["installedPath"])
+    expected_version = _read_json(CODEX_PLUGIN / ".codex-plugin" / "plugin.json")["version"]
+    assert installed_plugin.name == expected_version
+    _run(
+        ["python3", str(installed_plugin / "scripts" / "install_hooks.py")],
         env=codex_env,
         timeout=30,
     )
     codex_config = (codex_home / "config.toml").read_text(encoding="utf-8")
     assert "hooks = true" in codex_config
-    assert "plugin_hooks = true" in codex_config
+    if legacy_plugin_hooks:
+        assert "plugin_hooks = true" in codex_config
+    else:
+        assert "plugin_hooks = true" not in codex_config
     assert "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0" in codex_config
     assert "nowledge-mem@local:hooks/hooks.json:stop:0:0" in codex_config
 
@@ -1636,6 +1688,7 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
     )
     command = [
         "codex",
+        "--dangerously-bypass-hook-trust",
         "exec",
         "-C",
         str(workspace),
@@ -1645,17 +1698,22 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
         "plugins",
         "--enable",
         "hooks",
-        "--enable",
-        "plugin_hooks",
         "-c",
         'plugins."nowledge-mem@local".enabled=true',
     ]
+    if legacy_plugin_hooks:
+        config_index = command.index("-c")
+        command[config_index:config_index] = ["--enable", "plugin_hooks"]
     if os.environ.get("NMEM_E2E_CODEX_MODEL"):
         command.extend(["--model", os.environ["NMEM_E2E_CODEX_MODEL"]])
     command.append(prompt)
 
     result = _run(command, env=codex_env, timeout=240)
     assert e2e_context.marker in result.stdout
+    transcript = _latest_codex_transcript(codex_home)
+    transcript_text = transcript.read_text(encoding="utf-8", errors="replace")
+    assert "Nowledge Mem routing" in transcript_text
+    assert "Codex local Memory is only a local hint" in transcript_text
     try:
         _poll_thread(
             marker=e2e_context.marker,

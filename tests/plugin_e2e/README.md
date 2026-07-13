@@ -85,9 +85,12 @@ as CLI arguments.
   for the thread because lifecycle hooks already had a completed assistant
   response to capture.
 - Codex: creates a repo-local plugin marketplace, runs hook setup, verifies
-  `hooks = true`, `plugin_hooks = true`, and the Nowledge Mem Stop hook state,
-  avoids an explicit save request, then verifies a real Codex transcript can be
-  saved as a `codex` thread. Current `codex exec` app-server builds may expose
+  `hooks = true`, adds the legacy `plugin_hooks` gate only when the installed
+  host still exposes it, and verifies the Nowledge Mem hook state. The isolated
+  run bypasses trust only for this already-vetted test package, proves that
+  SessionStart and UserPromptSubmit context reached the real transcript, avoids
+  an explicit save request, then verifies the transcript can be saved as a
+  `codex` thread. Current `codex exec` app-server builds may expose
   hooks without firing Stop hooks in this non-interactive harness; when that
   happens, the test replays the installed Stop hook against the transcript Codex
   just wrote so the package setup, parser, `nmem` path, API path, and dedupe

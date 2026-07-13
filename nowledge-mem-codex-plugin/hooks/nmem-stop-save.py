@@ -7,7 +7,6 @@ import argparse
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -45,11 +44,10 @@ except Exception:  # pragma: no cover - defensive for partial installs
     build_outcome_args = None
     extract_skill_outcomes_from_file = None
 
-
-def _windows_no_window_kwargs() -> dict[str, int]:
-    if sys.platform != "win32":
-        return {}
-    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+from nmem_runtime import build_nmem_command as _build_nmem_command
+from nmem_runtime import cmd_exe_path as _cmd_exe_path
+from nmem_runtime import find_nmem_command as _find_nmem_command
+from nmem_runtime import windows_no_window_kwargs as _windows_no_window_kwargs
 
 
 def _write_hook_response() -> None:
@@ -254,54 +252,7 @@ def _claim_capture_event(payload: dict[str, Any]) -> bool:
 
 
 def _nmem_command() -> str | None:
-    return shutil.which("nmem") or shutil.which("nmem.cmd")
-
-
-def _cmd_exe_path(path: str) -> str:
-    normalized = path.replace("\\", "/")
-    parts = normalized.split("/")
-    if (
-        len(parts) > 3
-        and parts[0] == ""
-        and parts[1] == "mnt"
-        and len(parts[2]) == 1
-    ):
-        return f"{parts[2].upper()}:\\" + "\\".join(parts[3:])
-    if len(path) >= 3 and path[1] == ":" and path[2] in ("\\", "/"):
-        return path.replace("/", "\\")
-    if normalized.startswith("/"):
-        wslpath = shutil.which("wslpath")
-        if wslpath:
-            try:
-                proc = subprocess.run(
-                    [wslpath, "-w", path],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
-                    text=True,
-                    timeout=2,
-                    check=False,
-                )
-                converted = proc.stdout.strip()
-                if proc.returncode == 0 and converted:
-                    return converted
-            except Exception:
-                pass
-        distro = os.environ.get("WSL_DISTRO_NAME")
-        if distro:
-            return "\\\\wsl.localhost\\" + distro + normalized.replace("/", "\\")
-    return "nmem.cmd" if Path(path).name.lower() == "nmem.cmd" else path
-
-
-def _build_nmem_command(nmem: str, *args: str) -> list[str]:
-    if nmem.lower().endswith(".cmd"):
-        if os.name == "nt":
-            return [nmem, *args]
-        return [
-            "cmd.exe",
-            "/c",
-            subprocess.list2cmdline([_cmd_exe_path(nmem), *args]),
-        ]
-    return [nmem, *args]
+    return _find_nmem_command()
 
 
 def _derive_codex_home(transcript_path: str | None) -> Path | None:
@@ -372,6 +323,8 @@ def _run_save(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=ATTEMPT_TIMEOUT_SECONDS,
         check=False,
         **_windows_no_window_kwargs(),
@@ -452,6 +405,8 @@ def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=SKILL_OUTCOME_TIMEOUT_SECONDS,
                 check=False,
                 **_windows_no_window_kwargs(),

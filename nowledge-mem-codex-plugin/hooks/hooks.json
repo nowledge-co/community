@@ -1,5 +1,31 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\"",
+            "timeout": 15,
+            "statusMessage": "Loading Nowledge Mem context..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": ".*",
@@ -7,7 +33,7 @@
           {
             "type": "command",
             "command": "python3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || python -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || py -3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop",
-            "commandWindows": "python -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || py -3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || python3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop",
+            "commandWindows": "py -3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || python -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop || python3 -c \"import os, runpy, sys; p = os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-stop-launch.py'); sys.argv = [p, *sys.argv[1:]]; runpy.run_path(p, run_name='__main__')\" --event stop",
             "timeout": 40,
             "statusMessage": "Saving Codex thread to Nowledge Mem..."
           }

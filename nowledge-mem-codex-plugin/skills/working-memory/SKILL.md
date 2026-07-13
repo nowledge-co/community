@@ -1,9 +1,11 @@
 ---
 name: working-memory
-description: "Load your current context at session start. Shows what you were working on, active priorities, and unresolved flags. Also trigger when resuming after a break or when the user asks what am I working on."
+description: "Load cross-tool Nowledge context at session start. Shows current work, priorities, and unresolved flags. Codex local Memory is separate and does not replace this context; also trigger when resuming or when the user asks what am I working on."
 ---
 
 Start with what matters. For full startup context, use Context Bundle: it resolves owner identity, the resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Working Memory is the lighter daily briefing of active focus areas, priorities, and recent knowledge changes.
+
+Codex local Memory is a separate, local recall layer. Even when it is enabled, use Nowledge Mem for current cross-tool context, exact prior conversations, sourced decisions, and continuity with other agents.
 
 ## Preferred path
 

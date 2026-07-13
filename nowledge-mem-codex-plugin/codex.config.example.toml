@@ -10,16 +10,32 @@ plugins = true
 # Older builds may also accept codex_hooks = true; the setup script preserves it
 # if it is already present.
 hooks = true
-# Enables lifecycle hooks shipped by installed plugins, including this package's
-# Stop hook. Codex may ask you to approve or toggle the hook from /hooks.
-plugin_hooks = true
+# Current Codex loads hooks from enabled plugins automatically. Older Codex
+# builds used a separate plugin_hooks feature gate; scripts/install_hooks.py
+# detects that host capability and adds the legacy flag only when required.
 
 [plugins."nowledge-mem@nowledge-community"]
 enabled = true
 
-# Keeps the packaged Stop hook enabled in /hooks.
+# Keeps the packaged lifecycle hooks enabled in /hooks. On first install or
+# after a hook changes, Codex will still ask you to review and trust it; enabled
+# and trusted are separate security states.
+[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:session_start:0:0"]
+enabled = true
+
+[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:user_prompt_submit:0:0"]
+enabled = true
+
 [hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"]
 enabled = true
+
+# Optional Codex local Memory coexistence. The plugin does not change this
+# user-owned setting. If you enable [features] memories = true, use this setting
+# (or turn off "Allow memory generation from tool-assisted tasks" in Codex) so
+# MCP and web results are not copied into Codex's separate local memory store.
+#
+# [memories]
+# disable_on_external_context = true
 
 # Remote/custom Mem override example:
 # Generate this block from your saved nmem client config with:

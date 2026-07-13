@@ -10,12 +10,14 @@ This Codex package is hybrid-aware and hook-assisted.
 
 - Best modern setup: Codex plugin with bundled Nowledge Mem MCP.
 - Automatic capture: the Codex Stop hook saves the real transcript through `nmem t save --from codex` after each turn.
-- Current Codex: enable both `hooks = true` and `plugin_hooks = true`, then run `scripts/install_hooks.py` once after installing or updating the plugin. `plugin_hooks` lets Codex load the packaged Stop hook; the setup script keeps that hook enabled in `/hooks` and also keeps the host-level fallback for builds that still need `~/.codex/hooks.json`.
-- Reliable bootstrap: read Context Bundle once when full identity/scope/rules matter; read Working Memory when only the daily briefing is needed.
+- Enable `hooks = true`, then run `scripts/install_hooks.py` once after installing or updating the plugin. Current Codex loads hooks from enabled plugins automatically; the setup script adds the old `plugin_hooks` gate only when the host still requires it. After restart, trust the Nowledge Mem hooks when Codex asks. The setup also keeps the host-level Stop fallback for builds that still need `~/.codex/hooks.json`.
+- Reliable bootstrap: the SessionStart hook injects Context Bundle when available, with Working Memory as fallback. Read it manually only when startup injection was unavailable or the user asks to refresh it.
 - Stronger retrieval and memory updates: use Nowledge Mem MCP tools when available.
 - Explicit fallback: if hook setup is missing or the user asks for a manual save, use the `save-thread` skill.
 
 Do not stop at the startup context if the task clearly resumes prior work.
+
+Codex local Memory and Nowledge Mem are complementary, not interchangeable. Codex local Memory is a convenient local hint. Nowledge Mem is the source for cross-tool state, current Working Memory, exact prior threads, sourced decisions, and knowledge that must follow the user to another agent. Never skip a targeted Nowledge search for continuation, review, regression, release, connector, prior-decision, or exact-history work merely because Codex local Memory contains a related summary.
 
 ## Startup Context
 

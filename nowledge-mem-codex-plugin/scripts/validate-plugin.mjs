@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.25";
+const expectedVersion = "0.1.26";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -65,6 +65,8 @@ for (const file of [
   "CHANGELOG.md",
   "AGENTS.md",
   "hooks/hooks.json",
+  "hooks/nmem-context.py",
+  "hooks/nmem_runtime.py",
   "hooks/nmem-stop-launch.py",
   "hooks/nmem-stop-save.py",
   "hooks/skill_outcome.py",
@@ -101,6 +103,16 @@ if (hooks) {
     fail("hooks/hooks.json must only contain the top-level hooks key");
   } else ok("hooks/hooks.json strict top-level schema");
   const stopHooks = hooks.hooks?.Stop;
+  const sessionStartHooks = hooks.hooks?.SessionStart;
+  const promptHooks = hooks.hooks?.UserPromptSubmit;
+  if (!Array.isArray(sessionStartHooks)) fail("hooks/hooks.json must declare SessionStart hooks");
+  else if (!JSON.stringify(sessionStartHooks).includes("nmem-context.py")) fail("SessionStart must load Nowledge context");
+  else if (!sessionStartHooks[0]?.hooks?.[0]?.commandWindows?.startsWith("py -3 -c ")) fail("SessionStart Windows hook must prefer py -3");
+  else ok("SessionStart context injection");
+  if (!Array.isArray(promptHooks)) fail("hooks/hooks.json must declare UserPromptSubmit hooks");
+  else if (!JSON.stringify(promptHooks).includes("nmem-context.py")) fail("UserPromptSubmit must inject memory routing");
+  else if (!promptHooks[0]?.hooks?.[0]?.commandWindows?.startsWith("py -3 -c ")) fail("UserPromptSubmit Windows hook must prefer py -3");
+  else ok("UserPromptSubmit memory routing");
   if (!Array.isArray(stopHooks)) fail("hooks/hooks.json must declare Stop hooks");
   else {
     const commands = [];
@@ -150,6 +162,9 @@ if (hooks) {
     if (!windowsCommands.some((command) => command.includes("py -3 -c \"import os, runpy, sys"))) {
       fail("Stop hook must declare a Windows py launcher fallback");
     } else ok("Stop hook Windows py fallback");
+    if (!windowsCommands.some((command) => command.startsWith("py -3 -c "))) {
+      fail("Stop hook Windows command must prefer the Python launcher over Store aliases");
+    } else ok("Stop hook Windows launcher order");
     if (!windowsCommands.some((command) => command.includes("python3 -c \"import os, runpy, sys"))) {
       fail("Stop hook must declare a Windows python3 fallback");
     } else ok("Stop hook Windows python3 fallback");

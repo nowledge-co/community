@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the Nowledge Mem Codex Stop hook into the current CODEX_HOME."""
+"""Install Nowledge Mem Codex lifecycle hooks into the current CODEX_HOME."""
 
 from __future__ import annotations
 
@@ -23,13 +23,19 @@ SOURCE_HOOK = PLUGIN_ROOT / "hooks" / "nmem-stop-save.py"
 INSTALLED_HOOK = HOOKS_DIR / "nowledge-mem-stop-save.py"
 SOURCE_SKILL_OUTCOME = PLUGIN_ROOT / "hooks" / "skill_outcome.py"
 INSTALLED_SKILL_OUTCOME = HOOKS_DIR / "skill_outcome.py"
+SOURCE_NMEM_RUNTIME = PLUGIN_ROOT / "hooks" / "nmem_runtime.py"
+INSTALLED_NMEM_RUNTIME = HOOKS_DIR / "nmem_runtime.py"
 CODEX_HOOKS_KEY_RE = re.compile(r"^\s*codex_hooks\s*=")
 CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*hooks\s*=")
 CODEX_PLUGIN_HOOKS_KEY_RE = re.compile(r"^\s*plugin_hooks\s*=")
 TOML_ENABLED_KEY_RE = re.compile(r"^\s*enabled\s*=")
 NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
 PLUGIN_HOOK_STATE_KEYS = (
+    "nowledge-mem@nowledge-community:hooks/hooks.json:session_start:0:0",
+    "nowledge-mem@nowledge-community:hooks/hooks.json:user_prompt_submit:0:0",
     "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0",
+    "nowledge-mem@local:hooks/hooks.json:session_start:0:0",
+    "nowledge-mem@local:hooks/hooks.json:user_prompt_submit:0:0",
     "nowledge-mem@local:hooks/hooks.json:stop:0:0",
 )
 MCP_MANAGED_BEGIN = "# BEGIN Nowledge Mem MCP (managed by nowledge-mem-codex-plugin)"
@@ -113,6 +119,9 @@ def install_runtime_hook() -> None:
     if not SOURCE_SKILL_OUTCOME.exists():
         raise SystemExit(f"missing skill outcome extractor: {SOURCE_SKILL_OUTCOME}")
     shutil.copy2(SOURCE_SKILL_OUTCOME, INSTALLED_SKILL_OUTCOME)
+    if not SOURCE_NMEM_RUNTIME.exists():
+        raise SystemExit(f"missing nmem runtime helper: {SOURCE_NMEM_RUNTIME}")
+    shutil.copy2(SOURCE_NMEM_RUNTIME, INSTALLED_NMEM_RUNTIME)
 
 
 def _quote_for_hook_command(path: Path) -> str:
@@ -211,7 +220,33 @@ def _before_trailing_blank_lines(
     return insert_at
 
 
-def ensure_codex_hooks_enabled() -> None:
+def codex_requires_legacy_plugin_hooks_gate() -> bool:
+    """Ask Codex whether plugin_hooks is still an active feature gate."""
+    codex = shutil.which("codex")
+    if not codex:
+        return True
+    try:
+        proc = subprocess.run(
+            [codex, "features", "list"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=8,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+    if proc.returncode != 0:
+        return True
+    for line in proc.stdout.splitlines():
+        fields = line.split()
+        if fields and fields[0] == "plugin_hooks":
+            return len(fields) < 2 or fields[1].lower() != "removed"
+    return True
+
+
+def ensure_codex_hooks_enabled(*, plugin_hooks_required: bool = True) -> None:
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
     _validate_toml_if_possible(text)
@@ -223,7 +258,9 @@ def ensure_codex_hooks_enabled() -> None:
     if features_start is None:
         if lines and lines[-1] != "":
             lines.append("")
-        lines.extend([section_header, "hooks = true", "plugin_hooks = true"])
+        lines.extend([section_header, "hooks = true"])
+        if plugin_hooks_required:
+            lines.append("plugin_hooks = true")
     else:
         has_hooks_key = False
         has_plugin_hooks_key = False
@@ -234,7 +271,8 @@ def ensure_codex_hooks_enabled() -> None:
                 lines[index] = "hooks = true"
                 has_hooks_key = True
             elif CODEX_PLUGIN_HOOKS_KEY_RE.match(stripped):
-                lines[index] = "plugin_hooks = true"
+                if plugin_hooks_required:
+                    lines[index] = "plugin_hooks = true"
                 has_plugin_hooks_key = True
             elif CODEX_HOOKS_KEY_RE.match(stripped):
                 codex_hooks_index = index
@@ -244,7 +282,7 @@ def ensure_codex_hooks_enabled() -> None:
         missing_feature_lines = []
         if not has_hooks_key:
             missing_feature_lines.append("hooks = true")
-        if not has_plugin_hooks_key:
+        if plugin_hooks_required and not has_plugin_hooks_key:
             missing_feature_lines.append("plugin_hooks = true")
         if missing_feature_lines:
             insert_at = (
@@ -318,6 +356,8 @@ def _load_codex_mcp_payload() -> dict | None:
             [nmem, "--json", "config", "mcp", "show", "--host", "codex"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=8,
         )
@@ -503,21 +543,63 @@ def install_codex_mcp_config() -> bool:
     return installed
 
 
+def print_codex_memory_coexistence_guidance() -> None:
+    """Explain the safe coexistence setting without taking ownership of it."""
+    if not CONFIG_FILE.exists():
+        return
+    try:
+        import tomllib
+
+        config = tomllib.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except (ModuleNotFoundError, OSError, UnicodeError, ValueError):
+        return
+
+    features = config.get("features")
+    if not isinstance(features, dict) or not (
+        features.get("memories") is True or features.get("memory_tool") is True
+    ):
+        return
+    memories = config.get("memories")
+    if isinstance(memories, dict) and memories.get("generate_memories") is False:
+        return
+    isolated = isinstance(memories, dict) and (
+        memories.get("disable_on_external_context") is True
+        or memories.get("no_memories_if_mcp_or_web_search") is True
+    )
+    if isolated:
+        return
+    print(
+        "Codex local Memory is enabled. To keep Nowledge MCP/web results out of "
+        "Codex's separate local memory store, turn off 'Allow memory generation "
+        "from tool-assisted tasks' in Settings > Personalization, or set "
+        "[memories] disable_on_external_context = true. This setup does not "
+        "change that user-owned setting.",
+        file=sys.stderr,
+    )
+
+
 def main() -> int:
     install_runtime_hook()
     merge_hooks_json()
-    ensure_codex_hooks_enabled()
+    plugin_hooks_required = codex_requires_legacy_plugin_hooks_gate()
+    ensure_codex_hooks_enabled(plugin_hooks_required=plugin_hooks_required)
     ensure_nowledge_plugin_hook_state_enabled()
     mcp_config_installed = install_codex_mcp_config()
+    print_codex_memory_coexistence_guidance()
 
-    print("Installed Nowledge Mem Codex Stop hook")
+    print("Installed Nowledge Mem Codex lifecycle hooks")
     print(f"- runtime hook: {INSTALLED_HOOK}")
     print(f"- skill outcome extractor: {INSTALLED_SKILL_OUTCOME}")
+    print(f"- cross-platform runtime helper: {INSTALLED_NMEM_RUNTIME}")
     print(f"- hooks config: {GLOBAL_HOOKS_FILE}")
-    print(f"- hook feature flags ensured in: {CONFIG_FILE}")
-    print(f"- plugin Stop hook enabled in: {CONFIG_FILE}")
+    if plugin_hooks_required:
+        print(f"- hook and legacy plugin-hook feature flags ensured in: {CONFIG_FILE}")
+    else:
+        print(f"- hook feature flag ensured in: {CONFIG_FILE}")
+    print(f"- plugin startup, routing, and Stop hooks enabled in: {CONFIG_FILE}")
     if mcp_config_installed:
         print(f"- authenticated MCP config ensured in: {CONFIG_FILE}")
+    print("- restart Codex and trust the new or changed Nowledge Mem hooks when prompted")
     return 0
 
 

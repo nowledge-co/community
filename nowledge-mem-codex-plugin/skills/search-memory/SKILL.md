@@ -1,11 +1,13 @@
 ---
 name: search-memory
-description: Search past decisions, procedures, learnings, or context relevant to the current task. Trigger when work connects to prior decisions, a debugging pattern resembles a past issue, the user asks about rationale, or uses recall language like "that approach" or "like before".
+description: Search cross-tool Nowledge memories and threads for prior decisions, procedures, learnings, or exact history. Trigger for continuation, reviews, regressions, releases, rationale, or recall language even if Codex local Memory already shows a related summary.
 ---
 
 Find what the user already knows. Search their memories and past conversations for decisions, procedures, and context that make the current task sharper.
 
 For continuation-style engineering work, search near the start of the task. Do not wait for the user to literally say "search memory".
+
+Codex local Memory is useful as a hint, but it is not a substitute for this search when provenance, exact history, current cross-tool state, or prior decisions matter.
 
 ## When to use
 

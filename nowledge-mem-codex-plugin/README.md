@@ -6,7 +6,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 
 ## What you get
 
-- **Pick up where you left off.** Every session can start from your current priorities, recent decisions, and unresolved questions.
+- **Pick up where you left off.** A native SessionStart hook injects your Context Bundle automatically, with Working Memory as fallback.
 - **Stronger retrieval on modern Codex.** The package bundles the local Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
 - **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, sources, and artifacts as one tree.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
@@ -15,9 +15,9 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 
 The full bootstrap is Context Bundle when available, with Working Memory as the lightweight briefing and compatibility fallback. On modern Codex, the best setup is:
 
-- plugin package for Context Bundle / Working Memory guidance, `nmem` fallback, status, and real `save-thread`
+- plugin package for automatic Context Bundle / Working Memory startup context, `nmem` fallback, status, and real `save-thread`
 - bundled Nowledge Mem MCP for stronger retrieval and memory writes
-- Codex Stop hook for automatic transcript capture
+- Codex lifecycle hooks for startup context, per-prompt memory routing, and automatic transcript capture
 - project `AGENTS.md` for repo-specific follow-through
 
 ## Skills
@@ -105,13 +105,14 @@ Then put this in `~/.codex/config.toml` to enable the plugin:
 [features]
 plugins = true
 hooks = true
-plugin_hooks = true
 
 [plugins."nowledge-mem@nowledge-community"]
 enabled = true
 ```
 
-Restart Codex after installation.
+Current Codex loads hooks from enabled plugins automatically. Older builds used
+a separate `plugin_hooks = true` feature gate; the setup script below detects
+that host capability and adds the legacy flag only when it is still required.
 
 Then run the setup script from the installed plugin:
 
@@ -138,7 +139,9 @@ if ($null -eq $HookSetup) {
 }
 ```
 
-This enables Codex lifecycle hooks and plugin-bundled hooks, keeps the Nowledge Mem packaged Stop hook enabled in `/hooks`, then installs a small host-level Stop hook for Codex builds that still need `~/.codex/hooks.json`. The Stop hook shells out to `nmem t save --from codex`, so local mode and remote Mem mode use the same `nmem` client configuration. If both the bundled hook and the host-level fallback are visible, the hook runtime suppresses the duplicate save for the same transcript state.
+This enables Codex lifecycle hooks, adds the legacy plugin-hook gate only on hosts that still expose it, keeps the Nowledge Mem SessionStart, UserPromptSubmit, and Stop hooks enabled in `/hooks`, then installs a small host-level Stop fallback for Codex builds that still need `~/.codex/hooks.json`. SessionStart injects Context Bundle automatically, UserPromptSubmit keeps cross-tool and exact-history work routed to Nowledge search, and Stop shells out to `nmem t save --from codex`. Local mode and remote Mem mode use the same `nmem` client configuration. If both bundled and host-level Stop hooks are visible, the hook runtime suppresses the duplicate save for the same transcript state.
+
+Restart Codex after setup. Codex treats **enabled** and **trusted** as separate hook states: review and trust the three Nowledge Mem hooks when Codex prompts you. This confirmation is deliberately user-owned; the installer never bypasses Codex's hook security boundary.
 
 Raft (formerly Slock) can run a managed Codex worker on the same computer as your normal Codex sessions. The hook reads Codex's structured `session_meta.originator` for each transcript: normal Codex sessions still capture automatically, while `slock-daemon` and `raft-daemon` rollouts are skipped because they contain Raft inbox/control traffic rather than the human-visible conversation. Memory skills and MCP remain available inside the Raft worker.
 
@@ -156,7 +159,7 @@ nmem t sync --from codex --all-projects --apply
 
 Use `-p /path/to/project` instead of `--all-projects` when you only want one project. The command reads local Codex rollout files and writes to the Mem server configured in `nmem`.
 
-On current Codex builds, `plugin_hooks = true` is the separate gate that lets Codex load `hooks/hooks.json` from installed plugins. If Codex shows the Nowledge Mem Stop hook in `/hooks`, it should be enabled.
+On current Codex builds, enabled plugins contribute `hooks/hooks.json` automatically. Older builds may still need `plugin_hooks = true`; the setup script detects that from `codex features list`. In `/hooks`, the Nowledge Mem SessionStart, UserPromptSubmit, and Stop hooks should be both enabled and trusted.
 
 The same setup also asks `nmem` for a Codex MCP config. If `nmem` has a saved API key or a non-default endpoint, the script writes a managed `mcp_servers.nowledge-mem` block into `~/.codex/config.toml`. This is the safest path for remote Mem and for localhost setups that require auth.
 
@@ -240,6 +243,24 @@ nmem t search "phrase from that Codex turn" --source codex
 You should see a Codex thread without explicitly asking the agent to save it.
 
 If Mem is not running yet, try `$nowledge-mem:status` to check connectivity.
+
+## Using Codex local Memory too
+
+Codex local Memory and Nowledge Mem can run together, but they serve different scopes:
+
+- Codex local Memory is generated state under one `CODEX_HOME`. It is useful for lightweight local hints.
+- Nowledge Mem carries current Working Memory, sourced decisions, exact conversation history, and knowledge across Codex, Claude Code, Gemini, Cursor, and other connected tools.
+
+If you enable Codex local Memory, turn off **Settings > Personalization > Allow memory generation from tool-assisted tasks**. The equivalent config is:
+
+```toml
+[memories]
+disable_on_external_context = true
+```
+
+This prevents tasks that used Nowledge MCP, web search, or tool search from becoming inputs to Codex's separate memory generator. It avoids a duplicate-learning loop in which Codex stores a summary of context it just retrieved from Nowledge, then later answers from that local summary instead of consulting the current cross-tool source. The setup script reports this recommendation when it detects the unsafe combination, but never changes Codex Memory settings for you.
+
+You can also leave Codex local Memory off. Nowledge startup context, search, distillation, and transcript capture continue to work normally.
 
 ## Update
 
@@ -339,14 +360,15 @@ If you used `nowledge-mem-codex-prompts` before:
 
 - **"Command not found: nmem"**: `pip install nmem-cli` or use `uvx --from nmem-cli nmem`. See [Getting Started](https://mem.nowledge.co/docs/installation).
 - **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
-- **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed with `codex plugin add` or from `/plugins`, and `~/.codex/config.toml` has `[features] plugins = true`, `hooks = true`, `plugin_hooks = true`, and `[plugins."nowledge-mem@nowledge-community"] enabled = true`. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
-- **Codex threads are not appearing automatically**: rerun `scripts/install_hooks.py` from the installed plugin folder, then restart Codex. Confirm `~/.codex/config.toml` has `[features] hooks = true` and `plugin_hooks = true`. If Codex shows `/hooks`, make sure the Nowledge Mem Stop hook is enabled there.
+- **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed with `codex plugin add` or from `/plugins`, and `~/.codex/config.toml` has `[features] plugins = true`, `hooks = true`, and `[plugins."nowledge-mem@nowledge-community"] enabled = true`. Older Codex builds may also need `plugin_hooks = true`; rerun setup instead of guessing. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
+- **Startup context or Codex threads are not appearing automatically**: rerun `scripts/install_hooks.py` from the installed plugin folder, restart Codex, then review `/hooks`. The Nowledge Mem SessionStart, UserPromptSubmit, and Stop hooks must be both enabled and trusted. The setup script handles the removed-versus-legacy `plugin_hooks` gate automatically.
 - **Stop hook points to an older plugin cache path**: update the package, rerun `scripts/install_hooks.py`, then restart Codex. Already-running Codex sessions can keep the old plugin hook path in memory until restart; current packages prefer the stable host hook when it exists so future updates keep saving cleanly.
 - **`codex mcp list` shows `Not logged in`**: update `nmem` so it matches your Mem app/server, install the CLI config from the desktop app if you use local desktop Mem, then rerun `scripts/install_hooks.py`. You can also run `nmem config mcp show --host codex` and paste the generated TOML into `~/.codex/config.toml`. Do not use `codex mcp login nowledge-mem`; that command is for OAuth MCP servers, while Nowledge Mem's Codex path uses the URL and headers generated by `nmem`.
 - **Only `codex marketplace` exists, not `codex plugin marketplace`**: use `codex marketplace add nowledge-co/community`. This is a host-version difference, not a plugin issue.
 - **Marketplace update times out or fails with `early EOF`**: remove the old full-clone marketplace, then add it back with sparse checkout: `(codex plugin marketplace remove nowledge-community || codex marketplace remove nowledge-community || true) && codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin && codex plugin add nowledge-mem@nowledge-community`.
 - **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin` (or `codex marketplace add nowledge-co/community` on legacy Codex), install with `codex plugin add nowledge-mem@nowledge-community` or from `/plugins`, then re-check your `~/.codex/config.toml` plugin key.
-- **Only startup context loads, but search/distill never show up**: confirm the bundled MCP server is visible in Codex, then merge the package `AGENTS.md` into the project root for stronger repo-specific behavior. If Mem is remote or not on the default local port, add `mcp_servers.nowledge-mem` in `~/.codex/config.toml` to override the bundled local endpoint.
+- **Codex local Memory seems to replace Nowledge retrieval**: update the plugin to `0.1.26` or newer and rerun `scripts/install_hooks.py`. If both memory systems remain enabled, turn off **Allow memory generation from tool-assisted tasks** so Nowledge MCP results are not copied into Codex local Memory.
+- **Only startup context loads, but search/distill never show up**: confirm the bundled MCP server is visible in Codex and that the UserPromptSubmit hook is enabled in `/hooks`, then merge the package `AGENTS.md` into the project root for stronger repo-specific behavior. If Mem is remote or not on the default local port, add `mcp_servers.nowledge-mem` in `~/.codex/config.toml` to override the bundled local endpoint.
 
 ## Links
 

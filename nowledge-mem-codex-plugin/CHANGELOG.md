@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.26] - 2026-07-14
+
+### Added
+
+- Codex now receives the Nowledge Context Bundle automatically through a native `SessionStart` hook, with Working Memory and the legacy local briefing file as bounded fallbacks.
+- A lightweight `UserPromptSubmit` hook keeps continuation, review, regression, release, connector, prior-decision, and exact-history work routed to Nowledge search even when Codex local Memory is enabled.
+
+### Improved
+
+- The setup script detects coexistence with Codex local Memory and explains the safe isolation setting without changing user-owned Codex preferences. Turning off **Allow memory generation from tool-assisted tasks** prevents MCP and web results from being copied into Codex's separate local memory store.
+- Skill descriptions and package guidance now state the stable boundary: Codex local Memory is a local convenience layer; Nowledge Mem owns cross-tool context, exact threads, current Working Memory, sourced decisions, and durable knowledge shared with other agents.
+- Hook setup now follows the host's real feature lifecycle: current Codex loads plugin hooks without the removed `plugin_hooks` flag, while older builds still receive that compatibility gate. Setup also explains Codex's separate hook trust confirmation instead of claiming that enabled hooks are already trusted.
+
+### Fixed
+
+- SessionStart and Stop now share one Windows/WSL launcher for native executables and `.cmd` shims, decode `nmem` output explicitly as UTF-8, and emit ASCII-safe hook JSON. SessionStart fallback attempts share a 10-second total budget, staying below Codex's 15-second hook timeout.
+- The host-level Stop fallback now copies its shared runtime helper alongside the hook, preventing import failures after plugin updates.
+- The Codex package now has an Ubuntu and Windows CI gate for its hook runtime, installer, manifest, and integration contract.
+
 ## [0.1.25] - 2026-07-14
 
 ### Fixed
