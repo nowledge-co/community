@@ -1,0 +1,46 @@
+name: Hermes plugin
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hermes-plugin.yml"
+      - "integrations.json"
+      - "nowledge-mem-hermes/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/hermes-plugin.yml"
+      - "integrations.json"
+      - "nowledge-mem-hermes/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependency
+        run: python -m pip install pytest
+      - name: Test provider and installer contracts
+        run: python -m pytest nowledge-mem-hermes/tests -q
+      - name: Test Bash installer
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash nowledge-mem-hermes/tests/test_setup.sh
+      - name: Test native Windows PowerShell installer
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File nowledge-mem-hermes\tests\test_setup.ps1

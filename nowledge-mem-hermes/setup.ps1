@@ -1,3 +1,5 @@
+# Keep this web installer ASCII-only and BOM-free. It must run through both
+# Windows PowerShell 5.1's `irm | iex` path and direct local file execution.
 param(
     [switch]$Mcp,
     [string]$HermesHome = $env:HERMES_HOME

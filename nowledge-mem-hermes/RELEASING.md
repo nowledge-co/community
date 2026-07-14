@@ -33,6 +33,25 @@ python3 -m py_compile \
   community/nowledge-mem-hermes/provider.py
 ```
 
+Run the provider and installer regression suites:
+
+```bash
+cd community
+uv run --with pytest pytest nowledge-mem-hermes/tests -q
+bash nowledge-mem-hermes/tests/test_setup.sh
+```
+
+On Windows, also run the native Windows PowerShell 5.1 installer suite:
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File nowledge-mem-hermes\tests\test_setup.ps1
+```
+
+Keep `setup.ps1` ASCII-only and BOM-free. The same source must work when
+executed directly by Windows PowerShell 5.1 and when streamed through the
+documented `irm ... | iex` command. `test_installer_contract.py` enforces this
+before release.
+
 Then validate behavior against a current Hermes checkout:
 
 - install through `setup.sh` into an isolated `$HERMES_HOME/plugins/nowledge-mem/`
@@ -66,3 +85,4 @@ their memory-provider policy.
 - all storage is profile-scoped through `hermes_home`
 - provider fails closed when `nmem` or the backend is unavailable
 - README distinguishes Hermes-native memory from Nowledge Mem cross-tool memory
+- `setup.ps1` remains ASCII-only and BOM-free, and both native installers pass
