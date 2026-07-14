@@ -161,9 +161,9 @@ Use `-p /path/to/project` instead of `--all-projects` when you only want one pro
 
 On current Codex builds, enabled plugins contribute `hooks/hooks.json` automatically. Older builds may still need `plugin_hooks = true`; the setup script detects that from `codex features list`. In `/hooks`, the Nowledge Mem SessionStart, UserPromptSubmit, and Stop hooks should be both enabled and trusted.
 
-The same setup also asks `nmem` for a Codex MCP config. If `nmem` has a saved API key or a non-default endpoint, the script writes a managed `mcp_servers.nowledge-mem` block into `~/.codex/config.toml`. This is the safest path for remote Mem and for localhost setups that require auth.
+The same setup asks `nmem` for a Codex MCP config and writes a managed `mcp_servers.nowledge-mem` block into `~/.codex/config.toml`. Besides remote URL and authentication, this block maps `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` through Codex's native environment-backed HTTP headers. A named Raft/Codex worker therefore appears automatically under **Context → AI Identities**, and its MCP searches and writes use that identity's configured default Space. Existing user-owned MCP blocks are never replaced.
 
-The package already includes a local Nowledge Mem MCP server at `http://127.0.0.1:14242/mcp/`. Codex uses your `~/.codex/config.toml` entry if you define `mcp_servers.nowledge-mem` yourself, so remote Mem and custom local ports stay explicit.
+The package still includes a local fallback MCP server at `http://127.0.0.1:14242/mcp/`, but its static plugin manifest cannot resolve process-specific environment values. Rerun `scripts/install_hooks.py` after updating the plugin so named agents receive the identity-aware managed block.
 
 If you prefer to copy a bundled example, see [`codex.config.example.toml`](./codex.config.example.toml).
 

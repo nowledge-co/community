@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.27] - 2026-07-14
+
+### Improved
+
+- Codex MCP requests now carry `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` through Codex's native environment-backed HTTP headers. Named agents such as Raft workers can use their own context, attribution, and default Space without duplicating identity setup in Mem.
+- Hook setup now installs the managed local MCP override even when localhost needs no API key, because the plugin-bundled static endpoint cannot resolve per-agent environment values. Existing user-owned MCP blocks remain untouched.
+
 ## [0.1.26] - 2026-07-14
 
 ### Added
