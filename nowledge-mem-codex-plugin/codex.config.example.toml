@@ -1,8 +1,8 @@
 # Recommended local setup for Codex.
 #
-# The plugin package already bundles a local Nowledge Mem MCP server at
-# http://127.0.0.1:14242/mcp/. Add an mcp_servers.nowledge-mem block only when
-# you need to override that default, for example remote Mem or a custom port.
+# The setup script writes a managed mcp_servers.nowledge-mem block so Codex can
+# resolve per-agent NMEM_AGENT_ID/NMEM_HOST_AGENT_ID/NMEM_SPACE environment
+# values. The plugin-bundled local endpoint remains a static fallback.
 
 [features]
 plugins = true
@@ -43,6 +43,7 @@ enabled = true
 #
 # [mcp_servers.nowledge-mem]
 # url = "https://mem.example.com/mcp/"
+# env_http_headers = { "X-Nmem-Agent-Id" = "NMEM_AGENT_ID", "X-Nmem-Host-Agent-Id" = "NMEM_HOST_AGENT_ID", "X-Nmem-Space-Id" = "NMEM_SPACE" }
 #
 # [mcp_servers.nowledge-mem.http_headers]
 # APP = "Codex"

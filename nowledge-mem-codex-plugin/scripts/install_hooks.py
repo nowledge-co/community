@@ -429,15 +429,6 @@ def _remove_managed_mcp_block(lines: list[str]) -> tuple[list[str], bool, bool]:
     return cleaned, removed, False
 
 
-def _should_install_mcp_override(payload: dict) -> bool:
-    if payload.get("apiKeyConfigured"):
-        return True
-    endpoint = str(payload.get("endpoint") or "")
-    if endpoint and endpoint != "http://127.0.0.1:14242/mcp/":
-        return True
-    return False
-
-
 def _write_codex_config_lines(
     lines: list[str],
     *,
@@ -497,23 +488,11 @@ def _install_mcp_config_from_payload(payload: dict) -> bool:
         )
         return False
 
-    if not _should_install_mcp_override(payload):
-        print(
-            "Codex MCP config: using the plugin-bundled local endpoint. "
-            "If 'codex mcp list' shows Not logged in, ensure nmem is up to date, "
-            "install or update the CLI from the Nowledge Mem desktop app, refresh "
-            "desktop credentials if needed, then rerun this setup.",
-            file=sys.stderr,
-        )
-        if removed_managed_block:
-            _write_codex_config_lines(lines, restrict_permissions=False)
-            return True
-        return False
-
     if _has_existing_unmanaged_nowledge_mcp(lines):
         print(
             "Codex MCP config: existing mcp_servers.nowledge-mem block left unchanged. "
-            "Replace it with 'nmem config mcp show --host codex' if Codex MCP reports Not logged in.",
+            "Replace it with 'nmem config mcp show --host codex' to carry per-agent "
+            "NMEM_AGENT_ID/NMEM_HOST_AGENT_ID values into MCP requests.",
             file=sys.stderr,
         )
         return False

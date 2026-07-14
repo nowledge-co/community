@@ -1122,7 +1122,7 @@ class InstallHookTests(unittest.TestCase):
         self.assertNotIn(self.module.MCP_MANAGED_BEGIN, updated)
         self.assertNotIn("nmem_test", updated)
 
-    def test_install_codex_mcp_config_skips_default_local_without_key(self):
+    def test_install_codex_mcp_config_writes_identity_aware_local_override(self):
         payload = {
             "apiKeyConfigured": False,
             "endpoint": "http://127.0.0.1:14242/mcp/",
@@ -1131,6 +1131,7 @@ class InstallHookTests(unittest.TestCase):
                 [
                     "[mcp_servers.nowledge-mem]",
                     'url = "http://127.0.0.1:14242/mcp/"',
+                    'env_http_headers = { "X-Nmem-Agent-Id" = "NMEM_AGENT_ID" }',
                     "",
                     "[mcp_servers.nowledge-mem.http_headers]",
                     'APP = "Codex"',
@@ -1139,11 +1140,13 @@ class InstallHookTests(unittest.TestCase):
         }
 
         with mock.patch.object(self.module, "_load_codex_mcp_payload", return_value=payload):
-            self.assertFalse(self.module.install_codex_mcp_config())
+            self.assertTrue(self.module.install_codex_mcp_config())
 
-        self.assertFalse(self.module.CONFIG_FILE.exists())
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+        self.assertIn(self.module.MCP_MANAGED_BEGIN, updated)
+        self.assertIn('"X-Nmem-Agent-Id" = "NMEM_AGENT_ID"', updated)
 
-    def test_install_codex_mcp_config_removes_stale_managed_override(self):
+    def test_install_codex_mcp_config_replaces_stale_managed_override(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.module.CONFIG_FILE.write_text(
             "\n".join(
@@ -1171,6 +1174,7 @@ class InstallHookTests(unittest.TestCase):
                 [
                     "[mcp_servers.nowledge-mem]",
                     'url = "http://127.0.0.1:14242/mcp/"',
+                    'env_http_headers = { "X-Nmem-Agent-Id" = "NMEM_AGENT_ID" }',
                     "",
                     "[mcp_servers.nowledge-mem.http_headers]",
                     'APP = "Codex"',
@@ -1183,7 +1187,8 @@ class InstallHookTests(unittest.TestCase):
 
         updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
         self.assertIn("[features]\nhooks = true", updated)
-        self.assertNotIn(self.module.MCP_MANAGED_BEGIN, updated)
+        self.assertIn(self.module.MCP_MANAGED_BEGIN, updated)
+        self.assertIn('"X-Nmem-Agent-Id" = "NMEM_AGENT_ID"', updated)
         self.assertNotIn("old_key", updated)
 
     def test_install_codex_mcp_config_preserves_unterminated_managed_block(self):
