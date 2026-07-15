@@ -602,11 +602,13 @@ class RuntimeHelperTests(unittest.TestCase):
         self.assertIn(r"C:\Users\test\AppData\Local\Nowledge Mem\cli\nmem.cmd", command[4])
 
     def test_native_windows_batch_shim_executes_directly(self):
+        metacharacters = "safe&pipe|percent%caret^bang!"
         with mock.patch.object(self.module.os, "name", "nt"):
             command = self.module.build_nmem_command(
                 r"C:\Program Files\Nowledge Mem\nmem.bat",
                 "--json",
                 "context",
+                metacharacters,
             )
 
         self.assertEqual(
@@ -615,6 +617,7 @@ class RuntimeHelperTests(unittest.TestCase):
                 r"C:\Program Files\Nowledge Mem\nmem.bat",
                 "--json",
                 "context",
+                metacharacters,
             ],
         )
 
