@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.28] - 2026-07-16
+
+### Fixed
+
+- Codex Stop capture once again launches the installed `nmem.cmd` directly on native Windows. This removes a redundant `cmd.exe /s /c` layer that could turn a correctly quoted path under `Program Files` into a literal command name and prevent the thread from being saved; WSL keeps its explicit Windows bridge.
+
 ## [0.1.27] - 2026-07-14
 
 ### Improved

@@ -59,8 +59,8 @@ def cmd_exe_path(path: str) -> str:
 
 def build_nmem_command(nmem: str, *args: str) -> list[str]:
     if nmem.lower().endswith((".cmd", ".bat")):
-        command = subprocess.list2cmdline([cmd_exe_path(nmem), *args])
         if os.name == "nt":
-            return [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c", command]
+            return [nmem, *args]
+        command = subprocess.list2cmdline([cmd_exe_path(nmem), *args])
         return ["cmd.exe", "/d", "/s", "/c", command]
     return [nmem, *args]
