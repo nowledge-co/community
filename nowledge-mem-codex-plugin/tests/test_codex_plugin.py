@@ -601,23 +601,25 @@ class RuntimeHelperTests(unittest.TestCase):
         self.assertEqual(command[:4], ["cmd.exe", "/d", "/s", "/c"])
         self.assertIn(r"C:\Users\test\AppData\Local\Nowledge Mem\cli\nmem.cmd", command[4])
 
-    def test_native_windows_batch_shim_uses_comspec(self):
-        with mock.patch.object(self.module.os, "name", "nt"), mock.patch.dict(
-            self.module.os.environ,
-            {"COMSPEC": r"C:\Windows\System32\cmd.exe"},
-            clear=False,
-        ):
+    def test_native_windows_batch_shim_executes_directly(self):
+        metacharacters = "safe&pipe|percent%caret^bang!"
+        with mock.patch.object(self.module.os, "name", "nt"):
             command = self.module.build_nmem_command(
                 r"C:\Program Files\Nowledge Mem\nmem.bat",
                 "--json",
                 "context",
+                metacharacters,
             )
 
         self.assertEqual(
-            command[:4],
-            [r"C:\Windows\System32\cmd.exe", "/d", "/s", "/c"],
+            command,
+            [
+                r"C:\Program Files\Nowledge Mem\nmem.bat",
+                "--json",
+                "context",
+                metacharacters,
+            ],
         )
-        self.assertIn(r'"C:\Program Files\Nowledge Mem\nmem.bat"', command[4])
 
 
 class LauncherTests(unittest.TestCase):
