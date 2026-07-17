@@ -36,6 +36,19 @@ try {
     Assert $Failed "another active provider was overwritten"
     Assert (([IO.File]::ReadAllText($ConflictConfig)).Contains('provider: "other-provider"')) "conflicting provider config changed"
 
+    $IncompleteHome = Join-Path $TempRoot "incomplete-provider"
+    $IncompletePlugin = Join-Path $IncompleteHome "plugins\nowledge-mem"
+    New-Item -ItemType Directory -Path $IncompletePlugin -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $IncompleteHome "config.yaml"), "memory:`n  provider: `"nowledge-mem`"`n")
+    foreach ($PluginFile in @("plugin.yaml", "__init__.py", "provider.py", "client.py")) {
+        Copy-Item -LiteralPath (Join-Path $Root $PluginFile) -Destination (Join-Path $IncompletePlugin $PluginFile)
+    }
+    Assert (-not (Test-Path -LiteralPath (Join-Path $IncompletePlugin "skill_outcome.py"))) "incomplete fixture unexpectedly contains skill_outcome.py"
+    $IncompleteOutput = & $Setup -HermesHome $IncompleteHome *>&1 | Out-String
+    Assert ($LASTEXITCODE -eq 0) "incomplete provider repair failed"
+    Assert (Test-Path -LiteralPath (Join-Path $IncompletePlugin "skill_outcome.py")) "incomplete provider repair did not restore skill_outcome.py"
+    Assert ($IncompleteOutput.Contains("Plugin module closure validated")) "repaired provider was not validated"
+
     $McpHome = Join-Path $TempRoot "mcp"
     & $Setup -Mcp -HermesHome $McpHome | Out-Null
     Assert (([IO.File]::ReadAllText((Join-Path $McpHome "config.yaml"))).Contains("http://127.0.0.1:14242/mcp/")) "MCP config missing"

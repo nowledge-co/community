@@ -220,7 +220,7 @@ bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/now
 After updating, the script prints the version and endpoint from the files it actually wrote:
 
 ```text
-Installed version: 0.5.21
+Installed version: 0.5.23
 Thread import endpoint: /threads/import
 ```
 

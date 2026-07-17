@@ -148,6 +148,31 @@ grep -Fq '"/threads/import"' "$stale_plugin/client.py" \
 ! grep -Fq '"/threads"' "$stale_plugin/client.py" \
   || fail "stale-runtime left old /threads-only client.py content behind"
 
+# 0.5.20/0.5.21 could leave an otherwise valid provider directory without
+# skill_outcome.py. Reinstalling must repair the missing module as well as
+# overwrite stale files; manual `nmem t sync` succeeding does not prove Hermes
+# can import this provider.
+incomplete_home="$TMP_DIR/incomplete-home"
+incomplete_hermes="$incomplete_home/.hermes"
+incomplete_plugin="$incomplete_hermes/plugins/nowledge-mem"
+mkdir -p "$incomplete_plugin"
+cat > "$incomplete_hermes/config.yaml" <<'YAML'
+memory:
+  provider: "nowledge-mem"
+YAML
+for plugin_file in plugin.yaml __init__.py provider.py client.py; do
+  cp "$ROOT_DIR/$plugin_file" "$incomplete_plugin/$plugin_file"
+done
+[ ! -e "$incomplete_plugin/skill_outcome.py" ] \
+  || fail "incomplete-runtime fixture unexpectedly contains skill_outcome.py"
+
+incomplete_output="$(HOME="$incomplete_home" HERMES_HOME="$incomplete_hermes" bash "$SETUP_SH" 2>&1)" \
+  || { echo "$incomplete_output" >&2; fail "incomplete-runtime reinstall failed"; }
+[ -f "$incomplete_plugin/skill_outcome.py" ] \
+  || fail "incomplete-runtime reinstall did not restore skill_outcome.py"
+grep -Fq 'Plugin module closure validated' <<<"$incomplete_output" \
+  || fail "incomplete-runtime reinstall did not validate the repaired provider"
+
 # --- Explicit HERMES_HOME always wins ---
 override_home="$TMP_DIR/override-home"
 mkdir -p "$override_home"
