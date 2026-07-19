@@ -17,6 +17,17 @@ description: Check Nowledge Mem setup, detect your agent, and guide native conne
 
 ## Step 1: Check nmem CLI
 
+### If the host already provides a Nowledge Mem App connection
+
+Before consuming a Cloud handoff or installing anything, check whether the host already exposes a managed Nowledge Mem MCP connection or startup prompt from a native App. When it does:
+
+- treat the host-managed connection as authoritative
+- do not persist a handoff key or install a second connector beside it
+- verify the managed MCP tools and startup Context Bundle directly
+- use the universal handoff below only when the App is absent or explicitly disabled
+
+Raft is the first platform-specific App path. A server-installed Nowledge Mem Raft App manages each Raft Agent's short-lived MCP session and bootstrap prompt; the legacy child-tool setup remains only a compatibility fallback.
+
 ### If the prompt contains a Nowledge Cloud handoff
 
 Cloud onboarding may provide an exact `Cloud API URL`, a human-readable `Agent identity`, and a one-time plaintext `Agent key`. When all three are present:
@@ -81,9 +92,10 @@ Do not only answer "install X". Explain the behavior contract the user will get:
 
 Use this priority order:
 
-1. **Native connector first** when the host has one
-2. **Reusable package** when the host supports shared skills/prompts but has no native connector
-3. **Direct MCP** only when there is no better package path
+1. **Host-native App first** when the platform already manages Nowledge Mem for the Agent
+2. **Native connector** when the host has one but no App-level integration
+3. **Reusable package** when the host supports shared skills/prompts but has no native connector
+4. **Direct MCP** only when there is no better package path
 
 Fresh users care about outcome, not transport. Tell them what they will actually get after setup.
 
@@ -91,6 +103,7 @@ Fresh users care about outcome, not transport. Tell them what they will actually
 
 | Path | What usually happens | What it does not guarantee |
 |------|----------------------|----------------------------|
+| **Host-native App** | One platform connection can manage identity, MCP, and startup guidance for current and future Agents | It is platform-specific; do not assume another host has the same App lifecycle |
 | **Native connector** | Strongest setup: session bootstrap is often automatic; some hosts also add auto-capture or hook-driven recall | Exact proactive recall/distill timing can still be host-specific |
 | **Reusable package** | Working Memory, recall, and distill are guided by rules/skills | The host may still ignore the guidance unless prompts and project guidance are strong |
 | **Direct MCP** | Tools are available; with the recommended prompt block, the agent can use them proactively | MCP alone does not create host-enforced autonomy |

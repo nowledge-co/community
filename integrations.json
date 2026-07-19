@@ -290,7 +290,7 @@
       "type": "orchestrator",
       "version": null,
       "directory": null,
-      "transport": "mediated-host",
+      "transport": "host-app+managed-mcp",
       "capabilities": {
         "workingMemory": true,
         "search": true,
@@ -310,24 +310,24 @@
         "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "Install the Nowledge Mem connector for the AI tool Raft launches, such as Codex or Claude Code",
-          "Create one Mem AI Identity for each named Raft worker",
-          "Set NMEM_AGENT_ID=<agent-slug> in that Raft worker's runtime environment",
+          "Install the Nowledge Mem Raft App once for the Raft server when that App is available",
+          "Let the App bind each current and future Raft Agent to its managed MCP session and startup prompt",
+          "If the App is absent, connect the AI tool Raft launches and use one Mem AI Identity per named worker as the compatibility path",
           "Use skills or MCP for memory inside Raft; do not treat the managed child rollout as the Raft conversation"
         ]
       },
       "install": {
-        "command": "Connect the AI tool Raft launches, then set NMEM_AGENT_ID=<agent-slug> in each Raft agent runtime config.",
+        "command": "Use the server-installed Nowledge Mem Raft App when available. Otherwise connect the AI tool Raft launches, then set NMEM_AGENT_ID=<agent-slug> in each Raft agent runtime config.",
         "detectionHint": "Running inside a Raft-managed child agent (legacy originator: slock-daemon)",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Raft path to configure this worker. Connect the AI tool Raft launches first, then set NMEM_AGENT_ID=<agent-slug>; add NMEM_SPACE only if this whole worker should override its default space. Use Mem skills or MCP inside Raft. Do not save the managed Codex rollout as the Raft conversation. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Raft 路径配置这个 worker。先连接 Raft 启动的 AI 工具，再设置 NMEM_AGENT_ID=<agent-slug>；只有当整个 worker 需要覆盖默认 Space 时，才添加 NMEM_SPACE。在 Raft 内使用 Mem skills 或 MCP，不要把托管 Codex rollout 当作 Raft 对话保存。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Raft path. If this Raft server already installed the Nowledge Mem App, use its managed MCP session and startup prompt; do not persist a handoff key or install a second child connector. Otherwise connect the AI tool Raft launches, then set NMEM_AGENT_ID=<agent-slug>; add NMEM_SPACE only if this whole worker should override its default space. Do not save the managed Codex rollout as the Raft conversation. Verify with the Context Bundle or Working Memory check and a save/search loop, then summarize what changed without exposing credentials.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Raft 路径配置。如果这个 Raft server 已经安装 Nowledge Mem App，使用它托管的 MCP session 和启动提示；不要保存 handoff key，也不要再安装第二套 child connector。否则先连接 Raft 启动的 AI 工具，再设置 NMEM_AGENT_ID=<agent-slug>；只有当整个 worker 需要覆盖默认 Space 时，才添加 NMEM_SPACE。不要把托管 Codex rollout 当作 Raft 对话保存。用 Context Bundle 或 Working Memory 检查以及一次 save/search 验证，再总结改动，且不要暴露凭证。"
         },
         "docsUrl": "/docs/integrations/slock"
       },
       "toolNaming": {
         "convention": "mediated-host",
-        "note": "Memory tool calls inside the worker retain child-runtime provenance and use NMEM_AGENT_ID for the portable worker identity. A future native conversation connector must save the human-visible Thread with source_app=raft and keep codex/claude-code/pi only as runtime metadata."
+        "note": "App-managed calls identify the Raft Agent by stable server_id + agent_id and retain the child runtime as source_app. The compatibility path uses NMEM_AGENT_ID for portable worker identity. A future native conversation connector must save the human-visible Thread with source_app=raft and keep codex/claude-code/pi only as runtime metadata."
       },
       "skills": [],
       "slashCommands": []
