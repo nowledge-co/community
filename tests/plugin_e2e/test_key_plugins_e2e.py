@@ -1230,6 +1230,74 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
 
 
+def test_opencode_plugin_static_contract_is_self_contained():
+    pkg = _read_json(OPENCODE_PLUGIN / "package.json")
+    source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
+    readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
+    changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    opencode_registry = next(
+        item for item in registry["integrations"] if item.get("id") == "opencode"
+    )
+
+    expected_tools = [
+        "nowledge_mem_context_bundle",
+        "nowledge_mem_working_memory",
+        "nowledge_mem_search",
+        "nowledge_mem_save",
+        "nowledge_mem_update",
+        "nowledge_mem_thread_search",
+        "nowledge_mem_save_thread",
+        "nowledge_mem_save_handoff",
+        "nowledge_mem_status",
+    ]
+
+    assert pkg["name"] == "opencode-nowledge-mem"
+    assert pkg["type"] == "module"
+    assert pkg["main"] == "src/index.ts"
+    assert "@opencode-ai/plugin" in pkg["peerDependencies"]
+    assert opencode_registry["directory"] == "nowledge-mem-opencode-plugin"
+    assert opencode_registry["version"] == pkg["version"]
+    assert opencode_registry["transport"] == "cli+http"
+    assert opencode_registry["threadSave"]["method"] == "sdk-extract+event-idle"
+    assert opencode_registry["autonomy"]["threads"] == "automatic-capture"
+    assert opencode_registry["toolNaming"]["tools"] == expected_tools
+
+    assert "import type { PluginModule } from \"@opencode-ai/plugin\"" in source
+    assert "import { tool } from \"@opencode-ai/plugin\"" in source
+    assert "export default {" in source
+    assert "id: \"nowledge-mem\"" in source
+    assert "server: async (input) =>" in source
+    assert "} satisfies PluginModule" in source
+
+    for tool_name in expected_tools:
+        assert f"{tool_name}: tool(" in source
+        assert f"`{tool_name}`" in readme or f"| `{tool_name}` |" in readme
+
+    assert 'nmem(["context", "--source-app", "opencode"])' in source
+    assert '"--source", "opencode"' in source
+    assert "withAmbientSpaceArg(args)" in source
+    assert "NMEM_AGENT_ID" in source
+    assert "NMEM_HOST_AGENT_ID" in source
+    assert "fetchSessionMessages" in source
+    assert "path: { id: ctx.sessionID }" in source
+    assert "syncSessionThread" in source
+    assert "idempotency_key: `opencode:live:${ctx.sessionID}`" in source
+    assert "event: async ({ event })" in source
+    assert 'event.type === "session.status"' in source
+    assert 'statusType === "idle"' in source
+    assert 'event.type === "session.idle"' in source
+    assert '"experimental.session.compacting": async (input, output)' in source
+    assert "Array.isArray(output.context)" in source
+    assert "output.context.push(reminder)" in source
+    assert 'output.prompt = [output.prompt, reminder].filter(Boolean).join("\\n\\n")' in source
+
+    assert '"plugin": ["opencode-nowledge-mem"]' in readme
+    assert "nmem t sync --from opencode --all-projects --apply" in readme
+    assert "OpenCode integration guide" in readme
+    assert "compaction hook now injects" in changelog
+
+
 def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
     bub_pyproject = (BUB_PLUGIN / "pyproject.toml").read_text(encoding="utf-8")
     bub_client = (
