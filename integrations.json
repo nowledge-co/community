@@ -1621,8 +1621,8 @@
         "status": false
       },
       "threadSave": {
-        "method": "manual-export",
-        "note": "CLI tool extracts Antigravity conversations via local RPC; outputs Markdown/JSON files for manual import into Nowledge Mem"
+        "method": "cli-native",
+        "note": "nmem reads current Antigravity CLI/2.0 hook transcripts directly; decoded trajectory JSON from this extractor is the fallback for older cache-only sessions"
       },
       "autonomy": {
         "bootstrap": "manual",
@@ -1630,14 +1630,14 @@
         "distill": "manual",
         "threads": "import-only",
         "bestResultRequires": [
-          "Run the extractor separately",
-          "Import the extracted files into Mem",
-          "Treat this as a migration path, not a live integration"
+          "Run nmem t sync --from antigravity on the computer that stores the sessions",
+          "Review the preview before adding --apply",
+          "Use this extractor only when an older session has no official transcript.jsonl"
         ]
       },
       "install": {
         "command": "git clone https://github.com/jijiamoer/antigravity-trajectory-extractor.git",
-        "docsUrl": "https://github.com/jijiamoer/antigravity-trajectory-extractor#readme"
+        "docsUrl": "https://mem.nowledge.co/docs/import-existing-conversations"
       },
       "toolNaming": {
         "convention": "n/a",

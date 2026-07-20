@@ -1192,6 +1192,11 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     )
     assert by_id["kimi-work"]["autonomy"]["threads"] == "import-only"
     assert by_id["kimi-work"]["skills"] == ["nowledge-mem"]
+    assert by_id["antigravity-extractor"]["threadSave"]["method"] == "cli-native"
+    assert by_id["antigravity-extractor"]["autonomy"]["threads"] == "import-only"
+    assert "nmem t sync --from antigravity" in by_id["antigravity-extractor"][
+        "autonomy"
+    ]["bestResultRequires"][0]
     for connector_id in ["zcode", "mimo-code"]:
         connector = by_id[connector_id]
         assert connector["version"] is None
