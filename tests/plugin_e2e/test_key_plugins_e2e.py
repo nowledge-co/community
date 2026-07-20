@@ -1980,7 +1980,7 @@ def test_opencode_live_tool_thread_capture(e2e_context: E2EContext, tmp_path: Pa
 
     env = e2e_context.env.copy()
     env["OPENCODE_CONFIG_CONTENT"] = json.dumps({"plugin": [str(plugin_copy)]})
-    model = os.environ.get("NMEM_E2E_OPENCODE_MODEL", "opencode/minimax-m2.5-free")
+    model = os.environ.get("NMEM_E2E_OPENCODE_MODEL", "opencode/mimo-v2.5-free")
     prompt = (
         f"Nowledge Mem OpenCode integration test marker {e2e_context.marker}. "
         "First call the nowledge_mem_status tool. "

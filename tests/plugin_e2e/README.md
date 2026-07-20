@@ -70,7 +70,7 @@ export OPENROUTER_API_KEY="sk-or-..."
 export NMEM_E2E_HERMES_PROVIDER="openrouter"
 export NMEM_E2E_HERMES_MODEL="<cheap-hermes-model-ref>"
 
-export NMEM_E2E_OPENCODE_MODEL="opencode/minimax-m2.5-free"
+export NMEM_E2E_OPENCODE_MODEL="opencode/mimo-v2.5-free"
 export NMEM_E2E_OPENCODE_TIMEOUT_SECONDS="360"
 ```
 
