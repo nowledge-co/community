@@ -708,13 +708,16 @@ export default {
             console.warn("[nowledge-mem] pre-compaction OpenCode thread sync failed:", err?.message ?? err)
           })
         }
-        output.prompt += [
-          "",
-          "",
+        const reminder = [
           "IMPORTANT: You have Nowledge Mem tools (nowledge_mem_*) for cross-tool knowledge.",
           "After compaction, call nowledge_mem_context_bundle when identity, scope, or rules matter; use nowledge_mem_working_memory as the lightweight fallback.",
           "Continue searching and saving proactively.",
         ].join("\n")
+        if (Array.isArray(output.context)) {
+          output.context.push(reminder)
+        } else {
+          output.prompt = [output.prompt, reminder].filter(Boolean).join("\n\n")
+        }
       },
     }
   },
