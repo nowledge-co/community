@@ -1,12 +1,12 @@
 {
   "name": "nowledge-mem-omp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cross-tool memory for OMP. Inject Nowledge Mem context, sync OMP threads, and save what matters.",
   "keywords": ["omp-plugin", "oh-my-pi", "memory", "nowledge"],
   "author": "Nowledge Labs",
   "license": "MIT",
   "dependencies": {
-    "nowledge-mem-pi": "^0.8.3"
+    "nowledge-mem-pi": "^0.8.4"
   },
   "omp": {
     "extensions": ["./extensions/nowledge-mem.ts"],

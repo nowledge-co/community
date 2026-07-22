@@ -5,13 +5,14 @@ import { basename, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.3";
+const DEFAULT_PLUGIN_VERSION = "0.8.4";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
 const MAX_MESSAGE_CHARS = 20_000;
 const FLUSH_DELAY_MS = 750;
-const API_TIMEOUT_MS = 8_000;
+const STARTUP_CONTEXT_TIMEOUT_MS = 8_000;
+const THREAD_SYNC_TIMEOUT_MS = 30_000;
 
 function sourceApp(): string {
 	return process.env.NMEM_PLUGIN_SOURCE_APP?.trim() || DEFAULT_SOURCE_APP;
@@ -57,7 +58,7 @@ interface ThreadMessage {
 interface SyncState {
 	timer?: ReturnType<typeof setTimeout>;
 	inFlight?: Promise<void>;
-	pending?: boolean;
+	latestPayload?: SyncPayload;
 	created?: boolean;
 	lastError?: string;
 	lastSyncedCount?: number;
@@ -79,6 +80,12 @@ const syncStates = new Map<string, SyncState>();
 const startupContextCache = new Map<string, StartupContextEntry>();
 const startupContextWarnings = new Set<string>();
 const WINDOWS_CMD_ENV_EXPANSION_RE = /%[A-Za-z_][A-Za-z0-9_]*%/;
+
+function debugWarn(message: string): void {
+	if (process.env.NMEM_PLUGIN_DEBUG?.trim() === "1") {
+		console.warn(`[nowledge-mem] ${message}`);
+	}
+}
 
 function readSharedConfig(): JsonObject {
 	try {
@@ -208,7 +215,7 @@ async function postJson(path: string, body: JsonObject): Promise<{ ok: boolean; 
 	};
 	for (const url of urls) {
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+		const timeout = setTimeout(() => controller.abort(), THREAD_SYNC_TIMEOUT_MS);
 		try {
 			const response = await fetch(url, {
 				method: "POST",
@@ -236,6 +243,12 @@ function isThreadNotFound(result: { status: number; data: unknown }): boolean {
 	if (result.status === 404) return true;
 	const text = JSON.stringify(result.data).toLowerCase();
 	return text.includes("thread not found");
+}
+
+function isThreadAlreadyExists(result: { status: number; data: unknown }): boolean {
+	if (result.status === 409) return true;
+	const text = JSON.stringify(result.data).toLowerCase();
+	return text.includes("thread already exists") || text.includes("thread exists");
 }
 
 function truncate(text: string): string {
@@ -442,17 +455,24 @@ function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | 
 }
 
 async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> {
-	let result = state.created
-		? { ok: false, status: 409, data: { detail: "append existing thread" } }
-		: await postJson("/threads", payload.body);
-	if (result.ok) {
+	if (!state.created) {
+		const createResult = await postJson("/threads", payload.body);
+		if (createResult.ok) {
+			state.created = true;
+			state.lastSyncedCount = payload.messages.length;
+			state.lastError = undefined;
+			return;
+		}
+		if (!isThreadAlreadyExists(createResult)) {
+			const detail = JSON.stringify(createResult.data);
+			state.lastError = `${hostLabel()} thread sync failed (${createResult.status}): ${detail}`;
+			debugWarn(state.lastError);
+			return;
+		}
 		state.created = true;
-		state.lastSyncedCount = payload.messages.length;
-		state.lastError = undefined;
-		return;
 	}
 
-	result = await postJson(`/threads/${encodeURIComponent(payload.threadId)}/append`, {
+	let result = await postJson(`/threads/${encodeURIComponent(payload.threadId)}/append`, {
 		messages: payload.messages,
 		deduplicate: true,
 		idempotency_key: `${sourceApp()}:${payload.sessionId}:${payload.messages.length}`,
@@ -464,7 +484,7 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 	if (!result.ok) {
 		const detail = JSON.stringify(result.data);
 		state.lastError = `${hostLabel()} thread sync failed (${result.status}): ${detail}`;
-		console.warn(`[nowledge-mem] ${state.lastError}`);
+		debugWarn(state.lastError);
 		return;
 	}
 	state.created = true;
@@ -476,24 +496,37 @@ async function flushPayload(payload: SyncPayload): Promise<void> {
 	const key = payload.threadId;
 	const state = syncStates.get(key) || {};
 	syncStates.set(key, state);
-	if (state.inFlight) {
-		state.pending = true;
-		await state.inFlight;
-		return;
-	}
-	do {
-		state.pending = false;
-		state.inFlight = flushOnce(payload, state).finally(() => {
+	state.latestPayload = payload;
+	if (!state.inFlight) {
+		state.inFlight = (async () => {
+			while (state.latestPayload) {
+				const latest = state.latestPayload;
+				state.latestPayload = undefined;
+				await flushOnce(latest, state);
+			}
+		})().finally(() => {
 			state.inFlight = undefined;
 		});
-		await state.inFlight;
-	} while (state.pending);
+	}
+	await state.inFlight;
 }
 
 async function flush(ctx: ExtensionContext, reason: string): Promise<void> {
 	const payload = buildSyncPayload(ctx, reason);
 	if (!payload) return;
+	const state = syncStates.get(payload.threadId);
+	if (state?.timer) {
+		clearTimeout(state.timer);
+		state.timer = undefined;
+	}
 	await flushPayload(payload);
+}
+
+function evictSyncState(ctx: ExtensionContext): void {
+	const key = threadIdFor(ctx);
+	const state = syncStates.get(key);
+	if (state?.timer) clearTimeout(state.timer);
+	syncStates.delete(key);
 }
 
 function scheduleFlush(ctx: ExtensionContext, reason: string): void {
@@ -513,7 +546,7 @@ function warnStartupContextFailure(stage: string, detail: string): void {
 	const key = `${stage}:${detail}`;
 	if (startupContextWarnings.has(key)) return;
 	startupContextWarnings.add(key);
-	console.warn(`[nowledge-mem] startup context ${stage}: ${detail}`);
+	debugWarn(`startup context ${stage}: ${detail}`);
 }
 
 function quoteWindowsBatchArg(arg: string): string {
@@ -583,7 +616,7 @@ function remainingStartupContextTimeout(deadline: number): number {
 	return Math.max(1, deadline - Date.now());
 }
 
-function spawnNmem(args: string[], timeoutMs = API_TIMEOUT_MS): Promise<NmemResult> {
+function spawnNmem(args: string[], timeoutMs = STARTUP_CONTEXT_TIMEOUT_MS): Promise<NmemResult> {
 	const baseArgs = ["--json", ...args];
 	return new Promise((resolve) => {
 		const handle = (error: Error | null, stdout: string, stderr: string) => {
@@ -668,7 +701,7 @@ async function readStartupContext(): Promise<StartupContextEntry> {
 		{ stage: "working-memory", args: workingMemoryArgs(config), parse: parseWorkingMemoryMarkdown },
 		...(unscopedConfig ? [{ stage: "working-memory-default", args: workingMemoryArgs(unscopedConfig), parse: parseWorkingMemoryMarkdown }] : []),
 	];
-	const deadline = Date.now() + API_TIMEOUT_MS;
+	const deadline = Date.now() + STARTUP_CONTEXT_TIMEOUT_MS;
 	let timedOut = false;
 	let sawReadFailure = false;
 
@@ -762,11 +795,13 @@ export default function nowledgeMemPi(pi: ExtensionAPI) {
 
 	pi.on("session_before_switch", async (event, ctx) => {
 		await flush(ctx, event.reason === "new" ? "session_new" : "session_resume");
+		evictSyncState(ctx);
 		evictStartupContext(ctx);
 	});
 
 	pi.on("session_shutdown", async (event, ctx) => {
 		await flush(ctx, `session_shutdown:${event.reason}`);
+		evictSyncState(ctx);
 		evictStartupContext(ctx);
 	});
 }

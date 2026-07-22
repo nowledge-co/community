@@ -553,7 +553,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.3"
+    assert pi_pkg["version"] == "0.8.4"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
@@ -600,14 +600,14 @@ def test_key_plugin_static_contracts_are_declared():
     omp_pkg = _read_json(OMP_PLUGIN / "package.json")
     omp_extension = (OMP_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     omp_agent = (OMP_PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
-    assert omp_pkg["version"] == "0.1.0"
-    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.3"
+    assert omp_pkg["version"] == "0.1.1"
+    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.4"
     assert "./extensions/nowledge-mem.ts" in omp_pkg["omp"]["extensions"]
     assert "./skills" in omp_pkg["omp"]["skills"]
     assert "pi" not in omp_pkg
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "omp"' in omp_extension
     assert 'process.env.NMEM_PLUGIN_HOST_LABEL = "OMP"' in omp_extension
-    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.0"' in omp_extension
+    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.1"' in omp_extension
     assert 'import("nowledge-mem-pi/extensions/nowledge-mem.ts")' in omp_extension
     assert "nmem --json context --source-app omp" in omp_agent
     assert "source_app=omp" in omp_agent
@@ -1167,7 +1167,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.4"
     assert by_id["opencode"]["version"] == "0.3.5"
-    assert by_id["pi"]["version"] == "0.8.3"
+    assert by_id["pi"]["version"] == "0.8.4"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["kimi-code"]["version"] == "0.2.1"
@@ -1221,7 +1221,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
-    assert by_id["omp"]["version"] == "0.1.0"
+    assert by_id["omp"]["version"] == "0.1.1"
     assert by_id["omp"]["directory"] == "nowledge-mem-omp-plugin"
     assert by_id["omp"]["transport"] == "plugin+cli"
     assert by_id["omp"]["capabilities"]["autoRecall"] is True
@@ -1320,6 +1320,185 @@ def test_key_plugin_credentials_stay_out_of_static_runtime_urls():
     assert "nmem_api_key=" not in hermes_client
     assert "nmem_api_key=" not in openclaw_client
     assert "Authorization" not in (CODEX_PLUGIN / ".mcp.json").read_text(encoding="utf-8")
+
+
+def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
+    if shutil.which("bun") is None:
+        pytest.skip("Pi extension concurrency smoke requires bun on PATH")
+
+    script = dedent(
+        """
+        import http from "node:http";
+
+        delete process.env.NMEM_PLUGIN_DEBUG;
+        const warnings = [];
+        console.warn = (...args) => warnings.push(args.map(String).join(" "));
+
+        const { default: nowledgeMemPi } = await import(process.env.PI_EXTENSION_URL);
+        const calls = [];
+        let latestAppendCompleted = false;
+        let resolveCreateSeen;
+        const createSeen = new Promise((resolve) => { resolveCreateSeen = resolve; });
+        const server = http.createServer((req, res) => {
+          let raw = "";
+          req.on("data", (chunk) => raw += chunk);
+          req.on("end", () => {
+            const body = raw ? JSON.parse(raw) : {};
+            calls.push({ url: req.url, body });
+            if (body.thread_id === "pi-transport-failure") {
+              req.socket.destroy();
+              return;
+            }
+            res.setHeader("content-type", "application/json");
+            if (body.thread_id === "pi-existing-thread") {
+              res.statusCode = 409;
+              res.end(JSON.stringify({ detail: "thread already exists" }));
+              return;
+            }
+            if (req.url === "/threads") {
+              resolveCreateSeen();
+              setTimeout(() => res.end(JSON.stringify({ ok: true })), 100);
+              return;
+            }
+            if (req.url?.includes("pi-latest-payload")) {
+              setTimeout(() => {
+                latestAppendCompleted = true;
+                res.end(JSON.stringify({ ok: true }));
+              }, 100);
+              return;
+            }
+            res.end(JSON.stringify({ ok: true }));
+          });
+        });
+        await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const { port } = server.address();
+        process.env.NMEM_API_URL = `http://127.0.0.1:${port}`;
+
+        const handlers = new Map();
+        nowledgeMemPi({ on(event, handler) { handlers.set(event, handler); } });
+        const entriesFor = (prefix) => [
+          {
+            id: `${prefix}-u1`,
+            type: "message",
+            timestamp: "2026-07-22T10:00:00Z",
+            message: { role: "user", content: `${prefix} user one` },
+          },
+          {
+            id: `${prefix}-a1`,
+            type: "message",
+            timestamp: "2026-07-22T10:00:01Z",
+            message: { role: "assistant", content: `${prefix} assistant one` },
+          },
+        ];
+        const contextFor = (id, entries) => ({
+          hasUI: true,
+          sessionManager: {
+            getBranch: () => entries,
+            getSessionId: () => id,
+            getSessionName: () => id,
+            getCwd: () => "/tmp/pi-sync-contract",
+            getSessionFile: () => `/tmp/pi-sync-contract/${id}.jsonl`,
+          },
+        });
+
+        const failedEntries = entriesFor("failed");
+        await handlers.get("session_before_compact")?.(
+          { type: "session_before_compact" },
+          contextFor("transport-failure", failedEntries),
+        );
+
+        const existingEntries = entriesFor("existing");
+        await handlers.get("session_before_compact")?.(
+          { type: "session_before_compact" },
+          contextFor("existing-thread", existingEntries),
+        );
+
+        const latestEntries = entriesFor("latest");
+        const latestContext = contextFor("latest-payload", latestEntries);
+        const first = handlers.get("session_before_compact")?.(
+          { type: "session_before_compact" },
+          latestContext,
+        );
+        await createSeen;
+        latestEntries.push(
+          {
+            id: "latest-u2",
+            type: "message",
+            timestamp: "2026-07-22T10:00:02Z",
+            message: { role: "user", content: "latest user two" },
+          },
+          {
+            id: "latest-a2",
+            type: "message",
+            timestamp: "2026-07-22T10:00:03Z",
+            message: { role: "assistant", content: "latest assistant two" },
+          },
+        );
+        let secondResolvedAfterAppend = false;
+        const second = handlers.get("session_before_compact")?.(
+          { type: "session_before_compact" },
+          latestContext,
+        ).then(() => {
+          secondResolvedAfterAppend = latestAppendCompleted;
+        });
+        await Promise.all([first, second]);
+
+        const boundaryEntries = entriesFor("boundary");
+        const boundaryContext = contextFor("boundary", boundaryEntries);
+        await handlers.get("agent_end")?.({ type: "agent_end" }, boundaryContext);
+        await handlers.get("session_shutdown")?.(
+          { type: "session_shutdown", reason: "quit" },
+          boundaryContext,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 850));
+        await new Promise((resolve) => server.close(resolve));
+
+        const failedCalls = calls.filter((call) =>
+          call.body.thread_id === "pi-transport-failure" ||
+          call.url?.includes("pi-transport-failure")
+        );
+        if (failedCalls.length !== 1 || failedCalls[0].url !== "/threads") {
+          throw new Error(`transport failure was amplified: ${JSON.stringify(failedCalls)}`);
+        }
+        const existingCalls = calls.filter((call) =>
+          call.body.thread_id === "pi-existing-thread" ||
+          call.url?.includes("pi-existing-thread")
+        );
+        if (existingCalls.length !== 2 || existingCalls[1].body.messages.length !== 2) {
+          throw new Error(`existing thread did not append: ${JSON.stringify(existingCalls)}`);
+        }
+        const latestCalls = calls.filter((call) =>
+          call.body.thread_id === "pi-latest-payload" ||
+          call.url?.includes("pi-latest-payload")
+        );
+        if (latestCalls.length !== 2) {
+          throw new Error(`expected create plus latest append: ${JSON.stringify(latestCalls)}`);
+        }
+        if (latestCalls[0].body.messages.length !== 2) {
+          throw new Error(`initial payload changed: ${JSON.stringify(latestCalls[0])}`);
+        }
+        if (latestCalls[1].body.messages.length !== 4) {
+          throw new Error(`latest payload was dropped: ${JSON.stringify(latestCalls[1])}`);
+        }
+        if (!secondResolvedAfterAppend) {
+          throw new Error("concurrent lifecycle flush returned before the latest payload completed");
+        }
+        const boundaryCalls = calls.filter((call) =>
+          call.body.thread_id === "pi-boundary" || call.url?.includes("pi-boundary")
+        );
+        if (boundaryCalls.length !== 1) {
+          throw new Error(`session boundary duplicated sync: ${JSON.stringify(boundaryCalls)}`);
+        }
+        if (warnings.length !== 0) {
+          throw new Error(`interactive diagnostics leaked to stderr: ${JSON.stringify(warnings)}`);
+        }
+        console.log(JSON.stringify({ ok: true, calls: calls.length }));
+        """
+    )
+    env = os.environ.copy()
+    env["PI_EXTENSION_URL"] = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").resolve().as_uri()
+    result = _run(["bun", "--eval", script], env=env, timeout=30)
+    assert '"ok":true' in result.stdout.replace(" ", "")
 
 
 @pytest.mark.skipif(_skip_live_host("pi"), reason="Pi live E2E not requested")

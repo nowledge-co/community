@@ -793,7 +793,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.3",
+      "version": "0.8.4",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1164,7 +1164,7 @@
       "name": "OMP",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-omp-plugin",
       "transport": "plugin+cli",
       "capabilities": {

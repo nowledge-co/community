@@ -5,6 +5,15 @@ All notable changes to the Nowledge Mem Pi package will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-07-22
+
+### Fixed
+
+- Give background thread writes enough time to finish when Mem is busy, without delaying startup context reads.
+- Append only after the server confirms that a thread already exists. A timed-out create is now left for the next lifecycle sync instead of being amplified into a second ambiguous write.
+- Preserve the newest conversation payload when another completed turn arrives during an in-flight sync.
+- Keep automatic diagnostics out of Pi's interactive editor by default. Set `NMEM_PLUGIN_DEBUG=1` when raw extension diagnostics are needed.
+
 ## [0.8.3] - 2026-07-08
 
 ### Changed

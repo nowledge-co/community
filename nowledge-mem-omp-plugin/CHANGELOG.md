@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Inherit the Pi runtime's resilient thread-sync timeout, safe create-to-append fallback, latest-turn coalescing, and quiet interactive diagnostics.
+
 ## 0.1.0
 
 - Initial OMP plugin package.
