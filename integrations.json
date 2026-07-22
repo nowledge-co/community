@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth: other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none. connect.skillUrl is the universal install contract. Per-tool install.agentGuide prompts must point to that skill first; per-tool docs remain behavior and troubleshooting references.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "connect": {
     "skillUrl": "https://mem.nowledge.co/SKILL.md",
     "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for the AI tool I am using.",
@@ -13,7 +13,7 @@
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
       "slock", "lody", "multica", "cumora", "paseo", "mcp-direct"
     ],
-    "doesNotApplyTo": ["browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
+    "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
   "integrations": [
     {
@@ -1471,6 +1471,147 @@
         "note": "Skills teach agents to invoke nmem CLI directly"
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "save-thread", "check-integration", "status"],
+      "slashCommands": []
+    },
+    {
+      "id": "cradle",
+      "name": "Cradle",
+      "category": "orchestrator",
+      "type": "plugin",
+      "version": "0.0.1",
+      "directory": null,
+      "externalRepo": "https://github.com/wibus-wee/cradle-app",
+      "transport": "http-api+mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "explicit-save",
+        "note": "Cradle's bundled @cradleapp/nowledge-mem plugin can explicitly search, read, create, and append Mem threads. Cradle does not yet expose the lifecycle hooks needed for automatic pre-turn recall, session capture, or pre-compaction capture."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "explicit-save",
+        "bestResultRequires": [
+          "Enable the bundled Nowledge Mem plugin in Cradle",
+          "Keep the default local endpoint or configure the Mem API URL and optional MCP URL",
+          "Use NMEM_API_KEY for a protected or remote Mem server; Cradle does not persist the key in plugin config",
+          "Treat memory reads and thread writes as agent-guided operations until Cradle adds plugin lifecycle hooks"
+        ]
+      },
+      "install": {
+        "command": "Open Cradle's Plugin Marketplace and enable the bundled Nowledge Mem plugin.",
+        "detectionHint": "Cradle is installed and its bundled nowledge-mem integration plugin is available",
+        "docsUrl": "/docs/integrations/cradle",
+        "officialDocsUrl": "https://github.com/wibus-wee/cradle-app/tree/main/plugins/nowledge-mem"
+      },
+      "toolNaming": {
+        "convention": "host-native",
+        "note": "Cradle exposes guided operations through /api/plugins/nowledge-mem and can optionally register the Mem streamable HTTP MCP server."
+      },
+      "skills": ["nowledge-mem"],
+      "slashCommands": []
+    },
+    {
+      "id": "arkloop",
+      "name": "Arkloop",
+      "category": "chat",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "externalRepo": "https://github.com/qqqqqf-q/Arkloop",
+      "transport": "http-api",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "host-native",
+        "note": "When Nowledge is selected as Arkloop's Memory provider, Arkloop creates a source=arkloop thread and appends new turns with stable external links and idempotency keys. It can triage and distill the saved conversation when automatic organization is enabled."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "automatic",
+        "distill": "automatic",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Enable Memory in Arkloop and select Nowledge as the provider",
+          "Use Detect local instance or enter the Mem Base URL, API Key, and request timeout",
+          "Enable automatic organization when you want Arkloop to triage and distill completed turns",
+          "Keep Arkloop and a local Mem server on the same machine, or use a reachable protected remote endpoint"
+        ]
+      },
+      "install": {
+        "command": "In Arkloop, open Settings > Memory, enable Memory, and select Nowledge as the provider.",
+        "detectionHint": "Arkloop is installed and Settings > Memory includes the Nowledge provider",
+        "docsUrl": "/docs/integrations/arkloop",
+        "officialDocsUrl": "https://arkloop.io/zh/docs/features/memory"
+      },
+      "toolNaming": {
+        "convention": "host-native",
+        "note": "Arkloop owns the Memory provider UI and calls Mem's Working Memory, rich search, thread, distillation, connections, timeline, and status APIs directly."
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "opticlm",
+      "name": "OpticLM",
+      "category": "chat",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "externalRepo": "https://github.com/OpticLM/nmem",
+      "transport": "http-api",
+      "capabilities": {
+        "workingMemory": false,
+        "search": false,
+        "distill": false,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "host-native",
+        "note": "OpticLM maintains @opticlm/nmem for its Extension functionality. The public SDK supports Mem spaces plus direct thread create, append, tail reconciliation, and delete operations. Optic owns when those operations run; the public SDK does not expose Working Memory or memory-search behavior."
+      },
+      "autonomy": {
+        "bootstrap": "manual",
+        "recall": "manual",
+        "distill": "manual",
+        "threads": "explicit-save",
+        "bestResultRequires": [
+          "Run Mem on Optic's machine or provide a reachable Mem endpoint in Optic's Extension settings",
+          "Use Optic's built-in Nowledge integration for thread continuity",
+          "Add the standard Mem MCP server separately when you also want Working Memory, recall, or durable memory tools",
+          "Do not install @opticlm/nmem as an end-user plugin; it is Optic's internal integration SDK"
+        ]
+      },
+      "install": {
+        "command": "Open Optic's Extension settings and enable its built-in Nowledge Mem integration; no community plugin is required.",
+        "detectionHint": "Optic is installed and its Extension settings expose Nowledge Mem",
+        "docsUrl": "/docs/integrations/opticlm",
+        "officialDocsUrl": "https://github.com/OpticLM/nmem"
+      },
+      "toolNaming": {
+        "convention": "host-native",
+        "note": "Optic's integration calls Mem's HTTP API through @opticlm/nmem. Add Mem MCP separately for agent-facing retrieval and memory tools."
+      },
+      "skills": [],
       "slashCommands": []
     },
     {

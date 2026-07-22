@@ -1235,6 +1235,27 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
 
 
+def test_host_owned_official_integrations_keep_their_real_boundaries():
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    by_id = {entry["id"]: entry for entry in registry["integrations"]}
+    does_not_apply = set(registry["connect"]["doesNotApplyTo"])
+
+    for integration_id in ("cradle", "arkloop", "opticlm"):
+        entry = by_id[integration_id]
+        assert entry["directory"] is None
+        assert entry["externalRepo"].startswith("https://github.com/")
+        assert entry["install"]["docsUrl"] == f"/docs/integrations/{integration_id}"
+        assert "agentGuide" not in entry["install"]
+        assert integration_id in does_not_apply
+
+    assert by_id["cradle"]["autonomy"]["threads"] == "explicit-save"
+    assert by_id["cradle"]["capabilities"]["autoCapture"] is False
+    assert by_id["arkloop"]["autonomy"]["recall"] == "automatic"
+    assert by_id["arkloop"]["autonomy"]["threads"] == "automatic-capture"
+    assert by_id["opticlm"]["capabilities"]["workingMemory"] is False
+    assert by_id["opticlm"]["capabilities"]["autoRecall"] is False
+
+
 def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
     bub_pyproject = (BUB_PLUGIN / "pyproject.toml").read_text(encoding="utf-8")
     bub_client = (
