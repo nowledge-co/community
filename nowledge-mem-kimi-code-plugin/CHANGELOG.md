@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Named Kimi Code workers now bootstrap Context Bundle through the identity-aware `nmem` CLI and carry the resolved Agent and Space through typed MCP arguments. This preserves `NMEM_AGENT_ID` without writing one Agent's identity into shared static MCP headers.
+
 ## 0.2.1
 
 - Kimi Code setup and slash-command guidance now treats `nmem` command/flag drift as an outdated CLI, not a broken Mem server. Agents are told to upgrade the same CLI source before retrying Kimi-specific MCP or thread-sync commands.

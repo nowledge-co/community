@@ -7,15 +7,17 @@ Nowledge Mem is the user's cross-tool memory. Use it to start with the right con
 
 ## Startup Context
 
-At the beginning of a meaningful session, or when resuming work, read Context Bundle if the Nowledge Mem MCP server is connected. It includes owner context, AI Identity, active rules, active space, and Working Memory.
-
-If MCP is not connected, use the CLI fallback:
+At the beginning of a meaningful session, or when resuming work, read Context Bundle through the CLI first:
 
 ```bash
 nmem --json context --source-app kimi-code
 ```
 
-If that fails on an older `nmem`, use:
+This is intentional. Kimi Code's current remote MCP configuration accepts static HTTP headers but cannot map arbitrary process environment variables into headers. The CLI reads `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` from the current Kimi process, so a named Raft/Kimi worker receives the correct AI Identity, Rules, default Space, and Working Memory.
+
+Keep the non-empty `authorship.agent_id`, `authorship.host_agent_id`, and `active_space.primary_space_id` returned by Context Bundle for this session. Pass them as `agent_id`, `host_agent_id`, and `space_id` on later Nowledge Mem MCP calls. Never derive an identity from `source_app`.
+
+If the CLI is unavailable but MCP is connected, call MCP `read_context_bundle`. If both are unavailable, use:
 
 ```bash
 nmem --json wm read
@@ -34,6 +36,10 @@ Prefer MCP when available:
 - `memory_search` for durable decisions, preferences, procedures, and learnings.
 - `thread_search` when the user asks about prior conversations.
 - `thread_fetch_messages` only after a thread result is relevant.
+
+When startup Context Bundle returned an AI Identity or active Space, pass those
+exact values on MCP search/read calls whose tool schema exposes the corresponding
+`agent_id`, `host_agent_id`, or `space_id` argument.
 
 CLI fallback:
 
@@ -58,6 +64,11 @@ Prefer MCP:
 1. `memory_search` for an existing memory.
 2. `memory_update` if the existing memory should evolve.
 3. `memory_add` for a new durable memory.
+
+When startup Context Bundle returned an AI Identity or active Space, pass those
+exact values on MCP writes whose tool schema exposes the corresponding identity
+or Space argument. The server normalizes an explicit portable `agent_id`,
+enrolls its profile once, and stores the attribution with a new Memory.
 
 CLI fallback:
 
@@ -110,7 +121,7 @@ python3 -m pip install --user nmem-cli
 
 ## Space And Identity
 
-If the host process has `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, or `NMEM_SPACE`, let `nmem` use those environment variables. Do not treat `source_app=kimi-code` as an AI Identity; it is only provenance.
+If the host process has `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, or `NMEM_SPACE`, let `nmem` use those environment variables and retain the resolved Context Bundle values for MCP calls. Do not treat `source_app=kimi-code` as an AI Identity; it is only provenance.
 
 ## User Overrides
 
