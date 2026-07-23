@@ -629,11 +629,19 @@ function spawnNmem(args: string[], timeoutMs = STARTUP_CONTEXT_TIMEOUT_MS): Prom
 		};
 		if (process.platform === "win32") {
 			try {
-				const line = windowsCommandLine(["nmem.cmd", ...baseArgs]);
+				// `/s` strips one outer quote pair before parsing the command.
+				// Keep that pair outside the per-argument quoting, and tell Node
+				// the command line is already escaped so it is not rewritten.
+				const line = `"${windowsCommandLine(["nmem.cmd", ...baseArgs])}"`;
 				execFile(
 					windowsComspec(),
 					["/d", "/s", "/c", line],
-					{ timeout: timeoutMs, windowsHide: true, encoding: "utf8" },
+					{
+						timeout: timeoutMs,
+						windowsHide: true,
+						windowsVerbatimArguments: true,
+						encoding: "utf8",
+					},
 					handle,
 				);
 			} catch (error) {

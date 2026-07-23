@@ -553,7 +553,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.4"
+    assert pi_pkg["version"] == "0.8.5"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
@@ -593,6 +593,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert "quoteWindowsBatchArg" in pi_extension
     assert "rejectWindowsCmdEnvExpansion" in pi_extension
     assert '["/d", "/s", "/c", line]' in pi_extension
+    assert "windowsVerbatimArguments: true" in pi_extension
+    assert 'const line = `"${windowsCommandLine(["nmem.cmd", ...baseArgs])}"`' in pi_extension
     assert "source_app=${source}" in pi_extension
     before_agent_start_block = pi_extension.split('pi.on("before_agent_start"', 1)[1].split('pi.on("agent_end"', 1)[0]
     assert "message:" not in before_agent_start_block
@@ -1167,7 +1169,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.4"
     assert by_id["opencode"]["version"] == "0.3.5"
-    assert by_id["pi"]["version"] == "0.8.4"
+    assert by_id["pi"]["version"] == "0.8.5"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["kimi-code"]["version"] == "0.2.1"
