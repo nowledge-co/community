@@ -8,7 +8,6 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(pluginRoot, "..");
-const expectedVersion = "0.1.28";
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -75,6 +74,8 @@ for (const file of [
   "skills/working-memory/SKILL.md",
   "skills/search-memory/SKILL.md",
   "skills/save-thread/SKILL.md",
+  "skills/save-thread/scripts/save_thread.sh",
+  "skills/save-thread/scripts/save_thread.ps1",
   "skills/distill-memory/SKILL.md",
   "skills/status/SKILL.md",
 ]) {
@@ -85,10 +86,13 @@ const manifest = parseJsonIfPresent(
   path.join(pluginRoot, ".codex-plugin/plugin.json"),
   ".codex-plugin/plugin.json",
 );
+const expectedVersion = manifest?.version;
 if (manifest) {
   if (manifest.name !== "nowledge-mem") fail(`unexpected plugin name: ${manifest.name}`);
   else ok("plugin manifest name");
-  if (manifest.version !== expectedVersion) fail(`expected version ${expectedVersion}, got ${manifest.version}`);
+  if (typeof manifest.version !== "string" || !/^\d+\.\d+\.\d+$/.test(manifest.version)) {
+    fail(`invalid plugin version: ${manifest.version}`);
+  }
   else ok("plugin manifest version");
   if (manifest.hooks !== "./hooks/hooks.json") fail("manifest must declare ./hooks/hooks.json");
   else ok("plugin manifest hooks");
@@ -173,7 +177,7 @@ if (hooks) {
 
 const changelog = readTextIfPresent(path.join(pluginRoot, "CHANGELOG.md"), "CHANGELOG.md");
 if (changelog !== null) {
-  if (!changelog.includes(`## [${expectedVersion}]`)) fail(`CHANGELOG must contain a ${expectedVersion} entry`);
+  if (!expectedVersion || !changelog.includes(`## [${expectedVersion}]`)) fail(`CHANGELOG must contain a ${expectedVersion} entry`);
   else ok("CHANGELOG version entry");
 }
 

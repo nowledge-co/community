@@ -354,7 +354,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.28"
+    assert codex_manifest["version"] == "0.1.29"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -405,6 +405,13 @@ def test_key_plugin_static_contracts_are_declared():
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
     assert "from nmem_runtime import" in codex_save_hook
     assert "CREATE_NO_WINDOW" in codex_runtime
+    codex_save_skill = (
+        CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert (CODEX_PLUGIN / "skills" / "save-thread" / "scripts" / "save_thread.sh").exists()
+    assert (CODEX_PLUGIN / "skills" / "save-thread" / "scripts" / "save_thread.ps1").exists()
+    assert "scripts/save_thread.sh" in codex_save_skill
+    assert "scripts\\save_thread.ps1" in codex_save_skill
 
     openclaw_manifest = _read_json(OPENCLAW_PLUGIN / "openclaw.plugin.json")
     openclaw_pkg = _read_json(OPENCLAW_PLUGIN / "package.json")

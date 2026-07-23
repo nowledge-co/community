@@ -229,7 +229,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.28",
+      "version": "0.1.29",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
