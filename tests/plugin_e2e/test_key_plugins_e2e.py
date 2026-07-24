@@ -1056,7 +1056,7 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
         env["NMEM_API_URL"] = f"http://127.0.0.1:{server.server_address[1]}"
         env["NMEM_SPACE"] = "pi-history-space"
         env["NMEM_AGENT_ID"] = "PiHistoryAgent"
-        env["NMEM_HOST_AGENT_ID"] = "slock:PiHistoryAgent"
+        env["NMEM_HOST_AGENT_ID"] = "raft:PiHistoryAgent"
         result = _run(
             ["node", str(script), "--session-dir", str(session_dir), "--json", "--apply"],
             env=env,
@@ -1081,7 +1081,7 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
     assert create_body["metadata"]["analysis"] == "searchable-now-distill-on-demand"
     assert create_body["metadata"]["sync_reason"] == "history_sync"
     assert create_body["metadata"]["agent_id"] == "PiHistoryAgent"
-    assert create_body["metadata"]["host_agent_id"] == "slock:PiHistoryAgent"
+    assert create_body["metadata"]["host_agent_id"] == "raft:PiHistoryAgent"
     assert create_body["project"] == "/tmp/pi-history-project"
     assert create_body["workspace"] == "/tmp/pi-history-project"
     assert [message["content"] for message in create_body["messages"]] == [
@@ -1173,6 +1173,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
 
     by_id = {entry["id"]: entry for entry in integrations}
+    assert "raft" in integration_ids
+    assert "slock" not in integration_ids
+    assert "slock" in by_id["raft"]["aliases"]
     assert by_id["copilot-cli"]["version"] == "0.1.4"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
     assert by_id["cursor"]["version"] == "0.1.6"
@@ -1596,7 +1599,7 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
         process.env.NMEM_API_URL = `http://127.0.0.1:${port}`;
         process.env.NMEM_SPACE = "pi-smoke-space";
         process.env.NMEM_AGENT_ID = "PiSmokeAgent";
-        process.env.NMEM_HOST_AGENT_ID = "slock:PiSmokeAgent";
+        process.env.NMEM_HOST_AGENT_ID = "raft:PiSmokeAgent";
 
         const handlers = new Map();
         nowledgeMemPi({ on(event, handler) { handlers.set(event, handler); } });
@@ -1689,7 +1692,7 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
           throw new Error("space not propagated");
         }
         if (create.body.metadata.agent_id !== "PiSmokeAgent") throw new Error("agent_id missing");
-        if (create.body.metadata.host_agent_id !== "slock:PiSmokeAgent") {
+        if (create.body.metadata.host_agent_id !== "raft:PiSmokeAgent") {
           throw new Error("host_agent_id missing");
         }
         if (create.body.messages.length !== 2) {
@@ -1725,7 +1728,7 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
     assert "--agent-id" in context_call, f"context call missing --agent-id: {context_call}"
     assert "PiSmokeAgent" in context_call, f"context call missing agent id value: {context_call}"
     assert "--host-agent-id" in context_call, f"context call missing --host-agent-id: {context_call}"
-    assert "slock:PiSmokeAgent" in context_call, f"context call missing host agent id value: {context_call}"
+    assert "raft:PiSmokeAgent" in context_call, f"context call missing host agent id value: {context_call}"
 
 
 @pytest.mark.skipif(_skip_live_host("claude"), reason="Claude live E2E not requested")

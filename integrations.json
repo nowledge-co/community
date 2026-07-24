@@ -11,7 +11,7 @@
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
       "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
-      "slock", "lody", "multica", "cumora", "paseo", "mcp-direct"
+      "raft", "lody", "multica", "cumora", "paseo", "mcp-direct"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
@@ -284,8 +284,9 @@
       "slashCommands": []
     },
     {
-      "id": "slock",
-      "name": "Raft (formerly Slock)",
+      "id": "raft",
+      "aliases": ["slock"],
+      "name": "Raft",
       "category": "orchestrator",
       "type": "orchestrator",
       "version": null,
@@ -318,12 +319,12 @@
       },
       "install": {
         "command": "Connect the AI tool Raft launches, then set NMEM_AGENT_ID=<agent-slug> in each Raft agent runtime config.",
-        "detectionHint": "Running inside a Raft-managed child agent (legacy originator: slock-daemon)",
+        "detectionHint": "Running inside a Raft-managed child agent (originator: raft-daemon; legacy alias: slock-daemon)",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Raft path to configure this worker. Connect the AI tool Raft launches first, then set NMEM_AGENT_ID=<agent-slug>; add NMEM_SPACE only if this whole worker should override its default space. Use Mem skills or MCP inside Raft. Do not save the managed Codex rollout as the Raft conversation. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
           "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Raft 路径配置这个 worker。先连接 Raft 启动的 AI 工具，再设置 NMEM_AGENT_ID=<agent-slug>；只有当整个 worker 需要覆盖默认 Space 时，才添加 NMEM_SPACE。在 Raft 内使用 Mem skills 或 MCP，不要把托管 Codex rollout 当作 Raft 对话保存。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
-        "docsUrl": "/docs/integrations/slock"
+        "docsUrl": "/docs/integrations/raft"
       },
       "toolNaming": {
         "convention": "mediated-host",

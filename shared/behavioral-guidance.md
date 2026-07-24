@@ -42,8 +42,9 @@ NMEM_AGENT_ID="reviewer"
 `NMEM_AGENT_ID` selects a Nowledge AI Identity directly. Add `NMEM_SPACE` only
 when the whole child process should override that identity's default space.
 `NMEM_HOST_AGENT_ID` is an advanced external-alias field for integration authors
-who need to map an immutable external worker id such as `slock:<uuid>` onto a
-Mem AI Identity. Do not ask normal users to set both identity variables; if
+who need to map an immutable external worker ID such as `raft:<uuid>` onto a
+Mem AI Identity. Existing integrations may still provide the legacy
+`slock:<uuid>` alias. Do not ask normal users to set both identity variables; if
 every child gets the same value, all agents will collapse into one profile.
 
 **When to use Context Bundle:**

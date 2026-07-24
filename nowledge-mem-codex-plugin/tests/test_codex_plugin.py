@@ -334,7 +334,7 @@ class HookTests(unittest.TestCase):
         return transcript
 
     def test_delegated_conversation_originator_is_session_scoped(self):
-        for originator in ("slock-daemon", "raft-daemon"):
+        for originator in ("raft-daemon", "slock-daemon"):
             transcript = self._write_session_meta(originator)
             self.assertEqual(
                 self.module._delegated_conversation_originator(
@@ -352,7 +352,7 @@ class HookTests(unittest.TestCase):
             )
 
     def test_main_skips_only_delegated_thread_capture_but_reports_skills(self):
-        transcript = self._write_session_meta("slock-daemon")
+        transcript = self._write_session_meta("raft-daemon")
         hook_payload = json.dumps(
             {
                 "session_id": "session-1",

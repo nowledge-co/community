@@ -144,7 +144,7 @@ This enables Codex lifecycle hooks, adds the legacy plugin-hook gate only on hos
 
 Restart Codex after setup. Codex treats **enabled** and **trusted** as separate hook states: review and trust the three Nowledge Mem hooks when Codex prompts you. This confirmation is deliberately user-owned; the installer never bypasses Codex's hook security boundary.
 
-Raft (formerly Slock) can run a managed Codex worker on the same computer as your normal Codex sessions. The hook reads Codex's structured `session_meta.originator` for each transcript: normal Codex sessions still capture automatically, while `slock-daemon` and `raft-daemon` rollouts are skipped because they contain Raft inbox/control traffic rather than the human-visible conversation. Memory skills and MCP remain available inside the Raft worker.
+Raft can run a managed Codex worker on the same computer as your normal Codex sessions. The hook reads Codex's structured `session_meta.originator` for each transcript: normal Codex sessions still capture automatically, while `raft-daemon` rollouts are skipped because they contain Raft inbox/control traffic rather than the human-visible conversation. The legacy `slock-daemon` originator remains supported. Memory skills and MCP remain available inside the Raft worker.
 
 To backfill older Codex sessions, preview first:
 
