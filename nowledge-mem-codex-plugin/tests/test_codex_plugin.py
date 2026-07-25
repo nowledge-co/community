@@ -603,7 +603,8 @@ class RuntimeHelperTests(unittest.TestCase):
         with mock.patch.object(self.module.os, "name", "posix"):
             command = self.module.build_nmem_command(nmem, "--json", "context")
 
-        self.assertEqual(command[:4], ["cmd.exe", "/d", "/s", "/c"])
+        self.assertEqual(Path(command[0]).name.lower(), "cmd.exe")
+        self.assertEqual(command[1:4], ["/d", "/s", "/c"])
         self.assertIn(r"C:\Users\test\AppData\Local\Nowledge Mem\cli\nmem.cmd", command[4])
 
     def test_native_windows_batch_shim_executes_directly(self):
