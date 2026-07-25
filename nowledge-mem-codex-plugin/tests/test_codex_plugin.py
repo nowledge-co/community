@@ -592,6 +592,11 @@ class ContextHookTests(unittest.TestCase):
 class RuntimeHelperTests(unittest.TestCase):
     def setUp(self):
         self.module = load_module("nmem_runtime_test", RUNTIME_MODULE_PATH)
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_path = Path(self.temp_dir.name)
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
 
     def test_wsl_cmd_shim_uses_cmd_bridge_and_windows_path(self):
         nmem = "/mnt/c/Users/test/AppData/Local/Nowledge Mem/cli/nmem.cmd"
@@ -620,6 +625,85 @@ class RuntimeHelperTests(unittest.TestCase):
                 metacharacters,
             ],
         )
+
+    def test_explicit_cli_path_wins_when_shell_path_is_empty(self):
+        nmem = self.temp_path / "custom" / "nmem"
+        nmem.parent.mkdir()
+        nmem.write_text("#!/bin/sh\n", encoding="utf-8")
+        nmem.chmod(0o755)
+
+        with mock.patch.dict(
+            self.module.os.environ,
+            {"NMEM_CLI_PATH": str(nmem), "PATH": ""},
+            clear=False,
+        ), mock.patch.object(self.module.shutil, "which", return_value=None):
+            self.assertEqual(self.module.find_nmem_command(), str(nmem))
+
+    def test_desktop_wrapper_is_found_when_shell_path_is_empty(self):
+        nmem = (
+            self.temp_path
+            / ".local"
+            / "share"
+            / "nowledge-mem"
+            / "bin"
+            / "nmem-wrapper"
+        )
+        nmem.parent.mkdir(parents=True)
+        nmem.write_text("#!/bin/sh\n", encoding="utf-8")
+        nmem.chmod(0o755)
+
+        with mock.patch.dict(
+            self.module.os.environ,
+            {"NMEM_CLI_PATH": "", "PATH": "", "LOCALAPPDATA": "", "APPDATA": ""},
+            clear=False,
+        ), mock.patch.object(self.module.shutil, "which", return_value=None), \
+             mock.patch.object(self.module.Path, "home", return_value=self.temp_path), \
+             mock.patch.object(self.module, "_wsl_windows_local_app_data", return_value=None):
+            self.assertEqual(self.module.find_nmem_command(), str(nmem))
+
+    def test_canonical_windows_desktop_shim_is_found_outside_path(self):
+        local_app_data = self.temp_path / "Local"
+        nmem = local_app_data / "Nowledge Mem CLI" / "bin" / "nmem.cmd"
+        nmem.parent.mkdir(parents=True)
+        nmem.write_text("@echo off\r\n", encoding="utf-8")
+
+        with mock.patch.dict(
+            self.module.os.environ,
+            {
+                "NMEM_CLI_PATH": "",
+                "PATH": "",
+                "LOCALAPPDATA": str(local_app_data),
+                "APPDATA": "",
+            },
+            clear=False,
+        ), mock.patch.object(self.module.shutil, "which", return_value=None), \
+             mock.patch.object(self.module.Path, "home", return_value=self.temp_path), \
+             mock.patch.object(self.module, "_wsl_windows_local_app_data", return_value=None):
+            self.assertIn(nmem, self.module._known_nmem_candidates())
+            with mock.patch.object(
+                self.module, "_known_nmem_candidates", return_value=[nmem]
+            ):
+                self.assertEqual(self.module.find_nmem_command(), str(nmem))
+
+    def test_legacy_program_files_desktop_shim_is_a_stable_candidate(self):
+        program_files = self.temp_path / "Program Files"
+        nmem = program_files / "Nowledge Mem" / "cli" / "nmem.cmd"
+        nmem.parent.mkdir(parents=True)
+        nmem.write_text("@echo off\r\n", encoding="utf-8")
+
+        with mock.patch.dict(
+            self.module.os.environ,
+            {
+                "LOCALAPPDATA": "",
+                "APPDATA": "",
+                "PROGRAMFILES": str(program_files),
+                "PROGRAMW6432": "",
+                "PROGRAMFILES(X86)": "",
+            },
+            clear=False,
+        ), mock.patch.object(self.module.Path, "home", return_value=self.temp_path), \
+             mock.patch.object(self.module, "_wsl_windows_local_app_data", return_value=None):
+            self.assertIn(nmem, self.module._known_nmem_candidates())
 
 
 class LauncherTests(unittest.TestCase):
@@ -832,6 +916,41 @@ class InstallHookTests(unittest.TestCase):
         with mock.patch.object(self.module.shutil, "which", return_value="codex"), \
              mock.patch.object(self.module.subprocess, "run", return_value=active):
             self.assertTrue(self.module.codex_requires_legacy_plugin_hooks_gate())
+
+    def test_mcp_probe_uses_shared_cli_resolver_outside_path(self):
+        proc = mock.Mock(returncode=0, stdout='{"toml":"ok"}', stderr="")
+        command = [
+            r"C:\Program Files\Nowledge Mem\cli\nmem.cmd",
+            "--json",
+            "config",
+            "mcp",
+            "show",
+            "--host",
+            "codex",
+        ]
+        with mock.patch.object(
+            self.module,
+            "_find_nmem_command",
+            return_value=r"C:\Program Files\Nowledge Mem\cli\nmem.cmd",
+        ), mock.patch.object(
+            self.module, "_build_nmem_command", return_value=command
+        ) as build, mock.patch.object(
+            self.module, "_windows_no_window_kwargs", return_value={}
+        ), mock.patch.object(
+            self.module.subprocess, "run", return_value=proc
+        ) as run:
+            self.assertEqual(self.module._load_codex_mcp_payload(), {"toml": "ok"})
+
+        build.assert_called_once_with(
+            r"C:\Program Files\Nowledge Mem\cli\nmem.cmd",
+            "--json",
+            "config",
+            "mcp",
+            "show",
+            "--host",
+            "codex",
+        )
+        self.assertEqual(run.call_args.args[0], command)
 
     def test_ensure_codex_hooks_enabled_ignores_bracket_values_inside_features(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)

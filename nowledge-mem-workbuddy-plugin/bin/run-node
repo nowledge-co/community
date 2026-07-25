@@ -1,0 +1,45 @@
+#!/bin/sh
+# WorkBuddy adds its managed Node runtime to PATH before plugin hooks run.
+
+set -e
+
+resolve_from_path() {
+  command -v node 2>/dev/null
+}
+
+resolve_from_managed_dirs() {
+  root=${WORKBUDDY_CONFIG_DIR:-${CODEBUDDY_CONFIG_DIR:-$HOME/.workbuddy}}
+  versions_dir="$root/binaries/node/versions"
+  [ -d "$versions_dir" ] || return 1
+
+  names=""
+  for dir in "$versions_dir"/*/; do
+    [ -d "$dir" ] || continue
+    name=${dir%/}
+    name=${name##*/}
+    case "$name" in
+      *.installing.*|*.__extract_temp__*) continue ;;
+    esac
+    names="$names$name
+"
+  done
+  [ -n "$names" ] || return 1
+
+  for version in $(printf '%s' "$names" | sort -Vr); do
+    candidate="$versions_dir/$version/bin/node"
+    if [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+NODE_BIN=$(resolve_from_path || resolve_from_managed_dirs || true)
+
+if [ -z "$NODE_BIN" ]; then
+  echo "[nowledge-mem] WorkBuddy's managed Node runtime is unavailable" >&2
+  exit 127
+fi
+
+exec "$NODE_BIN" "$@"

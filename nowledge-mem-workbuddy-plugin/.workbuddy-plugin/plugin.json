@@ -1,20 +1,21 @@
 {
   "name": "nowledge-mem",
-  "version": "0.1.0",
-  "description": "Cross-tool memory for CodeBuddy. Recall past decisions, search prior threads, and keep CodeBuddy sessions searchable in Nowledge Mem.",
+  "version": "0.2.0",
+  "description": "Cross-tool memory for WorkBuddy. Start with current context and keep WorkBuddy conversations searchable across every connected AI tool.",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",
     "url": "https://nowledge-labs.ai"
   },
-  "homepage": "https://mem.nowledge.co/docs/integrations/codebuddy",
+  "homepage": "https://mem.nowledge.co/docs/integrations/workbuddy",
   "repository": "https://github.com/nowledge-co/community.git",
   "license": "MIT",
   "keywords": [
     "memory",
     "mcp",
     "skills",
+    "hooks",
     "thread-sync",
-    "codebuddy"
+    "workbuddy"
   ]
 }

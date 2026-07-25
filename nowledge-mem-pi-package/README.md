@@ -137,6 +137,8 @@ That keeps your custom behavior durable across package updates.
 
 **Check status:** Ask Pi to run the `status` skill, or run `nmem status` directly.
 
+**Extension diagnostics:** Automatic sync failures retry on a later lifecycle event without writing raw diagnostics into Pi's interactive editor. Set `NMEM_PLUGIN_DEBUG=1` before starting Pi when troubleshooting the extension itself.
+
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/pi)

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.29] - 2026-07-23
+
+### Fixed
+
+- Manual Codex handoff now uses a packaged CLI runner instead of assuming that
+  Codex Desktop inherited the login shell's PATH. The same resolver also keeps
+  SessionStart context and Stop capture working when Codex exposes only its
+  controlled runtime paths, while preserving native Windows and WSL launch
+  behavior across both current user-local installs and earlier `Program Files`
+  installs.
+
 ## [0.1.28] - 2026-07-16
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cross-tool memory for CodeBuddy. Recall past decisions, search prior threads, and keep CodeBuddy sessions searchable in Nowledge Mem.",
   "author": {
     "name": "Nowledge Labs",

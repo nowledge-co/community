@@ -15,6 +15,15 @@ from pathlib import Path
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
+PLUGIN_HOOKS_DIR = PLUGIN_ROOT / "hooks"
+if str(PLUGIN_HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(PLUGIN_HOOKS_DIR))
+
+from nmem_runtime import build_nmem_command as _build_nmem_command
+from nmem_runtime import find_nmem_command as _find_nmem_command
+from nmem_runtime import windows_no_window_kwargs as _windows_no_window_kwargs
+
+
 CODEX_DIR = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).expanduser()
 HOOKS_DIR = CODEX_DIR / "hooks"
 GLOBAL_HOOKS_FILE = CODEX_DIR / "hooks.json"
@@ -343,7 +352,7 @@ def ensure_nowledge_plugin_hook_state_enabled() -> None:
 
 
 def _load_codex_mcp_payload() -> dict | None:
-    nmem = shutil.which("nmem")
+    nmem = _find_nmem_command()
     if not nmem:
         print(
             "warning: nmem not found; skipped Codex MCP config check",
@@ -353,13 +362,16 @@ def _load_codex_mcp_payload() -> dict | None:
 
     try:
         proc = subprocess.run(
-            [nmem, "--json", "config", "mcp", "show", "--host", "codex"],
+            _build_nmem_command(
+                nmem, "--json", "config", "mcp", "show", "--host", "codex"
+            ),
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             check=False,
             timeout=8,
+            **_windows_no_window_kwargs(),
         )
     except (OSError, subprocess.TimeoutExpired) as error:
         print(

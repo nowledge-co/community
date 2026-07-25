@@ -9,14 +9,29 @@ MCP retrieval and memory-write tools do not replace this path. Real Codex thread
 
 ## Command
 
+Run the platform-specific packaged runner under `scripts/`, resolving that path
+relative to this `SKILL.md` as required by Codex's skill rules. The runner
+locates the installed desktop or standalone CLI even when Codex Desktop uses a
+controlled PATH. Do not add a Python or Node launcher; those commands can be
+absent from the same controlled PATH.
+
+On macOS and Linux:
+
 ```bash
-nmem --json t save --from codex -p . -s "Brief summary of what was accomplished"
+"<skill-dir>/scripts/save_thread.sh" --json t save --from codex -p . -s "Brief summary of what was accomplished"
+```
+
+On Windows PowerShell:
+
+```powershell
+& "<skill-dir>\scripts\save_thread.ps1" --json t save --from codex -p . -s "Brief summary of what was accomplished"
 ```
 
 ## Workflow
 
 1. Write a concise 1-2 sentence summary of what was accomplished.
-2. Run the save command.
+2. Replace `<skill-dir>` with the absolute directory containing this `SKILL.md`,
+   then run the platform-appropriate command above.
 3. Report whether the thread was created or updated, how many messages were stored, and the thread ID.
 
 ## Options

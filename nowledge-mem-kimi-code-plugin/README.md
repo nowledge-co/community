@@ -5,6 +5,7 @@ Cross-tool memory for Kimi Code. Your decisions, preferences, procedures, and us
 ## What You Get
 
 - Kimi Code can read Context Bundle / Working Memory before important work.
+- Named Raft/Kimi workers retain `NMEM_AGENT_ID` through the CLI startup bundle and explicit typed MCP arguments, even though current Kimi remote MCP config cannot expand arbitrary environment-backed HTTP headers.
 - Kimi Code can search memories and prior threads through MCP, with `nmem` CLI fallback.
 - Kimi Code can save durable decisions and procedures into Nowledge Mem.
 - Kimi Code conversations sync into Mem Threads through native plugin lifecycle hooks.
@@ -84,6 +85,8 @@ nmem config mcp show --host kimi-code
 ```
 
 Paste the generated block into `$KIMI_CODE_HOME/mcp.json` or `~/.kimi-code/mcp.json`, then start a new Kimi Code session.
+
+Kimi Code currently supports static remote MCP headers and an environment-backed bearer token, but not arbitrary environment-backed headers. The plugin therefore reads Context Bundle through `nmem` at session start. When `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, or `NMEM_SPACE` is present, the skill carries the resolved identity and Space as typed arguments on subsequent MCP calls. Do not put one Agent's ID into shared user-level `mcp.json`.
 
 If your installed `nmem` does not recognize `--host kimi-code` yet, update `nmem-cli` first. As a temporary fallback, add the generic streamable HTTP MCP block from the Mem docs and set the URL/API key manually.
 

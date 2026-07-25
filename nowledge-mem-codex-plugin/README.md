@@ -54,7 +54,8 @@ Use `recall` for fuzzy intent, `find` for metadata, `grep` for exact strings, `s
 
 ## Prerequisites
 
-`nmem` CLI must be in your PATH.
+The `nmem` CLI must be installed. The plugin resolves the desktop-managed CLI
+outside the shell PATH when Codex Desktop uses a controlled runtime environment.
 
 **Quickest path** (if the Nowledge Mem desktop app is running):
 Settings > Preferences > Developer Tools > Install CLI
@@ -358,7 +359,12 @@ If you used `nowledge-mem-codex-prompts` before:
 
 ## Troubleshooting
 
-- **"Command not found: nmem"**: `pip install nmem-cli` or use `uvx --from nmem-cli nmem`. See [Getting Started](https://mem.nowledge.co/docs/installation).
+- **"Command not found: nmem"**: update the plugin to `0.1.29` or newer. Its
+  handoff skill and lifecycle hooks resolve the desktop-managed CLI even when
+  Codex Desktop does not inherit `/usr/local/bin` or `~/.local/bin`. If the
+  packaged runner reports that the CLI is not installed, use **Settings >
+  Preferences > Developer Tools > Install CLI** in Nowledge Mem, or install the
+  standalone CLI with `pip install nmem-cli`. See [Getting Started](https://mem.nowledge.co/docs/installation).
 - **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
 - **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed with `codex plugin add` or from `/plugins`, and `~/.codex/config.toml` has `[features] plugins = true`, `hooks = true`, and `[plugins."nowledge-mem@nowledge-community"] enabled = true`. Older Codex builds may also need `plugin_hooks = true`; rerun setup instead of guessing. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
 - **Startup context or Codex threads are not appearing automatically**: rerun `scripts/install_hooks.py` from the installed plugin folder, restart Codex, then review `/hooks`. The Nowledge Mem SessionStart, UserPromptSubmit, and Stop hooks must be both enabled and trusted. The setup script handles the removed-versus-legacy `plugin_hooks` gate automatically.

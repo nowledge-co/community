@@ -36,6 +36,7 @@ KIMI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-kimi-code-plugin"
 KIMI_WORK_CONNECTOR = COMMUNITY_ROOT / "nowledge-mem-kimi-work-connector"
 BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
 CODEBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-codebuddy-plugin"
+WORKBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-workbuddy-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
 KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
@@ -354,7 +355,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.28"
+    assert codex_manifest["version"] == "0.1.29"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -405,6 +406,13 @@ def test_key_plugin_static_contracts_are_declared():
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
     assert "from nmem_runtime import" in codex_save_hook
     assert "CREATE_NO_WINDOW" in codex_runtime
+    codex_save_skill = (
+        CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert (CODEX_PLUGIN / "skills" / "save-thread" / "scripts" / "save_thread.sh").exists()
+    assert (CODEX_PLUGIN / "skills" / "save-thread" / "scripts" / "save_thread.ps1").exists()
+    assert "scripts/save_thread.sh" in codex_save_skill
+    assert "scripts\\save_thread.ps1" in codex_save_skill
 
     openclaw_manifest = _read_json(OPENCLAW_PLUGIN / "openclaw.plugin.json")
     openclaw_pkg = _read_json(OPENCLAW_PLUGIN / "package.json")
@@ -550,10 +558,83 @@ def test_key_plugin_static_contracts_are_declared():
     assert "rendered_markdown" in cursor_hook
     assert "'wm', 'read'" in cursor_hook
 
+    workbuddy_marketplace = _read_json(
+        COMMUNITY_ROOT / ".workbuddy-plugin" / "marketplace.json"
+    )
+    workbuddy_marketplace_plugin = next(
+        plugin
+        for plugin in workbuddy_marketplace["plugins"]
+        if plugin.get("name") == "nowledge-mem"
+    )
+    codebuddy_marketplace = _read_json(
+        COMMUNITY_ROOT / ".codebuddy-plugin" / "marketplace.json"
+    )
+    codebuddy_marketplace_plugin = next(
+        plugin
+        for plugin in codebuddy_marketplace["plugins"]
+        if plugin.get("name") == "nowledge-mem"
+    )
+    codebuddy_manifest = _read_json(
+        CODEBUDDY_PLUGIN / ".codebuddy-plugin" / "plugin.json"
+    )
+    workbuddy_manifest = _read_json(
+        WORKBUDDY_PLUGIN / ".workbuddy-plugin" / "plugin.json"
+    )
+    workbuddy_mcp = _read_json(WORKBUDDY_PLUGIN / ".mcp.json")
+    workbuddy_hooks = _read_json(WORKBUDDY_PLUGIN / "hooks" / "hooks.json")["hooks"]
+    workbuddy_hook_source = (
+        WORKBUDDY_PLUGIN / "scripts" / "nowledge-mem-hook.mjs"
+    ).read_text(encoding="utf-8")
+    assert workbuddy_manifest["version"] == "0.2.0"
+    assert registry_by_id["workbuddy"]["version"] == workbuddy_manifest["version"]
+    assert registry_by_id["workbuddy"]["directory"] == WORKBUDDY_PLUGIN.name
+    assert workbuddy_marketplace_plugin["version"] == workbuddy_manifest["version"]
+    assert workbuddy_marketplace_plugin["source"] == {
+        "source": "git-subdir",
+        "url": "https://github.com/nowledge-co/community.git",
+        "subdir": WORKBUDDY_PLUGIN.name,
+    }
+    assert (
+        ".workbuddy-plugin/marketplace.json"
+        in registry_by_id["workbuddy"]["install"]["command"]
+    )
+    assert (
+        "marketplace remove nowledge-community"
+        in registry_by_id["workbuddy"]["install"]["updateCommand"]
+    )
+    assert codebuddy_manifest["version"] == "0.1.1"
+    assert registry_by_id["codebuddy"]["version"] == codebuddy_manifest["version"]
+    assert codebuddy_marketplace_plugin["version"] == codebuddy_manifest["version"]
+    assert codebuddy_marketplace_plugin["source"] == f"./{CODEBUDDY_PLUGIN.name}"
+    assert not (CODEBUDDY_PLUGIN / ".workbuddy-plugin" / "plugin.json").exists()
+    assert (
+        workbuddy_mcp["mcpServers"]["nowledge-mem"]["headers"]["APP"]
+        == "WorkBuddy"
+    )
+    assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop", "SubagentStop", "SessionEnd"} <= set(
+        workbuddy_hooks
+    )
+    assert "python" not in json.dumps(workbuddy_hooks).lower()
+    assert "${CODEBUDDY_PLUGIN_ROOT}/bin/run-node" in json.dumps(workbuddy_hooks)
+    assert "agent_transcript_path" in workbuddy_hook_source
+    assert '"--from",' in workbuddy_hook_source
+    assert "SOURCE_APP" in workbuddy_hook_source
+    assert "NMEM_CLI_PATH" in workbuddy_hook_source
+    assert "Nowledge Mem CLI" in workbuddy_hook_source
+    assert "Nowledge Mem\", \"cli\", \"nmem.cmd" in workbuddy_hook_source
+    assert "windowsHide: true" in workbuddy_hook_source
+    assert "suppressOutput: true" in workbuddy_hook_source
+    assert "hookSpecificOutput" in workbuddy_hook_source
+    assert "DEFAULT_COMMAND_TIMEOUT_MS = 25_000" in workbuddy_hook_source
+    assert "Math.min(configuredTimeout, 18_000)" in workbuddy_hook_source
+    assert "Math.min(configuredTimeout, 7_000)" in workbuddy_hook_source
+    assert (WORKBUDDY_PLUGIN / "bin" / "run-node").stat().st_mode & 0o111
+    assert (WORKBUDDY_PLUGIN / "CHANGELOG.md").exists()
+
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.3"
+    assert pi_pkg["version"] == "0.8.5"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
@@ -593,6 +674,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert "quoteWindowsBatchArg" in pi_extension
     assert "rejectWindowsCmdEnvExpansion" in pi_extension
     assert '["/d", "/s", "/c", line]' in pi_extension
+    assert "windowsVerbatimArguments: true" in pi_extension
+    assert 'const line = `"${windowsCommandLine(["nmem.cmd", ...baseArgs])}"`' in pi_extension
     assert "source_app=${source}" in pi_extension
     before_agent_start_block = pi_extension.split('pi.on("before_agent_start"', 1)[1].split('pi.on("agent_end"', 1)[0]
     assert "message:" not in before_agent_start_block
@@ -600,14 +683,14 @@ def test_key_plugin_static_contracts_are_declared():
     omp_pkg = _read_json(OMP_PLUGIN / "package.json")
     omp_extension = (OMP_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     omp_agent = (OMP_PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
-    assert omp_pkg["version"] == "0.1.0"
-    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.3"
+    assert omp_pkg["version"] == "0.1.1"
+    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.4"
     assert "./extensions/nowledge-mem.ts" in omp_pkg["omp"]["extensions"]
     assert "./skills" in omp_pkg["omp"]["skills"]
     assert "pi" not in omp_pkg
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "omp"' in omp_extension
     assert 'process.env.NMEM_PLUGIN_HOST_LABEL = "OMP"' in omp_extension
-    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.0"' in omp_extension
+    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.1"' in omp_extension
     assert 'import("nowledge-mem-pi/extensions/nowledge-mem.ts")' in omp_extension
     assert "nmem --json context --source-app omp" in omp_agent
     assert "source_app=omp" in omp_agent
@@ -643,7 +726,7 @@ def test_key_plugin_static_contracts_are_declared():
     for hook in kimi_root_manifest["hooks"]:
         assert "nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py" in hook["command"]
     assert kimi_manifest["name"] == "nowledge-mem"
-    assert kimi_manifest["version"] == "0.2.1"
+    assert kimi_manifest["version"] == "0.2.2"
     assert kimi_manifest["skills"] == "./skills/"
     assert kimi_manifest["sessionStart"]["skill"] == "nowledge-mem"
     assert kimi_manifest["mcpServers"]["nowledge-mem"]["url"] == "http://127.0.0.1:14242/mcp/"
@@ -664,6 +747,10 @@ def test_key_plugin_static_contracts_are_declared():
         assert "outdated" in command_text
         assert "CLI" in command_text
     assert "nmem --json context --source-app kimi-code" in kimi_skill
+    assert "authorship.agent_id" in kimi_skill
+    assert "active_space.primary_space_id" in kimi_skill
+    assert "cannot map arbitrary process environment variables into headers" in kimi_skill
+    assert "Never derive an identity from `source_app`" in kimi_skill
     assert "nmem --json t sync --from kimi-code --session-id <session-id> --apply" in kimi_skill
     assert "outdated CLI" in kimi_skill
     assert "source_app=kimi-code" in kimi_skill
@@ -714,30 +801,146 @@ def test_key_plugin_static_contracts_are_declared():
     assert "windowsHide: true" in alma_source
 
 
-def test_codebuddy_hook_distinguishes_workbuddy_config_dirs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
-    hook = _load_python_module(
-        CODEBUDDY_PLUGIN / "scripts" / "codebuddy-sync-hook.py",
-        "nowledge_mem_codebuddy_sync_hook",
+def _run_workbuddy_hook(
+    mode: str,
+    payload: dict[str, Any],
+    *,
+    env: dict[str, str],
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            "node",
+            str(WORKBUDDY_PLUGIN / "scripts" / "nowledge-mem-hook.mjs"),
+            mode,
+        ],
+        input=json.dumps(payload),
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
     )
-    workbuddy_home = tmp_path / "custom-workbuddy"
-    codebuddy_home = tmp_path / "custom-codebuddy"
-    workbuddy_session = workbuddy_home / "projects" / "p" / "session.jsonl"
-    codebuddy_session = codebuddy_home / "projects" / "p" / "session.jsonl"
-    workbuddy_session.parent.mkdir(parents=True)
-    codebuddy_session.parent.mkdir(parents=True)
-    workbuddy_session.write_text("{}", encoding="utf-8")
-    codebuddy_session.write_text("{}", encoding="utf-8")
-    monkeypatch.setenv("WORKBUDDY_CONFIG_DIR", str(workbuddy_home))
-    monkeypatch.setenv("CODEBUDDY_CONFIG_DIR", str(codebuddy_home))
-    monkeypatch.delenv("NMEM_SOURCE_APP", raising=False)
 
-    assert hook._source_app_for_payload({"transcript_path": str(workbuddy_session)}) == "workbuddy"
-    assert hook._source_app_for_payload({"transcript_path": str(codebuddy_session)}) == "codebuddy"
 
-    monkeypatch.setenv("NMEM_SOURCE_APP", "workbuddy")
-    assert hook._source_app_for_payload({"transcript_path": str(codebuddy_session)}) == "workbuddy"
+def _write_fake_nmem(path: Path) -> None:
+    path.write_text(
+        dedent(
+            f"""\
+            #!{sys.executable}
+            import json
+            import os
+            import sys
+
+            capture = os.environ.get("NMEM_TEST_CAPTURE")
+            if capture:
+                with open(capture, "w", encoding="utf-8") as handle:
+                    json.dump(sys.argv[1:], handle)
+            if "context" in sys.argv:
+                print(json.dumps({{"rendered_markdown": "Current WorkBuddy context"}}))
+            else:
+                print(json.dumps({{"ok": True}}))
+            """
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+
+
+def test_workbuddy_session_start_injects_rendered_context(tmp_path: Path):
+    fake_nmem = tmp_path / "nmem path with spaces"
+    _write_fake_nmem(fake_nmem)
+    env = os.environ.copy()
+    env["NMEM_CLI_PATH"] = str(fake_nmem)
+    env["CODEBUDDY_PLUGIN_DATA"] = str(tmp_path / "plugin data")
+
+    result = _run_workbuddy_hook(
+        "context",
+        {"hook_event_name": "SessionStart", "session_id": "wb-start"},
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)
+    assert output["continue"] is True
+    assert output["suppressOutput"] is True
+    assert (
+        output["hookSpecificOutput"]["additionalContext"]
+        == "Current WorkBuddy context"
+    )
+
+
+def test_workbuddy_subagent_stop_syncs_exact_agent_transcript(tmp_path: Path):
+    fake_nmem = tmp_path / "nmem"
+    _write_fake_nmem(fake_nmem)
+    main_transcript = tmp_path / "main session.jsonl"
+    agent_transcript = tmp_path / "agent session.jsonl"
+    main_transcript.write_text("{}\n", encoding="utf-8")
+    agent_transcript.write_text("{}\n", encoding="utf-8")
+    capture = tmp_path / "args.json"
+    env = os.environ.copy()
+    env["NMEM_CLI_PATH"] = str(fake_nmem)
+    env["NMEM_TEST_CAPTURE"] = str(capture)
+    env["CODEBUDDY_PLUGIN_DATA"] = str(tmp_path / "plugin data")
+
+    result = _run_workbuddy_hook(
+        "sync",
+        {
+            "hook_event_name": "SubagentStop",
+            "session_id": "wb-parent-1",
+            "agent_id": "wb-agent-1",
+            "transcript_path": str(main_transcript),
+            "agent_transcript_path": str(agent_transcript),
+        },
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {"continue": True, "suppressOutput": True}
+    args = json.loads(capture.read_text(encoding="utf-8"))
+    assert args == [
+        "--json",
+        "t",
+        "sync",
+        "--from",
+        "workbuddy",
+        "--session-id",
+        "wb-agent-1",
+        "--session-dir",
+        str(agent_transcript),
+        "--all-projects",
+        "--apply",
+    ]
+
+
+def test_workbuddy_hook_fails_open_when_nmem_is_unavailable(tmp_path: Path):
+    env = os.environ.copy()
+    env["NMEM_CLI_PATH"] = str(tmp_path / "missing-nmem")
+    env["PATH"] = str(tmp_path / "empty-path")
+    env["CODEBUDDY_PLUGIN_DATA"] = str(tmp_path / "plugin data")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json, os, subprocess; "
+                f"p=subprocess.run([{json.dumps(shutil.which('node') or 'node')}, "
+                f"{json.dumps(str(WORKBUDDY_PLUGIN / 'scripts' / 'nowledge-mem-hook.mjs'))}, "
+                "'context'], input=json.dumps({'hook_event_name':'SessionStart'}), "
+                "text=True, capture_output=True, env=os.environ); "
+                "print(json.dumps({'returncode':p.returncode,'stdout':p.stdout,'stderr':p.stderr}))"
+            ),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    nested = json.loads(result.stdout)
+    assert nested["returncode"] == 0
+    assert json.loads(nested["stdout"]) == {"continue": True, "suppressOutput": True}
 
 
 def test_kimi_code_hook_installer_uses_isolated_kimi_home(tmp_path: Path):
@@ -1167,10 +1370,10 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.4"
     assert by_id["opencode"]["version"] == "0.3.5"
-    assert by_id["pi"]["version"] == "0.8.3"
+    assert by_id["pi"]["version"] == "0.8.5"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
-    assert by_id["kimi-code"]["version"] == "0.2.1"
+    assert by_id["kimi-code"]["version"] == "0.2.2"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "mcp+skills+hook"
     assert by_id["kimi-code"]["capabilities"]["autoCapture"] is True
@@ -1192,6 +1395,11 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     )
     assert by_id["kimi-work"]["autonomy"]["threads"] == "import-only"
     assert by_id["kimi-work"]["skills"] == ["nowledge-mem"]
+    assert by_id["antigravity-extractor"]["threadSave"]["method"] == "cli-native"
+    assert by_id["antigravity-extractor"]["autonomy"]["threads"] == "import-only"
+    assert "nmem t sync --from antigravity" in by_id["antigravity-extractor"][
+        "autonomy"
+    ]["bestResultRequires"][0]
     for connector_id in ["zcode", "mimo-code"]:
         connector = by_id[connector_id]
         assert connector["version"] is None
@@ -1216,7 +1424,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
-    assert by_id["omp"]["version"] == "0.1.0"
+    assert by_id["omp"]["version"] == "0.1.1"
     assert by_id["omp"]["directory"] == "nowledge-mem-omp-plugin"
     assert by_id["omp"]["transport"] == "plugin+cli"
     assert by_id["omp"]["capabilities"]["autoRecall"] is True
@@ -1298,6 +1506,27 @@ def test_opencode_plugin_static_contract_is_self_contained():
     assert "compaction hook now injects" in changelog
 
 
+def test_host_owned_official_integrations_keep_their_real_boundaries():
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    by_id = {entry["id"]: entry for entry in registry["integrations"]}
+    does_not_apply = set(registry["connect"]["doesNotApplyTo"])
+
+    for integration_id in ("cradle", "arkloop", "opticlm"):
+        entry = by_id[integration_id]
+        assert entry["directory"] is None
+        assert entry["externalRepo"].startswith("https://github.com/")
+        assert entry["install"]["docsUrl"] == f"/docs/integrations/{integration_id}"
+        assert "agentGuide" not in entry["install"]
+        assert integration_id in does_not_apply
+
+    assert by_id["cradle"]["autonomy"]["threads"] == "explicit-save"
+    assert by_id["cradle"]["capabilities"]["autoCapture"] is False
+    assert by_id["arkloop"]["autonomy"]["recall"] == "automatic"
+    assert by_id["arkloop"]["autonomy"]["threads"] == "automatic-capture"
+    assert by_id["opticlm"]["capabilities"]["workingMemory"] is False
+    assert by_id["opticlm"]["capabilities"]["autoRecall"] is False
+
+
 def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
     bub_pyproject = (BUB_PLUGIN / "pyproject.toml").read_text(encoding="utf-8")
     bub_client = (
@@ -1362,6 +1591,185 @@ def test_key_plugin_credentials_stay_out_of_static_runtime_urls():
     assert "nmem_api_key=" not in hermes_client
     assert "nmem_api_key=" not in openclaw_client
     assert "Authorization" not in (CODEX_PLUGIN / ".mcp.json").read_text(encoding="utf-8")
+
+
+def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
+    if shutil.which("bun") is None:
+        pytest.skip("Pi extension concurrency smoke requires bun on PATH")
+
+    script = dedent(
+        """
+        import http from "node:http";
+
+        delete process.env.NMEM_PLUGIN_DEBUG;
+        const warnings = [];
+        console.warn = (...args) => warnings.push(args.map(String).join(" "));
+
+        const { default: nowledgeMemPi } = await import(process.env.PI_EXTENSION_URL);
+        const calls = [];
+        let latestAppendCompleted = false;
+        let resolveCreateSeen;
+        const createSeen = new Promise((resolve) => { resolveCreateSeen = resolve; });
+        const server = http.createServer((req, res) => {
+          let raw = "";
+          req.on("data", (chunk) => raw += chunk);
+          req.on("end", () => {
+            const body = raw ? JSON.parse(raw) : {};
+            calls.push({ url: req.url, body });
+            if (body.thread_id === "pi-transport-failure") {
+              req.socket.destroy();
+              return;
+            }
+            res.setHeader("content-type", "application/json");
+            if (body.thread_id === "pi-existing-thread") {
+              res.statusCode = 409;
+              res.end(JSON.stringify({ detail: "thread already exists" }));
+              return;
+            }
+            if (req.url === "/threads") {
+              resolveCreateSeen();
+              setTimeout(() => res.end(JSON.stringify({ ok: true })), 100);
+              return;
+            }
+            if (req.url?.includes("pi-latest-payload")) {
+              setTimeout(() => {
+                latestAppendCompleted = true;
+                res.end(JSON.stringify({ ok: true }));
+              }, 100);
+              return;
+            }
+            res.end(JSON.stringify({ ok: true }));
+          });
+        });
+        await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const { port } = server.address();
+        process.env.NMEM_API_URL = `http://127.0.0.1:${port}`;
+
+        const handlers = new Map();
+        nowledgeMemPi({ on(event, handler) { handlers.set(event, handler); } });
+        const entriesFor = (prefix) => [
+          {
+            id: `${prefix}-u1`,
+            type: "message",
+            timestamp: "2026-07-22T10:00:00Z",
+            message: { role: "user", content: `${prefix} user one` },
+          },
+          {
+            id: `${prefix}-a1`,
+            type: "message",
+            timestamp: "2026-07-22T10:00:01Z",
+            message: { role: "assistant", content: `${prefix} assistant one` },
+          },
+        ];
+        const contextFor = (id, entries) => ({
+          hasUI: true,
+          sessionManager: {
+            getBranch: () => entries,
+            getSessionId: () => id,
+            getSessionName: () => id,
+            getCwd: () => "/tmp/pi-sync-contract",
+            getSessionFile: () => `/tmp/pi-sync-contract/${id}.jsonl`,
+          },
+        });
+
+        const failedEntries = entriesFor("failed");
+        await handlers.get("session_before_compact")?.(
+          { type: "session_before_compact" },
+          contextFor("transport-failure", failedEntries),
+        );
+
+        const existingEntries = entriesFor("existing");
+        await handlers.get("session_before_compact")?.(
+          { type: "session_before_compact" },
+          contextFor("existing-thread", existingEntries),
+        );
+
+        const latestEntries = entriesFor("latest");
+        const latestContext = contextFor("latest-payload", latestEntries);
+        const first = handlers.get("session_before_compact")?.(
+          { type: "session_before_compact" },
+          latestContext,
+        );
+        await createSeen;
+        latestEntries.push(
+          {
+            id: "latest-u2",
+            type: "message",
+            timestamp: "2026-07-22T10:00:02Z",
+            message: { role: "user", content: "latest user two" },
+          },
+          {
+            id: "latest-a2",
+            type: "message",
+            timestamp: "2026-07-22T10:00:03Z",
+            message: { role: "assistant", content: "latest assistant two" },
+          },
+        );
+        let secondResolvedAfterAppend = false;
+        const second = handlers.get("session_before_compact")?.(
+          { type: "session_before_compact" },
+          latestContext,
+        ).then(() => {
+          secondResolvedAfterAppend = latestAppendCompleted;
+        });
+        await Promise.all([first, second]);
+
+        const boundaryEntries = entriesFor("boundary");
+        const boundaryContext = contextFor("boundary", boundaryEntries);
+        await handlers.get("agent_end")?.({ type: "agent_end" }, boundaryContext);
+        await handlers.get("session_shutdown")?.(
+          { type: "session_shutdown", reason: "quit" },
+          boundaryContext,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 850));
+        await new Promise((resolve) => server.close(resolve));
+
+        const failedCalls = calls.filter((call) =>
+          call.body.thread_id === "pi-transport-failure" ||
+          call.url?.includes("pi-transport-failure")
+        );
+        if (failedCalls.length !== 1 || failedCalls[0].url !== "/threads") {
+          throw new Error(`transport failure was amplified: ${JSON.stringify(failedCalls)}`);
+        }
+        const existingCalls = calls.filter((call) =>
+          call.body.thread_id === "pi-existing-thread" ||
+          call.url?.includes("pi-existing-thread")
+        );
+        if (existingCalls.length !== 2 || existingCalls[1].body.messages.length !== 2) {
+          throw new Error(`existing thread did not append: ${JSON.stringify(existingCalls)}`);
+        }
+        const latestCalls = calls.filter((call) =>
+          call.body.thread_id === "pi-latest-payload" ||
+          call.url?.includes("pi-latest-payload")
+        );
+        if (latestCalls.length !== 2) {
+          throw new Error(`expected create plus latest append: ${JSON.stringify(latestCalls)}`);
+        }
+        if (latestCalls[0].body.messages.length !== 2) {
+          throw new Error(`initial payload changed: ${JSON.stringify(latestCalls[0])}`);
+        }
+        if (latestCalls[1].body.messages.length !== 4) {
+          throw new Error(`latest payload was dropped: ${JSON.stringify(latestCalls[1])}`);
+        }
+        if (!secondResolvedAfterAppend) {
+          throw new Error("concurrent lifecycle flush returned before the latest payload completed");
+        }
+        const boundaryCalls = calls.filter((call) =>
+          call.body.thread_id === "pi-boundary" || call.url?.includes("pi-boundary")
+        );
+        if (boundaryCalls.length !== 1) {
+          throw new Error(`session boundary duplicated sync: ${JSON.stringify(boundaryCalls)}`);
+        }
+        if (warnings.length !== 0) {
+          throw new Error(`interactive diagnostics leaked to stderr: ${JSON.stringify(warnings)}`);
+        }
+        console.log(JSON.stringify({ ok: true, calls: calls.length }));
+        """
+    )
+    env = os.environ.copy()
+    env["PI_EXTENSION_URL"] = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").resolve().as_uri()
+    result = _run(["bun", "--eval", script], env=env, timeout=30)
+    assert '"ok":true' in result.stdout.replace(" ", "")
 
 
 @pytest.mark.skipif(_skip_live_host("pi"), reason="Pi live E2E not requested")
@@ -2048,7 +2456,7 @@ def test_opencode_live_tool_thread_capture(e2e_context: E2EContext, tmp_path: Pa
 
     env = e2e_context.env.copy()
     env["OPENCODE_CONFIG_CONTENT"] = json.dumps({"plugin": [str(plugin_copy)]})
-    model = os.environ.get("NMEM_E2E_OPENCODE_MODEL", "opencode/minimax-m2.5-free")
+    model = os.environ.get("NMEM_E2E_OPENCODE_MODEL", "opencode/mimo-v2.5-free")
     prompt = (
         f"Nowledge Mem OpenCode integration test marker {e2e_context.marker}. "
         "First call the nowledge_mem_status tool. "
