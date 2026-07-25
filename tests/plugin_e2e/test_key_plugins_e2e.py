@@ -1496,9 +1496,8 @@ def test_opencode_plugin_static_contract_is_self_contained():
     assert 'statusType === "idle"' in source
     assert 'event.type === "session.idle"' in source
     assert '"experimental.session.compacting": async (input, output)' in source
-    assert "Array.isArray(output.context)" in source
     assert "output.context.push(reminder)" in source
-    assert 'output.prompt = [output.prompt, reminder].filter(Boolean).join("\\n\\n")' in source
+    assert "output.prompt" not in source
 
     assert '"plugin": ["opencode-nowledge-mem"]' in readme
     assert "nmem t sync --from opencode --all-projects --apply" in readme

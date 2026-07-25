@@ -713,11 +713,7 @@ export default {
           "After compaction, call nowledge_mem_context_bundle when identity, scope, or rules matter; use nowledge_mem_working_memory as the lightweight fallback.",
           "Continue searching and saving proactively.",
         ].join("\n")
-        if (Array.isArray(output.context)) {
-          output.context.push(reminder)
-        } else {
-          output.prompt = [output.prompt, reminder].filter(Boolean).join("\n\n")
-        }
+        output.context.push(reminder)
       },
     }
   },
