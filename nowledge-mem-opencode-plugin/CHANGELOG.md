@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- The compaction hook now injects the post-compaction Nowledge Mem reminder through OpenCode's required `output.context` array, preserving the host's default compaction prompt.
+
 ## [0.3.5] - 2026-07-08
 
 ### Added
