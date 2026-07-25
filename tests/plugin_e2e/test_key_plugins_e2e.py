@@ -36,6 +36,7 @@ KIMI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-kimi-code-plugin"
 KIMI_WORK_CONNECTOR = COMMUNITY_ROOT / "nowledge-mem-kimi-work-connector"
 BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
 CODEBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-codebuddy-plugin"
+WORKBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-workbuddy-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
 KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
@@ -557,6 +558,79 @@ def test_key_plugin_static_contracts_are_declared():
     assert "rendered_markdown" in cursor_hook
     assert "'wm', 'read'" in cursor_hook
 
+    workbuddy_marketplace = _read_json(
+        COMMUNITY_ROOT / ".workbuddy-plugin" / "marketplace.json"
+    )
+    workbuddy_marketplace_plugin = next(
+        plugin
+        for plugin in workbuddy_marketplace["plugins"]
+        if plugin.get("name") == "nowledge-mem"
+    )
+    codebuddy_marketplace = _read_json(
+        COMMUNITY_ROOT / ".codebuddy-plugin" / "marketplace.json"
+    )
+    codebuddy_marketplace_plugin = next(
+        plugin
+        for plugin in codebuddy_marketplace["plugins"]
+        if plugin.get("name") == "nowledge-mem"
+    )
+    codebuddy_manifest = _read_json(
+        CODEBUDDY_PLUGIN / ".codebuddy-plugin" / "plugin.json"
+    )
+    workbuddy_manifest = _read_json(
+        WORKBUDDY_PLUGIN / ".workbuddy-plugin" / "plugin.json"
+    )
+    workbuddy_mcp = _read_json(WORKBUDDY_PLUGIN / ".mcp.json")
+    workbuddy_hooks = _read_json(WORKBUDDY_PLUGIN / "hooks" / "hooks.json")["hooks"]
+    workbuddy_hook_source = (
+        WORKBUDDY_PLUGIN / "scripts" / "nowledge-mem-hook.mjs"
+    ).read_text(encoding="utf-8")
+    assert workbuddy_manifest["version"] == "0.2.0"
+    assert registry_by_id["workbuddy"]["version"] == workbuddy_manifest["version"]
+    assert registry_by_id["workbuddy"]["directory"] == WORKBUDDY_PLUGIN.name
+    assert workbuddy_marketplace_plugin["version"] == workbuddy_manifest["version"]
+    assert workbuddy_marketplace_plugin["source"] == {
+        "source": "git-subdir",
+        "url": "https://github.com/nowledge-co/community.git",
+        "subdir": WORKBUDDY_PLUGIN.name,
+    }
+    assert (
+        ".workbuddy-plugin/marketplace.json"
+        in registry_by_id["workbuddy"]["install"]["command"]
+    )
+    assert (
+        "marketplace remove nowledge-community"
+        in registry_by_id["workbuddy"]["install"]["updateCommand"]
+    )
+    assert codebuddy_manifest["version"] == "0.1.1"
+    assert registry_by_id["codebuddy"]["version"] == codebuddy_manifest["version"]
+    assert codebuddy_marketplace_plugin["version"] == codebuddy_manifest["version"]
+    assert codebuddy_marketplace_plugin["source"] == f"./{CODEBUDDY_PLUGIN.name}"
+    assert not (CODEBUDDY_PLUGIN / ".workbuddy-plugin" / "plugin.json").exists()
+    assert (
+        workbuddy_mcp["mcpServers"]["nowledge-mem"]["headers"]["APP"]
+        == "WorkBuddy"
+    )
+    assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop", "SubagentStop", "SessionEnd"} <= set(
+        workbuddy_hooks
+    )
+    assert "python" not in json.dumps(workbuddy_hooks).lower()
+    assert "${CODEBUDDY_PLUGIN_ROOT}/bin/run-node" in json.dumps(workbuddy_hooks)
+    assert "agent_transcript_path" in workbuddy_hook_source
+    assert '"--from",' in workbuddy_hook_source
+    assert "SOURCE_APP" in workbuddy_hook_source
+    assert "NMEM_CLI_PATH" in workbuddy_hook_source
+    assert "Nowledge Mem CLI" in workbuddy_hook_source
+    assert "Nowledge Mem\", \"cli\", \"nmem.cmd" in workbuddy_hook_source
+    assert "windowsHide: true" in workbuddy_hook_source
+    assert "suppressOutput: true" in workbuddy_hook_source
+    assert "hookSpecificOutput" in workbuddy_hook_source
+    assert "DEFAULT_COMMAND_TIMEOUT_MS = 25_000" in workbuddy_hook_source
+    assert "Math.min(configuredTimeout, 18_000)" in workbuddy_hook_source
+    assert "Math.min(configuredTimeout, 7_000)" in workbuddy_hook_source
+    assert (WORKBUDDY_PLUGIN / "bin" / "run-node").stat().st_mode & 0o111
+    assert (WORKBUDDY_PLUGIN / "CHANGELOG.md").exists()
+
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
@@ -727,30 +801,146 @@ def test_key_plugin_static_contracts_are_declared():
     assert "windowsHide: true" in alma_source
 
 
-def test_codebuddy_hook_distinguishes_workbuddy_config_dirs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
-    hook = _load_python_module(
-        CODEBUDDY_PLUGIN / "scripts" / "codebuddy-sync-hook.py",
-        "nowledge_mem_codebuddy_sync_hook",
+def _run_workbuddy_hook(
+    mode: str,
+    payload: dict[str, Any],
+    *,
+    env: dict[str, str],
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            "node",
+            str(WORKBUDDY_PLUGIN / "scripts" / "nowledge-mem-hook.mjs"),
+            mode,
+        ],
+        input=json.dumps(payload),
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
     )
-    workbuddy_home = tmp_path / "custom-workbuddy"
-    codebuddy_home = tmp_path / "custom-codebuddy"
-    workbuddy_session = workbuddy_home / "projects" / "p" / "session.jsonl"
-    codebuddy_session = codebuddy_home / "projects" / "p" / "session.jsonl"
-    workbuddy_session.parent.mkdir(parents=True)
-    codebuddy_session.parent.mkdir(parents=True)
-    workbuddy_session.write_text("{}", encoding="utf-8")
-    codebuddy_session.write_text("{}", encoding="utf-8")
-    monkeypatch.setenv("WORKBUDDY_CONFIG_DIR", str(workbuddy_home))
-    monkeypatch.setenv("CODEBUDDY_CONFIG_DIR", str(codebuddy_home))
-    monkeypatch.delenv("NMEM_SOURCE_APP", raising=False)
 
-    assert hook._source_app_for_payload({"transcript_path": str(workbuddy_session)}) == "workbuddy"
-    assert hook._source_app_for_payload({"transcript_path": str(codebuddy_session)}) == "codebuddy"
 
-    monkeypatch.setenv("NMEM_SOURCE_APP", "workbuddy")
-    assert hook._source_app_for_payload({"transcript_path": str(codebuddy_session)}) == "workbuddy"
+def _write_fake_nmem(path: Path) -> None:
+    path.write_text(
+        dedent(
+            f"""\
+            #!{sys.executable}
+            import json
+            import os
+            import sys
+
+            capture = os.environ.get("NMEM_TEST_CAPTURE")
+            if capture:
+                with open(capture, "w", encoding="utf-8") as handle:
+                    json.dump(sys.argv[1:], handle)
+            if "context" in sys.argv:
+                print(json.dumps({{"rendered_markdown": "Current WorkBuddy context"}}))
+            else:
+                print(json.dumps({{"ok": True}}))
+            """
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+
+
+def test_workbuddy_session_start_injects_rendered_context(tmp_path: Path):
+    fake_nmem = tmp_path / "nmem path with spaces"
+    _write_fake_nmem(fake_nmem)
+    env = os.environ.copy()
+    env["NMEM_CLI_PATH"] = str(fake_nmem)
+    env["CODEBUDDY_PLUGIN_DATA"] = str(tmp_path / "plugin data")
+
+    result = _run_workbuddy_hook(
+        "context",
+        {"hook_event_name": "SessionStart", "session_id": "wb-start"},
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)
+    assert output["continue"] is True
+    assert output["suppressOutput"] is True
+    assert (
+        output["hookSpecificOutput"]["additionalContext"]
+        == "Current WorkBuddy context"
+    )
+
+
+def test_workbuddy_subagent_stop_syncs_exact_agent_transcript(tmp_path: Path):
+    fake_nmem = tmp_path / "nmem"
+    _write_fake_nmem(fake_nmem)
+    main_transcript = tmp_path / "main session.jsonl"
+    agent_transcript = tmp_path / "agent session.jsonl"
+    main_transcript.write_text("{}\n", encoding="utf-8")
+    agent_transcript.write_text("{}\n", encoding="utf-8")
+    capture = tmp_path / "args.json"
+    env = os.environ.copy()
+    env["NMEM_CLI_PATH"] = str(fake_nmem)
+    env["NMEM_TEST_CAPTURE"] = str(capture)
+    env["CODEBUDDY_PLUGIN_DATA"] = str(tmp_path / "plugin data")
+
+    result = _run_workbuddy_hook(
+        "sync",
+        {
+            "hook_event_name": "SubagentStop",
+            "session_id": "wb-parent-1",
+            "agent_id": "wb-agent-1",
+            "transcript_path": str(main_transcript),
+            "agent_transcript_path": str(agent_transcript),
+        },
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {"continue": True, "suppressOutput": True}
+    args = json.loads(capture.read_text(encoding="utf-8"))
+    assert args == [
+        "--json",
+        "t",
+        "sync",
+        "--from",
+        "workbuddy",
+        "--session-id",
+        "wb-agent-1",
+        "--session-dir",
+        str(agent_transcript),
+        "--all-projects",
+        "--apply",
+    ]
+
+
+def test_workbuddy_hook_fails_open_when_nmem_is_unavailable(tmp_path: Path):
+    env = os.environ.copy()
+    env["NMEM_CLI_PATH"] = str(tmp_path / "missing-nmem")
+    env["PATH"] = str(tmp_path / "empty-path")
+    env["CODEBUDDY_PLUGIN_DATA"] = str(tmp_path / "plugin data")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json, os, subprocess; "
+                f"p=subprocess.run([{json.dumps(shutil.which('node') or 'node')}, "
+                f"{json.dumps(str(WORKBUDDY_PLUGIN / 'scripts' / 'nowledge-mem-hook.mjs'))}, "
+                "'context'], input=json.dumps({'hook_event_name':'SessionStart'}), "
+                "text=True, capture_output=True, env=os.environ); "
+                "print(json.dumps({'returncode':p.returncode,'stdout':p.stdout,'stderr':p.stderr}))"
+            ),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    nested = json.loads(result.stdout)
+    assert nested["returncode"] == 0
+    assert json.loads(nested["stdout"]) == {"continue": True, "suppressOutput": True}
 
 
 def test_kimi_code_hook_installer_uses_isolated_kimi_home(tmp_path: Path):

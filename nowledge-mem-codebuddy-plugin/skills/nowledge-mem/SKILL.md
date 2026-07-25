@@ -1,100 +1,63 @@
 ---
 name: nowledge-mem
-description: Use Nowledge Mem from WorkBuddy or CodeBuddy for startup context, memory search, durable saves, thread search, and WorkBuddy/CodeBuddy transcript import.
+description: Use Nowledge Mem from CodeBuddy for startup context, memory and thread search, durable saves, and CodeBuddy transcript import.
 ---
 
-Nowledge Mem is the user's cross-tool memory. Use it to start with relevant context, recall prior work, save durable decisions, and make WorkBuddy and CodeBuddy sessions searchable from other AI tools.
+Nowledge Mem is the user's cross-tool memory. Use it to resume with current context, recall exact prior work, save durable knowledge, and make CodeBuddy sessions searchable elsewhere.
 
 ## Startup Context
 
-At the beginning of meaningful work or when resuming, read Context Bundle if the Nowledge Mem MCP server is connected. It includes owner context, AI Identity, active rules, active space, and Working Memory.
-
-CLI fallback:
+Read Context Bundle at the beginning of meaningful work or when resuming:
 
 ```bash
-nmem --json context --source-app workbuddy
+nmem --json context --source-app codebuddy
 ```
 
-If that fails on an older CLI, use:
-
-```bash
-nmem --json wm read
-```
-
-Do not read both Context Bundle and Working Memory unless the user asks. Summarize only the parts relevant to the current task.
+If an older CLI rejects `context`, use `nmem --json wm read`. Do not read both unless the user asks.
 
 ## Recall
 
-Search memory when the user references prior work, resumes a named project, investigates a regression, asks for rationale, or makes a decision that may depend on history.
+Search when the user references prior work, resumes a project, investigates a regression, asks for rationale, or needs exact conversation history.
 
-Prefer MCP when available:
+Prefer MCP:
 
-- `memory_search` for durable decisions, preferences, procedures, and learnings.
-- `thread_search` when the user asks about prior conversations.
-- `thread_fetch_messages` only after a thread result is relevant.
+- `memory_search` for decisions, preferences, procedures, and learnings.
+- `thread_search` for prior conversations.
+- `thread_fetch_messages` only after identifying a relevant thread.
 
 CLI fallback:
 
 ```bash
-nmem --json m search "what to look up"
-nmem --json t search "conversation to find" --source workbuddy -n 5
+nmem --json m search "what to recall"
+nmem --json t search "conversation to find" --source codebuddy -n 5
 ```
 
 ## Save Durable Knowledge
 
-When a meaningful decision, reusable procedure, user preference, correction, or non-obvious lesson appears, save it. Search first to avoid duplicates.
-
-Prefer MCP:
-
-1. `memory_search` for an existing memory.
-2. `memory_update` if the existing memory should evolve.
-3. `memory_add` for a new durable memory.
-
-CLI fallback:
+Search before saving. Update an existing memory when the new information evolves it; add a new memory only for a durable decision, reusable procedure, stable preference, correction, or non-obvious learning.
 
 ```bash
 nmem --json m search "existing concept"
-nmem --json m add "content" -t "Title" --unit-type decision -l "label" -s workbuddy -i 0.8
+nmem --json m add "content" -t "Title" --unit-type decision -l "label" -s codebuddy -i 0.8
 ```
 
-## Save Or Import WorkBuddy/CodeBuddy Threads
+## CodeBuddy Threads
 
-Real thread sync is local to the machine where WorkBuddy or CodeBuddy stores its transcript files. MCP is not the transcript-import layer.
-
-The plugin hook automatically runs after WorkBuddy/CodeBuddy lifecycle events. If the user explicitly asks to save or import WorkBuddy or CodeBuddy conversations, preview first:
+Lifecycle hooks automatically sync the active transcript. For a deliberate historical import:
 
 ```bash
-nmem t sync --from workbuddy --limit 20
+nmem t sync --from codebuddy --limit 20
+nmem t sync --from codebuddy --apply
 ```
 
-Then import:
-
-```bash
-nmem t sync --from workbuddy --apply
-```
-
-If the user provides a specific session id:
-
-```bash
-nmem --json t sync --from workbuddy --session-id <session-id> --apply
-```
-
-This works for local and remote Nowledge Mem because `nmem` reads local WorkBuddy files under `$WORKBUDDY_CONFIG_DIR/projects` or `~/.workbuddy/projects`; use `--from codebuddy` for CodeBuddy under `$CODEBUDDY_CONFIG_DIR/projects` or `~/.codebuddy/projects`, then uploads normalized threads to the configured Mem server.
+Real capture runs on the CodeBuddy machine because MCP cannot read local files under `$CODEBUDDY_CONFIG_DIR/projects` or `~/.codebuddy/projects`.
 
 ## Status
-
-When setup seems broken or the user asks whether Mem is connected:
 
 ```bash
 nmem --json status
 ```
 
-If `nmem --json status` works but WorkBuddy/CodeBuddy-specific commands fail, upgrade the CLI from the same source first, then rerun the failed command.
+If status succeeds but CodeBuddy-specific commands fail, update the same CLI installation before debugging hooks or MCP.
 
-## Space And Identity
-
-If the host process has `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, or `NMEM_SPACE`, let `nmem` use those environment variables. Do not treat `source_app=workbuddy` or `source_app=codebuddy` as an AI Identity; it is only provenance.
-
-## User Overrides
-
-For personal WorkBuddy or CodeBuddy behavior, use WorkBuddy/CodeBuddy owned `CODEBUDDY.md`, `.workbuddy/rules/*.md`, or `.codebuddy/rules/*.md` surfaces. Do not edit installed plugin files; marketplace updates can replace them.
+Respect `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` when present. `source_app=codebuddy` is provenance, not an AI identity.

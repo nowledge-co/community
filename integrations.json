@@ -1270,7 +1270,7 @@
       "name": "CodeBuddy",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-codebuddy-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -1325,8 +1325,8 @@
       "name": "WorkBuddy",
       "category": "office",
       "type": "plugin",
-      "version": "0.1.0",
-      "directory": "nowledge-mem-codebuddy-plugin",
+      "version": "0.2.0",
+      "directory": "nowledge-mem-workbuddy-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
         "workingMemory": true,
@@ -1342,7 +1342,7 @@
         "runtime": "workbuddy",
         "command": "nmem t sync --from workbuddy --session-id <session-id> --session-dir <transcript_path> --all-projects --apply",
         "historicalCommand": "nmem t sync --from workbuddy",
-        "note": "WorkBuddy uses the CodeBuddy plugin abstraction and an independent ~/.workbuddy configuration directory. The Nowledge Mem plugin uses lifecycle transcript_path hooks to run nmem on the same machine as WorkBuddy's local transcripts. MCP handles memory tools; nmem owns real transcript import."
+        "note": "WorkBuddy's plugin runtime provides session_id, transcript_path, and agent_transcript_path to lifecycle hooks. The dedicated Nowledge Mem connector runs nmem on the same machine as WorkBuddy's ~/.workbuddy/projects transcripts. MCP handles memory tools; nmem owns real transcript import."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -1358,19 +1358,19 @@
         ]
       },
       "install": {
-        "command": "/plugin marketplace add nowledge-co/community && /plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "/plugin marketplace update nowledge-community && /plugin update nowledge-mem@nowledge-community",
-        "configRequired": "The community repo exposes .workbuddy-plugin/marketplace.json and .codebuddy-plugin/marketplace.json. The shared plugin ships .workbuddy-plugin/plugin.json, .codebuddy-plugin/plugin.json, skills, slash commands, hooks/hooks.json, and a bundled local .mcp.json. For remote Mem, generate a user-owned MCP override with nmem config mcp show --host workbuddy and paste it into ~/.workbuddy/.mcp.json, $WORKBUDDY_CONFIG_DIR/.mcp.json, or project .mcp.json.",
+        "command": "In WorkBuddy, run /plugin marketplace add https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json --name nowledge-community, then /plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "In WorkBuddy, run /plugin marketplace remove nowledge-community, then /plugin marketplace add https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json --name nowledge-community, then /plugin install nowledge-mem@nowledge-community",
+        "configRequired": "Add the raw .workbuddy-plugin/marketplace.json URL, not the repository root: current WorkBuddy resolves .codebuddy-plugin before .workbuddy-plugin when both exist. The WorkBuddy marketplace sparse-checks out only nowledge-mem-workbuddy-plugin. Existing users who added nowledge-co/community at the repository root must remove and re-add the marketplace once, then reinstall. The dedicated connector ships a WorkBuddy manifest and MCP identity, skills, slash commands, lifecycle hooks, and a WorkBuddy-managed Node runner. For remote Mem, generate a user-owned MCP override with nmem config mcp show --host workbuddy and paste it into ~/.workbuddy/.mcp.json, $WORKBUDDY_CONFIG_DIR/.mcp.json, or project .mcp.json.",
         "detectionHint": "Running inside WorkBuddy; ~/.workbuddy/ exists, WORKBUDDY_CONFIG_DIR is set, or WorkBuddy exposes the CodeBuddy-compatible plugin runtime",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for WorkBuddy. Add the nowledge-community marketplace, install nowledge-mem@nowledge-community, verify with nmem status and the Context Bundle or Working Memory check, then run a short session and confirm nmem t list --source workbuddy shows the imported thread.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 WorkBuddy 安装或更新 Nowledge Mem。添加 nowledge-community marketplace，安装 nowledge-mem@nowledge-community；用 nmem status 和 Context Bundle 或 Working Memory 检查验证，再跑一个短会话并确认 nmem t list --source workbuddy 能看到导入的线程。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for WorkBuddy. Add the raw https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json URL as nowledge-community, not the repository root; install nowledge-mem@nowledge-community, verify with nmem status and the Context Bundle or Working Memory check, then run a short session and confirm nmem t list --source workbuddy shows the imported thread.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 WorkBuddy 安装或更新 Nowledge Mem。把 https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json 原始地址添加为 nowledge-community，不要添加仓库根目录；安装 nowledge-mem@nowledge-community，用 nmem status 和 Context Bundle 或 Working Memory 检查验证，再跑一个短会话并确认 nmem t list --source workbuddy 能看到导入的线程。"
         },
         "docsUrl": "/docs/integrations/workbuddy"
       },
       "toolNaming": {
         "convention": "workbuddy-plugin+mcp+cli",
-        "note": "WorkBuddy loads the CodeBuddy-compatible plugin package from .workbuddy-plugin. MCP is for retrieval and structured saves; thread sync stays in nmem using WorkBuddy's transcript_path."
+        "note": "WorkBuddy loads the dedicated package from .workbuddy-plugin. SessionStart injects current context, UserPromptSubmit routes prior-work questions, and lifecycle hooks sync local transcripts through nmem. MCP remains the structured retrieval and save surface."
       },
       "skills": ["nowledge-mem"],
       "slashCommands": ["/nowledge-mem:status", "/nowledge-mem:sync-now", "/nowledge-mem:import-history"]

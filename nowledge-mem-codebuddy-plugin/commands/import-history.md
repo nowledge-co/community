@@ -1,31 +1,24 @@
 ---
-description: Backfill older WorkBuddy/CodeBuddy sessions into Nowledge Mem Threads.
+description: Backfill older CodeBuddy sessions into Nowledge Mem Threads.
 ---
-
-Backfill older WorkBuddy/CodeBuddy sessions deliberately.
 
 Preview first:
 
 ```bash
-nmem t sync --from workbuddy --limit 20
+nmem t sync --from codebuddy --limit 20
 ```
 
-If the preview looks right, import:
+Import after confirmation:
 
 ```bash
-nmem t sync --from workbuddy --apply
+nmem t sync --from codebuddy --apply
 ```
 
-For a custom WorkBuddy/CodeBuddy config directory:
+For a custom root or one transcript:
 
 ```bash
-WORKBUDDY_CONFIG_DIR="$HOME/.my-workbuddy-config" nmem t sync --from workbuddy --apply
+CODEBUDDY_CONFIG_DIR="$HOME/.my-codebuddy-config" nmem t sync --from codebuddy --apply
+nmem t sync --from codebuddy --session-dir /path/to/session.jsonl --all-projects --apply
 ```
 
-For a specific transcript file:
-
-```bash
-nmem t sync --from workbuddy --session-dir /path/to/session.jsonl --all-projects --apply
-```
-
-This reads local WorkBuddy transcripts; use `--from codebuddy` and `CODEBUDDY_CONFIG_DIR` for CodeBuddy transcripts and uploads normalized threads to the Mem server configured in `nmem`.
+The CLI reads local CodeBuddy transcripts and uploads normalized threads to the configured Mem server.
