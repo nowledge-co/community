@@ -1,5 +1,7 @@
 import importlib.util
+import json
 import os
+import time
 from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
@@ -226,6 +228,98 @@ def test_run_command_does_not_pass_windows_creationflags_on_posix():
         nmem_hook_save._run_command(["nmem", "--version"], 5)
 
     assert "creationflags" not in run.call_args.kwargs
+
+
+def test_background_dispatch_returns_one_worker_for_overlapping_stops(tmp_path):
+    state_root = tmp_path / "hook-state"
+    first = {"session_id": "session-1", "transcript_path": "/tmp/one.jsonl"}
+    second = {
+        "session_id": "session-1",
+        "transcript_path": "/tmp/one.jsonl",
+        "cwd": "/tmp/project",
+    }
+
+    with patch.object(nmem_hook_save, "_background_state_root", return_value=state_root), \
+        patch.object(nmem_hook_save.subprocess, "Popen") as popen:
+        nmem_hook_save._dispatch_background_capture(first, "stop")
+        nmem_hook_save._dispatch_background_capture(second, "stop")
+        assert popen.call_count == 1
+        key = nmem_hook_save._background_session_key(first)
+        assert nmem_hook_save._background_lease_path(key).exists()
+        assert len(list(nmem_hook_save._background_queue_dir(key).glob("*.json"))) == 2
+
+
+def test_background_worker_coalesces_to_latest_session_payload(tmp_path):
+    state_root = tmp_path / "hook-state"
+    first = {"session_id": "session-1", "transcript_path": "/tmp/one.jsonl"}
+    second = {
+        "session_id": "session-1",
+        "transcript_path": "/tmp/one.jsonl",
+        "turn": "latest",
+    }
+    key = nmem_hook_save._background_session_key(first)
+
+    with patch.object(nmem_hook_save, "_background_state_root", return_value=state_root), \
+        patch.object(nmem_hook_save.subprocess, "Popen"), \
+        patch.object(nmem_hook_save, "_capture_payload", return_value=0) as capture:
+        nmem_hook_save._dispatch_background_capture(first, "stop")
+        nmem_hook_save._enqueue_background_payload(key, second)
+        lease_token = nmem_hook_save._background_lease_path(key).read_text().split()[0]
+        assert nmem_hook_save._drain_background_capture(key, "stop", lease_token) == 0
+        capture.assert_called_once_with("stop", second)
+        assert not nmem_hook_save._background_lease_path(key).exists()
+        assert not list(nmem_hook_save._background_queue_dir(key).glob("*.json"))
+
+
+def test_stale_worker_cannot_release_successor_lease(tmp_path):
+    state_root = tmp_path / "hook-state"
+    key = "session-key"
+
+    with patch.object(nmem_hook_save, "_background_state_root", return_value=state_root):
+        first_token = nmem_hook_save._claim_background_worker(key)
+        assert first_token is not None
+        lease = nmem_hook_save._background_lease_path(key)
+        stale_at = time.time() - nmem_hook_save.BACKGROUND_LEASE_STALE_SECONDS - 1
+        os.utime(lease, (stale_at, stale_at))
+        second_token = nmem_hook_save._claim_background_worker(key)
+        assert second_token is not None
+        assert second_token != first_token
+
+        nmem_hook_save._release_background_worker(key, first_token)
+        assert lease.exists()
+        assert nmem_hook_save._background_lease_owned(key, second_token)
+
+        nmem_hook_save._release_background_worker(key, second_token)
+        assert not lease.exists()
+
+
+def test_background_spawn_is_detached_on_windows():
+    with patch.object(nmem_hook_save.sys, "platform", "win32"):
+        kwargs = nmem_hook_save._background_spawn_kwargs(object())
+
+    assert kwargs["creationflags"] == 0x08000208
+    assert "start_new_session" not in kwargs
+
+
+def test_background_spawn_starts_new_session_on_posix():
+    with patch.object(nmem_hook_save.sys, "platform", "darwin"):
+        kwargs = nmem_hook_save._background_spawn_kwargs(object())
+
+    assert kwargs["start_new_session"] is True
+    assert "creationflags" not in kwargs
+
+
+def test_stop_detach_reads_stdin_before_dispatch():
+    payload = {"session_id": "session-1", "transcript_path": "/tmp/one.jsonl"}
+    argv = ["nmem-hook-save.py", "--event", "stop", "--detach"]
+
+    with patch.object(nmem_hook_save.sys, "argv", argv), \
+        patch.object(nmem_hook_save.sys, "stdin") as stdin, \
+        patch.object(nmem_hook_save, "_dispatch_background_capture") as dispatch:
+        stdin.read.return_value = json.dumps(payload)
+        assert nmem_hook_save.main() == 0
+
+    dispatch.assert_called_once_with(payload, "stop")
 
 
 def test_run_capture_reports_uncaptured_when_transcript_never_flushes():

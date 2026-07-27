@@ -7,9 +7,11 @@ import argparse
 import hashlib
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -30,6 +32,7 @@ TOTAL_BUDGET_SECONDS = 30.0
 PER_ATTEMPT_TIMEOUT_SECONDS = 20
 SKILL_OUTCOME_TIMEOUT_SECONDS = 8
 SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5, 3.0)
+BACKGROUND_LEASE_STALE_SECONDS = 90.0
 JSON_FLAG_UNSUPPORTED_MARKERS = (
     "no such option: --json",
     "unrecognized arguments: --json",
@@ -63,6 +66,201 @@ def _read_hook_input() -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _background_state_root() -> Path:
+    return Path(tempfile.gettempdir()) / "nowledge-mem" / "hook-save"
+
+
+def _background_session_key(payload: dict[str, Any]) -> str:
+    session_id = _payload_value(payload, "session_id", "sessionId") or ""
+    transcript_path = (
+        _payload_value(payload, "transcript_path", "transcriptPath") or ""
+    )
+    cwd = (
+        _payload_value(payload, "cwd")
+        or os.environ.get("GROK_WORKSPACE_ROOT", "").strip()
+        or os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
+    )
+    if session_id:
+        identity = {"session_id": session_id}
+    elif transcript_path:
+        identity = {"transcript_path": transcript_path}
+    else:
+        identity = {"cwd": cwd}
+    basis = {"runtime": _host_runtime(), **identity}
+    encoded = json.dumps(basis, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _background_queue_dir(key: str) -> Path:
+    return _background_state_root() / key
+
+
+def _background_lease_path(key: str) -> Path:
+    return _background_state_root() / f"{key}.worker"
+
+
+def _enqueue_background_payload(key: str, payload: dict[str, Any]) -> None:
+    queue_dir = _background_queue_dir(key)
+    queue_dir.mkdir(parents=True, exist_ok=True)
+    stem = f"{time.time_ns()}-{os.getpid()}-{secrets.token_hex(4)}"
+    pending = queue_dir / f".{stem}.tmp"
+    ready = queue_dir / f"{stem}.json"
+    fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, separators=(",", ":"))
+            handle.flush()
+            os.fsync(handle.fileno())
+        pending.replace(ready)
+    except Exception:
+        try:
+            pending.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def _claim_background_worker(key: str) -> str | None:
+    root = _background_state_root()
+    root.mkdir(parents=True, exist_ok=True)
+    lease = _background_lease_path(key)
+    for _ in range(2):
+        token = secrets.token_hex(16)
+        try:
+            fd = os.open(lease, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            try:
+                stale = time.time() - lease.stat().st_mtime > BACKGROUND_LEASE_STALE_SECONDS
+            except OSError:
+                continue
+            if not stale:
+                return None
+            try:
+                lease.unlink()
+            except OSError:
+                return None
+            continue
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(f"{token} {os.getpid()} {time.time()}\n")
+        return token
+    return None
+
+
+def _background_lease_owned(key: str, token: str) -> bool:
+    try:
+        current = _background_lease_path(key).read_text(encoding="utf-8").split()
+    except OSError:
+        return False
+    return bool(current) and current[0] == token
+
+
+def _touch_background_worker(key: str, token: str) -> None:
+    if not _background_lease_owned(key, token):
+        return
+    try:
+        _background_lease_path(key).touch()
+    except OSError:
+        pass
+
+
+def _release_background_worker(key: str, token: str) -> None:
+    if not _background_lease_owned(key, token):
+        return
+    try:
+        _background_lease_path(key).unlink()
+    except OSError:
+        pass
+
+
+def _background_spawn_kwargs(log_handle: Any) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": log_handle,
+        "stderr": subprocess.STDOUT,
+        "close_fds": True,
+    }
+    if sys.platform == "win32":
+        kwargs["creationflags"] = (
+            getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+            | getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+        )
+    else:
+        kwargs["start_new_session"] = True
+    return kwargs
+
+
+def _spawn_background_worker(key: str, event: str, lease_token: str) -> bool:
+    log_path = _background_state_root() / "background.log"
+    command = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--event",
+        event,
+        "--background-worker",
+        key,
+        "--lease-token",
+        lease_token,
+    ]
+    try:
+        with log_path.open("a", encoding="utf-8") as log_handle:
+            subprocess.Popen(command, **_background_spawn_kwargs(log_handle))
+        return True
+    except Exception as exc:
+        print(
+            f"nowledge-mem: could not hand off {event} capture: {exc}",
+            file=sys.stderr,
+        )
+        return False
+
+
+def _dispatch_background_capture(payload: dict[str, Any], event: str) -> None:
+    key = _background_session_key(payload)
+    _enqueue_background_payload(key, payload)
+    lease_token = _claim_background_worker(key)
+    if lease_token is None:
+        return
+    if not _spawn_background_worker(key, event, lease_token):
+        _release_background_worker(key, lease_token)
+
+
+def _take_latest_background_payload(key: str) -> dict[str, Any] | None:
+    queue_dir = _background_queue_dir(key)
+    try:
+        jobs = sorted(queue_dir.glob("*.json"))
+    except OSError:
+        return None
+    if not jobs:
+        return None
+
+    payload: dict[str, Any] | None = None
+    for job in reversed(jobs):
+        try:
+            candidate = json.loads(job.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(candidate, dict):
+            payload = candidate
+            break
+
+    # Every queued Stop points at the same session transcript. Processing the
+    # newest payload subsumes older ones because `nmem t save` reads the latest
+    # durable transcript and is idempotent.
+    for job in jobs:
+        try:
+            job.unlink()
+        except OSError:
+            pass
+    return payload
+
+
+def _background_payload_pending(key: str) -> bool:
+    try:
+        return next(_background_queue_dir(key).glob("*.json"), None) is not None
+    except OSError:
+        return False
 
 
 def _payload_value(payload: dict[str, Any], *keys: str) -> str | None:
@@ -415,22 +613,12 @@ def _run_capture_with_retries(
     return False, last_returncode, last_stderr
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--event",
-        default="hook",
-        choices=["pre-compact", "stop", "hook"],
-        help="Hook event label used only for diagnostics.",
-    )
-    args = parser.parse_args()
-
+def _capture_payload(event: str, payload: dict[str, Any]) -> int:
     nmem = _nmem_command()
     if not nmem:
         print("nowledge-mem: nmem not found; skipped hook capture", file=sys.stderr)
         return 0
 
-    payload = _read_hook_input()
     command = _build_command(nmem, payload, json_output=True)
     legacy_command = _build_command(nmem, payload, json_output=False)
 
@@ -440,30 +628,89 @@ def main() -> int:
             legacy_command,
         )
     except Exception as exc:
-        print(f"nowledge-mem: {args.event} capture failed: {exc}", file=sys.stderr)
+        print(f"nowledge-mem: {event} capture failed: {exc}", file=sys.stderr)
         return 0
 
     if returncode != 0:
         message = stderr.strip()
         if message:
-            print(f"nowledge-mem: {args.event} capture skipped: {message}", file=sys.stderr)
+            print(f"nowledge-mem: {event} capture skipped: {message}", file=sys.stderr)
         return 0
 
     if not captured:
         print(
-            f"nowledge-mem: {args.event} capture skipped: no flushed transcript found",
+            f"nowledge-mem: {event} capture skipped: no flushed transcript found",
             file=sys.stderr,
         )
         return 0
 
     _report_skill_outcomes(nmem, payload)
 
-    if args.event == "pre-compact":
+    if event == "pre-compact":
         print(
             f"Nowledge Mem saved the current {_runtime_label(_host_runtime())} thread before compaction."
         )
 
     return 0
+
+
+def _drain_background_capture(key: str, event: str, lease_token: str) -> int:
+    try:
+        while True:
+            _touch_background_worker(key, lease_token)
+            payload = _take_latest_background_payload(key)
+            if payload is None:
+                break
+            _capture_payload(event, payload)
+    finally:
+        _release_background_worker(key, lease_token)
+
+    # Close the enqueue-vs-release race: if a Stop arrived after our final queue
+    # read but before the lease disappeared, it saw the old lease and did not
+    # spawn a worker. Claim again here; otherwise the enqueuing process won the
+    # same claim and already spawned the successor.
+    if _background_payload_pending(key):
+        successor_token = _claim_background_worker(key)
+        if successor_token is not None:
+            return _drain_background_capture(key, event, successor_token)
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--event",
+        default="hook",
+        choices=["pre-compact", "stop", "hook"],
+        help="Hook event label used only for diagnostics.",
+    )
+    parser.add_argument(
+        "--detach",
+        action="store_true",
+        help="Queue this hook capture outside the host's Stop critical path.",
+    )
+    parser.add_argument("--background-worker", help=argparse.SUPPRESS)
+    parser.add_argument("--lease-token", help=argparse.SUPPRESS)
+    args = parser.parse_args()
+
+    if args.background_worker:
+        if not args.lease_token:
+            return 0
+        return _drain_background_capture(
+            args.background_worker, args.event, args.lease_token
+        )
+
+    payload = _read_hook_input()
+    if args.detach:
+        try:
+            _dispatch_background_capture(payload, args.event)
+        except Exception as exc:
+            print(
+                f"nowledge-mem: could not queue {args.event} capture: {exc}",
+                file=sys.stderr,
+            )
+        return 0
+    return _capture_payload(args.event, payload)
 
 
 if __name__ == "__main__":

@@ -332,13 +332,14 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.18"
+    assert claude_manifest["version"] == "0.7.19"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
     assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
+    assert "--event stop --detach" in json.dumps(claude_hooks)
     assert "find_skills" in json.dumps(claude_hooks)
     assert "CREATE_NO_WINDOW" in claude_save_hook
     assert "extract_skill_outcomes_from_file" in claude_save_hook

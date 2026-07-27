@@ -48,9 +48,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PY=\"$(command -v python3 || command -v python || true)\"; ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-save.py\"; [ -n \"$PY\" ] && [ -f \"$SCRIPT\" ] && \"$PY\" \"$SCRIPT\" --event stop || true",
-            "statusMessage": "Saving current thread to Nowledge Mem...",
-            "timeout": 35
+            "command": "PY=\"$(command -v python3 || command -v python || true)\"; ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-save.py\"; [ -n \"$PY\" ] && [ -f \"$SCRIPT\" ] && \"$PY\" \"$SCRIPT\" --event stop --detach || true",
+            "timeout": 5
           }
         ]
       }
