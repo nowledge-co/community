@@ -52,8 +52,7 @@ nmem config client set api-key your-key
 Install the Kimi Code plugin from the community repo:
 
 ```text
-/plugins install https://github.com/nowledge-co/community
-/plugins enable nowledge-mem
+/plugins install https://github.com/nowledge-co/community/tree/main
 /reload
 ```
 
@@ -66,7 +65,7 @@ The plugin bundles:
 
 Kimi namespaces plugin MCP servers, so this does not overwrite user-level MCP entries.
 
-The community repo has a root `kimi.plugin.json` shim that points Kimi Code to this package directory. Kimi's GitHub installer downloads the repository zip; it does not clone submodules. If you are developing locally or need an offline install, you can still install from the package directory:
+The explicit `/tree/main` ref matters: for a bare repository URL, Kimi prefers the latest GitHub Release, and a published release can predate this manifest. The community repo has a root `kimi.plugin.json` shim that points Kimi Code to this package directory. Kimi's GitHub installer downloads the repository zip; it does not clone submodules. If you are developing locally or need an offline install, you can still install from the package directory:
 
 ```bash
 git clone --depth 1 https://github.com/nowledge-co/community.git ~/.cache/nowledge-community
@@ -176,8 +175,7 @@ tail -n 50 ~/.kimi-code/logs/nowledge-mem-hook.log
 Reinstall the plugin package from the new source, run `/reload`, and start a new session if needed:
 
 ```text
-/plugins install https://github.com/nowledge-co/community
-/plugins enable nowledge-mem
+/plugins install https://github.com/nowledge-co/community/tree/main
 /reload
 ```
 

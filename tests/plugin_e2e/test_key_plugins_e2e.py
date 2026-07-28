@@ -1380,6 +1380,13 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["kimi-code"]["capabilities"]["autoCapture"] is True
     assert by_id["kimi-code"]["threadSave"]["method"] == "hook+cli-native"
     assert by_id["kimi-code"]["autonomy"]["threads"] == "automatic-capture"
+    assert by_id["kimi-code"]["install"]["command"] == (
+        "/plugins install https://github.com/nowledge-co/community/tree/main"
+    )
+    assert by_id["kimi-code"]["install"]["updateCommand"] == (
+        "/plugins install https://github.com/nowledge-co/community/tree/main"
+    )
+    assert "latest GitHub Release" in by_id["kimi-code"]["install"]["configRequired"]
     assert by_id["kimi-code"]["skills"] == ["nowledge-mem"]
     assert by_id["kimi-code"]["slashCommands"] == [
         "nowledge-mem:status",

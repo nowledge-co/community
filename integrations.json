@@ -987,9 +987,9 @@
         ]
       },
       "install": {
-        "command": "in Kimi Code run /plugins install https://github.com/nowledge-co/community, /plugins enable nowledge-mem, /reload",
-        "updateCommand": "in Kimi Code rerun /plugins install https://github.com/nowledge-co/community, /plugins enable nowledge-mem, /reload",
-        "configRequired": "The community repo has a root kimi.plugin.json shim that points Kimi Code to nowledge-mem-kimi-code-plugin; Kimi's GitHub installer downloads the repository zip and does not clone submodules. Modern Kimi Code reads Nowledge Mem lifecycle hooks and slash commands directly from kimi.plugin.json after /reload. For remote Mem, use nmem config mcp show --host kimi-code and paste the generated nowledge-mem server into $KIMI_CODE_HOME/mcp.json or ~/.kimi-code/mcp.json. scripts/install_hooks.py is only a fallback for older Kimi Code builds that do not load plugin manifest hooks.",
+        "command": "/plugins install https://github.com/nowledge-co/community/tree/main",
+        "updateCommand": "/plugins install https://github.com/nowledge-co/community/tree/main",
+        "configRequired": "Run the install command inside Kimi Code, then run /reload (or start a new session). Keep the explicit /tree/main ref: Kimi otherwise prefers the community repository's latest GitHub Release, and a published release can predate the root Kimi manifest. The root kimi.plugin.json shim points Kimi Code to nowledge-mem-kimi-code-plugin; Kimi downloads the repository zip and does not clone submodules. Modern Kimi Code reads Nowledge Mem lifecycle hooks and slash commands directly from kimi.plugin.json. For remote Mem, use nmem config mcp show --host kimi-code and paste the generated nowledge-mem server into $KIMI_CODE_HOME/mcp.json or ~/.kimi-code/mcp.json. scripts/install_hooks.py is only a fallback for older Kimi Code builds that do not load plugin manifest hooks.",
         "detectionHint": "Running inside Kimi Code; ~/.kimi-code/ exists or KIMI_CODE_HOME is set",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Kimi Code. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
