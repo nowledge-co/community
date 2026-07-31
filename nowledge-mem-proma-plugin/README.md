@@ -3,6 +3,7 @@
 Connects [Proma](https://github.com/proma-ai/proma) to Nowledge Mem so Proma can:
 
 - save Proma agent conversations into Nowledge Mem threads
+- import and auto-sync Proma Chat conversations from Proma's local history
 - load Nowledge Mem context when a Proma workspace starts
 - search and write memories through the Nowledge Mem MCP tools
 - use the standard Nowledge Mem skills as a manual fallback
@@ -47,6 +48,7 @@ Local Nowledge Mem:
     "nowledge-mem": {
       "url": "http://127.0.0.1:14242/mcp/",
       "type": "streamableHttp",
+      "enabled": true,
       "headers": {
         "APP": "Proma"
       }
@@ -63,6 +65,7 @@ Remote Nowledge Mem:
     "nowledge-mem": {
       "url": "https://mem.example.com/mcp/",
       "type": "streamableHttp",
+      "enabled": true,
       "headers": {
         "APP": "Proma",
         "Authorization": "Bearer <your-nmem-api-key>",
@@ -103,7 +106,7 @@ The important pieces are:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.proma/scripts/read-working-memory.py\"",
+            "command": "[ \"${PROMA_NOWLEDGE_MEM_ENABLED:-1}\" != \"0\" ] || exit 0; python3 \"$HOME/.proma/scripts/read-working-memory.py\"",
             "timeout": 15000
           }
         ]
@@ -114,7 +117,7 @@ The important pieces are:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event user-prompt-submit",
+            "command": "[ \"${PROMA_NOWLEDGE_MEM_ENABLED:-1}\" != \"0\" ] || exit 0; python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event user-prompt-submit",
             "timeout": 30000
           }
         ]
@@ -125,7 +128,7 @@ The important pieces are:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event stop",
+            "command": "[ \"${PROMA_NOWLEDGE_MEM_ENABLED:-1}\" != \"0\" ] || exit 0; python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event stop",
             "timeout": 30000
           }
         ]
@@ -134,7 +137,7 @@ The important pieces are:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.proma/scripts/read-working-memory.py\" --rewake",
+            "command": "[ \"${PROMA_NOWLEDGE_MEM_ENABLED:-1}\" != \"0\" ] || exit 0; python3 \"$HOME/.proma/scripts/read-working-memory.py\" --rewake",
             "timeout": 15000,
             "async": true,
             "asyncRewake": true,
@@ -147,7 +150,7 @@ The important pieces are:
 }
 ```
 
-The packaged `hooks/hooks.json` uses `$HOME/.proma` for the same reason. Proma sets `CLAUDE_CONFIG_DIR`, but it does not set `PROMA_HOME` for hook commands by default.
+The packaged `hooks/hooks.json` uses `$HOME/.proma` for the same reason. Recent Proma builds also expose `PROMA_NOWLEDGE_MEM_ENABLED`; the hook commands respect it when present and default to running on older builds that do not set it.
 
 ### 4. Install skills
 
@@ -179,6 +182,23 @@ The script reads Proma's current transcript from:
 ```
 
 It saves the conversation as a Nowledge Mem thread with source `proma`, message-level deduplication, and stable IDs. Older Proma builds that still write `~/.proma/agent-sessions/*.jsonl` remain supported as a fallback.
+
+### Proma Chat history
+
+Proma's regular Chat tab is not a Claude Agent SDK session, so it does not fire these lifecycle hooks. Nowledge Mem imports those chats directly from Proma's local store:
+
+```text
+~/.proma/conversations.json
+~/.proma/conversations/<conversation-id>.jsonl
+```
+
+Use the Mem app's **Import Existing Conversations** / **Agent Sessions** view, or run:
+
+```bash
+nmem t sync --from proma --apply
+```
+
+Set `PROMA_HOME` or pass `--session-dir` if your Proma data lives somewhere other than `~/.proma`.
 
 ### Startup context
 
@@ -246,6 +266,7 @@ Logs are written to:
 **MCP tools do not show up**
 
 - Proma uses `"servers"` as the top-level key in `mcp.json`, not `"mcpServers"`.
+- The `nowledge-mem` entry must include `"enabled": true`; recent Proma builds skip disabled or missing-enabled MCP entries and their related hooks.
 - Confirm the endpoint ends with `/mcp/`.
 - Restart Proma after changing `mcp.json`.
 
@@ -261,7 +282,7 @@ Logs are written to:
 - Confirm it contains a `<!-- nowledge-mem:start -->` block.
 - Run `python3 ~/.proma/scripts/read-working-memory.py` manually and check the log.
 
-**Threads are not saved**
+**Proma Agent threads are not saved**
 
 - Confirm Proma is writing JSONL files under `~/.proma/sdk-config/projects/`.
 - Run:
@@ -271,6 +292,11 @@ echo '{"session_id":"<session-id>"}' | python3 ~/.proma/scripts/save-to-nmem.py
 ```
 
 - Then check Nowledge Mem for a thread with source `proma`.
+
+**Proma Chat conversations are not saved**
+
+- Import them from the Mem app's Agent Sessions view, or run `nmem t sync --from proma --apply`.
+- The hook scripts only cover Proma Agent sessions; regular Chat conversations are read from `~/.proma/conversations/*.jsonl`.
 
 ## Development
 

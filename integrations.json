@@ -1380,7 +1380,7 @@
       "name": "Proma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-proma-plugin",
       "transport": "mcp",
       "capabilities": {
@@ -1394,7 +1394,8 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "UserPromptSubmit and Stop hooks run save-to-nmem.py, which parses Proma SDK JSONL from ~/.proma/sdk-config/projects/**/ and appends messages to nmem via REST API as source=proma. SessionStart writes Context Bundle into the selected workspace CLAUDE.md; Stop asyncRewake can push fresh Working Memory."
+        "historicalCommand": "nmem t sync --from proma --apply",
+        "note": "UserPromptSubmit and Stop hooks run save-to-nmem.py, which parses Proma Agent SDK JSONL from ~/.proma/sdk-config/projects/**/ and appends messages to nmem via REST API as source=proma. Regular Proma Chat conversations are imported by the Mem app/CLI from ~/.proma/conversations/*.jsonl. SessionStart writes Context Bundle into the selected workspace CLAUDE.md; Stop asyncRewake can push fresh Working Memory."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -1402,7 +1403,7 @@
         "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
-          "Choose the Proma workspace first, then add Nowledge Mem MCP server to that workspace's mcp.json (key: servers)",
+          "Choose the Proma workspace first, then add Nowledge Mem MCP server to that workspace's mcp.json (key: servers) with enabled=true",
           "Copy hook scripts to ~/.proma/scripts/",
           "Add SessionStart, UserPromptSubmit, and Stop hooks to ~/.proma/sdk-config/.claude/settings.json",
           "Copy the standard Nowledge Mem skill folders to the selected workspace's skills/ directory",

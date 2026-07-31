@@ -53,6 +53,8 @@ class TestHooksConfig:
         data = json.loads(hooks.read_text(encoding="utf-8"))
         assert data["installPath"] == "~/.proma/sdk-config/.claude/settings.json"
         assert data["scriptInstallPath"] == "~/.proma/scripts/"
+        assert "PROMA_NOWLEDGE_MEM_ENABLED" in json.dumps(data)
+        assert "${PROMA_NOWLEDGE_MEM_ENABLED:-1}" in json.dumps(data)
         assert "hooks" in data
         assert "UserPromptSubmit" in data["hooks"], "Missing UserPromptSubmit hook"
         assert "Stop" in data["hooks"], "Missing Stop hook"
@@ -479,6 +481,7 @@ class TestIntegrationsJson:
         checklist = "\n".join(entry["autonomy"]["bestResultRequires"])
         assert "skills/nmem" not in checklist
         assert "standard Nowledge Mem skill folders" in checklist
+        assert "enabled=true" in checklist
         assert "~/.proma/sdk-config/.claude/settings.json" in checklist
         assert "~/.proma/scripts/" in checklist
 
@@ -501,6 +504,7 @@ class TestReadme:
         assert "mcp.json" in content, "README should document mcp.json setup"
         assert "settings.json" in content, "README should document settings.json hooks"
         assert "CLAUDE.md" in content, "README should document CLAUDE.md guidance"
+        assert '"enabled": true' in content, "README should enable the Proma MCP entry explicitly"
 
 
 class TestChangelog:

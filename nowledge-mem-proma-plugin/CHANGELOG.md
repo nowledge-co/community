@@ -1,5 +1,11 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## 0.1.5 (2026-07-31)
+
+- Make Proma MCP examples explicit about `"enabled": true`, which recent Proma builds require before they inject the MCP server or mark Nowledge Mem hooks as active.
+- Align packaged hook commands with Proma's `PROMA_NOWLEDGE_MEM_ENABLED` gate while keeping older Proma builds working when that variable is absent.
+- Document the split between Proma Agent hook capture and Proma Chat history import through `nmem t sync --from proma --apply` / the Mem Agent Sessions view.
+
 ## 0.1.4 (2026-07-02)
 
 - Hide the child console window when the Proma startup/asyncRewake hook reads Nowledge Mem context through `nmem` on Windows.

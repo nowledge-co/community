@@ -31,7 +31,7 @@ nmem status
 1. **MCP tools available?** — Look for `mcp__nowledge-mem__*` in available tools
 2. **Server reachable?** — `nmem status` should show `status: ok`
 3. **API key configured?** — Check `~/.nowledge-mem/config.json` or `NMEM_API_KEY` env var
-4. **mcp.json correct?** — Check `~/.proma/agent-workspaces/default/mcp.json`; top-level key must be `"servers"` (not `"mcpServers"`), type must be `"streamableHttp"`
+4. **mcp.json correct?** — Check `~/.proma/agent-workspaces/default/mcp.json`; top-level key must be `"servers"` (not `"mcpServers"`), type must be `"streamableHttp"`, and the `nowledge-mem` entry must include `"enabled": true`
 5. **Hooks configured?** — Check `~/.proma/sdk-config/.claude/settings.json` for `SessionStart`, `UserPromptSubmit`, and `Stop` hooks
 6. **Hook scripts present?** — Verify `~/.proma/scripts/save-to-nmem.py` and `~/.proma/scripts/read-working-memory.py` exist
 7. **Startup context written?** — Check `~/.proma/agent-workspaces/default/CLAUDE.md` for the `nowledge-mem:start` block

@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event user-prompt-submit",
+            "command": "[ \"${PROMA_NOWLEDGE_MEM_ENABLED:-1}\" != \"0\" ] || exit 0; python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event user-prompt-submit",
             "timeout": 30000
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event stop",
+            "command": "[ \"${PROMA_NOWLEDGE_MEM_ENABLED:-1}\" != \"0\" ] || exit 0; python3 \"$HOME/.proma/scripts/save-to-nmem.py\" --event stop",
             "timeout": 30000
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.proma/scripts/read-working-memory.py\" --rewake",
+            "command": "[ \"${PROMA_NOWLEDGE_MEM_ENABLED:-1}\" != \"0\" ] || exit 0; python3 \"$HOME/.proma/scripts/read-working-memory.py\" --rewake",
             "timeout": 15000,
             "async": true,
             "asyncRewake": true,
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.proma/scripts/read-working-memory.py\"",
+            "command": "[ \"${PROMA_NOWLEDGE_MEM_ENABLED:-1}\" != \"0\" ] || exit 0; python3 \"$HOME/.proma/scripts/read-working-memory.py\"",
             "timeout": 15000
           }
         ]
