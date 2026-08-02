@@ -728,11 +728,11 @@ def test_key_plugin_static_contracts_are_declared():
     for hook in kimi_root_manifest["hooks"]:
         assert "nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py" in hook["command"]
     assert kimi_manifest["name"] == "nowledge-mem"
-    assert kimi_manifest["version"] == "0.2.2"
+    assert kimi_manifest["version"] == "0.2.3"
     assert kimi_manifest["skills"] == "./skills/"
     assert kimi_manifest["sessionStart"]["skill"] == "nowledge-mem"
-    assert kimi_manifest["mcpServers"]["nowledge-mem"]["url"] == "http://127.0.0.1:14242/mcp/"
-    assert kimi_manifest["mcpServers"]["nowledge-mem"]["type"] == "streamableHttp"
+    assert "mcpServers" not in kimi_manifest
+    assert "mcpServers" not in kimi_root_manifest
     assert kimi_manifest["commands"] == "./commands/"
     kimi_hook_events = {hook["event"] for hook in kimi_manifest["hooks"]}
     assert kimi_hook_events == {"Stop", "SessionEnd", "PreCompact", "SubagentStop", "Interrupt"}
@@ -1375,9 +1375,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["pi"]["version"] == "0.8.5"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
-    assert by_id["kimi-code"]["version"] == "0.2.2"
+    assert by_id["kimi-code"]["version"] == "0.2.3"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
-    assert by_id["kimi-code"]["transport"] == "mcp+skills+hook"
+    assert by_id["kimi-code"]["transport"] == "skills+hook+mcp-config"
     assert by_id["kimi-code"]["capabilities"]["autoCapture"] is True
     assert by_id["kimi-code"]["threadSave"]["method"] == "hook+cli-native"
     assert by_id["kimi-code"]["autonomy"]["threads"] == "automatic-capture"

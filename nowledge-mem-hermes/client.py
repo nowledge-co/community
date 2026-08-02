@@ -38,9 +38,42 @@ def _resolve_nmem() -> Optional[str]:
 
     ``shutil.which`` honors PATHEXT, so on Windows it correctly resolves the
     ``nmem.CMD`` shim that ``subprocess.run(["nmem", ...], shell=False)`` would
-    miss.
+    miss. Desktop Electron hosts often launch Python with a reduced macOS PATH
+    that omits user install locations such as ``~/.local/bin`` and Homebrew, so
+    keep a small executable fallback list before disabling the provider.
     """
-    return shutil.which("nmem")
+    found = shutil.which("nmem")
+    if found:
+        return found
+
+    candidates: List[str] = []
+    for env_name in ("NMEM_CLI_PATH", "NMEM_BIN", "NMEM_CLI"):
+        configured = os.environ.get(env_name)
+        if configured and configured.strip():
+            candidates.append(os.path.expanduser(configured.strip()))
+
+    if sys.platform == "darwin":
+        candidates.extend(
+            [
+                "~/.local/bin/nmem",
+                "/opt/homebrew/bin/nmem",
+                "/usr/local/bin/nmem",
+            ]
+        )
+    elif os.name != "nt":
+        candidates.extend(
+            [
+                "~/.local/bin/nmem",
+                "/usr/local/bin/nmem",
+                "/usr/bin/nmem",
+            ]
+        )
+
+    for candidate in candidates:
+        path = os.path.expanduser(candidate)
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
 
 
 # --- Windows .cmd hardening ------------------------------------------------
