@@ -531,3 +531,45 @@ def json_line(value):
     import json
 
     return json.dumps(value, separators=(",", ":"))
+
+
+def test_build_command_prefers_claude_project_dir_over_payload_cwd(tmp_path):
+    project = tmp_path / "project"
+    subdir = project / "deep" / "subdir"
+    subdir.mkdir(parents=True)
+
+    with patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": str(project)}):
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "session-1", "cwd": str(subdir)},
+        )
+
+    assert command[command.index("--project") + 1] == str(project.resolve())
+
+
+def test_build_command_prefers_grok_workspace_root_over_payload_cwd(tmp_path):
+    workspace = tmp_path / "workspace"
+    subdir = tmp_path / "elsewhere"
+    workspace.mkdir()
+    subdir.mkdir()
+
+    with patch.dict(os.environ, {"GROK_WORKSPACE_ROOT": str(workspace)}):
+        os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "session-1", "cwd": str(subdir)},
+        )
+
+    assert command[command.index("--project") + 1] == str(workspace.resolve())
+
+
+def test_build_command_falls_back_to_payload_cwd_without_env(tmp_path):
+    with patch.dict(os.environ):
+        os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        os.environ.pop("GROK_WORKSPACE_ROOT", None)
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "session-1", "cwd": str(tmp_path)},
+        )
+
+    assert command[command.index("--project") + 1] == str(tmp_path.resolve())
