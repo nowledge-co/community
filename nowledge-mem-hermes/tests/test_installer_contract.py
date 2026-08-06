@@ -47,7 +47,9 @@ def test_resolve_nmem_honors_explicit_cli_path_when_path_is_reduced(monkeypatch,
     monkeypatch.setenv("PATH", "")
     monkeypatch.setenv("NMEM_CLI_PATH", str(exe))
 
-    assert client._resolve_nmem() == str(exe)
+    assert os.path.normcase(os.path.normpath(client._resolve_nmem() or "")) == os.path.normcase(
+        os.path.normpath(str(exe))
+    )
 
 
 def test_resolve_nmem_finds_common_user_bin_when_path_is_reduced(monkeypatch, tmp_path: Path) -> None:
