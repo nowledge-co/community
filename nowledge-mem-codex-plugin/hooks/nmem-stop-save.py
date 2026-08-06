@@ -31,7 +31,7 @@ JSON_FLAG_UNSUPPORTED_MARKERS = (
     "unexpected argument '--json'",
 )
 CODEX_HOOK_SUCCESS_RESPONSE = {"continue": True, "suppressOutput": True}
-DELEGATED_CONVERSATION_ORIGINATORS = frozenset({"slock-daemon", "raft-daemon"})
+DELEGATED_CONVERSATION_ORIGINATORS = frozenset({"raft-daemon", "slock-daemon"})
 MAX_SESSION_META_BYTES = 256 * 1024
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
