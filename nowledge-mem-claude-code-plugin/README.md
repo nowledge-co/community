@@ -82,10 +82,12 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
 | `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code or Grok Build session by hook `session_id` before context is compressed |
 | `Stop` | Model finishes responding | Captures session to knowledge graph |
+| `SubagentStop` | Grok Build subagent finishes | Captures the subagent session without blocking the subagent gate |
+| `SessionEnd` | Grok Build process exits | Performs a final best-effort session capture after the last turn |
 
 The `SessionStart` hook tries `nmem context` first so Claude receives owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths when the installed CLI supports it. It falls back to `nmem wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
-The `PreCompact` hook runs the same client-side thread save before the host compresses context. The `Stop` hook runs it again after every response with a bounded retry window, so short transcript-flush delays do not turn into silent no-op saves. Claude Code uses `nmem t save --from claude-code`; Grok Build uses `nmem t save --from grok`. Both paths pass the host session id into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
+The `PreCompact` hook runs the same client-side thread save before the host compresses context. The `Stop`, `SubagentStop`, and `SessionEnd` hooks run it again through a detached worker with a bounded retry window, so short transcript-flush delays or process exit do not turn into silent no-op saves. Claude Code uses `nmem t save --from claude-code`; Grok Build uses `nmem t save --from grok`. Both paths pass the host session id into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
 
 If the desktop app's Claude Code file watcher is also enabled, you can leave it on. The watcher and plugin hooks converge on the same `claude-code-<sessionId>` thread, so repeated saves update the existing thread instead of creating a second one.
 
@@ -103,7 +105,7 @@ nmem config client set api-key your-key
 
 That writes the shared local client config used by `nmem` and the plugin. You can also use environment variables (`NMEM_API_URL`, `NMEM_API_KEY`) for temporary overrides.
 
-In remote mode, the Stop and PreCompact hooks still read Claude session files locally through `nmem t save --from claude-code` on the machine where Claude Code is running, then upload the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` directory.
+In remote mode, the lifecycle hooks still read local host session files through `nmem t save --from claude-code` or `nmem t save --from grok` on the machine where the coding agent is running, then upload the normalized messages to Mem. The remote Mem server does not need direct access to your `~/.claude` or Grok session directory.
 
 ### Import older sessions
 

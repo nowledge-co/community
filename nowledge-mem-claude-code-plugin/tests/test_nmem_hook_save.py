@@ -323,6 +323,32 @@ def test_stop_detach_reads_stdin_before_dispatch():
     dispatch.assert_called_once_with(payload, "stop")
 
 
+def test_session_end_detach_reads_stdin_before_dispatch():
+    payload = {"session_id": "grok-session", "cwd": "/tmp/grok-project"}
+    argv = ["nmem-hook-save.py", "--event", "session-end", "--detach"]
+
+    with patch.object(nmem_hook_save.sys, "argv", argv), \
+        patch.object(nmem_hook_save.sys, "stdin") as stdin, \
+        patch.object(nmem_hook_save, "_dispatch_background_capture") as dispatch:
+        stdin.read.return_value = json.dumps(payload)
+        assert nmem_hook_save.main() == 0
+
+    dispatch.assert_called_once_with(payload, "session-end")
+
+
+def test_subagent_stop_detach_reads_stdin_before_dispatch():
+    payload = {"session_id": "grok-subagent-session", "cwd": "/tmp/grok-project"}
+    argv = ["nmem-hook-save.py", "--event", "subagent-stop", "--detach"]
+
+    with patch.object(nmem_hook_save.sys, "argv", argv), \
+        patch.object(nmem_hook_save.sys, "stdin") as stdin, \
+        patch.object(nmem_hook_save, "_dispatch_background_capture") as dispatch:
+        stdin.read.return_value = json.dumps(payload)
+        assert nmem_hook_save.main() == 0
+
+    dispatch.assert_called_once_with(payload, "subagent-stop")
+
+
 def test_run_capture_reports_uncaptured_when_transcript_never_flushes():
     proc = CompletedProcess(["nmem"], 0, stdout='{"results":[]}', stderr="")
 
