@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.21] - 2026-08-06
+
 ### Fixed
 
 - Grok Build capture now also runs on `SessionEnd` and `SubagentStop`, using the same detached, idempotent save worker as `Stop`. This gives remote Grok sessions a final sync opportunity on process exit and captures subagent sessions without blocking Grok's gate hooks.
