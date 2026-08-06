@@ -60,6 +60,7 @@ def test_resolve_nmem_finds_common_user_bin_when_path_is_reduced(monkeypatch, tm
 
     monkeypatch.setenv("PATH", "")
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.delenv("NMEM_CLI_PATH", raising=False)
     monkeypatch.delenv("NMEM_BIN", raising=False)
     monkeypatch.delenv("NMEM_CLI", raising=False)
