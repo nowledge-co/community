@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import os
 import time
@@ -533,18 +534,54 @@ def json_line(value):
     return json.dumps(value, separators=(",", ":"))
 
 
+def expected_background_key(runtime, **identity):
+    encoded = json.dumps(
+        {"runtime": runtime, **identity},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
 def test_build_command_prefers_claude_project_dir_over_payload_cwd(tmp_path):
     project = tmp_path / "project"
+    grok_workspace = tmp_path / "grok-workspace"
     subdir = project / "deep" / "subdir"
     subdir.mkdir(parents=True)
+    grok_workspace.mkdir()
 
-    with patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": str(project)}):
+    with patch.dict(
+        os.environ,
+        {
+            "CLAUDE_PROJECT_DIR": str(project),
+            "GROK_WORKSPACE_ROOT": str(grok_workspace),
+        },
+    ):
         command = nmem_hook_save._build_command(
             "/usr/local/bin/nmem",
             {"session_id": "session-1", "cwd": str(subdir)},
         )
 
     assert command[command.index("--project") + 1] == str(project.resolve())
+
+
+def test_background_session_key_prefers_claude_project_dir_over_grok_and_payload_cwd(tmp_path):
+    project = tmp_path / "project"
+    grok_workspace = tmp_path / "grok-workspace"
+    payload_cwd = project / "deep" / "subdir"
+    payload_cwd.mkdir(parents=True)
+    grok_workspace.mkdir()
+
+    with patch.dict(
+        os.environ,
+        {
+            "CLAUDE_PROJECT_DIR": str(project),
+            "GROK_WORKSPACE_ROOT": str(grok_workspace),
+        },
+    ), patch.object(nmem_hook_save, "_host_runtime", return_value="claude-code"):
+        key = nmem_hook_save._background_session_key({"cwd": str(payload_cwd)})
+
+    assert key == expected_background_key("claude-code", cwd=str(project))
 
 
 def test_build_command_prefers_grok_workspace_root_over_payload_cwd(tmp_path):
@@ -563,6 +600,20 @@ def test_build_command_prefers_grok_workspace_root_over_payload_cwd(tmp_path):
     assert command[command.index("--project") + 1] == str(workspace.resolve())
 
 
+def test_background_session_key_prefers_grok_workspace_root_over_payload_cwd(tmp_path):
+    workspace = tmp_path / "workspace"
+    subdir = tmp_path / "elsewhere"
+    workspace.mkdir()
+    subdir.mkdir()
+
+    with patch.dict(os.environ, {"GROK_WORKSPACE_ROOT": str(workspace)}), \
+        patch.object(nmem_hook_save, "_host_runtime", return_value="grok"):
+        os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        key = nmem_hook_save._background_session_key({"cwd": str(subdir)})
+
+    assert key == expected_background_key("grok", cwd=str(workspace))
+
+
 def test_build_command_falls_back_to_payload_cwd_without_env(tmp_path):
     with patch.dict(os.environ):
         os.environ.pop("CLAUDE_PROJECT_DIR", None)
@@ -573,3 +624,13 @@ def test_build_command_falls_back_to_payload_cwd_without_env(tmp_path):
         )
 
     assert command[command.index("--project") + 1] == str(tmp_path.resolve())
+
+
+def test_background_session_key_falls_back_to_payload_cwd_without_env(tmp_path):
+    with patch.dict(os.environ), \
+        patch.object(nmem_hook_save, "_host_runtime", return_value="claude-code"):
+        os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        os.environ.pop("GROK_WORKSPACE_ROOT", None)
+        key = nmem_hook_save._background_session_key({"cwd": str(tmp_path)})
+
+    assert key == expected_background_key("claude-code", cwd=str(tmp_path))
