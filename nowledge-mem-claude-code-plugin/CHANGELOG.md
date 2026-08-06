@@ -5,6 +5,12 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.20] - 2026-08-06
+
+### Fixed
+
+- Session capture now resolves the project root from `CLAUDE_PROJECT_DIR` (then `GROK_WORKSPACE_ROOT`) before falling back to the hook payload `cwd`. The payload `cwd` samples the directory at hook time, so a mid-session `cd` into a subdirectory made the save fail with "session directory not found" / "No valid conversation sessions found" while exiting 0 (686 silent failures observed on 0.7.18 and earlier, 162 more in the 0.7.19 background log).
+
 ## [0.7.19] - 2026-07-27
 
 ### Fixed

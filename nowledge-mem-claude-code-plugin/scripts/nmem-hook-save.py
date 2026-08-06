@@ -78,9 +78,9 @@ def _background_session_key(payload: dict[str, Any]) -> str:
         _payload_value(payload, "transcript_path", "transcriptPath") or ""
     )
     cwd = (
-        _payload_value(payload, "cwd")
+        os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
         or os.environ.get("GROK_WORKSPACE_ROOT", "").strip()
-        or os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
+        or _payload_value(payload, "cwd")
     )
     if session_id:
         identity = {"session_id": session_id}
@@ -388,9 +388,9 @@ def _build_command(
         args.extend(["--session-id", session_id])
 
     cwd = (
-        _payload_value(payload, "cwd")
+        os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
         or os.environ.get("GROK_WORKSPACE_ROOT", "").strip()
-        or os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
+        or _payload_value(payload, "cwd")
     )
     if cwd:
         project_path = Path(cwd).expanduser()
