@@ -332,7 +332,7 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.20"
+    assert claude_manifest["version"] == "0.7.21"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -711,6 +711,7 @@ def test_key_plugin_static_contracts_are_declared():
 
     kimi_root_manifest = _read_json(COMMUNITY_ROOT / "kimi.plugin.json")
     kimi_manifest = _read_json(KIMI_PLUGIN / "kimi.plugin.json")
+    kimi_readme = (KIMI_PLUGIN / "README.md").read_text(encoding="utf-8")
     kimi_skill = (KIMI_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md").read_text(encoding="utf-8")
     kimi_installer = (KIMI_PLUGIN / "scripts" / "install_hooks.py").read_text(encoding="utf-8")
     kimi_hook = (KIMI_PLUGIN / "scripts" / "kimi-sync-hook.py").read_text(encoding="utf-8")
@@ -718,6 +719,9 @@ def test_key_plugin_static_contracts_are_declared():
     assert kimi_root_manifest["version"] == kimi_manifest["version"]
     assert kimi_root_manifest["skills"] == "./nowledge-mem-kimi-code-plugin/skills/"
     assert kimi_root_manifest["commands"] == "./nowledge-mem-kimi-code-plugin/commands/"
+    assert kimi_root_manifest["sessionStart"] == kimi_manifest["sessionStart"]
+    assert kimi_root_manifest["skillInstructions"] == kimi_manifest["skillInstructions"]
+    assert kimi_root_manifest["interface"] == kimi_manifest["interface"]
     assert set(hook["event"] for hook in kimi_root_manifest["hooks"]) == {
         "Stop",
         "SessionEnd",
@@ -728,12 +732,15 @@ def test_key_plugin_static_contracts_are_declared():
     for hook in kimi_root_manifest["hooks"]:
         assert "nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py" in hook["command"]
     assert kimi_manifest["name"] == "nowledge-mem"
-    assert kimi_manifest["version"] == "0.2.3"
+    assert kimi_manifest["version"] == "0.2.4"
     assert kimi_manifest["skills"] == "./skills/"
     assert kimi_manifest["sessionStart"]["skill"] == "nowledge-mem"
     assert "mcpServers" not in kimi_manifest
     assert "mcpServers" not in kimi_root_manifest
     assert kimi_manifest["commands"] == "./commands/"
+    assert "local MCP server declaration" not in kimi_readme
+    assert "nmem config mcp show --host kimi-code" in kimi_readme
+    assert "does not declare mcpServers" in kimi_manifest["skillInstructions"]
     kimi_hook_events = {hook["event"] for hook in kimi_manifest["hooks"]}
     assert kimi_hook_events == {"Stop", "SessionEnd", "PreCompact", "SubagentStop", "Interrupt"}
     for hook in kimi_manifest["hooks"]:
@@ -918,6 +925,7 @@ def test_workbuddy_hook_fails_open_when_nmem_is_unavailable(tmp_path: Path):
     env = os.environ.copy()
     env["NMEM_CLI_PATH"] = str(tmp_path / "missing-nmem")
     env["PATH"] = str(tmp_path / "empty-path")
+    env["HOME"] = str(tmp_path / "home")
     env["CODEBUDDY_PLUGIN_DATA"] = str(tmp_path / "plugin data")
 
     result = subprocess.run(
@@ -942,7 +950,9 @@ def test_workbuddy_hook_fails_open_when_nmem_is_unavailable(tmp_path: Path):
     assert result.returncode == 0, result.stderr
     nested = json.loads(result.stdout)
     assert nested["returncode"] == 0
-    assert json.loads(nested["stdout"]) == {"continue": True, "suppressOutput": True}
+    output = json.loads(nested["stdout"])
+    assert output["continue"] is True
+    assert output["suppressOutput"] is True
 
 
 def test_kimi_code_hook_installer_uses_isolated_kimi_home(tmp_path: Path):
@@ -1375,7 +1385,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["pi"]["version"] == "0.8.5"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
-    assert by_id["kimi-code"]["version"] == "0.2.3"
+    assert by_id["kimi-code"]["version"] == "0.2.4"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "skills+hook+mcp-config"
     assert by_id["kimi-code"]["capabilities"]["autoCapture"] is True

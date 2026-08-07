@@ -59,11 +59,10 @@ Install the Kimi Code plugin from the community repo:
 The plugin bundles:
 
 - a session-start skill
-- a local MCP server declaration for `http://127.0.0.1:14242/mcp/`
 - native lifecycle hooks for `Stop`, `SessionEnd`, `PreCompact`, `SubagentStop`, and `Interrupt`
 - slash commands under `/nowledge-mem:*`
 
-Kimi namespaces plugin MCP servers, so this does not overwrite user-level MCP entries.
+The plugin does not declare an MCP server in `kimi.plugin.json`. Configure MCP as a user-level Kimi Code server with `nmem config mcp show --host kimi-code`; this keeps local, remote, and authenticated Mem setups on one URL/API-key source of truth.
 
 The explicit `/tree/main` ref matters: for a bare repository URL, Kimi prefers the latest GitHub Release, and a published release can predate this manifest. The community repo has a root `kimi.plugin.json` shim that points Kimi Code to this package directory. Kimi's GitHub installer downloads the repository zip; it does not clone submodules. If you are developing locally or need an offline install, you can still install from the package directory:
 
