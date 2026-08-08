@@ -57,11 +57,13 @@ interface SyncState {
   /** Pending debounce timer handle, if a sync is scheduled. */
   timer: TimerHandle | undefined
   /** In-flight capture promise, if a sync is currently running. */
-  inFlight: Promise<CaptureResult> | undefined
+  inFlight: Promise<unknown> | undefined
   /** Flag set when a sync was requested while one was already running. */
   pending: boolean
   /** Signature of the last successfully captured transcript. */
   lastSignature: string | undefined
+  /** Serialized manual-capture queue for this thread. */
+  manualQueue: Promise<CaptureResult> | undefined
 }
 
 /** Result object returned by an explicit capture. */
@@ -102,6 +104,7 @@ export class SessionSyncManager {
   private readonly autoSyncDebounceMs: number
   private readonly ambientSpaceId: string | undefined
   private readonly states = new Map<ThreadID, SyncState>()
+  private disposed = false
 
   /**
    * @param options - Construction options and injected ports.
@@ -124,7 +127,7 @@ export class SessionSyncManager {
    * @param threadId - The thread to capture.
    */
   public scheduleSync(threadId: ThreadID): void {
-    if (!this.autoSyncEnabled) return
+    if (this.disposed || !this.autoSyncEnabled) return
     const state = this.stateFor(threadId)
     if (state.timer !== undefined) {
       this.ports.clearTimer(state.timer)
@@ -139,14 +142,50 @@ export class SessionSyncManager {
    * Runs an immediate capture, ignoring the debounce window and forcing a
    * re-upload even when the signature matches the last run.
    *
+   * Participates in the per-thread in-flight guard so a manual capture and a
+   * scheduled automatic capture for the same thread never run concurrently.
+   * When a capture is already in-flight, the manual call waits for it to finish
+   * (coalescing), then runs its own forced capture.
+   *
    * Used by the manual `nowledge_mem_save_thread` tool and the
    * `nowledge-mem:save-thread` command.
    *
    * @param threadId - The thread to capture.
    * @returns The capture result, suitable for JSON-serialising back to the agent.
    */
-  public async syncNow(threadId: ThreadID): Promise<CaptureResult> {
-    return this.runCapture(threadId, { force: true })
+  public syncNow(threadId: ThreadID): Promise<CaptureResult> {
+    if (this.disposed) return Promise.resolve(skipped("disposed", this.stableThreadId(threadId)))
+    const state = this.stateFor(threadId)
+    const priorManual = state.manualQueue ?? Promise.resolve(skipped("manual_queue_start", this.stableThreadId(threadId)))
+    const run = priorManual
+      .catch(() => skipped("manual_queue_error", this.stableThreadId(threadId)))
+      .then(async () => {
+        if (this.disposed) return skipped("disposed", this.stableThreadId(threadId))
+        while (state.inFlight !== undefined) {
+          const previous = state.inFlight
+          await previous.catch(() => undefined)
+          // Teardown during an awaited prior capture is handled by the
+          // surrounding disposal guard; this branch is a defensive race check.
+          /* c8 ignore next */
+          if (this.disposed) return skipped("disposed", this.stableThreadId(threadId))
+          // Preserve a newer runner installed while this caller was waiting.
+          /* c8 ignore next */
+          if (state.inFlight === previous) state.inFlight = undefined
+        }
+        return this.captureThread(threadId, { force: true })
+      })
+    const guarded = run.finally(() => {
+      // Defensive identity guard prevents stale promises clearing a newer queue.
+      /* c8 ignore next */
+      if (state.manualQueue !== guarded) return
+      state.manualQueue = undefined
+      if (!this.disposed && state.pending) {
+        state.pending = false
+        this.scheduleSync(threadId)
+      }
+    })
+    state.manualQueue = guarded
+    return guarded
   }
 
   /**
@@ -155,6 +194,7 @@ export class SessionSyncManager {
    * Called from the plugin's `onDispose` hook so no timer fires after teardown.
    */
   public dispose(): void {
+    this.disposed = true
     for (const state of this.states.values()) {
       if (state.timer !== undefined) {
         this.ports.clearTimer(state.timer)
@@ -173,40 +213,27 @@ export class SessionSyncManager {
    * @param threadId - The thread to capture.
    */
   private async runAutoSync(threadId: ThreadID): Promise<void> {
-    await this.runCapture(threadId, { force: false }).catch(() => undefined)
-  }
-
-  /**
-   * Runs one capture for a thread through the shared in-flight state.
-   *
-   * Manual and automatic capture both pass through this path, so the connector
-   * never performs concurrent create/append writes for the same thread.
-   *
-   * @param threadId - The thread to capture.
-   * @param options - Capture options controlling the force flag.
-   * @returns The capture result.
-   */
-  private async runCapture(threadId: ThreadID, options: { force: boolean }): Promise<CaptureResult> {
     const state = this.stateFor(threadId)
-    if (state.inFlight !== undefined) {
-      if (!options.force) {
-        state.pending = true
-      }
-      await state.inFlight.catch(() => undefined)
-      if (options.force) {
-        return this.runCapture(threadId, options)
-      }
-      return skipped("capture_in_progress", this.stableThreadId(threadId))
+    if (state.inFlight !== undefined || state.manualQueue !== undefined) {
+      state.pending = true
+      return
     }
-    state.inFlight = this.captureThread(threadId, options)
-      .finally(() => {
-        state.inFlight = undefined
-        if (state.pending) {
-          state.pending = false
-          this.scheduleSync(threadId)
-        }
-      })
-    return state.inFlight
+    const run = this.captureThread(threadId, { force: false })
+      .catch(() => undefined)
+    let guarded: Promise<CaptureResult | undefined>
+    guarded = run.finally(() => {
+      // Defensive identity guard for an externally replaced runner; normal
+      // serialized execution always owns this state.
+      /* c8 ignore next */
+      if (state.inFlight !== guarded) return
+      state.inFlight = undefined
+      if (!this.disposed && state.pending) {
+        state.pending = false
+        this.scheduleSync(threadId)
+      }
+    })
+    state.inFlight = guarded
+    await guarded
   }
 
   /**
@@ -269,7 +296,10 @@ export class SessionSyncManager {
 
     let response = await this.ports.nmemApi("/threads", body)
 
-    if (response.status === 409) {
+    // Only fall back to append when the thread already exists (409 Conflict).
+    // Other errors (auth, server, permission) should surface the original
+    // failure rather than doubling API calls with a doomed append.
+    if (!response.ok && response.status === 409) {
       const appendBody = {
         messages: threadMessages,
         deduplicate: true,
@@ -305,7 +335,7 @@ export class SessionSyncManager {
   private stateFor(threadId: ThreadID): SyncState {
     let state = this.states.get(threadId)
     if (state === undefined) {
-      state = { timer: undefined, inFlight: undefined, pending: false, lastSignature: undefined }
+      state = { timer: undefined, inFlight: undefined, pending: false, lastSignature: undefined, manualQueue: undefined }
       this.states.set(threadId, state)
     }
     return state

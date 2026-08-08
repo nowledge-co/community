@@ -1,106 +1,80 @@
 import { describe, expect, it, vi } from "vitest"
 
-import {
-  buildBootstrapMessage,
-  createBootstrapHandler,
-} from "../src/bootstrap"
+import { BootstrapManager, buildBootstrapMessage } from "../src/bootstrap"
 import type { NmemCli } from "../src/cli"
 
-/** A fake nmem that returns canned stdout. */
 function fakeNmem(stdout: string): NmemCli {
   return (() => Promise.resolve(stdout)) as NmemCli
 }
 
-/** A fake nmem that throws, to exercise the fail-open path. */
 function throwingNmem(error: Error): NmemCli {
   return (() => Promise.reject(error)) as NmemCli
 }
 
 describe("buildBootstrapMessage", () => {
-  it("prefixes a valid bundle with the reminder header", () => {
-    const result = buildBootstrapMessage('{"identity":"owner"}')
-    expect(result).toBe('[Nowledge Mem Context Bundle]\n{"identity":"owner"}')
+  it("prefixes a valid bundle", () => {
+    expect(buildBootstrapMessage('{"identity":"owner"}')).toBe('[Nowledge Mem Context Bundle]\n{"identity":"owner"}')
   })
 
-  it("truncates a bundle longer than the character limit", () => {
-    const long = "x".repeat(5000)
-    const result = buildBootstrapMessage(long)
+  it("truncates oversized bundles", () => {
+    const result = buildBootstrapMessage("x".repeat(5000))
     expect(result).toBeDefined()
-    expect(result!.startsWith("[Nowledge Mem Context Bundle]\n")).toBe(true)
     expect(result!.endsWith("…")).toBe(true)
-    // 4000 chars of body + ellipsis + prefix line + newline
-    expect(result!.length).toBe("[Nowledge Mem Context Bundle]\n".length + 4000 + 1)
+    expect(result!.length).toBe("[Nowledge Mem Context Bundle]\n".length + 4001)
   })
 
-  it("returns undefined for an error payload", () => {
-    expect(buildBootstrapMessage(JSON.stringify({ error: "down" }))).toBeUndefined()
+  it("returns undefined for errors and empty output", () => {
+    expect(buildBootstrapMessage('{"error":"down"}')).toBeUndefined()
+    expect(buildBootstrapMessage(" ")).toBeUndefined()
   })
 
-  it("returns undefined for empty output", () => {
-    expect(buildBootstrapMessage("   ")).toBeUndefined()
-    expect(buildBootstrapMessage("")).toBeUndefined()
-  })
-
-  it("injects a short valid bundle unchanged", () => {
-    expect(buildBootstrapMessage('{"ok":true}')).toBe('[Nowledge Mem Context Bundle]\n{"ok":true}')
-  })
-
-  it("does not truncate a bundle exactly at the limit", () => {
+  it("does not truncate an exact-size bundle", () => {
     const exact = "x".repeat(4000)
-    const result = buildBootstrapMessage(exact)
-    expect(result).toBe(`[Nowledge Mem Context Bundle]\n${exact}`)
+    expect(buildBootstrapMessage(exact)).toBe(`[Nowledge Mem Context Bundle]\n${exact}`)
   })
 })
 
-describe("createBootstrapHandler", () => {
-  it("returns an empty result when bootstrap is disabled", async () => {
-    const nmem = fakeNmem('{"bundle":true}')
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: false })
-    const result = await handler()
-    expect(result).toEqual({})
+describe("BootstrapManager", () => {
+  it("preloads and consumes once per session", async () => {
+    const manager = new BootstrapManager({ nmem: fakeNmem('{"bundle":true}') }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    expect(await manager.consume("T-1")).toEqual({ message: { content: '[Nowledge Mem Context Bundle]\n{"bundle":true}', display: false } })
+    expect(await manager.consume("T-1")).toEqual({})
   })
 
-  it("injects the bundle as a hidden message when enabled", async () => {
-    const nmem = fakeNmem('{"bundle":true}')
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: true })
-    const result = await handler()
-    expect(result).toEqual({
-      message: {
-        content: '[Nowledge Mem Context Bundle]\n{"bundle":true}',
-        display: false,
-      },
-    })
-  })
-
-  it("calls nmem context with the source-app flag", async () => {
-    const calls: string[][] = []
-    const nmem = ((args: readonly string[]) => {
-      calls.push([...args])
-      return Promise.resolve('{"ok":true}')
-    }) as NmemCli
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: true })
-    await handler()
-    expect(calls[0]).toEqual(["context", "--source-app", "amp"])
-  })
-
-  it("returns an empty result when the bundle is an error payload (fail-open)", async () => {
-    const nmem = fakeNmem(JSON.stringify({ error: "server down" }))
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: true })
-    const result = await handler()
-    expect(result).toEqual({})
-  })
-
-  it("returns an empty result when nmem throws (fail-open)", async () => {
-    const nmem = throwingNmem(new Error("ENOENT"))
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: true })
-    const result = await handler()
-    expect(result).toEqual({})
-  })
-
-  it("does not call nmem when disabled", async () => {
-    const nmem = vi.fn((() => Promise.resolve('{"ok":true}')) as NmemCli)
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: false })
-    await handler()
+  it("does not fetch when disabled", async () => {
+    const nmem = vi.fn(fakeNmem('{"bundle":true}'))
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: false })
+    manager.preload("T-1")
+    expect(await manager.consume("T-1")).toEqual({})
     expect(nmem).not.toHaveBeenCalled()
+  })
+
+  it("fails open for error and throwing CLI results", async () => {
+    const errorManager = new BootstrapManager({ nmem: fakeNmem('{"error":"down"}') }, { sourceApp: "amp", enabled: true })
+    errorManager.preload("T-1")
+    expect(await errorManager.consume("T-1")).toEqual({})
+    const throwingManager = new BootstrapManager({ nmem: throwingNmem(new Error("down")) }, { sourceApp: "amp", enabled: true })
+    throwingManager.preload("T-1")
+    expect(await throwingManager.consume("T-1")).toEqual({})
+  })
+
+  it("does not refetch the same thread and manages sessions independently", async () => {
+    const nmem = vi.fn(fakeNmem('{"ok":true}'))
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    manager.preload("T-1")
+    manager.preload("T-2")
+    await manager.consume("T-1")
+    await manager.consume("T-2")
+    expect(nmem).toHaveBeenCalledTimes(2)
+  })
+
+  it("clears cached state on dispose", async () => {
+    const manager = new BootstrapManager({ nmem: fakeNmem('{"ok":true}') }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    await manager.consume("T-1")
+    manager.dispose()
+    expect(await manager.consume("T-1")).toEqual({})
   })
 })

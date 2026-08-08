@@ -1647,7 +1647,8 @@ def test_amp_plugin_static_contract_is_self_contained():
     assert "amp.onDispose(" in index_source
     assert "syncManager.scheduleSync" in index_source
     assert "syncManager.dispose" in index_source
-    assert "createBootstrapHandler" in index_source
+    assert "BootstrapManager" in index_source
+    assert 'amp.on("session.start"' in index_source
 
     # Tools are declared as static descriptors and bound via a factory.
     assert "TOOL_DEFINITIONS" in tools_source
@@ -1684,8 +1685,8 @@ def test_amp_plugin_static_contract_is_self_contained():
     assert "PLUGINS_DIR=" in install_sh
     assert "SKILLS_DIR=" in install_sh
     assert "cp -R" in install_sh
-    assert "PLUGIN_ENTRY_DEST=" in install_sh
-    assert 'export { default } from "./nowledge-mem/src/index.ts"' in install_sh
+    assert "STAGED_PLUGIN=" in install_sh
+    assert "install_staged" in install_sh
 
     # No raw secrets are checked into the package.
     assert "NMEM_API_KEY" in readme
