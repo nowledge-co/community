@@ -39,6 +39,7 @@ CODEBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-codebuddy-plugin"
 WORKBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-workbuddy-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
+AMP_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-amp-plugin"
 KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
 
 
@@ -1522,6 +1523,96 @@ def test_opencode_plugin_static_contract_is_self_contained():
     assert "nmem t sync --from opencode --all-projects --apply" in readme
     assert "OpenCode integration guide" in readme
     assert "compaction hook now injects" in changelog
+
+
+def test_amp_plugin_static_contract_is_self_contained():
+    pkg = _read_json(AMP_PLUGIN / "package.json")
+    index_source = (AMP_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
+    tools_source = (AMP_PLUGIN / "src" / "tools.ts").read_text(encoding="utf-8")
+    readme = (AMP_PLUGIN / "README.md").read_text(encoding="utf-8")
+    skill = (AMP_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md").read_text(encoding="utf-8")
+    install_sh = (AMP_PLUGIN / "scripts" / "install.sh").read_text(encoding="utf-8")
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    amp_registry = next(
+        item for item in registry["integrations"] if item.get("id") == "amp"
+    )
+
+    expected_tools = [
+        "nowledge_mem_context_bundle",
+        "nowledge_mem_working_memory",
+        "nowledge_mem_search",
+        "nowledge_mem_save",
+        "nowledge_mem_update",
+        "nowledge_mem_thread_search",
+        "nowledge_mem_save_thread",
+        "nowledge_mem_save_handoff",
+        "nowledge_mem_status",
+    ]
+    expected_commands = [
+        "nowledge-mem:status",
+        "nowledge-mem:save-thread",
+        "nowledge-mem:search",
+    ]
+
+    # Package manifest and registry entry agree on the basics.
+    assert pkg["name"] == "amp-nowledge-mem"
+    assert pkg["version"] == "0.1.0"
+    assert pkg["type"] == "module"
+    assert pkg["main"] == "src/index.ts"
+    assert "@ampcode/plugin" in pkg["peerDependencies"]
+    assert amp_registry["directory"] == "nowledge-mem-amp-plugin"
+    assert amp_registry["version"] == pkg["version"]
+    assert amp_registry["transport"] == "cli+http"
+    assert amp_registry["threadSave"]["method"] == "sdk-extract+agent-end"
+    assert amp_registry["autonomy"]["threads"] == "automatic-capture"
+    assert amp_registry["toolNaming"]["tools"] == expected_tools
+    assert [c["name"] for c in amp_registry["slashCommands"]] == expected_commands
+
+    # The connector uses Amp's agent.end event for capture and onDispose for cleanup.
+    assert 'amp.on("agent.end"' in index_source
+    assert "amp.onDispose(" in index_source
+    assert "syncManager.scheduleSync" in index_source
+    assert "syncManager.dispose" in index_source
+
+    # Tools are declared as static descriptors and bound via a factory.
+    assert "TOOL_DEFINITIONS" in tools_source
+    assert "createToolExecutors" in tools_source
+    assert "createCommandRegistrations" in index_source
+    for tool_name in expected_tools:
+        assert f'name: "{tool_name}"' in tools_source
+        assert f"`{tool_name}`" in readme or f"| `{tool_name}` |" in readme
+
+    # Idempotent capture uses the source-app prefixed key (lives in the sync module).
+    sync_source = (AMP_PLUGIN / "src" / "sync.ts").read_text(encoding="utf-8")
+    assert "idempotency_key" in sync_source
+    assert ":live:${" in sync_source and "sourceApp" in sync_source
+
+    # The CLI transport runs nmem with array argv and the HTTP transport targets Mem.
+    assert '["context", "--source-app", SOURCE_APP]' in tools_source
+    assert "node:child_process" in index_source
+    assert "createNmemCli" in index_source
+    assert "createNmemHttp" in index_source
+
+    # Ambient identity is honored across the identity and config modules.
+    identity_source = (AMP_PLUGIN / "src" / "identity.ts").read_text(encoding="utf-8")
+    cli_source = (AMP_PLUGIN / "src" / "cli.ts").read_text(encoding="utf-8")
+    config_source = (AMP_PLUGIN / "src" / "config.ts").read_text(encoding="utf-8")
+    assert "withAmbientSpaceArg" in identity_source
+    assert "withAmbientSpaceArg" in cli_source
+    assert "NMEM_AGENT_ID" in config_source
+    assert "NMEM_HOST_AGENT_ID" in config_source
+
+    # The shipped Amp skill and install script exist and reference the connector.
+    assert "name: nowledge-mem" in skill
+    assert "nowledge_mem_context_bundle" in skill
+    assert 'PLUGIN_NAME="nowledge-mem"' in install_sh
+    assert "PLUGINS_DIR=" in install_sh
+    assert "SKILLS_DIR=" in install_sh
+    assert "cp -R" in install_sh
+
+    # No raw secrets are checked into the package.
+    assert "NMEM_API_KEY" in readme
+    assert '"placeholder-' not in index_source
 
 
 def test_host_owned_official_integrations_keep_their_real_boundaries():
