@@ -30,11 +30,13 @@ Keep the new memory focused on what was learned or decided, not routine activity
 
 ## CLI fallback
 
-If MCP is unavailable, use:
+If MCP is unavailable, use the active ambient space when one is known:
 
 ```bash
-nmem --json m search "<concept>"
-nmem --json m add "<content>" -t "<title>" --unit-type decision -l "<label>" -i 0.8
+nmem --json m search "<concept>" --space "<space name>"
+nmem --json m add "<content>" -t "<title>" --unit-type decision -l "<label>" -i 0.8 --space "<space name>"
 ```
 
-Use `nmem --json m update <memory_id> -c "<updated content>"` when an existing memory should evolve.
+If no real ambient space is configured, omit `--space` and use the default lane.
+
+Use `nmem --json m update <memory_id> --content "<updated content>"` when an existing memory should evolve.

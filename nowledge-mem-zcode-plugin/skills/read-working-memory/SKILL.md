@@ -25,17 +25,19 @@ The MCP tool names are provided by ZCode's Nowledge Mem server. Do not invent ho
 
 ## CLI fallback
 
-If MCP is unavailable and the `nmem` CLI is configured, use:
+If MCP is unavailable and the `nmem` CLI is configured, use the active ambient space when one is known:
 
 ```bash
-nmem --json context --source-app zcode
+nmem --json context --source-app zcode --space "<space name>"
 ```
 
 For a lightweight briefing:
 
 ```bash
-nmem --json wm read
+nmem --json wm read --space "<space name>"
 ```
+
+If no real ambient space is configured, omit `--space` and use the default lane.
 
 If the result says `exists: false`, explain that no Working Memory briefing exists yet and continue normally. If the command fails, report the connection issue without polluting the user's task.
 

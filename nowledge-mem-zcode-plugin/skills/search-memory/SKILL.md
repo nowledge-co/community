@@ -43,11 +43,13 @@ Call `capabilities` before assuming roots or verbs. These paths identify Nowledg
 
 ## CLI fallback
 
-If the MCP server is unavailable, use:
+If the MCP server is unavailable, use the active ambient space when one is known:
 
 ```bash
-nmem --json m search "<query>"
-nmem --json t search "<query>" --limit 5
+nmem --json m search "<query>" --space "<space name>"
+nmem --json t search "<query>" --limit 5 --space "<space name>"
 ```
+
+If no real ambient space is configured, omit `--space` and use the default lane. Do not invent a space merely because the topic changes.
 
 Use `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200` only after a thread result identifies a relevant conversation.

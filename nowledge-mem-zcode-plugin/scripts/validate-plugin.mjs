@@ -43,7 +43,7 @@ function validateManifest(manifest) {
     throw new Error("manifest.name does not match the ZCode name format");
   }
   requireString(manifest.version, "manifest.version");
-  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(manifest.version)) {
+  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(manifest.version)) {
     throw new Error("manifest.version must be a semantic version");
   }
   requireString(manifest.description, "manifest.description");

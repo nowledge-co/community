@@ -25,7 +25,7 @@ Prefer MCP thread creation when available. Otherwise use:
 nmem --json t create \
   -t "Session Handoff - <topic>" \
   -c "Goal: ... Decisions: ... Files: ... Risks: ... Next: ..." \
-  -s generic-agent
+  --source zcode
 ```
 
 After success, report that a handoff was saved, include its title and thread ID when available, and state that it is a summary rather than a transcript import. If saving fails, report the error and do not imply that a checkpoint exists.

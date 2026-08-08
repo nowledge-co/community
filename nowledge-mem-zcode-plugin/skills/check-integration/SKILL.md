@@ -33,7 +33,7 @@ In ZCode, open **Settings → Plugins → Create → Add marketplace**, add:
 https://github.com/nowledge-co/zcode-plugin
 ```
 
-Install and enable `nowledge-mem-zcode`, then reload the Agent runtime. After a standalone repository update, use **Marketplace sources → Refresh this marketplace** and reload if components do not appear immediately.
+Install and enable `nowledge-mem-zcode`, then reload the Agent runtime. After a standalone repository update, use **Marketplace sources → Refresh this marketplace**, then **Manage installed → Check for updates** for `nowledge-mem-zcode`, and reload if components do not appear immediately.
 
 ## Expected behavior
 
