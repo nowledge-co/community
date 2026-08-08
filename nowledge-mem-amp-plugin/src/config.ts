@@ -23,6 +23,9 @@ const MIN_AUTO_SYNC_DEBOUNCE_MS = 250
 /** Truthy string values that disable automatic session capture. */
 const AUTO_SYNC_DISABLED_VALUES = new Set(["0", "false", "off", "no"])
 
+/** Truthy string values that disable the agent.start Context Bundle bootstrap. */
+const BOOTSTRAP_DISABLED_VALUES = new Set(["0", "false", "off", "no"])
+
 /**
  * Fully resolved connector configuration.
  *
@@ -44,6 +47,8 @@ export interface ResolvedConfig {
   readonly autoSyncEnabled: boolean
   /** Debounce window (milliseconds) for automatic session capture. */
   readonly autoSyncDebounceMs: number
+  /** Whether the `agent.start` Context Bundle bootstrap injection is enabled. */
+  readonly bootstrapEnabled: boolean
 }
 
 /**
@@ -139,6 +144,9 @@ export function resolveConfig(
       ? debounceRaw
       : DEFAULT_AUTO_SYNC_DEBOUNCE_MS
 
+  const bootstrapRaw = nonEmptyString(env.NMEM_AMP_BOOTSTRAP) ?? "1"
+  const bootstrapEnabled = !BOOTSTRAP_DISABLED_VALUES.has(bootstrapRaw.toLowerCase())
+
   return {
     apiUrl,
     apiKey,
@@ -147,5 +155,6 @@ export function resolveConfig(
     ambientHostAgentId,
     autoSyncEnabled,
     autoSyncDebounceMs,
+    bootstrapEnabled,
   }
 }

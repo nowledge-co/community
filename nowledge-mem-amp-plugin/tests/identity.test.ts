@@ -13,6 +13,7 @@ function config(partial: Partial<ResolvedConfig> = {}): ResolvedConfig {
     ambientHostAgentId: undefined,
     autoSyncEnabled: true,
     autoSyncDebounceMs: 1500,
+    bootstrapEnabled: true,
     ...partial,
   }
 }

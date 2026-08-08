@@ -19,6 +19,7 @@ const NO_AUTH_CONFIG: ResolvedConfig = {
   ambientHostAgentId: undefined,
   autoSyncEnabled: true,
   autoSyncDebounceMs: 1500,
+  bootstrapEnabled: true,
 }
 
 /** Config carrying the placeholder auth fixture. */

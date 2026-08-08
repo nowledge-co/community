@@ -13,6 +13,7 @@ const BASE_CONFIG: ResolvedConfig = {
   ambientHostAgentId: undefined,
   autoSyncEnabled: true,
   autoSyncDebounceMs: 1500,
+  bootstrapEnabled: true,
 }
 
 /** Records the args a fake execFile was invoked with. */

@@ -31,6 +31,7 @@ describe("resolveConfig", () => {
       ambientHostAgentId: undefined,
       autoSyncEnabled: true,
       autoSyncDebounceMs: 1500,
+      bootstrapEnabled: true,
     })
   })
 
@@ -126,5 +127,20 @@ describe("resolveConfig", () => {
   it("falls back to the default debounce for non-numeric values", () => {
     const config = resolveConfig({ NMEM_AMP_AUTO_SYNC_DEBOUNCE_MS: "not-a-number" }, sharedConfig({}))
     expect(config.autoSyncDebounceMs).toBe(1500)
+  })
+
+  it.each(["0", "false", "off", "no", "OFF", "False"])("disables bootstrap for NMEM_AMP_BOOTSTRAP=%s", (value) => {
+    const config = resolveConfig({ NMEM_AMP_BOOTSTRAP: value }, sharedConfig({}))
+    expect(config.bootstrapEnabled).toBe(false)
+  })
+
+  it.each(["1", "true", "on", "yes"])("enables bootstrap for NMEM_AMP_BOOTSTRAP=%s", (value) => {
+    const config = resolveConfig({ NMEM_AMP_BOOTSTRAP: value }, sharedConfig({}))
+    expect(config.bootstrapEnabled).toBe(true)
+  })
+
+  it("enables bootstrap by default when NMEM_AMP_BOOTSTRAP is unset", () => {
+    const config = resolveConfig(EMPTY_ENV, sharedConfig({}))
+    expect(config.bootstrapEnabled).toBe(true)
   })
 })

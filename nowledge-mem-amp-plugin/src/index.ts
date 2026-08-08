@@ -21,6 +21,7 @@ import { createNmemHttp } from "./http"
 import { SessionSyncManager } from "./sync"
 import { createToolExecutors, TOOL_DEFINITIONS, SOURCE_APP } from "./tools"
 import { createCommandRegistrations } from "./commands"
+import { createBootstrapHandler } from "./bootstrap"
 import { BEHAVIORAL_GUIDANCE } from "./guidance"
 import type { CommandContext, ExecFileFn, ToolContext } from "./types"
 
@@ -166,6 +167,12 @@ export default function ampKnowledgeMem(amp: PluginAPI): void {
   amp.on("agent.end", (event) => {
     syncManager.scheduleSync(event.thread.id)
   })
+
+  const bootstrapHandler = createBootstrapHandler(
+    { nmem },
+    { sourceApp: SOURCE_APP, enabled: config.bootstrapEnabled },
+  )
+  amp.on("agent.start", async () => bootstrapHandler())
 
   amp.onDispose(() => {
     syncManager.dispose()
