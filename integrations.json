@@ -9,7 +9,7 @@
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
-      "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
+      "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
       "slock", "lody", "multica", "cumora", "paseo", "amp", "agent-plugins", "mcp-direct"
     ],
@@ -895,6 +895,60 @@
         "tools": ["nmem_search", "nmem_save", "nmem_update", "nmem_delete", "nmem_thread_search", "nmem_thread_messages"]
       },
       "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "ekko",
+      "name": "Ekko Agent",
+      "category": "chat",
+      "type": "builtin-host",
+      "version": "0.10.54",
+      "transport": "mcp+cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "ekko",
+        "command": "nmem t sync --from ekko --session-id <session-id> --apply",
+        "historicalCommand": "nmem t sync --from ekko",
+        "note": "Ekko Agent, the runtime built into Hermes Studio, can use Nowledge Mem through MCP for Context Bundle, Working Memory, memory search/save, Library, and graph tools. Transcript capture is a local CLI importer: nmem reads Hermes Studio's current Ekko SQLite memory store at $HERMES_WEB_UI_HOME/.ekko/ekko.db (or the database passed with --session-dir), normalizes user/assistant messages, and imports them as source=ekko with stable ekko-<session_id> thread IDs. The importer is for history/recovery and manual sync today; automatic post-run capture should be triggered by Hermes Studio/Ekko after a completed run."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "import-only",
+        "bestResultRequires": [
+          "Configure Nowledge Mem MCP in Hermes Studio or Ekko Agent so the agent can read and write cross-tool context",
+          "Keep nmem configured on the machine where Hermes Studio stores HERMES_WEB_UI_HOME/.ekko/ekko.db",
+          "Run nmem t sync --from ekko to preview local Ekko sessions before importing",
+          "Run nmem t sync --from ekko --apply only after the preview shows the expected sessions",
+          "Use --session-dir when Hermes Studio uses a custom or development Ekko database path"
+        ]
+      },
+      "install": {
+        "command": "nmem config mcp show --host ekko",
+        "updateCommand": "python3 -m pip install --user --upgrade nmem-cli",
+        "configRequired": "Ekko's MCP connection is configured inside Hermes Studio/Ekko. The transcript importer is delivered by the nmem CLI; there is no separate Nowledge Mem Ekko plugin package today.",
+        "detectionHint": "Running inside Hermes Studio's Ekko Agent, HERMES_WEB_UI_HOME is set, or an Ekko database exists at $HERMES_WEB_UI_HOME/.ekko/ekko.db",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions for Ekko Agent. Verify Nowledge Mem MCP with nmem status, then preview transcript import with nmem t sync --from ekko before using --apply.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中 Ekko Agent 说明操作。先用 nmem status 验证 Nowledge Mem MCP，再运行 nmem t sync --from ekko 预览本地会话，确认后再加 --apply 导入。"
+        },
+        "docsUrl": "/docs/integrations/ekko"
+      },
+      "toolNaming": {
+        "convention": "mcp+cli-import",
+        "note": "MCP gives Ekko memory/context tools. nmem t sync --from ekko owns transcript import from the local SQLite store."
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": []
     },
     {
