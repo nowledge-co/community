@@ -16,12 +16,12 @@ async function flushMicrotasks(): Promise<void> {
 
 /** A transcript with one user and one assistant turn. */
 const FULL_TRANSCRIPT = [
-  { role: "user", id: "u1", parts: [{ type: "text", content: "hello" }] },
-  { role: "assistant", id: "a1", parts: [{ type: "text", content: "hi back" }] },
+  { role: "user", id: "u1", parts: [{ type: "text", text: "hello" }] },
+  { role: "assistant", id: "a1", parts: [{ type: "text", text: "hi back" }] },
 ]
 
 /** A transcript missing an assistant turn. */
-const INCOMPLETE_TRANSCRIPT = [{ role: "user", id: "u1", parts: [{ type: "text", content: "hello" }] }]
+const INCOMPLETE_TRANSCRIPT = [{ role: "user", id: "u1", parts: [{ type: "text", text: "hello" }] }]
 
 /** Builds a fake nmemApi that responds per-path. Handlers may be async. */
 function fakeNmemApi(
@@ -140,7 +140,7 @@ describe("SessionSyncManager.syncNow", () => {
   it("skips with no_extractable_messages when messages lack ids", async () => {
     const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
     const manager = new SessionSyncManager(
-      managerOptions({ nmemApi, readThreadMessages: async () => [{ role: "user", parts: [{ type: "text", content: "x" }] }] }),
+      managerOptions({ nmemApi, readThreadMessages: async () => [{ role: "user", parts: [{ type: "text", text: "x" }] }] }),
     )
     const result = await manager.syncNow(THREAD_ID)
     expect(result.skipped).toBe(true)
@@ -170,8 +170,8 @@ describe("SessionSyncManager.syncNow", () => {
       managerOptions({
         nmemApi,
         readThreadMessages: async () => [
-          { role: "user", id: "u1", parts: [{ type: "text", content: longContent }] },
-          { role: "assistant", id: "a1", parts: [{ type: "text", content: "ok" }] },
+          { role: "user", id: "u1", parts: [{ type: "text", text: longContent }] },
+          { role: "assistant", id: "a1", parts: [{ type: "text", text: "ok" }] },
         ],
       }),
     )
@@ -187,8 +187,8 @@ describe("SessionSyncManager.syncNow", () => {
       managerOptions({
         nmemApi,
         readThreadMessages: async () => [
-          { role: "assistant", id: "a1", parts: [{ type: "text", content: "assistant first" }] },
-          { role: "user", id: "u1", parts: [{ type: "text", content: "user second" }] },
+          { role: "assistant", id: "a1", parts: [{ type: "text", text: "assistant first" }] },
+          { role: "user", id: "u1", parts: [{ type: "text", text: "user second" }] },
         ],
       }),
     )
@@ -205,8 +205,8 @@ describe("SessionSyncManager.syncNow", () => {
       managerOptions({
         nmemApi,
         readThreadMessages: async () => [
-          { role: "assistant", id: "a1", parts: [{ type: "text", content: "assistant first" }] },
-          { role: "assistant", id: "a2", parts: [{ type: "text", content: "assistant second" }] },
+          { role: "assistant", id: "a1", parts: [{ type: "text", text: "assistant first" }] },
+          { role: "assistant", id: "a2", parts: [{ type: "text", text: "assistant second" }] },
         ],
       }),
     )

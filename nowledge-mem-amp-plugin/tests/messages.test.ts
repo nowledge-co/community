@@ -11,111 +11,56 @@ import {
 import type { SdkMessage, SdkMessagePart } from "../src/messages"
 
 describe("extractMessageContent", () => {
-  it("extracts text from text parts using the content field", () => {
-    const parts: SdkMessagePart[] = [{ type: "text", content: "hello" }]
+  it("extracts text from a text block", () => {
+    const parts: SdkMessagePart[] = [{ type: "text", text: "hello" }]
     expect(extractMessageContent(parts)).toBe("hello")
   })
 
-  it("extracts text using the text field when content is absent", () => {
-    const parts: SdkMessagePart[] = [{ type: "text", text: "via text field" }]
-    expect(extractMessageContent(parts)).toBe("via text field")
-  })
-
-  it("renders tool parts with the tool name", () => {
-    const parts: SdkMessagePart[] = [{ type: "tool", tool: "edit_file" }]
-    expect(extractMessageContent(parts)).toBe("[Tool: edit_file]")
-  })
-
-  it("marks failed tool calls", () => {
-    const parts: SdkMessagePart[] = [{ type: "tool", name: "bash", state: "error" }]
-    expect(extractMessageContent(parts)).toBe("[Tool: bash (failed)]")
-  })
-
-  it("falls back to 'unknown' for tool parts without a name", () => {
-    const parts: SdkMessagePart[] = [{ type: "tool" }]
-    expect(extractMessageContent(parts)).toBe("[Tool: unknown]")
-  })
-
-  it("wraps reasoning parts in thinking tags", () => {
-    const parts: SdkMessagePart[] = [{ type: "reasoning", content: "considering options" }]
+  it("wraps thinking blocks in thinking tags", () => {
+    const parts: SdkMessagePart[] = [{ type: "thinking", thinking: "considering options" }]
     expect(extractMessageContent(parts)).toBe("<thinking>\nconsidering options\n</thinking>")
   })
 
-  it("uses the text field for reasoning when content is absent", () => {
-    const parts: SdkMessagePart[] = [{ type: "reasoning", text: "alt reasoning" }]
-    expect(extractMessageContent(parts)).toBe("<thinking>\nalt reasoning\n</thinking>")
+  it("renders tool_use blocks with the tool name", () => {
+    const parts: SdkMessagePart[] = [{ type: "tool_use", id: "tu_1", name: "edit_file", input: {} }]
+    expect(extractMessageContent(parts)).toBe("[Tool: edit_file]")
   })
 
-  it("drops reasoning parts that carry no content", () => {
-    const parts: SdkMessagePart[] = [{ type: "reasoning" }]
-    expect(extractMessageContent(parts)).toBe("(empty message)")
-  })
-
-  it("renders file parts preferring filename", () => {
-    const parts: SdkMessagePart[] = [{ type: "file", filename: "readme.md" }]
-    expect(extractMessageContent(parts)).toBe("[File: readme.md]")
-  })
-
-  it("renders file parts falling back to path", () => {
-    const parts: SdkMessagePart[] = [{ type: "file", path: "/abs/path" }]
-    expect(extractMessageContent(parts)).toBe("[File: /abs/path]")
-  })
-
-  it("renders file parts with a placeholder when neither is set", () => {
-    const parts: SdkMessagePart[] = [{ type: "file" }]
-    expect(extractMessageContent(parts)).toBe("[File: attachment]")
-  })
-
-  it("renders patch parts preferring path", () => {
-    const parts: SdkMessagePart[] = [{ type: "patch", path: "src/index.ts" }]
-    expect(extractMessageContent(parts)).toBe("[Patch: src/index.ts]")
-  })
-
-  it("renders patch parts with a placeholder when path is absent", () => {
-    const parts: SdkMessagePart[] = [{ type: "patch" }]
-    expect(extractMessageContent(parts)).toBe("[Patch: file change]")
-  })
-
-  it("drops structural parts", () => {
+  it("renders tool_result blocks with the status", () => {
     const parts: SdkMessagePart[] = [
-      { type: "step-start" },
-      { type: "step-finish" },
-      { type: "snapshot" },
-      { type: "compaction" },
-      { type: "retry" },
-      { type: "agent" },
-      { type: "subtask" },
+      { type: "tool_result", toolUseID: "tu_1", status: "done" },
+      { type: "tool_result", toolUseID: "tu_2", status: "error" },
     ]
-    expect(extractMessageContent(parts)).toBe("(empty message)")
+    expect(extractMessageContent(parts)).toBe("[Tool result: done]\n[Tool result: error]")
   })
 
-  it("drops parts with an absent type", () => {
-    const parts: SdkMessagePart[] = [{ type: undefined }]
-    expect(extractMessageContent(parts)).toBe("(empty message)")
-  })
-
-  it("combines multiple content-bearing parts with newlines", () => {
+  it("combines multiple content blocks with newlines", () => {
     const parts: SdkMessagePart[] = [
-      { type: "text", content: "first" },
-      { type: "tool", tool: "ls" },
-      { type: "text", content: "second" },
+      { type: "text", text: "first" },
+      { type: "tool_use", id: "tu_1", name: "ls", input: {} },
+      { type: "text", text: "second" },
     ]
     expect(extractMessageContent(parts)).toBe("first\n[Tool: ls]\nsecond")
   })
 
-  it("drops text parts with empty content", () => {
-    const parts: SdkMessagePart[] = [{ type: "text", content: "" }, { type: "text", text: "kept" }]
+  it("skips empty text blocks", () => {
+    const parts: SdkMessagePart[] = [{ type: "text", text: "" }, { type: "text", text: "kept" }]
     expect(extractMessageContent(parts)).toBe("kept")
   })
 
-  it("returns the placeholder for an empty part array", () => {
+  it("returns the placeholder for an empty block array", () => {
     expect(extractMessageContent([])).toBe("(empty message)")
   })
 
-  it("throws on a genuinely unhandled type via assertNever", () => {
+  it("returns the placeholder when all text blocks are empty", () => {
+    const parts: SdkMessagePart[] = [{ type: "text", text: "" }]
+    expect(extractMessageContent(parts)).toBe("(empty message)")
+  })
+
+  it("throws on a genuinely unhandled block type via assertNever", () => {
     // Cast to bypass the compiler so the runtime exhaustiveness guard is hit.
     const parts = [{ type: "totally-unknown" }] as unknown as SdkMessagePart[]
-    expect(() => extractMessageContent(parts)).toThrow(/Unhandled message part type/)
+    expect(() => extractMessageContent(parts)).toThrow(/Unhandled message block type/)
   })
 })
 
@@ -190,7 +135,7 @@ describe("normalizeMessages", () => {
 describe("toThreadMessages", () => {
   it("converts messages with full metadata for assistant turns", () => {
     const messages: SdkMessage[] = [
-      { role: "assistant", id: "a1", parts: [{ type: "text", content: "hi" }], model: "claude", agent: "bot" },
+      { role: "assistant", id: "a1", parts: [{ type: "text", text: "hi" }], model: "claude", agent: "bot" },
     ]
     const result = toThreadMessages(messages, { sourceApp: "amp" })
     expect(result).toEqual([
@@ -210,7 +155,7 @@ describe("toThreadMessages", () => {
 
   it("folds non-user roles to assistant", () => {
     const messages: SdkMessage[] = [
-      { role: "info", id: "i1", parts: [{ type: "text", content: "note" }] },
+      { role: "info", id: "i1", parts: [{ type: "text", text: "note" }] },
     ]
     const result = toThreadMessages(messages, { sourceApp: "amp" })
     expect(result[0]?.role).toBe("assistant")
@@ -219,9 +164,9 @@ describe("toThreadMessages", () => {
 
   it("drops messages without an id", () => {
     const messages: SdkMessage[] = [
-      { role: "user", parts: [{ type: "text", content: "no id" }] },
-      { role: "user", id: "", parts: [{ type: "text", content: "empty id" }] },
-      { role: "user", id: "u1", parts: [{ type: "text", content: "with id" }] },
+      { role: "user", parts: [{ type: "text", text: "no id" }] },
+      { role: "user", id: "", parts: [{ type: "text", text: "empty id" }] },
+      { role: "user", id: "u1", parts: [{ type: "text", text: "with id" }] },
     ]
     const result = toThreadMessages(messages, { sourceApp: "amp" })
     expect(result).toHaveLength(1)
@@ -246,8 +191,8 @@ describe("lastExternalId and captureSignature", () => {
   it("returns the last external_id", () => {
     const messages = toThreadMessages(
       [
-        { role: "user", id: "u1", parts: [{ type: "text", content: "a" }] },
-        { role: "assistant", id: "a1", parts: [{ type: "text", content: "b" }] },
+        { role: "user", id: "u1", parts: [{ type: "text", text: "a" }] },
+        { role: "assistant", id: "a1", parts: [{ type: "text", text: "b" }] },
       ],
       { sourceApp: "amp" },
     )
@@ -260,7 +205,7 @@ describe("lastExternalId and captureSignature", () => {
 
   it("builds a count:lastId signature", () => {
     const messages = toThreadMessages(
-      [{ role: "user", id: "u1", parts: [{ type: "text", content: "a" }] }],
+      [{ role: "user", id: "u1", parts: [{ type: "text", text: "a" }] }],
       { sourceApp: "amp" },
     )
     expect(captureSignature(messages)).toBe("1:amp-msg-u1")

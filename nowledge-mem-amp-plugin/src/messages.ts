@@ -12,44 +12,58 @@
  * see it. This keeps the rest of the connector free of `any` and `cast()`.
  */
 
-/** Discriminator value for a structural marker part that carries no content. */
-type StructuralPartType =
-  | "step-start"
-  | "step-finish"
-  | "snapshot"
-  | "compaction"
-  | "retry"
-  | "agent"
-  | "subtask"
-
-/** Discriminator value for a content-bearing part. */
-type ContentPartType = "text" | "tool" | "reasoning" | "file" | "patch"
-
-/** Union of every part type the converter recognises. */
-type PartType = ContentPartType | StructuralPartType
-
-/** Discriminator value used when a part omits `type` or sets an unknown value. */
-type UnknownPartType = undefined
-
-/** A single message part as exposed by the Amp SDK. */
-export interface SdkMessagePart {
-  /** Discriminator identifying the part kind; absent for unknown SDK shapes. */
-  readonly type?: PartType | UnknownPartType
-  /** Free-form content for text/reasoning parts. */
-  readonly content?: string
-  /** Alternative content field used by some SDK shapes. */
-  readonly text?: string
-  /** Tool name for tool parts. */
-  readonly tool?: string
-  /** Alternative tool-name field used by some SDK shapes. */
-  readonly name?: string
-  /** State for tool parts; `"error"` marks a failed tool call. */
-  readonly state?: string
-  /** Filename for file parts. */
-  readonly filename?: string
-  /** Alternative filename/path field used by some SDK shapes. */
-  readonly path?: string
+/**
+ * A text content block in an Amp message. Mirrors `ThreadTextBlock`.
+ */
+export interface SdkTextBlock {
+  readonly type: "text"
+  readonly text: string
 }
+
+/**
+ * A thinking content block in an Amp message. Mirrors `ThreadThinkingBlock`.
+ */
+export interface SdkThinkingBlock {
+  readonly type: "thinking"
+  readonly thinking: string
+}
+
+/**
+ * A tool-use content block in an Amp message. Mirrors `ThreadToolUseBlock`.
+ */
+export interface SdkToolUseBlock {
+  readonly type: "tool_use"
+  readonly id: string
+  readonly name: string
+  readonly input: Record<string, unknown>
+}
+
+/** Status of a tool result, matching the SDK's `ThreadToolResultBlock.status`. */
+export type SdkToolResultStatus = "done" | "error" | "cancelled" | "running" | "pending"
+
+/**
+ * A tool-result content block in an Amp message. Mirrors
+ * `ThreadToolResultBlock`. The `output` is opaque to the connector.
+ */
+export interface SdkToolResultBlock {
+  readonly type: "tool_result"
+  readonly toolUseID: string
+  readonly output?: unknown
+  readonly status: SdkToolResultStatus
+}
+
+/**
+ * A single message part (content block) as exposed by the Amp SDK.
+ *
+ * Tightened to the four documented `Thread*Block` types: `text`, `thinking`,
+ * `tool_use`, and `tool_result`. There are no file/patch/structural part types
+ * in the Amp SDK — those were speculative and have been removed.
+ */
+export type SdkMessagePart =
+  | SdkTextBlock
+  | SdkThinkingBlock
+  | SdkToolUseBlock
+  | SdkToolResultBlock
 
 /** A single message as exposed by the Amp SDK, loosely typed at the boundary. */
 export interface SdkMessage {
@@ -92,86 +106,60 @@ export interface ThreadMessage {
 const EMPTY_MESSAGE_PLACEHOLDER = "(empty message)"
 
 /**
- * Extracts a single text segment from a part, tolerating either `content` or
- * `text` field names used by different SDK shapes.
+ * Renders a content block to a text segment for the Nowledge Mem thread format.
  *
- * @param part - The part to read.
- * @returns The text, or `undefined` when the part carries no text.
- */
-function readText(part: SdkMessagePart): string | undefined {
-  return part.content || part.text || undefined
-}
-
-/**
- * Renders a content-bearing part to a text segment.
+ * Each of the four SDK block types maps to a stable text representation:
+ *   - `text` → the text content
+ *   - `thinking` → wrapped in `<thinking>` tags
+ *   - `tool_use` → `[Tool: <name>]` (or `[Tool: <name> (failed)]` — never, since
+ *     tool_use has no error status; kept for symmetry with tool_result)
+ *   - `tool_result` → `[Tool result: <status>]`
  *
- * @param part - The part to render.
- * @returns The text segment, or `undefined` when the part is structural.
+ * @param part - The content block to render.
+ * @returns The text segment, or `undefined` when the block carries no text.
  */
 function renderPart(part: SdkMessagePart): string | undefined {
-  const type = part.type
-  switch (type) {
-    case "text": {
-      const text = readText(part)
-      return text === undefined ? undefined : text
-    }
-    case "tool": {
-      const name = part.tool || part.name || "unknown"
-      const suffix = part.state === "error" ? " (failed)" : ""
-      return `[Tool: ${name}${suffix}]`
-    }
-    case "reasoning": {
-      const reasoning = readText(part)
-      return reasoning === undefined ? undefined : `<thinking>\n${reasoning}\n</thinking>`
-    }
-    case "file":
-      return `[File: ${part.filename ?? part.path ?? "attachment"}]`
-    case "patch":
-      return `[Patch: ${part.path ?? "file change"}]`
-    case "step-start":
-    case "step-finish":
-    case "snapshot":
-    case "compaction":
-    case "retry":
-    case "agent":
-    case "subtask":
-      return undefined
-    case undefined:
-      // Parts without a recognised `type` carry no content the connector can
-      // serialise; drop them rather than guessing.
-      return undefined
+  switch (part.type) {
+    case "text":
+      return part.text
+    case "thinking":
+      return `<thinking>\n${part.thinking}\n</thinking>`
+    case "tool_use":
+      return `[Tool: ${part.name}]`
+    case "tool_result":
+      return `[Tool result: ${part.status}]`
     default:
-      // Exhaustiveness guard: if Amp adds a new part type, the compiler flags
-      // it here rather than silently dropping the part.
-      return assertNever(type)
+      // Exhaustiveness guard: if Amp adds a new block type, the compiler flags
+      // it here rather than silently dropping the block.
+      return assertNever(part)
   }
 }
 
 /**
- * Compile-time exhaustiveness check for the part-type union.
+ * Compile-time exhaustiveness check for the block-type union.
  *
- * @param value - The unhandled discriminator.
+ * @param value - The unhandled block.
  * @returns Never; the function only exists to make a missing case a type error.
  */
 function assertNever(value: never): never {
-  throw new Error(`Unhandled message part type: ${String(value)}`)
+  throw new Error(`Unhandled message block type: ${String(value)}`)
 }
 
 /**
- * Flattens an array of parts into a single content string.
+ * Flattens an array of content blocks into a single content string.
  *
- * Structural parts (step markers, snapshots, etc.) are dropped. When no part
- * contributes content, {@link EMPTY_MESSAGE_PLACEHOLDER} is returned so the
- * resulting thread message is never empty.
+ * Empty text blocks are skipped so they do not produce blank lines. When no
+ * block contributes content, {@link EMPTY_MESSAGE_PLACEHOLDER} is returned so
+ * the resulting thread message is never empty.
  *
- * @param parts - The parts to flatten.
+ * @param parts - The content blocks to flatten.
  * @returns The flattened content.
  */
 export function extractMessageContent(parts: readonly SdkMessagePart[]): string {
   const segments: string[] = []
   for (const part of parts) {
     const segment = renderPart(part)
-    if (segment !== undefined) {
+    if (segment !== undefined && segment.length > 0) {
       segments.push(segment)
     }
   }
