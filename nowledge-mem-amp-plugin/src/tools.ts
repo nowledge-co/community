@@ -33,6 +33,7 @@ export const TOOL_NAMES = [
   "nowledge_mem_thread_search",
   "nowledge_mem_save_thread",
   "nowledge_mem_save_handoff",
+  "nowledge_mem_graph_expand",
   "nowledge_mem_status",
 ] as const
 
@@ -170,6 +171,19 @@ export const TOOL_DEFINITIONS: readonly ToolDescriptor[] = [
     ),
   },
   {
+    name: "nowledge_mem_graph_expand",
+    description:
+      "Expand the knowledge graph around a memory: return its neighbouring memories and the directed, labelled edges connecting them (e.g. EVOLVES, semantic links). Use when the user wants to understand how a decision relates to related decisions, prior versions, or linked context.",
+    inputSchema: objectSchema(
+      {
+        memory_id: stringProperty("ID of the memory to expand around"),
+        depth: numberProperty("BFS depth (default 1, max 3). Each hop adds one layer of neighbours."),
+        limit: numberProperty("Max neighbours per hop (default 20, max 50)"),
+      },
+      ["memory_id"],
+    ),
+  },
+  {
     name: "nowledge_mem_status",
     description:
       "Check Nowledge Mem server connectivity and configuration. Use when memory tools fail or the user asks about setup.",
@@ -292,6 +306,16 @@ export function createToolExecutors(
       const summary = readString(input, "summary") ?? ""
       const title = `Session Handoff - ${topic}`
       return deps.nmem(["t", "create", "-t", title, "-c", summary, "-s", SOURCE_APP])
+    },
+
+    async nowledge_mem_graph_expand(input): Promise<ToolExecuteResult> {
+      const memoryId = readString(input, "memory_id") ?? ""
+      const cmd = ["graph", "expand", memoryId]
+      const depth = readNumber(input, "depth")
+      if (depth !== undefined) cmd.push("--depth", String(Math.min(3, Math.max(1, depth))))
+      const limit = readNumber(input, "limit")
+      if (limit !== undefined) cmd.push("-n", String(Math.min(50, Math.max(1, limit))))
+      return deps.nmem(cmd)
     },
 
     async nowledge_mem_status(): Promise<ToolExecuteResult> {

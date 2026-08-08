@@ -29,9 +29,9 @@ const THREAD_CTX: ToolContext = { thread: { id: "T-1" } }
 const NO_THREAD_CTX: ToolContext = {}
 
 describe("TOOL_DEFINITIONS", () => {
-  it("declares exactly the nine canonical tools in order", () => {
+  it("declares exactly the ten canonical tools in order", () => {
     expect(TOOL_DEFINITIONS.map((d) => d.name)).toEqual([...TOOL_NAMES])
-    expect(TOOL_NAMES).toHaveLength(9)
+    expect(TOOL_NAMES).toHaveLength(10)
   })
 
   it("each definition has a name, description, and object inputSchema", () => {
@@ -228,6 +228,41 @@ describe("createToolExecutors", () => {
     const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
     await executors.nowledge_mem_save_handoff({}, THREAD_CTX)
     expect(nmem.calls[0]).toEqual(["t", "create", "-t", "Session Handoff - ", "-c", "", "-s", SOURCE_APP])
+  })
+
+  it("graph_expand builds the expand command with depth and limit", async () => {
+    const nmem = fakeNmem()
+    const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
+    await executors.nowledge_mem_graph_expand({ memory_id: "m1", depth: 2, limit: 10 }, THREAD_CTX)
+    expect(nmem.calls[0]).toEqual(["graph", "expand", "m1", "--depth", "2", "-n", "10"])
+  })
+
+  it("graph_expand clamps depth to the 1-3 range", async () => {
+    const nmem = fakeNmem()
+    const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
+    await executors.nowledge_mem_graph_expand({ memory_id: "m1", depth: 10 }, THREAD_CTX)
+    expect(nmem.calls[0]).toEqual(["graph", "expand", "m1", "--depth", "3"])
+  })
+
+  it("graph_expand clamps limit to the 1-50 range", async () => {
+    const nmem = fakeNmem()
+    const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
+    await executors.nowledge_mem_graph_expand({ memory_id: "m1", limit: 0 }, THREAD_CTX)
+    expect(nmem.calls[0]).toEqual(["graph", "expand", "m1", "-n", "1"])
+  })
+
+  it("graph_expand omits depth and limit when absent", async () => {
+    const nmem = fakeNmem()
+    const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
+    await executors.nowledge_mem_graph_expand({ memory_id: "m1" }, THREAD_CTX)
+    expect(nmem.calls[0]).toEqual(["graph", "expand", "m1"])
+  })
+
+  it("graph_expand tolerates a missing memory_id by defaulting to empty", async () => {
+    const nmem = fakeNmem()
+    const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
+    await executors.nowledge_mem_graph_expand({}, THREAD_CTX)
+    expect(nmem.calls[0]).toEqual(["graph", "expand", ""])
   })
 
   it("status runs the status command", async () => {
