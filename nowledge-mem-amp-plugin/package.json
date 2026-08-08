@@ -1,0 +1,48 @@
+{
+  "name": "amp-nowledge-mem",
+  "version": "0.1.0",
+  "description": "Nowledge Mem plugin for Amp. Cross-tool knowledge with agent-end thread capture, Context Bundle, search, save, and handoffs.",
+  "type": "module",
+  "main": "src/index.ts",
+  "files": [
+    "src",
+    "skills",
+    "AGENTS.md",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "amp",
+    "ampcode",
+    "amp-plugin",
+    "nowledge",
+    "memory",
+    "knowledge-graph"
+  ],
+  "author": {
+    "name": "Nowledge Labs",
+    "url": "https://nowledge-labs.ai"
+  },
+  "license": "MIT",
+  "homepage": "https://mem.nowledge.co/docs/integrations/amp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nowledge-co/community.git",
+    "directory": "nowledge-mem-amp-plugin"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@ampcode/plugin": ">=0.0.0-20260808001526-g672f7db <1.0.0"
+  },
+  "devDependencies": {
+    "@ampcode/plugin": "0.0.0-20260808001526-g672f7db",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

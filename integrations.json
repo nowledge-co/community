@@ -11,7 +11,7 @@
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
       "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
-      "slock", "lody", "multica", "cumora", "paseo", "agent-plugins", "mcp-direct"
+      "slock", "lody", "multica", "cumora", "paseo", "amp", "agent-plugins", "mcp-direct"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
@@ -186,7 +186,7 @@
         "distill": true,
         "autoRecall": false,
         "autoCapture": true,
-        "graphExploration": false,
+        "graphExploration": true,
         "status": true
       },
       "threadSave": {
@@ -896,6 +896,68 @@
       },
       "skills": [],
       "slashCommands": []
+    },
+    {
+      "id": "amp",
+      "name": "Amp",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-amp-plugin",
+      "transport": "cli+http",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "sdk-extract+agent-end",
+        "note": "Plugin listens for the Amp agent.end event, reads the full thread transcript through Amp's thread API, and posts to Nowledge Mem's thread API over HTTP; save_thread remains an explicit idempotent fallback"
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Run nowledge-mem-amp-plugin/scripts/install.sh from the community repository root to install the plugin entrypoint, plugin bundle, and skill into the resolved Amp config directory",
+          "Restart Amp so the plugin registers its tools, agent.end capture hook, and commands",
+          "Keep nmem available for memory operations, provenance-stamped saves, and handoff flows",
+          "Run nmem config client set url/api-key once when Mem is remote"
+        ]
+      },
+      "install": {
+        "command": "bash nowledge-mem-amp-plugin/scripts/install.sh",
+        "updateCommand": "bash nowledge-mem-amp-plugin/scripts/install.sh",
+        "detectionHint": "Running as Amp agent; ~/.config/amp/ or .amp/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Amp. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Amp 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+        },
+        "docsUrl": "/docs/integrations/amp"
+      },
+      "toolNaming": {
+        "convention": "canonical",
+        "prefix": "nowledge_mem_",
+        "note": "Plugin registers tools with nowledge_mem_ prefix via @ampcode/plugin",
+        "tools": [
+          "nowledge_mem_context_bundle", "nowledge_mem_working_memory",
+          "nowledge_mem_search", "nowledge_mem_save", "nowledge_mem_update",
+          "nowledge_mem_thread_search", "nowledge_mem_save_thread",
+          "nowledge_mem_save_handoff", "nowledge_mem_graph_expand",
+          "nowledge_mem_status"
+        ]
+      },
+      "skills": ["nowledge-mem"],
+      "slashCommands": [
+        { "name": "nowledge-mem:status", "description": "Check Nowledge Mem server connectivity and configuration." },
+        { "name": "nowledge-mem:save-thread", "description": "Capture the current Amp session as a Nowledge Mem thread." },
+        { "name": "nowledge-mem:search", "description": "Search the Nowledge Mem knowledge graph." }
+      ]
     },
     {
       "id": "opencode",
