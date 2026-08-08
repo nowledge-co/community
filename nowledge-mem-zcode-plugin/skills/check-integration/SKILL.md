@@ -7,7 +7,7 @@ description: Check Nowledge Mem setup in ZCode, explain what the plugin provides
 
 Use this when Nowledge Mem setup is new, a memory tool is missing, or the user asks whether the integration is working.
 
-## Verify the client
+## Step 1: Verify the client
 
 Run:
 
@@ -24,6 +24,16 @@ If status fails:
 - ZCode: check **Settings → MCP → Plugin MCP servers**, then reload/restart the Agent runtime.
 
 Never put an API key in a command argument, plugin file, or log.
+
+## Step 2: Install for ZCode
+
+In ZCode, open **Settings → Plugins → Create → Add marketplace**, add:
+
+```text
+https://github.com/nowledge-co/zcode-plugin
+```
+
+Install and enable `nowledge-mem-zcode`, then reload the Agent runtime. After a standalone repository update, use **Marketplace sources → Refresh this marketplace** and reload if components do not appear immediately.
 
 ## Expected behavior
 

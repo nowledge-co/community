@@ -27,9 +27,9 @@ For durable knowledge, use the MCP `memory_search` tool. For exact prior convers
 4. Keep an ambient space in the host's real lane; cross-space retrieval must be explicit.
 5. Summarize only the strongest matches and say when nothing relevant was found.
 
-## Knowledge Filesystem
+## Knowledge Filesystem (optional, host-specific)
 
-When the task needs nearby objects or a tree-like view, use the MCP `mem_fs` surface:
+When the task needs nearby objects or a tree-like view, and the connected ZCode MCP server exposes the optional Knowledge Filesystem, use its `mem_fs` surface. The examples below are not guaranteed to be available in every host and the returned paths are Nowledge Mem object identifiers, not local operating-system paths:
 
 ```text
 capabilities

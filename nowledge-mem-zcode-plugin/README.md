@@ -17,11 +17,17 @@ This is a guided `MCP + Skills` integration. MCP tools are available to the agen
 
 ## Manual installation
 
-ZCode's plugin package only requires `.zcode-plugin/plugin.json`. The package does not contain a `marketplace.json`, and the project does not claim that ZCode has a documented default marketplace directory. ZCode's documented local UI entry point is a marketplace source, so the commands below create a persistent, user-owned local marketplace outside this repository.
+The plugin package includes `.zcode-plugin/plugin.json` and a `marketplace.json` catalog for the standalone repository `https://github.com/nowledge-co/zcode-plugin`. ZCode has not published a default marketplace directory. For normal installation, use the standalone repository's marketplace source; the community checkout instructions below are only a development/review mirror.
 
 ### macOS/Linux
 
-Choose a stable checkout location and clone the community repository:
+For normal installation, add the standalone repository's marketplace source in ZCode using the repository URL:
+
+```text
+https://github.com/nowledge-co/zcode-plugin
+```
+
+For local development or review of this community checkout, choose a stable checkout location and clone the community repository:
 
 ```bash
 COMMUNITY_DIR="$HOME/src/nowledge-community"
@@ -34,7 +40,7 @@ If you already cloned it, update it later with:
 git -C "$HOME/src/nowledge-community" pull --ff-only
 ```
 
-Create a persistent local marketplace directory under the user data directory. This is a project-recommended location, not a ZCode-defined default path. ZCode has not published a default marketplace directory:
+Create a persistent local marketplace directory under the user data directory. This is a project-recommended location, not a ZCode-defined default path:
 
 ```bash
 COMMUNITY_DIR="$HOME/src/nowledge-community"
@@ -73,7 +79,7 @@ Then open a ZCode workspace and:
 4. In the **Personal** section, install and enable `nowledge-mem-zcode`.
 5. Reload or restart the ZCode Agent runtime.
 
-The generated `marketplace.json` is only a local installation catalog. It is not part of this plugin package and is not a ZCode plugin manifest.
+The standalone repository's `marketplace.json` is the catalog used by the ZCode marketplace flow; `.zcode-plugin/plugin.json` remains the plugin manifest. The development-only generated catalog above is not a replacement for the standalone repository catalog.
 
 ### Windows PowerShell
 

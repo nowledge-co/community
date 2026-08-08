@@ -1533,6 +1533,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
 
 def test_zcode_plugin_static_contract_is_self_contained():
     manifest = _read_json(ZCODE_PLUGIN / ".zcode-plugin" / "plugin.json")
+    marketplace = _read_json(ZCODE_PLUGIN / "marketplace.json")
     mcp = _read_json(ZCODE_PLUGIN / ".mcp.json")
     readme = (ZCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (ZCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
@@ -1549,6 +1550,19 @@ def test_zcode_plugin_static_contract_is_self_contained():
 
     assert manifest["name"] == "nowledge-mem-zcode"
     assert manifest["version"] == "0.1.0"
+    assert manifest["repository"] == "https://github.com/nowledge-co/zcode-plugin"
+    assert marketplace["plugins"] == [
+        {
+            "name": "nowledge-mem-zcode",
+            "version": "0.1.0",
+            "description": "Guided cross-tool memory for ZCode through Nowledge Mem MCP and Skills.",
+            "category": "knowledge",
+            "tags": ["memory", "mcp", "skills", "zcode"],
+            "source": ".",
+            "homepage": "https://mem.nowledge.co/docs/integrations/zcode",
+            "repository": "https://github.com/nowledge-co/zcode-plugin",
+        }
+    ]
     assert not (COMMUNITY_ROOT / "marketplace.json").exists()
     assert "git clone" in readme
     assert "marketplace.json" in readme
@@ -1558,7 +1572,10 @@ def test_zcode_plugin_static_contract_is_self_contained():
     assert "not a ZCode-defined default path" in readme
     assert "separate Git" not in readme
     assert "submodule" not in readme
+    assert "https://github.com/nowledge-co/zcode-plugin" in readme
     assert "community/tree/main/marketplace.json" not in (COMMUNITY_ROOT / "README.md").read_text(encoding="utf-8")
+    assert "https://github.com/nowledge-co/zcode-plugin" in (COMMUNITY_ROOT / "README.md").read_text(encoding="utf-8")
+    assert "https://github.com/nowledge-co/zcode-plugin" in (COMMUNITY_ROOT / "nowledge-mem-npx-skills" / "skills" / "check-integration" / "SKILL.md").read_text(encoding="utf-8")
     assert zcode_registry["type"] == "plugin"
     assert zcode_registry["version"] == manifest["version"]
     assert zcode_registry["directory"] == "nowledge-mem-zcode-plugin"

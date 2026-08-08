@@ -17,10 +17,17 @@ Interpret the result briefly:
 - if there is no briefing or data yet, distinguish that from a connection failure;
 - do not print API keys or copy credentials into logs.
 
-If the check fails, guide the user through the relevant path:
+The CLI check and ZCode MCP check are separate diagnostics. A remote or custom ZCode MCP endpoint can be healthy even when the local CLI is not configured for the same server.
+
+If the local CLI check fails:
 
 1. **Local:** open the Nowledge Mem desktop app and retry.
-2. **Remote:** verify the URL and API key in the user's own `nmem` client configuration.
-3. **ZCode MCP:** restart/reload the Agent runtime after changing Plugin MCP settings.
+2. **Remote CLI:** verify the URL and API key in the user's own `nmem` client configuration.
 
-If MCP is available, the server's status tool may provide a more direct check; use it when appropriate and keep the CLI as a fallback.
+For the ZCode MCP path, use the server's status tool when it is available. For remote or custom Mem, generate the host-owned configuration, paste it into ZCode's own MCP settings, and reload the Agent runtime:
+
+```bash
+nmem config mcp show --host zcode
+```
+
+Do not treat a local `nmem --json status` failure as proof that the ZCode MCP server is unavailable, or vice versa.

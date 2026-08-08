@@ -1,0 +1,21 @@
+{
+  "name": "nowledge-zcode",
+  "description": "Official Nowledge Mem plugin for ZCode.",
+  "owner": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai",
+    "url": "https://nowledge-labs.ai"
+  },
+  "plugins": [
+    {
+      "name": "nowledge-mem-zcode",
+      "version": "0.1.0",
+      "description": "Guided cross-tool memory for ZCode through Nowledge Mem MCP and Skills.",
+      "category": "knowledge",
+      "tags": ["memory", "mcp", "skills", "zcode"],
+      "source": ".",
+      "homepage": "https://mem.nowledge.co/docs/integrations/zcode",
+      "repository": "https://github.com/nowledge-co/zcode-plugin"
+    }
+  ]
+}

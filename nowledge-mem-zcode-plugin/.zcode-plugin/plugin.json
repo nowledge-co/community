@@ -8,7 +8,7 @@
     "url": "https://nowledge-labs.ai"
   },
   "homepage": "https://mem.nowledge.co/docs/integrations/zcode",
-  "repository": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-zcode-plugin",
+  "repository": "https://github.com/nowledge-co/zcode-plugin",
   "license": "MIT",
   "keywords": [
     "zcode",

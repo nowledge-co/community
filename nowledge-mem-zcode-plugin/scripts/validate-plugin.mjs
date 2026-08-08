@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const pluginRoot = resolve(new URL("..", import.meta.url).pathname);
+const pluginRoot = fileURLToPath(new URL("..", import.meta.url));
 const manifestPath = join(pluginRoot, ".zcode-plugin", "plugin.json");
+const marketplacePath = join(pluginRoot, "marketplace.json");
 const mcpPath = join(pluginRoot, ".mcp.json");
 const expectedSkills = [
   "check-integration",
@@ -54,6 +56,26 @@ function validateManifest(manifest) {
   }
 }
 
+function validateMarketplace(marketplace, manifest) {
+  if (!marketplace || typeof marketplace !== "object") {
+    throw new Error("marketplace.json must contain an object");
+  }
+  requireString(marketplace.name, "marketplace.name");
+  if (!Array.isArray(marketplace.plugins) || marketplace.plugins.length !== 1) {
+    throw new Error("marketplace.json must declare exactly one plugin");
+  }
+  const plugin = marketplace.plugins[0];
+  if (!plugin || plugin.name !== manifest.name || plugin.version !== manifest.version) {
+    throw new Error("marketplace plugin name/version must match plugin.json");
+  }
+  if (plugin.source !== ".") {
+    throw new Error("marketplace plugin source must be the standalone package root (.)");
+  }
+  if (plugin.repository !== "https://github.com/nowledge-co/zcode-plugin") {
+    throw new Error("marketplace plugin repository must point to the standalone repository");
+  }
+}
+
 function validateMcp(mcp) {
   if (!mcp.mcpServers || typeof mcp.mcpServers !== "object") {
     throw new Error(".mcp.json must contain mcpServers");
@@ -90,7 +112,7 @@ function validateSkills() {
   for (const skillName of expectedSkills) {
     const skillPath = join(skillsRoot, skillName, "SKILL.md");
     const source = readFileSync(skillPath, "utf8");
-    const match = source.match(/^---\n([\s\S]*?)\n---\n/);
+    const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
     if (!match) {
       throw new Error(`${relative(pluginRoot, skillPath)} is missing YAML frontmatter`);
     }
@@ -110,7 +132,9 @@ function validateSkills() {
 }
 
 try {
-  validateManifest(readJson(manifestPath, ".zcode-plugin/plugin.json"));
+  const manifest = readJson(manifestPath, ".zcode-plugin/plugin.json");
+  validateManifest(manifest);
+  validateMarketplace(readJson(marketplacePath, "marketplace.json"), manifest);
   validateMcp(readJson(mcpPath, ".mcp.json"));
   validateSkills();
   for (const forbiddenPath of ["hooks", "agents"]) {
