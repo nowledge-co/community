@@ -160,9 +160,13 @@ export class SessionSyncManager {
     const run = priorManual
       .catch(() => skipped("manual_queue_error", this.stableThreadId(threadId)))
       .then(async () => {
+        if (this.disposed) return skipped("disposed", this.stableThreadId(threadId))
         while (state.inFlight !== undefined) {
           const previous = state.inFlight
           await previous.catch(() => undefined)
+          // Teardown during an awaited prior capture is handled by the
+          // surrounding disposal guard; this branch is a defensive race check.
+          /* c8 ignore next */
           if (this.disposed) return skipped("disposed", this.stableThreadId(threadId))
           // Preserve a newer runner installed while this caller was waiting.
           /* c8 ignore next */
