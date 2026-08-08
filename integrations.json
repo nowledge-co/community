@@ -1062,10 +1062,10 @@
       "id": "zcode",
       "name": "ZCode",
       "category": "coding",
-      "type": "connector",
-      "version": null,
-      "directory": null,
-      "transport": "mcp+skills",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-zcode-plugin",
+      "transport": "plugin+mcp+skills",
       "capabilities": {
         "workingMemory": true,
         "search": true,
@@ -1077,7 +1077,7 @@
       },
       "threadSave": {
         "method": "none",
-        "note": "ZCode supports plugins, MCP servers, hooks, and skills, but Nowledge Mem does not yet publish a ZCode-native hook package. Use MCP and skills now; add transcript import only after the ZCode session/hook contract is verified."
+        "note": "The ZCode package provides MCP and Skills, but Nowledge Mem does not yet have a verified ZCode transcript path or lifecycle capture contract. Use save-handoff for structured summaries; add transcript import only after the ZCode session/hook contract is independently verified."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -1085,27 +1085,27 @@
         "distill": "guided",
         "threads": "handoff-only",
         "bestResultRequires": [
-          "Add Nowledge Mem under Settings -> MCP Servers",
-          "Import or copy the Nowledge Mem skills under Settings -> Skills",
-          "Use the ZCode Agent restart/reload flow after MCP or skill changes",
+          "Add the Nowledge Mem ZCode marketplace under Settings -> Plugins",
+          "Install and enable nowledge-mem-zcode, then reload the ZCode Agent runtime",
+          "Use the ZCode-owned MCP settings for remote or custom Mem endpoints",
           "Ask ZCode to save handoff summaries when a conversation should be searchable later"
         ]
       },
       "install": {
-        "command": "nmem config mcp show --host zcode",
-        "updateCommand": "nmem config mcp show --host zcode",
+        "command": "Add https://github.com/nowledge-co/community/tree/main/marketplace.json under ZCode Settings -> Plugins -> Create -> Add marketplace, then install nowledge-mem-zcode",
+        "updateCommand": "Refresh the nowledge-community-zcode marketplace in ZCode Settings -> Plugins, then update nowledge-mem-zcode",
         "detectionHint": "Running inside ZCode; ~/.zcode/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for ZCode. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 ZCode 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for ZCode. Prefer the nowledge-mem-zcode plugin when ZCode plugin support is available. Verify with nmem status and the Context Bundle or Working Memory check, reload ZCode after changes, and summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 ZCode 安装或更新 Nowledge Mem。ZCode 支持插件时优先安装 nowledge-mem-zcode。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，修改后重新加载 ZCode，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/zcode"
       },
       "toolNaming": {
         "convention": "mcp-backend",
-        "note": "ZCode can use manually configured or plugin-provided MCP servers; this connector uses the Nowledge Mem MCP tools."
+        "note": "ZCode namespaces plugin MCP servers; this package exposes the standard Nowledge Mem MCP tools."
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "status", "check-integration"],
       "slashCommands": []
     },
     {

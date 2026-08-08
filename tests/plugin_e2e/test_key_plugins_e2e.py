@@ -39,6 +39,7 @@ CODEBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-codebuddy-plugin"
 WORKBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-workbuddy-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
+ZCODE_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-zcode-plugin"
 KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
 
 
@@ -1419,7 +1420,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "nmem t sync --from antigravity" in by_id["antigravity-extractor"][
         "autonomy"
     ]["bestResultRequires"][0]
-    for connector_id in ["zcode", "mimo-code"]:
+    for connector_id in ["mimo-code"]:
         connector = by_id[connector_id]
         assert connector["version"] is None
         assert connector["transport"] == "mcp+skills"
@@ -1434,6 +1435,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert connector["threadSave"]["historicalCommand"] == (
             f"nmem t sync --from {connector_id}"
         )
+    assert by_id["zcode"]["version"] == "0.1.0"
+    assert by_id["zcode"]["directory"] == "nowledge-mem-zcode-plugin"
+    assert by_id["zcode"]["transport"] == "plugin+mcp+skills"
     assert by_id["zcode"]["threadSave"]["method"] == "none"
     assert by_id["zcode"]["autonomy"]["threads"] == "handoff-only"
     assert by_id["alma"]["version"] == "0.7.4"
@@ -1455,6 +1459,61 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["omp"]["install"]["command"] == "omp plugin install nowledge-mem-omp"
     assert "save-thread" in by_id["omp"]["skills"]
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
+
+
+def test_zcode_plugin_static_contract_is_self_contained():
+    manifest = _read_json(ZCODE_PLUGIN / ".zcode-plugin" / "plugin.json")
+    mcp = _read_json(ZCODE_PLUGIN / ".mcp.json")
+    marketplace = _read_json(COMMUNITY_ROOT / "marketplace.json")
+    readme = (ZCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
+    changelog = (ZCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    zcode_registry = next(item for item in registry["integrations"] if item.get("id") == "zcode")
+    marketplace_plugin = next(item for item in marketplace["plugins"] if item.get("name") == manifest["name"])
+    expected_skills = [
+        "check-integration",
+        "read-working-memory",
+        "search-memory",
+        "distill-memory",
+        "save-handoff",
+        "status",
+    ]
+
+    assert manifest["name"] == "nowledge-mem-zcode"
+    assert manifest["version"] == "0.1.0"
+    assert marketplace_plugin["version"] == manifest["version"]
+    assert marketplace_plugin["source"] == "./nowledge-mem-zcode-plugin"
+    assert zcode_registry["type"] == "plugin"
+    assert zcode_registry["version"] == manifest["version"]
+    assert zcode_registry["directory"] == "nowledge-mem-zcode-plugin"
+    assert zcode_registry["transport"] == "plugin+mcp+skills"
+    assert zcode_registry["capabilities"]["autoRecall"] is False
+    assert zcode_registry["capabilities"]["autoCapture"] is False
+    assert zcode_registry["threadSave"]["method"] == "none"
+    assert zcode_registry["autonomy"]["threads"] == "handoff-only"
+    assert zcode_registry["skills"] == [
+        "read-working-memory",
+        "search-memory",
+        "distill-memory",
+        "save-handoff",
+        "status",
+        "check-integration",
+    ]
+    assert mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
+    assert mcp["mcpServers"]["nowledge-mem"]["url"] == "http://127.0.0.1:14242/mcp/"
+    assert mcp["mcpServers"]["nowledge-mem"]["headers"]["APP"] == "ZCode"
+    assert "Authorization" not in json.dumps(mcp)
+    assert "X-NMEM-API-Key" not in json.dumps(mcp)
+    assert not (ZCODE_PLUGIN / "hooks").exists()
+    assert not (ZCODE_PLUGIN / "agents").exists()
+    assert not (ZCODE_PLUGIN / "skills" / "save-thread").exists()
+    for skill in expected_skills:
+        source = (ZCODE_PLUGIN / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+        assert f"name: {skill}" in source
+        assert "description:" in source
+    assert "save-handoff" in readme
+    assert "not a transcript" in readme.lower()
+    assert "0.1.0" in changelog
 
 
 def test_opencode_plugin_static_contract_is_self_contained():

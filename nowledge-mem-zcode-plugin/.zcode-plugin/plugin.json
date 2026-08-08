@@ -1,0 +1,20 @@
+{
+  "name": "nowledge-mem-zcode",
+  "version": "0.1.0",
+  "description": "Guided cross-tool memory for ZCode through Nowledge Mem MCP and Skills.",
+  "author": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai",
+    "url": "https://nowledge-labs.ai"
+  },
+  "homepage": "https://mem.nowledge.co/docs/integrations/zcode",
+  "repository": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-zcode-plugin",
+  "license": "MIT",
+  "keywords": [
+    "zcode",
+    "memory",
+    "mcp",
+    "skills",
+    "nowledge"
+  ]
+}
