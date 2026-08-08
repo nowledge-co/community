@@ -552,13 +552,33 @@ def test_key_plugin_static_contracts_are_declared():
     assert "source\": \"proma\"" in proma_save_hook
 
     cursor_manifest = _read_json(CURSOR_PLUGIN / ".cursor-plugin" / "plugin.json")
+    cursor_hooks = _read_json(CURSOR_PLUGIN / "hooks" / "hooks.json")
+    cursor_runtime = (CURSOR_PLUGIN / "hooks" / "nmem-runtime.mjs").read_text(
+        encoding="utf-8"
+    )
     cursor_hook = (CURSOR_PLUGIN / "hooks" / "session-start.mjs").read_text(encoding="utf-8")
-    assert cursor_manifest["version"] == "0.1.6"
+    cursor_stop_hook = (CURSOR_PLUGIN / "hooks" / "stop-save.mjs").read_text(
+        encoding="utf-8"
+    )
+    assert cursor_manifest["version"] == "0.2.0"
+    assert cursor_hooks["hooks"]["sessionStart"][0]["timeout"] == 15
+    assert cursor_hooks["hooks"]["stop"][0] == {
+        "command": "node ./hooks/stop-save.mjs",
+        "timeout": 40,
+    }
     assert "'context', '--source-app', 'cursor'" in cursor_hook
-    assert "NMEM_AGENT_ID" in cursor_hook
-    assert "NMEM_HOST_AGENT_ID" in cursor_hook
-    assert "rendered_markdown" in cursor_hook
     assert "'wm', 'read'" in cursor_hook
+    assert "additional_context" in cursor_hook
+    assert "hookSpecificOutput" not in cursor_hook
+    assert "NMEM_CLI_PATH" in cursor_runtime
+    assert "NMEM_AGENT_ID" in cursor_runtime
+    assert "NMEM_HOST_AGENT_ID" in cursor_runtime
+    assert "rendered_markdown" in cursor_runtime
+    assert "'t'," in cursor_stop_hook
+    assert "'save'," in cursor_stop_hook
+    assert "'--session-id'," in cursor_stop_hook
+    assert "ATTEMPT_DELAYS_MS" in cursor_stop_hook
+    assert "latest" not in cursor_stop_hook.lower()
 
     workbuddy_marketplace = _read_json(
         COMMUNITY_ROOT / ".workbuddy-plugin" / "marketplace.json"
@@ -1367,7 +1387,12 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     by_id = {entry["id"]: entry for entry in integrations}
     assert by_id["copilot-cli"]["version"] == "0.1.4"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
-    assert by_id["cursor"]["version"] == "0.1.6"
+    assert by_id["cursor"]["version"] == "0.2.0"
+    assert by_id["cursor"]["transport"] == "mcp+hook"
+    assert by_id["cursor"]["capabilities"]["autoCapture"] is True
+    assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"
+    assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
+    assert "save-thread" in by_id["cursor"]["skills"]
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.5"

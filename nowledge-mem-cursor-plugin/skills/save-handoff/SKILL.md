@@ -5,9 +5,7 @@ description: Save a resumable handoff summary only when the user explicitly asks
 
 # Save Handoff
 
-Use this only when the user explicitly asks for a checkpoint, resumable summary, or handoff.
-
-Cursor does not yet have a first-class Nowledge live session importer in this plugin, so do not claim a real thread save.
+Use this only when the user explicitly asks for a checkpoint, resumable summary, or handoff. The automatic `stop` hook and `save-thread` skill handle real Cursor transcript import; this skill creates a separate summary artifact.
 
 When `nmem` is available, create a structured handoff summary through the terminal:
 
@@ -15,4 +13,4 @@ When `nmem` is available, create a structured handoff summary through the termin
 nmem --json t create -t "Cursor Session - <topic>" -c "Goal: ... Decisions: ... Files: ... Risks: ... Next: ..." -s cursor
 ```
 
-If `nmem` is unavailable, explain that plainly instead of pretending the handoff was saved.
+If `nmem` is unavailable, explain that plainly instead of pretending the handoff was saved. Never present this summary as the captured Cursor transcript.

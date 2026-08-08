@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0] - 2026-08-08
+
+### Added
+
+- Added a bounded `stop` hook that imports the exact current Cursor Agent transcript with `nmem t save --from cursor`.
+- Added atomic duplicate suppression, delayed retries for transcript flush races, and fail-open hook output so capture never blocks Cursor.
+- Added a real `save-thread` skill as an explicit/manual fallback to automatic capture.
+- Added shared `nmem` discovery for restricted hook environments, including `NMEM_CLI_PATH` and common desktop CLI install locations.
+
+### Changed
+
+- Refactored `sessionStart` to share CLI resolution, enforce one total execution budget, and emit only Cursor's documented `additional_context` output.
+- Reclassified the integration as `mcp+hook` with automatic local transcript capture while keeping `save-handoff` as a distinct summary-only operation.
+
 ## [0.1.6] - 2026-06-06
 
 ### Improved
