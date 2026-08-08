@@ -164,7 +164,15 @@ export class SessionSyncManager {
     const run = this.captureThread(threadId, { force: true })
     let guarded: Promise<CaptureResult>
     guarded = run.finally(() => {
-      if (state.inFlight === guarded) state.inFlight = undefined
+      // Defensive identity guard for an externally replaced runner; normal
+      // serialized execution always owns this state.
+      /* c8 ignore next */
+      if (state.inFlight !== guarded) return
+      state.inFlight = undefined
+      if (!this.disposed && state.pending) {
+        state.pending = false
+        this.scheduleSync(threadId)
+      }
     })
     state.inFlight = guarded
     return guarded
@@ -200,16 +208,22 @@ export class SessionSyncManager {
       state.pending = true
       return
     }
-    state.inFlight = this.captureThread(threadId, { force: false })
+    const run = this.captureThread(threadId, { force: false })
       .catch(() => undefined)
-      .finally(() => {
-        state.inFlight = undefined
-        if (!this.disposed && state.pending) {
-          state.pending = false
-          this.scheduleSync(threadId)
-        }
-      })
-    await state.inFlight
+    let guarded: Promise<CaptureResult | undefined>
+    guarded = run.finally(() => {
+      // Defensive identity guard for an externally replaced runner; normal
+      // serialized execution always owns this state.
+      /* c8 ignore next */
+      if (state.inFlight !== guarded) return
+      state.inFlight = undefined
+      if (!this.disposed && state.pending) {
+        state.pending = false
+        this.scheduleSync(threadId)
+      }
+    })
+    state.inFlight = guarded
+    await guarded
   }
 
   /**

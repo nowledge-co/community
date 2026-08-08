@@ -124,6 +124,17 @@ describe("SessionSyncManager.syncNow", () => {
     expect(nmemApi.calls).toEqual(["/threads"])
   })
 
+  it("appends without a space_id when no ambient space is set", async () => {
+    const nmemApi = fakeNmemApi({
+      "/threads": () => ({ ok: false, status: 409, data: {} }),
+      "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: {} }),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi }))
+    const result = await manager.syncNow(THREAD_ID)
+    expect(result.success).toBe(true)
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
+  })
+
   it("includes space_id on the append body when an ambient space is set", async () => {
     let capturedBody: unknown
     const nmemApi = fakeNmemApi({
@@ -330,9 +341,11 @@ describe("SessionSyncManager.scheduleSync", () => {
 
     // Kick off an async capture without awaiting, so inFlight is set.
     const firstSync = manager.syncNow(THREAD_ID)
+    await Promise.resolve()
     // While the first is in flight, schedule and fire auto-sync. It sees the
     // in-flight manual capture, sets pending, and does not write concurrently.
     manager.scheduleSync(THREAD_ID)
+    await flushMicrotasks()
     timers.fireAll()
     await flushMicrotasks()
     expect(nmemApi.calls).toEqual(["/threads"])

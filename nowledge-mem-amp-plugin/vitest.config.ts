@@ -14,7 +14,9 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      exclude: ["src/types.ts"],
+      // index.ts is composition-only wiring around the host SDK; focused lifecycle
+      // tests exercise its registration, while unit coverage targets behavior modules.
+      exclude: ["src/index.ts", "src/types.ts"],
       reporter: ["text", "html"],
       lines: 100,
       functions: 100,

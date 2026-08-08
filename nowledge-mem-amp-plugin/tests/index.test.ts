@@ -126,6 +126,7 @@ describe("Amp plugin entrypoint", () => {
     expect(agentEnd).toBeDefined()
     agentEnd!({ thread: { id: "T-one" } })
     amp.disposers[0]!()
+    expect(amp.logger.log).toHaveBeenCalled()
   })
 
   it("preloads bootstrap on session.start and consumes it once on agent.start", async () => {
@@ -150,5 +151,13 @@ describe("Amp plugin entrypoint", () => {
     })
     expect(second).toEqual({})
     expect(execFileMock).toHaveBeenCalledTimes(1)
+    // A second session start should preload a different session independently.
+    sessionStart!({ thread: { id: "T-two" } })
+    expect(await agentStart!({ thread: { id: "T-two" } })).toEqual({
+      message: {
+        content: '[Nowledge Mem Context Bundle]\n{"bundle":true}',
+        display: false,
+      },
+    })
   })
 })
