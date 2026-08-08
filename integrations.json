@@ -945,7 +945,8 @@
           "nowledge_mem_context_bundle", "nowledge_mem_working_memory",
           "nowledge_mem_search", "nowledge_mem_save", "nowledge_mem_update",
           "nowledge_mem_thread_search", "nowledge_mem_save_thread",
-          "nowledge_mem_save_handoff", "nowledge_mem_status"
+          "nowledge_mem_save_handoff", "nowledge_mem_graph_expand",
+          "nowledge_mem_status"
         ]
       },
       "skills": ["nowledge-mem"],

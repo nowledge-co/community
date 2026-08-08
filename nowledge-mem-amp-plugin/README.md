@@ -6,8 +6,9 @@ Nowledge Mem gives Amp access to knowledge from all your other AI tools: insight
 
 ## What you get
 
-- **Start every session informed.** The plugin loads your Context Bundle at session start: owner identity, AI Identity, active space, active rules, and Working Memory.
+- **Start every session informed.** The plugin injects your Context Bundle at the start of each agent turn: owner identity, AI Identity, active space, active rules, and Working Memory.
 - **The agent searches for you.** When past context would improve the answer, Amp finds it through your knowledge graph without being asked.
+- **Explore the knowledge graph.** Expand any memory to see its neighbours and the labelled edges connecting them.
 - **Insights stick around.** Key decisions and learnings are saved to Nowledge Mem, ready for any future session in any tool.
 - **Sessions are captured automatically.** At the end of each agent turn, the plugin saves the conversation as a searchable Mem thread.
 - **Resumable handoffs.** Save structured session summaries that any future session in any tool can pick up from.
@@ -57,6 +58,7 @@ Re-run `./scripts/install.sh` and restart Amp.
 | `nowledge_mem_thread_search` | Search past conversations from any tool. |
 | `nowledge_mem_save_thread` | Save the current session as a full conversation thread (SDK extraction + HTTP). |
 | `nowledge_mem_save_handoff` | Save a curated handoff summary (lighter, agent-composed). |
+| `nowledge_mem_graph_expand` | Expand the knowledge graph around a memory: neighbours and labelled edges. |
 | `nowledge_mem_status` | Check Nowledge Mem server connectivity and diagnostics. |
 
 ## Commands

@@ -1546,6 +1546,7 @@ def test_amp_plugin_static_contract_is_self_contained():
         "nowledge_mem_thread_search",
         "nowledge_mem_save_thread",
         "nowledge_mem_save_handoff",
+        "nowledge_mem_graph_expand",
         "nowledge_mem_status",
     ]
     expected_commands = [
@@ -1570,9 +1571,11 @@ def test_amp_plugin_static_contract_is_self_contained():
 
     # The connector uses Amp's agent.end event for capture and onDispose for cleanup.
     assert 'amp.on("agent.end"' in index_source
+    assert 'amp.on("agent.start"' in index_source
     assert "amp.onDispose(" in index_source
     assert "syncManager.scheduleSync" in index_source
     assert "syncManager.dispose" in index_source
+    assert "createBootstrapHandler" in index_source
 
     # Tools are declared as static descriptors and bound via a factory.
     assert "TOOL_DEFINITIONS" in tools_source
