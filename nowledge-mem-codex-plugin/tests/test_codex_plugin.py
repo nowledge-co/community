@@ -475,10 +475,12 @@ class PackagedHookConfigTests(unittest.TestCase):
         hooks = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))["hooks"]
 
         self.assertEqual(
-            set(hooks), {"SessionStart", "UserPromptSubmit", "Stop"}
+            set(hooks),
+            {"SessionStart", "SubagentStart", "UserPromptSubmit", "Stop"},
         )
         self.assertEqual(hooks["SessionStart"][0]["matcher"], "startup|resume|clear|compact")
-        for event_name in ("SessionStart", "UserPromptSubmit"):
+        self.assertEqual(hooks["SubagentStart"][0]["matcher"], ".*")
+        for event_name in ("SessionStart", "SubagentStart", "UserPromptSubmit"):
             hook = hooks[event_name][0]["hooks"][0]
             self.assertIn("os.environ['PLUGIN_ROOT']", hook["command"])
             self.assertIn("nmem-context.py", hook["command"])
@@ -492,6 +494,11 @@ class PackagedHookConfigTests(unittest.TestCase):
         self.assertGreater(
             session_timeout,
             context_module.CONTEXT_TOTAL_TIMEOUT_SECONDS,
+        )
+        subagent_timeout = hooks["SubagentStart"][0]["hooks"][0]["timeout"]
+        self.assertGreater(
+            subagent_timeout,
+            context_module.SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS,
         )
 
 
@@ -527,6 +534,156 @@ class ContextHookTests(unittest.TestCase):
         self.assertEqual(output["hookEventName"], "UserPromptSubmit")
         self.assertIn("Codex local Memory", output["additionalContext"])
         self.assertNotIn("Current Nowledge context", output["additionalContext"])
+
+    def test_subagent_start_injects_bounded_context_and_boundary(self):
+        stdout = io.StringIO()
+        oversized_context = "context-内容\n" * 1000
+        with mock.patch.object(
+            self.module, "_load_startup_context", return_value=oversized_context
+        ) as load, mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(
+                self.module.main(
+                    {
+                        "hook_event_name": "SubagentStart",
+                        "agent_type": "architect",
+                    }
+                ),
+                0,
+            )
+
+        load.assert_called_once_with(
+            total_timeout_seconds=self.module.SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS,
+            attempt_timeout_seconds=self.module.SUBAGENT_CONTEXT_ATTEMPT_TIMEOUT_SECONDS,
+        )
+        output = json.loads(stdout.getvalue())["hookSpecificOutput"]
+        additional_context = output["additionalContext"]
+        self.assertEqual(output["hookEventName"], "SubagentStart")
+        self.assertIn("Isolated subagent boundary", additional_context)
+        self.assertIn("memory_search` / `thread_search", additional_context)
+        self.assertIn("nmem --json m search", additional_context)
+        self.assertIn("Do not distill speculative", additional_context)
+        self.assertIn("Current Nowledge context", additional_context)
+        self.assertIn("context truncated for subagent", additional_context)
+        self.assertLessEqual(
+            len(additional_context.encode("utf-8")),
+            self.module.SUBAGENT_CONTEXT_MAX_BYTES,
+        )
+
+    def test_subagent_context_truncation_preserves_utf8(self):
+        result = self.module._truncate_utf8("界" * 2000, 101)
+
+        self.assertLessEqual(len(result.encode("utf-8")), 101)
+        self.assertIn("context truncated for subagent", result)
+
+    def test_subagent_start_keeps_guidance_when_context_is_unavailable(self):
+        stdout = io.StringIO()
+        with mock.patch.object(
+            self.module, "_load_startup_context", return_value=""
+        ), mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(
+                self.module.main(
+                    {
+                        "hook_event_name": "SubagentStart",
+                        "agent_type": "researcher",
+                    }
+                ),
+                0,
+            )
+
+        additional_context = json.loads(stdout.getvalue())["hookSpecificOutput"][
+            "additionalContext"
+        ]
+        self.assertIn("Isolated subagent boundary", additional_context)
+        self.assertNotIn("Current Nowledge context", additional_context)
+
+    def test_unlisted_subagent_receives_routing_without_context_read(self):
+        stdout = io.StringIO()
+        with mock.patch.object(self.module, "_load_startup_context") as load, \
+             mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(
+                self.module.main(
+                    {
+                        "hook_event_name": "SubagentStart",
+                        "agent_type": "worker",
+                    }
+                ),
+                0,
+            )
+
+        load.assert_not_called()
+        additional_context = json.loads(stdout.getvalue())["hookSpecificOutput"][
+            "additionalContext"
+        ]
+        self.assertIn("Isolated subagent boundary", additional_context)
+        self.assertNotIn("injected Nowledge context", additional_context)
+        self.assertNotIn("Current Nowledge context", additional_context)
+
+    def test_explorer_subagent_is_noop_by_default(self):
+        stdout = io.StringIO()
+        with mock.patch.object(self.module, "_load_startup_context") as load, \
+             mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(
+                self.module.main(
+                    {
+                        "hook_event_name": "SubagentStart",
+                        "agent_type": "explorer",
+                    }
+                ),
+                0,
+            )
+
+        load.assert_not_called()
+        self.assertEqual(stdout.getvalue(), "")
+
+    def test_subagent_context_type_override_replaces_default(self):
+        stdout = io.StringIO()
+        with mock.patch.dict(
+            self.module.os.environ,
+            {"NMEM_SUBAGENT_CONTEXT_TYPES": "worker, explorer"},
+        ), mock.patch.object(
+            self.module, "_load_startup_context", return_value="# Worker context"
+        ) as load, mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(
+                self.module.main(
+                    {
+                        "hook_event_name": "SubagentStart",
+                        "agent_type": "worker",
+                    }
+                ),
+                0,
+            )
+
+        load.assert_called_once()
+        additional_context = json.loads(stdout.getvalue())["hookSpecificOutput"][
+            "additionalContext"
+        ]
+        self.assertIn("# Worker context", additional_context)
+        self.assertIn("injected Nowledge context", additional_context)
+
+    def test_empty_subagent_context_types_disables_full_context(self):
+        stdout = io.StringIO()
+        with mock.patch.dict(
+            self.module.os.environ,
+            {"NMEM_SUBAGENT_CONTEXT_TYPES": ""},
+        ), mock.patch.object(
+            self.module, "_load_startup_context"
+        ) as load, mock.patch.object(self.module.sys, "stdout", stdout):
+            self.assertEqual(
+                self.module.main(
+                    {
+                        "hook_event_name": "SubagentStart",
+                        "agent_type": "architect",
+                    }
+                ),
+                0,
+            )
+
+        load.assert_not_called()
+        additional_context = json.loads(stdout.getvalue())["hookSpecificOutput"][
+            "additionalContext"
+        ]
+        self.assertIn("Isolated subagent boundary", additional_context)
+        self.assertNotIn("injected Nowledge context", additional_context)
 
     def test_session_output_is_ascii_safe_for_windows_codepages(self):
         stdout = io.StringIO()
@@ -1024,7 +1181,7 @@ class InstallHookTests(unittest.TestCase):
             "enabled = true",
             updated,
         )
-        for event_name in ("session_start", "user_prompt_submit"):
+        for event_name in ("session_start", "subagent_start", "user_prompt_submit"):
             self.assertIn(
                 f'[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:{event_name}:0:0"]\n'
                 "enabled = true",

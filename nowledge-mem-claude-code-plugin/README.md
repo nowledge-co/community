@@ -50,6 +50,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 **Automatic (no action needed):**
 
 - Context Bundle loaded at every session start, resume, and clear when available, with Working Memory fallback
+- Bounded Context Bundle injected for selected Claude Code subagent types, with routing-only or no-op behavior for simpler agents
 - Per-turn behavioral nudge with memory search, thread search, and save syntax
 - Per-turn managed-skills nudge for recurring procedural work (`find_skills` / `nmem skills match`)
 - Session conversations captured to your knowledge graph on each response
@@ -79,6 +80,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 |-------|---------|--------|
 | `SessionStart` | New, resume, or clear | Loads Context Bundle via `nmem context`, then falls back to `nmem wm read` |
 | `SessionStart` | After compaction | Re-loads Context Bundle or Working Memory + checkpoint prompt |
+| `SubagentStart` | Claude Code spawns a subagent | Selects full context, routing-only, or no-op behavior from `agent_type` |
 | `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
 | `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code or Grok Build session by hook `session_id` before context is compressed |
 | `Stop` | Model finishes responding | Captures session to knowledge graph |
@@ -86,6 +88,8 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 | `SessionEnd` | Grok Build process exits | Performs a final best-effort session capture after the last turn |
 
 The `SessionStart` hook tries `nmem context` first so Claude receives owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths when the installed CLI supports it. It falls back to `nmem wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
+
+The `SubagentStart` hook reuses the same source but caps the complete bootstrap envelope at 4 KiB. Full Context Bundle injection uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` allowlist, which defaults to `Plan,code-reviewer,architect,researcher`. `Explore` receives no Mem prompt by default; other unlisted types receive retrieval routing without loading the Context Bundle. Setting the variable replaces the default allowlist, and an empty value disables full Context Bundle injection for every type.
 
 The `PreCompact` hook runs the same client-side thread save before the host compresses context. The `Stop`, `SubagentStop`, and `SessionEnd` hooks run it again through a detached worker with a bounded retry window, so short transcript-flush delays or process exit do not turn into silent no-op saves. Claude Code uses `nmem t save --from claude-code`; Grok Build uses `nmem t save --from grok`. Both paths pass the host session id into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
 

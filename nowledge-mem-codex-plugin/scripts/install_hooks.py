@@ -41,9 +41,11 @@ TOML_ENABLED_KEY_RE = re.compile(r"^\s*enabled\s*=")
 NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
 PLUGIN_HOOK_STATE_KEYS = (
     "nowledge-mem@nowledge-community:hooks/hooks.json:session_start:0:0",
+    "nowledge-mem@nowledge-community:hooks/hooks.json:subagent_start:0:0",
     "nowledge-mem@nowledge-community:hooks/hooks.json:user_prompt_submit:0:0",
     "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0",
     "nowledge-mem@local:hooks/hooks.json:session_start:0:0",
+    "nowledge-mem@local:hooks/hooks.json:subagent_start:0:0",
     "nowledge-mem@local:hooks/hooks.json:user_prompt_submit:0:0",
     "nowledge-mem@local:hooks/hooks.json:stop:0:0",
 )
@@ -587,7 +589,7 @@ def main() -> int:
         print(f"- hook and legacy plugin-hook feature flags ensured in: {CONFIG_FILE}")
     else:
         print(f"- hook feature flag ensured in: {CONFIG_FILE}")
-    print(f"- plugin startup, routing, and Stop hooks enabled in: {CONFIG_FILE}")
+    print(f"- plugin startup, subagent, routing, and Stop hooks enabled in: {CONFIG_FILE}")
     if mcp_config_installed:
         print(f"- authenticated MCP config ensured in: {CONFIG_FILE}")
     print("- restart Codex and trust the new or changed Nowledge Mem hooks when prompted")
