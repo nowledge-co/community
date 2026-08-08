@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.30] - 2026-08-08
+
+### Added
+
+- Thread-spawned Codex subagents now receive a bounded Nowledge Context Bundle
+  snapshot and targeted memory/thread retrieval guidance through the native
+  `SubagentStart` hook.
+
+### Improved
+
+- Subagent bootstrap context is capped at 4 KiB, fails open when Mem is
+  unavailable, preserves the configured Nowledge AI Identity, and explicitly
+  avoids distilling speculative intermediate findings.
+- Full subagent context is limited to the exact, case-sensitive
+  `NMEM_SUBAGENT_CONTEXT_TYPES` role allowlist. The default selects
+  `planner`, `code-reviewer`, `architect`, and `researcher`; `explorer` is a
+  no-op while other roles receive retrieval routing without a context read.
+
 ## [0.1.29] - 2026-07-23
 
 ### Fixed

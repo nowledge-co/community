@@ -108,11 +108,16 @@ if (hooks) {
   } else ok("hooks/hooks.json strict top-level schema");
   const stopHooks = hooks.hooks?.Stop;
   const sessionStartHooks = hooks.hooks?.SessionStart;
+  const subagentStartHooks = hooks.hooks?.SubagentStart;
   const promptHooks = hooks.hooks?.UserPromptSubmit;
   if (!Array.isArray(sessionStartHooks)) fail("hooks/hooks.json must declare SessionStart hooks");
   else if (!JSON.stringify(sessionStartHooks).includes("nmem-context.py")) fail("SessionStart must load Nowledge context");
   else if (!sessionStartHooks[0]?.hooks?.[0]?.commandWindows?.startsWith("py -3 -c ")) fail("SessionStart Windows hook must prefer py -3");
   else ok("SessionStart context injection");
+  if (!Array.isArray(subagentStartHooks)) fail("hooks/hooks.json must declare SubagentStart hooks");
+  else if (!JSON.stringify(subagentStartHooks).includes("nmem-context.py")) fail("SubagentStart must run selective Nowledge bootstrap");
+  else if (!subagentStartHooks[0]?.hooks?.[0]?.commandWindows?.startsWith("py -3 -c ")) fail("SubagentStart Windows hook must prefer py -3");
+  else ok("SubagentStart selective bootstrap");
   if (!Array.isArray(promptHooks)) fail("hooks/hooks.json must declare UserPromptSubmit hooks");
   else if (!JSON.stringify(promptHooks).includes("nmem-context.py")) fail("UserPromptSubmit must inject memory routing");
   else if (!promptHooks[0]?.hooks?.[0]?.commandWindows?.startsWith("py -3 -c ")) fail("UserPromptSubmit Windows hook must prefer py -3");

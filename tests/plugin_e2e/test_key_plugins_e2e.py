@@ -332,12 +332,13 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.20"
+    assert claude_manifest["version"] == "0.7.21"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
-    assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
+    assert {"SessionStart", "SubagentStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
     assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
+    assert "nmem-hook-subagent.py" in json.dumps(claude_hooks["SubagentStart"])
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
     assert "--event stop --detach" in json.dumps(claude_hooks)
     assert "find_skills" in json.dumps(claude_hooks)
@@ -345,6 +346,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert "extract_skill_outcomes_from_file" in claude_save_hook
     assert "wm read" not in json.dumps(claude_hooks)
     assert (CLAUDE_PLUGIN / "scripts" / "nmem-hook-read.sh").exists()
+    assert (CLAUDE_PLUGIN / "scripts" / "nmem-hook-subagent.py").exists()
     assert (CLAUDE_PLUGIN / "scripts" / "skill_outcome.py").exists()
     assert (CLAUDE_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
     assert "Never infer a space from the current folder" in claude_read_skill
@@ -356,14 +358,15 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.29"
+    assert codex_manifest["version"] == "0.1.30"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
     assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
-    assert {"SessionStart", "UserPromptSubmit", "Stop"} <= set(codex_hooks)
+    assert {"SessionStart", "SubagentStart", "UserPromptSubmit", "Stop"} <= set(codex_hooks)
     assert "nmem-context.py" in json.dumps(codex_hooks["SessionStart"])
+    assert "nmem-context.py" in json.dumps(codex_hooks["SubagentStart"])
     assert "nmem-context.py" in json.dumps(codex_hooks["UserPromptSubmit"])
     assert (CODEX_PLUGIN / "hooks" / "nmem-context.py").exists()
     assert (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").exists()
