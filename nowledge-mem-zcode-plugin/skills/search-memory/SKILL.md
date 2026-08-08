@@ -52,4 +52,4 @@ nmem --json t search "<query>" --limit 5 --space "<space name>"
 
 If no real ambient space is configured, omit `--space` and use the default lane. Do not invent a space merely because the topic changes.
 
-Use `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200` only after a thread result identifies a relevant conversation.
+Use `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200 --space "<space name>"` only after a thread result identifies a relevant conversation. If no real ambient space is configured, omit `--space`.
