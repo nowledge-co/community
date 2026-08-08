@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from unittest import mock
 
+import pytest
+
 
 PLUGIN_ROOT = Path(__file__).parent.parent
 SCRIPT_PATH = PLUGIN_ROOT / "scripts" / "nmem-hook-subagent.py"
@@ -16,6 +18,11 @@ def _load_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+@pytest.fixture(autouse=True)
+def _clear_subagent_context_override(monkeypatch):
+    monkeypatch.delenv("NMEM_SUBAGENT_CONTEXT_TYPES", raising=False)
 
 
 def test_packaged_subagent_hook_uses_bounded_wrapper():

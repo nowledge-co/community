@@ -258,4 +258,4 @@ if __name__ == "__main__":
         if hook_event_name == "SubagentStart":
             guidance = _truncate_utf8(guidance, SUBAGENT_CONTEXT_MAX_BYTES)
         _write_hook_response(hook_event_name, guidance)
-        raise SystemExit(0)
+        raise SystemExit(0) from None
