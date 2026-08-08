@@ -11,24 +11,19 @@ function fakeNmem(stdout: string): NmemCli {
   return (() => Promise.resolve(stdout)) as NmemCli
 }
 
-/** A fake nmem that rejects, to exercise command-level error handling. */
-function throwingNmem(message: string): NmemCli {
-  return (() => Promise.reject(new Error(message))) as NmemCli
+/** A fake nmem that always rejects, for error-path tests. */
+function throwingNmem(error: Error): NmemCli {
+  return (() => Promise.reject(error)) as NmemCli
 }
 
 /** A fake nmem that rejects with a non-Error value. */
-function throwingStringNmem(message: string): NmemCli {
-  return (() => Promise.reject(message)) as NmemCli
+function throwingNmemRaw(value: unknown): NmemCli {
+  return (() => Promise.reject(value)) as NmemCli
 }
 
 /** A capture-manager stub whose syncNow returns the given result. */
 function stubManager(result: CaptureResult): Pick<SessionSyncManager, "syncNow"> {
   return { syncNow: vi.fn(async () => result) }
-}
-
-/** A capture-manager stub whose syncNow throws. */
-function throwingManager(message: string): Pick<SessionSyncManager, "syncNow"> {
-  return { syncNow: vi.fn(async () => Promise.reject(new Error(message))) }
 }
 
 /** Builds a command context capturing notifications. */
@@ -86,26 +81,6 @@ describe("createCommandRegistrations", () => {
     expect(ctx.notifications).toEqual(["(no output)"])
   })
 
-  it("status reports thrown CLI failures through the command UI", async () => {
-    const registrations = createCommandRegistrations({
-      nmem: throwingNmem("offline"),
-      syncManager: stubManager({ success: true, threadId: "t", messagesSaved: 0, title: "" }) as SessionSyncManager,
-    })
-    const ctx = commandContext()
-    await registrations[0]!.execute(ctx)
-    expect(ctx.notifications).toEqual(["Nowledge Mem status failed: offline"])
-  })
-
-  it("formats non-Error command failures", async () => {
-    const registrations = createCommandRegistrations({
-      nmem: throwingStringNmem("string failure"),
-      syncManager: stubManager({ success: true, threadId: "t", messagesSaved: 0, title: "" }) as SessionSyncManager,
-    })
-    const ctx = commandContext()
-    await registrations[0]!.execute(ctx)
-    expect(ctx.notifications).toEqual(["Nowledge Mem status failed: string failure"])
-  })
-
   it("save-thread notifies success with the message count", async () => {
     const registrations = createCommandRegistrations({
       nmem: fakeNmem("{}"),
@@ -156,16 +131,6 @@ describe("createCommandRegistrations", () => {
     expect(ctx.notifications[0]).toContain("No active thread")
   })
 
-  it("save-thread reports thrown capture failures through the command UI", async () => {
-    const registrations = createCommandRegistrations({
-      nmem: fakeNmem("{}"),
-      syncManager: throwingManager("transport down") as SessionSyncManager,
-    })
-    const ctx = commandContext()
-    await registrations[1]!.execute(ctx)
-    expect(ctx.notifications).toEqual(["Session capture failed: transport down."])
-  })
-
   it("search prompts for a query and notifies with the result", async () => {
     const nmem = fakeNmem('{"results":[]}')
     const registrations = createCommandRegistrations({ nmem, syncManager: stubManager({ success: true, threadId: "t", messagesSaved: 0, title: "" }) as SessionSyncManager })
@@ -191,13 +156,38 @@ describe("createCommandRegistrations", () => {
     expect(ctx.notifications).toEqual(["Search cancelled."])
   })
 
-  it("search reports thrown CLI failures through the command UI", async () => {
-    const registrations = createCommandRegistrations({
-      nmem: throwingNmem("bad query"),
-      syncManager: stubManager({ success: true, threadId: "t", messagesSaved: 0, title: "" }) as SessionSyncManager,
-    })
+  it("status notifies on failure when nmem rejects", async () => {
+    const nmem = throwingNmem(new Error("CLI crashed"))
+    const registrations = createCommandRegistrations({ nmem, syncManager: stubManager({ success: true, threadId: "t", messagesSaved: 0, title: "" }) as SessionSyncManager })
+    const ctx = commandContext()
+    await registrations[0]!.execute(ctx)
+    expect(ctx.notifications[0]).toContain("status failed")
+    expect(ctx.notifications[0]).toContain("CLI crashed")
+  })
+
+  it("save-thread notifies on failure when syncNow rejects", async () => {
+    const throwingManager = { syncNow: vi.fn(async () => Promise.reject(new Error("capture boom"))) }
+    const registrations = createCommandRegistrations({ nmem: fakeNmem("{}"), syncManager: throwingManager as unknown as SessionSyncManager })
+    const ctx = commandContext()
+    await registrations[1]!.execute(ctx)
+    expect(ctx.notifications[0]).toContain("capture failed")
+    expect(ctx.notifications[0]).toContain("capture boom")
+  })
+
+  it("search notifies on failure when nmem rejects", async () => {
+    const nmem = throwingNmem(new Error("search down"))
+    const registrations = createCommandRegistrations({ nmem, syncManager: stubManager({ success: true, threadId: "t", messagesSaved: 0, title: "" }) as SessionSyncManager })
     const ctx = commandContext()
     await registrations[2]!.execute(ctx)
-    expect(ctx.notifications).toEqual(["Nowledge Mem search failed: bad query"])
+    expect(ctx.notifications[0]).toContain("Search failed")
+    expect(ctx.notifications[0]).toContain("search down")
+  })
+
+  it("status handles a non-Error rejection by stringifying it", async () => {
+    const nmem = throwingNmemRaw("raw failure value")
+    const registrations = createCommandRegistrations({ nmem, syncManager: stubManager({ success: true, threadId: "t", messagesSaved: 0, title: "" }) as SessionSyncManager })
+    const ctx = commandContext()
+    await registrations[0]!.execute(ctx)
+    expect(ctx.notifications[0]).toContain("raw failure value")
   })
 })

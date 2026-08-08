@@ -1,17 +1,21 @@
 /**
  * Session-start bootstrap for the Nowledge Mem Amp connector.
  *
- * Amp exposes an `agent.start` request event whose handler may return an
- * {@link AgentStartResult} carrying one message appended after the user's
- * prompt content. The connector uses this to inject a compact Context Bundle
- * reminder at the start of each turn, so the agent is aware of its Nowledge
- * Mem identity, active space, rules, and Working Memory without a separate
- * tool call.
+ * The Context Bundle is fetched once on `session.start` (the earliest event)
+ * and consumed on the first `agent.start` of that session. Subsequent
+ * `agent.start` calls within the same session return an empty result, so the
+ * bundle is injected exactly once per session — not on every prompt. This
+ * keeps per-turn cost at zero (no CLI call after the first turn) while still
+ * giving the agent its Nowledge Mem identity, space, rules, and Working Memory
+ * at the start of the conversation.
  *
- * This module owns only the pure decision logic: whether to inject, and what
- * text to inject. Fetching the bundle and registering the handler live in the
- * wiring layer ({@link ../index}) so this module stays free of host coupling
- * and fully unit-testable.
+ * `session.start` is fire-and-forget (its handler returns void), so the fetch
+ * is kicked off there and its result stored. `agent.start` is a request event
+ * (its handler returns an `AgentStartResult`), so it reads the stored result
+ * and returns it as a hidden message.
+ *
+ * Everything is fail-open: a Mem outage or disabled bootstrap leaves the
+ * prompt untouched.
  */
 
 import type { NmemCli } from "./cli"
@@ -46,7 +50,7 @@ export function buildBootstrapMessage(bundleOutput: string): string | undefined 
   return `${REMINDER_PREFIX}\n${trimmed}`
 }
 
-/** Dependencies required by {@link createBootstrapHandler}. */
+/** Dependencies required by {@link createBootstrapManager}. */
 export interface BootstrapDeps {
   /** CLI client used to read the Context Bundle. */
   readonly nmem: NmemCli
@@ -57,7 +61,7 @@ export interface BootstrapOptions {
   /** Source application tag passed to the Context Bundle CLI call. */
   readonly sourceApp: string
   /**
-   * When `false`, the handler injects nothing. Lets users disable bootstrap via
+   * When `false`, the manager injects nothing. Lets users disable bootstrap via
    * `NMEM_AMP_BOOTSTRAP=0` without uninstalling the plugin.
    */
   readonly enabled: boolean
@@ -81,37 +85,97 @@ export interface AgentStartResultValue {
   }
 }
 
+/** Per-session state for the bootstrap preload/consume cycle. */
+interface SessionState {
+  /** The in-flight preload promise, or `undefined` if preload was not started. */
+  preloadPromise: Promise<string | null | undefined> | undefined
+  /** The resolved message content after preload completes. */
+  preloadedMessage: string | undefined | null
+  /** Whether the preloaded message has been consumed by an agent.start handler. */
+  consumed: boolean
+}
+
 /**
- * Builds an `agent.start` handler that injects the Context Bundle.
+ * Manages the preload/consume bootstrap lifecycle.
  *
- * The handler is async because it shells out to `nmem`. It never throws: a
- * failed fetch is swallowed and the handler returns an empty result (no
- * injection), so a Mem outage cannot break the agent's turn.
- *
- * @param deps - Injected dependencies (CLI client).
- * @param options - Bootstrap options.
- * @returns An async handler returning the `agent.start` result object.
+ * One manager instance serves all sessions for a plugin run. Per-session state
+ * is keyed by thread id.
  */
-export function createBootstrapHandler(
-  deps: BootstrapDeps,
-  options: BootstrapOptions,
-): () => Promise<AgentStartResultValue> {
+export class BootstrapManager {
+  private readonly deps: BootstrapDeps
+  private readonly options: BootstrapOptions
+  private readonly sessions = new Map<string, SessionState>()
+
   /**
-   * Reads the Context Bundle and returns the `agent.start` result.
-   *
-   * @returns The result object with a hidden message, or an empty object.
+   * @param deps - Injected dependencies (CLI client).
+   * @param options - Bootstrap options.
    */
-  return async function onAgentStart(): Promise<AgentStartResultValue> {
-    if (!options.enabled) return {}
-    try {
-      const bundle = await deps.nmem(["context", "--source-app", options.sourceApp])
-      const message = buildBootstrapMessage(bundle)
-      if (message === undefined) return {}
-      // display:false hides the injection from the transcript UI while still
-      // letting the model see it as part of the user message body.
-      return { message: { content: message, display: false } }
-    } catch {
-      return {}
+  public constructor(deps: BootstrapDeps, options: BootstrapOptions) {
+    this.deps = deps
+    this.options = options
+  }
+
+  /**
+   * Preloads the Context Bundle for a session.
+   *
+   * Called on `session.start`. Kicks off the CLI fetch and stores the promise
+   * so that a subsequent `consume` can await it. Fail-open: errors resolve to
+   * `null` (distinct from `undefined`, meaning "not yet started").
+   *
+   * @param threadId - The thread id for this session.
+   */
+  public preload(threadId: string): void {
+    if (!this.options.enabled) return
+    const state = this.stateFor(threadId)
+    if (state.preloadPromise !== undefined) return
+    state.preloadPromise = this.deps
+      .nmem(["context", "--source-app", this.options.sourceApp])
+      .then((bundle) => {
+        const message = buildBootstrapMessage(bundle) ?? null
+        state.preloadedMessage = message
+        return message
+      })
+      .catch(() => {
+        state.preloadedMessage = null
+        return null
+      })
+  }
+
+  /**
+   * Consumes the preloaded Context Bundle for a session.
+   *
+   * Called on `agent.start`. Awaits the preload promise if it is still in
+   * flight, then returns the preloaded message on the first call for a session.
+   * Subsequent calls return an empty result. When bootstrap is disabled or the
+   * bundle was empty, always returns an empty result.
+   *
+   * @param threadId - The thread id for this session.
+   * @returns The `agent.start` result with the hidden message, or an empty object.
+   */
+  public async consume(threadId: string): Promise<AgentStartResultValue> {
+    if (!this.options.enabled) return {}
+    const state = this.stateFor(threadId)
+    if (state.preloadPromise !== undefined) {
+      await state.preloadPromise
     }
+    if (state.consumed) return {}
+    state.consumed = true
+    if (state.preloadedMessage === undefined || state.preloadedMessage === null) return {}
+    return { message: { content: state.preloadedMessage, display: false } }
+  }
+
+  /**
+   * Returns the per-session state, creating it on first access.
+   *
+   * @param threadId - The thread id.
+   * @returns The mutable state record for the session.
+   */
+  private stateFor(threadId: string): SessionState {
+    let state = this.sessions.get(threadId)
+    if (state === undefined) {
+      state = { preloadPromise: undefined, preloadedMessage: undefined, consumed: false }
+      this.sessions.set(threadId, state)
+    }
+    return state
   }
 }

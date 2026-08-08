@@ -55,7 +55,7 @@ function managerOptions(overrides: Partial<SessionSyncManagerOptions> = {}): Ses
   }
 }
 
-/** Fake timer pair that records handles and fires them only when requested. */
+/** Fake timer pair that records handles and defers handlers until fired. */
 function fakeTimers(): {
   setTimer: SessionSyncManagerOptions["setTimer"]
   clearTimer: SessionSyncManagerOptions["clearTimer"]
@@ -99,7 +99,7 @@ describe("SessionSyncManager.syncNow", () => {
     expect(nmemApi.calls).toEqual(["/threads"])
   })
 
-  it("falls back to append when create returns 409", async () => {
+  it("falls back to append when create returns non-ok", async () => {
     const nmemApi = fakeNmemApi({
       "/threads": () => ({ ok: false, status: 409, data: { error: "exists" } }),
       "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: { appended: true } }),
@@ -109,19 +109,6 @@ describe("SessionSyncManager.syncNow", () => {
 
     expect(result.success).toBe(true)
     expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
-  })
-
-  it("preserves the original create failure when it is not a conflict", async () => {
-    const nmemApi = fakeNmemApi({
-      "/threads": () => ({ ok: false, status: 500, data: { error: "boom" } }),
-      "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: { appended: true } }),
-    })
-    const manager = new SessionSyncManager(managerOptions({ nmemApi }))
-    const result = await manager.syncNow(THREAD_ID)
-
-    expect(result.success).toBeUndefined()
-    expect(result.error).toContain("Thread save failed (500)")
-    expect(nmemApi.calls).toEqual(["/threads"])
   })
 
   it("includes space_id on the append body when an ambient space is set", async () => {
@@ -141,9 +128,9 @@ describe("SessionSyncManager.syncNow", () => {
     expect(capturedBody).toMatchObject({ space_id: "Research", idempotency_key: "amp:live:amp-t-abc123" })
   })
 
-  it("returns an append error result when create conflicts and append fails", async () => {
+  it("returns an error result when both create and append fail", async () => {
     const nmemApi = fakeNmemApi({
-      "/threads": () => ({ ok: false, status: 500, data: { error: "boom" } }),
+      "/threads": () => ({ ok: false, status: 409, data: { error: "exists" } }),
       "/threads/amp-t-abc123/append": () => ({ ok: false, status: 500, data: { error: "boom2" } }),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi }))
@@ -188,33 +175,6 @@ describe("SessionSyncManager.syncNow", () => {
     expect(nmemApi.calls).toHaveLength(2)
   })
 
-  it("serializes overlapping manual captures and reruns the forced save", async () => {
-    let resolveFirst: (value: HttpResponse) => void
-    let callCount = 0
-    const firstInFlight = new Promise<HttpResponse>((resolve) => {
-      resolveFirst = resolve
-    })
-    const nmemApi = fakeNmemApi({
-      "/threads": async () => {
-        callCount += 1
-        return callCount === 1
-          ? await firstInFlight
-          : { ok: true, status: 200, data: {} }
-      },
-    })
-    const manager = new SessionSyncManager(managerOptions({ nmemApi }))
-
-    const firstSync = manager.syncNow(THREAD_ID)
-    const secondSync = manager.syncNow(THREAD_ID)
-    await flushMicrotasks()
-    expect(nmemApi.calls).toEqual(["/threads"])
-
-    resolveFirst!({ ok: true, status: 200, data: {} })
-    await Promise.all([firstSync, secondSync])
-
-    expect(nmemApi.calls).toEqual(["/threads", "/threads"])
-  })
-
   it("derives the title from the first user message, truncated to 120 chars", async () => {
     const longContent = "x".repeat(200)
     const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
@@ -248,7 +208,7 @@ describe("SessionSyncManager.syncNow", () => {
     expect(result.title).toBe("user second")
   })
 
-  it("falls back to the first message when no user turn exists", async () => {
+  it("skips with incomplete_turn when no user turn exists", async () => {
     // No user turn means deriveTitle cannot find a user message, so it falls
     // back to messages[0]. The transcript is still incomplete_turn and skipped,
     // so assert the skip path explicitly.
@@ -266,6 +226,48 @@ describe("SessionSyncManager.syncNow", () => {
     expect(result.skipped).toBe(true)
     expect(result.reason).toBe("incomplete_turn")
   })
+
+  it("waits for an in-flight capture before running a forced one", async () => {
+    let resolveFirst: (value: HttpResponse) => void
+    const firstInFlight = new Promise<HttpResponse>((resolve) => {
+      resolveFirst = resolve
+    })
+    const nmemApi = fakeNmemApi({
+      "/threads": async () => firstInFlight,
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages: async () => FULL_TRANSCRIPT }))
+
+    // Start an automatic capture via scheduleSync (non-forced, sets inFlight).
+    const timers = fakeTimers()
+    // Use internal scheduling to set inFlight without a separate manager.
+    // We use syncNow which now checks inFlight - but we need inFlight set first.
+    // Use the runAutoSync path via scheduleSync with the deferred timers.
+    const managerWithTimers = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages: async () => FULL_TRANSCRIPT, ...timers }))
+    managerWithTimers.scheduleSync(THREAD_ID)
+    timers.fireAll()
+    // Now inFlight is set (waiting on firstInFlight). Call syncNow.
+    const syncNowPromise = managerWithTimers.syncNow(THREAD_ID)
+    // Resolve the in-flight capture.
+    resolveFirst!({ ok: true, status: 200, data: {} })
+    await flushMicrotasks()
+    // syncNow should now run its own forced capture.
+    const result = await syncNowPromise
+    expect(result.success).toBe(true)
+    // Two captures: one automatic, one forced.
+    expect(nmemApi.calls).toHaveLength(2)
+  })
+
+  it("does not fall back to append for non-409 errors", async () => {
+    const nmemApi = fakeNmemApi({
+      "/threads": () => ({ ok: false, status: 500, data: { error: "server error" } }),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi }))
+    const result = await manager.syncNow(THREAD_ID)
+    expect(result.success).toBeUndefined()
+    expect(result.error).toContain("500")
+    // Only the create was attempted, not append.
+    expect(nmemApi.calls).toEqual(["/threads"])
+  })
 })
 
 describe("SessionSyncManager.scheduleSync", () => {
@@ -282,8 +284,23 @@ describe("SessionSyncManager.scheduleSync", () => {
     const timers = fakeTimers()
     const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+    // scheduleSync stores the handler; fire it to start the async capture.
     manager.scheduleSync(THREAD_ID)
-    expect(nmemApi.calls).toEqual([])
+    expect(timers.handles).toHaveLength(1)
+    timers.fireAll()
+    await flushMicrotasks()
+    expect(nmemApi.calls).toEqual(["/threads"])
+  })
+
+  it("clears a pending timer when scheduleSync is called again within the debounce window", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+    // Two schedules before firing: the second clears the first timer.
+    manager.scheduleSync(THREAD_ID)
+    manager.scheduleSync(THREAD_ID)
+    // Only one handle remains (the second replaced the first).
+    expect(timers.handles).toHaveLength(1)
     timers.fireAll()
     await flushMicrotasks()
     expect(nmemApi.calls).toEqual(["/threads"])
@@ -293,28 +310,17 @@ describe("SessionSyncManager.scheduleSync", () => {
     const timers = fakeTimers()
     const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+    // First schedule: fire and flush to persist and set lastSignature.
     manager.scheduleSync(THREAD_ID)
     timers.fireAll()
     await flushMicrotasks()
+    await flushMicrotasks()
+    // Second schedule: same transcript, deduped by signature.
     manager.scheduleSync(THREAD_ID)
     timers.fireAll()
     await flushMicrotasks()
-    // First schedule persists; second is deduped by signature.
+    await flushMicrotasks()
     expect(nmemApi.calls).toHaveLength(1)
-  })
-
-  it("coalesces repeated schedules inside the debounce window", async () => {
-    const timers = fakeTimers()
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
-    const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
-
-    manager.scheduleSync(THREAD_ID)
-    manager.scheduleSync(THREAD_ID)
-    expect(timers.handles).toHaveLength(1)
-    timers.fireAll()
-    await flushMicrotasks()
-
-    expect(nmemApi.calls).toEqual(["/threads"])
   })
 
   it("coalesces overlapping captures via the pending flag", async () => {
@@ -322,31 +328,28 @@ describe("SessionSyncManager.scheduleSync", () => {
     const firstInFlight = new Promise<HttpResponse>((resolve) => {
       resolveFirst = resolve
     })
+    const timers = fakeTimers()
     const nmemApi = fakeNmemApi({
       "/threads": async () => firstInFlight,
     })
-    const timers = fakeTimers()
     const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages: async () => FULL_TRANSCRIPT, ...timers }))
 
-    // Kick off an async capture without awaiting, so inFlight is set.
-    const firstSync = manager.syncNow(THREAD_ID)
-    // While the first is in flight, schedule and fire auto-sync. It sees the
-    // in-flight manual capture, sets pending, and does not write concurrently.
+    // Start an automatic capture by scheduling and firing the timer.
     manager.scheduleSync(THREAD_ID)
     timers.fireAll()
-    await flushMicrotasks()
-    expect(nmemApi.calls).toEqual(["/threads"])
-
-    // Allow the first to complete; the pending flag schedules one more capture.
+    // The capture is now in-flight (waiting on firstInFlight).
+    // Schedule another while in-flight: the pending flag should be set.
+    manager.scheduleSync(THREAD_ID)
+    timers.fireAll()
+    // Allow the first to complete; the pending flag triggers one more schedule.
     resolveFirst!({ ok: true, status: 200, data: {} })
-    await firstSync
     await flushMicrotasks()
-    expect(timers.handles).toHaveLength(1)
+    // The pending schedule fires its timer; fire it and flush.
     timers.fireAll()
     await flushMicrotasks()
 
-    // Dedup prevents further persistence of the same signature.
-    expect(nmemApi.calls).toEqual(["/threads"])
+    // The first capture persisted; the second was coalesced and deduped.
+    expect(nmemApi.calls).toHaveLength(1)
   })
 })
 

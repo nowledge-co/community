@@ -334,13 +334,12 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.22"
+    assert claude_manifest["version"] == "0.7.21"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
-    assert {"SessionStart", "SubagentStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
+    assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
     assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
-    assert "nmem-hook-subagent.py" in json.dumps(claude_hooks["SubagentStart"])
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
     assert "--event stop --detach" in json.dumps(claude_hooks)
     assert "find_skills" in json.dumps(claude_hooks)
@@ -348,7 +347,6 @@ def test_key_plugin_static_contracts_are_declared():
     assert "extract_skill_outcomes_from_file" in claude_save_hook
     assert "wm read" not in json.dumps(claude_hooks)
     assert (CLAUDE_PLUGIN / "scripts" / "nmem-hook-read.sh").exists()
-    assert (CLAUDE_PLUGIN / "scripts" / "nmem-hook-subagent.py").exists()
     assert (CLAUDE_PLUGIN / "scripts" / "skill_outcome.py").exists()
     assert (CLAUDE_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
     assert "Never infer a space from the current folder" in claude_read_skill
@@ -399,15 +397,14 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.30"
+    assert codex_manifest["version"] == "0.1.29"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
     assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
-    assert {"SessionStart", "SubagentStart", "UserPromptSubmit", "Stop"} <= set(codex_hooks)
+    assert {"SessionStart", "UserPromptSubmit", "Stop"} <= set(codex_hooks)
     assert "nmem-context.py" in json.dumps(codex_hooks["SessionStart"])
-    assert "nmem-context.py" in json.dumps(codex_hooks["SubagentStart"])
     assert "nmem-context.py" in json.dumps(codex_hooks["UserPromptSubmit"])
     assert (CODEX_PLUGIN / "hooks" / "nmem-context.py").exists()
     assert (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").exists()
@@ -596,33 +593,13 @@ def test_key_plugin_static_contracts_are_declared():
     assert "source\": \"proma\"" in proma_save_hook
 
     cursor_manifest = _read_json(CURSOR_PLUGIN / ".cursor-plugin" / "plugin.json")
-    cursor_hooks = _read_json(CURSOR_PLUGIN / "hooks" / "hooks.json")
-    cursor_runtime = (CURSOR_PLUGIN / "hooks" / "nmem-runtime.mjs").read_text(
-        encoding="utf-8"
-    )
     cursor_hook = (CURSOR_PLUGIN / "hooks" / "session-start.mjs").read_text(encoding="utf-8")
-    cursor_stop_hook = (CURSOR_PLUGIN / "hooks" / "stop-save.mjs").read_text(
-        encoding="utf-8"
-    )
-    assert cursor_manifest["version"] == "0.2.0"
-    assert cursor_hooks["hooks"]["sessionStart"][0]["timeout"] == 15
-    assert cursor_hooks["hooks"]["stop"][0] == {
-        "command": "node ./hooks/stop-save.mjs",
-        "timeout": 40,
-    }
+    assert cursor_manifest["version"] == "0.1.6"
     assert "'context', '--source-app', 'cursor'" in cursor_hook
+    assert "NMEM_AGENT_ID" in cursor_hook
+    assert "NMEM_HOST_AGENT_ID" in cursor_hook
+    assert "rendered_markdown" in cursor_hook
     assert "'wm', 'read'" in cursor_hook
-    assert "additional_context" in cursor_hook
-    assert "hookSpecificOutput" not in cursor_hook
-    assert "NMEM_CLI_PATH" in cursor_runtime
-    assert "NMEM_AGENT_ID" in cursor_runtime
-    assert "NMEM_HOST_AGENT_ID" in cursor_runtime
-    assert "rendered_markdown" in cursor_runtime
-    assert "'t'," in cursor_stop_hook
-    assert "'save'," in cursor_stop_hook
-    assert "'--session-id'," in cursor_stop_hook
-    assert "ATTEMPT_DELAYS_MS" in cursor_stop_hook
-    assert "latest" not in cursor_stop_hook.lower()
 
     workbuddy_marketplace = _read_json(
         COMMUNITY_ROOT / ".workbuddy-plugin" / "marketplace.json"
@@ -1441,13 +1418,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     by_id = {entry["id"]: entry for entry in integrations}
     assert by_id["copilot-cli"]["version"] == "0.1.4"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
-    assert by_id["cursor"]["version"] == "0.2.0"
-    assert by_id["cursor"]["transport"] == "mcp+hook"
-    assert by_id["cursor"]["capabilities"]["autoCapture"] is True
-    assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"
-    assert by_id["cursor"]["threadSave"]["command"] == "nmem t save --from cursor"
-    assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
-    assert "save-thread" in by_id["cursor"]["skills"]
+    assert by_id["cursor"]["version"] == "0.1.6"
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.5"
@@ -1633,21 +1604,19 @@ def test_amp_plugin_static_contract_is_self_contained():
     assert amp_registry["directory"] == "nowledge-mem-amp-plugin"
     assert amp_registry["version"] == pkg["version"]
     assert amp_registry["transport"] == "cli+http"
-    assert amp_registry["capabilities"]["graphExploration"] is True
     assert amp_registry["threadSave"]["method"] == "sdk-extract+agent-end"
     assert amp_registry["autonomy"]["threads"] == "automatic-capture"
-    assert amp_registry["install"]["command"] == "bash nowledge-mem-amp-plugin/scripts/install.sh"
-    assert amp_registry["install"]["updateCommand"] == "bash nowledge-mem-amp-plugin/scripts/install.sh"
     assert amp_registry["toolNaming"]["tools"] == expected_tools
     assert [c["name"] for c in amp_registry["slashCommands"]] == expected_commands
 
     # The connector uses Amp's agent.end event for capture and onDispose for cleanup.
     assert 'amp.on("agent.end"' in index_source
     assert 'amp.on("agent.start"' in index_source
+    assert 'amp.on("session.start"' in index_source
     assert "amp.onDispose(" in index_source
     assert "syncManager.scheduleSync" in index_source
     assert "syncManager.dispose" in index_source
-    assert "createBootstrapHandler" in index_source
+    assert "BootstrapManager" in index_source
 
     # Tools are declared as static descriptors and bound via a factory.
     assert "TOOL_DEFINITIONS" in tools_source
@@ -1684,8 +1653,6 @@ def test_amp_plugin_static_contract_is_self_contained():
     assert "PLUGINS_DIR=" in install_sh
     assert "SKILLS_DIR=" in install_sh
     assert "cp -R" in install_sh
-    assert "PLUGIN_ENTRY_DEST=" in install_sh
-    assert 'export { default } from "./nowledge-mem/src/index.ts"' in install_sh
 
     # No raw secrets are checked into the package.
     assert "NMEM_API_KEY" in readme

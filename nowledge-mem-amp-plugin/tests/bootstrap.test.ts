@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import {
   buildBootstrapMessage,
-  createBootstrapHandler,
+  BootstrapManager,
 } from "../src/bootstrap"
 import type { NmemCli } from "../src/cli"
 
@@ -28,7 +28,6 @@ describe("buildBootstrapMessage", () => {
     expect(result).toBeDefined()
     expect(result!.startsWith("[Nowledge Mem Context Bundle]\n")).toBe(true)
     expect(result!.endsWith("…")).toBe(true)
-    // 4000 chars of body + ellipsis + prefix line + newline
     expect(result!.length).toBe("[Nowledge Mem Context Bundle]\n".length + 4000 + 1)
   })
 
@@ -52,18 +51,20 @@ describe("buildBootstrapMessage", () => {
   })
 })
 
-describe("createBootstrapHandler", () => {
-  it("returns an empty result when bootstrap is disabled", async () => {
+describe("BootstrapManager", () => {
+  it("returns empty when bootstrap is disabled", async () => {
     const nmem = fakeNmem('{"bundle":true}')
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: false })
-    const result = await handler()
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: false })
+    manager.preload("T-1")
+    const result = await manager.consume("T-1")
     expect(result).toEqual({})
   })
 
-  it("injects the bundle as a hidden message when enabled", async () => {
+  it("preloads on session.start and injects on the first agent.start", async () => {
     const nmem = fakeNmem('{"bundle":true}')
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: true })
-    const result = await handler()
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    const result = await manager.consume("T-1")
     expect(result).toEqual({
       message: {
         content: '[Nowledge Mem Context Bundle]\n{"bundle":true}',
@@ -72,35 +73,101 @@ describe("createBootstrapHandler", () => {
     })
   })
 
-  it("calls nmem context with the source-app flag", async () => {
+  it("calls nmem context with the source-app flag during preload", async () => {
     const calls: string[][] = []
     const nmem = ((args: readonly string[]) => {
       calls.push([...args])
       return Promise.resolve('{"ok":true}')
     }) as NmemCli
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: true })
-    await handler()
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    await manager.consume("T-1")
     expect(calls[0]).toEqual(["context", "--source-app", "amp"])
   })
 
-  it("returns an empty result when the bundle is an error payload (fail-open)", async () => {
-    const nmem = fakeNmem(JSON.stringify({ error: "server down" }))
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: true })
-    const result = await handler()
-    expect(result).toEqual({})
-  })
-
-  it("returns an empty result when nmem throws (fail-open)", async () => {
-    const nmem = throwingNmem(new Error("ENOENT"))
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: true })
-    const result = await handler()
-    expect(result).toEqual({})
+  it("returns empty on the second agent.start (consume once per session)", async () => {
+    const nmem = fakeNmem('{"bundle":true}')
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    const first = await manager.consume("T-1")
+    const second = await manager.consume("T-1")
+    expect(first).toEqual({
+      message: {
+        content: '[Nowledge Mem Context Bundle]\n{"bundle":true}',
+        display: false,
+      },
+    })
+    expect(second).toEqual({})
   })
 
   it("does not call nmem when disabled", async () => {
     const nmem = vi.fn((() => Promise.resolve('{"ok":true}')) as NmemCli)
-    const handler = createBootstrapHandler({ nmem }, { sourceApp: "amp", enabled: false })
-    await handler()
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: false })
+    manager.preload("T-1")
+    await manager.consume("T-1")
     expect(nmem).not.toHaveBeenCalled()
+  })
+
+  it("returns empty when preload found an error payload (fail-open)", async () => {
+    const nmem = fakeNmem(JSON.stringify({ error: "server down" }))
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    const result = await manager.consume("T-1")
+    expect(result).toEqual({})
+  })
+
+  it("returns empty when nmem throws during preload (fail-open)", async () => {
+    const nmem = throwingNmem(new Error("ENOENT"))
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    const result = await manager.consume("T-1")
+    expect(result).toEqual({})
+  })
+
+  it("manages multiple sessions independently", async () => {
+    const nmem = fakeNmem('{"bundle":true}')
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    manager.preload("T-2")
+    expect(await manager.consume("T-1")).toEqual({
+      message: {
+        content: '[Nowledge Mem Context Bundle]\n{"bundle":true}',
+        display: false,
+      },
+    })
+    expect(await manager.consume("T-2")).toEqual({
+      message: {
+        content: '[Nowledge Mem Context Bundle]\n{"bundle":true}',
+        display: false,
+      },
+    })
+    expect(await manager.consume("T-1")).toEqual({})
+  })
+
+  it("awaits an in-flight preload when consume is called", async () => {
+    const nmem = fakeNmem('{"bundle":true}')
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    // consume awaits the in-flight preload promise.
+    const result = await manager.consume("T-1")
+    expect(result).toEqual({
+      message: {
+        content: '[Nowledge Mem Context Bundle]\n{"bundle":true}',
+        display: false,
+      },
+    })
+  })
+
+  it("does not re-fetch when preload is called twice for the same thread", async () => {
+    const calls: string[][] = []
+    const nmem = ((args: readonly string[]) => {
+      calls.push([...args])
+      return Promise.resolve('{"ok":true}')
+    }) as NmemCli
+    const manager = new BootstrapManager({ nmem }, { sourceApp: "amp", enabled: true })
+    manager.preload("T-1")
+    manager.preload("T-1")
+    await manager.consume("T-1")
+    expect(calls).toHaveLength(1)
   })
 })

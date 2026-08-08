@@ -274,10 +274,12 @@ export function toThreadMessages(
 /**
  * Returns the deduplication signature for a list of thread messages.
  *
- * The signature combines the message count, total rendered content length, and
- * the last message's `external_id`. Re-capturing a session whose transcript has
- * not changed yields the same signature, while edits to existing message
- * payloads still trigger another save.
+ * The signature combines the message count, a content-length checksum, and the
+ * last message's `external_id`. The content-length component detects cases
+ * where the message count and last id are unchanged but an existing message's
+ * content was revised (e.g. a `tool_result` status changed from `running` to
+ * `done`). Re-capturing a session whose transcript has not changed yields the
+ * same signature, which lets the capture manager skip redundant uploads.
  *
  * @param messages - Thread messages to summarise.
  * @returns The deduplication signature.

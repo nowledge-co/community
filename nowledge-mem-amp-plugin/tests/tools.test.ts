@@ -129,15 +129,6 @@ describe("createToolExecutors", () => {
     expect(nmem.calls[0]).toEqual(["m", "add", "c", "-t", "t", "--source", SOURCE_APP])
   })
 
-  it("save clamps importance to the documented range", async () => {
-    const nmem = fakeNmem()
-    const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
-    await executors.nowledge_mem_save({ content: "c", title: "t", importance: 2 }, THREAD_CTX)
-    await executors.nowledge_mem_save({ content: "c", title: "t", importance: -1 }, THREAD_CTX)
-    expect(nmem.calls[0]).toEqual(["m", "add", "c", "-t", "t", "--source", SOURCE_APP, "-i", "1"])
-    expect(nmem.calls[1]).toEqual(["m", "add", "c", "-t", "t", "--source", SOURCE_APP, "-i", "0"])
-  })
-
   it("save tolerates a missing required content/title by defaulting to empty", async () => {
     const nmem = fakeNmem()
     const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
@@ -150,15 +141,6 @@ describe("createToolExecutors", () => {
     const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
     await executors.nowledge_mem_update({ memory_id: "m1", content: "new", title: "newt", importance: 0.5 }, THREAD_CTX)
     expect(nmem.calls[0]).toEqual(["m", "update", "m1", "-c", "new", "-t", "newt", "-i", "0.5"])
-  })
-
-  it("update clamps importance to the documented range", async () => {
-    const nmem = fakeNmem()
-    const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
-    await executors.nowledge_mem_update({ memory_id: "m1", importance: 2 }, THREAD_CTX)
-    await executors.nowledge_mem_update({ memory_id: "m1", importance: -1 }, THREAD_CTX)
-    expect(nmem.calls[0]).toEqual(["m", "update", "m1", "-i", "1"])
-    expect(nmem.calls[1]).toEqual(["m", "update", "m1", "-i", "0"])
   })
 
   it("update omits absent optional fields", async () => {
@@ -246,6 +228,21 @@ describe("createToolExecutors", () => {
     const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
     await executors.nowledge_mem_save_handoff({}, THREAD_CTX)
     expect(nmem.calls[0]).toEqual(["t", "create", "-t", "Session Handoff - ", "-c", "", "-s", SOURCE_APP])
+  })
+
+  it("save clamps importance to the 0-1 range", async () => {
+    const nmem = fakeNmem()
+    const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
+    await executors.nowledge_mem_save({ content: "c", title: "t", importance: 5 }, THREAD_CTX)
+    expect(nmem.calls[0]).toContain("-i")
+    expect(nmem.calls[0]?.[nmem.calls[0]!.indexOf("-i") + 1]).toBe("1")
+  })
+
+  it("save clamps negative importance to 0", async () => {
+    const nmem = fakeNmem()
+    const executors = createToolExecutors({ nmem, syncManager: stubManager() as SessionSyncManager })
+    await executors.nowledge_mem_save({ content: "c", title: "t", importance: -0.5 }, THREAD_CTX)
+    expect(nmem.calls[0]?.[nmem.calls[0]!.indexOf("-i") + 1]).toBe("0")
   })
 
   it("graph_expand builds the expand command with depth and limit", async () => {

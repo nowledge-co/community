@@ -4,7 +4,8 @@
  * Three commands surface the most common operations through Amp's command
  * palette. Each registration is plain data plus a thin handler that delegates to
  * the same dependencies the tools use, so behavior stays consistent across the
- * tool and command surfaces.
+ * tool and command surfaces. Handlers are fail-open: a thrown error is caught
+ * and surfaced as a notification rather than escaping to the Amp dispatcher.
  */
 
 import type { NmemCli } from "./cli"
@@ -26,7 +27,12 @@ function summariseCliResult(result: string): string {
   return trimmed.length > 500 ? `${trimmed.slice(0, 500)}…` : trimmed
 }
 
-/** Formats an unknown thrown value as a user-readable message. */
+/**
+ * Extracts a readable message from a caught error.
+ *
+ * @param error - The thrown value.
+ * @returns The error message string.
+ */
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
@@ -93,7 +99,7 @@ export function createCommandRegistrations(deps: CommandDeps): CommandRegistrati
           const result = await deps.nmem(["m", "search", query.trim()])
           await ctx.notify(summariseCliResult(result))
         } catch (error) {
-          await ctx.notify(`Nowledge Mem search failed: ${errorMessage(error)}`)
+          await ctx.notify(`Search failed: ${errorMessage(error)}.`)
         }
       },
     },

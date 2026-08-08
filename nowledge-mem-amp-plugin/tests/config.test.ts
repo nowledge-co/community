@@ -119,7 +119,7 @@ describe("resolveConfig", () => {
     expect(config.autoSyncDebounceMs).toBe(5000)
   })
 
-  it("clamps debounce below the minimum to the documented minimum", () => {
+  it("clamps debounce below the minimum to the minimum", () => {
     const config = resolveConfig({ NMEM_AMP_AUTO_SYNC_DEBOUNCE_MS: "10" }, sharedConfig({}))
     expect(config.autoSyncDebounceMs).toBe(250)
   })

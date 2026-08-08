@@ -16,7 +16,7 @@ Treat this as reference text. For real, update-safe overrides, use Amp's own ins
 | `nowledge_mem_thread_search` | Search past conversations across all tools. |
 | `nowledge_mem_save_thread` | Save the current Amp session as a full thread. Idempotent. |
 | `nowledge_mem_save_handoff` | Save a curated handoff summary. |
-| `nowledge_mem_graph_expand` | Expand graph neighbours and labelled edges around a memory. |
+| `nowledge_mem_graph_expand` | Expand the knowledge graph around a memory: neighbours and labelled edges. |
 | `nowledge_mem_status` | Connectivity and configuration diagnostics. |
 
 ## Behavioral summary

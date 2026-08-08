@@ -26,13 +26,13 @@ amp --version   # Amp is available
 
 ## Setup
 
-From the `community` repository root, run the install script:
+From this plugin directory, run the install script:
 
 ```bash
-bash nowledge-mem-amp-plugin/scripts/install.sh
+bash scripts/install.sh
 ```
 
-This installs a discoverable plugin entry at `${XDG_CONFIG_HOME:-$HOME/.config}/amp/plugins/nowledge-mem.ts`, copies the plugin bundle beside it, and installs the skill under `${XDG_CONFIG_HOME:-$HOME/.config}/amp/skills/nowledge-mem/`. If `XDG_CONFIG_HOME` is set, the script uses that directory instead of `~/.config`. Restart Amp to load the plugin.
+This copies the plugin into `${XDG_CONFIG_HOME:-~/.config}/amp/plugins/nowledge-mem/` and the skill into `${XDG_CONFIG_HOME:-~/.config}/amp/skills/nowledge-mem/`. If `XDG_CONFIG_HOME` is set, it overrides the default `~/.config` path. Restart Amp to load the plugin.
 
 ## Verify
 
@@ -40,11 +40,11 @@ Start a new Amp session and ask:
 
 > What was I working on recently?
 
-Amp should call `nowledge_mem_context_bundle` by default, then return your current context. `nowledge_mem_working_memory` is the lightweight fallback when the full Context Bundle is unavailable or unnecessarily heavy. If Mem is not running, you will see a connection error in the tool output.
+Amp should call `nowledge_mem_context_bundle` when full startup context matters, or `nowledge_mem_working_memory` as the lightweight fallback, then return your current context. If Mem is not running, you will see a connection error in the tool output.
 
 ## Update
 
-Re-run `bash nowledge-mem-amp-plugin/scripts/install.sh` from the `community` repository root and restart Amp.
+Re-run `./scripts/install.sh` and restart Amp.
 
 ## Tools
 

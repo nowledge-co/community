@@ -20,7 +20,7 @@ const BASE_CONFIG: ResolvedConfig = {
 interface RecordedCall {
   readonly file: string
   readonly args: readonly string[]
-  readonly options: { readonly timeout: number }
+  readonly options: { readonly timeout?: number } | undefined
 }
 
 /**
@@ -32,7 +32,7 @@ function fakeExecFile(
   handler: (call: RecordedCall) => [Error | null, string, string],
 ): ExecFileFn & { calls: RecordedCall[] } {
   const calls: RecordedCall[] = []
-  const fn = ((file: string, args: readonly string[], options: { readonly timeout: number }, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
+  const fn = ((file: string, args: readonly string[], options: { readonly timeout?: number }, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
     const call: RecordedCall = { file, args, options }
     calls.push(call)
     const [error, stdout, stderr] = handler(call)
@@ -48,7 +48,7 @@ describe("createNmemCli", () => {
     const nmem = createNmemCli(BASE_CONFIG, { execFile })
     const result = await nmem(["status"])
     expect(result).toBe('{"ok":true}')
-    expect(execFile.calls[0]).toEqual({ file: "nmem", args: ["--json", "status"], options: { timeout: CLI_TIMEOUT_MS } })
+    expect(execFile.calls[0]).toEqual({ file: "nmem", args: ["--json", "status"], options: { timeout: 30_000 } })
   })
 
   it("exposes the configured CLI timeout constant", () => {

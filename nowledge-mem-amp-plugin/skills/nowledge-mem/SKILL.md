@@ -9,7 +9,7 @@ You have Nowledge Mem tools (`nowledge_mem_*`) for cross-tool knowledge manageme
 
 ## At session start
 
-Call `nowledge_mem_context_bundle` when identity, scope, or rules may matter. It returns owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths in one stable contract. Use `nowledge_mem_working_memory` only for a lightweight daily briefing or as a fallback when the Context Bundle is unavailable.
+Call `nowledge_mem_context_bundle` at the start of every session. It returns owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths in one stable contract. Use `nowledge_mem_working_memory` only for a lightweight daily briefing or as a fallback when the Context Bundle is unavailable.
 
 ## When to search (`nowledge_mem_search`)
 

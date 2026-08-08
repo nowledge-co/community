@@ -104,12 +104,12 @@ export interface CommandRegistration {
  *
  * @param file - Executable to invoke (`nmem`).
  * @param args - Argument array; each element is passed as a separate argv entry.
- * @param options - Execution options such as timeout.
+ * @param options - Optional execution options (e.g. `timeout`).
  * @param callback - Receives any error, stdout, and stderr as strings.
  */
 export type ExecFileFn = (
   file: string,
   args: readonly string[],
-  options: { readonly timeout: number },
+  options: { readonly timeout?: number },
   callback: (error: Error | null, stdout: string, stderr: string) => void,
 ) => void

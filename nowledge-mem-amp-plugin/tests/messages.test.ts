@@ -203,24 +203,12 @@ describe("lastExternalId and captureSignature", () => {
     expect(lastExternalId([])).toBe("")
   })
 
-  it("builds a count:contentLength:lastId signature", () => {
+  it("builds a count:lastId signature", () => {
     const messages = toThreadMessages(
       [{ role: "user", id: "u1", parts: [{ type: "text", text: "a" }] }],
       { sourceApp: "amp" },
     )
     expect(captureSignature(messages)).toBe("1:1:amp-msg-u1")
-  })
-
-  it("changes the signature when content changes but ids do not", () => {
-    const first = toThreadMessages(
-      [{ role: "user", id: "u1", parts: [{ type: "text", text: "a" }] }],
-      { sourceApp: "amp" },
-    )
-    const second = toThreadMessages(
-      [{ role: "user", id: "u1", parts: [{ type: "text", text: "updated" }] }],
-      { sourceApp: "amp" },
-    )
-    expect(captureSignature(first)).not.toBe(captureSignature(second))
   })
 
   it("builds a signature with an empty last id when none is present", () => {

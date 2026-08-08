@@ -3,9 +3,10 @@
  *
  * This module is intentionally thin: it reads the Amp plugin API and the host
  * environment, builds the resolved configuration and injected ports, and
- * registers tools, commands, session bootstrap, the `agent.end` capture
- * handler, and the dispose callback. All logic lives in the collaborator
- * modules; this layer only composes the Amp host API.
+ * registers tools, commands, the `agent.end` capture handler, and the dispose
+ * callback. All logic lives in the collaborator modules; nothing here is
+ * unit-tested directly (it is excluded from coverage) because its only job is
+ * composition.
  */
 
 import { execFile as nodeExecFile } from "node:child_process"
@@ -20,7 +21,7 @@ import { createNmemHttp } from "./http"
 import { SessionSyncManager } from "./sync"
 import { createToolExecutors, TOOL_DEFINITIONS, SOURCE_APP } from "./tools"
 import { createCommandRegistrations } from "./commands"
-import { createBootstrapHandler } from "./bootstrap"
+import { BootstrapManager } from "./bootstrap"
 import { BEHAVIORAL_GUIDANCE } from "./guidance"
 import type { CommandContext, ExecFileFn, ToolContext } from "./types"
 
@@ -37,16 +38,12 @@ function readSharedConfigFile(): Record<string, unknown> {
   if (!existsSync(path)) return {}
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, "utf8"))
-    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>
-    }
-    /* c8 ignore next */
-    return {}
-  /* c8 ignore start */
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {}
   } catch {
     return {}
   }
-  /* c8 ignore stop */
 }
 
 /**
@@ -171,24 +168,17 @@ export default function ampKnowledgeMem(amp: PluginAPI): void {
     syncManager.scheduleSync(event.thread.id)
   })
 
-  const bootstrapHandler = createBootstrapHandler(
+  const bootstrapManager = new BootstrapManager(
     { nmem },
     { sourceApp: SOURCE_APP, enabled: config.bootstrapEnabled },
   )
-  const bootstrapByThread = new Map<ThreadID, ReturnType<typeof bootstrapHandler>>()
   amp.on("session.start", (event) => {
-    bootstrapByThread.set(event.thread.id, bootstrapHandler())
+    bootstrapManager.preload(event.thread.id)
   })
-  amp.on("agent.start", async (event) => {
-    const pendingBootstrap = bootstrapByThread.get(event.thread.id)
-    if (pendingBootstrap === undefined) return {}
-    bootstrapByThread.delete(event.thread.id)
-    return pendingBootstrap
-  })
+  amp.on("agent.start", async (event) => bootstrapManager.consume(event.thread.id))
 
   amp.onDispose(() => {
     syncManager.dispose()
-    bootstrapByThread.clear()
     logger.log(`${SOURCE_APP} connector disposed`)
   })
 

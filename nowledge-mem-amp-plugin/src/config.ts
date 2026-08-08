@@ -139,10 +139,9 @@ export function resolveConfig(
   const autoSyncEnabled = !AUTO_SYNC_DISABLED_VALUES.has(autoSyncRaw.toLowerCase())
 
   const debounceRaw = Number(nonEmptyString(env.NMEM_AMP_AUTO_SYNC_DEBOUNCE_MS) ?? String(DEFAULT_AUTO_SYNC_DEBOUNCE_MS))
-  const autoSyncDebounceMs =
-    Number.isFinite(debounceRaw)
-      ? Math.max(MIN_AUTO_SYNC_DEBOUNCE_MS, debounceRaw)
-      : DEFAULT_AUTO_SYNC_DEBOUNCE_MS
+  const autoSyncDebounceMs = Number.isFinite(debounceRaw)
+    ? Math.max(MIN_AUTO_SYNC_DEBOUNCE_MS, debounceRaw)
+    : DEFAULT_AUTO_SYNC_DEBOUNCE_MS
 
   const bootstrapRaw = nonEmptyString(env.NMEM_AMP_BOOTSTRAP) ?? "1"
   const bootstrapEnabled = !BOOTSTRAP_DISABLED_VALUES.has(bootstrapRaw.toLowerCase())

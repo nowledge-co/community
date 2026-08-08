@@ -36,10 +36,10 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@ampcode/plugin": ">=0.0.0-20260808001526-g672f7db <1.0.0"
+    "@ampcode/plugin": "*"
   },
   "devDependencies": {
-    "@ampcode/plugin": "0.0.0-20260808001526-g672f7db",
+    "@ampcode/plugin": "*",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.1.0",
     "typescript": "^5.6.0",
