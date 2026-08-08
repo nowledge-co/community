@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Cross-tool memory for Kimi Code. Recall past decisions, search prior threads, and keep Kimi Code sessions searchable in Nowledge Mem.",
   "keywords": ["memory", "mcp", "skills", "thread-sync"],
   "author": {
@@ -12,7 +12,7 @@
   "sessionStart": {
     "skill": "nowledge-mem"
   },
-  "skillInstructions": "Use Nowledge Mem for durable cross-tool memory. Prefer MCP tools when they are connected; use nmem CLI as the fallback and for real Kimi Code transcript import. If nmem exists but rejects Kimi Code commands or MCP host helpers, treat it as outdated and upgrade the CLI before retrying.",
+  "skillInstructions": "Use Nowledge Mem for durable cross-tool memory. Prefer MCP tools when they are connected; use nmem CLI as the fallback and for real Kimi Code transcript import. This plugin intentionally does not declare mcpServers; if MCP tools are missing, add the user-level server block from nmem config mcp show --host kimi-code instead of reinstalling hooks. If nmem exists but rejects Kimi Code commands or MCP host helpers, treat it as outdated and upgrade the CLI before retrying.",
   "commands": "./commands/",
   "hooks": [
     {

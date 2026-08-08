@@ -5,7 +5,9 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.21] - 2026-08-08
+## [Unreleased]
+
+## [0.7.22] - 2026-08-08
 
 ### Added
 
@@ -21,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   avoids distilling speculative intermediate findings. `Explore` skips the Mem
   prompt by default; other unlisted types receive routing without a context
   read.
+
+## [0.7.21] - 2026-08-06
+
+### Fixed
+
+- Grok Build capture now also runs on `SessionEnd` and `SubagentStop`, using the same detached, idempotent save worker as `Stop`. This gives remote Grok sessions a final sync opportunity on process exit and captures subagent sessions without blocking Grok's gate hooks.
 
 ## [0.7.20] - 2026-08-06
 

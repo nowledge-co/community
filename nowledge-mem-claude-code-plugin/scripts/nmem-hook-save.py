@@ -681,7 +681,7 @@ def main() -> int:
     parser.add_argument(
         "--event",
         default="hook",
-        choices=["pre-compact", "stop", "hook"],
+        choices=["pre-compact", "stop", "session-end", "subagent-stop", "hook"],
         help="Hook event label used only for diagnostics.",
     )
     parser.add_argument(

@@ -21,7 +21,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.21",
+      "version": "0.7.22",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -74,7 +74,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.21",
+      "version": "0.7.22",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -955,7 +955,7 @@
       "name": "Kimi Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "directory": "nowledge-mem-kimi-code-plugin",
       "transport": "skills+hook+mcp-config",
       "capabilities": {
