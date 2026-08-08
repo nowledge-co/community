@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.22] - 2026-08-08
+
+### Added
+
+- Claude Code `SubagentStart` now selects full context, routing-only, or no-op
+  behavior from `agent_type`. Full Context Bundle injection defaults to the
+  exact `Plan,code-reviewer,architect,researcher` allowlist and can be replaced
+  with `NMEM_SUBAGENT_CONTEXT_TYPES`.
+
+### Improved
+
+- Subagent bootstrap context is capped at 4 KiB, fails open when Mem is
+  unavailable, preserves the configured Nowledge AI Identity, and explicitly
+  avoids distilling speculative intermediate findings. `Explore` skips the Mem
+  prompt by default; other unlisted types receive routing without a context
+  read.
+
 ## [0.7.21] - 2026-08-06
 
 ### Fixed

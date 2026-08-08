@@ -60,6 +60,42 @@ every child gets the same value, all agents will collapse into one profile.
 If Context Bundle was already injected and includes Working Memory, do not call
 Working Memory again unless the user asks or the session changed materially.
 
+### Subagent bootstrap
+
+When a host exposes a subagent-start lifecycle hook, use selective injection.
+A non-fork subagent has an isolated context, so parent-session prompt state is
+not a reliable bootstrap mechanism, but simple local tasks should not pay for a
+Context Bundle they do not need.
+
+Keep the subagent guidance narrow:
+
+- Treat injected context as a starting point, not complete evidence.
+- For continuation or prior-decision work, run one targeted memory or thread
+  search before concluding. Prefer `memory_search` / `thread_search` when the
+  subagent has MCP access; otherwise use `nmem --json m search` /
+  `nmem --json t search`.
+- Do not distill speculative intermediate findings into durable memory.
+- Preserve the configured `NMEM_AGENT_ID`; a host-generated child id is
+  transient provenance, not a portable Nowledge AI Identity.
+
+Bound the complete injected envelope, fail open when Mem is unavailable, and
+do not reload Working Memory separately when the injected Context Bundle
+already contains it.
+
+For Claude Code, full Context Bundle injection is an exact, case-sensitive
+allowlist controlled by `NMEM_SUBAGENT_CONTEXT_TYPES`. The default is
+`Plan,code-reviewer,architect,researcher`. `Explore` receives no Mem prompt by
+default; other unlisted subagents receive retrieval routing without loading the
+Context Bundle. Setting the variable replaces the default allowlist, and an
+empty value disables full Context Bundle injection for every type.
+
+Codex uses the same exact, case-sensitive environment variable, but its values
+are role names rather than task names. Its default is
+`planner,code-reviewer,architect,researcher`. The built-in `explorer` role
+receives no Mem prompt by default; built-in `default` and `worker` roles receive
+retrieval routing without loading the Context Bundle. Setting the variable
+replaces the Codex default too, so list role names from the Codex hook payload.
+
 ---
 
 ## 2. Working Memory

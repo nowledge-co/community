@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "nowledge-mem",
+  "version": "0.1.0",
+  "description": "Cross-tool memory for AI agents through Nowledge Mem skills and MCP.",
+  "author": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge.co",
+    "url": "https://mem.nowledge.co"
+  },
+  "homepage": "https://mem.nowledge.co/docs/integrations/agent-plugins",
+  "repository": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-agent-plugin",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "mcp",
+    "agent-skills",
+    "context",
+    "knowledge",
+    "nowledge"
+  ]
+}

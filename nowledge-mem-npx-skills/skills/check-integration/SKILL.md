@@ -65,8 +65,9 @@ Do not only answer "install X". Explain the behavior contract the user will get:
 Use this priority order:
 
 1. **Native connector first** when the host has one
-2. **Reusable package** when the host supports shared skills/prompts but has no native connector
-3. **Direct MCP** only when there is no better package path
+2. **Universal Agent Plugin** when the host supports Agent Plugins but has no native connector
+3. **Direct MCP** when the host supports MCP but has no better package path
+4. **Reusable package** when the host supports shared skills/prompts but has no native connector, Agent Plugins support, or MCP tool surface
 
 Fresh users care about outcome, not transport. Tell them what they will actually get after setup.
 
@@ -75,8 +76,9 @@ Fresh users care about outcome, not transport. Tell them what they will actually
 | Path | What usually happens | What it does not guarantee |
 |------|----------------------|----------------------------|
 | **Native connector** | Strongest setup: session bootstrap is often automatic; some hosts also add auto-capture or hook-driven recall | Exact proactive recall/distill timing can still be host-specific |
-| **Reusable package** | Working Memory, recall, and distill are guided by rules/skills | The host may still ignore the guidance unless prompts and project guidance are strong |
+| **Universal Agent Plugin** | Standard Agent Plugins package with shared skills plus local Mem MCP for compatible clients without a dedicated connector | Agent Plugins 1.0 does not provide portable lifecycle hooks or transcript access |
 | **Direct MCP** | Tools are available; with the recommended prompt block, the agent can use them proactively | MCP alone does not create host-enforced autonomy |
+| **Reusable package** | Working Memory, recall, and distill are guided by rules/skills | The host may still ignore the guidance unless prompts and project guidance are strong |
 
 Check which agent you're running in and recommend the native connector if available.
 
@@ -98,6 +100,7 @@ The canonical source for this table is `community/integrations.json`.
 | **Pi** | Running as Pi agent; `~/.pi/` exists | `pi install npm:nowledge-mem-pi` | [Guide](https://mem.nowledge.co/docs/integrations/pi) |
 | **OMP** | Running as OMP agent; `~/.omp/` exists | `omp plugin install nowledge-mem-omp` | [Guide](https://mem.nowledge.co/docs/integrations/omp) |
 | **OpenCode** | Running as OpenCode agent; `~/.config/opencode/` or `.opencode/` exists | `opencode plugin opencode-nowledge-mem -g`; restart OpenCode so idle-event capture hooks load | [Guide](https://mem.nowledge.co/docs/integrations/opencode) |
+| **Amp** | Running as Amp agent; `~/.config/amp/` or `.amp/` exists | Run `bash nowledge-mem-amp-plugin/scripts/install.sh`, then restart Amp so the tools, `agent.end` capture hook, and skill load | [Guide](https://mem.nowledge.co/docs/integrations/amp) |
 | **Craft Agent** | Running inside Craft Agent; `~/.craft-agent/` exists or `CRAFT_CONFIG_DIR` is set | `nmem config mcp show --host craft-agent`, then add the generated source config and guide to the active Craft workspace. Use `nmem t sync --from craft-agent --all-projects --apply` for real session import. | [Guide](https://mem.nowledge.co/docs/integrations/craft-agent) |
 | **Hermes Agent** | Running as Hermes agent; `~/.hermes/` exists | Install the native Hermes provider (or use MCP only as fallback) | [Guide](https://mem.nowledge.co/docs/integrations/hermes) |
 | **Cradle** | Running inside Cradle; the bundled `nowledge-mem` integration appears in Plugin Marketplace | Enable Cradle's bundled Nowledge Mem plugin. Configure its API URL, optional MCP URL, Space, and runtime-only API key as needed. | [Guide](https://mem.nowledge.co/docs/integrations/cradle) |
@@ -108,8 +111,9 @@ For Hermes updates, run the setup command from the guide and confirm it prints `
 
 If the agent is not listed above:
 
-- use the shared `npx skills` package when the host supports it
+- use the Universal Agent Plugin when the host supports Agent Plugins
 - otherwise use direct MCP plus the recommended prompt block
+- use the shared `npx skills` package when the host supports shared skills but has no MCP tool surface
 
 Do not describe raw MCP as equivalent to a native connector.
 

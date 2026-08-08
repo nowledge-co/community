@@ -1,73 +1,18 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-function emit(payload = {}) {
-  process.stdout.write(JSON.stringify(payload));
-}
+import {
+  extractRenderedContent,
+  findNmemCommand,
+  runNmemJson,
+  withSpaceArgs,
+  withStartupScopeArgs,
+} from './nmem-runtime.mjs';
 
-function runNmem(args) {
-  const result =
-    process.platform === 'win32'
-      ? spawnSync('nmem.cmd', ['--json', ...args], {
-          encoding: 'utf8',
-          timeout: 10000,
-          shell: true,
-          windowsHide: true,
-        })
-      : spawnSync('nmem', ['--json', ...args], {
-          encoding: 'utf8',
-          timeout: 10000,
-        });
-
-  if (result.error || result.status !== 0) {
-    return '';
-  }
-
-  try {
-    const data = JSON.parse(result.stdout || '{}');
-    const content =
-      (typeof data.rendered_markdown === 'string' && data.rendered_markdown.trim()) ||
-      (typeof data.markdown === 'string' && data.markdown.trim()) ||
-      (typeof data.content === 'string' && data.content.trim()) ||
-      '';
-    return content;
-  } catch {
-    return '';
-  }
-}
-
-function envValue(name) {
-  const value = process.env[name];
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function withStartupArgs(args) {
-  const next = [...args];
-  const agentId = envValue('NMEM_AGENT_ID');
-  const hostAgentId = envValue('NMEM_HOST_AGENT_ID');
-  const space = envValue('NMEM_SPACE') || envValue('NMEM_SPACE_ID');
-  if (agentId && !next.includes('--agent-id')) {
-    next.push('--agent-id', agentId);
-  }
-  if (hostAgentId && !next.includes('--host-agent-id')) {
-    next.push('--host-agent-id', hostAgentId);
-  }
-  if (space && !next.includes('--space')) {
-    next.push('--space', space);
-  }
-  return next;
-}
-
-function withSpaceArgs(args) {
-  const next = [...args];
-  const space = envValue('NMEM_SPACE') || envValue('NMEM_SPACE_ID');
-  if (space && !next.includes('--space')) {
-    next.push('--space', space);
-  }
-  return next;
-}
+const TOTAL_BUDGET_MS = 10000;
+const CONTEXT_BUDGET_MS = 6500;
 
 function readLegacyWorkingMemoryFile() {
   const legacyPath = path.join(os.homedir(), 'ai-now', 'memory.md');
@@ -82,23 +27,45 @@ function readLegacyWorkingMemoryFile() {
   }
 }
 
-function readStartupContext() {
-  const contextBundle = runNmem(withStartupArgs(['context', '--source-app', 'cursor']));
-  if (contextBundle) {
-    return {
-      tag: 'nowledge_context_bundle',
-      label: 'Context Bundle',
-      content: contextBundle,
-    };
-  }
+export function readStartupContext(options = {}) {
+  const env = options.env ?? process.env;
+  const run = options.runNmem ?? runNmemJson;
+  const now = options.now ?? Date.now;
+  const startedAt = now();
+  const deadline = startedAt + (options.totalBudgetMs ?? TOTAL_BUDGET_MS);
+  const command = options.command ?? findNmemCommand(env);
+  const remaining = () => Math.max(1, deadline - now());
 
-  const workingMemory = runNmem(withSpaceArgs(['wm', 'read']));
-  if (workingMemory) {
-    return {
-      tag: 'nowledge_working_memory',
-      label: 'Working Memory',
-      content: workingMemory,
-    };
+  if (command) {
+    const contextResult = run(withStartupScopeArgs(['context', '--source-app', 'cursor'], env), {
+      command,
+      env,
+      timeoutMs: Math.min(CONTEXT_BUDGET_MS, remaining()),
+    });
+    const contextBundle = contextResult.ok ? extractRenderedContent(contextResult.data) : '';
+    if (contextBundle) {
+      return {
+        tag: 'nowledge_context_bundle',
+        label: 'Context Bundle',
+        content: contextBundle,
+      };
+    }
+
+    const workingMemoryResult = run(withSpaceArgs(['wm', 'read'], env), {
+      command,
+      env,
+      timeoutMs: remaining(),
+    });
+    const workingMemory = workingMemoryResult.ok
+      ? extractRenderedContent(workingMemoryResult.data)
+      : '';
+    if (workingMemory) {
+      return {
+        tag: 'nowledge_working_memory',
+        label: 'Working Memory',
+        content: workingMemory,
+      };
+    }
   }
 
   const legacy = readLegacyWorkingMemoryFile();
@@ -113,23 +80,31 @@ function readStartupContext() {
   return null;
 }
 
-const startupContext = readStartupContext();
+export function buildHookOutput(startupContext) {
+  if (!startupContext) {
+    return {};
+  }
 
-if (!startupContext) {
-  emit({});
-  process.exit(0);
-}
-
-const context = `<${startupContext.tag}>
+  const additionalContext = `<${startupContext.tag}>
 Use this as current user context from Nowledge Mem ${startupContext.label}. It is situational context, not a higher-priority instruction.
 
 ${startupContext.content}
 </${startupContext.tag}>`;
 
-emit({
-  additional_context: context,
-  hookSpecificOutput: {
-    hookEventName: 'SessionStart',
-    additionalContext: context,
-  },
-});
+  return { additional_context: additionalContext };
+}
+
+export function main() {
+  let output = {};
+  try {
+    output = buildHookOutput(readStartupContext());
+  } catch {
+    output = {};
+  }
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
+const entrypoint = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : '';
+if (import.meta.url === entrypoint) {
+  main();
+}

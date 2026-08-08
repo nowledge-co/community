@@ -91,6 +91,7 @@ function findNmem() {
   if (configured) {
     const found = findOnPath(configured);
     if (found) return found;
+    return null;
   }
   for (const name of ["nmem", "nmem.cmd", "nmem.exe"]) {
     const found = findOnPath(name);

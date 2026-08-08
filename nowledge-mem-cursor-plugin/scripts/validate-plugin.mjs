@@ -80,6 +80,7 @@ async function main() {
   const manifest = await readJson(path.join(pluginRoot, '.cursor-plugin', 'plugin.json'));
   const mcpConfig = await readJson(path.join(pluginRoot, 'mcp.json'));
   const marketplace = await readJson(path.join(communityRoot, '.cursor-plugin', 'marketplace.json'));
+  const integrations = await readJson(path.join(communityRoot, 'integrations.json'));
 
   assertString(manifest.name, 'plugin.json name');
   assertString(manifest.version, 'plugin.json version');
@@ -118,7 +119,9 @@ async function main() {
   const requiredPaths = [
     '.cursor-plugin/plugin.json',
     'hooks/hooks.json',
+    'hooks/nmem-runtime.mjs',
     'hooks/session-start.mjs',
+    'hooks/stop-save.mjs',
     'mcp.json',
     'README.md',
     'CHANGELOG.md',
@@ -127,8 +130,10 @@ async function main() {
     'skills/read-working-memory/SKILL.md',
     'skills/search-memory/SKILL.md',
     'skills/distill-memory/SKILL.md',
+    'skills/save-thread/SKILL.md',
     'skills/save-handoff/SKILL.md',
-    'scripts/validate-plugin.mjs'
+    'scripts/validate-plugin.mjs',
+    'tests/cursor-hooks.test.mjs'
   ];
 
   for (const relPath of requiredPaths) {
@@ -152,6 +157,21 @@ async function main() {
   if (!ruleText.includes('save-thread')) {
     fail('rules/nowledge-mem.mdc must explicitly clarify save-thread scope');
   }
+  if (!ruleText.includes('`stop` hook') || !ruleText.includes('real current Cursor Agent transcript')) {
+    fail('rules/nowledge-mem.mdc must describe automatic real transcript capture through the stop hook');
+  }
+
+  const staleClaims = [
+    'does not expose `save-thread`',
+    'does not yet expose a real Nowledge live session importer',
+    'does not currently have a first-class Nowledge live session importer',
+  ];
+  const readmeText = await assertNonEmpty('README.md');
+  for (const staleClaim of staleClaims) {
+    if (ruleText.includes(staleClaim) || readmeText.includes(staleClaim)) {
+      fail(`Cursor plugin still contains stale transcript-capture guidance: ${staleClaim}`);
+    }
+  }
 
   const hooks = await readJson(path.join(pluginRoot, 'hooks', 'hooks.json'));
   if (!hooks.hooks || typeof hooks.hooks !== 'object') {
@@ -164,6 +184,19 @@ async function main() {
   const sessionStartCommand = sessionStartHooks[0]?.command;
   if (sessionStartCommand !== 'node ./hooks/session-start.mjs') {
     fail('hooks/hooks.json sessionStart command must stay node ./hooks/session-start.mjs');
+  }
+  if (sessionStartHooks[0]?.timeout !== 15) {
+    fail('hooks/hooks.json sessionStart timeout must stay 15 seconds');
+  }
+  const stopHooks = hooks.hooks.stop;
+  if (!Array.isArray(stopHooks) || stopHooks.length === 0) {
+    fail('hooks/hooks.json must define a stop hook for real transcript capture');
+  }
+  if (stopHooks[0]?.command !== 'node ./hooks/stop-save.mjs') {
+    fail('hooks/hooks.json stop command must stay node ./hooks/stop-save.mjs');
+  }
+  if (stopHooks[0]?.timeout !== 40) {
+    fail('hooks/hooks.json stop timeout must stay 40 seconds');
   }
 
   if (!mcpConfig.mcpServers || !mcpConfig.mcpServers['nowledge-mem']) {
@@ -179,6 +212,7 @@ async function main() {
   await validateFrontmatterFile('skills/read-working-memory/SKILL.md', ['name', 'description'], 'skill');
   await validateFrontmatterFile('skills/search-memory/SKILL.md', ['name', 'description'], 'skill');
   await validateFrontmatterFile('skills/distill-memory/SKILL.md', ['name', 'description'], 'skill');
+  await validateFrontmatterFile('skills/save-thread/SKILL.md', ['name', 'description'], 'skill');
   await validateFrontmatterFile('skills/save-handoff/SKILL.md', ['name', 'description'], 'skill');
 
   if (!marketplace.plugins || !Array.isArray(marketplace.plugins)) {
@@ -193,7 +227,24 @@ async function main() {
     fail(`marketplace source for ${manifest.name} must be ${expectedSource} or ./${expectedSource}`);
   }
 
-  console.log('Validated Cursor plugin manifest, hooks, frontmatter, mcp.json, and community marketplace manifest.');
+  const integration = integrations.integrations?.find((item) => item.id === 'cursor');
+  if (!integration) {
+    fail('integrations.json must include the cursor integration');
+  }
+  if (integration.version !== manifest.version) {
+    fail('integrations.json cursor version must match plugin.json');
+  }
+  if (integration.transport !== 'mcp+hook' || integration.capabilities?.autoCapture !== true) {
+    fail('integrations.json must advertise the Cursor MCP plus automatic hook capture contract');
+  }
+  if (integration.threadSave?.method !== 'hook+cli-native') {
+    fail('integrations.json cursor threadSave.method must be hook+cli-native');
+  }
+  if (!Array.isArray(integration.skills) || !integration.skills.includes('save-thread')) {
+    fail('integrations.json cursor skills must include save-thread');
+  }
+
+  console.log('Validated Cursor plugin manifest, capture hooks, skills, mcp.json, registry, and marketplace manifest.');
 }
 
 await main();

@@ -253,6 +253,26 @@ Treat compaction as a possible data-loss boundary.
 
 ---
 
+## Agent Plugins Standard Package
+
+`nowledge-mem-agent-plugin/` is the portable Agent Plugins 1.0 package.
+
+Use it only as the standards fallback for clients that support Agent Plugins but
+do not have a dedicated Nowledge connector. Dedicated connectors remain the
+preferred path because they can use host-specific lifecycle hooks, transcript
+paths, and recovery steps.
+
+Package invariants:
+
+- Root `plugin.json` must stay valid against `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`.
+- Root `mcp.json` must stay valid against `https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`.
+- The published `mcp.json` must not contain bearer tokens, API keys, or user-specific remote endpoints.
+- The portable package must not claim automatic full-thread capture unless the standard adds portable lifecycle hooks and transcript access.
+- Do not add a root Agent Plugins `plugin.json` to an existing native connector package until that host's native discovery behavior has been validated. Codex already prefers root Agent Plugins manifests over legacy plugin locations.
+- Keep `nowledge-mem-agent-plugin/skills` aligned with `nowledge-mem-npx-skills/skills` whenever shared skill behavior changes.
+
+---
+
 ## Registry Checklist
 
 When shipping a new integration:
@@ -263,8 +283,9 @@ When shipping a new integration:
 4. [ ] Update `community/README.md` integration table
 5. [ ] Verify `nowledge-labs-website/nowledge-mem/data/integrations.ts` alignment
 6. [ ] Add marketplace entry if applicable (`.claude-plugin/`, `.github/plugin/`, `.cursor-plugin/`, `.factory-plugin/`)
-7. [ ] Update `nowledge-mem-npx-skills/skills/check-integration/SKILL.md` detection table
-8. [ ] Add integration docs page to website (EN + ZH)
+7. [ ] If the integration is standards-compatible, update `nowledge-mem-agent-plugin` only when the standard package is actually the install surface
+8. [ ] Update `nowledge-mem-npx-skills/skills/check-integration/SKILL.md` detection table
+9. [ ] Add integration docs page to website (EN + ZH)
 
 When bumping a plugin **version**:
 

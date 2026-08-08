@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Treat `NMEM_CLI_PATH` as an explicit override. If it points to a missing
+  executable, WorkBuddy hooks now fail open and log the missing CLI instead of
+  silently falling back to a different system `nmem`.
+
 ## 0.2.0 - 2026-07-25
 
 - Give WorkBuddy its own connector package and MCP identity instead of inheriting CodeBuddy provenance.
