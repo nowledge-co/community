@@ -15,18 +15,117 @@ After the plugin is enabled, ZCode can use the Nowledge Mem MCP server and these
 
 This is a guided `MCP + Skills` integration. MCP tools are available to the agent, while Skills teach when to use them. Version 0.1.0 does not claim automatic recall injection, automatic full-transcript capture, pre-compaction capture, or `save-thread`: ZCode's session/transcript lifecycle contract has not been verified for this connector.
 
-## Install from a marketplace
+## Manual installation
 
-Open a ZCode workspace, then:
+ZCode's plugin package only requires `.zcode-plugin/plugin.json`. The package does not contain a `marketplace.json`, and the project does not claim that ZCode has a documented default marketplace directory. ZCode's documented local UI entry point is a marketplace source, so the commands below create a persistent, user-owned local marketplace outside this repository.
 
-1. Open **Settings → Plugins**.
-2. Choose **Create → Add marketplace**.
-3. Add the repository or a local marketplace directory containing `marketplace.json`.
-4. Install and enable `nowledge-mem-zcode`.
+### macOS/Linux
+
+Choose a stable checkout location and clone the community repository:
+
+```bash
+COMMUNITY_DIR="$HOME/src/nowledge-community"
+git clone https://github.com/nowledge-co/community.git "$COMMUNITY_DIR"
+```
+
+If you already cloned it, update it later with:
+
+```bash
+git -C "$HOME/src/nowledge-community" pull --ff-only
+```
+
+Create a persistent local marketplace directory under the user data directory. This is a project-recommended location, not a ZCode-defined default path. ZCode has not published a default marketplace directory:
+
+```bash
+COMMUNITY_DIR="$HOME/src/nowledge-community"
+MARKETPLACE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nowledge/zcode-marketplace"
+mkdir -p "$MARKETPLACE_DIR"
+python3 - "$MARKETPLACE_DIR" "$COMMUNITY_DIR/nowledge-mem-zcode-plugin" <<'PY'
+import json
+import pathlib
+import sys
+
+marketplace_dir = pathlib.Path(sys.argv[1]).expanduser().resolve()
+plugin_dir = pathlib.Path(sys.argv[2]).expanduser().resolve()
+marketplace_dir.mkdir(parents=True, exist_ok=True)
+marketplace = {
+    "name": "nowledge-community-zcode-local",
+    "description": "Local Nowledge Mem ZCode plugin source",
+    "plugins": [{
+        "name": "nowledge-mem-zcode",
+        "version": "0.1.0",
+        "description": "Guided cross-tool memory for ZCode through Nowledge Mem MCP and Skills.",
+        "source": {"source": "directory", "path": str(plugin_dir)},
+    }],
+}
+(marketplace_dir / "marketplace.json").write_text(
+    json.dumps(marketplace, indent=2) + "\n", encoding="utf-8"
+)
+print(f"Add this local marketplace directory in ZCode: {marketplace_dir}")
+PY
+```
+
+Then open a ZCode workspace and:
+
+1. Go to **Settings → Plugins**.
+2. Select **Create → Add marketplace**.
+3. Choose the persistent directory printed by the command above.
+4. In the **Personal** section, install and enable `nowledge-mem-zcode`.
 5. Reload or restart the ZCode Agent runtime.
-6. After local source changes, refresh the marketplace source before testing again.
 
-For a local checkout, add the repository directory or the root `marketplace.json` through the same flow. The package itself is under `nowledge-mem-zcode-plugin/`.
+The generated `marketplace.json` is only a local installation catalog. It is not part of this plugin package and is not a ZCode plugin manifest.
+
+### Windows PowerShell
+
+Clone or update the community repository:
+
+```powershell
+$CommunityDir = Join-Path $HOME "src\nowledge-community"
+git clone https://github.com/nowledge-co/community.git $CommunityDir
+# For an existing checkout instead:
+# git -C $CommunityDir pull --ff-only
+```
+
+Create the persistent user-owned marketplace directory and its catalog:
+
+```powershell
+$CommunityDir = Join-Path $HOME "src\nowledge-community"
+$MarketplaceDir = Join-Path $env:LOCALAPPDATA "Nowledge\ZCode\marketplace"
+$PluginDir = (Join-Path $CommunityDir "nowledge-mem-zcode-plugin")
+New-Item -ItemType Directory -Force -Path $MarketplaceDir | Out-Null
+@{
+  name = "nowledge-community-zcode-local"
+  description = "Local Nowledge Mem ZCode plugin source"
+  plugins = @(@{
+    name = "nowledge-mem-zcode"
+    version = "0.1.0"
+    description = "Guided cross-tool memory for ZCode through Nowledge Mem MCP and Skills."
+    source = @{
+      source = "directory"
+      path = (Resolve-Path $PluginDir).Path
+    }
+  })
+} | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 (Join-Path $MarketplaceDir "marketplace.json")
+Write-Host "Add this local marketplace directory in ZCode: $MarketplaceDir"
+```
+
+In ZCode, use **Settings → Plugins → Create → Add marketplace**, choose `$MarketplaceDir`, install and enable `nowledge-mem-zcode`, and reload the Agent runtime.
+
+### Updating the plugin and adding future plugins
+
+Keep both the community checkout and the user-owned marketplace directory at stable, accessible paths. ZCode does not document whether local marketplace sources are copied, cached, watched, or referenced directly, nor does it document a default storage path. Do not delete or move the source if you want the documented refresh workflow to keep working.
+
+To update this plugin:
+
+```bash
+git -C "$HOME/src/nowledge-community" pull --ff-only
+```
+
+Then open **Settings → Plugins → Marketplace sources** and choose **Refresh this marketplace**. Use **Manage installed → Check for updates** when ZCode offers that action, and reload the Agent runtime if components do not appear immediately.
+
+To add another local plugin in the future, edit the persistent marketplace's `marketplace.json` and append another `plugins[]` entry with a unique `name`, version, description, and a valid absolute `directory` source path. Refresh the marketplace, then install and enable the new plugin from the Personal section. ZCode's documentation does not promise that a newly listed local plugin is automatically installed or that an existing install is automatically upgraded.
+
+For remote SSH/WSL workspaces, local plugins do not automatically move with the workspace. ZCode documents that marketplace plugins are reinstalled remotely and that the remote environment must be able to reach the marketplace source. Keep the source available on the remote side or use a reachable GitHub/Git source instead.
 
 ## Mem connection
 

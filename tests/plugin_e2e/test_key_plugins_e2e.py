@@ -1534,12 +1534,10 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
 def test_zcode_plugin_static_contract_is_self_contained():
     manifest = _read_json(ZCODE_PLUGIN / ".zcode-plugin" / "plugin.json")
     mcp = _read_json(ZCODE_PLUGIN / ".mcp.json")
-    marketplace = _read_json(COMMUNITY_ROOT / "marketplace.json")
     readme = (ZCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (ZCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
     registry = _read_json(COMMUNITY_ROOT / "integrations.json")
     zcode_registry = next(item for item in registry["integrations"] if item.get("id") == "zcode")
-    marketplace_plugin = next(item for item in marketplace["plugins"] if item.get("name") == manifest["name"])
     expected_skills = [
         "check-integration",
         "read-working-memory",
@@ -1551,8 +1549,16 @@ def test_zcode_plugin_static_contract_is_self_contained():
 
     assert manifest["name"] == "nowledge-mem-zcode"
     assert manifest["version"] == "0.1.0"
-    assert marketplace_plugin["version"] == manifest["version"]
-    assert marketplace_plugin["source"] == "./nowledge-mem-zcode-plugin"
+    assert not (COMMUNITY_ROOT / "marketplace.json").exists()
+    assert "git clone" in readme
+    assert "marketplace.json" in readme
+    assert "persistent" in readme.lower()
+    assert "Refresh this marketplace" in readme
+    assert "Add marketplace" in readme
+    assert "not a ZCode-defined default path" in readme
+    assert "separate Git" not in readme
+    assert "submodule" not in readme
+    assert "community/tree/main/marketplace.json" not in (COMMUNITY_ROOT / "README.md").read_text(encoding="utf-8")
     assert zcode_registry["type"] == "plugin"
     assert zcode_registry["version"] == manifest["version"]
     assert zcode_registry["directory"] == "nowledge-mem-zcode-plugin"

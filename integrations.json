@@ -1150,15 +1150,15 @@
         "distill": "guided",
         "threads": "handoff-only",
         "bestResultRequires": [
-          "Add the Nowledge Mem ZCode marketplace under Settings -> Plugins",
-          "Install and enable nowledge-mem-zcode, then reload the ZCode Agent runtime",
+          "Clone or update the community repository and follow nowledge-mem-zcode-plugin/README.md to create a persistent user-owned marketplace catalog",
+          "Add that local marketplace directory under ZCode Settings -> Plugins -> Create -> Add marketplace, then install and enable nowledge-mem-zcode",
           "Use the ZCode-owned MCP settings for remote or custom Mem endpoints",
           "Ask ZCode to save handoff summaries when a conversation should be searchable later"
         ]
       },
       "install": {
-        "command": "Add https://github.com/nowledge-co/community/tree/main/marketplace.json under ZCode Settings -> Plugins -> Create -> Add marketplace, then install nowledge-mem-zcode",
-        "updateCommand": "Refresh the nowledge-community-zcode marketplace in ZCode Settings -> Plugins, then update nowledge-mem-zcode",
+        "command": "Clone https://github.com/nowledge-co/community.git, create the persistent local marketplace described in nowledge-mem-zcode-plugin/README.md, then add it under ZCode Settings -> Plugins -> Create -> Add marketplace",
+        "updateCommand": "Pull the community checkout, refresh the user-owned ZCode marketplace source, and reload the ZCode Agent runtime",
         "detectionHint": "Running inside ZCode; ~/.zcode/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for ZCode. Prefer the nowledge-mem-zcode plugin when ZCode plugin support is available. Verify with nmem status and the Context Bundle or Working Memory check, reload ZCode after changes, and summarize what changed.",
