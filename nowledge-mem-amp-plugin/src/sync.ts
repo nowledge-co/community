@@ -62,6 +62,8 @@ interface SyncState {
   pending: boolean
   /** Signature of the last successfully captured transcript. */
   lastSignature: string | undefined
+  /** Serialized manual-capture queue for this thread. */
+  manualQueue: Promise<CaptureResult> | undefined
 }
 
 /** Result object returned by an explicit capture. */
@@ -151,30 +153,34 @@ export class SessionSyncManager {
    * @param threadId - The thread to capture.
    * @returns The capture result, suitable for JSON-serialising back to the agent.
    */
-  public async syncNow(threadId: ThreadID): Promise<CaptureResult> {
-    if (this.disposed) return skipped("disposed", this.stableThreadId(threadId))
+  public syncNow(threadId: ThreadID): Promise<CaptureResult> {
+    if (this.disposed) return Promise.resolve(skipped("disposed", this.stableThreadId(threadId)))
     const state = this.stateFor(threadId)
-    while (state.inFlight !== undefined) {
-      const previous = state.inFlight
-      await previous.catch(() => undefined)
-      // A runner cannot replace this state while its promise is in-flight;
-      // clear it before the forced manual run below.
-      state.inFlight = undefined
-    }
-    const run = this.captureThread(threadId, { force: true })
-    let guarded: Promise<CaptureResult>
-    guarded = run.finally(() => {
-      // Defensive identity guard for an externally replaced runner; normal
-      // serialized execution always owns this state.
+    const priorManual = state.manualQueue ?? Promise.resolve(skipped("manual_queue_start", this.stableThreadId(threadId)))
+    const run = priorManual
+      .catch(() => skipped("manual_queue_error", this.stableThreadId(threadId)))
+      .then(async () => {
+        while (state.inFlight !== undefined) {
+          const previous = state.inFlight
+          await previous.catch(() => undefined)
+          if (this.disposed) return skipped("disposed", this.stableThreadId(threadId))
+          // Preserve a newer runner installed while this caller was waiting.
+          /* c8 ignore next */
+          if (state.inFlight === previous) state.inFlight = undefined
+        }
+        return this.captureThread(threadId, { force: true })
+      })
+    const guarded = run.finally(() => {
+      // Defensive identity guard prevents stale promises clearing a newer queue.
       /* c8 ignore next */
-      if (state.inFlight !== guarded) return
-      state.inFlight = undefined
+      if (state.manualQueue !== guarded) return
+      state.manualQueue = undefined
       if (!this.disposed && state.pending) {
         state.pending = false
         this.scheduleSync(threadId)
       }
     })
-    state.inFlight = guarded
+    state.manualQueue = guarded
     return guarded
   }
 
@@ -204,7 +210,7 @@ export class SessionSyncManager {
    */
   private async runAutoSync(threadId: ThreadID): Promise<void> {
     const state = this.stateFor(threadId)
-    if (state.inFlight !== undefined) {
+    if (state.inFlight !== undefined || state.manualQueue !== undefined) {
       state.pending = true
       return
     }
@@ -325,7 +331,7 @@ export class SessionSyncManager {
   private stateFor(threadId: ThreadID): SyncState {
     let state = this.states.get(threadId)
     if (state === undefined) {
-      state = { timer: undefined, inFlight: undefined, pending: false, lastSignature: undefined }
+      state = { timer: undefined, inFlight: undefined, pending: false, lastSignature: undefined, manualQueue: undefined }
       this.states.set(threadId, state)
     }
     return state

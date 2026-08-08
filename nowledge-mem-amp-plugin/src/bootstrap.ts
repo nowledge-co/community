@@ -159,9 +159,11 @@ export class BootstrapManager {
       await state.preloadPromise
     }
     if (state.consumed) return {}
+    const message = state.preloadedMessage
+    if (message === undefined || message === null) return {}
     state.consumed = true
-    if (state.preloadedMessage === undefined || state.preloadedMessage === null) return {}
-    return { message: { content: state.preloadedMessage, display: false } }
+    state.preloadedMessage = null
+    return { message: { content: message, display: false } }
   }
 
   /**

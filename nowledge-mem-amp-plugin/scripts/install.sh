@@ -24,7 +24,8 @@ PLUGIN_SRC="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Stage new files and old destinations outside the active installation. This
 # makes failed replacement recoverable instead of leaving Amp partially installed.
-STAGING_DIR="$(mktemp -d)"
+mkdir -p "$PLUGINS_DIR" "$SKILLS_DIR"
+STAGING_DIR="$(mktemp -d "$PLUGINS_DIR/.nowledge-mem-install.XXXXXX")"
 cleanup() {
   rm -rf "$STAGING_DIR"
 }
@@ -49,7 +50,7 @@ install_staged() {
   if [ -e "$PLUGIN_DEST" ] && ! mv "$PLUGIN_DEST" "$BACKUP_PLUGIN"; then
     return 1
   fi
-  if [ -e "$SKILL_DEST" ] && ! mv "$SKILL_DEST" "$BACKUP_SKILL"; then
+  if [ -d "$STAGED_SKILL" ] && [ -e "$SKILL_DEST" ] && ! mv "$SKILL_DEST" "$BACKUP_SKILL"; then
     restore_previous
     return 1
   fi
@@ -68,8 +69,6 @@ echo "Installing Nowledge Mem for Amp"
 echo "  source:  $PLUGIN_SRC"
 echo "  plugin:  $PLUGIN_DEST"
 echo "  skill:   $SKILL_DEST"
-
-mkdir -p "$PLUGINS_DIR" "$SKILLS_DIR"
 
 # Stage the plugin and skill before touching the active installation.
 cp -R "$PLUGIN_SRC" "$STAGED_PLUGIN"

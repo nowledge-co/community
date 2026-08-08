@@ -422,6 +422,41 @@ describe("SessionSyncManager.dispose", () => {
     expect(nmemApi.calls).toHaveLength(2)
   })
 
+  it("waits for an automatic capture before a manual capture", async () => {
+    const timers = fakeTimers()
+    const pending: Array<(response: HttpResponse) => void> = []
+    const nmemApi = fakeNmemApi({
+      "/threads": () => new Promise<HttpResponse>((resolve) => pending.push(resolve)),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+    manager.scheduleSync(THREAD_ID)
+    timers.fireAll()
+    await vi.waitFor(() => expect(nmemApi.calls).toHaveLength(1))
+    const manual = manager.syncNow(THREAD_ID)
+    pending.shift()?.({ ok: true, status: 200, data: {} })
+    await vi.waitFor(() => expect(pending).toHaveLength(1))
+    pending.shift()?.({ ok: true, status: 200, data: {} })
+    await manual
+    expect(nmemApi.calls).toHaveLength(2)
+  })
+
+  it("returns disposed while waiting when teardown occurs", async () => {
+    const timers = fakeTimers()
+    const pending: Array<(response: HttpResponse) => void> = []
+    const nmemApi = fakeNmemApi({
+      "/threads": () => new Promise<HttpResponse>((resolve) => pending.push(resolve)),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+    manager.scheduleSync(THREAD_ID)
+    timers.fireAll()
+    await vi.waitFor(() => expect(nmemApi.calls).toHaveLength(1))
+    const manual = manager.syncNow(THREAD_ID)
+    manager.dispose()
+    pending.shift()?.({ ok: true, status: 200, data: {} })
+    const result = await manual
+    expect(result.reason).toBe("disposed")
+  })
+
   it("returns an empty capture result after disposal", async () => {
     const manager = new SessionSyncManager(managerOptions())
     manager.dispose()
