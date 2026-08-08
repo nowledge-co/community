@@ -17,12 +17,6 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { execFileSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
-import { homedir } from "node:os"
-import { join } from "node:path"
-
-import { resolveConfig } from "../src/config"
-import { createNmemHttp } from "../src/http"
 
 /** Whether the live E2E test is enabled. */
 const E2E_ENABLED = process.env.NMEM_E2E === "1"
@@ -32,6 +26,16 @@ const MARKER = `amp-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
 /** Stable thread id derived from the marker, matching the connector's convention. */
 const THREAD_ID = `amp-e2e-${MARKER}`.toLowerCase()
+
+/**
+ * Resolved API URL from `NMEM_API_URL`, defaulting to the local Nowledge Mem
+ * desktop endpoint. The test intentionally uses its own raw HTTP transport to
+ * validate the connector wire contract independently of the production wrapper.
+ */
+const API_URL = (process.env.NMEM_API_URL ?? "http://127.0.0.1:14242").replace(/\/+$/, "")
+
+/** Optional API key for remote Mem. */
+const API_KEY = process.env.NMEM_API_KEY
 
 /**
  * Runs `nmem --json <args>` and returns the parsed JSON output.
@@ -47,41 +51,34 @@ function nmemJson(args: string[]): unknown {
   return JSON.parse(stdout)
 }
 
-/** Reads the shared Nowledge Mem config using the connector's runtime shape. */
-function readSharedConfigFile(): Record<string, unknown> {
-  const path = join(homedir(), ".nowledge-mem", "config.json")
-  if (!existsSync(path)) return {}
-  try {
-    const parsed: unknown = JSON.parse(readFileSync(path, "utf8"))
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {}
-  } catch {
-    return {}
-  }
-}
-
 /**
  * Posts a JSON body to the Nowledge Mem thread API.
  *
- * This uses the connector's own configuration and HTTP transport so remote
- * credentials, auth headers, ambient space, and timeout handling stay covered.
+ * This mirrors the connector's HTTP capture path. The endpoint is the
+ * developer's own local or configured Mem server, not an attacker-controlled
+ * URL.
  *
  * @param path - API path (e.g. `/threads`).
  * @param body - Request body object.
  * @returns The parsed JSON response.
  */
 async function postToMem(path: string, body: unknown): Promise<unknown> {
-  const config = resolveConfig(process.env, readSharedConfigFile)
-  const nmemApi = createNmemHttp(config, {
-    fetch: globalThis.fetch.bind(globalThis),
-    createAbortController: () => new AbortController(),
-  })
-  const response = await nmemApi(path, body)
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${JSON.stringify(response.data)}`)
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  if (API_KEY) {
+    headers.Authorization = `Bearer ${API_KEY}`
+    headers["X-NMEM-API-Key"] = API_KEY
   }
-  return response.data
+  const endpoint = API_URL + path
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  })
+  const data = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+  }
+  return data
 }
 
 /** Skips the test suite when the live E2E flag is not set. */

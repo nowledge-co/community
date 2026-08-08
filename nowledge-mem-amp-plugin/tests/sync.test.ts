@@ -351,15 +351,14 @@ describe("SessionSyncManager.scheduleSync", () => {
 })
 
 describe("SessionSyncManager.dispose", () => {
-  it("clears pending timers and clears state", () => {
+  it("clears pending timers and prevents scheduling after dispose", () => {
     let setCount = 0
     let clearedCount = 0
     const manager = new SessionSyncManager(
       managerOptions({
         autoSyncEnabled: true,
-        setTimer: (handler) => {
+        setTimer: () => {
           setCount += 1
-          // Do NOT fire; leave it pending so dispose clears it.
           return setCount as unknown as ReturnType<typeof setTimeout>
         },
         clearTimer: () => {
@@ -372,9 +371,50 @@ describe("SessionSyncManager.dispose", () => {
     expect(setCount).toBe(1)
     manager.dispose()
     expect(clearedCount).toBe(1)
-    // After dispose, a new schedule allocates a fresh handle (state was cleared).
     manager.scheduleSync(THREAD_ID)
-    expect(setCount).toBe(2)
+    expect(setCount).toBe(1)
+  })
+
+  it("does not reschedule pending work after dispose", async () => {
+    const timers = fakeTimers()
+    let resolveRequest: ((response: HttpResponse) => void) | undefined
+    const nmemApi = fakeNmemApi({
+      "/threads": () => new Promise<HttpResponse>((resolve) => { resolveRequest = resolve }),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+    manager.scheduleSync(THREAD_ID)
+    timers.fireAll()
+    await flushMicrotasks()
+    manager.scheduleSync(THREAD_ID)
+    manager.dispose()
+    resolveRequest?.({ ok: true, status: 200, data: {} })
+    await flushMicrotasks()
+    expect(timers.handles).toHaveLength(0)
+  })
+
+  it("serializes concurrent manual captures", async () => {
+    const pending: Array<(response: HttpResponse) => void> = []
+    const nmemApi = fakeNmemApi({
+      "/threads": () => new Promise<HttpResponse>((resolve) => pending.push(resolve)),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi }))
+    const first = manager.syncNow(THREAD_ID)
+    await vi.waitFor(() => expect(nmemApi.calls).toHaveLength(1))
+    const second = manager.syncNow(THREAD_ID)
+    pending.shift()?.({ ok: true, status: 200, data: {} })
+    await first
+    await vi.waitFor(() => expect(pending).toHaveLength(1))
+    pending.shift()?.({ ok: true, status: 200, data: {} })
+    await second
+    expect(nmemApi.calls).toHaveLength(2)
+  })
+
+  it("returns an empty capture result after disposal", async () => {
+    const manager = new SessionSyncManager(managerOptions())
+    manager.dispose()
+    const result = await manager.syncNow(THREAD_ID)
+    expect(result.skipped).toBe(true)
+    expect(result.reason).toBe("disposed")
   })
 })
 

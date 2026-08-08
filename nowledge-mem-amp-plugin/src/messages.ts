@@ -284,8 +284,13 @@ export function toThreadMessages(
  */
 export function captureSignature(messages: readonly ThreadMessage[]): string {
   const lastId = lastExternalId(messages)
-  const contentLength = messages.reduce((total, message) => total + message.content.length, 0)
-  return `${messages.length}:${contentLength}:${lastId}`
+  const payload = messages.map((message) => ({
+    role: message.role,
+    external_id: message.metadata.external_id,
+    content: message.content,
+  }))
+  const fingerprint = JSON.stringify(payload)
+  return `${messages.length}:${lastId}:${fingerprint}`
 }
 
 /**
