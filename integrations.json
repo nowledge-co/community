@@ -11,7 +11,7 @@
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
       "openclaw", "hermes", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
-      "slock", "lody", "multica", "cumora", "paseo", "mcp-direct"
+      "slock", "lody", "multica", "cumora", "paseo", "agent-plugins", "mcp-direct"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
@@ -1428,6 +1428,65 @@
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": ["/nmem-save", "/nmem-search", "/nmem-status"]
+    },
+    {
+      "id": "agent-plugins",
+      "name": "Universal Agent Plugin",
+      "category": "surface",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-agent-plugin",
+      "transport": "agent-plugin+mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "handoff-only",
+        "note": "Agent Plugins 1.0 standardizes skills and MCP, not lifecycle hooks or transcript access. Use a native connector for automatic full-thread capture."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "handoff-only",
+        "bestResultRequires": [
+          "Use a native Nowledge connector instead when your host has one",
+          "Install the Agent Plugins package only for compatible clients without a dedicated connector",
+          "Keep Nowledge Mem Desktop or a configured nmem CLI available",
+          "Use private client MCP settings for Cloud, Access Anywhere, self-hosted, or any endpoint that needs a secret"
+        ]
+      },
+      "install": {
+        "command": "Install from source in an Agent Plugins-compatible client: https://github.com/nowledge-co/community/tree/main/nowledge-mem-agent-plugin",
+        "detectionHint": "Any client that supports Agent Plugins 1.0 packages",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem. If this AI tool has a dedicated Nowledge connector, install that first. Otherwise, if it supports Agent Plugins, install https://github.com/nowledge-co/community/tree/main/nowledge-mem-agent-plugin. Verify with nmem status and the Context Bundle or Working Memory check, restart the host if needed, and confirm a Mem MCP tool is reachable.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明安装或更新 Nowledge Mem。如果这个 AI 工具有专属 Nowledge 连接，请优先安装专属连接。否则，如果它支持 Agent Plugins，请安装 https://github.com/nowledge-co/community/tree/main/nowledge-mem-agent-plugin。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，必要时重启宿主，并确认 Mem MCP 工具可用。"
+        },
+        "docsUrl": "/docs/integrations/agent-plugins"
+      },
+      "toolNaming": {
+        "convention": "agent-plugins",
+        "prefix": "nowledge-mem:",
+        "note": "Agent Plugins clients may namespace skills and MCP tools differently; the package exposes standard skills plus the nowledge-mem MCP server"
+      },
+      "standard": {
+        "name": "Agent Plugins",
+        "version": "1.0.0",
+        "manifest": "plugin.json",
+        "mcp": "mcp.json",
+        "schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        "packagePath": "nowledge-mem-agent-plugin",
+        "compatibleWhen": "The host supports Agent Plugins and no dedicated Nowledge connector exists"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "save-thread", "check-integration", "status"],
+      "slashCommands": []
     },
     {
       "id": "npx-skills",

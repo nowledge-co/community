@@ -6,6 +6,9 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
 
 ### Fixed
 
+- Updated `check-integration` to route Agent Plugins-compatible clients to the
+  Universal Agent Plugin fallback before dropping to direct MCP or generic
+  `npx skills`.
 - Documented the Antigravity 2.0 / Gemini-family global skills path change:
   global skills should now land in `~/.gemini/config/skills`, not the older
   `~/.gemini/skills` or `~/.gemini/antigravity/skills` locations. Thanks to

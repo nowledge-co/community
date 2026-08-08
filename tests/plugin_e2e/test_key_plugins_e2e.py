@@ -34,6 +34,7 @@ PI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-pi-package"
 OMP_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-omp-plugin"
 KIMI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-kimi-code-plugin"
 KIMI_WORK_CONNECTOR = COMMUNITY_ROOT / "nowledge-mem-kimi-work-connector"
+AGENT_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-agent-plugin"
 BUB_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-bub-plugin"
 CODEBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-codebuddy-plugin"
 WORKBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-workbuddy-plugin"
@@ -349,6 +350,45 @@ def test_key_plugin_static_contracts_are_declared():
     assert (CLAUDE_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
     assert "Never infer a space from the current folder" in claude_read_skill
     assert "Never infer a space from the current folder" in claude_search_skill
+
+    agent_plugin_manifest = _read_json(AGENT_PLUGIN / "plugin.json")
+    agent_plugin_mcp = _read_json(AGENT_PLUGIN / "mcp.json")
+    agent_plugin_readme = (AGENT_PLUGIN / "README.md").read_text(encoding="utf-8")
+    allowed_agent_plugin_manifest_keys = {
+        "$schema",
+        "name",
+        "version",
+        "description",
+        "author",
+        "homepage",
+        "repository",
+        "license",
+        "keywords",
+    }
+    assert set(agent_plugin_manifest) <= allowed_agent_plugin_manifest_keys
+    assert agent_plugin_manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+    assert agent_plugin_manifest["name"] == "nowledge-mem"
+    assert agent_plugin_manifest["version"] == "0.1.0"
+    assert registry_by_id["agent-plugins"]["version"] == agent_plugin_manifest["version"]
+    assert registry_by_id["agent-plugins"]["directory"] == AGENT_PLUGIN.name
+    assert registry_by_id["agent-plugins"]["autonomy"]["threads"] == "handoff-only"
+    assert registry_by_id["agent-plugins"]["capabilities"]["autoCapture"] is False
+    assert set(agent_plugin_mcp) == {"$schema", "mcpServers"}
+    assert agent_plugin_mcp["$schema"] == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
+    assert agent_plugin_mcp["mcpServers"]["nowledge-mem"] == {
+        "type": "streamable-http",
+        "url": "http://127.0.0.1:14242/mcp/",
+    }
+    assert "Authorization" not in json.dumps(agent_plugin_mcp)
+    assert "Bearer" not in json.dumps(agent_plugin_mcp)
+    assert "API_KEY" not in json.dumps(agent_plugin_mcp)
+    assert (AGENT_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").exists()
+    assert (AGENT_PLUGIN / "skills" / "save-handoff" / "SKILL.md").exists()
+    assert "generic npx skills" not in (
+        AGENT_PLUGIN / "skills" / "save-thread" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert "dedicated Nowledge Mem connector" in agent_plugin_readme
+    assert "does not claim automatic full-thread capture" in agent_plugin_readme
 
     codex_manifest = _read_json(CODEX_PLUGIN / ".codex-plugin" / "plugin.json")
     codex_mcp = _read_json(CODEX_PLUGIN / ".mcp.json")
