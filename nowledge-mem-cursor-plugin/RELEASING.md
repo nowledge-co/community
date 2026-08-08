@@ -24,12 +24,15 @@ This validator checks:
 
 - required plugin files exist and are non-empty
 - `.cursor-plugin/plugin.json` has the core marketplace metadata
-- `hooks/hooks.json`, the shared runtime, and both hook scripts keep startup bootstrap and exact-session transcript capture wired
+- `hooks/hooks.json`, the shared runtime, and both hook scripts keep the required files, required text, manifest fields, and bounded hook timeouts in place
 - `mcp.json` has a valid `nowledge-mem` server entry
 - the rule keeps real `save-thread` capture separate from summary-only `save-handoff`
 - `integrations.json` matches the package version and automatic-capture contract
 - rule and skill files keep the frontmatter Cursor's template expects
 - the repository-level `.cursor-plugin/marketplace.json` points to this package
+
+Runtime wiring, exact-session arguments, retry behavior, and fail-open behavior
+belong to the Node test suite.
 
 ## Manual Readiness Checks
 

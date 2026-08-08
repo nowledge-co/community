@@ -1441,6 +1441,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["cursor"]["transport"] == "mcp+hook"
     assert by_id["cursor"]["capabilities"]["autoCapture"] is True
     assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"
+    assert by_id["cursor"]["threadSave"]["command"] == "nmem t save --from cursor"
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
     assert by_id["droid"]["version"] == "0.1.1"

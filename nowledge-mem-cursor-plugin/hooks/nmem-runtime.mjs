@@ -3,6 +3,8 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+const DEFAULT_MAX_BUFFER_BYTES = 8 * 1024 * 1024;
+
 export function envValue(name, env = process.env) {
   const value = env[name];
   return typeof value === 'string' ? value.trim() : '';
@@ -63,9 +65,11 @@ export function runNmemJson(args, options = {}) {
 
   const timeoutMs = Math.max(1, Math.floor(options.timeoutMs ?? 10000));
   const useShell = process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(command);
+  const maxBuffer = Math.max(1, Math.floor(options.maxBuffer ?? DEFAULT_MAX_BUFFER_BYTES));
   const result = spawnSync(command, ['--json', ...args], {
     encoding: 'utf8',
     env,
+    maxBuffer,
     shell: useShell,
     timeout: timeoutMs,
     windowsHide: true,

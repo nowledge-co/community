@@ -549,6 +549,7 @@
       },
       "threadSave": {
         "method": "hook+cli-native",
+        "command": "nmem t save --from cursor",
         "historicalCommand": "nmem t sync --from cursor --all-projects",
         "note": "The local stop hook imports the exact current Cursor Agent transcript with nmem. save-thread is the manual fallback, save-handoff remains summary-only, and historical sync can backfill ~/.cursor/projects."
       },

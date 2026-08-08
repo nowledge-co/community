@@ -22,6 +22,7 @@ import {
 
 const ATTEMPT_DELAYS_MS = [0, 500, 1500, 3000];
 const ATTEMPT_TIMEOUT_MS = 8000;
+const INTERNAL_BUDGET_MS = 30000;
 const CLAIM_STALE_MS = 90000;
 const LOG_MAX_BYTES = 1024 * 1024;
 
@@ -124,11 +125,18 @@ export function acquireClaim(key, options = {}) {
     mkdirSync(stateRoot, { recursive: true, mode: 0o700 });
     cleanupStaleClaims(stateRoot, now);
     const claimPath = path.join(stateRoot, `${key}.lock`);
+    const completedPath = path.join(stateRoot, `${key}.done`);
+    try {
+      statSync(completedPath);
+      return { acquired: false, claimPath: '', completedPath, stateRoot };
+    } catch {
+      // No completed marker means this event still needs capture.
+    }
     descriptor = openSync(claimPath, 'wx', 0o600);
     writeFileSync(descriptor, `${now}\n`, 'utf8');
     closeSync(descriptor);
     descriptor = undefined;
-    return { acquired: true, claimPath, stateRoot };
+    return { acquired: true, claimPath, completedPath, stateRoot };
   } catch (error) {
     if (descriptor !== undefined) {
       try {
@@ -141,6 +149,17 @@ export function acquireClaim(key, options = {}) {
       return { acquired: false, claimPath: '', stateRoot };
     }
     return { acquired: true, claimPath: '', stateRoot };
+  }
+}
+
+function completeClaim(claim) {
+  if (!claim?.completedPath) {
+    return;
+  }
+  try {
+    writeFileSync(claim.completedPath, `${Date.now()}\n`, { encoding: 'utf8', mode: 0o600 });
+  } catch {
+    // Completed markers are best effort; the persisted thread remains source of truth.
   }
 }
 
@@ -204,29 +223,38 @@ export async function saveCapture(capture, options = {}) {
 
   const run = options.runNmem ?? runNmemJson;
   const sleep = options.sleep ?? wait;
+  const clock = options.clock ?? Date.now;
+  const deadline = clock() + INTERNAL_BUDGET_MS;
   let saved = false;
   try {
     for (let attempt = 0; attempt < ATTEMPT_DELAYS_MS.length; attempt += 1) {
-      await sleep(ATTEMPT_DELAYS_MS[attempt]);
+      const remainingBeforeDelay = deadline - clock();
+      if (remainingBeforeDelay <= 0) {
+        break;
+      }
+      await sleep(Math.min(ATTEMPT_DELAYS_MS[attempt], remainingBeforeDelay));
+      const remaining = deadline - clock();
+      if (remaining <= 0) {
+        break;
+      }
       let result;
       try {
         result = run(args, {
           command,
           env,
-          timeoutMs: ATTEMPT_TIMEOUT_MS,
+          timeoutMs: Math.min(ATTEMPT_TIMEOUT_MS, remaining),
         });
       } catch {
         result = { ok: false, data: null };
       }
       if (saveResultHasThread(result)) {
         saved = true;
+        completeClaim(claim);
         return { saved: true, reason: 'saved', attempts: attempt + 1 };
       }
     }
   } finally {
-    if (!saved) {
-      releaseClaim(claim);
-    }
+    releaseClaim(claim);
   }
 
   logEvent(
