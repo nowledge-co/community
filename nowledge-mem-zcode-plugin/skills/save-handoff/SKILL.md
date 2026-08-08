@@ -25,7 +25,10 @@ Prefer MCP thread creation when available. Otherwise use:
 nmem --json t create \
   -t "Session Handoff - <topic>" \
   -c "Goal: ... Decisions: ... Files: ... Risks: ... Next: ..." \
-  --source zcode
+  --source zcode \
+  --space "<space name>"
 ```
+
+If no real ambient space is configured, omit `--space` and use the default lane.
 
 After success, report that a handoff was saved, include its title and thread ID when available, and state that it is a summary rather than a transcript import. If saving fails, report the error and do not imply that a checkpoint exists.

@@ -45,7 +45,7 @@ This ZCode package provides:
 - **Status:** CLI/MCP diagnostics;
 - **Threads:** explicit structured handoff summaries only.
 
-It does **not** provide automatic recall injection, automatic full-transcript capture, pre-compaction capture, or a `save-thread` operation. The current registry intentionally remains `mcp+skills`, `autoCapture: false`, and `handoff-only` until ZCode's session and hook contract is verified.
+It does **not** provide automatic recall injection, automatic full-transcript capture, pre-compaction capture, or a `save-thread` operation. The current registry intentionally remains `plugin+mcp+skills`, `autoCapture: false`, and `handoff-only` until ZCode's session and hook contract is verified.
 
 ## Local installation
 
