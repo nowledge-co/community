@@ -39,11 +39,13 @@ Save proactively when the conversation produces a decision, preference, plan, pr
 - Distill only decisions, procedures, lessons, or preferences that should remain useful after the current session ends.
 - At the end of substantial work, explicitly check whether one durable memory should be added or updated.
 - Never present a summary-only save as a real transcript import.
-- Cursor does not yet expose a real Nowledge live session importer in this plugin, so do not claim `save-thread` exists here.
+- The bundled `stop` hook normally imports the real current Cursor Agent transcript when the local `nmem` CLI and transcript are available.
+- Use `save-thread` only when the user explicitly asks for an immediate save or automatic capture is unavailable or failed. Prefer the exact current conversation ID when it is known.
 - Use `save-handoff` only when the user explicitly asks for a resumable checkpoint or handoff summary.
 
 ## Response Contract
 
 - Be explicit about whether you relied on Working Memory, memory recall, or thread recall.
 - Avoid repeated Working Memory reads or broad thread fetches when one targeted lookup is enough.
-- When `nmem` is available and the user explicitly asks for a resumable handoff, create it through the terminal with `nmem --json t create ...`.
+- When `nmem` is available and the user explicitly asks for a real thread save, run the client-side Cursor importer rather than creating a summary.
+- When the user explicitly asks for a resumable handoff, create it through the terminal with `nmem --json t create ...` and label it as a summary.

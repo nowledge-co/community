@@ -535,31 +535,31 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.6",
+      "version": "0.2.0",
       "directory": "nowledge-mem-cursor-plugin",
-      "transport": "mcp",
+      "transport": "mcp+hook",
       "capabilities": {
         "workingMemory": true,
         "search": true,
         "distill": true,
         "autoRecall": false,
-        "autoCapture": false,
+        "autoCapture": true,
         "graphExploration": false,
         "status": false
       },
       "threadSave": {
-        "method": "external",
+        "method": "hook+cli-native",
         "historicalCommand": "nmem t sync --from cursor --all-projects",
-        "note": "The Cursor plugin exposes save-handoff. Mem desktop and nmem can import real Cursor Agent transcripts from ~/.cursor/projects."
+        "note": "The local stop hook imports the exact current Cursor Agent transcript with nmem. save-thread is the manual fallback, save-handoff remains summary-only, and historical sync can backfill ~/.cursor/projects."
       },
       "autonomy": {
         "bootstrap": "automatic",
         "recall": "guided",
         "distill": "guided",
-        "threads": "import-only",
+        "threads": "automatic-capture",
         "bestResultRequires": [
           "Copy the local Cursor plugin and reload Cursor",
-          "Keep nmem available for session-start bootstrap, handoff, and Cursor Agent transcript import",
+          "Keep nmem available for session-start bootstrap, automatic Cursor Agent transcript capture, and handoffs",
           "If Mem is remote, configure both Cursor MCP and the local nmem client"
         ]
       },
@@ -576,9 +576,9 @@
       "toolNaming": {
         "convention": "mcp-backend",
         "prefix": "memory_",
-        "note": "MCP tools defined by backend (memory_search, memory_add, etc.); a session-start hook can preload Context Bundle or Working Memory when nmem is available; skills use nmem CLI for save-handoff"
+        "note": "MCP tools are defined by the backend (memory_search, memory_add, etc.); session-start preloads Context Bundle or Working Memory; the stop hook and save-thread skill use nmem for real transcript capture; save-handoff remains summary-only"
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "save-handoff"],
       "slashCommands": []
     },
     {
