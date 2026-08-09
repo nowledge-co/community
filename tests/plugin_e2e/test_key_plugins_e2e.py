@@ -1687,6 +1687,7 @@ def test_amp_plugin_static_contract_is_self_contained():
     assert "cp -R" in install_sh
     assert "STAGED_PLUGIN=" in install_sh
     assert "install_staged" in install_sh
+    assert 'skills/$PLUGIN_NAME/SKILL.md' in install_sh
 
     # No raw secrets are checked into the package.
     assert "NMEM_API_KEY" in readme

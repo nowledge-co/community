@@ -81,6 +81,10 @@ if [ ! -f "$STAGED_PLUGIN/src/index.ts" ]; then
   echo "Error: staged plugin is missing src/index.ts" >&2
   exit 1
 fi
+if [ ! -f "$STAGED_PLUGIN/skills/$PLUGIN_NAME/SKILL.md" ]; then
+  echo "Error: staged plugin is missing skills/$PLUGIN_NAME/SKILL.md" >&2
+  exit 1
+fi
 
 if ! install_staged; then
   echo "Error: could not replace the active installation; previous files were restored." >&2
