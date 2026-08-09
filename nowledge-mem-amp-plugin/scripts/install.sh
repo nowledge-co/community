@@ -2,11 +2,15 @@
 #
 # Installs the Nowledge Mem plugin and skill into Amp's per-user directories.
 #
+#   entry  -> ${XDG_CONFIG_HOME:-~/.config}/amp/plugins/nowledge-mem.ts
 #   plugin -> ${XDG_CONFIG_HOME:-~/.config}/amp/plugins/nowledge-mem/
 #   skill  -> ${XDG_CONFIG_HOME:-~/.config}/amp/skills/nowledge-mem/
 #
-# Re-running the script updates an existing installation. Restart Amp after
-# installing or updating so the plugin and skill are picked up.
+# Amp discovers a single-file plugin from a root .ts/.js entry inside the
+# plugins directory; the entry re-exports the bundle's default plugin so a
+# bare bundle directory alone is not loadable. Re-running the script updates
+# an existing installation. Restart Amp after installing or updating so the
+# plugin and skill are picked up.
 
 set -euo pipefail
 
@@ -15,6 +19,7 @@ AMP_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/amp"
 PLUGINS_DIR="$AMP_CONFIG_DIR/plugins"
 SKILLS_DIR="$AMP_CONFIG_DIR/skills"
 PLUGIN_DEST="$PLUGINS_DIR/$PLUGIN_NAME"
+PLUGIN_ENTRY_DEST="$PLUGINS_DIR/$PLUGIN_NAME.ts"
 SKILL_DEST="$SKILLS_DIR/$PLUGIN_NAME"
 
 # Resolve the directory this script lives in, so the command works regardless
@@ -33,11 +38,19 @@ trap cleanup EXIT
 
 STAGED_PLUGIN="$STAGING_DIR/plugin"
 STAGED_SKILL="$STAGING_DIR/skill"
+STAGED_ENTRY="$STAGING_DIR/entry.ts"
 BACKUP_PLUGIN="$STAGING_DIR/old-plugin"
 BACKUP_SKILL="$STAGING_DIR/old-skill"
+BACKUP_ENTRY="$STAGING_DIR/old-entry.ts"
 
+# Restore the previously active entry, bundle, and skill after a failed
+# replacement. Removes any partially moved-in files first so the backups land
+# at their original paths.
 restore_previous() {
-  rm -rf "$PLUGIN_DEST" "$SKILL_DEST"
+  rm -rf "$PLUGIN_DEST" "$SKILL_DEST" "$PLUGIN_ENTRY_DEST"
+  if [ -e "$BACKUP_ENTRY" ]; then
+    mv "$BACKUP_ENTRY" "$PLUGIN_ENTRY_DEST"
+  fi
   if [ -e "$BACKUP_PLUGIN" ]; then
     mv "$BACKUP_PLUGIN" "$PLUGIN_DEST"
   fi
@@ -47,7 +60,11 @@ restore_previous() {
 }
 
 install_staged() {
+  if [ -e "$PLUGIN_ENTRY_DEST" ] && ! mv "$PLUGIN_ENTRY_DEST" "$BACKUP_ENTRY"; then
+    return 1
+  fi
   if [ -e "$PLUGIN_DEST" ] && ! mv "$PLUGIN_DEST" "$BACKUP_PLUGIN"; then
+    restore_previous
     return 1
   fi
   if [ -d "$STAGED_SKILL" ] && [ -e "$SKILL_DEST" ] && ! mv "$SKILL_DEST" "$BACKUP_SKILL"; then
@@ -62,27 +79,43 @@ install_staged() {
     restore_previous
     return 1
   fi
-  rm -rf "$BACKUP_PLUGIN" "$BACKUP_SKILL"
+  if ! mv "$STAGED_ENTRY" "$PLUGIN_ENTRY_DEST"; then
+    restore_previous
+    return 1
+  fi
+  rm -rf "$BACKUP_PLUGIN" "$BACKUP_SKILL" "$BACKUP_ENTRY"
 }
 
 echo "Installing Nowledge Mem for Amp"
 echo "  source:  $PLUGIN_SRC"
+echo "  entry:   $PLUGIN_ENTRY_DEST"
 echo "  plugin:  $PLUGIN_DEST"
 echo "  skill:   $SKILL_DEST"
 
-# Stage the plugin and skill before touching the active installation.
+# Stage the plugin, skill, and root entry before touching the active
+# installation. The entry re-exports the bundle's default plugin so Amp
+# discovers it as a single-file plugin (see the header comment).
 cp -R "$PLUGIN_SRC" "$STAGED_PLUGIN"
 if [ -d "$STAGED_PLUGIN/skills/$PLUGIN_NAME" ]; then
   cp -R "$STAGED_PLUGIN/skills/$PLUGIN_NAME" "$STAGED_SKILL"
 fi
+printf 'export { default } from "./nowledge-mem/src/index.ts"\n' > "$STAGED_ENTRY"
 
-# Validate the staged plugin entrypoint exists before replacement.
+# Validate the staged bundle, skill, and entry before replacement.
 if [ ! -f "$STAGED_PLUGIN/src/index.ts" ]; then
   echo "Error: staged plugin is missing src/index.ts" >&2
   exit 1
 fi
 if [ ! -f "$STAGED_PLUGIN/skills/$PLUGIN_NAME/SKILL.md" ]; then
   echo "Error: staged plugin is missing skills/$PLUGIN_NAME/SKILL.md" >&2
+  exit 1
+fi
+if [ ! -f "$STAGED_ENTRY" ]; then
+  echo "Error: staged root entry was not written" >&2
+  exit 1
+fi
+if ! grep -q 'export { default } from "./nowledge-mem/src/index.ts"' "$STAGED_ENTRY"; then
+  echo "Error: staged root entry does not re-export the bundle default" >&2
   exit 1
 fi
 

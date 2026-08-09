@@ -1688,6 +1688,12 @@ def test_amp_plugin_static_contract_is_self_contained():
     assert "STAGED_PLUGIN=" in install_sh
     assert "install_staged" in install_sh
     assert 'skills/$PLUGIN_NAME/SKILL.md' in install_sh
+    # The script installs an Amp-discoverable root plugin entry that re-exports
+    # the bundle default, alongside the bundle dir and skill.
+    assert "PLUGIN_ENTRY_DEST=" in install_sh
+    assert "STAGED_ENTRY=" in install_sh
+    assert "BACKUP_ENTRY=" in install_sh
+    assert 'export { default } from "./nowledge-mem/src/index.ts"' in install_sh
 
     # No raw secrets are checked into the package.
     assert "NMEM_API_KEY" in readme
@@ -2677,3 +2683,91 @@ def test_opencode_live_tool_thread_capture(e2e_context: E2EContext, tmp_path: Pa
         space=e2e_context.space,
         env=env,
     )
+
+
+def _run_amp_install(xdg_home: Path, *, script: Path | None = None) -> subprocess.CompletedProcess[str]:
+    """Run the Amp plugin install script isolated under an XDG_CONFIG_HOME root.
+
+    Returns the CompletedProcess regardless of exit code so callers can assert
+    on success or failure. The script resolves its own source dir, so `script`
+    defaults to the in-tree install.sh.
+    """
+    install_script = script if script is not None else AMP_PLUGIN / "scripts" / "install.sh"
+    return subprocess.run(
+        ["bash", str(install_script)],
+        env={**os.environ, "XDG_CONFIG_HOME": str(xdg_home)},
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+
+def _assert_amp_artifacts(xdg_home: Path) -> None:
+    plugins_dir = xdg_home / "amp" / "plugins"
+    entry = plugins_dir / "nowledge-mem.ts"
+    bundle_index = plugins_dir / "nowledge-mem" / "src" / "index.ts"
+    skill = xdg_home / "amp" / "skills" / "nowledge-mem" / "SKILL.md"
+    assert entry.is_file(), f"root plugin entry missing: {entry}"
+    assert (
+        'export { default } from "./nowledge-mem/src/index.ts"' in entry.read_text(encoding="utf-8")
+    ), "root entry does not re-export the bundle default"
+    # The entry's import target must resolve on disk, otherwise Amp cannot load it.
+    assert bundle_index.is_file(), f"entry target missing: {bundle_index}"
+    assert skill.is_file(), f"skill missing: {skill}"
+
+
+def test_amp_install_script_creates_root_entry_bundle_and_skill(tmp_path: Path):
+    """First install writes the Amp-discoverable root entry, the bundle it
+    re-exports, and the skill, all under the resolved XDG config directory."""
+    result = _run_amp_install(tmp_path)
+    assert result.returncode == 0, result.stderr
+    _assert_amp_artifacts(tmp_path)
+
+
+def test_amp_install_script_is_idempotent(tmp_path: Path):
+    """Re-running the script is a safe atomic update: all artifacts survive and
+    the root entry content is stable across runs."""
+    first = _run_amp_install(tmp_path)
+    assert first.returncode == 0, first.stderr
+    entry = tmp_path / "amp" / "plugins" / "nowledge-mem.ts"
+    bundle_index = tmp_path / "amp" / "plugins" / "nowledge-mem" / "src" / "index.ts"
+    entry_before = entry.read_text(encoding="utf-8")
+    bundle_before = bundle_index.read_text(encoding="utf-8")
+
+    second = _run_amp_install(tmp_path)
+    assert second.returncode == 0, second.stderr
+    _assert_amp_artifacts(tmp_path)
+    assert entry.read_text(encoding="utf-8") == entry_before
+    assert bundle_index.read_text(encoding="utf-8") == bundle_before
+
+
+def test_amp_install_script_keeps_prior_install_when_preflight_fails(tmp_path: Path):
+    """A failed pre-flight check must not disturb a prior valid installation:
+    the script stages everything before touching the active install, so a
+    missing source file fails fast and leaves the live entry/bundle/skill
+    intact."""
+    # Establish a known-good installation first.
+    seed = _run_amp_install(tmp_path)
+    assert seed.returncode == 0, seed.stderr
+    entry = tmp_path / "amp" / "plugins" / "nowledge-mem.ts"
+    bundle_index = tmp_path / "amp" / "plugins" / "nowledge-mem" / "src" / "index.ts"
+    skill = tmp_path / "amp" / "skills" / "nowledge-mem" / "SKILL.md"
+    entry_before = entry.read_text(encoding="utf-8")
+    bundle_before = bundle_index.read_text(encoding="utf-8")
+    skill_before = skill.read_text(encoding="utf-8")
+
+    # Build a broken source tree (missing src/index.ts) and run its install
+    # script against the same config root; the staged-bundle pre-flight check
+    # must abort before the live install is touched.
+    broken_src = tmp_path / "broken-amp-plugin-src"
+    shutil.copytree(AMP_PLUGIN, broken_src)
+    (broken_src / "src" / "index.ts").unlink()
+    failed = _run_amp_install(tmp_path, script=broken_src / "scripts" / "install.sh")
+
+    assert failed.returncode != 0
+    assert "staged plugin is missing src/index.ts" in failed.stderr
+    # The prior installation is untouched.
+    _assert_amp_artifacts(tmp_path)
+    assert entry.read_text(encoding="utf-8") == entry_before
+    assert bundle_index.read_text(encoding="utf-8") == bundle_before
+    assert skill.read_text(encoding="utf-8") == skill_before
