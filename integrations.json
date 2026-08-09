@@ -8,7 +8,7 @@
     "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为我当前使用的 AI 工具安装或更新 Nowledge Mem。",
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
-      "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "copilot-cli",
+      "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
       "slock", "lody", "multica", "cumora", "paseo", "mirasim", "amp", "agent-plugins", "mcp-direct"
@@ -224,6 +224,78 @@
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "save-handoff"],
       "slashCommands": ["/nowledge:read-working-memory", "/nowledge:search-memory", "/nowledge:distill-memory", "/nowledge:save-thread", "/nowledge:save-handoff", "/nowledge:status"]
+    },
+    {
+      "id": "google-antigravity",
+      "name": "Google Antigravity",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.3",
+      "directory": null,
+      "externalRepo": "https://github.com/nowledge-co/nowledge-mem-google-antigravity",
+      "transport": "cli+mcp+hooks",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "hook+cli-native",
+        "runtime": "antigravity",
+        "command": "nmem t sync --from antigravity --session-id <conversation-id> --apply",
+        "historicalCommand": "nmem t sync --from antigravity",
+        "note": "The donated Google Antigravity plugin runs on Antigravity's native lifecycle hooks. PreInvocation injects Context Bundle or Working Memory, PostInvocation reports pending offline syncs, PreToolUse gates destructive memory actions, and Stop imports the local transcript.jsonl under the canonical source=antigravity. MCP remains the structured retrieval/write surface; nmem owns durable client config, remote auth, and historical backfill."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the Google Antigravity plugin from nowledge-co/nowledge-mem-google-antigravity into ~/.gemini/config/plugins or the workspace .agents/plugins directory",
+          "Keep nmem available on the machine where Antigravity stores its brain/<conversationId> transcript.jsonl files",
+          "Restart Google Antigravity after install or update so rules, skills, MCP, and lifecycle hooks reload",
+          "Use nmem config mcp show --host google-antigravity for remote Mem or authenticated localhost",
+          "Run nmem t sync --from antigravity --apply only when you want to import older Antigravity sessions"
+        ]
+      },
+      "install": {
+        "command": "mkdir -p ~/.gemini/config/plugins && git clone --depth 1 https://github.com/nowledge-co/nowledge-mem-google-antigravity.git ~/.gemini/config/plugins/nowledge-mem",
+        "updateCommand": "git -C ~/.gemini/config/plugins/nowledge-mem pull --ff-only",
+        "windowsCommand": "$null = New-Item -ItemType Directory -Force \"$env:USERPROFILE\\.gemini\\config\\plugins\"; git clone --depth 1 https://github.com/nowledge-co/nowledge-mem-google-antigravity.git \"$env:USERPROFILE\\.gemini\\config\\plugins\\nowledge-mem\"",
+        "windowsUpdateCommand": "git -C \"$env:USERPROFILE\\.gemini\\config\\plugins\\nowledge-mem\" pull --ff-only",
+        "configRequired": "Install the plugin into a folder scanned by Google Antigravity, then restart Antigravity. The plugin bundles a local MCP config; for remote Mem, generate an Antigravity-shaped MCP block with nmem config mcp show --host google-antigravity and paste it into ~/.gemini/config/mcp_config.json or the MCP Store override.",
+        "detectionHint": "Running inside Google Antigravity 2.0; ~/.gemini/config/plugins exists, ~/.gemini/antigravity exists, or the user asks about Antigravity plugins, PreInvocation, Stop hooks, transcript.jsonl, or the abn donated plugin.",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Google Antigravity. Install the nowledge-co/nowledge-mem-google-antigravity plugin, restart Antigravity, verify with nmem status and the Context Bundle or Working Memory check, then run a short session and confirm nmem t list --source antigravity shows the captured thread.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Google Antigravity 安装或更新 Nowledge Mem。安装 nowledge-co/nowledge-mem-google-antigravity 插件，重启 Antigravity，用 nmem status 和 Context Bundle 或 Working Memory 检查验证，再跑一个短会话并确认 nmem t list --source antigravity 能看到捕获的 Thread。"
+        },
+        "docsUrl": "/docs/integrations/google-antigravity"
+      },
+      "toolNaming": {
+        "convention": "antigravity-plugin+mcp+cli",
+        "note": "Google Antigravity loads rules, skills, bundled MCP, and lifecycle hooks from the plugin folder. MCP is for retrieval and structured memory writes. Hook transcript capture and historical import store threads under canonical source=antigravity so old Antigravity CLI, Google Antigravity, and decoded trajectory fallback history do not fork into separate sources."
+      },
+      "skills": [
+        "nmem-memory-working",
+        "nmem-memory-search",
+        "nmem-memory-distill",
+        "nmem-thread-save",
+        "nmem-thread-handoff",
+        "nmem-status"
+      ],
+      "slashCommands": [
+        "/nmem-memory-working",
+        "/nmem-memory-search",
+        "/nmem-memory-distill",
+        "/nmem-thread-save",
+        "/nmem-thread-handoff",
+        "/nmem-status"
+      ]
     },
     {
       "id": "codex-cli",
