@@ -20,7 +20,7 @@ import { createNmemHttp } from "./http"
 import { SessionSyncManager } from "./sync"
 import { createToolExecutors, TOOL_DEFINITIONS, SOURCE_APP } from "./tools"
 import { createCommandRegistrations } from "./commands"
-import { createBootstrapHandler } from "./bootstrap"
+import { BootstrapManager } from "./bootstrap"
 import { BEHAVIORAL_GUIDANCE } from "./guidance"
 import type { CommandContext, ExecFileFn, ToolContext } from "./types"
 
@@ -171,24 +171,18 @@ export default function ampKnowledgeMem(amp: PluginAPI): void {
     syncManager.scheduleSync(event.thread.id)
   })
 
-  const bootstrapHandler = createBootstrapHandler(
+  const bootstrapManager = new BootstrapManager(
     { nmem },
     { sourceApp: SOURCE_APP, enabled: config.bootstrapEnabled },
   )
-  const bootstrapByThread = new Map<ThreadID, ReturnType<typeof bootstrapHandler>>()
   amp.on("session.start", (event) => {
-    bootstrapByThread.set(event.thread.id, bootstrapHandler())
+    bootstrapManager.preload(event.thread.id)
   })
-  amp.on("agent.start", async (event) => {
-    const pendingBootstrap = bootstrapByThread.get(event.thread.id)
-    if (pendingBootstrap === undefined) return {}
-    bootstrapByThread.delete(event.thread.id)
-    return pendingBootstrap
-  })
+  amp.on("agent.start", async (event) => bootstrapManager.consume(event.thread.id))
 
   amp.onDispose(() => {
+    bootstrapManager.dispose()
     syncManager.dispose()
-    bootstrapByThread.clear()
     logger.log(`${SOURCE_APP} connector disposed`)
   })
 
