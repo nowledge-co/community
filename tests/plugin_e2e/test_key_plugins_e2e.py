@@ -2771,3 +2771,37 @@ def test_amp_install_script_keeps_prior_install_when_preflight_fails(tmp_path: P
     assert entry.read_text(encoding="utf-8") == entry_before
     assert bundle_index.read_text(encoding="utf-8") == bundle_before
     assert skill.read_text(encoding="utf-8") == skill_before
+
+
+def test_amp_install_script_preserves_prior_install_when_backup_move_fails(tmp_path: Path):
+    """A failed backup of the live bundle must not delete it. restore_previous
+    only removes/restores artifacts whose backup succeeded, so a bundle whose
+    backup `mv` fails (e.g. read-only source) is left in place and the rest of
+    the prior install (entry, skill) is restored from their successful backups."""
+    seed = _run_amp_install(tmp_path)
+    assert seed.returncode == 0, seed.stderr
+    entry = tmp_path / "amp" / "plugins" / "nowledge-mem.ts"
+    bundle_dir = tmp_path / "amp" / "plugins" / "nowledge-mem"
+    bundle_index = bundle_dir / "src" / "index.ts"
+    skill = tmp_path / "amp" / "skills" / "nowledge-mem" / "SKILL.md"
+    entry_before = entry.read_text(encoding="utf-8")
+    bundle_before = bundle_index.read_text(encoding="utf-8")
+    skill_before = skill.read_text(encoding="utf-8")
+
+    # Make the live bundle dir un-mv-able so the bundle backup step fails. The
+    # entry backup (a plain file) still succeeds first, exercising the path
+    # where some backups exist and one does not.
+    bundle_dir.chmod(0o500)
+    try:
+        failed = _run_amp_install(tmp_path)
+    finally:
+        bundle_dir.chmod(0o755)
+
+    assert failed.returncode != 0
+    assert "could not replace the active installation" in failed.stderr
+    # The prior installation is fully intact; the bundle was never deleted.
+    _assert_amp_artifacts(tmp_path)
+    assert entry.read_text(encoding="utf-8") == entry_before
+    assert bundle_index.read_text(encoding="utf-8") == bundle_before
+    assert skill.read_text(encoding="utf-8") == skill_before
+

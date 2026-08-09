@@ -43,33 +43,55 @@ BACKUP_PLUGIN="$STAGING_DIR/old-plugin"
 BACKUP_SKILL="$STAGING_DIR/old-skill"
 BACKUP_ENTRY="$STAGING_DIR/old-entry.ts"
 
+# Track which backups were created so restore_previous only removes/restores
+# artifacts that have a valid backup. A failed backup leaves the live artifact
+# in place (a failed mv keeps its source); the matching flag stays 0, so the
+# live artifact is never deleted without a backup to restore from.
+ENTRY_BACKED_UP=0
+BUNDLE_BACKED_UP=0
+SKILL_BACKED_UP=0
+
 # Restore the previously active entry, bundle, and skill after a failed
-# replacement. Removes any partially moved-in files first so the backups land
-# at their original paths.
+# replacement. Only destinations whose backup succeeded are removed, and only
+# those backups are restored, so the rm and restore sets always match.
 restore_previous() {
-  rm -rf "$PLUGIN_DEST" "$SKILL_DEST" "$PLUGIN_ENTRY_DEST"
-  if [ -e "$BACKUP_ENTRY" ]; then
+  if [ "$ENTRY_BACKED_UP" -eq 1 ]; then
+    rm -rf "$PLUGIN_ENTRY_DEST"
     mv "$BACKUP_ENTRY" "$PLUGIN_ENTRY_DEST"
   fi
-  if [ -e "$BACKUP_PLUGIN" ]; then
+  if [ "$BUNDLE_BACKED_UP" -eq 1 ]; then
+    rm -rf "$PLUGIN_DEST"
     mv "$BACKUP_PLUGIN" "$PLUGIN_DEST"
   fi
-  if [ -e "$BACKUP_SKILL" ]; then
+  if [ "$SKILL_BACKED_UP" -eq 1 ]; then
+    rm -rf "$SKILL_DEST"
     mv "$BACKUP_SKILL" "$SKILL_DEST"
   fi
 }
 
 install_staged() {
-  if [ -e "$PLUGIN_ENTRY_DEST" ] && ! mv "$PLUGIN_ENTRY_DEST" "$BACKUP_ENTRY"; then
-    return 1
+  if [ -e "$PLUGIN_ENTRY_DEST" ]; then
+    if mv "$PLUGIN_ENTRY_DEST" "$BACKUP_ENTRY"; then
+      ENTRY_BACKED_UP=1
+    else
+      return 1
+    fi
   fi
-  if [ -e "$PLUGIN_DEST" ] && ! mv "$PLUGIN_DEST" "$BACKUP_PLUGIN"; then
-    restore_previous
-    return 1
+  if [ -e "$PLUGIN_DEST" ]; then
+    if mv "$PLUGIN_DEST" "$BACKUP_PLUGIN"; then
+      BUNDLE_BACKED_UP=1
+    else
+      restore_previous
+      return 1
+    fi
   fi
-  if [ -d "$STAGED_SKILL" ] && [ -e "$SKILL_DEST" ] && ! mv "$SKILL_DEST" "$BACKUP_SKILL"; then
-    restore_previous
-    return 1
+  if [ -d "$STAGED_SKILL" ] && [ -e "$SKILL_DEST" ]; then
+    if mv "$SKILL_DEST" "$BACKUP_SKILL"; then
+      SKILL_BACKED_UP=1
+    else
+      restore_previous
+      return 1
+    fi
   fi
   if ! mv "$STAGED_PLUGIN" "$PLUGIN_DEST"; then
     restore_previous
