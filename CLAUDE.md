@@ -38,7 +38,15 @@ See [`docs/PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md) for a
 
 ## Submodules
 
-`nowledge-mem-gemini-cli` is a nested submodule (separate repo with its own release cycle). All other integrations are normal directories in this repo.
+`nowledge-mem-gemini-cli` is a first-class connector submodule with its own
+release cycle. Keep its `package.json` / `gemini-extension.json` version,
+`integrations.json`, tags, and parent submodule pointer aligned.
+
+Trajectory extractors are recovery/fallback tools, not primary connectors.
+Do not promote them into the normal connector update flow. Current
+Antigravity users should use the native Google Antigravity plugin and
+`nmem t sync --from antigravity`; the standalone trajectory extractor is only
+linked as an external fallback for old cache-only sessions.
 
 ## Commit Workflow
 

@@ -4,6 +4,3 @@
 [submodule "windsurf-trajectory-extractor"]
 	path = windsurf-trajectory-extractor
 	url = https://github.com/jijiamoer/windsurf-trajectory-extractor.git
-[submodule "antigravity-trajectory-extractor"]
-	path = antigravity-trajectory-extractor
-	url = https://github.com/jijiamoer/antigravity-trajectory-extractor.git

@@ -1011,8 +1011,8 @@
         "configRequired": "Ekko's MCP connection is configured inside Hermes Studio/Ekko. The transcript importer is delivered by the nmem CLI; there is no separate Nowledge Mem Ekko plugin package today.",
         "detectionHint": "Running inside Hermes Studio's Ekko Agent, HERMES_WEB_UI_HOME is set, or an Ekko database exists at $HERMES_WEB_UI_HOME/.ekko/ekko.db",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions for Ekko Agent. Verify Nowledge Mem MCP with nmem status, then preview transcript import with nmem t sync --from ekko before using --apply.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中 Ekko Agent 说明操作。先用 nmem status 验证 Nowledge Mem MCP，再运行 nmem t sync --from ekko 预览本地会话，确认后再加 --apply 导入。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions for Ekko Agent. Verify with nmem status and the Context Bundle or Working Memory check, then preview transcript import with nmem t sync --from ekko before using --apply.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中 Ekko Agent 说明操作。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，再运行 nmem t sync --from ekko 预览本地会话，确认后再加 --apply 导入。"
         },
         "docsUrl": "/docs/integrations/ekko"
       },
