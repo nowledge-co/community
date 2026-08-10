@@ -37,6 +37,9 @@ SOURCE_APP="claude-code"
 if [ -n "${GROK_SESSION_ID:-}" ] || [ -n "${GROK_HOOK_EVENT:-}" ] || [ -n "${GROK_WORKSPACE_ROOT:-}" ] || [ -n "${GROK_PLUGIN_ROOT:-}" ]; then
   SOURCE_APP="grok"
 fi
+case "${CLAUDE_PLUGIN_ROOT:-}" in
+  */.grok/*|*\\.grok\\*) SOURCE_APP="grok" ;;
+esac
 
 parse_context='import sys,json; d=json.load(sys.stdin); c=d.get("rendered_markdown") or d.get("content") or ""; print(c) if c else sys.exit(1)'
 parse_existing_space_wm='import sys,json; d=json.load(sys.stdin); c=d.get("content",""); print(c) if d.get("exists") and c else sys.exit(1)'
