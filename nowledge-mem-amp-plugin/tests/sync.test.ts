@@ -103,6 +103,8 @@ describe("SessionSyncManager.syncNow", () => {
     [409, { error: "exists" }],
     [422, { detail: "Thread amp-t-abc123 already exists in space default." }],
     [422, { error: "Thread amp-t-abc123 already exists in space default." }],
+    [422, "THREAD amp-t-abc123 ALREADY EXISTS in space default."],
+    [422, { error: { message: "Thread exists in space default." } }],
   ])("falls back to append when create returns the existing-thread response %i", async (status, data) => {
     const nmemApi = fakeNmemApi({
       "/threads": () => ({ ok: false, status, data }),

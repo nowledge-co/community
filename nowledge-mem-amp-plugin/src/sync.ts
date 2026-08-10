@@ -296,14 +296,11 @@ export class SessionSyncManager {
 
     let response = await this.ports.nmemApi("/threads", body)
 
-    const responseData = response.data
-    const conflictMessage =
-      typeof responseData === "object" && responseData !== null
-        ? Reflect.get(responseData, "detail") ?? Reflect.get(responseData, "error")
-        : undefined
+    const conflictText = JSON.stringify(response.data)?.toLowerCase() ?? ""
     const threadAlreadyExists =
       response.status === 409
-      || (response.status === 422 && typeof conflictMessage === "string" && conflictMessage.includes("already exists"))
+      || (response.status === 422
+        && (conflictText.includes("already exists") || conflictText.includes("thread exists")))
 
     // Only fall back to append when the thread already exists. The current
     // server uses 422 for this condition while older deployments use 409.

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { createNmemHttp } from "../src/http"
 import type { ResolvedConfig } from "../src/config"
@@ -27,6 +27,10 @@ const AUTHED_CONFIG: ResolvedConfig = { ...NO_AUTH_CONFIG, apiKey: AUTH_FIXTURE 
 
 /** Config with an ambient space. */
 const SPACED_CONFIG: ResolvedConfig = { ...NO_AUTH_CONFIG, ambientSpaceId: "Research" }
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 /** A minimal Response-like object for the fake fetch. */
 interface FakeResponse {
