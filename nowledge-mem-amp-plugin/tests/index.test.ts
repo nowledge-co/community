@@ -33,7 +33,16 @@ interface FakeAmp {
   }) => Promise<void>>
   readonly logger: { readonly log: (message: string) => void }
   readonly system: { readonly workspaceRoot: { readonly toString: () => string } | null }
-  readonly threads: { readonly get: (threadId: string) => { readonly messages: (options: { readonly full: boolean }) => Promise<unknown[]> } }
+  readonly threads: {
+    readonly get: (threadId: string) => {
+      readonly messages: (options: {
+        readonly full: boolean
+        readonly from: "start" | "end"
+        readonly offset: number
+        readonly limit: number
+      }) => Promise<unknown[]>
+    }
+  }
   readonly registerTool: (definition: {
     readonly name: string
     readonly execute: (input: Record<string, unknown>, ctx: { readonly thread: { readonly id: string } }) => Promise<unknown>
@@ -127,6 +136,43 @@ describe("Amp plugin entrypoint", () => {
     agentEnd!({ thread: { id: "T-one" } })
     amp.disposers[0]!()
     expect(amp.logger.log).toHaveBeenCalled()
+  })
+
+  it("paginates the full transcript from the start", async () => {
+    const calls: Array<{ full: boolean; from: "start" | "end"; offset: number; limit: number }> = []
+    const transcript = Array.from({ length: 45 }, (_, index) => ({
+      role: index % 2 === 0 ? "user" : "assistant",
+      id: `message-${index}`,
+      content: [{ type: "text", text: `message ${index}` }],
+    }))
+    const amp = createFakeAmp()
+    const paginatedAmp = {
+      ...amp,
+      threads: {
+        get: () => ({
+          messages: async (options: { full: boolean; from: "start" | "end"; offset: number; limit: number }) => {
+            calls.push(options)
+            return transcript.slice(options.offset, options.offset + options.limit)
+          },
+        }),
+      },
+    }
+    const mod = await import("../src/index")
+
+    const messages = await mod.readThreadMessagesViaSdk(
+      paginatedAmp as unknown as Parameters<typeof mod.readThreadMessagesViaSdk>[0],
+      "T-one" as Parameters<typeof mod.readThreadMessagesViaSdk>[1],
+    )
+
+    expect(messages).toHaveLength(45)
+    expect(messages.map((message) => (message as { id: string }).id)).toEqual(
+      transcript.map((message) => message.id),
+    )
+    expect(calls).toEqual([
+      { full: true, from: "start", offset: 0, limit: 20 },
+      { full: true, from: "start", offset: 20, limit: 20 },
+      { full: true, from: "start", offset: 40, limit: 20 },
+    ])
   })
 
   it("preloads bootstrap on session.start and consumes it once on agent.start", async () => {
