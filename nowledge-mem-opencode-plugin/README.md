@@ -57,7 +57,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.5"]
+  "plugin": ["opencode-nowledge-mem@0.3.6"]
 }
 ```
 
@@ -177,6 +177,7 @@ Shared spaces, default retrieval, and agent guidance still come from Mem's own s
 - **nmem not found.** Install with `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`, then run `nmem status` to verify.
 - **Server not responding.** Start the Nowledge Mem desktop app, or check `nmem status` for diagnostics.
 - **Plugin not loading.** Confirm `"opencode-nowledge-mem"` appears in your `opencode.json` plugin array. Restart OpenCode after changes.
+- **OpenCode Desktop sees the package but no tools appear.** Fully quit OpenCode Desktop, clear the OpenCode package cache, then restart so it installs the latest package. On Windows the cache is `%USERPROFILE%\.cache\opencode`; on macOS/Linux it is `~/.cache/opencode`.
 
 ## Links
 

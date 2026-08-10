@@ -2,9 +2,12 @@
 
 ## Unreleased
 
+## [0.3.6] - 2026-08-10
+
 ### Fixed
 
 - The compaction hook now injects the post-compaction Nowledge Mem reminder through OpenCode's required `output.context` array, preserving the host's default compaction prompt.
+- Published the OpenCode plugin with a precompiled JavaScript entry point while keeping the TypeScript source in the package. This avoids a Windows Desktop loading gap where the package can be present in OpenCode's cache but the plugin never registers tools or idle-capture hooks.
 
 ## [0.3.5] - 2026-07-08
 
