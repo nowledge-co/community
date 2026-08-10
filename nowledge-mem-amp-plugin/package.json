@@ -1,6 +1,6 @@
 {
   "name": "amp-nowledge-mem",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Nowledge Mem plugin for Amp. Cross-tool knowledge with agent-end thread capture, Context Bundle, search, save, and handoffs.",
   "type": "module",
   "main": "src/index.ts",

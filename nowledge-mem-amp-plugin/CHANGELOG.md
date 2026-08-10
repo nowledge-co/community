@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.1] - 2026-08-10
+
+### Fixed
+
+- Restored the Amp-discoverable root plugin entry at `plugins/nowledge-mem.ts`
+  during install and update. Existing `0.1.0` installs may have copied the
+  bundle without the root entry, so Amp could miss the plugin.
+- Hardened install rollback so failed updates preserve the previous entry,
+  bundle, and skill, and failed first installs do not leave a partial Amp
+  plugin behind.
+
 ## [0.1.0] - 2026-08-08
 
 ### Added
