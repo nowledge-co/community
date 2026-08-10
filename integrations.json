@@ -11,7 +11,7 @@
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
-      "slock", "lody", "multica", "cumora", "paseo", "mirasim", "amp", "agent-plugins", "mcp-direct"
+      "slock", "lody", "multica", "cumora", "paseo", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
@@ -1670,6 +1670,60 @@
       "toolNaming": {
         "convention": "mcp-backend",
         "note": "Mirasim consumes Nowledge Mem through MCP. Mirasim-native transcript sync is not enabled until its history/export schema or lifecycle hook contract is stable."
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
+      "slashCommands": []
+    },
+    {
+      "id": "cindy",
+      "name": "Cindy",
+      "category": "orchestrator",
+      "type": "connector",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-cindy-connector",
+      "externalRepo": "https://github.com/makecindy/cindy",
+      "transport": "mcp+skills",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "child-runtime",
+        "runtime": "cindy",
+        "note": "Cindy is a local agent host that can run Claude Code, Codex, Pi, and other harnesses while keeping workspace, memory, skills, and tools continuous. Cindy's public client has MCP and a Ghost plugin runtime, but no stable third-party transcript export or hook contract for Cindy-native thread import yet. Use Nowledge Mem MCP and shared skills inside Cindy today; exact transcript capture belongs to the dedicated connector for the runtime Cindy launches."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Add Nowledge Mem as a Cindy MCP server with nmem config mcp show --host cindy",
+          "Add the shared Nowledge Mem skills or guide to Cindy so the agent knows when to read, search, save, and create handoffs",
+          "Install the dedicated Nowledge connector for each harness Cindy launches when you want exact transcript capture, such as Codex, Claude Code, Pi, or OMP",
+          "Keep source_app as the runtime that actually produced the transcript; use NMEM_AGENT_ID=cindy only for a durable Cindy role/persona",
+          "Do not claim Cindy-native automatic thread sync until Cindy exposes a stable message export, lifecycle hook, or verified Ghost package path"
+        ]
+      },
+      "install": {
+        "command": "nmem config mcp show --host cindy",
+        "updateCommand": "python3 -m pip install --user --upgrade nmem-cli",
+        "configRequired": "In Cindy, add a custom MCP server named nowledge-mem using the URL and headers printed by nmem config mcp show --host cindy. Add the shared Mem skills or copy nowledge-mem-cindy-connector/guide.md into Cindy instructions. For Cindy-launched Claude Code, Codex, Pi, or OMP sessions, install that child tool's dedicated Nowledge connector for transcript capture.",
+        "detectionHint": "Running inside Cindy, ~/.cindy exists, the Cindy desktop app is installed, or the user asks about Cindy harnesses, Ghost plugins, MCP, skills, memory, or makecindy/cindy.",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Cindy path. Add Nowledge Mem as a Cindy MCP server with nmem config mcp show --host cindy, add the shared Mem skills or guide, then verify with nmem status and a Context Bundle or Working Memory check. If Cindy launched Codex, Claude Code, Pi, or OMP, also install that child runtime's dedicated Nowledge connector for exact transcript capture. Keep source_app as the child runtime, not cindy.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Cindy 路径配置。用 nmem config mcp show --host cindy 把 Nowledge Mem 加为 Cindy MCP server；再添加共享 Mem skills 或 guide；然后用 nmem status 和 Context Bundle 或 Working Memory 检查验证。如果 Cindy 启动的是 Codex、Claude Code、Pi 或 OMP，还要安装对应子运行时的 Nowledge 专属连接来捕获真实 transcript。source_app 保持为子运行时，不要写成 cindy。"
+        },
+        "docsUrl": "/docs/integrations/cindy"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "Cindy consumes Nowledge Mem through MCP for memory/context tools. Cindy-launched harnesses keep their own source slugs for transcript capture. A future Cindy Ghost package can improve install UX once verified, but MCP alone is not a transcript importer."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": []

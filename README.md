@@ -61,6 +61,7 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **Multica** | Configure the Multica agent MCP settings and custom environment | Multi-agent orchestrator setup: install the child runtime connector first; for Claude Code agents, save the Mem MCP config on the Multica agent; then set `NMEM_AGENT_ID=<agent-slug>` in custom env. |
 | **Cumora** | Configure the child runtime plus each teammate persona | AI teammate workspace setup: connect Mem at the runtime/daemon boundary, then use a per-persona Context Bundle instruction unless Cumora exposes per-agent runtime environment variables. |
 | **Paseo** | Configure the child runtime that Paseo launches | Multi-agent orchestration setup: install the connector for Codex, Claude Code, OpenCode, Pi, or OMP first for automatic new-thread capture; use `nmem t sync --from paseo --all-projects --apply` to import supported child-session history from Paseo's registry without creating duplicate child threads; set `NMEM_AGENT_ID=<agent-slug>` only for durable Paseo agent roles. |
+| **[Cindy](nowledge-mem-cindy-connector)** | `nmem config mcp show --host cindy` | Cindy host setup: add Mem as a Cindy MCP server and shared guide/skills for memory behavior. For exact transcript capture, install the dedicated connector for the runtime Cindy launches, such as Codex, Claude Code, Pi, or OMP. |
 | **[OpenClaw Plugin](nowledge-mem-openclaw-plugin)** | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | Full memory lifecycle with memory tools, thread tools, automatic capture, and distillation. |
 | **[Alma Plugin](nowledge-mem-alma-plugin)** | Search Nowledge in Alma official Plugin marketplace | Alma-native plugin with startup context, thread-aware recall, structured saves, and optional auto-capture. |
 | **[Bub Plugin](nowledge-mem-bub-plugin)** | `pip install nowledge-mem-bub` | Bub-native plugin: cross-tool knowledge, auto-capture via save_state, startup context, and graph exploration. |
@@ -108,6 +109,7 @@ nmem config mcp show --host codex
 nmem config mcp show --host gemini-cli
 nmem config mcp show --host craft-agent
 nmem config mcp show --host codebuddy
+nmem config mcp show --host cindy
 ```
 
 Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically; paste the generated block into the host's own MCP settings.
