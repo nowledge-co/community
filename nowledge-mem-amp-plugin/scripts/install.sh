@@ -50,22 +50,33 @@ BACKUP_ENTRY="$STAGING_DIR/old-entry.ts"
 ENTRY_BACKED_UP=0
 BUNDLE_BACKED_UP=0
 SKILL_BACKED_UP=0
+ENTRY_INSTALLED=0
+BUNDLE_INSTALLED=0
+SKILL_INSTALLED=0
 
 # Restore the previously active entry, bundle, and skill after a failed
 # replacement. Only destinations whose backup succeeded are removed, and only
-# those backups are restored, so the rm and restore sets always match.
+# those backups are restored. Fresh artifacts that were installed before a
+# later step failed are removed so failed first installs do not leave partial
+# Amp-visible state behind.
 restore_previous() {
   if [ "$ENTRY_BACKED_UP" -eq 1 ]; then
     rm -rf "$PLUGIN_ENTRY_DEST"
     mv "$BACKUP_ENTRY" "$PLUGIN_ENTRY_DEST"
+  elif [ "$ENTRY_INSTALLED" -eq 1 ]; then
+    rm -rf "$PLUGIN_ENTRY_DEST"
   fi
   if [ "$BUNDLE_BACKED_UP" -eq 1 ]; then
     rm -rf "$PLUGIN_DEST"
     mv "$BACKUP_PLUGIN" "$PLUGIN_DEST"
+  elif [ "$BUNDLE_INSTALLED" -eq 1 ]; then
+    rm -rf "$PLUGIN_DEST"
   fi
   if [ "$SKILL_BACKED_UP" -eq 1 ]; then
     rm -rf "$SKILL_DEST"
     mv "$BACKUP_SKILL" "$SKILL_DEST"
+  elif [ "$SKILL_INSTALLED" -eq 1 ]; then
+    rm -rf "$SKILL_DEST"
   fi
 }
 
@@ -93,15 +104,23 @@ install_staged() {
       return 1
     fi
   fi
-  if ! mv "$STAGED_PLUGIN" "$PLUGIN_DEST"; then
+  if mv "$STAGED_PLUGIN" "$PLUGIN_DEST"; then
+    BUNDLE_INSTALLED=1
+  else
     restore_previous
     return 1
   fi
-  if [ -d "$STAGED_SKILL" ] && ! mv "$STAGED_SKILL" "$SKILL_DEST"; then
-    restore_previous
-    return 1
+  if [ -d "$STAGED_SKILL" ]; then
+    if mv "$STAGED_SKILL" "$SKILL_DEST"; then
+      SKILL_INSTALLED=1
+    else
+      restore_previous
+      return 1
+    fi
   fi
-  if ! mv "$STAGED_ENTRY" "$PLUGIN_ENTRY_DEST"; then
+  if mv "$STAGED_ENTRY" "$PLUGIN_ENTRY_DEST"; then
+    ENTRY_INSTALLED=1
+  else
     restore_previous
     return 1
   fi

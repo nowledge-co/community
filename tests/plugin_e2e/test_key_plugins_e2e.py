@@ -1693,6 +1693,9 @@ def test_amp_plugin_static_contract_is_self_contained():
     assert "PLUGIN_ENTRY_DEST=" in install_sh
     assert "STAGED_ENTRY=" in install_sh
     assert "BACKUP_ENTRY=" in install_sh
+    assert "ENTRY_INSTALLED=" in install_sh
+    assert "BUNDLE_INSTALLED=" in install_sh
+    assert "SKILL_INSTALLED=" in install_sh
     assert 'export { default } from "./nowledge-mem/src/index.ts"' in install_sh
 
     # No raw secrets are checked into the package.
@@ -2775,9 +2778,9 @@ def test_amp_install_script_keeps_prior_install_when_preflight_fails(tmp_path: P
 
 def test_amp_install_script_preserves_prior_install_when_backup_move_fails(tmp_path: Path):
     """A failed backup of the live bundle must not delete it. restore_previous
-    only removes/restores artifacts whose backup succeeded, so a bundle whose
-    backup `mv` fails (e.g. read-only source) is left in place and the rest of
-    the prior install (entry, skill) is restored from their successful backups."""
+    only removes/restores artifacts whose backup succeeded, so a failed bundle
+    backup leaves the bundle in place and restores the entry from its successful
+    backup."""
     seed = _run_amp_install(tmp_path)
     assert seed.returncode == 0, seed.stderr
     entry = tmp_path / "amp" / "plugins" / "nowledge-mem.ts"
@@ -2788,14 +2791,20 @@ def test_amp_install_script_preserves_prior_install_when_backup_move_fails(tmp_p
     bundle_before = bundle_index.read_text(encoding="utf-8")
     skill_before = skill.read_text(encoding="utf-8")
 
-    # Make the live bundle dir un-mv-able so the bundle backup step fails. The
-    # entry backup (a plain file) still succeeds first, exercising the path
-    # where some backups exist and one does not.
-    bundle_dir.chmod(0o500)
-    try:
-        failed = _run_amp_install(tmp_path)
-    finally:
-        bundle_dir.chmod(0o755)
+    # Inject a deterministic bundle-backup failure after the entry backup has
+    # succeeded. chmod on the bundle dir is not portable here: POSIX rename
+    # checks the parent directory, not the moved directory's own write bit.
+    broken_src = tmp_path / "broken-backup-amp-plugin-src"
+    shutil.copytree(AMP_PLUGIN, broken_src)
+    install_script = broken_src / "scripts" / "install.sh"
+    script = install_script.read_text(encoding="utf-8")
+    script = script.replace(
+        'if mv "$PLUGIN_DEST" "$BACKUP_PLUGIN"; then',
+        'if false && mv "$PLUGIN_DEST" "$BACKUP_PLUGIN"; then',
+        1,
+    )
+    install_script.write_text(script, encoding="utf-8")
+    failed = _run_amp_install(tmp_path, script=install_script)
 
     assert failed.returncode != 0
     assert "could not replace the active installation" in failed.stderr
@@ -2805,3 +2814,26 @@ def test_amp_install_script_preserves_prior_install_when_backup_move_fails(tmp_p
     assert bundle_index.read_text(encoding="utf-8") == bundle_before
     assert skill.read_text(encoding="utf-8") == skill_before
 
+
+def test_amp_install_script_removes_fresh_partial_install_when_entry_move_fails(tmp_path: Path):
+    """If a first install fails after moving the bundle and skill but before
+    moving the root entry, rollback removes the new partial install. Amp should
+    not see a half-installed bundle without the discoverable entry."""
+    broken_src = tmp_path / "broken-entry-amp-plugin-src"
+    shutil.copytree(AMP_PLUGIN, broken_src)
+    install_script = broken_src / "scripts" / "install.sh"
+    script = install_script.read_text(encoding="utf-8")
+    script = script.replace(
+        'if mv "$STAGED_ENTRY" "$PLUGIN_ENTRY_DEST"; then',
+        'rm -f "$STAGED_ENTRY"\n  if mv "$STAGED_ENTRY" "$PLUGIN_ENTRY_DEST"; then',
+        1,
+    )
+    install_script.write_text(script, encoding="utf-8")
+
+    failed = _run_amp_install(tmp_path, script=install_script)
+
+    assert failed.returncode != 0
+    assert "could not replace the active installation" in failed.stderr
+    assert not (tmp_path / "amp" / "plugins" / "nowledge-mem.ts").exists()
+    assert not (tmp_path / "amp" / "plugins" / "nowledge-mem").exists()
+    assert not (tmp_path / "amp" / "skills" / "nowledge-mem").exists()
