@@ -133,7 +133,7 @@ For multi-agent setups, set `NMEM_AGENT_ID=<agent-slug>` per spawned Amp worker.
 
 - **nmem not found.** Install with `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`, then run `nmem status` to verify.
 - **Server not responding.** Start the Nowledge Mem desktop app, or check `nmem status` for diagnostics.
-- **Plugin not loading.** Re-run `./scripts/install.sh`, confirm the files exist under `~/.config/amp/plugins/nowledge-mem/`, and restart Amp.
+- **Plugin not loading.** Re-run `bash nowledge-mem-amp-plugin/scripts/install.sh` from the `community` repository root, confirm the root entry `${XDG_CONFIG_HOME:-$HOME/.config}/amp/plugins/nowledge-mem.ts` and the bundle beside it exist, and restart Amp.
 
 ## Links
 
