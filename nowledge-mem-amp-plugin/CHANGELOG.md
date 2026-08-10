@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Read Amp transcripts from the start in pages so captures include messages
+  beyond the SDK's default trailing page.
+- Append to canonical threads when the server reports an existing thread as
+  either `409 Conflict` or an explicit `422` already-exists response.
+- Allow up to two minutes for large thread uploads before timing out.
+
 ## [0.1.1] - 2026-08-10
 
 ### Fixed

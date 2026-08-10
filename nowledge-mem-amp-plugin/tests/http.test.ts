@@ -120,6 +120,17 @@ describe("createNmemHttp", () => {
     expect(data.error).toContain("timed out")
   })
 
+  it("allows two minutes for a request by default", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout")
+    const fetch = fakeFetch({ ok: true, status: 200, json: async () => null })
+    const nmemApi = createNmemHttp(NO_AUTH_CONFIG, { fetch, createAbortController: realAbortController })
+
+    await nmemApi("/threads", {})
+
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 120_000)
+    setTimeoutSpy.mockRestore()
+  })
+
   it("normalises a generic network error into status 0", async () => {
     const fetch = vi.fn(async () => {
       throw new Error("ECONNREFUSED")

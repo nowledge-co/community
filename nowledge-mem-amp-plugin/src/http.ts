@@ -30,7 +30,7 @@ export type NmemHttp = (
 ) => Promise<HttpResponse>
 
 /** Default request timeout (milliseconds). */
-const DEFAULT_TIMEOUT_MS = 30_000
+const DEFAULT_TIMEOUT_MS = 120_000
 
 /** Normalised HTTP response. */
 export interface HttpResponse {
