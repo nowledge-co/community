@@ -147,6 +147,30 @@ def test_build_command_uses_grok_runtime_from_plugin_root_only(tmp_path):
     assert command[command.index("--session-id") + 1] == "plugin-root-session"
 
 
+def test_build_command_uses_grok_runtime_from_claude_compat_plugin_root(tmp_path):
+    plugin_root = tmp_path / ".grok" / "installed-plugins" / "nowledge-mem-claude-code-plugin"
+    with patch.dict(
+        os.environ,
+        {
+            "CLAUDE_PLUGIN_ROOT": str(plugin_root),
+            "GROK_PLUGIN_ROOT": "",
+            "GROK_SESSION_ID": "",
+            "GROK_WORKSPACE_ROOT": "",
+            "GROK_HOOK_EVENT": "",
+            "NMEM_SPACE": "",
+        },
+    ):
+        command = nmem_hook_save._build_command(
+            "/usr/local/bin/nmem",
+            {"session_id": "grok-compat-session", "cwd": str(tmp_path)},
+        )
+
+    assert "--from" in command
+    assert command[command.index("--from") + 1] == "grok"
+    assert "--session-id" in command
+    assert command[command.index("--session-id") + 1] == "grok-compat-session"
+
+
 def test_build_command_resolves_project_symlink(tmp_path):
     real_project = tmp_path / "real-project"
     real_project.mkdir()

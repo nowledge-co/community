@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.23] - 2026-08-10
+
+### Fixed
+
+- Grok Build hook routing now also recognizes the Claude-compatible plugin
+  environment when `CLAUDE_PLUGIN_ROOT` points inside `~/.grok/`. This prevents
+  Context Bundle reads and automatic thread capture from falling back to
+  `claude-code` on Grok installs that run shared hooks through the compatibility
+  plugin layer.
+
 ## [0.7.22] - 2026-08-08
 
 ### Added

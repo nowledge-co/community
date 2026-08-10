@@ -286,12 +286,20 @@ def _nmem_command() -> str | None:
     return shutil.which("nmem") or shutil.which("nmem.cmd")
 
 
+def _looks_like_grok_path(value: str | None) -> bool:
+    if not value:
+        return False
+    normalized = value.replace("\\", "/")
+    return "/.grok/" in normalized or normalized.endswith("/.grok")
+
+
 def _host_runtime() -> str:
     if (
         os.environ.get("GROK_SESSION_ID")
         or os.environ.get("GROK_HOOK_EVENT")
         or os.environ.get("GROK_WORKSPACE_ROOT")
         or os.environ.get("GROK_PLUGIN_ROOT")
+        or _looks_like_grok_path(os.environ.get("CLAUDE_PLUGIN_ROOT"))
     ):
         return "grok"
     return "claude-code"

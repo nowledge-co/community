@@ -187,6 +187,43 @@ esac
     assert "context --source-app grok" in command_log
 
 
+def test_read_hook_uses_grok_source_app_for_claude_compat_plugin_root(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls = tmp_path / "calls.log"
+    _write_fake_nmem(
+        bin_dir,
+        f"""
+printf '%s\\n' "$*" >> "{calls}"
+case "$*" in
+  *"--source-app grok"*) printf '%s\\n' '{{"rendered_markdown": "grok compat context"}}' ;;
+  *) exit 2 ;;
+esac
+""",
+    )
+
+    result = _run_hook(
+        tmp_path,
+        cwd=tmp_path,
+        env={
+            "PATH": f"{bin_dir}:{os.environ['PATH']}",
+            "CLAUDE_PLUGIN_ROOT": str(
+                tmp_path / ".grok" / "installed-plugins" / "nowledge-mem-claude-code-plugin"
+            ),
+            "GROK_PLUGIN_ROOT": "",
+            "GROK_SESSION_ID": "",
+            "GROK_HOOK_EVENT": "",
+            "GROK_WORKSPACE_ROOT": "",
+            "NMEM_SPACE": "",
+        },
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "grok compat context"
+    command_log = calls.read_text(encoding="utf-8")
+    assert "context --source-app grok" in command_log
+
+
 def test_read_hook_falls_back_to_default_space_when_project_space_empty(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
