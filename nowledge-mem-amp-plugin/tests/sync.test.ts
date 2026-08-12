@@ -20,21 +20,30 @@ const FULL_TRANSCRIPT = [
   { role: "assistant", id: "a1", parts: [{ type: "text", text: "hi back" }] },
 ]
 
+/** A second incremental agent-end batch. */
+const FOLLOW_UP_TRANSCRIPT = [
+  { role: "user", id: "u2", parts: [{ type: "text", text: "second turn" }] },
+  { role: "assistant", id: "a2", parts: [{ type: "text", text: "second answer" }] },
+]
+
 /** A transcript missing an assistant turn. */
 const INCOMPLETE_TRANSCRIPT = [{ role: "user", id: "u1", parts: [{ type: "text", text: "hello" }] }]
 
 /** Builds a fake nmemApi that responds per-path. Handlers may be async. */
 function fakeNmemApi(
   handlers: Record<string, (() => HttpResponse) | (() => Promise<HttpResponse>)>,
-): SessionSyncManagerOptions["nmemApi"] & { calls: string[] } {
+): SessionSyncManagerOptions["nmemApi"] & { calls: string[]; bodies: unknown[] } {
   const calls: string[] = []
-  const fn = ((path: string) => {
+  const bodies: unknown[] = []
+  const fn = ((path: string, body: unknown) => {
     calls.push(path)
+    bodies.push(body)
     const handler = handlers[path] ?? handlers["default"]
     if (handler === undefined) return Promise.resolve({ ok: false, status: 500, data: { error: "no handler" } })
     return Promise.resolve(handler())
-  }) as unknown as SessionSyncManagerOptions["nmemApi"] & { calls: string[] }
+  }) as unknown as SessionSyncManagerOptions["nmemApi"] & { calls: string[]; bodies: unknown[] }
   fn.calls = calls
+  fn.bodies = bodies
   return fn
 }
 
@@ -326,6 +335,41 @@ describe("SessionSyncManager.scheduleSync", () => {
     expect(nmemApi.calls).toEqual(["/threads"])
   })
 
+  it("persists the incremental agent.end messages without reading the thread", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const readThreadMessages = vi.fn(async () => FULL_TRANSCRIPT)
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages, ...timers }))
+
+    manager.scheduleSync(THREAD_ID, FULL_TRANSCRIPT)
+    timers.fireAll()
+    await flushMicrotasks()
+
+    expect(nmemApi.calls).toEqual(["/threads"])
+    expect(readThreadMessages).not.toHaveBeenCalled()
+  })
+
+  it("merges incremental messages scheduled inside the debounce window", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const readThreadMessages = vi.fn(async () => FULL_TRANSCRIPT)
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages, ...timers }))
+
+    manager.scheduleSync(THREAD_ID, FULL_TRANSCRIPT)
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    timers.fireAll()
+    await flushMicrotasks()
+
+    const body = nmemApi.bodies[0] as { readonly messages: Array<{ readonly metadata: { readonly external_id: string } }> }
+    expect(body.messages.map((message) => message.metadata.external_id)).toEqual([
+      "amp-msg-u1",
+      "amp-msg-a1",
+      "amp-msg-u2",
+      "amp-msg-a2",
+    ])
+    expect(readThreadMessages).not.toHaveBeenCalled()
+  })
+
   it("skips an unchanged transcript on a second non-forced schedule", async () => {
     const timers = fakeTimers()
     const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
@@ -386,6 +430,50 @@ describe("SessionSyncManager.scheduleSync", () => {
 
     // Dedup prevents further persistence of the same signature.
     expect(nmemApi.calls).toEqual(["/threads"])
+  })
+
+  it("preserves pending incremental messages while another capture is in flight", async () => {
+    let resolveFirst: (value: HttpResponse) => void
+    const firstInFlight = new Promise<HttpResponse>((resolve) => {
+      resolveFirst = resolve
+    })
+    let callCount = 0
+    const nmemApi = fakeNmemApi({
+      "/threads": async () => {
+        callCount += 1
+        return callCount === 1 ? await firstInFlight : { ok: true, status: 200, data: {} }
+      },
+    })
+    const timers = fakeTimers()
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+
+    manager.scheduleSync(THREAD_ID, FULL_TRANSCRIPT)
+    timers.fireAll()
+    await flushMicrotasks()
+    expect(nmemApi.calls).toEqual(["/threads"])
+
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    manager.scheduleSync(THREAD_ID, [
+      FOLLOW_UP_TRANSCRIPT[1],
+      { role: "user", id: "u3", parts: [{ type: "text", text: "third turn" }] },
+      { role: "assistant", id: "a3", parts: [{ type: "text", text: "third answer" }] },
+    ])
+    timers.fireAll()
+    await flushMicrotasks()
+    expect(nmemApi.calls).toEqual(["/threads"])
+
+    resolveFirst!({ ok: true, status: 200, data: {} })
+    await vi.waitFor(() => expect(timers.handles).toHaveLength(1))
+    timers.fireAll()
+    await vi.waitFor(() => expect(nmemApi.bodies).toHaveLength(2))
+
+    const body = nmemApi.bodies[1] as { readonly messages: Array<{ readonly metadata: { readonly external_id: string } }> }
+    expect(body.messages.map((message) => message.metadata.external_id)).toEqual([
+      "amp-msg-u2",
+      "amp-msg-a2",
+      "amp-msg-u3",
+      "amp-msg-a3",
+    ])
   })
 })
 

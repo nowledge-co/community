@@ -87,9 +87,9 @@ Re-run `bash nowledge-mem-amp-plugin/scripts/install.sh` from the `community` re
 
 ## How session capture works
 
-1. **Automatic live capture.** At the end of each agent turn (`agent.end`), the plugin reads the full transcript through Amp's thread API and creates or appends the matching `amp-<threadID>` thread in Nowledge Mem over HTTP. This works in local and remote mode because the plugin runs where Amp owns the session.
+1. **Automatic live capture.** At the end of each agent turn (`agent.end`), the plugin saves the completed turn messages that Amp already provides and creates or appends the matching `amp-<threadID>` thread in Nowledge Mem over HTTP. This avoids an expensive transcript read during normal work while still preserving every turn.
 
-2. **Manual full session capture.** `nowledge_mem_save_thread` uses the same capture path on demand. It is idempotent (safe to call multiple times) and handles large sessions via HTTP, not shell arguments.
+2. **Manual full session capture.** `nowledge_mem_save_thread` reads the full transcript from the start in pages and uses the same HTTP thread API on demand. It is idempotent (safe to call multiple times) and handles large sessions via HTTP, not shell arguments.
 
 3. **Plugin proactive knowledge save.** `nowledge_mem_save` captures individual decisions and insights as they happen, stamped with `source=amp`. `nowledge_mem_save_handoff` creates a curated summary at wrap-up.
 

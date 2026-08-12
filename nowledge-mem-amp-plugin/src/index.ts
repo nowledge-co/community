@@ -83,7 +83,12 @@ function toConverterMessages(messages: readonly ThreadMessage[]): unknown[] {
 }
 
 /**
- * Reads the full message transcript for a thread through the Amp SDK.
+ * Reads the full message transcript for an explicit manual save through the
+ * Amp SDK.
+ *
+ * Automatic capture uses the messages already included in the `agent.end`
+ * event, avoiding a Plugin RPC entirely. Manual saves retain their full-history
+ * contract even though that explicit operation may require a large RPC read.
  *
  * @param amp - The Amp plugin API.
  * @param threadId - The thread id to read.
@@ -177,7 +182,7 @@ export default function ampKnowledgeMem(amp: PluginAPI): void {
 
   const logger = amp.logger
   amp.on("agent.end", (event) => {
-    syncManager.scheduleSync(event.thread.id)
+    syncManager.scheduleSync(event.thread.id, toConverterMessages(event.messages))
   })
 
   const bootstrapManager = new BootstrapManager(

@@ -1028,7 +1028,7 @@
       "name": "Amp",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-amp-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1042,7 +1042,7 @@
       },
       "threadSave": {
         "method": "sdk-extract+agent-end",
-        "note": "Plugin listens for the Amp agent.end event, reads the full thread transcript through Amp's thread API, and posts to Nowledge Mem's thread API over HTTP; save_thread remains an explicit idempotent fallback"
+        "note": "Plugin listens for the Amp agent.end event, posts the event's completed turn messages to Nowledge Mem's thread API over HTTP, and keeps save_thread as an explicit idempotent full-transcript fallback"
       },
       "autonomy": {
         "bootstrap": "guided",

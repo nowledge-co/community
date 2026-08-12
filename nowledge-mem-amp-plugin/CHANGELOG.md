@@ -1,11 +1,15 @@
 # Changelog
 
-## Unreleased
+## [0.1.2] - 2026-08-12
 
 ### Fixed
 
+- Capture automatic `agent.end` turns from Amp's event payload instead of
+  reading the full thread transcript on every turn.
+- Preserve all pending incremental turn batches while debounce or another
+  capture is in flight.
 - Read Amp transcripts from the start in pages so captures include messages
-  beyond the SDK's default trailing page.
+  beyond the SDK's default trailing page during manual full-session saves.
 - Append to canonical threads when the server reports an existing thread as
   either `409 Conflict` or an explicit `422` already-exists response.
 - Allow up to two minutes for large thread uploads before timing out.
