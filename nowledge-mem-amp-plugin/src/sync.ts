@@ -60,6 +60,8 @@ interface SyncState {
   inFlight: Promise<unknown> | undefined
   /** Flag set when a sync was requested while one was already running. */
   pending: boolean
+  /** Messages supplied by pending automatic captures, if any. */
+  pendingMessages: readonly unknown[] | undefined
   /** Signature of the last successfully captured transcript. */
   lastSignature: string | undefined
   /** Serialized manual-capture queue for this thread. */
@@ -125,16 +127,21 @@ export class SessionSyncManager {
    * call fires. If automatic capture is disabled, this is a no-op.
    *
    * @param threadId - The thread to capture.
+   * @param messages - Messages supplied by the host's `agent.end` event. When
+   * omitted, the caller reads the complete thread transcript through the SDK.
    */
-  public scheduleSync(threadId: ThreadID): void {
+  public scheduleSync(threadId: ThreadID, messages?: readonly unknown[]): void {
     if (this.disposed || !this.autoSyncEnabled) return
     const state = this.stateFor(threadId)
+    state.pendingMessages = mergeMessageBatches(state.pendingMessages, messages)
     if (state.timer !== undefined) {
       this.ports.clearTimer(state.timer)
     }
     state.timer = this.ports.setTimer(() => {
       state.timer = undefined
-      void this.runAutoSync(threadId)
+      const pendingMessages = state.pendingMessages
+      state.pendingMessages = undefined
+      void this.runAutoSync(threadId, pendingMessages)
     }, this.autoSyncDebounceMs)
   }
 
@@ -181,7 +188,9 @@ export class SessionSyncManager {
       state.manualQueue = undefined
       if (!this.disposed && state.pending) {
         state.pending = false
-        this.scheduleSync(threadId)
+        const pendingMessages = state.pendingMessages
+        state.pendingMessages = undefined
+        this.scheduleSync(threadId, pendingMessages)
       }
     })
     state.manualQueue = guarded
@@ -211,14 +220,17 @@ export class SessionSyncManager {
    * re-schedules one final capture once the in-flight run completes.
    *
    * @param threadId - The thread to capture.
+   * @param messages - Messages from the `agent.end` event that triggered this
+   * capture, when available.
    */
-  private async runAutoSync(threadId: ThreadID): Promise<void> {
+  private async runAutoSync(threadId: ThreadID, messages?: readonly unknown[]): Promise<void> {
     const state = this.stateFor(threadId)
     if (state.inFlight !== undefined || state.manualQueue !== undefined) {
       state.pending = true
+      state.pendingMessages = mergeMessageBatches(state.pendingMessages, messages)
       return
     }
-    const run = this.captureThread(threadId, { force: false })
+    const run = this.captureThread(threadId, { force: false, messages })
       .catch(() => undefined)
     let guarded: Promise<CaptureResult | undefined>
     guarded = run.finally(() => {
@@ -229,7 +241,9 @@ export class SessionSyncManager {
       state.inFlight = undefined
       if (!this.disposed && state.pending) {
         state.pending = false
-        this.scheduleSync(threadId)
+        const pendingMessages = state.pendingMessages
+        state.pendingMessages = undefined
+        this.scheduleSync(threadId, pendingMessages)
       }
     })
     state.inFlight = guarded
@@ -240,13 +254,17 @@ export class SessionSyncManager {
    * Captures a thread, applying signature-based dedup unless `force` is set.
    *
    * @param threadId - The thread to capture.
-   * @param options - Capture options controlling the force flag.
+   * @param options - Capture options controlling the force flag and an optional
+   * host-supplied incremental message batch.
    * @returns The capture result.
    */
-  private async captureThread(threadId: ThreadID, options: { force: boolean }): Promise<CaptureResult> {
+  private async captureThread(
+    threadId: ThreadID,
+    options: { force: boolean; messages?: readonly unknown[] },
+  ): Promise<CaptureResult> {
     const stableThreadId = this.stableThreadId(threadId)
 
-    const rawMessages = await this.ports.readThreadMessages(threadId)
+    const rawMessages = options.messages ?? await this.ports.readThreadMessages(threadId)
     const sdkMessages = normalizeMessages(rawMessages)
     if (sdkMessages.length === 0) {
       return skipped("no_messages", stableThreadId)
@@ -342,7 +360,14 @@ export class SessionSyncManager {
   private stateFor(threadId: ThreadID): SyncState {
     let state = this.states.get(threadId)
     if (state === undefined) {
-      state = { timer: undefined, inFlight: undefined, pending: false, lastSignature: undefined, manualQueue: undefined }
+      state = {
+        timer: undefined,
+        inFlight: undefined,
+        pending: false,
+        pendingMessages: undefined,
+        lastSignature: undefined,
+        manualQueue: undefined,
+      }
       this.states.set(threadId, state)
     }
     return state
@@ -401,4 +426,49 @@ function hasUserAndAssistant(messages: readonly ThreadMessage[]): boolean {
     else hasAssistant = true
   }
   return hasUser && hasAssistant
+}
+
+/**
+ * Merges host-supplied incremental batches without dropping earlier debounced
+ * or in-flight agent.end payloads. Amp documents agent.end messages as the
+ * messages since agent.start, so they are not safe to replace wholesale.
+ *
+ * @param existing - Previously queued automatic messages.
+ * @param next - New automatic messages from the host.
+ * @returns A stable-order merged batch, or `undefined` when neither exists.
+ */
+function mergeMessageBatches(
+  existing: readonly unknown[] | undefined,
+  next: readonly unknown[] | undefined,
+): readonly unknown[] | undefined {
+  if (next === undefined) return existing
+  if (existing === undefined || existing.length === 0) return next
+  if (next.length === 0) return existing
+
+  const merged: unknown[] = []
+  const seen = new Set<string>()
+  for (const message of [...existing, ...next]) {
+    const key = messageKey(message)
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.push(message)
+  }
+  return merged
+}
+
+/**
+ * Returns a stable key for a raw SDK message before normalization. Prefer the
+ * host message id; fall back to the serialized shape for defensive de-dupe.
+ *
+ * @param message - Raw SDK message-like value.
+ * @returns A stable key for merge-time de-duplication.
+ */
+function messageKey(message: unknown): string {
+  if (typeof message === "object" && message !== null && "id" in message) {
+    const id = (message as { readonly id?: unknown }).id
+    if (typeof id === "string" || typeof id === "number") {
+      return `id:${String(id)}`
+    }
+  }
+  return `json:${JSON.stringify(message)}`
 }

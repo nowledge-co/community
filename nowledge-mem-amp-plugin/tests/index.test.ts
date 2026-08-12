@@ -33,6 +33,12 @@ interface FakeAmp {
   }) => Promise<void>>
   readonly logger: { readonly log: (message: string) => void }
   readonly system: { readonly workspaceRoot: { readonly toString: () => string } | null }
+  readonly threadMessageOptions: Array<{
+    readonly full: boolean
+    readonly from: "start" | "end"
+    readonly offset: number
+    readonly limit: number
+  }>
   readonly threads: {
     readonly get: (threadId: string) => {
       readonly messages: (options: {
@@ -59,6 +65,7 @@ function createFakeAmp(): FakeAmp {
   const toolDefinitions: FakeAmp["toolDefinitions"] = []
   const commands: string[] = []
   const commandHandlers: FakeAmp["commandHandlers"] = new Map()
+  const threadMessageOptions: FakeAmp["threadMessageOptions"] = []
   return {
     events,
     disposers,
@@ -66,13 +73,15 @@ function createFakeAmp(): FakeAmp {
     toolDefinitions,
     commands,
     commandHandlers,
+    threadMessageOptions,
     logger: { log: vi.fn() },
     system: { workspaceRoot: { toString: () => "/workspace" } },
     threads: {
       get: () => ({
-        messages: async () => [
-          { role: "user", id: "u1", content: [{ type: "text", text: "hello" }] },
-        ],
+        messages: async (options) => {
+          threadMessageOptions.push(options)
+          return [{ role: "user", id: "u1", content: [{ type: "text", text: "hello" }] }]
+        },
       }),
     },
     registerTool: (definition) => {
@@ -116,6 +125,7 @@ describe("Amp plugin entrypoint", () => {
     expect(saveThread).toBeDefined()
     const toolResult = await saveThread!.execute({}, { thread: { id: "T-one" } })
     expect(JSON.parse(String(toolResult))).toMatchObject({ skipped: true, reason: "incomplete_turn" })
+    expect(amp.threadMessageOptions).toEqual([{ full: true, from: "start", offset: 0, limit: 20 }])
 
     const statusCommand = amp.commandHandlers.get("nowledge-mem:status")
     expect(statusCommand).toBeDefined()
@@ -133,7 +143,13 @@ describe("Amp plugin entrypoint", () => {
 
     const agentEnd = amp.events.get("agent.end")
     expect(agentEnd).toBeDefined()
-    agentEnd!({ thread: { id: "T-one" } })
+    agentEnd!({
+      thread: { id: "T-one" },
+      messages: [
+        { role: "user", id: "u2", content: [{ type: "text", text: "follow up" }] },
+        { role: "assistant", id: "a2", content: [{ type: "text", text: "done" }] },
+      ],
+    })
     amp.disposers[0]!()
     expect(amp.logger.log).toHaveBeenCalled()
   })
