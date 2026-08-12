@@ -99,9 +99,15 @@ describe("SessionSyncManager.syncNow", () => {
     expect(nmemApi.calls).toEqual(["/threads"])
   })
 
-  it("falls back to append when create returns 409", async () => {
+  it.each([
+    [409, { error: "exists" }],
+    [422, { detail: "Thread amp-t-abc123 already exists in space default." }],
+    [422, { error: "Thread amp-t-abc123 already exists in space default." }],
+    [422, "THREAD amp-t-abc123 ALREADY EXISTS in space default."],
+    [422, { error: { message: "Thread exists in space default." } }],
+  ])("falls back to append when create returns the existing-thread response %i", async (status, data) => {
     const nmemApi = fakeNmemApi({
-      "/threads": () => ({ ok: false, status: 409, data: { error: "exists" } }),
+      "/threads": () => ({ ok: false, status, data }),
       "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: { appended: true } }),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ambientSpaceId: "Research" }))
@@ -109,6 +115,22 @@ describe("SessionSyncManager.syncNow", () => {
 
     expect(result.success).toBe(true)
     expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
+  })
+
+  it.each([
+    { detail: "messages are invalid" },
+    "messages are invalid",
+  ])("preserves an unrelated 422 create failure", async (data) => {
+    const nmemApi = fakeNmemApi({
+      "/threads": () => ({ ok: false, status: 422, data }),
+      "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: { appended: true } }),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi }))
+    const result = await manager.syncNow(THREAD_ID)
+
+    expect(result.success).toBeUndefined()
+    expect(result.error).toContain("Thread save failed (422)")
+    expect(nmemApi.calls).toEqual(["/threads"])
   })
 
   it("preserves the original create failure when it is not a conflict", async () => {
@@ -149,7 +171,11 @@ describe("SessionSyncManager.syncNow", () => {
     const manager = new SessionSyncManager(managerOptions({ nmemApi: wrapped, ambientSpaceId: "Research" }))
     await manager.syncNow(THREAD_ID)
 
-    expect(capturedBody).toMatchObject({ space_id: "Research", idempotency_key: "amp:live:amp-t-abc123" })
+    expect(capturedBody).toMatchObject({
+      space_id: "Research",
+      deduplicate: true,
+      idempotency_key: "amp:live:amp-t-abc123",
+    })
   })
 
   it("returns an append error result when create conflicts and append fails", async () => {

@@ -1050,7 +1050,7 @@
         "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
-          "Run nowledge-mem-amp-plugin/scripts/install.sh from the community repository root to install the plugin entrypoint, plugin bundle, and skill into the resolved Amp config directory",
+          "Install from the community repository into the Amp Personal Plugins project for an account-wide installation, or run nowledge-mem-amp-plugin/scripts/install.sh for one machine",
           "Restart Amp so the plugin registers its tools, agent.end capture hook, and commands",
           "Keep nmem available for memory operations, provenance-stamped saves, and handoff flows",
           "Run nmem config client set url/api-key once when Mem is remote"
@@ -1059,6 +1059,7 @@
       "install": {
         "command": "bash nowledge-mem-amp-plugin/scripts/install.sh",
         "updateCommand": "bash nowledge-mem-amp-plugin/scripts/install.sh",
+        "configRequired": "For an account-wide install, ask Amp in a thread to install https://github.com/nowledge-co/community/tree/main/nowledge-mem-amp-plugin into your Personal Plugins project, commit and push that project, and reload plugins. Personal plugins apply everywhere you use Amp. The install script remains the direct option for one machine and writes to the resolved Amp config directory.",
         "detectionHint": "Running as Amp agent; ~/.config/amp/ or .amp/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Amp. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",

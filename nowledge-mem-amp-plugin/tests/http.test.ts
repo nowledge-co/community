@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { createNmemHttp } from "../src/http"
 import type { ResolvedConfig } from "../src/config"
@@ -27,6 +27,10 @@ const AUTHED_CONFIG: ResolvedConfig = { ...NO_AUTH_CONFIG, apiKey: AUTH_FIXTURE 
 
 /** Config with an ambient space. */
 const SPACED_CONFIG: ResolvedConfig = { ...NO_AUTH_CONFIG, ambientSpaceId: "Research" }
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 /** A minimal Response-like object for the fake fetch. */
 interface FakeResponse {
@@ -118,6 +122,17 @@ describe("createNmemHttp", () => {
     expect(result.status).toBe(504)
     const data = result.data as { error: string }
     expect(data.error).toContain("timed out")
+  })
+
+  it("allows two minutes for a request by default", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout")
+    const fetch = fakeFetch({ ok: true, status: 200, json: async () => null })
+    const nmemApi = createNmemHttp(NO_AUTH_CONFIG, { fetch, createAbortController: realAbortController })
+
+    await nmemApi("/threads", {})
+
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 120_000)
+    setTimeoutSpy.mockRestore()
   })
 
   it("normalises a generic network error into status 0", async () => {

@@ -296,10 +296,17 @@ export class SessionSyncManager {
 
     let response = await this.ports.nmemApi("/threads", body)
 
-    // Only fall back to append when the thread already exists (409 Conflict).
+    const conflictText = JSON.stringify(response.data)?.toLowerCase() ?? ""
+    const threadAlreadyExists =
+      response.status === 409
+      || (response.status === 422
+        && (conflictText.includes("already exists") || conflictText.includes("thread exists")))
+
+    // Only fall back to append when the thread already exists. The current
+    // server uses 422 for this condition while older deployments use 409.
     // Other errors (auth, server, permission) should surface the original
     // failure rather than doubling API calls with a doomed append.
-    if (!response.ok && response.status === 409) {
+    if (!response.ok && threadAlreadyExists) {
       const appendBody = {
         messages: threadMessages,
         deduplicate: true,

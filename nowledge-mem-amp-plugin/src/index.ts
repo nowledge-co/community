@@ -89,9 +89,18 @@ function toConverterMessages(messages: readonly ThreadMessage[]): unknown[] {
  * @param threadId - The thread id to read.
  * @returns The transcript as a loose array for the converter.
  */
-async function readThreadMessagesViaSdk(amp: PluginAPI, threadId: ThreadID): Promise<unknown[]> {
+export async function readThreadMessagesViaSdk(amp: PluginAPI, threadId: ThreadID): Promise<unknown[]> {
   const thread = amp.threads.get(threadId)
-  const messages = await thread.messages({ full: true })
+  const messages: ThreadMessage[] = []
+  let offset = 0
+
+  while (true) {
+    const page = await thread.messages({ full: true, from: "start", offset, limit: 20 })
+    messages.push(...page)
+    if (page.length < 20) break
+    offset += page.length
+  }
+
   return toConverterMessages(messages)
 }
 

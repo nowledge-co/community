@@ -26,6 +26,22 @@ amp --version   # Amp is available
 
 ## Setup
 
+### Install as a personal plugin
+
+Use Amp's Personal Plugins project when you want Nowledge Mem available everywhere you use Amp. Open an Amp thread and send this prompt:
+
+```text
+Install the Nowledge Mem Amp plugin from
+https://github.com/nowledge-co/community/tree/main/nowledge-mem-amp-plugin
+into my Personal Plugins project. Commit and push the project, then reload my plugins.
+```
+
+Amp checks out your Personal Plugins project, installs the plugin from this repository, and asks before pushing the change. After the push, new threads load the plugin automatically. To load it in the current thread, open the command palette and run `plugins: reload`.
+
+The Personal Plugins project syncs the plugin through your Amp account. You still need the `nmem` CLI and access to the Nowledge Mem server in each environment where Amp runs.
+
+### Install on one machine
+
 From the `community` repository root, run the install script:
 
 ```bash
