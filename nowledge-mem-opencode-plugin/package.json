@@ -1,6 +1,6 @@
 {
   "name": "opencode-nowledge-mem",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Nowledge Mem plugin for OpenCode. Cross-tool knowledge with idle-event thread capture, Context Bundle, search, save, and handoffs.",
   "type": "module",
   "main": "dist/index.js",

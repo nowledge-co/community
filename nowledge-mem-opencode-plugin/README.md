@@ -57,7 +57,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.6"]
+  "plugin": ["opencode-nowledge-mem@0.3.7"]
 }
 ```
 
@@ -74,6 +74,8 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 | `nowledge_mem_save_thread` | Save the current session as a full conversation thread (SDK extraction + HTTP). |
 | `nowledge_mem_save_handoff` | Save a curated handoff summary (lighter, agent-composed). |
 | `nowledge_mem_status` | Check Nowledge Mem server connectivity and diagnostics. |
+
+Tools that read, write, or save scoped knowledge accept optional `space` and `space_id` arguments for one-call routing. Use `space_id` when you have checked `nmem --json spaces list`; otherwise pass the exact Space name as `space`. Explicit tool arguments override `NMEM_SPACE` and the shared client config for that call.
 
 ## How session capture works
 
@@ -167,6 +169,8 @@ NMEM_SPACE="Research Agent" opencode
 ```
 
 The plugin's Context Bundle, Working Memory, search, save, and full-session thread save paths will follow that lane. Environment variables take priority over the shared config. If you do not have a real ambient lane, stay on `Default`.
+
+When a single request names another Space, OpenCode can pass `space` or `space_id` directly to the relevant `nowledge_mem_*` tool. The ambient setting remains the default only for calls that do not provide an explicit Space.
 
 For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned OpenCode worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced external aliases. Context Bundle will use the stable identity while keeping `source_app=opencode` for provenance.
 

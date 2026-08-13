@@ -11,6 +11,8 @@ You have Nowledge Mem tools for cross-tool knowledge management. Use them proact
 
 **At session start:** Call \`nowledge_mem_context_bundle\` when identity, scope, or rules may matter. It includes Working Memory, owner identity, AI Identity, active space, and the active rules. Use \`nowledge_mem_working_memory\` only for a lightweight daily briefing or fallback. Reference relevant parts naturally as the conversation progresses.
 
+**Space routing:** If the user names a Nowledge Space, pass \`space\` or \`space_id\` on the relevant tool call. Prefer \`space_id\` after checking \`nmem --json spaces list\`; otherwise pass the exact Space name as \`space\`. Do not rely on the ambient default when the user explicitly asks for a different Space.
+
 **When to search (\`nowledge_mem_search\`):**
 - The user references previous work, a prior fix, or an earlier decision
 - The task resumes a named feature, bug, refactor, or subsystem
@@ -73,7 +75,7 @@ var index_default = {
     }
     function withAmbientSpaceArg(args) {
       let next = args;
-      if (ambientSpaceId && !next.includes("--space")) {
+      if (ambientSpaceId && !next.includes("--space") && !next.includes("--space-id")) {
         const scopedCommands = /* @__PURE__ */ new Set(["context", "ctx", "wm", "m", "memories", "t", "threads"]);
         if (scopedCommands.has(next[0] ?? "")) {
           next = [...next, "--space", ambientSpaceId];
@@ -113,6 +115,27 @@ var index_default = {
         return body;
       }
       return { ...body, space_id: ambientSpaceId };
+    }
+    function stringToolValue(value) {
+      return typeof value === "string" ? value.trim() || void 0 : void 0;
+    }
+    function explicitSpaceForCli(args) {
+      const spaceId = stringToolValue(args.space_id);
+      if (spaceId) return ["--space-id", spaceId];
+      const space = stringToolValue(args.space);
+      return space ? ["--space", space] : [];
+    }
+    function explicitSpaceForHttp(args) {
+      return stringToolValue(args.space_id) || stringToolValue(args.space);
+    }
+    function withExplicitSpaceArg(cmd, args) {
+      return [...cmd, ...explicitSpaceForCli(args)];
+    }
+    function spaceToolArgs() {
+      return {
+        space: tool.schema.string().optional().describe("Optional Nowledge Space name or alias for this one call"),
+        space_id: tool.schema.string().optional().describe("Optional Nowledge Space id/key for this one call; takes priority over space")
+      };
     }
     async function nmemApi(path, body, timeoutMs = 3e4) {
       const headers = { "Content-Type": "application/json" };
@@ -303,6 +326,7 @@ ${reasoning}
           source: "opencode",
           project: projectPath,
           workspace: projectPath,
+          ...options.spaceId ? { space_id: options.spaceId } : {},
           metadata
         },
         timeoutMs
@@ -316,7 +340,7 @@ ${reasoning}
             messages: threadMessages,
             deduplicate: true,
             idempotency_key: `opencode:live:${ctx.sessionID}`,
-            ...ambientSpaceId ? { space_id: ambientSpaceId } : {}
+            ...options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}
           },
           timeoutMs
         );
@@ -387,20 +411,24 @@ ${reasoning}
       tool: {
         nowledge_mem_context_bundle: tool({
           description: "Read Nowledge Mem's startup Context Bundle: owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Call this near session start when behavior, identity, or scope matters.",
-          args: {},
-          async execute(_args, _ctx) {
-            const bundle = await nmem(["context", "--source-app", "opencode"]);
+          args: {
+            ...spaceToolArgs()
+          },
+          async execute(args, _ctx) {
+            const bundle = await nmem(withExplicitSpaceArg(["context", "--source-app", "opencode"], args));
             if (isNmemErrorPayload(bundle)) {
-              return await nmem(["wm", "read"]);
+              return await nmem(withExplicitSpaceArg(["wm", "read"], args));
             }
             return bundle;
           }
         }),
         nowledge_mem_working_memory: tool({
           description: "Read today's lightweight Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Use nowledge_mem_context_bundle for full startup identity/scope/rules context.",
-          args: {},
-          async execute(_args, _ctx) {
-            return await nmem(["wm", "read"]);
+          args: {
+            ...spaceToolArgs()
+          },
+          async execute(args, _ctx) {
+            return await nmem(withExplicitSpaceArg(["wm", "read"], args));
           }
         }),
         nowledge_mem_search: tool({
@@ -411,14 +439,15 @@ ${reasoning}
             label: tool.schema.string().optional().describe("Filter by label name"),
             mode: tool.schema.enum(["default", "deep"]).optional().describe(
               "Search mode: 'default' for fast hybrid, 'deep' for broader conceptual matching"
-            )
+            ),
+            ...spaceToolArgs()
           },
           async execute(args, _ctx) {
             const cmd = ["m", "search", args.query];
             if (args.limit) cmd.push("-n", String(Math.min(20, Math.max(1, args.limit))));
             if (args.label) cmd.push("-l", args.label);
             if (args.mode === "deep") cmd.push("--mode", "deep");
-            return await nmem(cmd);
+            return await nmem(withExplicitSpaceArg(cmd, args));
           }
         }),
         nowledge_mem_save: tool({
@@ -439,7 +468,8 @@ ${reasoning}
             labels: tool.schema.string().optional().describe("Comma-separated labels for categorization"),
             importance: tool.schema.number().optional().describe(
               "0.0-1.0 importance score. 0.8-1.0: major decisions. 0.5-0.7: useful patterns. 0.3-0.4: minor notes."
-            )
+            ),
+            ...spaceToolArgs()
           },
           async execute(args, _ctx) {
             const cmd = ["m", "add", args.content, "-t", args.title, "--source", "opencode"];
@@ -450,7 +480,7 @@ ${reasoning}
               }
             }
             if (args.importance != null) cmd.push("-i", String(args.importance));
-            return await nmem(cmd);
+            return await nmem(withExplicitSpaceArg(cmd, args));
           }
         }),
         nowledge_mem_update: tool({
@@ -459,38 +489,42 @@ ${reasoning}
             memory_id: tool.schema.string().describe("ID of the memory to update"),
             content: tool.schema.string().optional().describe("Updated content"),
             title: tool.schema.string().optional().describe("Updated title"),
-            importance: tool.schema.number().optional().describe("Updated importance score")
+            importance: tool.schema.number().optional().describe("Updated importance score"),
+            ...spaceToolArgs()
           },
           async execute(args, _ctx) {
             const cmd = ["m", "update", args.memory_id];
             if (args.content) cmd.push("-c", args.content);
             if (args.title) cmd.push("-t", args.title);
             if (args.importance != null) cmd.push("-i", String(args.importance));
-            return await nmem(cmd);
+            return await nmem(withExplicitSpaceArg(cmd, args));
           }
         }),
         nowledge_mem_thread_search: tool({
           description: "Search past conversations from any tool (Claude Code, ChatGPT, Cursor, etc.). Use when the user asks about a prior discussion or exact conversation history.",
           args: {
             query: tool.schema.string().describe("Search query for past conversations"),
-            limit: tool.schema.number().optional().describe("Max results (default 5)")
+            limit: tool.schema.number().optional().describe("Max results (default 5)"),
+            ...spaceToolArgs()
           },
           async execute(args, _ctx) {
             const cmd = ["t", "search", args.query];
             if (args.limit) cmd.push("--limit", String(Math.min(20, Math.max(1, args.limit))));
-            return await nmem(cmd);
+            return await nmem(withExplicitSpaceArg(cmd, args));
           }
         }),
         nowledge_mem_save_thread: tool({
           description: "Save the current OpenCode session as a full conversation thread in Nowledge Mem. Extracts the complete message history so any tool can find and read this conversation later. Idempotent: safe to call multiple times. Use at natural stopping points or when the user asks to save the session.",
           args: {
-            summary: tool.schema.string().optional().describe("Brief description of what was discussed (used as thread title)")
+            summary: tool.schema.string().optional().describe("Brief description of what was discussed (used as thread title)"),
+            ...spaceToolArgs()
           },
           async execute(args, ctx) {
             try {
               return JSON.stringify(await syncSessionThread(ctx, {
                 reason: "manual_tool",
                 summary: args.summary,
+                spaceId: explicitSpaceForHttp(args),
                 force: true,
                 timeoutMs: 3e4
               }));
@@ -507,11 +541,12 @@ ${reasoning}
             topic: tool.schema.string().describe("Brief topic or title for this session"),
             summary: tool.schema.string().describe(
               "Structured handoff: Goal, Decisions made, Key files touched, Risks/open questions, Suggested next steps"
-            )
+            ),
+            ...spaceToolArgs()
           },
           async execute(args, _ctx) {
             const title = `Session Handoff - ${args.topic}`;
-            return await nmem(["t", "create", "-t", title, "-c", args.summary, "-s", "opencode"]);
+            return await nmem(withExplicitSpaceArg(["t", "create", "-t", title, "-c", args.summary, "-s", "opencode"], args));
           }
         }),
         nowledge_mem_status: tool({
