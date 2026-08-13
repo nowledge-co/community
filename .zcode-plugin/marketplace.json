@@ -1,0 +1,26 @@
+{
+  "name": "nowledge-community-zcode",
+  "displayName": "Nowledge Community for ZCode",
+  "description": "Nowledge Mem ZCode plugin marketplace index.",
+  "version": "1.0.0",
+  "maintainer": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge-labs.ai",
+    "url": "https://nowledge-labs.ai"
+  },
+  "plugins": [
+    {
+      "name": "nowledge-mem-zcode",
+      "version": "0.2.0",
+      "source": {
+        "source": "github",
+        "repo": "nowledge-co/zcode-plugin",
+        "ref": "main"
+      },
+      "description": "Native Nowledge Mem connector for ZCode with MCP, Skills, commands, and lifecycle hooks.",
+      "tags": ["memory", "mcp", "skills", "hooks", "commands", "zcode"],
+      "homepage": "https://mem.nowledge.co/docs/integrations/zcode",
+      "repository": "https://github.com/nowledge-co/zcode-plugin"
+    }
+  ]
+}

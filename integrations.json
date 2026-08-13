@@ -1254,51 +1254,53 @@
       "id": "zcode",
       "name": "ZCode",
       "category": "coding",
-      "type": "connector",
-      "version": null,
+      "type": "plugin",
+      "version": "0.2.0",
       "directory": null,
-      "transport": "mcp+skills",
+      "externalRepo": "https://github.com/nowledge-co/zcode-plugin",
+      "transport": "plugin+mcp+skills+commands+hooks",
       "capabilities": {
         "workingMemory": true,
         "search": true,
         "distill": true,
-        "autoRecall": false,
-        "autoCapture": false,
+        "autoRecall": true,
+        "autoCapture": true,
         "graphExploration": false,
         "status": true
       },
       "threadSave": {
-        "method": "none",
-        "note": "ZCode supports plugins, MCP servers, hooks, and skills, but Nowledge Mem does not yet publish a ZCode-native hook package. Use MCP and skills now; add transcript import only after the ZCode session/hook contract is verified."
+        "method": "hook+cli-native",
+        "command": "nmem t sync --from zcode --session-dir <transcript_path> --session-id <session-id> --all-projects --apply",
+        "note": "The standalone ZCode plugin copies ZCode's temporary hook transcript_path during Stop and imports it through nmem. Verify after install because older ZCode builds had public reports of Stop hooks not firing; use the sync-now command or a handoff summary as fallback."
       },
       "autonomy": {
-        "bootstrap": "guided",
-        "recall": "guided",
+        "bootstrap": "automatic",
+        "recall": "automatic",
         "distill": "guided",
-        "threads": "handoff-only",
+        "threads": "automatic-capture",
         "bestResultRequires": [
-          "Add Nowledge Mem under Settings -> MCP Servers",
-          "Import or copy the Nowledge Mem skills under Settings -> Skills",
-          "Use the ZCode Agent restart/reload flow after MCP or skill changes",
-          "Ask ZCode to save handoff summaries when a conversation should be searchable later"
+          "In ZCode, add https://github.com/nowledge-co/zcode-plugin as a Plugin marketplace source",
+          "Install and enable nowledge-mem-zcode, then reload the Agent runtime",
+          "Keep nmem configured on the same machine for local or remote Mem",
+          "After install, run one short ZCode session and confirm nmem t list --source zcode shows the imported thread"
         ]
       },
       "install": {
-        "command": "nmem config mcp show --host zcode",
-        "updateCommand": "nmem config mcp show --host zcode",
+        "command": "ZCode Settings -> Plugins -> Create -> Add marketplace -> https://github.com/nowledge-co/zcode-plugin -> install nowledge-mem-zcode -> reload Agent runtime",
+        "updateCommand": "ZCode Settings -> Plugins -> Marketplace sources -> Refresh https://github.com/nowledge-co/zcode-plugin; then Manage installed -> Check for updates -> nowledge-mem-zcode -> reload Agent runtime",
         "detectionHint": "Running inside ZCode; ~/.zcode/ exists",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for ZCode. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 ZCode 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update the Nowledge Mem ZCode plugin from https://github.com/nowledge-co/zcode-plugin. Verify with nmem status, a Context Bundle or Working Memory check, and one short ZCode session that should appear under nmem t list --source zcode. If Stop did not capture the session, report that clearly and save a handoff summary instead.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明从 https://github.com/nowledge-co/zcode-plugin 安装或更新 Nowledge Mem ZCode 插件。用 nmem status、Context Bundle 或 Working Memory 检查，以及一次应出现在 nmem t list --source zcode 的短 ZCode 会话验证。如果 Stop 没有捕获会话，请明确说明并改为保存交接摘要。"
         },
         "docsUrl": "/docs/integrations/zcode"
       },
       "toolNaming": {
-        "convention": "mcp-backend",
-        "note": "ZCode can use manually configured or plugin-provided MCP servers; this connector uses the Nowledge Mem MCP tools."
+        "convention": "zcode-plugin+mcp+cli",
+        "note": "ZCode namespaces plugin MCP servers. The plugin provides MCP tools, Skills, commands, and hooks; nmem owns the ZCode hook transcript import."
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
-      "slashCommands": []
+      "skills": ["check-integration", "read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
+      "slashCommands": ["nowledge-mem-status", "nowledge-mem-sync-now", "nowledge-mem-save-handoff"]
     },
     {
       "id": "mimo-code",

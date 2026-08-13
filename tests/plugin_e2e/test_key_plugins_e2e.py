@@ -1489,7 +1489,29 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "nmem t sync --from antigravity" in by_id["antigravity-extractor"][
         "autonomy"
     ]["bestResultRequires"][0]
-    for connector_id in ["zcode", "mimo-code"]:
+    zcode = by_id["zcode"]
+    assert zcode["version"] == "0.2.0"
+    assert zcode["type"] == "plugin"
+    assert zcode["directory"] is None
+    assert zcode["externalRepo"] == "https://github.com/nowledge-co/zcode-plugin"
+    assert zcode["transport"] == "plugin+mcp+skills+commands+hooks"
+    assert zcode["capabilities"]["autoRecall"] is True
+    assert zcode["capabilities"]["autoCapture"] is True
+    assert zcode["threadSave"]["method"] == "hook+cli-native"
+    assert zcode["threadSave"]["command"] == (
+        "nmem t sync --from zcode --session-dir <transcript_path> --session-id <session-id> --all-projects --apply"
+    )
+    assert zcode["autonomy"]["bootstrap"] == "automatic"
+    assert zcode["autonomy"]["threads"] == "automatic-capture"
+    assert "nowledge-co/zcode-plugin" in zcode["install"]["command"]
+    assert "Check for updates" in zcode["install"]["updateCommand"]
+    assert "save-thread" not in zcode["skills"]
+    assert zcode["slashCommands"] == [
+        "nowledge-mem-status",
+        "nowledge-mem-sync-now",
+        "nowledge-mem-save-handoff",
+    ]
+    for connector_id in ["mimo-code"]:
         connector = by_id[connector_id]
         assert connector["version"] is None
         assert connector["transport"] == "mcp+skills"
@@ -1504,8 +1526,6 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert connector["threadSave"]["historicalCommand"] == (
             f"nmem t sync --from {connector_id}"
         )
-    assert by_id["zcode"]["threadSave"]["method"] == "none"
-    assert by_id["zcode"]["autonomy"]["threads"] == "handoff-only"
     assert by_id["alma"]["version"] == "0.7.4"
     assert by_id["alma"]["skills"] == ["nowledge-mem"]
     assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
@@ -1722,6 +1742,25 @@ def test_host_owned_official_integrations_keep_their_real_boundaries():
     assert by_id["arkloop"]["autonomy"]["threads"] == "automatic-capture"
     assert by_id["opticlm"]["capabilities"]["workingMemory"] is False
     assert by_id["opticlm"]["capabilities"]["autoRecall"] is False
+
+
+def test_zcode_external_marketplace_indexes_standalone_plugin():
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    by_id = {entry["id"]: entry for entry in registry["integrations"]}
+    marketplace = _read_json(COMMUNITY_ROOT / ".zcode-plugin" / "marketplace.json")
+    plugin = marketplace["plugins"][0]
+
+    assert marketplace["name"] == "nowledge-community-zcode"
+    assert plugin["name"] == "nowledge-mem-zcode"
+    assert plugin["version"] == by_id["zcode"]["version"]
+    assert plugin["repository"] == by_id["zcode"]["externalRepo"]
+    assert plugin["source"] == {
+        "source": "github",
+        "repo": "nowledge-co/zcode-plugin",
+        "ref": "main",
+    }
+    assert "hooks" in plugin["tags"]
+    assert "commands" in plugin["tags"]
 
 
 def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():

@@ -74,6 +74,7 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[CodeBuddy Plugin](nowledge-mem-codebuddy-plugin)** | `codebuddy plugin marketplace add nowledge-co/community` then `codebuddy plugin install nowledge-mem@nowledge-community` | CodeBuddy-native plugin with startup context, bundled MCP, slash commands, lifecycle hooks, and real CodeBuddy thread capture through `nmem` using CodeBuddy's `transcript_path`. |
 | **[Kimi Code Plugin](nowledge-mem-kimi-code-plugin)** | In Kimi Code, run `/plugins install https://github.com/nowledge-co/community/tree/main`, then `/reload` | Kimi-native plugin metadata, session-start skill, native lifecycle hooks, slash commands, user-owned MCP config via `nmem config mcp show --host kimi-code`, and real Kimi Code thread capture through `nmem`. |
 | **[Kimi Work Connector](nowledge-mem-kimi-work-connector)** | `python3 ~/.cache/nowledge-community/nowledge-mem-kimi-work-connector/scripts/install_kimi_work_plugin.py` | Kimi Work desktop connector for its embedded Kimi Code runtime: session-start skill, bundled local MCP, and explicit `nmem t sync --from kimi-work` session import. |
+| **[ZCode Plugin](https://github.com/nowledge-co/zcode-plugin)** | In ZCode, add `https://github.com/nowledge-co/zcode-plugin` from **Settings → Plugins → Create → Add marketplace**, then install `nowledge-mem-zcode` | ZCode-native plugin with bundled MCP, Skills, commands, startup/recall hooks, and Stop-hook transcript capture through `nmem`. Verify one short session after install because hook support depends on the active ZCode build. |
 | **[Hermes Agent](nowledge-mem-hermes)** | `bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)` | Native Hermes memory provider with Context Bundle / Working Memory startup context, pre-turn recall, clean `nmem_` tools, and session-end transcript capture into Mem threads. MCP remains available as a fallback mode. |
 | **[Proma Plugin](nowledge-mem-proma-plugin)** | Manual setup with MCP, hooks, and skills; see [Proma guide](https://mem.nowledge.co/docs/integrations/proma) | Proma desktop agent setup with startup context, Stop-hook thread capture, MCP memory tools, and standard Nowledge Mem skills. |
 | **[Cradle](https://github.com/wibus-wee/cradle-app/tree/main/plugins/nowledge-mem)** | Enable the bundled Nowledge Mem plugin in Cradle's Plugin Marketplace | Cradle's official adapter provides guided Working Memory, Context Bundle, memory, and thread operations, with optional direct MCP registration. Automatic recall and session capture await Cradle lifecycle hooks. |
@@ -110,6 +111,7 @@ nmem config mcp show --host gemini-cli
 nmem config mcp show --host craft-agent
 nmem config mcp show --host codebuddy
 nmem config mcp show --host cindy
+nmem config mcp show --host zcode
 ```
 
 Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically; paste the generated block into the host's own MCP settings.
