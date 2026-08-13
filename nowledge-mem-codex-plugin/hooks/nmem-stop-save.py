@@ -15,10 +15,12 @@ from pathlib import Path
 from typing import Any
 
 
-ATTEMPT_TIMEOUT_SECONDS = 8
-SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5, 3.0)
+CAPTURE_DEADLINE_SECONDS = 105.0
+CAPTURE_ATTEMPT_TIMEOUT_SECONDS = 25.0
+MIN_CAPTURE_ATTEMPT_SECONDS = 1.0
+SAVE_RETRY_DELAYS_SECONDS = (0.0, 1.0, 3.0, 6.0)
 CAPTURE_LOCK_STALE_SECONDS = 90
-SKILL_OUTCOME_TIMEOUT_SECONDS = 8
+SKILL_OUTCOME_TIMEOUT_SECONDS = 8.0
 SESSION_NOT_FOUND_MARKERS = (
     "No codex sessions found",
     "Codex sessions directory not found",
@@ -155,6 +157,44 @@ def _log(message: str) -> None:
             handle.write(f"[{timestamp}] {message}\n")
     except Exception:
         pass
+
+
+def _deadline_after(seconds: float) -> float:
+    return time.monotonic() + max(0.0, seconds)
+
+
+def _remaining_seconds(deadline: float | None) -> float | None:
+    if deadline is None:
+        return None
+    return max(0.0, deadline - time.monotonic())
+
+
+def _attempt_timeout_seconds(deadline: float | None) -> float | None:
+    remaining = _remaining_seconds(deadline)
+    if remaining is None:
+        return CAPTURE_ATTEMPT_TIMEOUT_SECONDS
+    if remaining < MIN_CAPTURE_ATTEMPT_SECONDS:
+        return None
+    return min(CAPTURE_ATTEMPT_TIMEOUT_SECONDS, remaining)
+
+
+def _sleep_with_deadline(delay: float, deadline: float | None) -> bool:
+    if delay <= 0:
+        return _attempt_timeout_seconds(deadline) is not None
+    remaining = _remaining_seconds(deadline)
+    if remaining is None:
+        time.sleep(delay)
+        return True
+    if remaining < MIN_CAPTURE_ATTEMPT_SECONDS:
+        return False
+    time.sleep(min(delay, max(0.0, remaining - MIN_CAPTURE_ATTEMPT_SECONDS)))
+    return _attempt_timeout_seconds(deadline) is not None
+
+
+def _timeout_message(prefix: str, timeout_seconds: float | None) -> str:
+    if timeout_seconds is None:
+        return f"{prefix} timed out"
+    return f"{prefix} timed out after {timeout_seconds:.1f}s"
 
 
 def _capture_lock_root(payload: dict[str, Any]) -> Path:
@@ -309,6 +349,7 @@ def _run_save(
     *,
     include_session_id: bool,
     json_output: bool = True,
+    timeout_seconds: float = CAPTURE_ATTEMPT_TIMEOUT_SECONDS,
 ) -> subprocess.CompletedProcess[str]:
     command = _build_save_command(
         nmem,
@@ -325,7 +366,7 @@ def _run_save(
         text=True,
         encoding="utf-8",
         errors="replace",
-        timeout=ATTEMPT_TIMEOUT_SECONDS,
+        timeout=timeout_seconds,
         check=False,
         **_windows_no_window_kwargs(),
     )
@@ -383,7 +424,12 @@ def _release_skill_outcome_claim(lock_path: Path | None) -> None:
         pass
 
 
-def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
+def _report_skill_outcomes(
+    nmem: str,
+    payload: dict[str, Any],
+    *,
+    deadline: float | None = None,
+) -> None:
     if extract_skill_outcomes_from_file is None or build_outcome_args is None:
         _log("skill-outcome: extractor unavailable")
         return
@@ -394,6 +440,15 @@ def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
 
     env = _build_env(payload)
     for skill_id, version in outcomes:
+        remaining = _remaining_seconds(deadline)
+        if remaining is not None and remaining < MIN_CAPTURE_ATTEMPT_SECONDS:
+            _log("skill-outcome: skipped because Stop hook budget is exhausted")
+            return
+        timeout_seconds = (
+            SKILL_OUTCOME_TIMEOUT_SECONDS
+            if remaining is None
+            else min(SKILL_OUTCOME_TIMEOUT_SECONDS, remaining)
+        )
         lock_path = _claim_skill_outcome_report(payload, skill_id, version)
         if lock_path is None:
             continue
@@ -407,7 +462,7 @@ def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                timeout=SKILL_OUTCOME_TIMEOUT_SECONDS,
+                timeout=timeout_seconds,
                 check=False,
                 **_windows_no_window_kwargs(),
             )
@@ -452,43 +507,67 @@ def _run_save_with_retries(
     payload: dict[str, Any],
     *,
     include_session_id: bool,
+    deadline: float | None = None,
 ) -> tuple[bool, subprocess.CompletedProcess[str]]:
     last_proc = subprocess.CompletedProcess([], 0, stdout="", stderr="")
     for delay in SAVE_RETRY_DELAYS_SECONDS:
-        if delay:
-            time.sleep(delay)
+        if not _sleep_with_deadline(delay, deadline):
+            last_proc = subprocess.CompletedProcess(
+                [],
+                124,
+                stdout="",
+                stderr="capture deadline exhausted before next attempt",
+            )
+            break
+        timeout_seconds = _attempt_timeout_seconds(deadline)
+        if timeout_seconds is None:
+            last_proc = subprocess.CompletedProcess(
+                [],
+                124,
+                stdout="",
+                stderr="capture deadline exhausted before next attempt",
+            )
+            break
         try:
             last_proc = _run_save(
                 nmem,
                 payload,
                 include_session_id=include_session_id,
                 json_output=True,
+                timeout_seconds=timeout_seconds,
             )
         except subprocess.TimeoutExpired as exc:
             last_proc = subprocess.CompletedProcess(
                 [],
                 124,
                 stdout=exc.stdout or "",
-                stderr=f"capture attempt timed out after {ATTEMPT_TIMEOUT_SECONDS}s",
+                stderr=_timeout_message("capture attempt", timeout_seconds),
             )
             continue
         if last_proc.returncode != 0 and _json_flag_unsupported(last_proc):
+            timeout_seconds = _attempt_timeout_seconds(deadline)
+            if timeout_seconds is None:
+                last_proc = subprocess.CompletedProcess(
+                    [],
+                    124,
+                    stdout="",
+                    stderr="capture deadline exhausted before legacy retry",
+                )
+                break
             try:
                 last_proc = _run_save(
                     nmem,
                     payload,
                     include_session_id=include_session_id,
                     json_output=False,
+                    timeout_seconds=timeout_seconds,
                 )
             except subprocess.TimeoutExpired as exc:
                 last_proc = subprocess.CompletedProcess(
                     [],
                     124,
                     stdout=exc.stdout or "",
-                    stderr=(
-                        f"legacy capture attempt timed out after "
-                        f"{ATTEMPT_TIMEOUT_SECONDS}s"
-                    ),
+                    stderr=_timeout_message("legacy capture attempt", timeout_seconds),
                 )
                 continue
             if last_proc.returncode == 0:
@@ -530,13 +609,14 @@ def main() -> int:
         _log("skip: duplicate Stop hook event already claimed")
         return 0
 
+    deadline = _deadline_after(CAPTURE_DEADLINE_SECONDS)
     delegated_originator = _delegated_conversation_originator(payload)
     if delegated_originator:
         # Raft owns the real channel/thread boundary. Its long-lived Codex
         # rollout is an execution trace containing inbox control notices and
         # empty final answers, not a user conversation. Keep skill telemetry,
         # but never persist that rollout as a Codex Thread.
-        _report_skill_outcomes(nmem, payload)
+        _report_skill_outcomes(nmem, payload, deadline=deadline)
         _log(
             "skip: delegated conversation host owns thread capture "
             f"originator={delegated_originator}"
@@ -545,7 +625,10 @@ def main() -> int:
 
     try:
         captured, proc = _run_save_with_retries(
-            nmem, payload, include_session_id=bool(session_id)
+            nmem,
+            payload,
+            include_session_id=bool(session_id),
+            deadline=deadline,
         )
     except Exception as exc:
         _log(f"skip: capture failed: {exc}")
@@ -555,7 +638,10 @@ def main() -> int:
         _log("retry: session-id lookup missed; falling back to latest project session")
         try:
             captured, proc = _run_save_with_retries(
-                nmem, payload, include_session_id=False
+                nmem,
+                payload,
+                include_session_id=False,
+                deadline=deadline,
             )
         except Exception as exc:
             _log(f"skip: fallback capture failed: {exc}")
@@ -564,7 +650,7 @@ def main() -> int:
     if proc.returncode == 0 and not captured:
         _log("skip: no flushed transcript found")
     if captured:
-        _report_skill_outcomes(nmem, payload)
+        _report_skill_outcomes(nmem, payload, deadline=deadline)
 
     _log(f"nmem_exit={proc.returncode}")
     if proc.stdout.strip():

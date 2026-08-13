@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.31] - 2026-08-13
+
+### Fixed
+
+- Codex Stop capture now gives the synchronous save path a coherent timeout
+  budget: the packaged and installed hooks allow 120 seconds, while capture
+  work uses one 105-second monotonic deadline, 25-second per-call caps, and
+  deadline-aware retry sleeps. Transcript capture remains the priority; optional
+  skill outcome reporting only runs when budget remains.
+
 ## [0.1.30] - 2026-08-08
 
 ### Added

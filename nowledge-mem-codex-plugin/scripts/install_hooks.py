@@ -173,7 +173,7 @@ def merge_hooks_json() -> None:
                 {
                     "type": "command",
                     "command": _hook_command(),
-                    "timeout": 40,
+                    "timeout": 120,
                     "statusMessage": "Saving Codex thread to Nowledge Mem...",
                 }
             ],
