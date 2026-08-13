@@ -91,7 +91,7 @@ class HookTests(unittest.TestCase):
     def test_retry_without_session_id_on_lookup_miss(self):
         calls = []
 
-        def fake_run(nmem, payload, *, include_session_id):
+        def fake_run(nmem, payload, *, include_session_id, deadline=None):
             calls.append(include_session_id)
             proc = mock.Mock(
                 returncode=1 if include_session_id else 0,
@@ -111,6 +111,16 @@ class HookTests(unittest.TestCase):
 
         self.assertEqual(calls, [True, False])
 
+    def test_stop_capture_budget_matches_packaged_hook_timeout(self):
+        payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
+        hook = payload["hooks"]["Stop"][0]["hooks"][0]
+
+        self.assertEqual(hook["timeout"], 120)
+        self.assertEqual(self.module.CAPTURE_DEADLINE_SECONDS, 105.0)
+        self.assertEqual(self.module.CAPTURE_ATTEMPT_TIMEOUT_SECONDS, 25.0)
+        self.assertEqual(self.module.SAVE_RETRY_DELAYS_SECONDS, (0.0, 1.0, 3.0, 6.0))
+        self.assertLess(self.module.CAPTURE_DEADLINE_SECONDS, hook["timeout"])
+
     def test_run_save_retries_until_nmem_reports_saved_result(self):
         calls = [
             mock.Mock(returncode=0, stdout='{"results":[]}', stderr=""),
@@ -123,11 +133,49 @@ class HookTests(unittest.TestCase):
                 "/usr/local/bin/nmem",
                 {"session_id": "019abc"},
                 include_session_id=True,
+                deadline=None,
             )
 
         self.assertTrue(captured)
         self.assertEqual(proc.stdout, '{"results":[{"action":"created"}]}')
         self.assertEqual(run.call_count, 2)
+
+    def test_run_save_retries_use_deadline_aware_attempt_timeout(self):
+        calls = [
+            mock.Mock(returncode=0, stdout='{"results":[]}', stderr=""),
+            mock.Mock(returncode=0, stdout='{"results":[{"action":"created"}]}', stderr=""),
+        ]
+
+        with mock.patch.object(self.module, "SAVE_RETRY_DELAYS_SECONDS", (0.0, 0.0)), \
+             mock.patch.object(self.module.time, "monotonic", side_effect=[0.0, 0.0, 90.0, 90.0]), \
+             mock.patch.object(self.module, "_run_save", side_effect=calls) as run:
+            captured, proc = self.module._run_save_with_retries(
+                "/usr/local/bin/nmem",
+                {"session_id": "019abc"},
+                include_session_id=True,
+                deadline=100.0,
+            )
+
+        self.assertTrue(captured)
+        self.assertEqual(proc.stdout, '{"results":[{"action":"created"}]}')
+        self.assertEqual(run.call_args_list[0].kwargs["timeout_seconds"], 25.0)
+        self.assertEqual(run.call_args_list[1].kwargs["timeout_seconds"], 10.0)
+
+    def test_run_save_retries_do_not_start_when_deadline_is_exhausted(self):
+        with mock.patch.object(self.module, "SAVE_RETRY_DELAYS_SECONDS", (0.0,)), \
+             mock.patch.object(self.module.time, "monotonic", return_value=99.5), \
+             mock.patch.object(self.module, "_run_save") as run:
+            captured, proc = self.module._run_save_with_retries(
+                "/usr/local/bin/nmem",
+                {"session_id": "019abc"},
+                include_session_id=True,
+                deadline=100.0,
+            )
+
+        self.assertFalse(captured)
+        self.assertEqual(proc.returncode, 124)
+        self.assertIn("deadline exhausted", proc.stderr)
+        run.assert_not_called()
 
     def test_run_save_hides_child_console_on_windows(self):
         with mock.patch.object(self.module, "_build_save_command", return_value=["nmem.cmd", "--version"]), \
@@ -142,6 +190,10 @@ class HookTests(unittest.TestCase):
             )
 
         self.assertEqual(run.call_args.kwargs["creationflags"], 0x08000000)
+        self.assertEqual(
+            run.call_args.kwargs["timeout"],
+            self.module.CAPTURE_ATTEMPT_TIMEOUT_SECONDS,
+        )
 
     def test_run_save_does_not_pass_windows_creationflags_on_posix(self):
         with mock.patch.object(self.module, "_build_save_command", return_value=["nmem", "--version"]), \
@@ -169,6 +221,7 @@ class HookTests(unittest.TestCase):
                 "/usr/local/bin/nmem",
                 {"session_id": "019abc"},
                 include_session_id=True,
+                deadline=None,
             )
 
         self.assertTrue(captured)
@@ -981,7 +1034,7 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn("echo keep", stop[0]["hooks"][0]["command"])
         self.assertIn("nowledge-mem-stop-save.py", stop[1]["hooks"][0]["command"])
         self.assertNotIn("async", stop[1]["hooks"][0])
-        self.assertEqual(stop[1]["hooks"][0]["timeout"], 40)
+        self.assertEqual(stop[1]["hooks"][0]["timeout"], 120)
         self.assertIn("statusMessage", stop[1]["hooks"][0])
         self.assertNotIn("/old/nmem-stop-save.py", json.dumps(stop))
 
