@@ -10,6 +10,8 @@ You have Nowledge Mem tools for cross-tool knowledge management. Use them proact
 
 **At session start:** Call \`nowledge_mem_context_bundle\` when identity, scope, or rules may matter. It includes Working Memory, owner identity, AI Identity, active space, and the active rules. Use \`nowledge_mem_working_memory\` only for a lightweight daily briefing or fallback. Reference relevant parts naturally as the conversation progresses.
 
+**Space routing:** If the user names a Nowledge Space, pass \`space\` or \`space_id\` on the relevant tool call. Prefer \`space_id\` after checking \`nmem --json spaces list\`; otherwise pass the exact Space name as \`space\`. Do not rely on the ambient default when the user explicitly asks for a different Space.
+
 **When to search (\`nowledge_mem_search\`):**
 - The user references previous work, a prior fix, or an earlier decision
 - The task resumes a named feature, bug, refactor, or subsystem
@@ -84,7 +86,7 @@ export default {
 
     function withAmbientSpaceArg(args: string[]): string[] {
       let next = args
-      if (ambientSpaceId && !next.includes("--space")) {
+      if (ambientSpaceId && !next.includes("--space") && !next.includes("--space-id")) {
         const scopedCommands = new Set(["context", "ctx", "wm", "m", "memories", "t", "threads"])
         if (scopedCommands.has(next[0] ?? "")) {
           next = [...next, "--space", ambientSpaceId]
@@ -136,6 +138,43 @@ export default {
         return body
       }
       return { ...body, space_id: ambientSpaceId }
+    }
+
+    type ExplicitSpaceArgs = {
+      space?: unknown
+      space_id?: unknown
+    }
+
+    function stringToolValue(value: unknown): string | undefined {
+      return typeof value === "string" ? value.trim() || undefined : undefined
+    }
+
+    function explicitSpaceForCli(args: ExplicitSpaceArgs): string[] {
+      const spaceId = stringToolValue(args.space_id)
+      if (spaceId) return ["--space-id", spaceId]
+      const space = stringToolValue(args.space)
+      return space ? ["--space", space] : []
+    }
+
+    function explicitSpaceForHttp(args: ExplicitSpaceArgs): string | undefined {
+      return stringToolValue(args.space_id) || stringToolValue(args.space)
+    }
+
+    function withExplicitSpaceArg(cmd: string[], args: ExplicitSpaceArgs): string[] {
+      return [...cmd, ...explicitSpaceForCli(args)]
+    }
+
+    function spaceToolArgs() {
+      return {
+        space: tool.schema
+          .string()
+          .optional()
+          .describe("Optional Nowledge Space name or alias for this one call"),
+        space_id: tool.schema
+          .string()
+          .optional()
+          .describe("Optional Nowledge Space id/key for this one call; takes priority over space"),
+      }
     }
 
     async function nmemApi(
@@ -332,6 +371,7 @@ export default {
       options: {
         reason: SyncReason
         summary?: string
+        spaceId?: string
         force?: boolean
         timeoutMs?: number
       },
@@ -385,6 +425,7 @@ export default {
           source: "opencode",
           project: projectPath,
           workspace: projectPath,
+          ...(options.spaceId ? { space_id: options.spaceId } : {}),
           metadata,
         },
         timeoutMs,
@@ -399,7 +440,7 @@ export default {
             messages: threadMessages,
             deduplicate: true,
             idempotency_key: `opencode:live:${ctx.sessionID}`,
-            ...(ambientSpaceId ? { space_id: ambientSpaceId } : {}),
+            ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
           },
           timeoutMs,
         )
@@ -481,11 +522,13 @@ export default {
         nowledge_mem_context_bundle: tool({
           description:
             "Read Nowledge Mem's startup Context Bundle: owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Call this near session start when behavior, identity, or scope matters.",
-          args: {},
-          async execute(_args, _ctx) {
-            const bundle = await nmem(["context", "--source-app", "opencode"])
+          args: {
+            ...spaceToolArgs(),
+          },
+          async execute(args, _ctx) {
+            const bundle = await nmem(withExplicitSpaceArg(["context", "--source-app", "opencode"], args))
             if (isNmemErrorPayload(bundle)) {
-              return await nmem(["wm", "read"])
+              return await nmem(withExplicitSpaceArg(["wm", "read"], args))
             }
             return bundle
           },
@@ -494,9 +537,11 @@ export default {
         nowledge_mem_working_memory: tool({
           description:
             "Read today's lightweight Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Use nowledge_mem_context_bundle for full startup identity/scope/rules context.",
-          args: {},
-          async execute(_args, _ctx) {
-            return await nmem(["wm", "read"])
+          args: {
+            ...spaceToolArgs(),
+          },
+          async execute(args, _ctx) {
+            return await nmem(withExplicitSpaceArg(["wm", "read"], args))
           },
         }),
 
@@ -521,13 +566,14 @@ export default {
               .describe(
                 "Search mode: 'default' for fast hybrid, 'deep' for broader conceptual matching",
               ),
+            ...spaceToolArgs(),
           },
           async execute(args, _ctx) {
             const cmd = ["m", "search", args.query]
             if (args.limit) cmd.push("-n", String(Math.min(20, Math.max(1, args.limit))))
             if (args.label) cmd.push("-l", args.label)
             if (args.mode === "deep") cmd.push("--mode", "deep")
-            return await nmem(cmd)
+            return await nmem(withExplicitSpaceArg(cmd, args))
           },
         }),
 
@@ -564,6 +610,7 @@ export default {
               .describe(
                 "0.0-1.0 importance score. 0.8-1.0: major decisions. 0.5-0.7: useful patterns. 0.3-0.4: minor notes.",
               ),
+            ...spaceToolArgs(),
           },
           async execute(args, _ctx) {
             const cmd = ["m", "add", args.content, "-t", args.title, "--source", "opencode"]
@@ -574,7 +621,7 @@ export default {
               }
             }
             if (args.importance != null) cmd.push("-i", String(args.importance))
-            return await nmem(cmd)
+            return await nmem(withExplicitSpaceArg(cmd, args))
           },
         }),
 
@@ -597,13 +644,14 @@ export default {
               .number()
               .optional()
               .describe("Updated importance score"),
+            ...spaceToolArgs(),
           },
           async execute(args, _ctx) {
             const cmd = ["m", "update", args.memory_id]
             if (args.content) cmd.push("-c", args.content)
             if (args.title) cmd.push("-t", args.title)
             if (args.importance != null) cmd.push("-i", String(args.importance))
-            return await nmem(cmd)
+            return await nmem(withExplicitSpaceArg(cmd, args))
           },
         }),
 
@@ -618,11 +666,12 @@ export default {
               .number()
               .optional()
               .describe("Max results (default 5)"),
+            ...spaceToolArgs(),
           },
           async execute(args, _ctx) {
             const cmd = ["t", "search", args.query]
             if (args.limit) cmd.push("--limit", String(Math.min(20, Math.max(1, args.limit))))
-            return await nmem(cmd)
+            return await nmem(withExplicitSpaceArg(cmd, args))
           },
         }),
 
@@ -634,12 +683,14 @@ export default {
               .string()
               .optional()
               .describe("Brief description of what was discussed (used as thread title)"),
+            ...spaceToolArgs(),
           },
           async execute(args, ctx) {
             try {
               return JSON.stringify(await syncSessionThread(ctx, {
                 reason: "manual_tool",
                 summary: args.summary,
+                spaceId: explicitSpaceForHttp(args),
                 force: true,
                 timeoutMs: 30_000,
               }))
@@ -663,10 +714,11 @@ export default {
               .describe(
                 "Structured handoff: Goal, Decisions made, Key files touched, Risks/open questions, Suggested next steps",
               ),
+            ...spaceToolArgs(),
           },
           async execute(args, _ctx) {
             const title = `Session Handoff - ${args.topic}`
-            return await nmem(["t", "create", "-t", title, "-c", args.summary, "-s", "opencode"])
+            return await nmem(withExplicitSpaceArg(["t", "create", "-t", title, "-c", args.summary, "-s", "opencode"], args))
           },
         }),
 

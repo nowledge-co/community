@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.3.7] - 2026-08-13
+
+### Fixed
+
+- Added per-call `space` and `space_id` arguments to the OpenCode tools that read, search, save, update, or capture scoped knowledge. When a user asks for a named Space, OpenCode can now route that single tool call there instead of falling back to the ambient default.
+- Treat explicit `--space-id` the same as explicit `--space` when deciding whether to apply the ambient Space.
+
 ## [0.3.6] - 2026-08-10
 
 ### Fixed

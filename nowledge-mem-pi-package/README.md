@@ -97,6 +97,7 @@ Useful options:
 ```bash
 nmem t sync --from pi --session-dir ~/.pi/agent/sessions --limit 20
 nmem t sync --from pi --space work --apply
+nmem t sync --from pi --space-id sp_work_ab12cd34 --apply
 ```
 
 When you pass `--session-dir`, only that directory is scanned. Without it, the command uses Pi's standard session locations.

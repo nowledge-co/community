@@ -334,7 +334,7 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.22"
+    assert claude_manifest["version"] == "0.7.23"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -519,16 +519,19 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.3.6"
+    assert opencode_pkg["version"] == "0.3.7"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
     assert "fetchSessionMessages" in opencode_source
     assert "path: { id: ctx.sessionID }" in opencode_source
     assert "nowledge_mem_context_bundle" in opencode_source
-    assert 'nmem(["context", "--source-app", "opencode"])' in opencode_source
+    assert 'nmem(withExplicitSpaceArg(["context", "--source-app", "opencode"], args))' in opencode_source
     assert '"--source", "opencode"' in opencode_source
     assert "withAmbientSpaceArg(args)" in opencode_source
+    assert "withExplicitSpaceArg" in opencode_source
+    assert "spaceToolArgs" in opencode_source
+    assert '!next.includes("--space-id")' in opencode_source
     assert "ambientAgentId" in opencode_source
     assert "ambientHostAgentId" in opencode_source
     assert "NMEM_AGENT_ID" in opencode_source
@@ -700,7 +703,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.5"
+    assert pi_pkg["version"] == "0.8.6"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
@@ -730,6 +733,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert "sawReadFailure = true;" in pi_extension
     assert "readFileSync(LOCAL_WORKING_MEMORY_PATH" in pi_extension
     assert "withAmbientNmemArgs" in pi_extension
+    assert '!next.includes("--space-id")' in pi_extension
     assert 'pi.on("session_start"' in pi_extension
     assert 'pi.on("before_agent_start"' in pi_extension
     assert 'pi.on("session_compact"' in pi_extension
@@ -1451,8 +1455,8 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.3.6"
-    assert by_id["pi"]["version"] == "0.8.5"
+    assert by_id["opencode"]["version"] == "0.3.7"
+    assert by_id["pi"]["version"] == "0.8.6"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["kimi-code"]["version"] == "0.2.4"
@@ -1571,7 +1575,7 @@ def test_opencode_plugin_static_contract_is_self_contained():
 
     assert pkg["name"] == "opencode-nowledge-mem"
     assert pkg["type"] == "module"
-    assert pkg["main"] == "src/index.ts"
+    assert pkg["main"] == "dist/index.js"
     assert "@opencode-ai/plugin" in pkg["peerDependencies"]
     assert opencode_registry["directory"] == "nowledge-mem-opencode-plugin"
     assert opencode_registry["version"] == pkg["version"]
@@ -1591,9 +1595,13 @@ def test_opencode_plugin_static_contract_is_self_contained():
         assert f"{tool_name}: tool(" in source
         assert f"`{tool_name}`" in readme or f"| `{tool_name}` |" in readme
 
-    assert 'nmem(["context", "--source-app", "opencode"])' in source
+    assert 'nmem(withExplicitSpaceArg(["context", "--source-app", "opencode"], args))' in source
     assert '"--source", "opencode"' in source
     assert "withAmbientSpaceArg(args)" in source
+    assert "withExplicitSpaceArg" in source
+    assert "spaceToolArgs" in source
+    assert '!next.includes("--space-id")' in source
+    assert 'space_id: tool.schema' in source
     assert "NMEM_AGENT_ID" in source
     assert "NMEM_HOST_AGENT_ID" in source
     assert "fetchSessionMessages" in source
@@ -1611,6 +1619,7 @@ def test_opencode_plugin_static_contract_is_self_contained():
     assert '"plugin": ["opencode-nowledge-mem"]' in readme
     assert "nmem t sync --from opencode --all-projects --apply" in readme
     assert "OpenCode integration guide" in readme
+    assert "Explicit tool arguments override" in readme
     assert "compaction hook now injects" in changelog
 
 

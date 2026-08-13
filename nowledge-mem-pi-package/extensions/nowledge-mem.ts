@@ -136,7 +136,7 @@ function resolveConfig() {
 
 function withAmbientNmemArgs(args: string[], config = resolveConfig()): string[] {
 	let next = [...args];
-	if (config.space && !next.includes("--space")) {
+	if (config.space && !next.includes("--space") && !next.includes("--space-id")) {
 		const scopedCommands = new Set(["context", "ctx", "wm", "m", "memories", "t", "threads"]);
 		if (scopedCommands.has(next[0] || "")) {
 			next = [...next, "--space", config.space];

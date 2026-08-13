@@ -10,6 +10,8 @@ Use `nowledge_mem_working_memory` only for a lightweight daily briefing or fallb
 
 If the shared Mem client config sets `space`, that lane is the ambient default for Context Bundle, Working Memory, search, save, and session-save flows. `NMEM_SPACE="<space name>"` can override it for a single OpenCode process. Legacy `NMEM_SPACE_ID` still works for older setups.
 
+When the user names a different Space for a single action, pass it directly on the tool call. Use `space_id` when you have already checked `nmem --json spaces list`; otherwise pass the exact Space name as `space`. Explicit tool arguments override the ambient default for that call.
+
 Reference relevant parts naturally as the conversation progresses. Do not re-read unless the user asks or the session context changes materially.
 
 ## Proactive Search
