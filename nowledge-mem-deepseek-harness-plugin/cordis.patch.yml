@@ -1,0 +1,34 @@
+# Nowledge Mem community bundle for DeepSeek Harness.
+# Install with:
+#   dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness
+#
+# The native row handles Context Bundle / Working Memory injection, prompt-time
+# recall, and turn-end transcript capture through the user's `nmem` CLI.
+# The MCP companion row exposes Nowledge Mem tools through DSH's own MCP bridge.
+
+- insert:
+    - id: nowledge-mem
+      name: nowledge-mem-deepseek-harness
+      config:
+        sourceApp: deepseek-harness
+        importOrigin: deepseek-harness
+        contextOnSessionStart: true
+        recallOnPrompt: true
+        syncOnTurnEnd: true
+
+    - id: nowledge-mem-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: nowledge_mem
+        transport: streamable-http
+        url: !!js process.env.NMEM_MCP_URL ?? process.env.NOWLEDGE_MEM_MCP_URL ?? 'http://127.0.0.1:14242/mcp/'
+        headers:
+          APP: DeepSeek Harness
+          X-Nmem-Tool-Set: external-agent
+          X-Nowledge-Tool-Schema-Profile: slim
+          Authorization: !!js process.env.NMEM_API_KEY ? `Bearer ${process.env.NMEM_API_KEY}` : undefined
+          X-NMEM-API-Key: !!js process.env.NMEM_API_KEY
+          X-NMEM-Agent-ID: !!js process.env.NMEM_AGENT_ID
+          X-NMEM-Host-Agent-ID: !!js process.env.NMEM_HOST_AGENT_ID
+        failOnStartupError: false
+        toolCallTimeoutMs: 60000

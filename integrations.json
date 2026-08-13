@@ -10,7 +10,7 @@
     "appliesTo": [
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
-      "kimi-code", "kimi-work", "zcode", "mimo-code", "omp", "claude-desktop", "proma",
+      "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
       "slock", "lody", "multica", "cumora", "paseo", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
@@ -1301,6 +1301,67 @@
       },
       "skills": ["check-integration", "read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
       "slashCommands": ["nowledge-mem-status", "nowledge-mem-sync-now", "nowledge-mem-save-handoff"]
+    },
+    {
+      "id": "deepseek-harness",
+      "name": "DeepSeek Harness",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-deepseek-harness-plugin",
+      "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
+      "transport": "dsh-bundle+mcp+cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "cordis-session-event+cli-import",
+        "runtime": "deepseek-harness",
+        "command": "nmem t import --file <dsh-thread.json> --source deepseek-harness --id deepseek-harness-<session-id>",
+        "note": "The community DSH bundle listens to DSH session/event turn-end events, serializes user/assistant/tool-result surface messages, skips its own context injections, and imports through nmem with NMEM_IMPORT_ORIGIN=deepseek-harness. Its standalone repository is tagged dsh-plugin for DeepSeek Harness ecosystem discovery."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "automatic",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the community DSH bundle with dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness",
+          "Keep nmem on PATH in the DSH process environment",
+          "Use nmem config mcp show --host deepseek-harness for remote Mem or authenticated localhost details",
+          "Restart DeepSeek Harness after install or update",
+          "Verify one short DSH session appears under nmem t list --source deepseek-harness"
+        ]
+      },
+      "install": {
+        "command": "dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness",
+        "updateCommand": "dsh plugin --profile web update nowledge-mem-deepseek-harness",
+        "configRequired": "Install the Nowledge Mem community bundle from nowledge-co/nowledge-mem-deepseek-harness into the DSH profile, keep nmem on PATH, and set NMEM_MCP_URL / NMEM_API_KEY when connecting to Nowledge Cloud or another remote Mem. The standalone repository carries the dsh-plugin topic for DeepSeek Harness ecosystem discovery.",
+        "detectionHint": "Running inside DeepSeek Harness; dsh command exists, DSH_HOME is set, or ~/.dsh/profiles exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for DeepSeek Harness. Use the community DSH bundle, verify with nmem status and the Context Bundle or Working Memory check, then run one short DSH session and confirm nmem t list --source deepseek-harness shows the captured thread.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 DeepSeek Harness 安装或更新 Nowledge Mem。使用社区 DSH bundle，用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后运行一次短 DSH 会话并确认 nmem t list --source deepseek-harness 能看到捕获线程。"
+        },
+        "docsUrl": "/docs/integrations/deepseek-harness"
+      },
+      "toolNaming": {
+        "convention": "dsh-bundle+mcp+cli",
+        "tools": [
+          "mcp__nowledge_mem__memory_search",
+          "mcp__nowledge_mem__memory_add",
+          "mcp__nowledge_mem__thread_search",
+          "mcp__nowledge_mem__thread_fetch_messages"
+        ],
+        "note": "DSH's MCP bridge namespaces Mem tools under nowledge_mem. The native bundle uses agent/pre-step for Context Bundle and recall injections, and session/event for real DSH thread import. MCP resources/prompts are not exposed by the current DSH MCP client."
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
+      "slashCommands": []
     },
     {
       "id": "mimo-code",

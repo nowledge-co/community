@@ -75,6 +75,7 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[Kimi Code Plugin](nowledge-mem-kimi-code-plugin)** | In Kimi Code, run `/plugins install https://github.com/nowledge-co/community/tree/main`, then `/reload` | Kimi-native plugin metadata, session-start skill, native lifecycle hooks, slash commands, user-owned MCP config via `nmem config mcp show --host kimi-code`, and real Kimi Code thread capture through `nmem`. |
 | **[Kimi Work Connector](nowledge-mem-kimi-work-connector)** | `python3 ~/.cache/nowledge-community/nowledge-mem-kimi-work-connector/scripts/install_kimi_work_plugin.py` | Kimi Work desktop connector for its embedded Kimi Code runtime: session-start skill, bundled local MCP, and explicit `nmem t sync --from kimi-work` session import. |
 | **[ZCode Plugin](https://github.com/nowledge-co/zcode-plugin)** | In ZCode, add `https://github.com/nowledge-co/zcode-plugin` from **Settings → Plugins → Create → Add marketplace**, then install `nowledge-mem-zcode` | ZCode-native plugin with bundled MCP, Skills, commands, startup/recall hooks, and Stop-hook transcript capture through `nmem`. Verify one short session after install because hook support depends on the active ZCode build. |
+| **[DeepSeek Harness Plugin](nowledge-mem-deepseek-harness-plugin)** | `dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness` | Community DSH bundle with native Context Bundle injection, prompt-time recall, Mem MCP tools, and `session/event` turn-end transcript capture through `nmem`. The standalone repo is tagged `dsh-plugin` for DeepSeek Harness ecosystem discovery. |
 | **[Hermes Agent](nowledge-mem-hermes)** | `bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)` | Native Hermes memory provider with Context Bundle / Working Memory startup context, pre-turn recall, clean `nmem_` tools, and session-end transcript capture into Mem threads. MCP remains available as a fallback mode. |
 | **[Proma Plugin](nowledge-mem-proma-plugin)** | Manual setup with MCP, hooks, and skills; see [Proma guide](https://mem.nowledge.co/docs/integrations/proma) | Proma desktop agent setup with startup context, Stop-hook thread capture, MCP memory tools, and standard Nowledge Mem skills. |
 | **[Cradle](https://github.com/wibus-wee/cradle-app/tree/main/plugins/nowledge-mem)** | Enable the bundled Nowledge Mem plugin in Cradle's Plugin Marketplace | Cradle's official adapter provides guided Working Memory, Context Bundle, memory, and thread operations, with optional direct MCP registration. Automatic recall and session capture await Cradle lifecycle hooks. |
@@ -112,6 +113,7 @@ nmem config mcp show --host craft-agent
 nmem config mcp show --host codebuddy
 nmem config mcp show --host cindy
 nmem config mcp show --host zcode
+nmem config mcp show --host deepseek-harness
 ```
 
 Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically; paste the generated block into the host's own MCP settings.
@@ -149,7 +151,7 @@ Use one ambient space only when the host already has a real lane, such as one AI
 
 | Integration | Ambient space today | Best user setup |
 |-------------|---------------------|-----------------|
-| Claude Code, Grok, Codex, Droid, Pi, Gemini CLI | Full ambient lane through `NMEM_SPACE` or per-command `--space` | Set one `NMEM_SPACE` only when the whole session truly belongs to one lane. Otherwise stay on `Default`. |
+| Claude Code, Grok, Codex, Droid, Pi, Gemini CLI, DeepSeek Harness | Full ambient lane through `NMEM_SPACE` or per-command `--space` | Set one `NMEM_SPACE` only when the whole session truly belongs to one lane. Otherwise stay on `Default`. |
 | Hermes | Full ambient lane through provider `space`, `space_by_identity`, `space_template`, or fallback `NMEM_SPACE` | Use `space` for one stable lane, `space_by_identity` for a small explicit map, `space_template` for one lane per Hermes identity. |
 | Alma | Full ambient lane through plugin `nowledgeMem.space`, plugin `nowledgeMem.spaceTemplate`, or fallback `NMEM_SPACE` | Use `space` for one Alma profile per lane. Use `spaceTemplate` only when your launcher already exports a trustworthy lane variable. |
 | Bub | Full ambient lane through `NMEM_SPACE` | Treat Bub as one process-wide lane. If you need separate lanes, run separate Bub processes or profiles. |

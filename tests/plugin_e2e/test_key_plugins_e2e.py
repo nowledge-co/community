@@ -41,6 +41,7 @@ WORKBUDDY_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-workbuddy-plugin"
 BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
 AMP_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-amp-plugin"
+DEEPSEEK_HARNESS_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-deepseek-harness-plugin"
 KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
 
 
@@ -1515,6 +1516,22 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-sync-now",
         "nowledge-mem-save-handoff",
     ]
+    dsh = by_id["deepseek-harness"]
+    assert dsh["version"] == "0.1.0"
+    assert dsh["type"] == "plugin"
+    assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
+    assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
+    assert dsh["transport"] == "dsh-bundle+mcp+cli"
+    assert dsh["capabilities"]["autoRecall"] is True
+    assert dsh["capabilities"]["autoCapture"] is True
+    assert dsh["threadSave"]["method"] == "cordis-session-event+cli-import"
+    assert dsh["autonomy"]["bootstrap"] == "automatic"
+    assert dsh["autonomy"]["threads"] == "automatic-capture"
+    assert dsh["install"]["command"] == "dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness"
+    assert "dsh-plugin" in dsh["install"]["configRequired"]
+    assert "standalone repository" in dsh["threadSave"]["note"]
+    assert "dsh-plugin" in dsh["threadSave"]["note"]
+    assert "mcp__nowledge_mem__memory_search" in dsh["toolNaming"]["tools"]
     for connector_id in ["mimo-code"]:
         connector = by_id[connector_id]
         assert connector["version"] is None
@@ -1549,6 +1566,50 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["omp"]["install"]["command"] == "omp plugin install nowledge-mem-omp"
     assert "save-thread" in by_id["omp"]["skills"]
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
+
+
+def test_deepseek_harness_plugin_static_contract_is_self_contained():
+    pkg = _read_json(DEEPSEEK_HARNESS_PLUGIN / "package.json")
+    patch = (DEEPSEEK_HARNESS_PLUGIN / "cordis.patch.yml").read_text(encoding="utf-8")
+    source = (DEEPSEEK_HARNESS_PLUGIN / "src" / "index.js").read_text(encoding="utf-8")
+    readme = (DEEPSEEK_HARNESS_PLUGIN / "README.md").read_text(encoding="utf-8")
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    dsh_registry = next(
+        item for item in registry["integrations"] if item.get("id") == "deepseek-harness"
+    )
+
+    assert pkg["name"] == "nowledge-mem-deepseek-harness"
+    assert pkg["version"] == "0.1.0"
+    assert pkg["type"] == "module"
+    assert pkg["main"] == "src/index.js"
+    assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
+    assert "dsh-plugin" in pkg["keywords"]
+    assert dsh_registry["directory"] == "nowledge-mem-deepseek-harness-plugin"
+    assert dsh_registry["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
+    assert dsh_registry["version"] == pkg["version"]
+    assert dsh_registry["transport"] == "dsh-bundle+mcp+cli"
+    assert dsh_registry["install"]["command"] == "dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness"
+    assert pkg["repository"]["url"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness.git"
+
+    assert "id: nowledge-mem" in patch
+    assert "name: nowledge-mem-deepseek-harness" in patch
+    assert "id: nowledge-mem-mcp" in patch
+    assert "name: '@deepseek-ai/dsh-mcp-client'" in patch
+    assert "serverName: nowledge_mem" in patch
+    assert "X-Nowledge-Tool-Schema-Profile: slim" in patch
+
+    assert "export const inject = ['agents', 'shell']" in source
+    assert "ctx.on('agent/pre-step'" in source
+    assert "ctx.on('session/event'" in source
+    assert "event.type === 'turn/end'" in source
+    assert "'--json', 'context', '--source-app', config.sourceApp" in source
+    assert "'--json', 'm', 'search', query" in source
+    assert "NMEM_IMPORT_ORIGIN" in source
+    assert "--source" in source and "deepseek-harness" in source
+    assert "message.source.kind === 'plugin' && message.source.plugin === name" in source
+    assert "dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness" in readme
+    assert "nowledge-co/nowledge-mem-deepseek-harness" in readme
+    assert "dsh-plugin" in readme
 
 
 def test_opencode_plugin_static_contract_is_self_contained():
