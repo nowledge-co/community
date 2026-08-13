@@ -1,0 +1,54 @@
+{
+  "name": "nowledge-mem-deepseek-harness",
+  "version": "0.1.0",
+  "description": "Community DeepSeek Harness bundle for Nowledge Mem: Context Bundle, prompt-time recall, Mem MCP tools, and DSH thread capture.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "license": "MIT",
+  "homepage": "https://mem.nowledge.co/docs/integrations/deepseek-harness",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness.git"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "nowledge",
+    "nowledge-mem",
+    "memory",
+    "knowledge-graph",
+    "mcp"
+  ],
+  "author": {
+    "name": "Nowledge Labs",
+    "url": "https://nowledge-labs.ai"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0 <5.0.0",
+    "@deepseek-ai/dsh-agent": ">=0.1.0-rc.5 <0.2.0",
+    "@deepseek-ai/dsh-llm": ">=0.0.1-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-session": ">=0.0.1-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-shell": ">=0.0.1-rc.5 <0.2.0",
+    "@deepseek-ai/dsh-mcp-client": ">=0.0.1-rc.1 <0.2.0"
+  }
+}
