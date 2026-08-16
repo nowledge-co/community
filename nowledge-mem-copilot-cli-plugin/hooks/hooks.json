@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ python3 -c 'import subprocess,sys; raise SystemExit(subprocess.run([\"cmd.exe\", \"/s\", \"/c\", subprocess.list2cmdline([\"nmem.cmd\", *sys.argv[1:]])]).returncode)' \"$@\"; }; }; read_context(){ set -- context --source-app copilot-cli; [ -n \"${NMEM_AGENT_ID:-}\" ] && set -- \"$@\" --agent-id \"$NMEM_AGENT_ID\"; [ -n \"${NMEM_HOST_AGENT_ID:-}\" ] && set -- \"$@\" --host-agent-id \"$NMEM_HOST_AGENT_ID\"; space=\"${NMEM_SPACE:-}\"; [ -n \"$space\" ] || space=\"${NMEM_SPACE_ID:-}\"; [ -n \"$space\" ] && set -- \"$@\" --space \"$space\"; nmem --json \"$@\" 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('rendered_markdown') or d.get('markdown') or d.get('content') or '';print(c) if c else sys.exit(1)\" 2>/dev/null; }; read_wm(){ nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null; }; read_context || read_wm || cat ~/ai-now/memory.md 2>/dev/null || true"
+            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event session-start"
           }
         ]
       },
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ python3 -c 'import subprocess,sys; raise SystemExit(subprocess.run([\"cmd.exe\", \"/s\", \"/c\", subprocess.list2cmdline([\"nmem.cmd\", *sys.argv[1:]])]).returncode)' \"$@\"; }; }; read_context(){ set -- context --source-app copilot-cli; [ -n \"${NMEM_AGENT_ID:-}\" ] && set -- \"$@\" --agent-id \"$NMEM_AGENT_ID\"; [ -n \"${NMEM_HOST_AGENT_ID:-}\" ] && set -- \"$@\" --host-agent-id \"$NMEM_HOST_AGENT_ID\"; space=\"${NMEM_SPACE:-}\"; [ -n \"$space\" ] || space=\"${NMEM_SPACE_ID:-}\"; [ -n \"$space\" ] && set -- \"$@\" --space \"$space\"; nmem --json \"$@\" 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('rendered_markdown') or d.get('markdown') or d.get('content') or '';print(c) if c else sys.exit(1)\" 2>/dev/null; }; read_wm(){ nmem --json wm read 2>/dev/null | python3 -c \"import sys,json;d=json.load(sys.stdin);c=d.get('content','');print(c) if c else sys.exit(1)\" 2>/dev/null; }; { read_context || read_wm || cat ~/ai-now/memory.md 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
+            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event compact"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ python3 -c 'import subprocess,sys; raise SystemExit(subprocess.run([\"cmd.exe\", \"/s\", \"/c\", subprocess.list2cmdline([\"nmem.cmd\", *sys.argv[1:]])]).returncode)' \"$@\"; }; }; command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Search proactively when past knowledge would help: nmem --json m search \"query\". Save decisions and learnings autonomously: nmem m add \"content\" -t \"Title\" -i 0.8' || true"
+            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event user-prompt-submit"
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PLUGIN_HOOK_DIR=\"${COPILOT_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/hooks\"; FALLBACK_HOOK_DIR=\"${HOME}/.copilot/nowledge-mem-hooks\"; if [ -f \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" --event stop || true; elif [ -f \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" --event stop || true; else true; fi",
+            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event stop",
             "async": true
           }
         ]
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PLUGIN_HOOK_DIR=\"${COPILOT_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/hooks\"; FALLBACK_HOOK_DIR=\"${HOME}/.copilot/nowledge-mem-hooks\"; if [ -f \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" --event pre-compact || true; elif [ -f \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" --event pre-compact || true; else true; fi",
+            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event pre-compact",
             "timeout": 35
           }
         ]
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PLUGIN_HOOK_DIR=\"${COPILOT_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/hooks\"; FALLBACK_HOOK_DIR=\"${HOME}/.copilot/nowledge-mem-hooks\"; if [ -f \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${PLUGIN_HOOK_DIR}/copilot-stop-save.py\" --event session-end || true; elif [ -f \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" ]; then python3 \"${FALLBACK_HOOK_DIR}/copilot-stop-save.py\" --event session-end || true; else true; fi",
+            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event session-end",
             "timeout": 35
           }
         ]
