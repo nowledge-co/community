@@ -38,6 +38,23 @@ second required identity variable. The child plugin still reports its real
 runtime as `source_app`; the env var selects the right Nowledge AI Identity
 through Context Bundle.
 
+## Community Linux packages
+
+The official Linux release channels remain the APT repository, `.deb`,
+AppImage, and Docker paths documented at
+[mem.nowledge.co/docs/installation](https://mem.nowledge.co/docs/installation).
+The packages below are maintained by community contributors for users who
+prefer their distro's native package manager. Review the package metadata or
+PKGBUILD before installing, as you would for any community-maintained package.
+
+| Target | Package | Maintainer | Install |
+|--------|---------|------------|---------|
+| Fedora / RPM-based Linux | [Fedora COPR: `abn/nowledge-mem`](https://copr.fedorainfracloud.org/coprs/abn/nowledge-mem/) | [abn](https://github.com/abn) | `sudo dnf install dnf-plugins-core`<br/>`sudo dnf copr enable abn/nowledge-mem`<br/>`sudo dnf install nowledge-mem` |
+| Fedora / RPM-based headless server | `nowledge-mem-server` from [the same COPR](https://copr.fedorainfracloud.org/coprs/abn/nowledge-mem/) | [abn](https://github.com/abn) | `sudo dnf install nowledge-mem-server` |
+| Fedora / RPM-based CLI only | `nowledge-mem-cli` from [the same COPR](https://copr.fedorainfracloud.org/coprs/abn/nowledge-mem/) | [abn](https://github.com/abn) | `sudo dnf install nowledge-mem-cli` |
+| Arch Linux desktop app | [AUR: `nowledge-mem`](https://aur.archlinux.org/packages/nowledge-mem) or [`nowledge-mem-bin`](https://aur.archlinux.org/packages/nowledge-mem-bin) | Community-maintained | `yay -S nowledge-mem`<br/>or `yay -S nowledge-mem-bin` |
+| Arch Linux CLI only | [AUR: `nmem-cli`](https://aur.archlinux.org/packages/nmem-cli) | [czyt](https://github.com/czyt) | `yay -S nmem-cli`<br/>or `paru -S nmem-cli` |
+
 ## Integrations
 
 Each directory is a standalone integration. Pick the one that matches your tool.
