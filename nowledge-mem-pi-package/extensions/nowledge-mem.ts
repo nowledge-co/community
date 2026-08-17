@@ -5,14 +5,26 @@ import { basename, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.4";
+const DEFAULT_PLUGIN_VERSION = "0.8.7";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
 const MAX_MESSAGE_CHARS = 20_000;
 const FLUSH_DELAY_MS = 750;
 const STARTUP_CONTEXT_TIMEOUT_MS = 8_000;
-const THREAD_SYNC_TIMEOUT_MS = 30_000;
+const DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000;
+const MIN_THREAD_SYNC_TIMEOUT_MS = 1_000;
+const MAX_THREAD_SYNC_TIMEOUT_MS = 30 * 60_000;
+
+export function resolveThreadSyncTimeoutMs(raw: string | undefined): number {
+	const parsed = Number(raw);
+	if (!raw?.trim() || !Number.isSafeInteger(parsed) || parsed <= 0) {
+		return DEFAULT_THREAD_SYNC_TIMEOUT_MS;
+	}
+	return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed));
+}
+
+const THREAD_SYNC_TIMEOUT_MS = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS);
 
 function sourceApp(): string {
 	return process.env.NMEM_PLUGIN_SOURCE_APP?.trim() || DEFAULT_SOURCE_APP;
@@ -188,6 +200,10 @@ function remoteApiFallbackUrls(url: string): string[] {
 	return urls;
 }
 
+export function shouldTryRemoteApiFallback(status: number): boolean {
+	return status === 404 || status === 405;
+}
+
 async function postJson(path: string, body: JsonObject): Promise<{ ok: boolean; status: number; data: unknown }> {
 	const config = resolveConfig();
 	const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -226,8 +242,9 @@ async function postJson(path: string, body: JsonObject): Promise<{ ok: boolean; 
 			const data = await response.json().catch(() => ({}));
 			last = { ok: response.ok, status: response.status, data };
 			if (response.ok) return last;
+			if (!shouldTryRemoteApiFallback(response.status)) return last;
 		} catch (error) {
-			last = {
+			return {
 				ok: false,
 				status: 0,
 				data: { error: error instanceof Error ? error.message : String(error) },
