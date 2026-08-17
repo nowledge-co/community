@@ -1520,7 +1520,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.1.1"
+    assert dsh["version"] == "0.1.2"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1582,11 +1582,13 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.1.1"
+    assert pkg["version"] == "0.1.2"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
     assert "dsh-plugin" in pkg["keywords"]
+    assert pkg["peerDependenciesMeta"]["@deepseek-ai/dsh-session"]["optional"] is True
+    assert pkg["peerDependenciesMeta"]["@deepseek-ai/dsh-mcp-client"]["optional"] is True
     assert dsh_registry["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh_registry["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
     assert dsh_registry["version"] == pkg["version"]
@@ -1599,12 +1601,20 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "id: nowledge-mem-mcp" in patch
     assert "name: '@deepseek-ai/dsh-mcp-client'" in patch
     assert "serverName: nowledge_mem" in patch
-    assert "X-Nowledge-Tool-Schema-Profile: slim" in patch
+    assert "'X-Nowledge-Tool-Schema-Profile': 'slim'" in patch
+    assert "Object.fromEntries(Object.entries" in patch
+    assert "typeof value === 'string' && value.length > 0" in patch
+    assert "'X-NMEM-Agent-ID': process.env.NMEM_AGENT_ID" in patch
 
     assert "export const inject = ['agents', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
     assert "ctx.on('session/event'" in source
     assert "event.type === 'turn/end'" in source
+    assert "SANDBOX_UNAVAILABLE" in source
+    assert "isSandboxUnavailableError" in source
+    assert "sandboxPolicy: dangerFullAccessPolicy(ctx, session)" in source
+    assert "pre-step context injection failed" in source
+    assert "turn-end transcript import failed" in source
     assert "'--json', 'context', '--source-app', config.sourceApp" in source
     assert "'--json', 'm', 'search', query" in source
     assert "NMEM_IMPORT_ORIGIN" in source
