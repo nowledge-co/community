@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth: other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none. connect.skillUrl is the universal install contract. Per-tool install.agentGuide prompts must point to that skill first; per-tool docs remain behavior and troubleshooting references.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "connect": {
     "skillUrl": "https://mem.nowledge.co/SKILL.md",
     "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for the AI tool I am using.",
@@ -11,7 +11,7 @@
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
-      "raft", "lody", "multica", "cumora", "paseo", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct"
+      "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
@@ -1684,6 +1684,61 @@
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": ["/nmem-save", "/nmem-search", "/nmem-status"]
+    },
+    {
+      "id": "langgraph",
+      "name": "LangGraph",
+      "category": "orchestrator",
+      "type": "connector",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-langgraph",
+      "externalRepo": "https://github.com/langchain-ai/langgraph",
+      "transport": "python+mcp+rest",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "middleware-import",
+        "runtime": "langgraph",
+        "note": "The Python middleware imports completed top-level LangGraph conversations through POST /threads/import. LangGraph thread_id plus a stable application_id defines the Mem Thread; assistant_id remains deployment provenance. Nested subgraph checkpoint namespaces are skipped to prevent duplicate parent/subagent Threads."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "automatic",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install nowledge-mem-langgraph in the Agent Server or application environment",
+          "Set one stable NMEM_LANGGRAPH_APP_ID per deployed application and keep it unchanged across releases",
+          "Pass invocation-specific agent_id and space_id under runtime context.nowledge; keep authorization in NMEM_API_KEY",
+          "Load Mem tools with await NowledgeClient().tools() and attach NowledgeMiddleware to LangChain create_agent",
+          "Keep the LangGraph checkpointer as the execution-state owner; do not replace it with Nowledge Mem",
+          "For raw StateGraph applications, call the explicit Context Bundle and Thread sync helpers at the real model and completion boundaries"
+        ]
+      },
+      "install": {
+        "command": "python -m pip install nowledge-mem-langgraph",
+        "updateCommand": "python -m pip install --upgrade nowledge-mem-langgraph",
+        "configRequired": "Set NMEM_API_URL and NMEM_API_KEY for remote Mem, choose a stable NMEM_LANGGRAPH_APP_ID, then add NowledgeMiddleware and the async MCP tools to the agent graph. Pass trusted per-invocation Agent and Space selectors under context.nowledge.",
+        "detectionHint": "A Python project imports langgraph or langchain.agents.create_agent, has langgraph.json, or deploys a LangGraph Agent Server.",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the LangGraph instructions. Install nowledge-mem-langgraph, choose a stable NMEM_LANGGRAPH_APP_ID, attach NowledgeMiddleware and the Mem MCP tools, pass trusted Agent and Space identity under context.nowledge, then verify with nmem status and the Context Bundle or Working Memory check plus one idempotent top-level Thread import.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 LangGraph 说明操作。安装 nowledge-mem-langgraph，设置稳定的 NMEM_LANGGRAPH_APP_ID，接入 NowledgeMiddleware 和 Mem MCP tools，在 context.nowledge 下传入受信任的 Agent 与 Space identity，然后用 nmem status 和 Context Bundle 或 Working Memory 检查验证，并确认一次顶层 Thread 幂等导入。"
+        },
+        "docsUrl": "/docs/integrations/langgraph"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "langchain-mcp-adapters exposes Nowledge's bounded external-agent tool set. An invocation interceptor overwrites model-supplied identity and Space arguments with trusted runtime context and matching headers."
+      },
+      "skills": [],
+      "slashCommands": []
     },
     {
       "id": "mirasim",
