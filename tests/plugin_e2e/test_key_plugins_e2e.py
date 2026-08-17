@@ -704,7 +704,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.6"
+    assert pi_pkg["version"] == "0.8.7"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
@@ -718,6 +718,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert 'metadata: {' in pi_extension
     assert "external_id" in pi_extension
     assert "deduplicate: true" in pi_extension
+    assert "NMEM_SYNC_TIMEOUT_MS" in pi_extension
+    assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in pi_extension
     assert "NMEM_AGENT_ID" in pi_extension
     assert "NMEM_HOST_AGENT_ID" in pi_extension
     assert "custom_message" in pi_extension
@@ -2089,6 +2091,26 @@ def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
     env["PI_EXTENSION_URL"] = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").resolve().as_uri()
     result = _run(["bun", "--eval", script], env=env, timeout=30)
     assert '"ok":true' in result.stdout.replace(" ", "")
+
+
+def test_pi_thread_sync_timeout_contract():
+    pi_pkg = _read_json(PI_PLUGIN / "package.json")
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    pi_registry = next(
+        item for item in registry["integrations"] if item.get("id") == "pi"
+    )
+    extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
+    readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
+    changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
+
+    assert pi_pkg["version"] == "0.8.7"
+    assert pi_registry["version"] == pi_pkg["version"]
+    assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in extension
+    assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension
+    assert "shouldTryRemoteApiFallback(response.status)" in extension
+    assert "NMEM_SYNC_TIMEOUT_MS" in readme
+    assert "next lifecycle sync safely reconciles" in readme
+    assert "## [0.8.7] - 2026-08-18" in changelog
 
 
 @pytest.mark.skipif(_skip_live_host("pi"), reason="Pi live E2E not requested")

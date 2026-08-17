@@ -140,6 +140,8 @@ That keeps your custom behavior durable across package updates.
 
 **Extension diagnostics:** Automatic sync failures retry on a later lifecycle event without writing raw diagnostics into Pi's interactive editor. Set `NMEM_PLUGIN_DEBUG=1` before starting Pi when troubleshooting the extension itself.
 
+**Slow thread sync:** Thread writes allow 120 seconds by default. If a remote or heavily loaded Mem server needs a different budget, set `NMEM_SYNC_TIMEOUT_MS` before starting Pi. Values are interpreted as milliseconds and bounded between 1 second and 30 minutes. A timeout is not retried immediately because the server may have completed the write after the client stopped waiting; the next lifecycle sync safely reconciles the transcript using stable message IDs.
+
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/pi)

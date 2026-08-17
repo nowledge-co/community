@@ -5,6 +5,14 @@ All notable changes to the Nowledge Mem Pi package will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2026-08-18
+
+### Fixed
+
+- Allow slow thread writes to finish with a 120-second default timeout instead of aborting them after 30 seconds.
+- Support `NMEM_SYNC_TIMEOUT_MS` for slower remote or busy servers, with safe timer bounds and later-lifecycle reconciliation instead of ambiguous immediate retries.
+- Restrict the legacy `/remote-api` path fallback to explicit route-mismatch responses so timeouts and transport failures cannot replay an ambiguous write immediately.
+
 ## [0.8.6] - 2026-08-13
 
 ### Fixed
