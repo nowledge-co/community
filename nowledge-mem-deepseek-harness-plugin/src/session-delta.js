@@ -17,17 +17,31 @@ export function selectUnacknowledgedEvents(events, acknowledgedSeq = -1) {
   return { events: selected, nextSeq, reset }
 }
 
-export function importAcknowledged(stdout, checkpointed) {
+export function importAcknowledgement(stdout, checkpointed) {
   let data
   try {
     data = JSON.parse(stdout)
   } catch {
-    return false
+    return { status: 'failed' }
   }
-  if (data === null || typeof data !== 'object') return false
-  if (data.success !== true || Number(data.failed_count ?? 0) > 0) return false
+  if (data === null || typeof data !== 'object') return { status: 'failed' }
   const results = Array.isArray(data.results) ? data.results : []
-  if (results.length === 0 || results.some(result => result?.success !== true)) return false
-  if (!checkpointed) return true
-  return results.length > 0 && results[0]?.append_mode === 'checkpointed'
+  const recoverable = results.some(result =>
+    result?.error_code === 'checkpoint_conflict' || result?.error_code === 'thread_not_found'
+  )
+  if (recoverable) return { status: 'conflict' }
+  if (
+    data.success !== true ||
+    Number(data.failed_count ?? 0) > 0 ||
+    results.length === 0 ||
+    results.some(result => result?.success !== true)
+  ) return { status: 'failed' }
+  if (checkpointed && results[0]?.append_mode !== 'checkpointed') return { status: 'failed' }
+  const messageCount = results[0]?.message_count
+  if (!Number.isInteger(messageCount) || messageCount < 0) return { status: 'failed' }
+  return { status: 'acknowledged', messageCount }
+}
+
+export function importAcknowledged(stdout, checkpointed) {
+  return importAcknowledgement(stdout, checkpointed).status === 'acknowledged'
 }

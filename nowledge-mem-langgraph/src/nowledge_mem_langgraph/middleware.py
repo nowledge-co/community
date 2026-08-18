@@ -13,7 +13,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.types import ModelRequest, ModelResponse
 from langchain_core.messages import BaseMessage, SystemMessage
 
-from .client import NowledgeClient
+from .client import NowledgeClient, ThreadCheckpointConflict
 from .messages import (
     AcknowledgedCursor,
     default_title,
@@ -198,20 +198,34 @@ class NowledgeMiddleware(AgentMiddleware):
         if not delta:
             return
         try:
-            self.client.sync_thread(
+            response = self.client.sync_thread(
                 thread_id=thread_id,
                 messages=messages,
                 runtime=runtime,
                 title=default_title(messages),
                 normalized_messages=delta,
-                expected_message_count=cursor[0] if cursor is not None and not reset else None,
+                expected_message_count=cursor[3] if cursor is not None and not reset else None,
                 idempotency_key=(
                     f"langgraph:{thread_id}:{cursor[0]}-{next_cursor[0]}:{next_cursor[2]}"
                     if cursor is not None and not reset
                     else None
                 ),
             )
-            self._put_thread_cursor(cursor_key, next_cursor)
+            remote_count = self.client.thread_sync_message_count(response)
+            self._put_thread_cursor(cursor_key, (*next_cursor[:3], remote_count))
+        except ThreadCheckpointConflict:
+            try:
+                response = self.client.sync_thread(
+                    thread_id=thread_id,
+                    messages=messages,
+                    runtime=runtime,
+                    title=default_title(messages),
+                    normalized_messages=normalized,
+                )
+                remote_count = self.client.thread_sync_message_count(response)
+                self._put_thread_cursor(cursor_key, (*next_cursor[:3], remote_count))
+            except Exception as error:
+                self._on_failure("thread reconciliation", error)
         except Exception as error:
             self._on_failure("thread sync", error)
 
@@ -231,19 +245,33 @@ class NowledgeMiddleware(AgentMiddleware):
         if not delta:
             return
         try:
-            await self.client.async_thread(
+            response = await self.client.async_thread(
                 thread_id=thread_id,
                 messages=messages,
                 runtime=runtime,
                 title=default_title(messages),
                 normalized_messages=delta,
-                expected_message_count=cursor[0] if cursor is not None and not reset else None,
+                expected_message_count=cursor[3] if cursor is not None and not reset else None,
                 idempotency_key=(
                     f"langgraph:{thread_id}:{cursor[0]}-{next_cursor[0]}:{next_cursor[2]}"
                     if cursor is not None and not reset
                     else None
                 ),
             )
-            self._put_thread_cursor(cursor_key, next_cursor)
+            remote_count = self.client.thread_sync_message_count(response)
+            self._put_thread_cursor(cursor_key, (*next_cursor[:3], remote_count))
+        except ThreadCheckpointConflict:
+            try:
+                response = await self.client.async_thread(
+                    thread_id=thread_id,
+                    messages=messages,
+                    runtime=runtime,
+                    title=default_title(messages),
+                    normalized_messages=normalized,
+                )
+                remote_count = self.client.thread_sync_message_count(response)
+                self._put_thread_cursor(cursor_key, (*next_cursor[:3], remote_count))
+            except Exception as error:
+                self._on_failure("thread reconciliation", error)
         except Exception as error:
             self._on_failure("thread sync", error)

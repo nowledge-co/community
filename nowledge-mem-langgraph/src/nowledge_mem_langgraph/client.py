@@ -18,6 +18,10 @@ from .messages import default_title, normalize_messages
 Handler = Callable[[MCPToolCallRequest], Awaitable[Any]]
 
 
+class ThreadCheckpointConflict(RuntimeError):
+    """The remote Thread moved beyond the client's acknowledged checkpoint."""
+
+
 class NowledgeClient:
     """Reusable connector client. Credentials stay in this object, never graph state."""
 
@@ -129,11 +133,17 @@ class NowledgeClient:
         return payload
 
     @staticmethod
-    def _validate_thread_sync_ack(data: object, expected_message_count: int | None) -> None:
+    def _validate_thread_sync_ack(data: object, expected_message_count: int | None) -> int:
         if not isinstance(data, Mapping):
             raise RuntimeError("Thread import returned a non-object acknowledgement")
         results = data.get("results")
         failed = data.get("failed_count")
+        if isinstance(results, list) and any(
+            isinstance(result, Mapping)
+            and result.get("error_code") in {"checkpoint_conflict", "thread_not_found"}
+            for result in results
+        ):
+            raise ThreadCheckpointConflict("Thread checkpoint requires full reconciliation")
         if data.get("success") is not True or (isinstance(failed, int) and failed > 0):
             raise RuntimeError("Thread import reported a semantic failure")
         if (
@@ -149,6 +159,19 @@ class NowledgeClient:
             first = results[0] if isinstance(results, list) and results else None
             if not isinstance(first, Mapping) or first.get("append_mode") != "checkpointed":
                 raise RuntimeError("Thread import did not acknowledge the checkpointed suffix")
+        first = results[0]
+        message_count = first.get("message_count") if isinstance(first, Mapping) else None
+        if (
+            not isinstance(message_count, int)
+            or isinstance(message_count, bool)
+            or message_count < 0
+        ):
+            raise RuntimeError("Thread import did not report the remote message count")
+        return message_count
+
+    @staticmethod
+    def thread_sync_message_count(data: object) -> int:
+        return NowledgeClient._validate_thread_sync_ack(data, None)
 
     def sync_thread(
         self,

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto"
 
 export type AcknowledgedCursor = {
   count: number
+  remoteCount: number
   lastExternalId?: string
   prefixFingerprint: string
 }
@@ -38,16 +39,61 @@ function prefixFingerprint<T>(
 }
 
 export function isThreadNotFoundResponse(status: number, data: unknown): boolean {
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    (data as { error_code?: unknown }).error_code === "thread_not_found"
+  ) return true
   if (status === 404) return true
   return JSON.stringify(data).toLowerCase().includes("thread not found")
+}
+
+export function isThreadAlreadyExistsResponse(status: number, data: unknown): boolean {
+  if (status === 409) return true
+  const text = JSON.stringify(data).toLowerCase()
+  return text.includes("thread already exists") || text.includes("already exists in space")
+}
+
+export function isCheckpointConflictResponse(data: unknown): boolean {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    (data as { error_code?: unknown }).error_code === "checkpoint_conflict"
+  )
 }
 
 export function isCheckpointedAppendAck(data: unknown): boolean {
   return (
     typeof data === "object" &&
     data !== null &&
+    (data as { success?: unknown }).success === true &&
+    Number.isInteger((data as { messages_added?: unknown }).messages_added) &&
+    Number.isInteger((data as { total_messages?: unknown }).total_messages) &&
     (data as { append_mode?: unknown }).append_mode === "checkpointed"
   )
+}
+
+export function appendAcknowledgedRemoteCount(data: unknown): number | undefined {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    (data as { success?: unknown }).success !== true ||
+    !Number.isInteger((data as { messages_added?: unknown }).messages_added) ||
+    !Number.isInteger((data as { total_messages?: unknown }).total_messages)
+  ) return undefined
+  return (data as { total_messages: number }).total_messages
+}
+
+export function createAcknowledgedRemoteCount(data: unknown): number | undefined {
+  if (typeof data !== "object" || data === null) return undefined
+  const thread = (data as { thread?: unknown }).thread
+  if (typeof thread !== "object" || thread === null) return undefined
+  const messageCount = (thread as { message_count?: unknown }).message_count
+  if (Number.isInteger(messageCount) && (messageCount as number) >= 0) {
+    return messageCount as number
+  }
+  const messages = (data as { messages?: unknown }).messages
+  return Array.isArray(messages) ? messages.length : undefined
 }
 
 export type ThreadSyncResponse = {
@@ -95,6 +141,7 @@ export function selectAcknowledgedDelta<T>(
     messages: messages.slice(start),
     next: {
       count: end,
+      remoteCount: cursor?.remoteCount ?? end,
       ...(end > 0 ? { lastExternalId: externalId(messages[end - 1]) } : {}),
       prefixFingerprint: prefixFingerprint(messages, end, messageFingerprint),
     },

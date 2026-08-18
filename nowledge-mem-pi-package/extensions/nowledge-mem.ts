@@ -5,12 +5,15 @@ import { basename, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 import {
+	isCheckpointConflictResponse,
 	isCheckpointedAppendAck,
 	isThreadAppendAck,
+	isThreadAlreadyExistsResponse,
 	isThreadCreateAck,
 	selectAcknowledgedDelta,
 	sessionSyncLaneKey,
 	stableMessageFingerprint,
+	threadCreateRemoteCount,
 	type AcknowledgedCursor,
 } from "./session-delta.ts";
 
@@ -272,15 +275,18 @@ async function postJson(
 }
 
 function isThreadNotFound(result: { status: number; data: unknown }): boolean {
+	if (
+		typeof result.data === "object" &&
+		result.data !== null &&
+		(result.data as { error_code?: unknown }).error_code === "thread_not_found"
+	) return true;
 	if (result.status === 404) return true;
 	const text = JSON.stringify(result.data).toLowerCase();
 	return text.includes("thread not found");
 }
 
 function isThreadAlreadyExists(result: { status: number; data: unknown }): boolean {
-	if (result.status === 409) return true;
-	const text = JSON.stringify(result.data).toLowerCase();
-	return text.includes("thread already exists") || text.includes("thread exists");
+	return isThreadAlreadyExistsResponse(result.status, result.data);
 }
 
 function truncate(text: string): string {
@@ -512,9 +518,10 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 
 	if (!state.created) {
 		const createResult = await postJson("/threads", payload.body, payload.destination);
-		if (createResult.ok && isThreadCreateAck(createResult.data)) {
+		const remoteCount = threadCreateRemoteCount(createResult.data);
+		if (createResult.ok && isThreadCreateAck(createResult.data) && remoteCount !== undefined) {
 			state.created = true;
-			state.acknowledged = delta.next;
+			state.acknowledged = { ...delta.next, remoteCount };
 			state.lastError = undefined;
 			return;
 		}
@@ -532,7 +539,7 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 		state.created = true;
 	}
 
-	const checkpointed = Boolean(state.acknowledged && !delta.reset);
+	let checkpointed = Boolean(state.acknowledged && !delta.reset);
 	let recreated = false;
 	let result = await postJson(
 		`/threads/${encodeURIComponent(payload.threadId)}/append`,
@@ -540,10 +547,22 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 			messages: delta.messages,
 			deduplicate: true,
 			idempotency_key: `${sourceApp()}:${payload.sessionId}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
-			...(checkpointed ? { expected_message_count: delta.start } : {}),
+			...(checkpointed ? { expected_message_count: state.acknowledged?.remoteCount } : {}),
 		},
 		payload.destination,
 	);
+	if (!result.ok && checkpointed && isCheckpointConflictResponse(result.data)) {
+		result = await postJson(
+			`/threads/${encodeURIComponent(payload.threadId)}/append`,
+			{
+				messages: payload.messages,
+				deduplicate: true,
+				idempotency_key: `${sourceApp()}:${payload.sessionId}:reconcile:${delta.next.prefixFingerprint}`,
+			},
+			payload.destination,
+		);
+		checkpointed = false;
+	}
 	if (!result.ok && state.created && isThreadNotFound(result)) {
 		state.created = false;
 		result = await postJson("/threads", payload.body, payload.destination);
@@ -565,8 +584,19 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 		debugWarn(state.lastError);
 		return;
 	}
+	const remoteCount = recreated
+		? threadCreateRemoteCount(result.data)
+		: Number((result.data as { total_messages?: unknown })?.total_messages);
+	if (remoteCount === undefined || !Number.isInteger(remoteCount)) {
+		state.lastError = `${hostLabel()} thread sync did not receive the remote message count`;
+		debugWarn(state.lastError);
+		return;
+	}
 	state.created = true;
-	state.acknowledged = delta.next;
+	state.acknowledged = {
+		...delta.next,
+		remoteCount,
+	};
 	state.lastError = undefined;
 }
 

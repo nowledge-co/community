@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { importAcknowledged, selectUnacknowledgedEvents } from '../src/session-delta.js'
+import {
+  importAcknowledged,
+  importAcknowledgement,
+  selectUnacknowledgedEvents,
+} from '../src/session-delta.js'
 
 const events = [
   { type: 'session/start', seq: 1 },
@@ -57,7 +61,11 @@ test('requires semantic success before acknowledging an import', () => {
   )
   assert.equal(
     importAcknowledged(
-      JSON.stringify({ success: true, failed_count: 0, results: [{ success: true }] }),
+      JSON.stringify({
+        success: true,
+        failed_count: 0,
+        results: [{ success: true, message_count: 2 }],
+      }),
       false,
     ),
     true,
@@ -67,7 +75,7 @@ test('requires semantic success before acknowledging an import', () => {
       JSON.stringify({
         success: true,
         failed_count: 0,
-        results: [{ success: true, append_mode: 'checkpointed' }],
+        results: [{ success: true, append_mode: 'checkpointed', message_count: 3 }],
       }),
       true,
     ),
@@ -76,5 +84,30 @@ test('requires semantic success before acknowledging an import', () => {
   assert.equal(
     importAcknowledged(JSON.stringify({ success: true, results: [{ success: true }] }), true),
     false,
+  )
+})
+
+test('classifies typed checkpoint drift for full reconciliation', () => {
+  assert.deepEqual(
+    importAcknowledgement(
+      JSON.stringify({
+        success: false,
+        failed_count: 1,
+        results: [{ success: false, error_code: 'checkpoint_conflict' }],
+      }),
+      true,
+    ),
+    { status: 'conflict' },
+  )
+  assert.deepEqual(
+    importAcknowledgement(
+      JSON.stringify({
+        success: true,
+        failed_count: 0,
+        results: [{ success: true, append_mode: 'deduplicated', message_count: 5 }],
+      }),
+      false,
+    ),
+    { status: 'acknowledged', messageCount: 5 },
   )
 })

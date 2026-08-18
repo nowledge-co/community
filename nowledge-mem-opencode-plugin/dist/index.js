@@ -1,12 +1,12 @@
 // Generated from src/index.ts. Run npm run build before publishing.
 
-// src/index.ts
+// nowledge-mem-opencode-plugin/src/index.ts
 import { tool } from "@opencode-ai/plugin";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-// src/session-delta.ts
+// nowledge-mem-opencode-plugin/src/session-delta.ts
 import { createHash } from "node:crypto";
 function sessionSyncLaneKey(sessionId, spaceId) {
   return `${spaceId ?? ""}\0${sessionId}`;
@@ -25,11 +25,35 @@ function prefixFingerprint(messages, end, messageFingerprint) {
   return hash.digest("hex");
 }
 function isThreadNotFoundResponse(status, data) {
+  if (typeof data === "object" && data !== null && data.error_code === "thread_not_found") return true;
   if (status === 404) return true;
   return JSON.stringify(data).toLowerCase().includes("thread not found");
 }
+function isThreadAlreadyExistsResponse(status, data) {
+  if (status === 409) return true;
+  const text = JSON.stringify(data).toLowerCase();
+  return text.includes("thread already exists") || text.includes("already exists in space");
+}
+function isCheckpointConflictResponse(data) {
+  return typeof data === "object" && data !== null && data.error_code === "checkpoint_conflict";
+}
 function isCheckpointedAppendAck(data) {
-  return typeof data === "object" && data !== null && data.append_mode === "checkpointed";
+  return typeof data === "object" && data !== null && data.success === true && Number.isInteger(data.messages_added) && Number.isInteger(data.total_messages) && data.append_mode === "checkpointed";
+}
+function appendAcknowledgedRemoteCount(data) {
+  if (typeof data !== "object" || data === null || data.success !== true || !Number.isInteger(data.messages_added) || !Number.isInteger(data.total_messages)) return void 0;
+  return data.total_messages;
+}
+function createAcknowledgedRemoteCount(data) {
+  if (typeof data !== "object" || data === null) return void 0;
+  const thread = data.thread;
+  if (typeof thread !== "object" || thread === null) return void 0;
+  const messageCount = thread.message_count;
+  if (Number.isInteger(messageCount) && messageCount >= 0) {
+    return messageCount;
+  }
+  const messages = data.messages;
+  return Array.isArray(messages) ? messages.length : void 0;
 }
 async function recreateMissingThread(response, recreate) {
   if (response.ok || !isThreadNotFoundResponse(response.status, response.data)) {
@@ -52,6 +76,7 @@ function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprin
     messages: messages.slice(start),
     next: {
       count: end,
+      remoteCount: cursor?.remoteCount ?? end,
       ...end > 0 ? { lastExternalId: externalId(messages[end - 1]) } : {},
       prefixFingerprint: prefixFingerprint(messages, end, messageFingerprint)
     },
@@ -59,7 +84,7 @@ function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprin
   };
 }
 
-// src/index.ts
+// nowledge-mem-opencode-plugin/src/index.ts
 var BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
 You have Nowledge Mem tools for cross-tool knowledge management. Use them proactively.
@@ -390,7 +415,9 @@ ${reasoning}
       };
       let res = state.created ? { ok: false, status: 409, data: null } : await nmemApi("/threads", createBody, timeoutMs);
       let action = state.created ? "appended" : "created";
-      if (!res.ok && res.status === 409) {
+      let checkpointed = false;
+      let persistedMessages = delta.messages.length;
+      if (!res.ok && isThreadAlreadyExistsResponse(res.status, res.data)) {
         state.created = true;
         await mergeThreadMetadata(threadId, metadata, timeoutMs).catch(() => void 0);
         res = await nmemApi(
@@ -399,12 +426,28 @@ ${reasoning}
             messages: delta.messages,
             deduplicate: true,
             idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
-            ...state.acknowledged && !delta.reset ? { expected_message_count: delta.start } : {},
+            ...state.acknowledged && !delta.reset ? { expected_message_count: state.acknowledged.remoteCount } : {},
             ...options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}
           },
           timeoutMs
         );
+        checkpointed = Boolean(state.acknowledged && !delta.reset);
         action = "appended";
+      }
+      if (!res.ok && checkpointed && isCheckpointConflictResponse(res.data)) {
+        res = await nmemApi(
+          `/threads/${encodeURIComponent(threadId)}/append`,
+          {
+            messages: threadMessages,
+            deduplicate: true,
+            idempotency_key: `opencode:reconcile:${ctx.sessionID}:${delta.next.prefixFingerprint}`,
+            ...options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}
+          },
+          timeoutMs
+        );
+        checkpointed = false;
+        persistedMessages = threadMessages.length;
+        action = "reconciled";
       }
       const recovered = await recreateMissingThread(res, async () => {
         state.created = false;
@@ -413,6 +456,8 @@ ${reasoning}
       if (recovered.recreated) {
         res = recovered.response;
         action = "created";
+        checkpointed = false;
+        persistedMessages = threadMessages.length;
       }
       if (!res.ok) {
         return {
@@ -421,7 +466,15 @@ ${reasoning}
           session_id: ctx.sessionID
         };
       }
-      if (action === "appended" && state.acknowledged && !delta.reset && !isCheckpointedAppendAck(res.data)) {
+      const remoteCount = action === "created" ? createAcknowledgedRemoteCount(res.data) : appendAcknowledgedRemoteCount(res.data);
+      if (remoteCount === void 0) {
+        return {
+          error: "Thread save did not include an explicit persistence acknowledgement; cursor was preserved",
+          thread_id: threadId,
+          session_id: ctx.sessionID
+        };
+      }
+      if (checkpointed && !isCheckpointedAppendAck(res.data)) {
         return {
           error: "Thread append was not acknowledged as checkpointed; cursor was preserved",
           thread_id: threadId,
@@ -429,12 +482,12 @@ ${reasoning}
         };
       }
       state.created = true;
-      state.acknowledged = delta.next;
+      state.acknowledged = { ...delta.next, remoteCount };
       return {
         success: true,
         action,
         thread_id: threadId,
-        messages_saved: action === "created" ? threadMessages.length : delta.messages.length,
+        messages_saved: persistedMessages,
         checkpoint_reset: delta.reset,
         title,
         sync_reason: options.reason

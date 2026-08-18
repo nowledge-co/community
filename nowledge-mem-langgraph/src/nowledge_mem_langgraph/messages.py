@@ -10,7 +10,7 @@ from typing import Any
 
 from langchain_core.messages import BaseMessage
 
-AcknowledgedCursor = tuple[int, str, str]
+AcknowledgedCursor = tuple[int, str, str, int]
 
 NOWLEDGE_TOOL_NAMES = frozenset(
     {
@@ -142,7 +142,8 @@ def select_acknowledged_delta(
     last_external_id = (
         str(messages[-1].get("metadata", {}).get("external_id", "")) if messages else ""
     )
-    return messages[start:], (end, last_external_id, prefix_fingerprint(end)), reset
+    remote_count = cursor[3] if cursor is not None else end
+    return messages[start:], (end, last_external_id, prefix_fingerprint(end), remote_count), reset
 
 
 def default_title(messages: Iterable[BaseMessage]) -> str:

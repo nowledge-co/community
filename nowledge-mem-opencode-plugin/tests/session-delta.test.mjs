@@ -2,7 +2,11 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
+  appendAcknowledgedRemoteCount,
+  createAcknowledgedRemoteCount,
+  isCheckpointConflictResponse,
   isCheckpointedAppendAck,
+  isThreadAlreadyExistsResponse,
   isThreadNotFoundResponse,
   recreateMissingThread,
   selectAcknowledgedDelta,
@@ -49,9 +53,42 @@ test("resets when an earlier message changes but the final anchor is unchanged",
 
 test("recognizes missing-thread and checkpoint acknowledgements", () => {
   assert.equal(isThreadNotFoundResponse(400, { detail: "Thread not found: opencode-x" }), true)
+  assert.equal(isThreadNotFoundResponse(400, { error_code: "thread_not_found" }), true)
   assert.equal(isThreadNotFoundResponse(500, { detail: "other" }), false)
-  assert.equal(isCheckpointedAppendAck({ append_mode: "checkpointed" }), true)
+  assert.equal(
+    isCheckpointedAppendAck({
+      success: true,
+      append_mode: "checkpointed",
+      messages_added: 1,
+      total_messages: 3,
+    }),
+    true,
+  )
+  assert.equal(isCheckpointedAppendAck({ append_mode: "checkpointed" }), false)
   assert.equal(isCheckpointedAppendAck({ success: true }), false)
+  assert.equal(
+    isThreadAlreadyExistsResponse(422, { detail: "Thread opencode-x already exists in space default" }),
+    true,
+  )
+  assert.equal(createAcknowledgedRemoteCount({ thread: { message_count: 5 } }), 5)
+})
+
+test("rebuilds the remote count after checkpoint conflict reconciliation", () => {
+  const first = [{ id: "a" }, { id: "b" }]
+  const initial = selectAcknowledgedDelta(first, undefined, id).next
+  assert.equal(initial.remoteCount, 2)
+  assert.equal(isCheckpointConflictResponse({ error_code: "checkpoint_conflict" }), true)
+
+  const reconciledRemoteCount = appendAcknowledgedRemoteCount({
+    success: true,
+    messages_added: 0,
+    total_messages: 5,
+    append_mode: "deduplicated",
+  })
+  const reconciled = { ...initial, remoteCount: reconciledRemoteCount }
+  const next = selectAcknowledgedDelta([...first, { id: "c" }], reconciled, id)
+  assert.deepEqual(next.messages, [{ id: "c" }])
+  assert.equal(next.next.remoteCount, 5)
 })
 
 test("recreates the complete Thread after a 400 missing-thread response", async () => {

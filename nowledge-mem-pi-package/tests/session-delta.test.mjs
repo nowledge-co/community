@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+	isCheckpointConflictResponse,
 	isCheckpointedAppendAck,
 	isThreadAppendAck,
+	isThreadAlreadyExistsResponse,
 	isThreadCreateAck,
 	selectAcknowledgedDelta,
 	sessionSyncLaneKey,
+	threadCreateRemoteCount,
 } from "../extensions/session-delta.ts";
 
 const id = (message) => message.id;
@@ -81,8 +84,31 @@ test("validates the endpoint-specific persistence acknowledgement", () => {
 	assert.equal(isThreadAppendAck({ success: true, messages_added: 1, total_messages: 3 }), true);
 	assert.equal(isThreadAppendAck({}), false);
 	assert.equal(isThreadAppendAck({ success: false }), false);
-	assert.equal(isThreadCreateAck({ thread: { thread_id: "pi-session" } }), true);
+	assert.equal(
+		isThreadCreateAck({ thread: { thread_id: "pi-session", message_count: 5 } }),
+		true,
+	);
+	assert.equal(
+		threadCreateRemoteCount({ thread: { thread_id: "pi-session", message_count: 5 } }),
+		5,
+	);
 	assert.equal(isThreadCreateAck({ thread: {} }), false);
 	assert.equal(isThreadCreateAck({ success: true }), false);
 	assert.equal(isThreadCreateAck({}), false);
+	assert.equal(
+		isThreadAlreadyExistsResponse(422, {
+			detail: "Thread pi-session already exists in space default",
+		}),
+		true,
+	);
+});
+
+test("preserves the reconciled remote count for the next suffix", () => {
+	const first = [{ id: "a" }, { id: "b" }];
+	const initial = selectAcknowledgedDelta(first, undefined, id).next;
+	assert.equal(isCheckpointConflictResponse({ error_code: "checkpoint_conflict" }), true);
+	const reconciled = { ...initial, remoteCount: 5 };
+	const next = selectAcknowledgedDelta([...first, { id: "c" }], reconciled, id);
+	assert.deepEqual(next.messages, [{ id: "c" }]);
+	assert.equal(next.next.remoteCount, 5);
 });

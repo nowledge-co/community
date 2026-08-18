@@ -5,7 +5,11 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 
 import {
+  appendAcknowledgedRemoteCount,
+  createAcknowledgedRemoteCount,
+  isCheckpointConflictResponse,
   isCheckpointedAppendAck,
+  isThreadAlreadyExistsResponse,
   recreateMissingThread,
   selectAcknowledgedDelta,
   sessionSyncLaneKey,
@@ -446,8 +450,10 @@ export default {
         ? { ok: false, status: 409, data: null }
         : await nmemApi("/threads", createBody, timeoutMs)
       let action = state.created ? "appended" : "created"
+      let checkpointed = false
+      let persistedMessages = delta.messages.length
 
-      if (!res.ok && res.status === 409) {
+      if (!res.ok && isThreadAlreadyExistsResponse(res.status, res.data)) {
         state.created = true
         await mergeThreadMetadata(threadId, metadata, timeoutMs).catch(() => undefined)
         res = await nmemApi(
@@ -457,13 +463,30 @@ export default {
             deduplicate: true,
             idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
             ...(state.acknowledged && !delta.reset
-              ? { expected_message_count: delta.start }
+              ? { expected_message_count: state.acknowledged.remoteCount }
               : {}),
             ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
           },
           timeoutMs,
         )
+        checkpointed = Boolean(state.acknowledged && !delta.reset)
         action = "appended"
+      }
+
+      if (!res.ok && checkpointed && isCheckpointConflictResponse(res.data)) {
+        res = await nmemApi(
+          `/threads/${encodeURIComponent(threadId)}/append`,
+          {
+            messages: threadMessages,
+            deduplicate: true,
+            idempotency_key: `opencode:reconcile:${ctx.sessionID}:${delta.next.prefixFingerprint}`,
+            ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
+          },
+          timeoutMs,
+        )
+        checkpointed = false
+        persistedMessages = threadMessages.length
+        action = "reconciled"
       }
 
       const recovered = await recreateMissingThread(res, async () => {
@@ -473,6 +496,8 @@ export default {
       if (recovered.recreated) {
         res = recovered.response
         action = "created"
+        checkpointed = false
+        persistedMessages = threadMessages.length
       }
 
       if (!res.ok) {
@@ -482,12 +507,17 @@ export default {
           session_id: ctx.sessionID,
         }
       }
-      if (
-        action === "appended" &&
-        state.acknowledged &&
-        !delta.reset &&
-        !isCheckpointedAppendAck(res.data)
-      ) {
+      const remoteCount = action === "created"
+        ? createAcknowledgedRemoteCount(res.data)
+        : appendAcknowledgedRemoteCount(res.data)
+      if (remoteCount === undefined) {
+        return {
+          error: "Thread save did not include an explicit persistence acknowledgement; cursor was preserved",
+          thread_id: threadId,
+          session_id: ctx.sessionID,
+        }
+      }
+      if (checkpointed && !isCheckpointedAppendAck(res.data)) {
         return {
           error: "Thread append was not acknowledged as checkpointed; cursor was preserved",
           thread_id: threadId,
@@ -496,12 +526,12 @@ export default {
       }
 
       state.created = true
-      state.acknowledged = delta.next
+      state.acknowledged = { ...delta.next, remoteCount }
       return {
         success: true,
         action,
         thread_id: threadId,
-        messages_saved: action === "created" ? threadMessages.length : delta.messages.length,
+        messages_saved: persistedMessages,
         checkpoint_reset: delta.reset,
         title,
         sync_reason: options.reason,

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 export interface AcknowledgedCursor {
 	count: number;
+	remoteCount: number;
 	lastExternalId?: string;
 	prefixFingerprint: string;
 }
@@ -54,6 +55,20 @@ export function isCheckpointedAppendAck(data: unknown): boolean {
 	);
 }
 
+export function isCheckpointConflictResponse(data: unknown): boolean {
+	return (
+		typeof data === "object" &&
+		data !== null &&
+		(data as { error_code?: unknown }).error_code === "checkpoint_conflict"
+	);
+}
+
+export function isThreadAlreadyExistsResponse(status: number, data: unknown): boolean {
+	if (status === 409) return true;
+	const text = JSON.stringify(data).toLowerCase();
+	return text.includes("thread already exists") || text.includes("already exists in space");
+}
+
 export function isThreadAppendAck(data: unknown): boolean {
 	return (
 		typeof data === "object" &&
@@ -73,6 +88,16 @@ export function isThreadCreateAck(data: unknown): boolean {
 		typeof (thread as { thread_id?: unknown }).thread_id === "string" &&
 		(thread as { thread_id: string }).thread_id.length > 0
 	);
+}
+
+export function threadCreateRemoteCount(data: unknown): number | undefined {
+	if (!isThreadCreateAck(data)) return undefined;
+	const thread = (data as { thread: { message_count?: unknown } }).thread;
+	if (Number.isInteger(thread.message_count) && Number(thread.message_count) >= 0) {
+		return Number(thread.message_count);
+	}
+	const messages = (data as { messages?: unknown }).messages;
+	return Array.isArray(messages) ? messages.length : undefined;
 }
 
 export function selectAcknowledgedDelta<T>(
@@ -104,6 +129,7 @@ export function selectAcknowledgedDelta<T>(
 		messages: messages.slice(start),
 		next: {
 			count: end,
+			remoteCount: cursor?.remoteCount ?? end,
 			...(end > 0 ? { lastExternalId: externalId(messages[end - 1]) } : {}),
 			prefixFingerprint: prefixFingerprint(messages, end, messageFingerprint),
 		},

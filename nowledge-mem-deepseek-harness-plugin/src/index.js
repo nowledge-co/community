@@ -14,7 +14,7 @@ import { join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
-import { importAcknowledged, selectUnacknowledgedEvents } from './session-delta.js'
+import { importAcknowledgement, selectUnacknowledgedEvents } from './session-delta.js'
 
 export const name = 'nowledge-mem'
 export const inject = ['agents', 'shell']
@@ -449,19 +449,18 @@ export function buildThreadImportPayload(session, maxMessageChars, sourceApp = D
 }
 
 async function importSession(ctx, config, session, cursor) {
-  const delta = buildThreadImportDelta(
+  let delta = buildThreadImportDelta(
     session,
     config.maxThreadMessageChars,
     config.sourceApp,
     cursor?.seq ?? -1,
   )
   if (delta === undefined) return undefined
-  const payload = delta.payload
+  let payload = delta.payload
   const staging = await mkdtemp(join(tmpdir(), 'dsh-nowledge-mem-'))
   const file = join(staging, 'thread.json')
   try {
-    await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
-    const importArgs = [
+    const baseImportArgs = [
       '--json',
       't',
       'import',
@@ -474,9 +473,10 @@ async function importSession(ctx, config, session, cursor) {
       '--title',
       payload.title,
     ]
-    if (config.spaceId !== undefined) importArgs.push('--space-id', config.spaceId)
-    if (config.agentId !== undefined) importArgs.push('--agent-id', config.agentId)
+    if (config.spaceId !== undefined) baseImportArgs.push('--space-id', config.spaceId)
+    if (config.agentId !== undefined) baseImportArgs.push('--agent-id', config.agentId)
     const expectedMessageCount = cursor !== undefined && !delta.reset ? cursor.count : undefined
+    const importArgs = [...baseImportArgs]
     if (expectedMessageCount !== undefined) {
       const batchFingerprint = createHash('sha256')
         .update(JSON.stringify(payload.messages))
@@ -487,17 +487,33 @@ async function importSession(ctx, config, session, cursor) {
         `deepseek-harness:${session.header.id}:${expectedMessageCount}-${expectedMessageCount + payload.messages.length}:${batchFingerprint}`,
       )
     }
-    const result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
-    const stdout = successfulStdout(result)
-    if (stdout === undefined || !importAcknowledged(stdout, expectedMessageCount !== undefined)) {
-      return undefined
+    await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
+    let result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
+    let stdout = successfulStdout(result)
+    let acknowledgement = stdout === undefined
+      ? { status: 'failed' }
+      : importAcknowledgement(stdout, expectedMessageCount !== undefined)
+    if (acknowledgement.status === 'conflict' && expectedMessageCount !== undefined) {
+      const reconciliation = buildThreadImportDelta(
+        session,
+        config.maxThreadMessageChars,
+        config.sourceApp,
+        -1,
+      )
+      if (reconciliation === undefined) return undefined
+      delta = reconciliation
+      payload = reconciliation.payload
+      await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
+      result = await runNmem(ctx, config, baseImportArgs, undefined, true, undefined, session)
+      stdout = successfulStdout(result)
+      acknowledgement = stdout === undefined
+        ? { status: 'failed' }
+        : importAcknowledgement(stdout, false)
     }
+    if (acknowledgement.status !== 'acknowledged') return undefined
     return {
       seq: delta.acknowledgedSeq,
-      count:
-        expectedMessageCount === undefined
-          ? payload.messages.length
-          : expectedMessageCount + payload.messages.length,
+      count: acknowledgement.messageCount,
     }
   } finally {
     await rm(staging, { recursive: true, force: true })
