@@ -17,35 +17,13 @@ from pathlib import Path
 from typing import Any
 
 
-# The Stop / PreCompact hooks in hooks.json kill this process at 35s. Keep the
-# whole retry loop under that with headroom (TOTAL_BUDGET). A single
-# `nmem t save` of a large session on the 0.10.x Rust CLI routinely needs well
-# over the old 8s per-attempt cap: it is a fresh process (cold start) that parses
-# the full transcript and persists to the backend. An 8s cap timed out every
-# attempt on big sessions / slower machines / cold backends, so the hook reported
-# "no flushed transcript found" even though nothing was wrong — the capture just
-# needed more time. We now give each attempt real room (PER_ATTEMPT_TIMEOUT) and
-# bound the TOTAL instead. Retries still exist to ride out a backend that is
-# briefly not ready right after SessionStart (those attempts fail fast, so the
-# short early delays let a later attempt succeed once the server is up).
-TOTAL_BUDGET_SECONDS = 30.0
-PER_ATTEMPT_TIMEOUT_SECONDS = 20
+# The host-facing hook detaches this process, but its own queue handoff remains
+# bounded so a missing or unhealthy CLI cannot leave background work hanging.
+TOTAL_BUDGET_SECONDS = 12.0
+PER_ATTEMPT_TIMEOUT_SECONDS = 5
 SKILL_OUTCOME_TIMEOUT_SECONDS = 8
-SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5, 3.0)
+SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5)
 BACKGROUND_LEASE_STALE_SECONDS = 90.0
-JSON_FLAG_UNSUPPORTED_MARKERS = (
-    "no such option: --json",
-    "unrecognized arguments: --json",
-    "unknown option --json",
-    "unexpected argument '--json'",
-)
-CAPTURE_COMMAND_UNSUPPORTED_MARKERS = (
-    "unknown command: capture",
-    "unrecognized subcommand 'capture'",
-    'unrecognized subcommand "capture"',
-    "invalid value 'capture'",
-)
-
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
@@ -383,33 +361,22 @@ def _resolve_space_from_cwd(project_path: Path) -> str | None:
 def _build_command(
     nmem: str,
     payload: dict[str, Any],
-    *,
-    json_output: bool = True,
-    durable_capture: bool = True,
 ) -> list[str]:
     runtime = _host_runtime()
     session_id = _payload_value(payload, "session_id", "sessionId") or os.environ.get(
         "GROK_SESSION_ID", ""
     ).strip()
-    if session_id and durable_capture:
-        args = (["--json"] if json_output else []) + [
-            "t",
-            "capture",
-            "--from",
-            runtime,
-            "--session-id",
-            session_id,
-        ]
-    else:
-        args = (["--json"] if json_output else []) + [
-            "t",
-            "save",
-            "--from",
-            runtime,
-            "--truncate",
-        ]
-        if session_id:
-            args.extend(["--session-id", session_id])
+    if not session_id:
+        return []
+    args = [
+        "--json",
+        "t",
+        "capture",
+        "--from",
+        runtime,
+        "--session-id",
+        session_id,
+    ]
 
     cwd = (
         os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
@@ -428,7 +395,7 @@ def _build_command(
             args.extend(["--space", space])
 
     transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
-    if session_id and durable_capture and transcript_path:
+    if transcript_path:
         transcript = str(Path(transcript_path).expanduser())
         if nmem.lower().endswith(".cmd"):
             transcript = _cmd_exe_path(transcript)
@@ -437,30 +404,15 @@ def _build_command(
     return _build_nmem_command(nmem, *args)
 
 
-def _json_flag_unsupported(proc: subprocess.CompletedProcess[str]) -> bool:
-    text = f"{proc.stdout}\n{proc.stderr}".lower()
-    return any(marker in text for marker in JSON_FLAG_UNSUPPORTED_MARKERS)
-
-
-def _capture_command_unsupported(proc: subprocess.CompletedProcess[str]) -> bool:
-    text = f"{proc.stdout}\n{proc.stderr}".lower()
-    return any(marker in text for marker in CAPTURE_COMMAND_UNSUPPORTED_MARKERS)
-
-
 def _capture_has_result(stdout: str) -> bool:
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:
-        # Older nmem versions did not always expose machine-readable output. If
-        # the command succeeded and printed non-JSON output, keep legacy behavior.
-        return bool(stdout.strip())
+        return False
 
     if not isinstance(payload, dict):
         return False
-    if payload.get("status") == "enqueued":
-        return True
-    results = payload.get("results")
-    return isinstance(results, list) and len(results) > 0
+    return payload.get("status") == "enqueued"
 
 
 def _run_command(command: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
@@ -585,7 +537,6 @@ def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
 
 def _run_capture_with_retries(
     command: list[str],
-    legacy_command: list[str] | None = None,
 ) -> tuple[bool, int, str]:
     last_returncode = 0
     last_stderr = ""
@@ -619,36 +570,6 @@ def _run_capture_with_retries(
             or ""
         )
 
-        if (
-            proc.returncode != 0
-            and legacy_command
-            and (_json_flag_unsupported(proc) or _capture_command_unsupported(proc))
-        ):
-            legacy_remaining = TOTAL_BUDGET_SECONDS - (time.monotonic() - start)
-            if legacy_remaining <= 1.0:
-                break
-            try:
-                legacy_proc = _run_command(
-                    legacy_command, min(PER_ATTEMPT_TIMEOUT_SECONDS, legacy_remaining)
-                )
-            except subprocess.TimeoutExpired:
-                last_returncode = 124
-                last_stderr = "legacy capture attempt timed out"
-                continue
-
-            last_returncode = legacy_proc.returncode
-            last_stderr = (
-                legacy_proc.stderr
-                or (legacy_proc.stdout if legacy_proc.returncode != 0 else "")
-                or ""
-            )
-            if legacy_proc.returncode == 0:
-                # Older nmem builds may not support --json. In that mode the
-                # best compatibility signal is the command's successful exit,
-                # matching the pre-0.7.6 hook behavior.
-                return True, last_returncode, last_stderr
-            continue
-
         if proc.returncode == 0 and _capture_has_result(proc.stdout or ""):
             return True, last_returncode, last_stderr
 
@@ -661,19 +582,13 @@ def _capture_payload(event: str, payload: dict[str, Any]) -> int:
         print("nowledge-mem: nmem not found; skipped hook capture", file=sys.stderr)
         return 0
 
-    command = _build_command(nmem, payload, json_output=True)
-    legacy_command = _build_command(
-        nmem,
-        payload,
-        json_output=False,
-        durable_capture=False,
-    )
+    command = _build_command(nmem, payload)
+    if not command:
+        print(f"nowledge-mem: {event} capture skipped without session identity", file=sys.stderr)
+        return 0
 
     try:
-        captured, returncode, stderr = _run_capture_with_retries(
-            command,
-            legacy_command,
-        )
+        captured, returncode, stderr = _run_capture_with_retries(command)
     except Exception as exc:
         print(f"nowledge-mem: {event} capture failed: {exc}", file=sys.stderr)
         return 0

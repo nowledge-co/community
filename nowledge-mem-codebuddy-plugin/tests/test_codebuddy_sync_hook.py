@@ -33,7 +33,7 @@ def test_enqueue_command_uses_exact_transcript_and_shared_queue():
     ]
 
 
-def test_successful_enqueue_never_runs_legacy_full_sync(tmp_path):
+def test_successful_enqueue_is_acknowledged(tmp_path):
     hook = load_hook()
     transcript = tmp_path / "session.jsonl"
     transcript.write_text("{}\n", encoding="utf-8")
@@ -45,13 +45,11 @@ def test_successful_enqueue_never_runs_legacy_full_sync(tmp_path):
     completed = mock.Mock(returncode=0, stdout='{"status":"enqueued"}', stderr="")
     with mock.patch.object(hook, "_read_payload", return_value=payload), \
          mock.patch.object(hook, "_run_enqueue", return_value=completed), \
-         mock.patch.object(hook, "_run_sync") as legacy, \
          mock.patch.object(hook, "_log"):
         assert hook.main() == 0
-    legacy.assert_not_called()
 
 
-def test_zero_exit_without_enqueue_ack_falls_back_to_legacy_sync(tmp_path):
+def test_zero_exit_without_enqueue_ack_does_not_run_full_sync(tmp_path):
     hook = load_hook()
     transcript = tmp_path / "session.jsonl"
     transcript.write_text("{}\n", encoding="utf-8")
@@ -65,10 +63,8 @@ def test_zero_exit_without_enqueue_ack_falls_back_to_legacy_sync(tmp_path):
         stdout='{"status":"success","results":[]}',
         stderr="",
     )
-    synced = mock.Mock(returncode=0, stdout='{"status":"success"}', stderr="")
     with mock.patch.object(hook, "_read_payload", return_value=payload), \
          mock.patch.object(hook, "_run_enqueue", return_value=not_enqueued), \
-         mock.patch.object(hook, "_run_sync", return_value=synced) as legacy, \
-         mock.patch.object(hook, "_log"):
+         mock.patch.object(hook, "_log") as log:
         assert hook.main() == 0
-    legacy.assert_called_once()
+    assert any("enqueue rejected" in call.args[1] for call in log.call_args_list)

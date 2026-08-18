@@ -211,13 +211,13 @@ def test_build_command_converts_wsl_project_path_for_windows_cmd():
     assert "--project /home/alice/project" not in command[3]
 
 
-def test_run_capture_retries_until_nmem_reports_saved_result():
+def test_run_capture_retries_until_nmem_acknowledges_enqueue():
     calls = [
-        CompletedProcess(["nmem"], 0, stdout='{"results":[]}', stderr=""),
+        CompletedProcess(["nmem"], 0, stdout='{"status":"success"}', stderr=""),
         CompletedProcess(
             ["nmem"],
             0,
-            stdout='{"results":[{"action":"created","session_id":"s1"}]}',
+            stdout='{"status":"enqueued"}',
             stderr="",
         ),
     ]
@@ -405,69 +405,9 @@ def test_run_capture_reports_json_stdout_errors():
     assert "path_not_found" in stderr
 
 
-def test_run_capture_falls_back_for_legacy_nmem_without_json_support():
-    calls = [
-        CompletedProcess(
-            ["nmem"],
-            2,
-            stdout="",
-            stderr="No such option: --json",
-        ),
-        CompletedProcess(["nmem"], 0, stdout="", stderr=""),
-    ]
-
-    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0,)), \
-        patch.object(nmem_hook_save, "_run_command", side_effect=calls) as run:
-        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
-            ["/usr/local/bin/nmem", "--json", "t", "save"],
-            ["/usr/local/bin/nmem", "t", "save"],
-        )
-
-    assert captured is True
-    assert returncode == 0
-    assert stderr == ""
-    assert run.call_count == 2
-    assert "--json" not in run.call_args_list[1].args[0]
-
-
-def test_run_capture_falls_back_when_legacy_nmem_has_no_capture_command(tmp_path):
-    payload = {
-        "session_id": "legacy-session",
-        "cwd": str(tmp_path),
-        "transcript_path": str(tmp_path / "session.jsonl"),
-    }
-    capture_command = nmem_hook_save._build_command("nmem", payload)
-    legacy_command = nmem_hook_save._build_command(
-        "nmem",
-        payload,
-        json_output=False,
-        durable_capture=False,
-    )
-    calls = [
-        CompletedProcess(
-            capture_command,
-            2,
-            stdout="",
-            stderr="error: unknown command: capture",
-        ),
-        CompletedProcess(legacy_command, 0, stdout="", stderr=""),
-    ]
-
-    with patch.object(nmem_hook_save, "SAVE_RETRY_DELAYS_SECONDS", (0.0,)), \
-        patch.object(nmem_hook_save, "_run_command", side_effect=calls) as run:
-        captured, returncode, stderr = nmem_hook_save._run_capture_with_retries(
-            capture_command,
-            legacy_command,
-        )
-
-    assert captured is True
-    assert returncode == 0
-    assert stderr == ""
-    assert run.call_args_list[1].args[0] == legacy_command
-    assert legacy_command[:4] == ["nmem", "t", "save", "--from"]
-    assert "--truncate" in legacy_command
-    assert "--session-id" in legacy_command
-    assert "--transcript-path" not in legacy_command
+def test_build_command_requires_exact_session_identity():
+    with patch.dict(os.environ, {"GROK_SESSION_ID": ""}):
+        assert nmem_hook_save._build_command("nmem", {}) == []
 
 
 def test_extract_skill_outcomes_from_claude_tool_use_pair(tmp_path):

@@ -5,8 +5,8 @@
 - Treat `NMEM_CLI_PATH` as an explicit override. If it points to a missing
   executable, WorkBuddy hooks now fail open and log the missing CLI instead of
   silently falling back to a different system `nmem`.
-- Automatic main-agent and subagent capture now uses the shared durable queue,
-  retaining the synchronous importer only as an older-CLI fallback.
+- Automatic main-agent and subagent capture now uses the shared durable queue
+  and never falls back to synchronous full-session import inside the hook.
 
 ## 0.2.0 - 2026-07-25
 

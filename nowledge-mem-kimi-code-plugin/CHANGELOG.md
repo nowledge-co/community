@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Lifecycle capture now uses the shared durable per-session queue and returns
-  before the complete Kimi session import; older CLIs keep the prior fallback.
+  before the complete Kimi session import, without a synchronous fallback.
 
 ## 0.2.4
 

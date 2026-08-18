@@ -6,7 +6,6 @@ import test from 'node:test';
 
 import { buildHookOutput, readStartupContext } from '../hooks/session-start.mjs';
 import {
-  buildLegacySaveArgs,
   buildSaveArgs,
   captureKey,
   resolveCapture,
@@ -94,40 +93,6 @@ test('stop capture refuses to select a latest session without an exact conversat
   );
 });
 
-test('stop capture falls back to the legacy save command on an older CLI', async (context) => {
-  const stateRoot = temporaryStateRoot();
-  context.after(() => rmSync(stateRoot, { recursive: true, force: true }));
-  const capture = {
-    conversationId: 'conversation-legacy',
-    generationId: 'generation-legacy',
-    project: '/workspace/project',
-    transcriptPath: '/cursor/transcript.jsonl',
-  };
-  const calls = [];
-
-  const result = await saveCapture(capture, {
-    command: '/fake/nmem',
-    env: { NMEM_SPACE: 'engineering' },
-    stateRoot,
-    sleep: async () => {},
-    runNmem: (args) => {
-      calls.push(args);
-      if (args.includes('capture')) {
-        return { ok: false, data: null, stderr: 'error: unknown command: capture' };
-      }
-      return { ok: true, data: { results: [{ action: 'created' }] } };
-    },
-  });
-
-  assert.deepEqual(result, { saved: true, reason: 'saved', attempts: 1 });
-  assert.deepEqual(calls, [
-    buildSaveArgs(capture, { NMEM_SPACE: 'engineering' }),
-    buildLegacySaveArgs(capture, { NMEM_SPACE: 'engineering' }),
-  ]);
-  assert.ok(calls[1].includes('--truncate'));
-  assert.ok(!calls[1].includes('--transcript-path'));
-});
-
 test('duplicate identity stays stable while the same generation transcript is flushing', () => {
   const first = captureKey({
     conversationId: 'conversation-123',
@@ -179,7 +144,7 @@ test('stop capture retries transcript flush and suppresses duplicate delivery', 
 
   assert.deepEqual(first, { saved: true, reason: 'saved', attempts: 2 });
   assert.deepEqual(second, { saved: false, reason: 'duplicate' });
-  assert.deepEqual(delays, [0, 500]);
+  assert.deepEqual(delays, [0, 250]);
   assert.equal(attempts, 2);
 });
 

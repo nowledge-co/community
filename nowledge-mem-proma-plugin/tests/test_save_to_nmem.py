@@ -66,5 +66,20 @@ def test_enqueue_requires_acknowledged_result(tmp_path):
         assert hook.enqueue_capture("session-1", transcript, str(tmp_path)) is False
 
     assert hook.capture_acknowledged('{"status":"enqueued"}') is True
-    assert hook.capture_acknowledged('{"results":[{"action":"created"}]}') is True
+    assert hook.capture_acknowledged('{"results":[{"action":"created"}]}') is False
     assert hook.capture_acknowledged('{"status":"success","results":[]}') is False
+
+
+def test_failed_enqueue_does_not_parse_full_transcript(tmp_path):
+    hook = load_hook()
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text("{}\n", encoding="utf-8")
+    with mock.patch.object(
+        hook,
+        "read_hook_input",
+        return_value={"session_id": "session-1", "cwd": str(tmp_path)},
+    ), mock.patch.object(hook, "find_session_file", return_value=transcript), mock.patch.object(
+        hook, "enqueue_capture", return_value=False
+    ), mock.patch.object(hook, "parse_session_messages") as parse, mock.patch.object(hook, "log"):
+        assert hook.main() == 0
+    parse.assert_not_called()

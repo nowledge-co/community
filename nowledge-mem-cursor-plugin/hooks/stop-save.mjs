@@ -20,9 +20,9 @@ import {
   withStartupScopeArgs,
 } from './nmem-runtime.mjs';
 
-const ATTEMPT_DELAYS_MS = [0, 500, 1500, 3000];
-const ATTEMPT_TIMEOUT_MS = 8000;
-const INTERNAL_BUDGET_MS = 30000;
+const ATTEMPT_DELAYS_MS = [0, 250, 750, 1500];
+const ATTEMPT_TIMEOUT_MS = 3000;
+const INTERNAL_BUDGET_MS = 8000;
 const CLAIM_STALE_MS = 90000;
 const LOG_MAX_BYTES = 1024 * 1024;
 
@@ -71,24 +71,6 @@ export function buildSaveArgs(capture, env = process.env) {
     args.push('--transcript-path', capture.transcriptPath);
   }
   return withStartupScopeArgs(args, env);
-}
-
-export function buildLegacySaveArgs(capture, env = process.env) {
-  if (!capture.conversationId || !capture.project) {
-    return [];
-  }
-
-  return withStartupScopeArgs([
-    't',
-    'save',
-    '--from',
-    'cursor',
-    '--truncate',
-    '--project',
-    capture.project,
-    '--session-id',
-    capture.conversationId,
-  ], env);
 }
 
 function transcriptFingerprint(transcriptPath) {
@@ -215,20 +197,7 @@ function logEvent(event, options = {}) {
 }
 
 function saveResultHasThread(result) {
-  return result.ok && (
-    result.data?.status === 'enqueued' ||
-    (Array.isArray(result.data?.results) && result.data.results.length > 0)
-  );
-}
-
-function captureCommandUnsupported(result) {
-  const detail = `${result.stdout ?? ''}\n${result.stderr ?? ''}`.toLowerCase();
-  return [
-    'unknown command: capture',
-    "unrecognized subcommand 'capture'",
-    'unrecognized subcommand "capture"',
-    "invalid value 'capture'",
-  ].some((marker) => detail.includes(marker));
+  return result.ok && result.data?.status === 'enqueued';
 }
 
 const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -236,7 +205,6 @@ const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs))
 export async function saveCapture(capture, options = {}) {
   const env = options.env ?? process.env;
   const args = buildSaveArgs(capture, env);
-  const legacyArgs = buildLegacySaveArgs(capture, env);
   const command = options.command ?? findNmemCommand(env);
   if (args.length === 0 || !command) {
     const reason = args.length === 0 ? 'missing-identity' : 'cli-unavailable';
@@ -278,21 +246,6 @@ export async function saveCapture(capture, options = {}) {
         });
       } catch {
         result = { ok: false, data: null };
-      }
-      if (captureCommandUnsupported(result)) {
-        const legacyRemaining = deadline - clock();
-        if (legacyRemaining <= 0) {
-          continue;
-        }
-        try {
-          result = run(legacyArgs, {
-            command,
-            env,
-            timeoutMs: Math.min(ATTEMPT_TIMEOUT_MS, legacyRemaining),
-          });
-        } catch {
-          result = { ok: false, data: null };
-        }
       }
       if (saveResultHasThread(result)) {
         saved = true;

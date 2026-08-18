@@ -285,34 +285,16 @@ function handleSync(payload) {
     return allow();
   }
 
-  let result = runNmem(buildCaptureArgs(sessionId, transcriptPath), 5_000);
-  let queued = captureAcknowledged(result);
-  if (!queued) {
-    // Compatibility path for an older nmem binary without `t capture`.
-    result = runNmem([
-      "--json",
-      "t",
-      "sync",
-      "--from",
-      SOURCE_APP,
-      "--session-id",
-      sessionId,
-      "--session-dir",
-      transcriptPath,
-      "--all-projects",
-      "--apply",
-    ]);
-    queued = false;
-  }
-  if (result.ok) {
+  const result = runNmem(buildCaptureArgs(sessionId, transcriptPath), 5_000);
+  if (captureAcknowledged(result)) {
     const parentSuffix =
       event === "SubagentStop" && parentSessionId && parentSessionId !== sessionId
         ? ` parent=${parentSessionId}`
         : "";
-    log(`${queued ? "queued" : "synced"} ${event} ${sessionId}${parentSuffix} from ${transcriptPath}`);
+    log(`queued ${event} ${sessionId}${parentSuffix} from ${transcriptPath}`);
   } else {
     log(
-      `sync failed ${event} ${sessionId} exit=${result.status ?? "spawn"} error=${compact(
+      `enqueue failed ${event} ${sessionId} exit=${result.status ?? "spawn"} error=${compact(
         result.error?.message || result.stderr || result.stdout,
       )}`,
     );

@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Automatic CodeBuddy capture now uses the shared durable per-session queue,
-  with the previous synchronous sync retained for older CLIs.
+- Automatic CodeBuddy capture now uses the shared durable per-session queue and
+  never falls back to synchronous full-session sync in a lifecycle hook.
 
 ## 0.1.1 - 2026-07-25
 
