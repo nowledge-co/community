@@ -1,0 +1,11 @@
+{
+  "name": "nowledge-mem",
+  "version": "0.1.0",
+  "description": "Cross-tool memory, native lifecycle capture, and enterprise conversation sync for Devin",
+  "author": {
+    "name": "Nowledge Labs",
+    "email": "hello@nowledge.co"
+  },
+  "license": "MIT",
+  "keywords": ["devin", "memory", "mcp", "skills", "hooks", "enterprise"]
+}
