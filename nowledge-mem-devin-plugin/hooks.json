@@ -1,0 +1,38 @@
+{
+  "Stop": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "nmem --json t sync --from devin --hook-stdin --apply",
+          "timeout": 30
+        }
+      ]
+    }
+  ],
+  "PostCompaction": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "nmem --json t sync --from devin --hook-stdin --apply",
+          "timeout": 30
+        }
+      ]
+    }
+  ],
+  "SessionEnd": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "nmem --json t sync --from devin --hook-stdin --apply",
+          "timeout": 30
+        }
+      ]
+    }
+  ]
+}

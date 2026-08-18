@@ -1462,7 +1462,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.5"
     assert by_id["opencode"]["version"] == "0.3.7"
-    assert by_id["pi"]["version"] == "0.8.6"
+    assert by_id["pi"]["version"] == "0.8.7"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["kimi-code"]["version"] == "0.2.4"
