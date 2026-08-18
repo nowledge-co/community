@@ -32,6 +32,7 @@ describe("resolveConfig", () => {
       autoSyncEnabled: true,
       autoSyncDebounceMs: 1500,
       bootstrapEnabled: true,
+      debugLogging: false,
     })
   })
 
@@ -142,5 +143,20 @@ describe("resolveConfig", () => {
   it("enables bootstrap by default when NMEM_AMP_BOOTSTRAP is unset", () => {
     const config = resolveConfig(EMPTY_ENV, sharedConfig({}))
     expect(config.bootstrapEnabled).toBe(true)
+  })
+
+  it("keeps debug logging off by default when NMEM_AMP_DEBUG is unset", () => {
+    const config = resolveConfig(EMPTY_ENV, sharedConfig({}))
+    expect(config.debugLogging).toBe(false)
+  })
+
+  it.each(["0", "false", "off", "no", "OFF", "False"])("keeps debug logging off for NMEM_AMP_DEBUG=%s", (value) => {
+    const config = resolveConfig({ NMEM_AMP_DEBUG: value }, sharedConfig({}))
+    expect(config.debugLogging).toBe(false)
+  })
+
+  it.each(["1", "true", "on", "yes", "ON", "True"])("enables debug logging for NMEM_AMP_DEBUG=%s", (value) => {
+    const config = resolveConfig({ NMEM_AMP_DEBUG: value }, sharedConfig({}))
+    expect(config.debugLogging).toBe(true)
   })
 })

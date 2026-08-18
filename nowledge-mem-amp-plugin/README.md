@@ -113,6 +113,7 @@ No config needed for local use.
 | `NMEM_AGENT_ID` | *(none)* | Stable Nowledge AI Identity for this run |
 | `NMEM_AMP_AUTO_SYNC` | `1` | Set to `0`/`false`/`off`/`no` to disable automatic session capture |
 | `NMEM_AMP_AUTO_SYNC_DEBOUNCE_MS` | `1500` | Debounce window for automatic capture |
+| `NMEM_AMP_DEBUG` | `0` | Set to `1`/`true`/`on`/`yes` to log connector lifecycle messages (`connector loaded`/`connector disposed`) |
 
 The plugin also reads `~/.nowledge-mem/config.json` (shared with all Nowledge Mem integrations). Environment variables take priority.
 
