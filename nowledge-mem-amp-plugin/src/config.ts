@@ -26,6 +26,9 @@ const AUTO_SYNC_DISABLED_VALUES = new Set(["0", "false", "off", "no"])
 /** Truthy string values that disable the agent.start Context Bundle bootstrap. */
 const BOOTSTRAP_DISABLED_VALUES = new Set(["0", "false", "off", "no"])
 
+/** Truthy string values that enable verbose connector lifecycle logging. */
+const DEBUG_ENABLED_VALUES = new Set(["1", "true", "on", "yes"])
+
 /**
  * Fully resolved connector configuration.
  *
@@ -49,6 +52,8 @@ export interface ResolvedConfig {
   readonly autoSyncDebounceMs: number
   /** Whether the `agent.start` Context Bundle bootstrap injection is enabled. */
   readonly bootstrapEnabled: boolean
+  /** Whether verbose connector lifecycle logging (`loaded`/`disposed`) is enabled. */
+  readonly debugLogging: boolean
 }
 
 /**
@@ -147,6 +152,9 @@ export function resolveConfig(
   const bootstrapRaw = nonEmptyString(env.NMEM_AMP_BOOTSTRAP) ?? "1"
   const bootstrapEnabled = !BOOTSTRAP_DISABLED_VALUES.has(bootstrapRaw.toLowerCase())
 
+  const debugRaw = nonEmptyString(env.NMEM_AMP_DEBUG) ?? "0"
+  const debugLogging = DEBUG_ENABLED_VALUES.has(debugRaw.toLowerCase())
+
   return {
     apiUrl,
     apiKey,
@@ -156,5 +164,6 @@ export function resolveConfig(
     autoSyncEnabled,
     autoSyncDebounceMs,
     bootstrapEnabled,
+    debugLogging,
   }
 }

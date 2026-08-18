@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const execFileMock = vi.hoisted(() =>
   vi.fn(
@@ -104,6 +104,11 @@ function createFakeAmp(): FakeAmp {
 describe("Amp plugin entrypoint", () => {
   beforeEach(() => {
     execFileMock.mockClear()
+    vi.stubEnv("NMEM_AMP_DEBUG", "")
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it("registers tools, commands, lifecycle hooks, and disposal", async () => {
@@ -151,7 +156,24 @@ describe("Amp plugin entrypoint", () => {
       ],
     })
     amp.disposers[0]!()
-    expect(amp.logger.log).toHaveBeenCalled()
+    expect(amp.logger.log).not.toHaveBeenCalled()
+  })
+
+  it("stays silent on stderr by default and logs lifecycle only under NMEM_AMP_DEBUG", async () => {
+    const amp = createFakeAmp()
+    const mod = await import("../src/index")
+    mod.default(amp as unknown as Parameters<typeof mod.default>[0])
+    amp.disposers[0]!()
+    expect(amp.logger.log).not.toHaveBeenCalled()
+
+    const debugAmp = createFakeAmp()
+    vi.stubEnv("NMEM_AMP_DEBUG", "1")
+    mod.default(debugAmp as unknown as Parameters<typeof mod.default>[0])
+    debugAmp.disposers[0]!()
+
+    expect(debugAmp.logger.log).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(debugAmp.logger.log).mock.calls[0]![0]).toMatch(/^amp connector loaded: \d+ bytes/)
+    expect(vi.mocked(debugAmp.logger.log).mock.calls[1]![0]).toBe("amp connector disposed")
   })
 
   it("paginates the full transcript from the start", async () => {

@@ -14,6 +14,7 @@ function config(partial: Partial<ResolvedConfig> = {}): ResolvedConfig {
     autoSyncEnabled: true,
     autoSyncDebounceMs: 1500,
     bootstrapEnabled: true,
+    debugLogging: false,
     ...partial,
   }
 }
