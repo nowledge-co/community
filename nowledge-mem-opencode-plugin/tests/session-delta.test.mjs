@@ -1,7 +1,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { selectAcknowledgedDelta } from "../src/session-delta.ts"
+import {
+  selectAcknowledgedDelta,
+  sessionSyncLaneKey,
+} from "../src/session-delta.ts"
 
 const id = (message) => message.id
 
@@ -26,4 +29,15 @@ test("an unchanged snapshot produces an empty delta", () => {
   const delta = selectAcknowledgedDelta(messages, { count: 2, lastExternalId: "b" }, id)
   assert.deepEqual(delta.messages, [])
   assert.deepEqual(delta.next, { count: 2, lastExternalId: "b" })
+})
+
+test("session checkpoints are isolated by destination space", () => {
+  assert.notEqual(
+    sessionSyncLaneKey("session-1", "space-a"),
+    sessionSyncLaneKey("session-1", "space-b"),
+  )
+  assert.equal(
+    sessionSyncLaneKey("session-1", "space-a"),
+    sessionSyncLaneKey("session-1", "space-a"),
+  )
 })

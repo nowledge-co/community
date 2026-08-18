@@ -48,3 +48,23 @@ def test_successful_enqueue_skips_full_jsonl_parse(tmp_path):
     ), mock.patch.object(hook, "parse_session_messages") as parse, mock.patch.object(hook, "log"):
         assert hook.main() == 0
     parse.assert_not_called()
+
+
+def test_enqueue_requires_acknowledged_result(tmp_path):
+    hook = load_hook()
+    transcript = tmp_path / "session.jsonl"
+    completed = mock.Mock(
+        returncode=0,
+        stdout='{"status":"success","results":[]}',
+        stderr="",
+    )
+    with mock.patch.object(hook.shutil, "which", return_value="nmem"), mock.patch.object(
+        hook.subprocess,
+        "run",
+        return_value=completed,
+    ):
+        assert hook.enqueue_capture("session-1", transcript, str(tmp_path)) is False
+
+    assert hook.capture_acknowledged('{"status":"enqueued"}') is True
+    assert hook.capture_acknowledged('{"results":[{"action":"created"}]}') is True
+    assert hook.capture_acknowledged('{"status":"success","results":[]}') is False

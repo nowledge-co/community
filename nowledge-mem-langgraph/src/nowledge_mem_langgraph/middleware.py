@@ -89,7 +89,14 @@ class NowledgeMiddleware(AgentMiddleware):
 
     def _thread_cursor_key(self, thread_id: str, runtime: object) -> str:
         identity = self.client.settings.resolve_identity(runtime)
-        return "\0".join([thread_id, identity.space_id or ""])
+        return "\0".join(
+            [
+                thread_id,
+                identity.space_id or "",
+                identity.agent_id or "",
+                identity.host_agent_id or "",
+            ]
+        )
 
     def _get_thread_cursor(self, key: str) -> AcknowledgedCursor | None:
         with self._thread_cursor_lock:

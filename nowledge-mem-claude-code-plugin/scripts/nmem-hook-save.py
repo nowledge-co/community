@@ -39,6 +39,12 @@ JSON_FLAG_UNSUPPORTED_MARKERS = (
     "unknown option --json",
     "unexpected argument '--json'",
 )
+CAPTURE_COMMAND_UNSUPPORTED_MARKERS = (
+    "unknown command: capture",
+    "unrecognized subcommand 'capture'",
+    'unrecognized subcommand "capture"',
+    "invalid value 'capture'",
+)
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
@@ -379,12 +385,13 @@ def _build_command(
     payload: dict[str, Any],
     *,
     json_output: bool = True,
+    durable_capture: bool = True,
 ) -> list[str]:
     runtime = _host_runtime()
     session_id = _payload_value(payload, "session_id", "sessionId") or os.environ.get(
         "GROK_SESSION_ID", ""
     ).strip()
-    if session_id:
+    if session_id and durable_capture:
         args = (["--json"] if json_output else []) + [
             "t",
             "capture",
@@ -394,8 +401,6 @@ def _build_command(
             session_id,
         ]
     else:
-        # Compatibility fallback for unusual host events without exact
-        # identity; normal lifecycle events always use the durable queue.
         args = (["--json"] if json_output else []) + [
             "t",
             "save",
@@ -403,6 +408,8 @@ def _build_command(
             runtime,
             "--truncate",
         ]
+        if session_id:
+            args.extend(["--session-id", session_id])
 
     cwd = (
         os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
@@ -421,7 +428,7 @@ def _build_command(
             args.extend(["--space", space])
 
     transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
-    if session_id and transcript_path:
+    if session_id and durable_capture and transcript_path:
         transcript = str(Path(transcript_path).expanduser())
         if nmem.lower().endswith(".cmd"):
             transcript = _cmd_exe_path(transcript)
@@ -433,6 +440,11 @@ def _build_command(
 def _json_flag_unsupported(proc: subprocess.CompletedProcess[str]) -> bool:
     text = f"{proc.stdout}\n{proc.stderr}".lower()
     return any(marker in text for marker in JSON_FLAG_UNSUPPORTED_MARKERS)
+
+
+def _capture_command_unsupported(proc: subprocess.CompletedProcess[str]) -> bool:
+    text = f"{proc.stdout}\n{proc.stderr}".lower()
+    return any(marker in text for marker in CAPTURE_COMMAND_UNSUPPORTED_MARKERS)
 
 
 def _capture_has_result(stdout: str) -> bool:
@@ -607,7 +619,11 @@ def _run_capture_with_retries(
             or ""
         )
 
-        if proc.returncode != 0 and legacy_command and _json_flag_unsupported(proc):
+        if (
+            proc.returncode != 0
+            and legacy_command
+            and (_json_flag_unsupported(proc) or _capture_command_unsupported(proc))
+        ):
             legacy_remaining = TOTAL_BUDGET_SECONDS - (time.monotonic() - start)
             if legacy_remaining <= 1.0:
                 break
@@ -646,7 +662,12 @@ def _capture_payload(event: str, payload: dict[str, Any]) -> int:
         return 0
 
     command = _build_command(nmem, payload, json_output=True)
-    legacy_command = _build_command(nmem, payload, json_output=False)
+    legacy_command = _build_command(
+        nmem,
+        payload,
+        json_output=False,
+        durable_capture=False,
+    )
 
     try:
         captured, returncode, stderr = _run_capture_with_retries(

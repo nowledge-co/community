@@ -42,3 +42,22 @@ def test_successful_enqueue_skips_legacy_sync():
     ) as legacy, mock.patch.object(hook, "_log"):
         assert hook.main() == 0
     legacy.assert_not_called()
+
+
+def test_zero_exit_without_enqueue_ack_falls_back_to_legacy_sync():
+    hook = load_hook()
+    not_enqueued = mock.Mock(
+        returncode=0,
+        stdout='{"status":"success","results":[]}',
+        stderr="",
+    )
+    synced = mock.Mock(returncode=0, stdout='{"status":"success"}', stderr="")
+    with mock.patch.object(
+        hook,
+        "_read_payload",
+        return_value={"session_id": "session-1", "hook_event_name": "Stop"},
+    ), mock.patch.object(hook, "_run_enqueue", return_value=not_enqueued), mock.patch.object(
+        hook, "_run_sync", return_value=synced
+    ) as legacy, mock.patch.object(hook, "_log"):
+        assert hook.main() == 0
+    legacy.assert_called_once_with("session-1")

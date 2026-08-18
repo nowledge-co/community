@@ -241,6 +241,36 @@ def test_thread_sync_uploads_only_acknowledged_delta_and_retries_after_failure()
     ]
 
 
+def test_thread_cursor_isolated_by_destination_identity() -> None:
+    requests: list[dict[str, Any]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(__import__("json").loads(request.content))
+        return httpx.Response(200, json={"success": True}, request=request)
+
+    http = httpx.Client(base_url="http://mem.test", transport=httpx.MockTransport(handle))
+    middleware = NowledgeMiddleware(
+        NowledgeClient(NowledgeSettings(api_url="http://mem.test"), client=http)
+    )
+    state = {
+        "messages": [
+            HumanMessage(content="hello", id="h1"),
+            AIMessage(content="answer", id="a1"),
+        ]
+    }
+
+    middleware.after_agent(
+        state,
+        runtime(context={"nowledge": {"agent_id": "agent-a", "space_id": "shared"}}),
+    )
+    middleware.after_agent(
+        state,
+        runtime(context={"nowledge": {"agent_id": "agent-b", "space_id": "shared"}}),
+    )
+
+    assert [body["metadata"]["agent_id"] for body in requests] == ["agent-a", "agent-b"]
+
+
 def test_sync_middleware_injects_context_once_per_turn_and_syncs_top_level() -> None:
     calls: list[tuple[str, dict[str, Any]]] = []
 

@@ -118,6 +118,19 @@ def _run_enqueue(session_id: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _capture_acknowledged(stdout: str) -> bool:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("status") == "enqueued":
+        return True
+    results = payload.get("results")
+    return isinstance(results, list) and bool(results)
+
+
 def main() -> int:
     payload = _read_payload()
     session_id = str(payload.get("session_id") or "").strip()
@@ -134,7 +147,7 @@ def main() -> int:
     except (subprocess.TimeoutExpired, OSError) as exc:
         _log(f"enqueue unavailable {event} {session_id}: {exc}")
     else:
-        if enqueued.returncode == 0:
+        if enqueued.returncode == 0 and _capture_acknowledged(enqueued.stdout or ""):
             _log(f"queued {event} {session_id}")
             return 0
         detail = (enqueued.stderr or enqueued.stdout or "").strip().replace("\n", " ")[:600]

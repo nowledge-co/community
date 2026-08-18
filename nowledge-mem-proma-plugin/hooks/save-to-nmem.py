@@ -386,11 +386,24 @@ def enqueue_capture(
     except (OSError, subprocess.TimeoutExpired) as exc:
         log(f"enqueue unavailable: {exc}")
         return False
-    if result.returncode == 0:
+    if result.returncode == 0 and capture_acknowledged(result.stdout or ""):
         return True
     detail = (result.stderr or result.stdout or "").strip().replace("\n", " ")[:500]
     log(f"enqueue unsupported; using direct compatibility path: {detail}")
     return False
+
+
+def capture_acknowledged(stdout: str) -> bool:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("status") == "enqueued":
+        return True
+    results = payload.get("results")
+    return isinstance(results, list) and bool(results)
 
 
 def main() -> int:

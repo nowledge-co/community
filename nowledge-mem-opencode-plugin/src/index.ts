@@ -4,7 +4,11 @@ import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-import { selectAcknowledgedDelta, type AcknowledgedCursor } from "./session-delta"
+import {
+  selectAcknowledgedDelta,
+  sessionSyncLaneKey,
+  type AcknowledgedCursor,
+} from "./session-delta"
 
 const BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
@@ -330,11 +334,12 @@ export default {
       (process.env.NMEM_OPENCODE_AUTO_SYNC ?? "1").trim().toLowerCase(),
     )
 
-    function syncStateFor(sessionID: string): SessionSyncState {
-      const existing = syncStates.get(sessionID)
+    function syncStateFor(sessionID: string, spaceId = ambientSpaceId): SessionSyncState {
+      const key = sessionSyncLaneKey(sessionID, spaceId)
+      const existing = syncStates.get(key)
       if (existing) return existing
       const created: SessionSyncState = {}
-      syncStates.set(sessionID, created)
+      syncStates.set(key, created)
       return created
     }
 
@@ -403,7 +408,7 @@ export default {
         return { skipped: true, reason: "incomplete_turn", session_id: ctx.sessionID }
       }
 
-      const state = syncStateFor(ctx.sessionID)
+      const state = syncStateFor(ctx.sessionID, options.spaceId || ambientSpaceId)
       const delta = selectAcknowledgedDelta(
         threadMessages,
         options.force ? undefined : state.acknowledged,

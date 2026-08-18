@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildCaptureArgs } from "../scripts/nowledge-mem-hook.mjs";
+import {
+  buildCaptureArgs,
+  captureAcknowledged,
+} from "../scripts/nowledge-mem-hook.mjs";
 
 
 test("automatic sync uses the shared durable capture queue", () => {
@@ -18,4 +21,16 @@ test("automatic sync uses the shared durable capture queue", () => {
     "--sync",
     "--all-projects",
   ]);
+});
+
+test("automatic sync requires an explicit durable queue acknowledgement", () => {
+  assert.equal(captureAcknowledged({
+    ok: true,
+    stdout: '{"status":"enqueued"}',
+  }), true);
+  assert.equal(captureAcknowledged({
+    ok: true,
+    stdout: '{"status":"success","results":[]}',
+  }), false);
+  assert.equal(captureAcknowledged({ ok: true, stdout: "not-json" }), false);
 });

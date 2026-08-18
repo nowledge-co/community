@@ -258,6 +258,10 @@ export function buildCaptureArgs(sessionId, transcriptPath) {
   ];
 }
 
+export function captureAcknowledged(result) {
+  return result.ok && parseJsonOutput(result.stdout)?.status === "enqueued";
+}
+
 function handleSync(payload) {
   const event = String(payload.hook_event_name || "unknown");
   const parentSessionId = String(payload.session_id || payload.sessionId || "").trim();
@@ -282,8 +286,8 @@ function handleSync(payload) {
   }
 
   let result = runNmem(buildCaptureArgs(sessionId, transcriptPath), 5_000);
-  let queued = result.ok;
-  if (!result.ok) {
+  let queued = captureAcknowledged(result);
+  if (!queued) {
     // Compatibility path for an older nmem binary without `t capture`.
     result = runNmem([
       "--json",

@@ -415,10 +415,15 @@ def _background_spawn_kwargs() -> dict[str, Any]:
 
 def _dispatch_skill_outcomes(payload: dict[str, Any]) -> None:
     safe_payload = {
-        key: value
-        for key in ("session_id", "sessionId", "cwd", "transcript_path", "transcriptPath")
-        if isinstance((value := payload.get(key)), str) and value.strip()
+        "session_id": _payload_value(payload, "session_id", "sessionId"),
+        "cwd": _payload_value(payload, "cwd"),
+        "transcript_path": _payload_value(
+            payload,
+            "transcript_path",
+            "transcriptPath",
+        ),
     }
+    safe_payload = {key: value for key, value in safe_payload.items() if value}
     if not safe_payload:
         return
     encoded = base64.urlsafe_b64encode(

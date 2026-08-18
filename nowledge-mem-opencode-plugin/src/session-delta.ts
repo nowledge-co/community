@@ -11,6 +11,10 @@ export type AcknowledgedDelta<T> = {
   reset: boolean
 }
 
+export function sessionSyncLaneKey(sessionId: string, spaceId?: string): string {
+  return `${spaceId ?? ""}\0${sessionId}`
+}
+
 export function selectAcknowledgedDelta<T>(
   messages: T[],
   cursor: AcknowledgedCursor | undefined,

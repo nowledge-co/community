@@ -7,6 +7,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 // src/session-delta.ts
+function sessionSyncLaneKey(sessionId, spaceId) {
+  return `${spaceId ?? ""}\0${sessionId}`;
+}
 function selectAcknowledgedDelta(messages, cursor, externalId) {
   let start = cursor?.count ?? 0;
   let reset = false;
@@ -279,11 +282,12 @@ ${reasoning}
     const autoSyncEnabled = !["0", "false", "off", "no"].includes(
       (process.env.NMEM_OPENCODE_AUTO_SYNC ?? "1").trim().toLowerCase()
     );
-    function syncStateFor(sessionID) {
-      const existing = syncStates.get(sessionID);
+    function syncStateFor(sessionID, spaceId = ambientSpaceId) {
+      const key = sessionSyncLaneKey(sessionID, spaceId);
+      const existing = syncStates.get(key);
       if (existing) return existing;
       const created = {};
-      syncStates.set(sessionID, created);
+      syncStates.set(key, created);
       return created;
     }
     function lastExternalId(messages) {
@@ -331,7 +335,7 @@ ${reasoning}
       if (!hasUser || !hasAssistant) {
         return { skipped: true, reason: "incomplete_turn", session_id: ctx.sessionID };
       }
-      const state = syncStateFor(ctx.sessionID);
+      const state = syncStateFor(ctx.sessionID, options.spaceId || ambientSpaceId);
       const delta = selectAcknowledgedDelta(
         threadMessages,
         options.force ? void 0 : state.acknowledged,

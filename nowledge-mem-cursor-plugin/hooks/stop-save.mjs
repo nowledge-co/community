@@ -73,6 +73,24 @@ export function buildSaveArgs(capture, env = process.env) {
   return withStartupScopeArgs(args, env);
 }
 
+export function buildLegacySaveArgs(capture, env = process.env) {
+  if (!capture.conversationId || !capture.project) {
+    return [];
+  }
+
+  return withStartupScopeArgs([
+    't',
+    'save',
+    '--from',
+    'cursor',
+    '--truncate',
+    '--project',
+    capture.project,
+    '--session-id',
+    capture.conversationId,
+  ], env);
+}
+
 function transcriptFingerprint(transcriptPath) {
   if (!transcriptPath) {
     return '';
@@ -203,11 +221,22 @@ function saveResultHasThread(result) {
   );
 }
 
+function captureCommandUnsupported(result) {
+  const detail = `${result.stdout ?? ''}\n${result.stderr ?? ''}`.toLowerCase();
+  return [
+    'unknown command: capture',
+    "unrecognized subcommand 'capture'",
+    'unrecognized subcommand "capture"',
+    "invalid value 'capture'",
+  ].some((marker) => detail.includes(marker));
+}
+
 const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
 
 export async function saveCapture(capture, options = {}) {
   const env = options.env ?? process.env;
   const args = buildSaveArgs(capture, env);
+  const legacyArgs = buildLegacySaveArgs(capture, env);
   const command = options.command ?? findNmemCommand(env);
   if (args.length === 0 || !command) {
     const reason = args.length === 0 ? 'missing-identity' : 'cli-unavailable';
@@ -249,6 +278,21 @@ export async function saveCapture(capture, options = {}) {
         });
       } catch {
         result = { ok: false, data: null };
+      }
+      if (captureCommandUnsupported(result)) {
+        const legacyRemaining = deadline - clock();
+        if (legacyRemaining <= 0) {
+          continue;
+        }
+        try {
+          result = run(legacyArgs, {
+            command,
+            env,
+            timeoutMs: Math.min(ATTEMPT_TIMEOUT_MS, legacyRemaining),
+          });
+        } catch {
+          result = { ok: false, data: null };
+        }
       }
       if (saveResultHasThread(result)) {
         saved = true;

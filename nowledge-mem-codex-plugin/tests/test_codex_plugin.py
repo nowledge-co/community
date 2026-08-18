@@ -119,6 +119,33 @@ class HookTests(unittest.TestCase):
         legacy.assert_not_called()
         claim.assert_not_called()
 
+    def test_skill_outcome_dispatch_preserves_nested_hook_identity(self):
+        payload = {
+            "data": {
+                "input": {
+                    "sessionId": "nested-session",
+                    "cwd": "/tmp/nested-project",
+                    "transcriptPath": "/tmp/nested-rollout.jsonl",
+                }
+            }
+        }
+        with mock.patch.object(self.module.subprocess, "Popen") as popen:
+            self.module._dispatch_skill_outcomes(payload)
+
+        command = popen.call_args.args[0]
+        encoded = command[command.index("--skill-outcome-payload") + 1]
+        decoded = json.loads(
+            self.module.base64.urlsafe_b64decode(encoded.encode("ascii")).decode("utf-8")
+        )
+        self.assertEqual(
+            decoded,
+            {
+                "session_id": "nested-session",
+                "cwd": "/tmp/nested-project",
+                "transcript_path": "/tmp/nested-rollout.jsonl",
+            },
+        )
+
     def test_build_save_command_delegates_windows_shim_to_runtime(self):
         nmem = r"C:\Users\jockie\AppData\Local\Nowledge Mem\cli\nmem.CMD"
         bridged = [r"C:\Windows\System32\cmd.exe", "/d", "/s", "/c", "command"]
