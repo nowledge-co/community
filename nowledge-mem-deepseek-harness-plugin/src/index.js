@@ -13,6 +13,8 @@ import { join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
+import { selectUnacknowledgedEvents } from './session-delta.js'
+
 export const name = 'nowledge-mem'
 export const inject = ['agents', 'shell']
 
@@ -386,9 +388,11 @@ function stableThreadId(sessionId) {
   return `deepseek-harness-${safe === '' ? 'session' : safe}`
 }
 
-export function buildThreadImportPayload(session, maxMessageChars, sourceApp = DEFAULT_SOURCE_APP) {
+function buildThreadImportDelta(session, maxMessageChars, sourceApp, acknowledgedSeq) {
+  const delta = selectUnacknowledgedEvents(session.events, acknowledgedSeq)
   const messages = []
-  for (const event of session.events) {
+  const sessionId = String(session.header.id)
+  for (const event of delta.events) {
     const role = importRole(event)
     const message = eventMessage(event)
     if (role === undefined || message === undefined) continue
@@ -396,6 +400,7 @@ export function buildThreadImportPayload(session, maxMessageChars, sourceApp = D
     const content = boundText(messageText(message).trim(), maxMessageChars)
     if (content === '') continue
     const metadata = {
+      external_id: `deepseek-harness:${sessionId}:${event.seq}:${message.id}`,
       dsh_seq: event.seq,
       dsh_event_type: event.type,
       dsh_message_id: message.id,
@@ -420,24 +425,37 @@ export function buildThreadImportPayload(session, maxMessageChars, sourceApp = D
     })
   }
   if (messages.length === 0) return undefined
-  const sessionId = String(session.header.id)
   return {
-    title: firstUserTitle(messages, sessionId),
-    messages,
-    metadata: {
-      source_app: sourceApp,
-      dsh_session_id: sessionId,
-      dsh_cwd: session.header.cwd,
-      dsh_parent_session: session.header.parentSession,
-      dsh_origin: session.header.origin,
-      dsh_agent_preset: session.header.agentPreset,
+    acknowledgedSeq: delta.nextSeq,
+    reset: delta.reset,
+    payload: {
+      title: firstUserTitle(messages, sessionId),
+      messages,
+      metadata: {
+        source_app: sourceApp,
+        dsh_session_id: sessionId,
+        dsh_cwd: session.header.cwd,
+        dsh_parent_session: session.header.parentSession,
+        dsh_origin: session.header.origin,
+        dsh_agent_preset: session.header.agentPreset,
+      },
     },
   }
 }
 
-async function importSession(ctx, config, session) {
-  const payload = buildThreadImportPayload(session, config.maxThreadMessageChars, config.sourceApp)
-  if (payload === undefined) return false
+export function buildThreadImportPayload(session, maxMessageChars, sourceApp = DEFAULT_SOURCE_APP) {
+  return buildThreadImportDelta(session, maxMessageChars, sourceApp, -1)?.payload
+}
+
+async function importSession(ctx, config, session, acknowledgedSeq) {
+  const delta = buildThreadImportDelta(
+    session,
+    config.maxThreadMessageChars,
+    config.sourceApp,
+    acknowledgedSeq,
+  )
+  if (delta === undefined) return undefined
+  const payload = delta.payload
   const staging = await mkdtemp(join(tmpdir(), 'dsh-nowledge-mem-'))
   const file = join(staging, 'thread.json')
   try {
@@ -457,7 +475,7 @@ async function importSession(ctx, config, session) {
     if (config.spaceId !== undefined) importArgs.push('--space-id', config.spaceId)
     if (config.agentId !== undefined) importArgs.push('--agent-id', config.agentId)
     const result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
-    return successfulStdout(result) !== undefined
+    return successfulStdout(result) === undefined ? undefined : delta.acknowledgedSeq
   } finally {
     await rm(staging, { recursive: true, force: true })
   }
@@ -493,18 +511,18 @@ export function apply(ctx, config = {}) {
   }, { prepend: true })
 
   const enqueueSync = session => {
-    const latestSurfaceSeq = [...session.events]
-      .reverse()
-      .find(event => event.type === 'user/message'
-        || event.type === 'assistant/message'
-        || event.type === 'tool/result')?.seq
-    if (latestSurfaceSeq === undefined || latestSurfaceSeq <= (syncedSeq.get(session) ?? -1)) return
     const previous = syncTail.get(session) ?? Promise.resolve()
     const next = previous
       .catch(() => undefined)
       .then(async () => {
         try {
-          if (await importSession(ctx, resolved, session)) syncedSeq.set(session, latestSurfaceSeq)
+          const acknowledgedSeq = await importSession(
+            ctx,
+            resolved,
+            session,
+            syncedSeq.get(session) ?? -1,
+          )
+          if (acknowledgedSeq !== undefined) syncedSeq.set(session, acknowledgedSeq)
         } catch (error) {
           warn(ctx, `nowledge-mem: turn-end transcript import failed: ${errorMessage(error)}`)
         }

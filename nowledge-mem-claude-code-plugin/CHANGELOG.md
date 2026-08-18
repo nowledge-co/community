@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Automatic Claude-compatible thread capture now durably enqueues the exact
+  session and returns without waiting for a complete transcript import.
+
 ## [0.7.23] - 2026-08-10
 
 ### Fixed

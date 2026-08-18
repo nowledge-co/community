@@ -5,6 +5,29 @@ import { tool } from "@opencode-ai/plugin";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
+// src/session-delta.ts
+function selectAcknowledgedDelta(messages, cursor, externalId) {
+  let start = cursor?.count ?? 0;
+  let reset = false;
+  if (start < 0 || start > messages.length || start > 0 && externalId(messages[start - 1]) !== cursor?.lastExternalId) {
+    start = 0;
+    reset = true;
+  }
+  const end = messages.length;
+  return {
+    start,
+    end,
+    messages: messages.slice(start),
+    next: {
+      count: end,
+      ...end > 0 ? { lastExternalId: externalId(messages[end - 1]) } : {}
+    },
+    reset
+  };
+}
+
+// src/index.ts
 var BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
 You have Nowledge Mem tools for cross-tool knowledge management. Use them proactively.
@@ -308,43 +331,50 @@ ${reasoning}
       if (!hasUser || !hasAssistant) {
         return { skipped: true, reason: "incomplete_turn", session_id: ctx.sessionID };
       }
-      const signature = `${threadMessages.length}:${lastExternalId(threadMessages)}`;
       const state = syncStateFor(ctx.sessionID);
-      if (!options.force && state.lastSignature === signature) {
+      const delta = selectAcknowledgedDelta(
+        threadMessages,
+        options.force ? void 0 : state.acknowledged,
+        (message) => String(message?.metadata?.external_id ?? "")
+      );
+      if (delta.messages.length === 0) {
         return { skipped: true, reason: "already_synced", session_id: ctx.sessionID };
       }
       const threadId = `opencode-${ctx.sessionID}`.toLowerCase();
       const title = options.summary || threadMessages.find((message) => message.role === "user")?.content?.slice(0, 120) || threadMessages[0]?.content?.slice(0, 120) || "OpenCode Session";
       const metadata = threadMetadata(ctx.sessionID, options.reason);
       const projectPath = ctx.directory ?? directory;
-      let res = await nmemApi(
-        "/threads",
-        {
-          thread_id: threadId,
-          title,
-          messages: threadMessages,
-          source: "opencode",
-          project: projectPath,
-          workspace: projectPath,
-          ...options.spaceId ? { space_id: options.spaceId } : {},
-          metadata
-        },
-        timeoutMs
-      );
-      let action = "created";
-      if (!res.ok) {
+      const createBody = {
+        thread_id: threadId,
+        title,
+        messages: threadMessages,
+        source: "opencode",
+        project: projectPath,
+        workspace: projectPath,
+        ...options.spaceId ? { space_id: options.spaceId } : {},
+        metadata
+      };
+      let res = state.created ? { ok: false, status: 409, data: null } : await nmemApi("/threads", createBody, timeoutMs);
+      let action = state.created ? "appended" : "created";
+      if (!res.ok && res.status === 409) {
+        state.created = true;
         await mergeThreadMetadata(threadId, metadata, timeoutMs).catch(() => void 0);
         res = await nmemApi(
           `/threads/${encodeURIComponent(threadId)}/append`,
           {
-            messages: threadMessages,
+            messages: delta.messages,
             deduplicate: true,
-            idempotency_key: `opencode:live:${ctx.sessionID}`,
+            idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${lastExternalId(delta.messages)}`,
             ...options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}
           },
           timeoutMs
         );
         action = "appended";
+      }
+      if (!res.ok && res.status === 404) {
+        state.created = false;
+        res = await nmemApi("/threads", createBody, timeoutMs);
+        action = "created";
       }
       if (!res.ok) {
         return {
@@ -353,12 +383,14 @@ ${reasoning}
           session_id: ctx.sessionID
         };
       }
-      state.lastSignature = signature;
+      state.created = true;
+      state.acknowledged = delta.next;
       return {
         success: true,
         action,
         thread_id: threadId,
-        messages_saved: threadMessages.length,
+        messages_saved: action === "created" ? threadMessages.length : delta.messages.length,
+        checkpoint_reset: delta.reset,
         title,
         sync_reason: options.reason
       };

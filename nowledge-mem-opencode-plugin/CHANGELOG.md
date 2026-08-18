@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Idle capture now uploads only the suffix after the last acknowledged
+  OpenCode message ID. Exact snapshots are no-ops and compacted sessions reset
+  to a deduplicating replay.
+
 ## [0.3.7] - 2026-08-13
 
 ### Fixed

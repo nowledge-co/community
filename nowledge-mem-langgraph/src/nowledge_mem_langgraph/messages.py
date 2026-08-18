@@ -10,6 +10,8 @@ from typing import Any
 
 from langchain_core.messages import BaseMessage
 
+AcknowledgedCursor = tuple[int, str]
+
 NOWLEDGE_TOOL_NAMES = frozenset(
     {
         "read_context_bundle",
@@ -105,6 +107,27 @@ def normalize_messages(messages: Iterable[BaseMessage]) -> list[dict[str, Any]]:
         metadata["external_id"] = f"langgraph:{message_id}"
         normalized.append({"role": role, "content": content, "metadata": metadata})
     return normalized
+
+
+def select_acknowledged_delta(
+    messages: list[dict[str, Any]], cursor: AcknowledgedCursor | None
+) -> tuple[list[dict[str, Any]], AcknowledgedCursor, bool]:
+    """Return the suffix after a verified remote acknowledgement anchor."""
+
+    start = cursor[0] if cursor is not None else 0
+    reset = False
+    if (
+        start < 0
+        or start > len(messages)
+        or (start > 0 and messages[start - 1].get("metadata", {}).get("external_id") != cursor[1])
+    ):
+        start = 0
+        reset = True
+    end = len(messages)
+    last_external_id = (
+        str(messages[-1].get("metadata", {}).get("external_id", "")) if messages else ""
+    )
+    return messages[start:], (end, last_external_id), reset
 
 
 def default_title(messages: Iterable[BaseMessage]) -> str:

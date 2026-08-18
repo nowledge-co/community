@@ -15,6 +15,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -56,6 +58,7 @@ API_BASE = (
 API_KEY = os.environ.get("NMEM_API_KEY") or _config_value("apiKey", "api_key") or ""
 REQUEST_TIMEOUT = 15
 SAVE_RETRY_DELAYS = (0.0, 0.5, 1.5, 3.0)
+ENQUEUE_TIMEOUT_SECONDS = 5
 
 def _env_path(name: str, default: Path) -> Path:
     raw = os.environ.get(name)
@@ -335,6 +338,61 @@ def upload_thread(session_id: str, messages: list[dict[str, Any]], cwd: str | No
     return api_request("POST", "/threads", body) is not None
 
 
+def build_enqueue_command(
+    nmem: str,
+    session_id: str,
+    session_file: Path,
+    cwd: str | None,
+) -> list[str]:
+    return [
+        nmem,
+        "--json",
+        "t",
+        "capture",
+        "--from",
+        "proma",
+        "--session-id",
+        session_id,
+        "--project",
+        cwd or ".",
+        "--transcript-path",
+        str(session_file),
+        "--sync",
+        "--all-projects",
+    ]
+
+
+def enqueue_capture(
+    session_id: str,
+    session_file: Path,
+    cwd: str | None,
+) -> bool:
+    nmem = shutil.which("nmem") or shutil.which("nmem.exe") or shutil.which("nmem.cmd")
+    if not nmem:
+        return False
+    try:
+        result = subprocess.run(
+            build_enqueue_command(nmem, session_id, session_file, cwd),
+            text=True,
+            capture_output=True,
+            timeout=ENQUEUE_TIMEOUT_SECONDS,
+            check=False,
+            creationflags=(
+                getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                if sys.platform == "win32"
+                else 0
+            ),
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        log(f"enqueue unavailable: {exc}")
+        return False
+    if result.returncode == 0:
+        return True
+    detail = (result.stderr or result.stdout or "").strip().replace("\n", " ")[:500]
+    log(f"enqueue unsupported; using direct compatibility path: {detail}")
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--event", default="stop")
@@ -361,6 +419,11 @@ def main() -> int:
         return 0
 
     resolved_session_id = session_id or session_file.stem
+    if enqueue_capture(resolved_session_id, session_file, cwd):
+        log(f"queued session={resolved_session_id} file={session_file}")
+        return 0
+
+    # Compatibility path for an older or unavailable nmem CLI.
     log(f"parsing: {session_file}")
     messages = parse_session_messages(session_file)
     log(f"parsed {len(messages)} messages")

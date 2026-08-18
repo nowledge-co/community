@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
-import { delimiter, extname, join, normalize } from "node:path";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { delimiter, extname, join, normalize, resolve } from "node:path";
 import { homedir, platform } from "node:os";
+import { fileURLToPath } from "node:url";
 
 const SOURCE_APP = "workbuddy";
 const DEFAULT_COMMAND_TIMEOUT_MS = 25_000;
@@ -241,6 +242,22 @@ function handleRoute(payload) {
   });
 }
 
+export function buildCaptureArgs(sessionId, transcriptPath) {
+  return [
+    "--json",
+    "t",
+    "capture",
+    "--from",
+    SOURCE_APP,
+    "--session-id",
+    sessionId,
+    "--transcript-path",
+    transcriptPath,
+    "--sync",
+    "--all-projects",
+  ];
+}
+
 function handleSync(payload) {
   const event = String(payload.hook_event_name || "unknown");
   const parentSessionId = String(payload.session_id || payload.sessionId || "").trim();
@@ -264,25 +281,31 @@ function handleSync(payload) {
     return allow();
   }
 
-  const result = runNmem([
-    "--json",
-    "t",
-    "sync",
-    "--from",
-    SOURCE_APP,
-    "--session-id",
-    sessionId,
-    "--session-dir",
-    transcriptPath,
-    "--all-projects",
-    "--apply",
-  ]);
+  let result = runNmem(buildCaptureArgs(sessionId, transcriptPath), 5_000);
+  let queued = result.ok;
+  if (!result.ok) {
+    // Compatibility path for an older nmem binary without `t capture`.
+    result = runNmem([
+      "--json",
+      "t",
+      "sync",
+      "--from",
+      SOURCE_APP,
+      "--session-id",
+      sessionId,
+      "--session-dir",
+      transcriptPath,
+      "--all-projects",
+      "--apply",
+    ]);
+    queued = false;
+  }
   if (result.ok) {
     const parentSuffix =
       event === "SubagentStop" && parentSessionId && parentSessionId !== sessionId
         ? ` parent=${parentSessionId}`
         : "";
-    log(`synced ${event} ${sessionId}${parentSuffix} from ${transcriptPath}`);
+    log(`${queued ? "queued" : "synced"} ${event} ${sessionId}${parentSuffix} from ${transcriptPath}`);
   } else {
     log(
       `sync failed ${event} ${sessionId} exit=${result.status ?? "spawn"} error=${compact(
@@ -293,18 +316,25 @@ function handleSync(payload) {
   allow();
 }
 
-const payload = readPayload();
-switch (process.argv[2]) {
-  case "context":
-    handleContext(payload);
-    break;
-  case "route":
-    handleRoute(payload);
-    break;
-  case "sync":
-    handleSync(payload);
-    break;
-  default:
-    log(`unknown hook mode: ${process.argv[2] || "<missing>"}`);
-    allow();
+function main() {
+  const payload = readPayload();
+  switch (process.argv[2]) {
+    case "context":
+      handleContext(payload);
+      break;
+    case "route":
+      handleRoute(payload);
+      break;
+    case "sync":
+      handleSync(payload);
+      break;
+    default:
+      log(`unknown hook mode: ${process.argv[2] || "<missing>"}`);
+      allow();
+  }
+}
+
+const entrypoint = process.argv[1] ? realpathSync(resolve(process.argv[1])) : "";
+if (realpathSync(fileURLToPath(import.meta.url)) === entrypoint) {
+  main();
 }

@@ -68,6 +68,57 @@ class HookTests(unittest.TestCase):
             ],
         )
 
+    def test_build_enqueue_command_carries_exact_session_and_transcript(self):
+        command = self.module._build_enqueue_command(
+            "/usr/local/bin/nmem",
+            {
+                "session_id": "019abc",
+                "cwd": "/tmp/project with spaces",
+                "transcript_path": "/tmp/codex/rollout.jsonl",
+            },
+        )
+
+        self.assertEqual(
+            command,
+            [
+                "/usr/local/bin/nmem",
+                "--json",
+                "t",
+                "capture",
+                "--from",
+                "codex",
+                "--session-id",
+                "019abc",
+                "--project",
+                "/tmp/project with spaces",
+                "--transcript-path",
+                "/tmp/codex/rollout.jsonl",
+            ],
+        )
+
+    def test_stop_returns_after_durable_enqueue_without_full_save(self):
+        payload = {
+            "session_id": "019abc",
+            "cwd": "/tmp/project",
+            "transcript_path": "/tmp/codex/rollout.jsonl",
+        }
+        enqueued = mock.Mock(
+            returncode=0,
+            stdout='{"status":"enqueued","worker_started":true}',
+            stderr="",
+        )
+        with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+             mock.patch.object(self.module, "_run_enqueue", return_value=enqueued), \
+             mock.patch.object(self.module, "_dispatch_skill_outcomes") as outcomes, \
+             mock.patch.object(self.module, "_run_save_with_retries") as legacy, \
+             mock.patch.object(self.module, "_claim_capture_event") as claim, \
+             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: json.dumps(payload))):
+            self.assertEqual(self.module.main(), 0)
+
+        outcomes.assert_called_once_with(payload)
+        legacy.assert_not_called()
+        claim.assert_not_called()
+
     def test_build_save_command_delegates_windows_shim_to_runtime(self):
         nmem = r"C:\Users\jockie\AppData\Local\Nowledge Mem\cli\nmem.CMD"
         bridged = [r"C:\Windows\System32\cmd.exe", "/d", "/s", "/c", "command"]

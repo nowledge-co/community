@@ -19,7 +19,11 @@ from nowledge_mem_langgraph import (
     NowledgeMiddleware,
     NowledgeSettings,
 )
-from nowledge_mem_langgraph.messages import NOWLEDGE_TOOL_NAMES, normalize_messages
+from nowledge_mem_langgraph.messages import (
+    NOWLEDGE_TOOL_NAMES,
+    normalize_messages,
+    select_acknowledged_delta,
+)
 
 
 class ProbeState(TypedDict):
@@ -193,6 +197,48 @@ def test_fallback_message_ids_are_deterministic_and_distinguish_repeats() -> Non
     second = normalize_messages(messages)
     assert first == second
     assert first[0]["metadata"]["external_id"] != first[1]["metadata"]["external_id"]
+
+
+def test_acknowledged_delta_resets_when_compaction_replaces_anchor() -> None:
+    original = normalize_messages(
+        [HumanMessage(content="first", id="h1"), AIMessage(content="answer", id="a1")]
+    )
+    cursor = (2, original[-1]["metadata"]["external_id"])
+    compacted = normalize_messages(
+        [HumanMessage(content="replacement", id="h2"), AIMessage(content="new", id="a2")]
+    )
+    delta, next_cursor, reset = select_acknowledged_delta(compacted, cursor)
+    assert delta == compacted
+    assert next_cursor == (2, "langgraph:a2")
+    assert reset is True
+
+
+def test_thread_sync_uploads_only_acknowledged_delta_and_retries_after_failure() -> None:
+    requests: list[dict[str, Any]] = []
+    statuses = iter([200, 500, 200])
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(__import__("json").loads(request.content))
+        return httpx.Response(next(statuses), json={"success": True}, request=request)
+
+    http = httpx.Client(base_url="http://mem.test", transport=httpx.MockTransport(handle))
+    middleware = NowledgeMiddleware(
+        NowledgeClient(NowledgeSettings(api_url="http://mem.test"), client=http)
+    )
+    first = [HumanMessage(content="hello", id="h1"), AIMessage(content="one", id="a1")]
+    second = [*first, HumanMessage(content="next", id="h2"), AIMessage(content="two", id="a2")]
+
+    middleware.after_agent({"messages": first}, runtime())
+    middleware.after_agent({"messages": second}, runtime())
+    middleware.after_agent({"messages": second}, runtime())
+
+    assert [
+        [message["metadata"]["external_id"] for message in body["messages"]] for body in requests
+    ] == [
+        ["langgraph:h1", "langgraph:a1"],
+        ["langgraph:h2", "langgraph:a2"],
+        ["langgraph:h2", "langgraph:a2"],
+    ]
 
 
 def test_sync_middleware_injects_context_once_per_turn_and_syncs_top_level() -> None:

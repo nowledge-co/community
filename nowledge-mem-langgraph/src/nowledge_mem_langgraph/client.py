@@ -93,6 +93,7 @@ class NowledgeClient:
         identity: NowledgeIdentity,
         runtime: object | None,
         title: str | None,
+        normalized_messages: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         server_info = getattr(runtime, "server_info", None)
         execution_info = getattr(runtime, "execution_info", None)
@@ -111,7 +112,9 @@ class NowledgeClient:
         return {
             "thread_id": f"langgraph:{self.settings.application_id}:{thread_id}",
             "title": title or default_title(messages),
-            "messages": normalize_messages(messages),
+            "messages": normalized_messages
+            if normalized_messages is not None
+            else normalize_messages(messages),
             "source": "langgraph",
             "space_id": identity.space_id,
             "tool_version": "nowledge-mem-langgraph/0.1.0",
@@ -126,6 +129,7 @@ class NowledgeClient:
         identity: NowledgeIdentity | None = None,
         runtime: object | None = None,
         title: str | None = None,
+        normalized_messages: list[dict[str, Any]] | None = None,
     ) -> Mapping[str, Any]:
         resolved = (identity or self.settings.resolve_identity(runtime)).normalized()
         payload = self._thread_payload(
@@ -134,6 +138,7 @@ class NowledgeClient:
             identity=resolved,
             runtime=runtime,
             title=title,
+            normalized_messages=normalized_messages,
         )
         if self._client is not None:
             response = self._client.post(
@@ -157,6 +162,7 @@ class NowledgeClient:
         identity: NowledgeIdentity | None = None,
         runtime: object | None = None,
         title: str | None = None,
+        normalized_messages: list[dict[str, Any]] | None = None,
     ) -> Mapping[str, Any]:
         resolved = (identity or self.settings.resolve_identity(runtime)).normalized()
         payload = self._thread_payload(
@@ -165,6 +171,7 @@ class NowledgeClient:
             identity=resolved,
             runtime=runtime,
             title=title,
+            normalized_messages=normalized_messages,
         )
         if self._async_client is not None:
             response = await self._async_client.post(

@@ -57,20 +57,20 @@ export function buildSaveArgs(capture, env = process.env) {
     return [];
   }
 
-  return withStartupScopeArgs(
-    [
-      't',
-      'save',
-      '--from',
-      'cursor',
-      '--truncate',
-      '--project',
-      capture.project,
-      '--session-id',
-      capture.conversationId,
-    ],
-    env,
-  );
+  const args = [
+    't',
+    'capture',
+    '--from',
+    'cursor',
+    '--project',
+    capture.project,
+    '--session-id',
+    capture.conversationId,
+  ];
+  if (capture.transcriptPath) {
+    args.push('--transcript-path', capture.transcriptPath);
+  }
+  return withStartupScopeArgs(args, env);
 }
 
 function transcriptFingerprint(transcriptPath) {
@@ -197,7 +197,10 @@ function logEvent(event, options = {}) {
 }
 
 function saveResultHasThread(result) {
-  return result.ok && Array.isArray(result.data?.results) && result.data.results.length > 0;
+  return result.ok && (
+    result.data?.status === 'enqueued' ||
+    (Array.isArray(result.data?.results) && result.data.results.length > 0)
+  );
 }
 
 const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));

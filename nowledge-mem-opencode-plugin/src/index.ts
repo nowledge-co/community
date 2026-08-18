@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
+import { selectAcknowledgedDelta, type AcknowledgedCursor } from "./session-delta"
+
 const BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
 You have Nowledge Mem tools for cross-tool knowledge management. Use them proactively.
@@ -316,7 +318,8 @@ export default {
       timer?: ReturnType<typeof setTimeout>
       inFlight?: Promise<void>
       pending?: boolean
-      lastSignature?: string
+      created?: boolean
+      acknowledged?: AcknowledgedCursor
     }
     const syncStates = new Map<string, SessionSyncState>()
     const autoSyncDebounceMs = Math.max(
@@ -400,9 +403,13 @@ export default {
         return { skipped: true, reason: "incomplete_turn", session_id: ctx.sessionID }
       }
 
-      const signature = `${threadMessages.length}:${lastExternalId(threadMessages)}`
       const state = syncStateFor(ctx.sessionID)
-      if (!options.force && state.lastSignature === signature) {
+      const delta = selectAcknowledgedDelta(
+        threadMessages,
+        options.force ? undefined : state.acknowledged,
+        (message) => String(message?.metadata?.external_id ?? ""),
+      )
+      if (delta.messages.length === 0) {
         return { skipped: true, reason: "already_synced", session_id: ctx.sessionID }
       }
 
@@ -416,9 +423,7 @@ export default {
       const metadata = threadMetadata(ctx.sessionID, options.reason)
       const projectPath = ctx.directory ?? directory
 
-      let res = await nmemApi(
-        "/threads",
-        {
+      const createBody = {
           thread_id: threadId,
           title,
           messages: threadMessages,
@@ -427,24 +432,32 @@ export default {
           workspace: projectPath,
           ...(options.spaceId ? { space_id: options.spaceId } : {}),
           metadata,
-        },
-        timeoutMs,
-      )
-      let action = "created"
+        }
+      let res = state.created
+        ? { ok: false, status: 409, data: null }
+        : await nmemApi("/threads", createBody, timeoutMs)
+      let action = state.created ? "appended" : "created"
 
-      if (!res.ok) {
+      if (!res.ok && res.status === 409) {
+        state.created = true
         await mergeThreadMetadata(threadId, metadata, timeoutMs).catch(() => undefined)
         res = await nmemApi(
           `/threads/${encodeURIComponent(threadId)}/append`,
           {
-            messages: threadMessages,
+            messages: delta.messages,
             deduplicate: true,
-            idempotency_key: `opencode:live:${ctx.sessionID}`,
+            idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${lastExternalId(delta.messages)}`,
             ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
           },
           timeoutMs,
         )
         action = "appended"
+      }
+
+      if (!res.ok && res.status === 404) {
+        state.created = false
+        res = await nmemApi("/threads", createBody, timeoutMs)
+        action = "created"
       }
 
       if (!res.ok) {
@@ -455,12 +468,14 @@ export default {
         }
       }
 
-      state.lastSignature = signature
+      state.created = true
+      state.acknowledged = delta.next
       return {
         success: true,
         action,
         thread_id: threadId,
-        messages_saved: threadMessages.length,
+        messages_saved: action === "created" ? threadMessages.length : delta.messages.length,
+        checkpoint_reset: delta.reset,
         title,
         sync_reason: options.reason,
       }

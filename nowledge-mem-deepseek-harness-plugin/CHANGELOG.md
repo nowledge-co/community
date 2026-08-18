@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Turn-end capture now imports only events after the last acknowledged DSH
+  sequence, stamps stable message external IDs, and replays safely after event
+  compaction or a failed write.
+
 ## 0.1.2
 
 - Omits unset MCP auth and identity headers so DSH boots cleanly with a local unauthenticated Nowledge Mem server.

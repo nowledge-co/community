@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Automatic CodeBuddy capture now uses the shared durable per-session queue,
+  with the previous synchronous sync retained for older CLIs.
+
 ## 0.1.1 - 2026-07-25
 
 - Keep the CodeBuddy package scoped to CodeBuddy startup context, provenance, documentation, and marketplace loading.

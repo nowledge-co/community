@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -21,6 +22,7 @@ MIN_CAPTURE_ATTEMPT_SECONDS = 1.0
 SAVE_RETRY_DELAYS_SECONDS = (0.0, 1.0, 3.0, 6.0)
 CAPTURE_LOCK_STALE_SECONDS = 90
 SKILL_OUTCOME_TIMEOUT_SECONDS = 8.0
+CAPTURE_ENQUEUE_TIMEOUT_SECONDS = 5.0
 SESSION_NOT_FOUND_MARKERS = (
     "No codex sessions found",
     "Codex sessions directory not found",
@@ -343,6 +345,97 @@ def _build_save_command(
     return _build_nmem_command(nmem, *args)
 
 
+def _build_enqueue_command(nmem: str, payload: dict[str, Any]) -> list[str]:
+    args = ["--json", "t", "capture", "--from", "codex"]
+    session_id = _payload_value(payload, "session_id", "sessionId")
+    if session_id:
+        args.extend(["--session-id", session_id])
+    cwd = _payload_value(payload, "cwd")
+    if cwd:
+        project = str(Path(cwd).expanduser())
+        if nmem.lower().endswith(".cmd"):
+            project = _cmd_exe_path(project)
+        args.extend(["--project", project])
+    transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
+    if transcript_path:
+        transcript = str(Path(transcript_path).expanduser())
+        if nmem.lower().endswith(".cmd"):
+            transcript = _cmd_exe_path(transcript)
+        args.extend(["--transcript-path", transcript])
+    return _build_nmem_command(nmem, *args)
+
+
+def _run_enqueue(
+    nmem: str,
+    payload: dict[str, Any],
+) -> subprocess.CompletedProcess[str]:
+    command = _build_enqueue_command(nmem, payload)
+    _log(f"enqueue: {subprocess.list2cmdline(command)}")
+    return subprocess.run(
+        command,
+        env=_build_env(payload),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=CAPTURE_ENQUEUE_TIMEOUT_SECONDS,
+        check=False,
+        **_windows_no_window_kwargs(),
+    )
+
+
+def _enqueue_succeeded(proc: subprocess.CompletedProcess[str]) -> bool:
+    if proc.returncode != 0:
+        return False
+    try:
+        payload = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        return False
+    return isinstance(payload, dict) and payload.get("status") == "enqueued"
+
+
+def _background_spawn_kwargs() -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+        "close_fds": True,
+    }
+    if sys.platform == "win32":
+        kwargs["creationflags"] = (
+            getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            | getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+        )
+    else:
+        kwargs["start_new_session"] = True
+    return kwargs
+
+
+def _dispatch_skill_outcomes(payload: dict[str, Any]) -> None:
+    safe_payload = {
+        key: value
+        for key in ("session_id", "sessionId", "cwd", "transcript_path", "transcriptPath")
+        if isinstance((value := payload.get(key)), str) and value.strip()
+    }
+    if not safe_payload:
+        return
+    encoded = base64.urlsafe_b64encode(
+        json.dumps(safe_payload, separators=(",", ":")).encode("utf-8")
+    ).decode("ascii")
+    command = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--skill-outcome-payload",
+        encoded,
+    ]
+    try:
+        subprocess.Popen(command, **_background_spawn_kwargs())
+    except Exception as exc:
+        _log(f"skill-outcome: background dispatch failed: {exc}")
+
+
 def _run_save(
     nmem: str,
     payload: dict[str, Any],
@@ -589,7 +682,24 @@ def _looks_like_session_lookup_miss(proc: subprocess.CompletedProcess[str]) -> b
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--event", default="stop", help="Diagnostic event label.")
+    parser.add_argument("--skill-outcome-payload", help=argparse.SUPPRESS)
     args, _ = parser.parse_known_args()
+
+    if args.skill_outcome_payload:
+        try:
+            payload = json.loads(
+                base64.urlsafe_b64decode(args.skill_outcome_payload.encode("ascii"))
+            )
+        except (ValueError, UnicodeError, json.JSONDecodeError):
+            return 0
+        nmem = _nmem_command()
+        if nmem and isinstance(payload, dict):
+            _report_skill_outcomes(
+                nmem,
+                payload,
+                deadline=_deadline_after(CAPTURE_DEADLINE_SECONDS),
+            )
+        return 0
 
     payload = _read_hook_input()
     session_id = _payload_value(payload, "session_id", "sessionId")
@@ -605,23 +715,44 @@ def main() -> int:
         _log("skip: nmem not found")
         return 0
 
-    if not _claim_capture_event(payload):
-        _log("skip: duplicate Stop hook event already claimed")
-        return 0
-
-    deadline = _deadline_after(CAPTURE_DEADLINE_SECONDS)
     delegated_originator = _delegated_conversation_originator(payload)
     if delegated_originator:
         # Raft owns the real channel/thread boundary. Its long-lived Codex
         # rollout is an execution trace containing inbox control notices and
         # empty final answers, not a user conversation. Keep skill telemetry,
         # but never persist that rollout as a Codex Thread.
-        _report_skill_outcomes(nmem, payload, deadline=deadline)
+        _report_skill_outcomes(
+            nmem,
+            payload,
+            deadline=_deadline_after(CAPTURE_DEADLINE_SECONDS),
+        )
         _log(
             "skip: delegated conversation host owns thread capture "
             f"originator={delegated_originator}"
         )
         return 0
+
+    if session_id:
+        try:
+            enqueue_proc = _run_enqueue(nmem, payload)
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            _log(f"enqueue: unavailable, using legacy capture: {exc}")
+        else:
+            if _enqueue_succeeded(enqueue_proc):
+                _dispatch_skill_outcomes(payload)
+                _log("enqueue: durable capture accepted")
+                return 0
+            detail = (enqueue_proc.stderr or enqueue_proc.stdout or "").strip()
+            _log(
+                f"enqueue: nmem exited {enqueue_proc.returncode}; "
+                f"using legacy capture: {detail[:300]}"
+            )
+
+    if not _claim_capture_event(payload):
+        _log("skip: duplicate Stop hook event already claimed")
+        return 0
+
+    deadline = _deadline_after(CAPTURE_DEADLINE_SECONDS)
 
     try:
         captured, proc = _run_save_with_retries(

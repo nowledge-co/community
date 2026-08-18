@@ -20,6 +20,7 @@ from typing import Any
 SOURCE_APP = "kimi-code"
 DEFAULT_TIMEOUT_SECONDS = 35
 DEFAULT_RETRIES = 2
+ENQUEUE_TIMEOUT_SECONDS = 5
 
 
 def _windows_no_window_kwargs() -> dict[str, int]:
@@ -91,6 +92,32 @@ def _run_sync(session_id: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _build_enqueue_command(session_id: str) -> list[str]:
+    return [
+        "nmem",
+        "--json",
+        "t",
+        "capture",
+        "--from",
+        SOURCE_APP,
+        "--session-id",
+        session_id,
+        "--sync",
+        "--all-projects",
+    ]
+
+
+def _run_enqueue(session_id: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        _build_enqueue_command(session_id),
+        text=True,
+        capture_output=True,
+        timeout=ENQUEUE_TIMEOUT_SECONDS,
+        check=False,
+        **_windows_no_window_kwargs(),
+    )
+
+
 def main() -> int:
     payload = _read_payload()
     session_id = str(payload.get("session_id") or "").strip()
@@ -99,6 +126,21 @@ def main() -> int:
         _log(f"skip {event}: missing session_id")
         return 0
 
+    try:
+        enqueued = _run_enqueue(session_id)
+    except FileNotFoundError:
+        _log(f"skip {event} {session_id}: nmem not found on PATH")
+        return 0
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        _log(f"enqueue unavailable {event} {session_id}: {exc}")
+    else:
+        if enqueued.returncode == 0:
+            _log(f"queued {event} {session_id}")
+            return 0
+        detail = (enqueued.stderr or enqueued.stdout or "").strip().replace("\n", " ")[:600]
+        _log(f"enqueue unsupported {event} {session_id}: {detail!r}")
+
+    # Compatibility path for an older nmem binary without `t capture`.
     attempts = _positive_int_env("NMEM_KIMI_SYNC_RETRIES", DEFAULT_RETRIES)
     for attempt in range(1, attempts + 1):
         try:

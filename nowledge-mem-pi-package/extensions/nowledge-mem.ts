@@ -4,6 +4,8 @@ import { homedir } from "node:os";
 import { basename, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
+import { selectAcknowledgedDelta, type AcknowledgedCursor } from "./session-delta.ts";
+
 const DEFAULT_SOURCE_APP = "pi";
 const DEFAULT_PLUGIN_VERSION = "0.8.7";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
@@ -73,7 +75,7 @@ interface SyncState {
 	latestPayload?: SyncPayload;
 	created?: boolean;
 	lastError?: string;
-	lastSyncedCount?: number;
+	acknowledged?: AcknowledgedCursor;
 }
 
 interface SyncPayload {
@@ -472,11 +474,15 @@ function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | 
 }
 
 async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> {
+	const externalId = (message: ThreadMessage) => stringValue(message.metadata.external_id) || "";
+	const delta = selectAcknowledgedDelta(payload.messages, state.acknowledged, externalId);
+	if (delta.messages.length === 0) return;
+
 	if (!state.created) {
 		const createResult = await postJson("/threads", payload.body);
 		if (createResult.ok) {
 			state.created = true;
-			state.lastSyncedCount = payload.messages.length;
+			state.acknowledged = delta.next;
 			state.lastError = undefined;
 			return;
 		}
@@ -490,9 +496,9 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 	}
 
 	let result = await postJson(`/threads/${encodeURIComponent(payload.threadId)}/append`, {
-		messages: payload.messages,
+		messages: delta.messages,
 		deduplicate: true,
-		idempotency_key: `${sourceApp()}:${payload.sessionId}:${payload.messages.length}`,
+		idempotency_key: `${sourceApp()}:${payload.sessionId}:${delta.start}-${delta.end}:${externalId(delta.messages[delta.messages.length - 1])}`,
 	});
 	if (!result.ok && state.created && isThreadNotFound(result)) {
 		state.created = false;
@@ -505,7 +511,7 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 		return;
 	}
 	state.created = true;
-	state.lastSyncedCount = payload.messages.length;
+	state.acknowledged = delta.next;
 	state.lastError = undefined;
 }
 

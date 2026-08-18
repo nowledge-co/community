@@ -381,19 +381,28 @@ def _build_command(
     json_output: bool = True,
 ) -> list[str]:
     runtime = _host_runtime()
-    args = (["--json"] if json_output else []) + [
-        "t",
-        "save",
-        "--from",
-        runtime,
-        "--truncate",
-    ]
-
     session_id = _payload_value(payload, "session_id", "sessionId") or os.environ.get(
         "GROK_SESSION_ID", ""
     ).strip()
     if session_id:
-        args.extend(["--session-id", session_id])
+        args = (["--json"] if json_output else []) + [
+            "t",
+            "capture",
+            "--from",
+            runtime,
+            "--session-id",
+            session_id,
+        ]
+    else:
+        # Compatibility fallback for unusual host events without exact
+        # identity; normal lifecycle events always use the durable queue.
+        args = (["--json"] if json_output else []) + [
+            "t",
+            "save",
+            "--from",
+            runtime,
+            "--truncate",
+        ]
 
     cwd = (
         os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
@@ -410,6 +419,13 @@ def _build_command(
         space = _resolve_space_from_cwd(project_path)
         if space:
             args.extend(["--space", space])
+
+    transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
+    if session_id and transcript_path:
+        transcript = str(Path(transcript_path).expanduser())
+        if nmem.lower().endswith(".cmd"):
+            transcript = _cmd_exe_path(transcript)
+        args.extend(["--transcript-path", transcript])
 
     return _build_nmem_command(nmem, *args)
 
@@ -429,6 +445,8 @@ def _capture_has_result(stdout: str) -> bool:
 
     if not isinstance(payload, dict):
         return False
+    if payload.get("status") == "enqueued":
+        return True
     results = payload.get("results")
     return isinstance(results, list) and len(results) > 0
 

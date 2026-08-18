@@ -14,6 +14,7 @@ from typing import Any
 
 DEFAULT_TIMEOUT_SECONDS = 35
 DEFAULT_RETRIES = 2
+ENQUEUE_TIMEOUT_SECONDS = 5
 
 
 def _windows_no_window_kwargs() -> dict[str, int]:
@@ -128,6 +129,42 @@ def _run_sync(
     )
 
 
+def _build_enqueue_command(
+    source_app: str,
+    session_id: str,
+    transcript_path: str,
+) -> list[str]:
+    return [
+        "nmem",
+        "--json",
+        "t",
+        "capture",
+        "--from",
+        source_app,
+        "--session-id",
+        session_id,
+        "--transcript-path",
+        transcript_path,
+        "--sync",
+        "--all-projects",
+    ]
+
+
+def _run_enqueue(
+    source_app: str,
+    session_id: str,
+    transcript_path: str,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        _build_enqueue_command(source_app, session_id, transcript_path),
+        text=True,
+        capture_output=True,
+        timeout=ENQUEUE_TIMEOUT_SECONDS,
+        check=False,
+        **_windows_no_window_kwargs(),
+    )
+
+
 def main() -> int:
     payload = _read_payload()
     source_app = _source_app_for_payload(payload)
@@ -146,6 +183,21 @@ def main() -> int:
         _log(source_app, f"skip {event} {session_id}: transcript not found at {transcript_path}")
         return 0
 
+    try:
+        enqueued = _run_enqueue(source_app, session_id, transcript_path)
+    except FileNotFoundError:
+        _log(source_app, f"skip {event} {session_id}: nmem not found on PATH")
+        return 0
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        _log(source_app, f"enqueue unavailable {event} {session_id}: {exc}")
+    else:
+        if enqueued.returncode == 0:
+            _log(source_app, f"queued {event} {session_id} from {transcript_path}")
+            return 0
+        detail = (enqueued.stderr or enqueued.stdout or "").strip().replace("\n", " ")[:600]
+        _log(source_app, f"enqueue unsupported {event} {session_id}: {detail!r}")
+
+    # Compatibility path for an older nmem binary without `t capture`.
     attempts = _positive_int_env("NMEM_CODEBUDDY_SYNC_RETRIES", DEFAULT_RETRIES)
     for attempt in range(1, attempts + 1):
         try:
