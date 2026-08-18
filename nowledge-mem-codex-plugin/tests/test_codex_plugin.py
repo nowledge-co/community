@@ -90,9 +90,9 @@ class HookTests(unittest.TestCase):
                 "--session-id",
                 "019abc",
                 "--project",
-                "/tmp/project with spaces",
+                str(Path("/tmp/project with spaces").expanduser()),
                 "--transcript-path",
-                "/tmp/codex/rollout.jsonl",
+                str(Path("/tmp/codex/rollout.jsonl").expanduser()),
             ],
         )
 
