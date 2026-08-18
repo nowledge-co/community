@@ -6,6 +6,8 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 
 import {
 	isCheckpointedAppendAck,
+	isThreadAppendAck,
+	isThreadCreateAck,
 	selectAcknowledgedDelta,
 	sessionSyncLaneKey,
 	stableMessageFingerprint,
@@ -510,10 +512,15 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 
 	if (!state.created) {
 		const createResult = await postJson("/threads", payload.body, payload.destination);
-		if (createResult.ok) {
+		if (createResult.ok && isThreadCreateAck(createResult.data)) {
 			state.created = true;
 			state.acknowledged = delta.next;
 			state.lastError = undefined;
+			return;
+		}
+		if (createResult.ok) {
+			state.lastError = `${hostLabel()} thread sync did not receive a create acknowledgement`;
+			debugWarn(state.lastError);
 			return;
 		}
 		if (!isThreadAlreadyExists(createResult)) {
@@ -540,11 +547,16 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 	if (!result.ok && state.created && isThreadNotFound(result)) {
 		state.created = false;
 		result = await postJson("/threads", payload.body, payload.destination);
-		recreated = result.ok;
+		recreated = true;
 	}
 	if (!result.ok) {
 		const detail = JSON.stringify(result.data);
 		state.lastError = `${hostLabel()} thread sync failed (${result.status}): ${detail}`;
+		debugWarn(state.lastError);
+		return;
+	}
+	if (recreated ? !isThreadCreateAck(result.data) : !isThreadAppendAck(result.data)) {
+		state.lastError = `${hostLabel()} thread sync did not receive a persistence acknowledgement`;
 		debugWarn(state.lastError);
 		return;
 	}

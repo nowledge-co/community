@@ -49,9 +49,29 @@ export function sessionSyncLaneKey(
 
 export function isCheckpointedAppendAck(data: unknown): boolean {
 	return (
+		isThreadAppendAck(data) &&
+		(data as { append_mode?: unknown }).append_mode === "checkpointed"
+	);
+}
+
+export function isThreadAppendAck(data: unknown): boolean {
+	return (
 		typeof data === "object" &&
 		data !== null &&
-		(data as { append_mode?: unknown }).append_mode === "checkpointed"
+		(data as { success?: unknown }).success === true &&
+		Number.isInteger((data as { messages_added?: unknown }).messages_added) &&
+		Number.isInteger((data as { total_messages?: unknown }).total_messages)
+	);
+}
+
+export function isThreadCreateAck(data: unknown): boolean {
+	if (typeof data !== "object" || data === null) return false;
+	const thread = (data as { thread?: unknown }).thread;
+	return (
+		typeof thread === "object" &&
+		thread !== null &&
+		typeof (thread as { thread_id?: unknown }).thread_id === "string" &&
+		(thread as { thread_id: string }).thread_id.length > 0
 	);
 }
 

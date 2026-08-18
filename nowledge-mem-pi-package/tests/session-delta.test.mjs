@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
 	isCheckpointedAppendAck,
+	isThreadAppendAck,
+	isThreadCreateAck,
 	selectAcknowledgedDelta,
 	sessionSyncLaneKey,
 } from "../extensions/session-delta.ts";
@@ -61,6 +63,26 @@ test("isolates cursor state by complete destination lane", () => {
 });
 
 test("requires an explicit checkpoint acknowledgement", () => {
-	assert.equal(isCheckpointedAppendAck({ append_mode: "checkpointed" }), true);
+	assert.equal(
+		isCheckpointedAppendAck({
+			success: true,
+			append_mode: "checkpointed",
+			messages_added: 1,
+			total_messages: 3,
+		}),
+		true,
+	);
+	assert.equal(isCheckpointedAppendAck({ append_mode: "checkpointed" }), false);
+	assert.equal(isCheckpointedAppendAck({ success: false, append_mode: "checkpointed" }), false);
 	assert.equal(isCheckpointedAppendAck({ success: true }), false);
+});
+
+test("validates the endpoint-specific persistence acknowledgement", () => {
+	assert.equal(isThreadAppendAck({ success: true, messages_added: 1, total_messages: 3 }), true);
+	assert.equal(isThreadAppendAck({}), false);
+	assert.equal(isThreadAppendAck({ success: false }), false);
+	assert.equal(isThreadCreateAck({ thread: { thread_id: "pi-session" } }), true);
+	assert.equal(isThreadCreateAck({ thread: {} }), false);
+	assert.equal(isThreadCreateAck({ success: true }), false);
+	assert.equal(isThreadCreateAck({}), false);
 });

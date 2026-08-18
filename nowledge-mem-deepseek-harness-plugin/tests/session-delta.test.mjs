@@ -36,12 +36,31 @@ test('an exact replay has no delta', () => {
 })
 
 test('requires semantic success before acknowledging an import', () => {
+  assert.equal(importAcknowledged(JSON.stringify({}), false), false)
   assert.equal(
     importAcknowledged(
       JSON.stringify({ success: false, failed_count: 1, results: [{ success: false }] }),
       false,
     ),
     false,
+  )
+  assert.equal(
+    importAcknowledged(
+      JSON.stringify({
+        success: false,
+        failed_count: 0,
+        results: [{ success: true, append_mode: 'checkpointed' }],
+      }),
+      true,
+    ),
+    false,
+  )
+  assert.equal(
+    importAcknowledged(
+      JSON.stringify({ success: true, failed_count: 0, results: [{ success: true }] }),
+      false,
+    ),
+    true,
   )
   assert.equal(
     importAcknowledged(

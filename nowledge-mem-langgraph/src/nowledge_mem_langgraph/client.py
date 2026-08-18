@@ -134,10 +134,15 @@ class NowledgeClient:
             raise RuntimeError("Thread import returned a non-object acknowledgement")
         results = data.get("results")
         failed = data.get("failed_count")
-        if data.get("success") is False or (isinstance(failed, int) and failed > 0):
+        if data.get("success") is not True or (isinstance(failed, int) and failed > 0):
             raise RuntimeError("Thread import reported a semantic failure")
-        if isinstance(results, list) and any(
-            isinstance(result, Mapping) and result.get("success") is False for result in results
+        if (
+            not isinstance(results, list)
+            or not results
+            or any(
+                not isinstance(result, Mapping) or result.get("success") is not True
+                for result in results
+            )
         ):
             raise RuntimeError("Thread import result was not persisted")
         if expected_message_count is not None:

@@ -163,7 +163,15 @@ def test_thread_payload_uses_thread_not_assistant_and_excludes_mem_tool_output()
 
     def handle(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json={"success": True}, request=request)
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "failed_count": 0,
+                "results": [{"success": True, "append_mode": "created"}],
+            },
+            request=request,
+        )
 
     transport = httpx.MockTransport(handle)
     http = httpx.Client(base_url="http://mem.test", transport=transport)
@@ -197,6 +205,19 @@ def test_fallback_message_ids_are_deterministic_and_distinguish_repeats() -> Non
     second = normalize_messages(messages)
     assert first == second
     assert first[0]["metadata"]["external_id"] != first[1]["metadata"]["external_id"]
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {},
+        {"success": False, "failed_count": 0, "results": [{"success": True}]},
+        {"success": True, "failed_count": 0, "results": []},
+    ],
+)
+def test_thread_sync_requires_explicit_successful_result(response: object) -> None:
+    with pytest.raises(RuntimeError):
+        NowledgeClient._validate_thread_sync_ack(response, None)
 
 
 def test_acknowledged_delta_resets_when_compaction_replaces_anchor() -> None:
@@ -281,9 +302,8 @@ def test_thread_sync_keeps_cursor_after_http_200_semantic_failure() -> None:
         outcome = next(responses)
         if outcome == "failed":
             result = {
-                "success": False,
-                "failed_count": 1,
-                "results": [{"success": False, "error": "rejected"}],
+                "failed_count": 0,
+                "results": [{"success": True, "append_mode": "checkpointed"}],
             }
         else:
             result = {
@@ -354,7 +374,15 @@ def test_thread_cursor_isolated_by_destination_identity() -> None:
 
     def handle(request: httpx.Request) -> httpx.Response:
         requests.append(__import__("json").loads(request.content))
-        return httpx.Response(200, json={"success": True}, request=request)
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "failed_count": 0,
+                "results": [{"success": True, "append_mode": "created"}],
+            },
+            request=request,
+        )
 
     http = httpx.Client(base_url="http://mem.test", transport=httpx.MockTransport(handle))
     middleware = NowledgeMiddleware(
@@ -387,7 +415,14 @@ def test_sync_middleware_injects_context_once_per_turn_and_syncs_top_level() -> 
         calls.append((request.url.path, body))
         if request.url.path == "/context/bundle":
             return httpx.Response(200, json={"rendered_markdown": "## Working Memory\nShip it"})
-        return httpx.Response(200, json={"success": True})
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "failed_count": 0,
+                "results": [{"success": True, "append_mode": "created"}],
+            },
+        )
 
     http = httpx.Client(base_url="http://mem.test", transport=httpx.MockTransport(handle))
     client = NowledgeClient(NowledgeSettings(api_url="http://mem.test"), client=http)

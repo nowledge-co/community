@@ -25,9 +25,9 @@ export function importAcknowledged(stdout, checkpointed) {
     return false
   }
   if (data === null || typeof data !== 'object') return false
-  if (data.success === false || Number(data.failed_count ?? 0) > 0) return false
+  if (data.success !== true || Number(data.failed_count ?? 0) > 0) return false
   const results = Array.isArray(data.results) ? data.results : []
-  if (results.some(result => result?.success === false)) return false
+  if (results.length === 0 || results.some(result => result?.success !== true)) return false
   if (!checkpointed) return true
   return results.length > 0 && results[0]?.append_mode === 'checkpointed'
 }
