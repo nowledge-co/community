@@ -40,6 +40,7 @@ The plugin reads the shared Nowledge Mem client config at `~/.nowledge-mem/confi
 | `NMEM_HOST_AGENT_ID` | *(none)* | Advanced external-alias mapping. |
 | `NMEM_AMP_AUTO_SYNC` | `1` | Set to `0`/`false`/`off`/`no` to disable automatic session capture. |
 | `NMEM_AMP_AUTO_SYNC_DEBOUNCE_MS` | `1500` | Debounce window for automatic capture. |
+| `NMEM_AMP_DEBUG` | `0` | Set to `1`/`true`/`on`/`yes` to log connector lifecycle messages. |
 
 ## Customize without editing the plugin
 

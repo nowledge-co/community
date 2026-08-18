@@ -197,10 +197,12 @@ export default function ampKnowledgeMem(amp: PluginAPI): void {
   amp.onDispose(() => {
     bootstrapManager.dispose()
     syncManager.dispose()
-    logger.log(`${SOURCE_APP} connector disposed`)
+    if (config.debugLogging) logger.log(`${SOURCE_APP} connector disposed`)
   })
 
-  logger.log(`${SOURCE_APP} connector loaded: ${BEHAVIORAL_GUIDANCE.length} bytes of guidance registered`)
+  if (config.debugLogging) {
+    logger.log(`${SOURCE_APP} connector loaded: ${BEHAVIORAL_GUIDANCE.length} bytes of guidance registered`)
+  }
 }
 
 /**
