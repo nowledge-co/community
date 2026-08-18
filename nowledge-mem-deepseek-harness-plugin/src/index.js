@@ -13,6 +13,8 @@ import { join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
+import { shouldRecallForPrompt } from './recall.js'
+
 export const name = 'nowledge-mem'
 export const inject = ['agents', 'shell']
 
@@ -191,10 +193,7 @@ function proposedPromptText(messages, maxChars) {
   return boundText(text, maxChars)
 }
 
-export function shouldRecallForPrompt(prompt, pattern) {
-  pattern.lastIndex = 0
-  return prompt.trim() !== '' && pattern.test(prompt)
-}
+export { shouldRecallForPrompt }
 
 function parseSearchResponse(text) {
   try {
