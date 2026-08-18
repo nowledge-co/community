@@ -4,7 +4,13 @@ import { homedir } from "node:os";
 import { basename, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-import { selectAcknowledgedDelta, type AcknowledgedCursor } from "./session-delta.ts";
+import {
+	isCheckpointedAppendAck,
+	selectAcknowledgedDelta,
+	sessionSyncLaneKey,
+	stableMessageFingerprint,
+	type AcknowledgedCursor,
+} from "./session-delta.ts";
 
 const DEFAULT_SOURCE_APP = "pi";
 const DEFAULT_PLUGIN_VERSION = "0.8.7";
@@ -83,6 +89,8 @@ interface SyncPayload {
 	sessionId: string;
 	messages: ThreadMessage[];
 	body: JsonObject;
+	laneKey: string;
+	destination: ReturnType<typeof resolveConfig>;
 }
 
 type StartupContextEntry = {
@@ -206,8 +214,11 @@ export function shouldTryRemoteApiFallback(status: number): boolean {
 	return status === 404 || status === 405;
 }
 
-async function postJson(path: string, body: JsonObject): Promise<{ ok: boolean; status: number; data: unknown }> {
-	const config = resolveConfig();
+async function postJson(
+	path: string,
+	body: JsonObject,
+	config = resolveConfig(),
+): Promise<{ ok: boolean; status: number; data: unknown }> {
 	const headers: Record<string, string> = { "Content-Type": "application/json" };
 	if (config.apiKey) {
 		headers.Authorization = `Bearer ${config.apiKey}`;
@@ -470,16 +481,35 @@ function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | 
 			...(config.hostAgentId ? { host_agent_id: config.hostAgentId } : {}),
 		},
 	};
-	return { threadId, sessionId: id, messages, body };
+	return {
+		threadId,
+		sessionId: id,
+		messages,
+		body,
+		laneKey: sessionSyncLaneKey(
+			threadId,
+			config.apiUrl,
+			config.apiKey,
+			config.space,
+			config.agentId,
+			config.hostAgentId,
+		),
+		destination: config,
+	};
 }
 
 async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> {
 	const externalId = (message: ThreadMessage) => stringValue(message.metadata.external_id) || "";
-	const delta = selectAcknowledgedDelta(payload.messages, state.acknowledged, externalId);
+	const delta = selectAcknowledgedDelta(
+		payload.messages,
+		state.acknowledged,
+		externalId,
+		stableMessageFingerprint,
+	);
 	if (delta.messages.length === 0) return;
 
 	if (!state.created) {
-		const createResult = await postJson("/threads", payload.body);
+		const createResult = await postJson("/threads", payload.body, payload.destination);
 		if (createResult.ok) {
 			state.created = true;
 			state.acknowledged = delta.next;
@@ -495,18 +525,31 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 		state.created = true;
 	}
 
-	let result = await postJson(`/threads/${encodeURIComponent(payload.threadId)}/append`, {
-		messages: delta.messages,
-		deduplicate: true,
-		idempotency_key: `${sourceApp()}:${payload.sessionId}:${delta.start}-${delta.end}:${externalId(delta.messages[delta.messages.length - 1])}`,
-	});
+	const checkpointed = Boolean(state.acknowledged && !delta.reset);
+	let recreated = false;
+	let result = await postJson(
+		`/threads/${encodeURIComponent(payload.threadId)}/append`,
+		{
+			messages: delta.messages,
+			deduplicate: true,
+			idempotency_key: `${sourceApp()}:${payload.sessionId}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
+			...(checkpointed ? { expected_message_count: delta.start } : {}),
+		},
+		payload.destination,
+	);
 	if (!result.ok && state.created && isThreadNotFound(result)) {
 		state.created = false;
-		result = await postJson("/threads", payload.body);
+		result = await postJson("/threads", payload.body, payload.destination);
+		recreated = result.ok;
 	}
 	if (!result.ok) {
 		const detail = JSON.stringify(result.data);
 		state.lastError = `${hostLabel()} thread sync failed (${result.status}): ${detail}`;
+		debugWarn(state.lastError);
+		return;
+	}
+	if (checkpointed && !recreated && !isCheckpointedAppendAck(result.data)) {
+		state.lastError = `${hostLabel()} thread sync did not receive a checkpoint acknowledgement`;
 		debugWarn(state.lastError);
 		return;
 	}
@@ -516,7 +559,7 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 }
 
 async function flushPayload(payload: SyncPayload): Promise<void> {
-	const key = payload.threadId;
+	const key = payload.laneKey;
 	const state = syncStates.get(key) || {};
 	syncStates.set(key, state);
 	state.latestPayload = payload;
@@ -537,7 +580,7 @@ async function flushPayload(payload: SyncPayload): Promise<void> {
 async function flush(ctx: ExtensionContext, reason: string): Promise<void> {
 	const payload = buildSyncPayload(ctx, reason);
 	if (!payload) return;
-	const state = syncStates.get(payload.threadId);
+	const state = syncStates.get(payload.laneKey);
 	if (state?.timer) {
 		clearTimeout(state.timer);
 		state.timer = undefined;
@@ -546,7 +589,15 @@ async function flush(ctx: ExtensionContext, reason: string): Promise<void> {
 }
 
 function evictSyncState(ctx: ExtensionContext): void {
-	const key = threadIdFor(ctx);
+	const config = resolveConfig();
+	const key = sessionSyncLaneKey(
+		threadIdFor(ctx),
+		config.apiUrl,
+		config.apiKey,
+		config.space,
+		config.agentId,
+		config.hostAgentId,
+	);
 	const state = syncStates.get(key);
 	if (state?.timer) clearTimeout(state.timer);
 	syncStates.delete(key);
@@ -555,7 +606,7 @@ function evictSyncState(ctx: ExtensionContext): void {
 function scheduleFlush(ctx: ExtensionContext, reason: string): void {
 	const payload = buildSyncPayload(ctx, reason);
 	if (!payload) return;
-	const key = payload.threadId;
+	const key = payload.laneKey;
 	const state = syncStates.get(key) || {};
 	syncStates.set(key, state);
 	if (state.timer) clearTimeout(state.timer);

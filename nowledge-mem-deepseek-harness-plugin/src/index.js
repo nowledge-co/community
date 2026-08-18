@@ -7,13 +7,14 @@
  * after completed turns.
  */
 
+import { createHash } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
-import { selectUnacknowledgedEvents } from './session-delta.js'
+import { importAcknowledged, selectUnacknowledgedEvents } from './session-delta.js'
 
 export const name = 'nowledge-mem'
 export const inject = ['agents', 'shell']
@@ -447,12 +448,12 @@ export function buildThreadImportPayload(session, maxMessageChars, sourceApp = D
   return buildThreadImportDelta(session, maxMessageChars, sourceApp, -1)?.payload
 }
 
-async function importSession(ctx, config, session, acknowledgedSeq) {
+async function importSession(ctx, config, session, cursor) {
   const delta = buildThreadImportDelta(
     session,
     config.maxThreadMessageChars,
     config.sourceApp,
-    acknowledgedSeq,
+    cursor?.seq ?? -1,
   )
   if (delta === undefined) return undefined
   const payload = delta.payload
@@ -461,6 +462,7 @@ async function importSession(ctx, config, session, acknowledgedSeq) {
   try {
     await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
     const importArgs = [
+      '--json',
       't',
       'import',
       '--file',
@@ -474,8 +476,29 @@ async function importSession(ctx, config, session, acknowledgedSeq) {
     ]
     if (config.spaceId !== undefined) importArgs.push('--space-id', config.spaceId)
     if (config.agentId !== undefined) importArgs.push('--agent-id', config.agentId)
+    const expectedMessageCount = cursor !== undefined && !delta.reset ? cursor.count : undefined
+    if (expectedMessageCount !== undefined) {
+      const batchFingerprint = createHash('sha256')
+        .update(JSON.stringify(payload.messages))
+        .digest('hex')
+      importArgs.push('--expected-message-count', String(expectedMessageCount))
+      importArgs.push(
+        '--idempotency-key',
+        `deepseek-harness:${session.header.id}:${expectedMessageCount}-${expectedMessageCount + payload.messages.length}:${batchFingerprint}`,
+      )
+    }
     const result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
-    return successfulStdout(result) === undefined ? undefined : delta.acknowledgedSeq
+    const stdout = successfulStdout(result)
+    if (stdout === undefined || !importAcknowledged(stdout, expectedMessageCount !== undefined)) {
+      return undefined
+    }
+    return {
+      seq: delta.acknowledgedSeq,
+      count:
+        expectedMessageCount === undefined
+          ? payload.messages.length
+          : expectedMessageCount + payload.messages.length,
+    }
   } finally {
     await rm(staging, { recursive: true, force: true })
   }
@@ -483,7 +506,7 @@ async function importSession(ctx, config, session, acknowledgedSeq) {
 
 export function apply(ctx, config = {}) {
   const resolved = resolveConfig(config)
-  const syncedSeq = new WeakMap()
+  const syncedCursor = new WeakMap()
   const syncTail = new WeakMap()
 
   ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
@@ -516,13 +539,13 @@ export function apply(ctx, config = {}) {
       .catch(() => undefined)
       .then(async () => {
         try {
-          const acknowledgedSeq = await importSession(
+          const acknowledgedCursor = await importSession(
             ctx,
             resolved,
             session,
-            syncedSeq.get(session) ?? -1,
+            syncedCursor.get(session),
           )
-          if (acknowledgedSeq !== undefined) syncedSeq.set(session, acknowledgedSeq)
+          if (acknowledgedCursor !== undefined) syncedCursor.set(session, acknowledgedCursor)
         } catch (error) {
           warn(ctx, `nowledge-mem: turn-end transcript import failed: ${errorMessage(error)}`)
         }

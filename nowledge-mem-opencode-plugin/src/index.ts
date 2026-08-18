@@ -5,8 +5,11 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 
 import {
+  isCheckpointedAppendAck,
+  recreateMissingThread,
   selectAcknowledgedDelta,
   sessionSyncLaneKey,
+  stableMessageFingerprint,
   type AcknowledgedCursor,
 } from "./session-delta"
 
@@ -413,6 +416,7 @@ export default {
         threadMessages,
         options.force ? undefined : state.acknowledged,
         (message) => String(message?.metadata?.external_id ?? ""),
+        stableMessageFingerprint,
       )
       if (delta.messages.length === 0) {
         return { skipped: true, reason: "already_synced", session_id: ctx.sessionID }
@@ -429,15 +433,15 @@ export default {
       const projectPath = ctx.directory ?? directory
 
       const createBody = {
-          thread_id: threadId,
-          title,
-          messages: threadMessages,
-          source: "opencode",
-          project: projectPath,
-          workspace: projectPath,
-          ...(options.spaceId ? { space_id: options.spaceId } : {}),
-          metadata,
-        }
+        thread_id: threadId,
+        title,
+        messages: threadMessages,
+        source: "opencode",
+        project: projectPath,
+        workspace: projectPath,
+        ...(options.spaceId ? { space_id: options.spaceId } : {}),
+        metadata,
+      }
       let res = state.created
         ? { ok: false, status: 409, data: null }
         : await nmemApi("/threads", createBody, timeoutMs)
@@ -451,7 +455,10 @@ export default {
           {
             messages: delta.messages,
             deduplicate: true,
-            idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${lastExternalId(delta.messages)}`,
+            idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
+            ...(state.acknowledged && !delta.reset
+              ? { expected_message_count: delta.start }
+              : {}),
             ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
           },
           timeoutMs,
@@ -459,15 +466,30 @@ export default {
         action = "appended"
       }
 
-      if (!res.ok && res.status === 404) {
+      const recovered = await recreateMissingThread(res, async () => {
         state.created = false
-        res = await nmemApi("/threads", createBody, timeoutMs)
+        return nmemApi("/threads", createBody, timeoutMs)
+      })
+      if (recovered.recreated) {
+        res = recovered.response
         action = "created"
       }
 
       if (!res.ok) {
         return {
           error: `Thread save failed (${res.status}): ${JSON.stringify(res.data)}`,
+          thread_id: threadId,
+          session_id: ctx.sessionID,
+        }
+      }
+      if (
+        action === "appended" &&
+        state.acknowledged &&
+        !delta.reset &&
+        !isCheckpointedAppendAck(res.data)
+      ) {
+        return {
+          error: "Thread append was not acknowledged as checkpointed; cursor was preserved",
           thread_id: threadId,
           session_id: ctx.sessionID,
         }

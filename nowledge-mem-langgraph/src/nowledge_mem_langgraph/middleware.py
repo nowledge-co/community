@@ -193,9 +193,8 @@ class NowledgeMiddleware(AgentMiddleware):
             return
         cursor_key = self._thread_cursor_key(thread_id, runtime)
         normalized = normalize_messages(messages)
-        delta, next_cursor, _reset = select_acknowledged_delta(
-            normalized, self._get_thread_cursor(cursor_key)
-        )
+        cursor = self._get_thread_cursor(cursor_key)
+        delta, next_cursor, reset = select_acknowledged_delta(normalized, cursor)
         if not delta:
             return
         try:
@@ -205,6 +204,12 @@ class NowledgeMiddleware(AgentMiddleware):
                 runtime=runtime,
                 title=default_title(messages),
                 normalized_messages=delta,
+                expected_message_count=cursor[0] if cursor is not None and not reset else None,
+                idempotency_key=(
+                    f"langgraph:{thread_id}:{cursor[0]}-{next_cursor[0]}:{next_cursor[2]}"
+                    if cursor is not None and not reset
+                    else None
+                ),
             )
             self._put_thread_cursor(cursor_key, next_cursor)
         except Exception as error:
@@ -221,9 +226,8 @@ class NowledgeMiddleware(AgentMiddleware):
             return
         cursor_key = self._thread_cursor_key(thread_id, runtime)
         normalized = normalize_messages(messages)
-        delta, next_cursor, _reset = select_acknowledged_delta(
-            normalized, self._get_thread_cursor(cursor_key)
-        )
+        cursor = self._get_thread_cursor(cursor_key)
+        delta, next_cursor, reset = select_acknowledged_delta(normalized, cursor)
         if not delta:
             return
         try:
@@ -233,6 +237,12 @@ class NowledgeMiddleware(AgentMiddleware):
                 runtime=runtime,
                 title=default_title(messages),
                 normalized_messages=delta,
+                expected_message_count=cursor[0] if cursor is not None and not reset else None,
+                idempotency_key=(
+                    f"langgraph:{thread_id}:{cursor[0]}-{next_cursor[0]}:{next_cursor[2]}"
+                    if cursor is not None and not reset
+                    else None
+                ),
             )
             self._put_thread_cursor(cursor_key, next_cursor)
         except Exception as error:

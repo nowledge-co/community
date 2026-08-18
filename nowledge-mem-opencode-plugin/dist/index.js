@@ -7,13 +7,41 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 // src/session-delta.ts
+import { createHash } from "node:crypto";
 function sessionSyncLaneKey(sessionId, spaceId) {
   return `${spaceId ?? ""}\0${sessionId}`;
 }
-function selectAcknowledgedDelta(messages, cursor, externalId) {
+function stableMessageFingerprint(message) {
+  return JSON.stringify(message);
+}
+function prefixFingerprint(messages, end, messageFingerprint) {
+  const hash = createHash("sha256");
+  for (const message of messages.slice(0, end)) {
+    const value = messageFingerprint(message);
+    hash.update(String(Buffer.byteLength(value)));
+    hash.update(":");
+    hash.update(value);
+  }
+  return hash.digest("hex");
+}
+function isThreadNotFoundResponse(status, data) {
+  if (status === 404) return true;
+  return JSON.stringify(data).toLowerCase().includes("thread not found");
+}
+function isCheckpointedAppendAck(data) {
+  return typeof data === "object" && data !== null && data.append_mode === "checkpointed";
+}
+async function recreateMissingThread(response, recreate) {
+  if (response.ok || !isThreadNotFoundResponse(response.status, response.data)) {
+    return { response, recreated: false };
+  }
+  return { response: await recreate(), recreated: true };
+}
+function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprint = stableMessageFingerprint) {
   let start = cursor?.count ?? 0;
   let reset = false;
-  if (start < 0 || start > messages.length || start > 0 && externalId(messages[start - 1]) !== cursor?.lastExternalId) {
+  const acknowledgedPrefix = start >= 0 && start <= messages.length ? prefixFingerprint(messages, start, messageFingerprint) : "";
+  if (start < 0 || start > messages.length || start > 0 && (externalId(messages[start - 1]) !== cursor?.lastExternalId || acknowledgedPrefix !== cursor?.prefixFingerprint)) {
     start = 0;
     reset = true;
   }
@@ -24,7 +52,8 @@ function selectAcknowledgedDelta(messages, cursor, externalId) {
     messages: messages.slice(start),
     next: {
       count: end,
-      ...end > 0 ? { lastExternalId: externalId(messages[end - 1]) } : {}
+      ...end > 0 ? { lastExternalId: externalId(messages[end - 1]) } : {},
+      prefixFingerprint: prefixFingerprint(messages, end, messageFingerprint)
     },
     reset
   };
@@ -339,7 +368,8 @@ ${reasoning}
       const delta = selectAcknowledgedDelta(
         threadMessages,
         options.force ? void 0 : state.acknowledged,
-        (message) => String(message?.metadata?.external_id ?? "")
+        (message) => String(message?.metadata?.external_id ?? ""),
+        stableMessageFingerprint
       );
       if (delta.messages.length === 0) {
         return { skipped: true, reason: "already_synced", session_id: ctx.sessionID };
@@ -368,21 +398,32 @@ ${reasoning}
           {
             messages: delta.messages,
             deduplicate: true,
-            idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${lastExternalId(delta.messages)}`,
+            idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
+            ...state.acknowledged && !delta.reset ? { expected_message_count: delta.start } : {},
             ...options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}
           },
           timeoutMs
         );
         action = "appended";
       }
-      if (!res.ok && res.status === 404) {
+      const recovered = await recreateMissingThread(res, async () => {
         state.created = false;
-        res = await nmemApi("/threads", createBody, timeoutMs);
+        return nmemApi("/threads", createBody, timeoutMs);
+      });
+      if (recovered.recreated) {
+        res = recovered.response;
         action = "created";
       }
       if (!res.ok) {
         return {
           error: `Thread save failed (${res.status}): ${JSON.stringify(res.data)}`,
+          thread_id: threadId,
+          session_id: ctx.sessionID
+        };
+      }
+      if (action === "appended" && state.acknowledged && !delta.reset && !isCheckpointedAppendAck(res.data)) {
+        return {
+          error: "Thread append was not acknowledged as checkpointed; cursor was preserved",
           thread_id: threadId,
           session_id: ctx.sessionID
         };
