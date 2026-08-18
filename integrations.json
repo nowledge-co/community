@@ -2311,6 +2311,68 @@
       "slashCommands": []
     },
     {
+      "id": "devin",
+      "name": "Devin",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-devin-plugin",
+      "transport": "plugin+mcp+cli+api",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "hook+cli-native+api-v3",
+        "runtime": "devin",
+        "command": "nmem t sync --from devin --session-id <session-id> --apply",
+        "historicalCommand": "nmem t sync --from devin",
+        "note": "Local CLI/Desktop capture reads Devin's selected message chain from sessions.db. Hooks trigger idempotent sync after turns and compaction. Enterprise Cloud sync uses Devin's read-only v3 session API; child sessions remain distinct Threads."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Enable Devin's native plugin closed beta and install nowledge-co/community#nowledge-mem-devin-plugin",
+          "Keep nmem available on the machine that owns Devin CLI/Desktop history",
+          "Use nmem config mcp show --host devin for remote or authenticated Mem",
+          "For Devin Cloud, use a dedicated service user with only ViewOrgSessions and keep its credential outside the plugin"
+        ]
+      },
+      "install": {
+        "command": "devin plugins install nowledge-co/community#nowledge-mem-devin-plugin",
+        "updateCommand": "devin plugins update nowledge-mem",
+        "configRequired": "Devin native plugins are currently a closed beta. The bundled MCP entry is loopback-only and credential-free. Account administrators can require this git-subdir package through Devin's managed plugin manifest. Cloud session API credentials must belong to a least-privilege service user and must never be committed or shared through the plugin.",
+        "detectionHint": "Running in Devin CLI/Desktop/Cloud; Devin plugin support is enabled, or a local Devin sessions.db exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and install or update Nowledge Mem for Devin with devin plugins install nowledge-co/community#nowledge-mem-devin-plugin. Verify with nmem status and the Context Bundle or Working Memory check, open a short session, and confirm nmem t list --source devin shows a real Thread.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，使用 devin plugins install nowledge-co/community#nowledge-mem-devin-plugin 为 Devin 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，运行一个短会话，并确认 nmem t list --source devin 能看到真实 Thread。"
+        },
+        "docsUrl": "/docs/integrations/devin"
+      },
+      "toolNaming": {
+        "convention": "devin-plugin+mcp+cli",
+        "note": "Devin loads namespaced skills from the dedicated plugin; MCP is the structured memory surface and nmem imports Devin-owned transcripts."
+      },
+      "skills": [
+        "check-integration",
+        "status",
+        "read-working-memory",
+        "save-thread",
+        "distill-memory",
+        "save-handoff",
+        "search-memory"
+      ],
+      "slashCommands": []
+    },
+    {
       "id": "mcp-direct",
       "name": "MCP",
       "category": "surface",
