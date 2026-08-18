@@ -7,7 +7,8 @@
 - Stop writing `connector loaded`/`connector disposed` lifecycle messages to the
   plugin's stderr by default. Amp's host logs any plugin stderr output as WARN
   (`Plugin stderr`), which surfaced these routine messages as log noise. The
-  lifecycle messages now require `NMEM_AMP_DEBUG=1`.
+  lifecycle messages now require `NMEM_AMP_DEBUG` to be set to any recognized
+  truthy value (`1`/`true`/`on`/`yes`).
 
 ## [0.1.2] - 2026-08-12
 
