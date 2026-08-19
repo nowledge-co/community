@@ -38,7 +38,12 @@ async function runShell(ctx, request) {
   return await ctx.shell.run(ctx.shell.resolve(request))
 }
 
-export async function runShellWithHostSandboxRetry(ctx, request, session) {
+export async function runShellWithHostSandboxRetry(
+  ctx,
+  request,
+  session,
+  allowDangerFullAccessRetry = false,
+) {
   let sandboxError
   try {
     return await runShell(ctx, request)
@@ -48,6 +53,11 @@ export async function runShellWithHostSandboxRetry(ctx, request, session) {
       return undefined
     }
     sandboxError = error
+  }
+
+  if (!allowDangerFullAccessRetry) {
+    warn(ctx, `nowledge-mem: nmem shell sandbox unavailable and danger-full-access retry is not enabled; skipping retry: ${errorMessage(sandboxError)}`)
+    return undefined
   }
 
   const sandboxPolicy = resolveDangerFullAccessPolicy(ctx, session)

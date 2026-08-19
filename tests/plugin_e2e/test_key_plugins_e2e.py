@@ -1617,8 +1617,10 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "event.type === 'turn/end'" in source
     assert "SANDBOX_UNAVAILABLE" in sandbox_retry
     assert "isSandboxUnavailableError" in source
-    assert "runShellWithHostSandboxRetry(ctx, request, session)" in source
+    assert "runShellWithHostSandboxRetry(" in source
+    assert "allowDangerFullAccessRetry: config.allowDangerFullAccessRetry ?? false" in source
     assert "host did not grant danger-full-access; skipping retry" in sandbox_retry
+    assert "danger-full-access retry is not enabled; skipping retry" in sandbox_retry
     assert "pre-step context injection failed" in source
     assert "turn-end transcript import failed" in source
     assert "'--json', 'context', '--source-app', config.sourceApp" in source

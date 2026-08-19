@@ -70,6 +70,7 @@ export const Config = z.object({
   contextOnSessionStart: z.boolean(),
   recallOnPrompt: z.boolean(),
   syncOnTurnEnd: z.boolean(),
+  allowDangerFullAccessRetry: z.boolean(),
   promptRecallPattern: z.string(),
   recallLimit: z.number(),
   maxPromptChars: z.number(),
@@ -108,6 +109,7 @@ function resolveConfig(config = {}) {
     contextOnSessionStart: config.contextOnSessionStart ?? true,
     recallOnPrompt: config.recallOnPrompt ?? true,
     syncOnTurnEnd: config.syncOnTurnEnd ?? true,
+    allowDangerFullAccessRetry: config.allowDangerFullAccessRetry ?? false,
     promptRecallPattern: new RegExp(config.promptRecallPattern ?? DEFAULT_PROMPT_RECALL_PATTERN, 'iu'),
     recallLimit: config.recallLimit ?? DEFAULT_RECALL_LIMIT,
     maxPromptChars: config.maxPromptChars ?? DEFAULT_PROMPT_MAX_CHARS,
@@ -156,7 +158,12 @@ async function runNmem(ctx, config, args, signal, includeImportOrigin, stdin, se
     stdin,
     env: envFor(config, includeImportOrigin),
   }
-  return await runShellWithHostSandboxRetry(ctx, request, session)
+  return await runShellWithHostSandboxRetry(
+    ctx,
+    request,
+    session,
+    config.allowDangerFullAccessRetry,
+  )
 }
 
 function successfulStdout(result) {

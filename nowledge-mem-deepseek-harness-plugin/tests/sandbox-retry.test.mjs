@@ -55,7 +55,12 @@ test('does not resolve a privileged policy when the normal shell call succeeds',
 test('skips the privileged retry when the host has no sandbox policy service', async () => {
   const fixture = testContext({ runResults: [sandboxUnavailable()] })
 
-  const result = await runShellWithHostSandboxRetry(fixture.ctx, { command: 'nmem status' })
+  const result = await runShellWithHostSandboxRetry(
+    fixture.ctx,
+    { command: 'nmem status' },
+    undefined,
+    true,
+  )
 
   assert.equal(result, undefined)
   assert.equal(fixture.requests.length, 1)
@@ -72,7 +77,12 @@ test('skips the privileged retry when host policy resolution throws', async () =
     runResults: [sandboxUnavailable()],
   })
 
-  const result = await runShellWithHostSandboxRetry(fixture.ctx, { command: 'nmem status' })
+  const result = await runShellWithHostSandboxRetry(
+    fixture.ctx,
+    { command: 'nmem status' },
+    undefined,
+    true,
+  )
 
   assert.equal(result, undefined)
   assert.equal(fixture.requests.length, 1)
@@ -86,12 +96,30 @@ test('skips the privileged retry when host policy service lookup throws', async 
     runResults: [sandboxUnavailable()],
   })
 
-  const result = await runShellWithHostSandboxRetry(fixture.ctx, { command: 'nmem status' })
+  const result = await runShellWithHostSandboxRetry(
+    fixture.ctx,
+    { command: 'nmem status' },
+    undefined,
+    true,
+  )
 
   assert.equal(result, undefined)
   assert.equal(fixture.requests.length, 1)
   assert.ok(fixture.warnings.some(message => message.includes('failed to access sandbox policy service')))
   assert.match(fixture.warnings.at(-1), /host did not grant danger-full-access; skipping retry/)
+})
+
+test('does not resolve a privileged policy without explicit plugin opt-in', async () => {
+  const fixture = testContext({
+    policyServiceError: new Error('must not resolve'),
+    runResults: [sandboxUnavailable()],
+  })
+
+  const result = await runShellWithHostSandboxRetry(fixture.ctx, { command: 'nmem status' })
+
+  assert.equal(result, undefined)
+  assert.equal(fixture.requests.length, 1)
+  assert.match(fixture.warnings.at(-1), /danger-full-access retry is not enabled; skipping retry/)
 })
 
 test('retries exactly once with a host-resolved sandbox policy', async () => {
@@ -113,6 +141,7 @@ test('retries exactly once with a host-resolved sandbox policy', async () => {
     fixture.ctx,
     { command: 'nmem status' },
     session,
+    true,
   )
 
   assert.equal(result, success)
