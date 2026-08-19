@@ -115,3 +115,15 @@ export function selectSnapshotDelta(
 export function contentBoundIdempotencyKey(prefix, threadId, start, end, fingerprint) {
 	return `${prefix}:${threadId}:${start}-${end}:${fingerprint}`;
 }
+
+export function hasUserAndAssistant(messages) {
+	if (!Array.isArray(messages) || messages.length < 2) return false;
+	let hasUser = false;
+	let hasAssistant = false;
+	for (const message of messages) {
+		if (message?.role === "user") hasUser = true;
+		else if (message?.role === "assistant") hasAssistant = true;
+		if (hasUser && hasAssistant) return true;
+	}
+	return false;
+}

@@ -162,6 +162,9 @@ test("auto capture sends textual timestamps to the thread append API", async () 
 		logger,
 		event: {
 			messages: [
+				message("user", "prompt", {
+					__openclaw: { mirrorIdentity: "turn-2:prompt" },
+				}),
 				message("assistant", "captured", {
 					timestamp: 1_751_881_234_567,
 					__openclaw: { mirrorIdentity: "turn-2:assistant" },
@@ -178,7 +181,7 @@ test("auto capture sends textual timestamps to the thread append API", async () 
 	});
 
 	assert.equal(
-		client.appendCalls[0].messages[0].timestamp,
+		client.appendCalls[0].messages.find((msg) => msg.role === "assistant").timestamp,
 		"2025-07-07T09:40:34.567Z",
 	);
 });
@@ -381,7 +384,10 @@ test("snapshot fallback external IDs preserve the legacy seed shape", async () =
 		client,
 		logger,
 		event: {
-			messages: [message("user", "legacy fallback")],
+			messages: [
+				message("user", "legacy fallback"),
+				message("assistant", "legacy reply"),
+			],
 		},
 		ctx: {
 			sessionId: "session-snapshot-fallback",
@@ -391,7 +397,7 @@ test("snapshot fallback external IDs preserve the legacy seed shape", async () =
 		reason: "after_turn",
 	});
 
-	assert.equal(result.messagesAdded, 1);
+	assert.equal(result.messagesAdded, 2);
 	assert.equal(client.appendCalls.length, 1);
 	assert.equal(
 		client.appendCalls[0].messages[0].metadata.external_id,
@@ -408,7 +414,10 @@ test("delta fallback external IDs include run id when available", async () => {
 		client,
 		logger,
 		event: {
-			messages: [message("assistant", "delta fallback")],
+			messages: [
+				message("assistant", "delta fallback"),
+				message("user", "follow-up prompt"),
+			],
 		},
 		ctx: {
 			sessionId: "session-delta-fallback",
@@ -419,7 +428,7 @@ test("delta fallback external IDs include run id when available", async () => {
 		messageMode: "delta",
 	});
 
-	assert.equal(result.messagesAdded, 1);
+	assert.equal(result.messagesAdded, 2);
 	assert.equal(client.appendCalls.length, 1);
 	assert.equal(
 		client.appendCalls[0].messages[0].metadata.external_id,
@@ -579,4 +588,24 @@ test("failed appends do not advance the local cursor", async () => {
 		client.appendCalls.at(-1).messages.map((msg) => msg.content),
 		["third", "fourth"],
 	);
+});
+
+test("skips persist until a user+assistant pair exists", async () => {
+	const client = new FakeThreadClient();
+	const result = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [message("user", "only a prompt so far")],
+			success: true,
+		},
+		ctx: {
+			sessionId: "session-user-only",
+			sessionKey: "agent:main:telegram:direct:user-only",
+		},
+		reason: "before_reset",
+	});
+	assert.equal(result, undefined);
+	assert.equal(client.appendCalls.length, 0);
+	assert.equal(client.createCalls.length, 0);
 });

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { buildStableThreadId } from "./thread-identity.js";
 import {
 	contentBoundIdempotencyKey,
+	hasUserAndAssistant,
 	selectSnapshotDelta,
 	stableMessageFingerprint,
 } from "../session-delta.js";
@@ -485,6 +486,7 @@ export async function appendOrCreateThread({
 		.map((message) => normalizeRoleMessage(message, maxMessageChars))
 		.filter(Boolean);
 	if (normalized.length === 0) return;
+	if (!hasUserAndAssistant(normalized)) return;
 	const title = buildThreadTitle(ctx, normalized);
 
 	const buildMessages = (resolvedMessageMode) =>

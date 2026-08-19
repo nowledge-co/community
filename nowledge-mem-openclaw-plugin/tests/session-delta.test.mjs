@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
 	contentBoundIdempotencyKey,
+	hasUserAndAssistant,
 	isCheckpointConflictResponse,
 	isCheckpointedAppendAck,
 	isThreadAppendAck,
@@ -87,4 +88,22 @@ test("resolveThreadSyncTimeoutMs honors 120s default and 1s-30min bounds", () =>
 	assert.equal(resolveThreadSyncTimeoutMs("250"), 1_000);
 	assert.equal(resolveThreadSyncTimeoutMs("9999999"), 30 * 60_000);
 	assert.equal(resolveThreadSyncTimeoutMs("abc"), 120_000);
+});
+
+test("hasUserAndAssistant requires both roles, not just two messages", () => {
+	assert.equal(hasUserAndAssistant([{ role: "user", content: "a" }]), false);
+	assert.equal(
+		hasUserAndAssistant([
+			{ role: "user", content: "a" },
+			{ role: "user", content: "b" },
+		]),
+		false,
+	);
+	assert.equal(
+		hasUserAndAssistant([
+			{ role: "user", content: "a" },
+			{ role: "assistant", content: "b" },
+		]),
+		true,
+	);
 });
