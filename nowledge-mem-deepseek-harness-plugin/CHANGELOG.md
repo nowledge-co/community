@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Requires the DSH host to resolve the `danger-full-access` policy before a
+  sandbox-unavailable `nmem` command can be retried.
 - Turn-end capture now imports only events after the last acknowledged DSH
   sequence, stamps stable message external IDs, and replays safely after event
   compaction or a failed write.
