@@ -14,6 +14,8 @@
   advancing the local cursor.
 - Automatic thread create/append honor `NMEM_SYNC_TIMEOUT_MS` with a 120s
   default and 1-second to 30-minute bounds.
+- Automatic capture now waits for a user+assistant pair and coalesces
+  in-flight flushes so a later turn is not dropped while a persist is running.
 
 ## 0.7.4
 

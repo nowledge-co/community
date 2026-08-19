@@ -121,3 +121,37 @@ export function planAutomaticFlush({
 		),
 	};
 }
+
+export function hasUserAndAssistant(messages) {
+	if (!Array.isArray(messages) || messages.length < 2) return false;
+	let hasUser = false;
+	let hasAssistant = false;
+	for (const message of messages) {
+		if (message?.role === "user") hasUser = true;
+		else if (message?.role === "assistant") hasAssistant = true;
+		if (hasUser && hasAssistant) return true;
+	}
+	return false;
+}
+
+/**
+ * In-flight coalescing for per-thread automatic flush.
+ * A second flush requested while one is running is remembered and replayed
+ * after the in-flight persist finishes, so later turns are not dropped.
+ */
+export function beginInFlightFlush(state) {
+	if (state.flushing) {
+		state.pending = true;
+		return "wait";
+	}
+	state.flushing = true;
+	state.pending = false;
+	return "run";
+}
+
+export function finishInFlightFlush(state) {
+	state.flushing = false;
+	if (!state.pending) return "done";
+	state.pending = false;
+	return "rerun";
+}

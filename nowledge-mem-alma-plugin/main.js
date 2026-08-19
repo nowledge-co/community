@@ -3,6 +3,9 @@ import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import {
+	beginInFlightFlush,
+	finishInFlightFlush,
+	hasUserAndAssistant,
 	isCheckpointConflictResponse,
 	isCheckpointedAppendAck,
 	isThreadAppendAck,
@@ -1464,7 +1467,7 @@ export async function activate(context) {
 	// Buffer schema: { title, messages: [{role,content}], savedCount: number,
 	//   acknowledged: {count, remoteCount, lastExternalId?, prefixFingerprint}|null,
 	//   destinationKey: string, nowledgeThreadId: string|null,
-	//   flushing: boolean, timer: number|null }
+	//   flushing: boolean, pending: boolean, inFlight: Promise|undefined, timer: number|null }
 	const MAX_THREAD_BUFFERS = 20;
 	const threadBuffers = new Map();
 	let activeThreadId = null;
@@ -1528,10 +1531,12 @@ export async function activate(context) {
 		const buf = threadBuffers.get(threadId);
 		if (!buf) return;
 		attachDestination(buf);
-		if (buf.messages.length < 2) return;
-		if (buf.flushing) return; // guard against concurrent flush
-		buf.flushing = true;
+		if (!hasUserAndAssistant(buf.messages)) return;
+		if (beginInFlightFlush(buf) === "wait") {
+			return buf.inFlight;
+		}
 
+		const run = (async () => {
 		// Cancel this buffer's idle timer
 		if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
 
@@ -1607,8 +1612,16 @@ export async function activate(context) {
 		} catch (err) {
 			logger.error?.(`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`);
 		} finally {
-			buf.flushing = false;
+			if (finishInFlightFlush(buf) === "rerun") {
+				buf.inFlight = flushThread(threadId);
+				await buf.inFlight;
+			} else if (buf.inFlight === run) {
+				buf.inFlight = undefined;
+			}
 		}
+		})();
+		buf.inFlight = run;
+		await run;
 	};
 
 	const resetIdleTimer = (threadId) => {
@@ -1628,7 +1641,7 @@ export async function activate(context) {
 				const oldest = threadBuffers.keys().next().value;
 				const evicted = threadBuffers.get(oldest);
 				// Best-effort flush before eviction (fire-and-forget)
-				if (evicted && evicted.messages.length > evicted.savedCount && evicted.messages.length >= 2) {
+				if (evicted && evicted.messages.length > evicted.savedCount && hasUserAndAssistant(evicted.messages)) {
 					flushThread(oldest).catch(() => {});
 				}
 				if (evicted?.timer) clearTimeout(evicted.timer);
@@ -1642,6 +1655,8 @@ export async function activate(context) {
 				destinationKey: destinationLane(),
 				nowledgeThreadId: null,
 				flushing: false,
+				pending: false,
+				inFlight: undefined,
 				timer: null,
 			});
 		}
@@ -1738,8 +1753,10 @@ export async function activate(context) {
 			const flushPromises = [];
 			for (const [tid, buf] of threadBuffers) {
 				if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
-				if (buf.messages.length >= 2 && buf.messages.length > buf.savedCount) {
+				if (hasUserAndAssistant(buf.messages) && buf.messages.length > buf.savedCount) {
 					flushPromises.push(flushThread(tid));
+				} else if (buf.inFlight) {
+					flushPromises.push(buf.inFlight);
 				}
 			}
 			await Promise.allSettled(flushPromises);
@@ -1779,12 +1796,15 @@ export async function activate(context) {
 			// This covers plugin disable/reload paths where quit hooks may not fire.
 			const flushPromises = [];
 			for (const [threadId, buf] of threadBuffers) {
-				if (autoCapture && buf.messages.length > buf.savedCount && !buf.flushing) {
+				if (autoCapture && buf.messages.length > buf.savedCount) {
+					if (buf.flushing) buf.pending = true;
 					flushPromises.push(
-						flushThread(threadId).catch((err) =>
+						Promise.resolve(flushThread(threadId)).catch((err) =>
 							logger.error?.(`nowledge-mem: dispose flush failed for ${threadId}: ${err}`),
 						),
 					);
+				} else if (autoCapture && buf.inFlight) {
+					flushPromises.push(buf.inFlight);
 				}
 			}
 			if (flushPromises.length > 0) {
