@@ -846,7 +846,7 @@ describe("SessionSyncManager incremental checkpoint contract", () => {
     expect(nmemApi.timeouts).toEqual([12_000, MANUAL_SYNC_TIMEOUT_MS])
   })
 
-  it("isolates checkpoint state across destination spaces", async () => {
+  it("holds independent checkpoint state across two manager instances", async () => {
     const firstApi = fakeNmemApi({ "/threads": () => createAck() })
     const secondApi = fakeNmemApi({ "/threads": () => createAck() })
     const first = new SessionSyncManager(managerOptions({ nmemApi: firstApi, ambientSpaceId: "space-a" }))

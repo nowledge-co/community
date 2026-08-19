@@ -73,11 +73,23 @@ describe("selectAcknowledgedDelta", () => {
 })
 
 describe("sessionSyncLaneKey", () => {
-  it("isolates cursor state by the complete destination lane", () => {
-    const first = sessionSyncLaneKey("thread", "https://mem", "key", "space-a", "agent", "host")
-    const second = sessionSyncLaneKey("thread", "https://mem", "key", "space-b", "agent", "host")
-    expect(first).not.toBe(second)
-    expect(first).toBe(sessionSyncLaneKey("thread", "https://mem", "key", "space-a", "agent", "host"))
+  const base = ["thread", "https://mem", "key", "space-a", "agent", "host"] as const
+
+  it("isolates cursor state by each destination-lane dimension", () => {
+    const first = sessionSyncLaneKey(...base)
+    expect(first).toBe(sessionSyncLaneKey(...base))
+    expect(first).not.toBe(sessionSyncLaneKey("other-thread", "https://mem", "key", "space-a", "agent", "host"))
+    expect(first).not.toBe(sessionSyncLaneKey("thread", "https://other", "key", "space-a", "agent", "host"))
+    expect(first).not.toBe(sessionSyncLaneKey("thread", "https://mem", "other-key", "space-a", "agent", "host"))
+    expect(first).not.toBe(sessionSyncLaneKey("thread", "https://mem", "key", "space-b", "agent", "host"))
+    expect(first).not.toBe(sessionSyncLaneKey("thread", "https://mem", "key", "space-a", "other-agent", "host"))
+    expect(first).not.toBe(sessionSyncLaneKey("thread", "https://mem", "key", "space-a", "agent", "other-host"))
+  })
+
+  it("does not collide all-undefined optional fields with all-empty-string fields", () => {
+    expect(
+      sessionSyncLaneKey("thread", "https://mem", undefined, undefined, undefined, undefined),
+    ).not.toBe(sessionSyncLaneKey("thread", "https://mem", "", "", "", ""))
   })
 })
 

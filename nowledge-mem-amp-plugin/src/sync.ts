@@ -594,15 +594,6 @@ function hasUserAndAssistant(messages: readonly ThreadMessage[]): boolean {
 }
 
 /**
- * Merges a newly converted incremental batch onto the acknowledged local
- * snapshot. Existing external ids keep their position and are replaced when
- * the host rewrites a message in place.
- *
- * @param existing - Previously acknowledged local snapshot.
- * @param incoming - Newly converted incremental messages.
- * @returns The merged snapshot in stable order.
- */
-/**
  * Fingerprints a converted thread message without volatile timestamps.
  *
  * Amp fills missing SDK timestamps at convert time, so including `timestamp`
@@ -621,6 +612,15 @@ function threadMessageFingerprint(message: ThreadMessage): string {
   })
 }
 
+/**
+ * Merges a newly converted incremental batch onto the acknowledged local
+ * snapshot. Existing external ids keep their position and are replaced when
+ * the host rewrites a message in place.
+ *
+ * @param existing - Previously acknowledged local snapshot.
+ * @param incoming - Newly converted incremental messages.
+ * @returns The merged snapshot in stable order.
+ */
 function mergeThreadMessages(
   existing: readonly ThreadMessage[] | undefined,
   incoming: readonly ThreadMessage[],
