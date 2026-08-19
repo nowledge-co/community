@@ -1611,6 +1611,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "typeof value === 'string' && value.length > 0" in patch
     assert "'X-NMEM-Agent-ID': process.env.NMEM_AGENT_ID" in patch
     assert "sessionThreadTitle(" in source
+    assert "cursor?.title" in source
     assert source.count("buildThreadImportArgs({") == 2
     assert "payload.title" in thread_import
     assert "expectedMessageCount === undefined" in thread_import
