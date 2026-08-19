@@ -85,16 +85,26 @@ test("validates the endpoint-specific persistence acknowledgement", () => {
 	assert.equal(isThreadAppendAck({}), false);
 	assert.equal(isThreadAppendAck({ success: false }), false);
 	assert.equal(
-		isThreadCreateAck({ thread: { thread_id: "pi-session", message_count: 5 } }),
+		isThreadCreateAck(
+			{ thread: { thread_id: "pi-session", message_count: 5 } },
+			"pi-session",
+		),
 		true,
 	);
 	assert.equal(
-		threadCreateRemoteCount({ thread: { thread_id: "pi-session", message_count: 5 } }),
+		threadCreateRemoteCount(
+			{ thread: { thread_id: "pi-session", message_count: 5 } },
+			"pi-session",
+		),
 		5,
 	);
-	assert.equal(isThreadCreateAck({ thread: {} }), false);
-	assert.equal(isThreadCreateAck({ success: true }), false);
-	assert.equal(isThreadCreateAck({}), false);
+	assert.equal(
+		isThreadCreateAck({ thread: { thread_id: "other" } }, "pi-session"),
+		false,
+	);
+	assert.equal(isThreadCreateAck({ thread: {} }, "pi-session"), false);
+	assert.equal(isThreadCreateAck({ success: true }, "pi-session"), false);
+	assert.equal(isThreadCreateAck({}, "pi-session"), false);
 	assert.equal(
 		isThreadAlreadyExistsResponse(422, {
 			detail: "Thread pi-session already exists in space default",

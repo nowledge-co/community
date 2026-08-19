@@ -15,6 +15,7 @@ function stableMessageFingerprint(message) {
   return JSON.stringify(message);
 }
 function normalizedTimestamp(raw) {
+  if (raw === null || raw === void 0) return void 0;
   try {
     const timestamp = new Date(raw);
     return Number.isNaN(timestamp.getTime()) ? void 0 : timestamp.toISOString();

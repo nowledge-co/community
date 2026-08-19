@@ -24,6 +24,7 @@ export function stableMessageFingerprint(message: unknown): string {
 }
 
 export function normalizedTimestamp(raw: unknown): string | undefined {
+  if (raw === null || raw === undefined) return undefined
   try {
     const timestamp = new Date(raw as any)
     return Number.isNaN(timestamp.getTime()) ? undefined : timestamp.toISOString()

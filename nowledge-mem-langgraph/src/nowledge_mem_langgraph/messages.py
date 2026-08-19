@@ -11,6 +11,7 @@ from typing import Any
 from langchain_core.messages import BaseMessage
 
 AcknowledgedCursor = tuple[int, str, str, int]
+LegacyAcknowledgedCursor = tuple[int, str, str]
 
 NOWLEDGE_TOOL_NAMES = frozenset(
     {
@@ -110,7 +111,8 @@ def normalize_messages(messages: Iterable[BaseMessage]) -> list[dict[str, Any]]:
 
 
 def select_acknowledged_delta(
-    messages: list[dict[str, Any]], cursor: AcknowledgedCursor | None
+    messages: list[dict[str, Any]],
+    cursor: AcknowledgedCursor | LegacyAcknowledgedCursor | None,
 ) -> tuple[list[dict[str, Any]], AcknowledgedCursor, bool]:
     """Return the suffix after a verified remote acknowledgement anchor."""
 
@@ -142,7 +144,11 @@ def select_acknowledged_delta(
     last_external_id = (
         str(messages[-1].get("metadata", {}).get("external_id", "")) if messages else ""
     )
-    remote_count = cursor[3] if cursor is not None else end
+    remote_count = (
+        cursor[3]
+        if cursor is not None and len(cursor) == 4
+        else start if cursor is not None else end
+    )
     return messages[start:], (end, last_external_id, prefix_fingerprint(end), remote_count), reset
 
 

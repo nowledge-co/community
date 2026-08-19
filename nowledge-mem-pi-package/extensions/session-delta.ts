@@ -79,19 +79,21 @@ export function isThreadAppendAck(data: unknown): boolean {
 	);
 }
 
-export function isThreadCreateAck(data: unknown): boolean {
+export function isThreadCreateAck(data: unknown, expectedThreadId: string): boolean {
 	if (typeof data !== "object" || data === null) return false;
 	const thread = (data as { thread?: unknown }).thread;
 	return (
 		typeof thread === "object" &&
 		thread !== null &&
-		typeof (thread as { thread_id?: unknown }).thread_id === "string" &&
-		(thread as { thread_id: string }).thread_id.length > 0
+		(thread as { thread_id?: unknown }).thread_id === expectedThreadId
 	);
 }
 
-export function threadCreateRemoteCount(data: unknown): number | undefined {
-	if (!isThreadCreateAck(data)) return undefined;
+export function threadCreateRemoteCount(
+	data: unknown,
+	expectedThreadId: string,
+): number | undefined {
+	if (!isThreadCreateAck(data, expectedThreadId)) return undefined;
 	const thread = (data as { thread: { message_count?: unknown } }).thread;
 	if (Number.isInteger(thread.message_count) && Number(thread.message_count) >= 0) {
 		return Number(thread.message_count);

@@ -518,8 +518,8 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 
 	if (!state.created) {
 		const createResult = await postJson("/threads", payload.body, payload.destination);
-		const remoteCount = threadCreateRemoteCount(createResult.data);
-		if (createResult.ok && isThreadCreateAck(createResult.data) && remoteCount !== undefined) {
+		const remoteCount = threadCreateRemoteCount(createResult.data, payload.threadId);
+		if (createResult.ok && remoteCount !== undefined) {
 			state.created = true;
 			state.acknowledged = { ...delta.next, remoteCount };
 			state.lastError = undefined;
@@ -574,7 +574,11 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 		debugWarn(state.lastError);
 		return;
 	}
-	if (recreated ? !isThreadCreateAck(result.data) : !isThreadAppendAck(result.data)) {
+	if (
+		recreated
+			? !isThreadCreateAck(result.data, payload.threadId)
+			: !isThreadAppendAck(result.data)
+	) {
 		state.lastError = `${hostLabel()} thread sync did not receive a persistence acknowledgement`;
 		debugWarn(state.lastError);
 		return;
@@ -585,7 +589,7 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 		return;
 	}
 	const remoteCount = recreated
-		? threadCreateRemoteCount(result.data)
+		? threadCreateRemoteCount(result.data, payload.threadId)
 		: Number((result.data as { total_messages?: unknown })?.total_messages);
 	if (remoteCount === undefined || !Number.isInteger(remoteCount)) {
 		state.lastError = `${hostLabel()} thread sync did not receive the remote message count`;

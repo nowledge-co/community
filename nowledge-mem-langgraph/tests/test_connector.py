@@ -249,6 +249,17 @@ def test_acknowledged_delta_resets_when_earlier_content_changes() -> None:
     assert reset is True
 
 
+def test_acknowledged_delta_accepts_legacy_three_field_cursor() -> None:
+    messages = normalize_messages(
+        [HumanMessage(content="first", id="h1"), AIMessage(content="answer", id="a1")]
+    )
+    cursor = select_acknowledged_delta(messages, None)[1]
+    delta, next_cursor, reset = select_acknowledged_delta(messages, cursor[:3])
+    assert delta == []
+    assert next_cursor[3] == len(messages)
+    assert reset is False
+
+
 def test_thread_sync_uploads_only_acknowledged_delta_and_retries_after_failure() -> None:
     requests: list[dict[str, Any]] = []
     statuses = iter([200, 500, 200])
@@ -307,7 +318,9 @@ def test_thread_sync_keeps_cursor_after_http_200_semantic_failure() -> None:
         if outcome == "failed":
             result = {
                 "failed_count": 0,
-                "results": [{"success": True, "append_mode": "checkpointed"}],
+                "results": [
+                    {"success": True, "append_mode": "checkpointed", "message_count": 4}
+                ],
             }
         else:
             result = {
