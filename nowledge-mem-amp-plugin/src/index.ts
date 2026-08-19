@@ -162,7 +162,12 @@ export default function ampKnowledgeMem(amp: PluginAPI): void {
     projectPath: workspaceRoot,
     autoSyncEnabled: config.autoSyncEnabled,
     autoSyncDebounceMs: config.autoSyncDebounceMs,
+    autoSyncTimeoutMs: config.threadSyncTimeoutMs,
+    apiUrl: config.apiUrl,
+    apiKey: config.apiKey,
     ambientSpaceId: config.ambientSpaceId,
+    ambientAgentId: config.ambientAgentId,
+    ambientHostAgentId: config.ambientHostAgentId,
   })
 
   const toolExecutors = createToolExecutors({ nmem, syncManager })
@@ -181,6 +186,9 @@ export default function ampKnowledgeMem(amp: PluginAPI): void {
   }
 
   const logger = amp.logger
+  // Observe-only. Amp's agent.end may return { action: "continue" } to start
+  // another turn; capture must never do that or it would loop/steal the turn.
+  // There is no session.end event — automatic capture stays on agent.end.
   amp.on("agent.end", (event) => {
     syncManager.scheduleSync(event.thread.id, toConverterMessages(event.messages))
   })

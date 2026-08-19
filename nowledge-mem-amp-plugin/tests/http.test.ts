@@ -21,6 +21,7 @@ const NO_AUTH_CONFIG: ResolvedConfig = {
   autoSyncDebounceMs: 1500,
   bootstrapEnabled: true,
   debugLogging: false,
+  threadSyncTimeoutMs: 120_000,
 }
 
 /** Config carrying the placeholder auth fixture. */
