@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Keeps the imported thread title session-scoped across incremental batches and
+  rebuilds reconciliation arguments from the full payload.
 - Turn-end capture now imports only events after the last acknowledged DSH
   sequence, stamps stable message external IDs, and replays safely after event
   compaction or a failed write.
