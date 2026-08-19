@@ -94,7 +94,20 @@ function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprin
   };
 }
 
+// nowledge-mem-opencode-plugin/src/thread-sync-timeout.ts
+var DEFAULT_THREAD_SYNC_TIMEOUT_MS = 12e4;
+var MIN_THREAD_SYNC_TIMEOUT_MS = 1e3;
+var MAX_THREAD_SYNC_TIMEOUT_MS = 30 * 6e4;
+function resolveThreadSyncTimeoutMs(raw) {
+  const parsed = Number(raw);
+  if (!raw?.trim() || !Number.isSafeInteger(parsed) || parsed <= 0) {
+    return DEFAULT_THREAD_SYNC_TIMEOUT_MS;
+  }
+  return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed));
+}
+
 // nowledge-mem-opencode-plugin/src/index.ts
+var THREAD_SYNC_TIMEOUT_MS = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS);
 var BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
 You have Nowledge Mem tools for cross-tool knowledge management. Use them proactively.
@@ -515,7 +528,7 @@ ${reasoning}
       }
       state.inFlight = syncSessionThread(
         { sessionID, directory },
-        { reason, force: false, timeoutMs: 1e4 }
+        { reason, force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS }
       ).then((result) => {
         if ("error" in result) {
           console.warn("[nowledge-mem] automatic OpenCode thread sync failed:", result.error);
@@ -713,7 +726,7 @@ ${reasoning}
         if (input2.sessionID) {
           await syncSessionThread(
             { sessionID: input2.sessionID, directory },
-            { reason: "session_compacting", force: false, timeoutMs: 1e4 }
+            { reason: "session_compacting", force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS }
           ).catch((err) => {
             console.warn("[nowledge-mem] pre-compaction OpenCode thread sync failed:", err?.message ?? err);
           });

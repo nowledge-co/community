@@ -1,12 +1,14 @@
 # Changelog
 
-## Unreleased
+## [0.3.8] - 2026-08-19
 
 ### Fixed
 
 - Idle capture now uploads only the suffix after the last acknowledged
   OpenCode message ID. Exact snapshots are no-ops and compacted sessions reset
   to a deduplicating replay.
+- Automatic idle and pre-compaction thread sync now allow 120 seconds by default
+  and honor bounded `NMEM_SYNC_TIMEOUT_MS` overrides for slow remote servers.
 
 ## [0.3.7] - 2026-08-13
 
