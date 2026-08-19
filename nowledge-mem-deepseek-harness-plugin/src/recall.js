@@ -15,6 +15,35 @@
 // rather than trying to make an empty query search well.
 const CONTINUATION_ONLY_PATTERN = /^[\s\p{P}]*(?:continue|go on|keep going|carry on|继续|接着|繼續)[\s\p{P}]*$/iu
 
+export const DEFAULT_PROMPT_RECALL_PATTERN = [
+  'remember',
+  'memory',
+  'mem',
+  'nowledge',
+  'context',
+  'previous',
+  'prior',
+  'history',
+  'continue',
+  'recall',
+  'decision',
+  'release',
+  'regression',
+  'connector',
+  'plugin',
+  'thread',
+  '记忆',
+  '上下文',
+  '继续',
+  '之前',
+  '历史',
+  '决策',
+  '发布',
+  '回归',
+  '插件',
+  '连接器',
+].join('|')
+
 export function shouldRecallForPrompt(prompt, pattern) {
   const trimmed = prompt.trim()
   if (trimmed === '' || CONTINUATION_ONLY_PATTERN.test(trimmed)) return false

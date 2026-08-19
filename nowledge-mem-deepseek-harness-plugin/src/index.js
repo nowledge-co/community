@@ -14,7 +14,7 @@ import { join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
-import { shouldRecallForPrompt } from './recall.js'
+import { DEFAULT_PROMPT_RECALL_PATTERN, shouldRecallForPrompt } from './recall.js'
 import { importAcknowledgement, selectUnacknowledgedEvents } from './session-delta.js'
 
 export const name = 'nowledge-mem'
@@ -30,35 +30,6 @@ const DEFAULT_RECALL_LIMIT = 8
 const DEFAULT_TIMEOUT_MS = 8_000
 const DEFAULT_STDOUT_MAX_BYTES = 512 * 1024
 const SANDBOX_UNAVAILABLE_CODE = 'SANDBOX_UNAVAILABLE'
-const DEFAULT_PROMPT_RECALL_PATTERN = [
-  'remember',
-  'memory',
-  'mem',
-  'nowledge',
-  'context',
-  'previous',
-  'prior',
-  'history',
-  'continue',
-  'recall',
-  'decision',
-  'release',
-  'regression',
-  'connector',
-  'plugin',
-  'thread',
-  '记忆',
-  '上下文',
-  '继续',
-  '之前',
-  '历史',
-  '决策',
-  '发布',
-  '回归',
-  '插件',
-  '连接器',
-].join('|')
-
 export const Config = z.object({
   cliPath: z.string(),
   sourceApp: z.string(),

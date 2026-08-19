@@ -1589,8 +1589,8 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
     assert "dsh-plugin" in pkg["keywords"]
-    assert pkg["peerDependenciesMeta"]["@deepseek-ai/dsh-session"]["optional"] is True
-    assert pkg["peerDependenciesMeta"]["@deepseek-ai/dsh-mcp-client"]["optional"] is True
+    for peer_name in pkg["peerDependencies"]:
+        assert pkg["peerDependenciesMeta"][peer_name]["optional"] is True
     assert dsh_registry["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh_registry["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
     assert dsh_registry["version"] == pkg["version"]
