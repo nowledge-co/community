@@ -57,7 +57,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.7"]
+  "plugin": ["opencode-nowledge-mem@0.3.8"]
 }
 ```
 
@@ -136,6 +136,7 @@ No config needed for local use.
 |-------------|---------|-------------|
 | `NMEM_API_URL` | *(local)* | Remote Nowledge Mem server URL |
 | `NMEM_API_KEY` | *(none)* | API key for remote access |
+| `NMEM_SYNC_TIMEOUT_MS` | `120000` | Automatic thread-sync timeout in milliseconds, bounded between 1 second and 30 minutes |
 
 The plugin also reads `~/.nowledge-mem/config.json` (shared with all Nowledge Mem integrations). Environment variables take priority.
 
@@ -180,6 +181,7 @@ Shared spaces, default retrieval, and agent guidance still come from Mem's own s
 
 - **nmem not found.** Install with `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`, then run `nmem status` to verify.
 - **Server not responding.** Start the Nowledge Mem desktop app, or check `nmem status` for diagnostics.
+- **Slow automatic thread sync.** Thread writes allow 120 seconds by default. If a remote or heavily loaded Mem server needs a different budget, set `NMEM_SYNC_TIMEOUT_MS` before starting OpenCode. A timeout is not retried immediately because the server may still have completed the write; a later lifecycle sync safely reconciles the transcript through stable message IDs.
 - **Plugin not loading.** Confirm `"opencode-nowledge-mem"` appears in your `opencode.json` plugin array. Restart OpenCode after changes.
 - **OpenCode Desktop sees the package but no tools appear.** Fully quit OpenCode Desktop, clear the OpenCode package cache, then restart so it installs the latest package. On Windows the cache is `%USERPROFILE%\.cache\opencode`; on macOS/Linux it is `~/.cache/opencode`.
 

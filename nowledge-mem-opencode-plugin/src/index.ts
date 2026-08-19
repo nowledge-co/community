@@ -17,6 +17,9 @@ import {
   stableMessageFingerprint,
   type AcknowledgedCursor,
 } from "./session-delta"
+import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout"
+
+const THREAD_SYNC_TIMEOUT_MS = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)
 
 const BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
@@ -552,7 +555,7 @@ export default {
       }
       state.inFlight = syncSessionThread(
         { sessionID, directory },
-        { reason, force: false, timeoutMs: 10_000 },
+        { reason, force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS },
       )
         .then((result) => {
           if ("error" in result) {
@@ -823,7 +826,7 @@ export default {
         if (input.sessionID) {
           await syncSessionThread(
             { sessionID: input.sessionID, directory },
-            { reason: "session_compacting", force: false, timeoutMs: 10_000 },
+            { reason: "session_compacting", force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS },
           ).catch((err: any) => {
             console.warn("[nowledge-mem] pre-compaction OpenCode thread sync failed:", err?.message ?? err)
           })
