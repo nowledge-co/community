@@ -609,3 +609,90 @@ test("skips persist until a user+assistant pair exists", async () => {
 	assert.equal(client.appendCalls.length, 0);
 	assert.equal(client.createCalls.length, 0);
 });
+
+test("capture continues when remote message count lookup fails", async () => {
+	_resetSyncCursors();
+	const warnings = [];
+	const warnLogger = {
+		...logger,
+		warn(msg) {
+			warnings.push(msg);
+		},
+	};
+	class FailingCountClient extends FakeThreadClient {
+		async getThreadMessageCount() {
+			throw new Error("backend unavailable");
+		}
+	}
+	const client = new FailingCountClient();
+	const result = await appendOrCreateThread({
+		client,
+		logger: warnLogger,
+		event: {
+			messages: [message("user", "hello"), message("assistant", "hi")],
+		},
+		ctx: {
+			sessionId: "session-count-fail",
+			sessionKey: "agent:main:telegram:direct:count-fail",
+		},
+		reason: "agent_end",
+	});
+	assert.equal(result.messagesAdded, 2);
+	assert.equal(client.appendCalls.length, 1);
+	assert.match(warnings.join("\n"), /remote message count failed/);
+});
+
+test("delta capture cursor lets a later snapshot append only the suffix", async () => {
+	_resetSyncCursors();
+	const client = new FakeThreadClient({ existingCount: 0 });
+	const ctx = {
+		sessionId: "session-delta-then-snapshot",
+		sessionKey: "agent:main:telegram:direct:delta-then-snapshot",
+	};
+	await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [
+				message("user", "first", {
+					__openclaw: { mirrorIdentity: "turn-1:prompt" },
+				}),
+				message("assistant", "second", {
+					__openclaw: { mirrorIdentity: "turn-1:assistant" },
+				}),
+			],
+		},
+		ctx,
+		reason: "agent_end",
+		messageMode: "delta",
+	});
+	const later = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [
+				message("user", "first", {
+					__openclaw: { mirrorIdentity: "turn-1:prompt" },
+				}),
+				message("assistant", "second", {
+					__openclaw: { mirrorIdentity: "turn-1:assistant" },
+				}),
+				message("user", "third", {
+					__openclaw: { mirrorIdentity: "turn-2:prompt" },
+				}),
+				message("assistant", "fourth", {
+					__openclaw: { mirrorIdentity: "turn-2:assistant" },
+				}),
+			],
+		},
+		ctx,
+		reason: "agent_end",
+		messageMode: "snapshot",
+	});
+	assert.equal(later.messagesAdded, 2);
+	assert.deepEqual(
+		client.appendCalls.at(-1).messages.map((msg) => msg.content),
+		["third", "fourth"],
+	);
+	assert.equal(client.appendCalls.at(-1).expectedMessageCount, 2);
+});

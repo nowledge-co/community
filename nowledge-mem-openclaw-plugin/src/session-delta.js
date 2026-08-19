@@ -19,7 +19,11 @@ export function stableMessageFingerprint(message) {
 	});
 }
 
-function prefixFingerprint(messages, end, messageFingerprint) {
+export function prefixFingerprint(
+	messages,
+	end,
+	messageFingerprint = stableMessageFingerprint,
+) {
 	const hash = createHash("sha256");
 	for (const message of messages.slice(0, end)) {
 		const value = messageFingerprint(message);

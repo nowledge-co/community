@@ -7,8 +7,10 @@ import {
 	isCheckpointConflictResponse,
 	isCheckpointedAppendAck,
 	isThreadAppendAck,
+	prefixFingerprint,
 	selectSnapshotDelta,
 	sessionSyncLaneKey,
+	stableMessageFingerprint,
 } from "../src/session-delta.js";
 import { resolveThreadSyncTimeoutMs } from "../src/thread-sync-timeout.js";
 
@@ -106,4 +108,35 @@ test("hasUserAndAssistant requires both roles, not just two messages", () => {
 		]),
 		true,
 	);
+});
+
+test("prefixFingerprint hashes the length-prefixed prefix with the default fingerprint", () => {
+	const messages = [
+		{ role: "user", content: "a", metadata: { external_id: "a" } },
+		{ role: "assistant", content: "b", metadata: { external_id: "b" } },
+	];
+	const hashed = prefixFingerprint(messages, messages.length);
+	assert.match(hashed, /^[0-9a-f]{64}$/);
+	assert.equal(
+		hashed,
+		prefixFingerprint(messages, messages.length, stableMessageFingerprint),
+	);
+	assert.notEqual(hashed, stableMessageFingerprint(messages[messages.length - 1]));
+});
+
+test("selectSnapshotDelta trusts a cursor hashed with the shared prefixFingerprint helper", () => {
+	const first = [
+		{ id: "a", role: "user", content: "a" },
+		{ id: "b", role: "assistant", content: "b" },
+	];
+	const cursor = {
+		count: first.length,
+		remoteCount: first.length,
+		lastExternalId: "b",
+		prefixFingerprint: prefixFingerprint(first, first.length),
+	};
+	const later = [...first, { id: "c", role: "user", content: "c" }];
+	const delta = selectSnapshotDelta(later, cursor, id);
+	assert.equal(delta.reset, false);
+	assert.deepEqual(delta.messages, [{ id: "c", role: "user", content: "c" }]);
 });

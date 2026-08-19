@@ -4,8 +4,8 @@ import { buildStableThreadId } from "./thread-identity.js";
 import {
 	contentBoundIdempotencyKey,
 	hasUserAndAssistant,
+	prefixFingerprint,
 	selectSnapshotDelta,
-	stableMessageFingerprint,
 } from "../session-delta.js";
 export {
 	_resetConversationRoots,
@@ -518,7 +518,15 @@ export async function appendOrCreateThread({
 
 	let cursor = _getCursor(client, threadId);
 	if (cursor === undefined) {
-		const remoteCount = await client.getThreadMessageCount(threadId);
+		let remoteCount = null;
+		try {
+			remoteCount = await client.getThreadMessageCount(threadId);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.warn(
+				`capture: remote message count failed for ${threadId}: ${message}`,
+			);
+		}
 		if (remoteCount !== null && Number.isFinite(remoteCount) && remoteCount >= 0) {
 			cursor = {
 				count: Math.trunc(remoteCount),
@@ -542,7 +550,7 @@ export async function appendOrCreateThread({
 			...(allMessages.length > 0
 				? { lastExternalId: messageExternalId(allMessages[allMessages.length - 1]) }
 				: {}),
-			prefixFingerprint: stableMessageFingerprint(allMessages[allMessages.length - 1] || {}),
+			prefixFingerprint: prefixFingerprint(allMessages, allMessages.length),
 		};
 		return persistMessages({
 			client,
