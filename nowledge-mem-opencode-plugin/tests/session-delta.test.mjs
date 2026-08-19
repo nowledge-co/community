@@ -122,13 +122,30 @@ test("recreates the complete Thread after a 400 missing-thread response", async 
   assert.deepEqual(createBodies, [createBody])
 })
 
-test("session checkpoints are isolated by destination space", () => {
+test("session checkpoints are isolated by destination lane", () => {
+  const base = ["https://mem", "key", "space-a", "agent-a", undefined]
   assert.notEqual(
-    sessionSyncLaneKey("session-1", "space-a"),
-    sessionSyncLaneKey("session-1", "space-b"),
+    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", undefined, undefined),
+    sessionSyncLaneKey("session-1", "https://mem", "key", "space-b", undefined, undefined),
+  )
+  assert.notEqual(
+    sessionSyncLaneKey("session-1", "https://mem-a", "key", "space", undefined, undefined),
+    sessionSyncLaneKey("session-1", "https://mem-b", "key", "space", undefined, undefined),
+  )
+  assert.notEqual(
+    sessionSyncLaneKey("session-1", "https://mem", "key-a", "space", undefined, undefined),
+    sessionSyncLaneKey("session-1", "https://mem", "key-b", "space", undefined, undefined),
+  )
+  assert.notEqual(
+    sessionSyncLaneKey("session-1", ...base),
+    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", "agent-b", undefined),
+  )
+  assert.notEqual(
+    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", undefined, "host-a"),
+    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", undefined, "host-b"),
   )
   assert.equal(
-    sessionSyncLaneKey("session-1", "space-a"),
-    sessionSyncLaneKey("session-1", "space-a"),
+    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", "agent-a", "host-a"),
+    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", "agent-a", "host-a"),
   )
 })
