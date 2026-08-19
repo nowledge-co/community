@@ -7,13 +7,11 @@ import json
 import os
 import subprocess
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-DEFAULT_TIMEOUT_SECONDS = 35
-DEFAULT_RETRIES = 2
+ENQUEUE_TIMEOUT_SECONDS = 5
 
 
 def _windows_no_window_kwargs() -> dict[str, int]:
@@ -57,17 +55,6 @@ def _log(source_app: str, message: str) -> None:
         return
 
 
-def _positive_int_env(name: str, default: int) -> int:
-    raw = os.environ.get(name)
-    if raw is None or not raw.strip():
-        return default
-    try:
-        parsed = int(raw)
-    except ValueError:
-        return default
-    return parsed if parsed > 0 else default
-
-
 def _read_payload() -> dict[str, Any]:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -99,33 +86,48 @@ def _source_app_for_payload(payload: dict[str, Any]) -> str:
     return "codebuddy"
 
 
-def _run_sync(
+def _build_enqueue_command(
     source_app: str,
     session_id: str,
     transcript_path: str,
-) -> subprocess.CompletedProcess[str]:
-    command = [
+) -> list[str]:
+    return [
         "nmem",
         "--json",
         "t",
-        "sync",
+        "capture",
         "--from",
         source_app,
         "--session-id",
         session_id,
-        "--session-dir",
+        "--transcript-path",
         transcript_path,
+        "--sync",
         "--all-projects",
-        "--apply",
     ]
+
+
+def _run_enqueue(
+    source_app: str,
+    session_id: str,
+    transcript_path: str,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        command,
+        _build_enqueue_command(source_app, session_id, transcript_path),
         text=True,
         capture_output=True,
-        timeout=_positive_int_env("NMEM_CODEBUDDY_SYNC_TIMEOUT", DEFAULT_TIMEOUT_SECONDS),
+        timeout=ENQUEUE_TIMEOUT_SECONDS,
         check=False,
         **_windows_no_window_kwargs(),
     )
+
+
+def _capture_acknowledged(stdout: str) -> bool:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(payload, dict) and payload.get("status") == "enqueued"
 
 
 def main() -> int:
@@ -146,33 +148,19 @@ def main() -> int:
         _log(source_app, f"skip {event} {session_id}: transcript not found at {transcript_path}")
         return 0
 
-    attempts = _positive_int_env("NMEM_CODEBUDDY_SYNC_RETRIES", DEFAULT_RETRIES)
-    for attempt in range(1, attempts + 1):
-        try:
-            result = _run_sync(source_app, session_id, transcript_path)
-        except FileNotFoundError:
-            _log(source_app, f"skip {event} {session_id}: nmem not found on PATH")
+    try:
+        enqueued = _run_enqueue(source_app, session_id, transcript_path)
+    except FileNotFoundError:
+        _log(source_app, f"skip {event} {session_id}: nmem not found on PATH")
+        return 0
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        _log(source_app, f"enqueue unavailable {event} {session_id}: {exc}")
+    else:
+        if enqueued.returncode == 0 and _capture_acknowledged(enqueued.stdout or ""):
+            _log(source_app, f"queued {event} {session_id} from {transcript_path}")
             return 0
-        except subprocess.TimeoutExpired:
-            _log(source_app, f"timeout {event} {session_id}: nmem sync exceeded timeout")
-            return 0
-        except Exception as exc:
-            _log(source_app, f"error {event} {session_id}: {exc}")
-            return 0
-
-        if result.returncode == 0:
-            _log(source_app, f"synced {event} {session_id} from {transcript_path}")
-            return 0
-
-        stderr = (result.stderr or "").strip().replace("\n", " ")[:600]
-        stdout = (result.stdout or "").strip().replace("\n", " ")[:600]
-        _log(
-            source_app,
-            f"sync failed {event} {session_id} attempt={attempt}/{attempts} "
-            f"exit={result.returncode} stderr={stderr!r} stdout={stdout!r}"
-        )
-        if attempt < attempts:
-            time.sleep(0.7)
+        detail = (enqueued.stderr or enqueued.stdout or "").strip().replace("\n", " ")[:600]
+        _log(source_app, f"enqueue rejected {event} {session_id}: {detail!r}")
 
     return 0
 

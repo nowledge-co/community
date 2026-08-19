@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth: other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none. connect.skillUrl is the universal install contract. Per-tool install.agentGuide prompts must point to that skill first; per-tool docs remain behavior and troubleshooting references.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "connect": {
     "skillUrl": "https://mem.nowledge.co/SKILL.md",
     "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for the AI tool I am using.",
@@ -11,7 +11,7 @@
       "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
-      "slock", "lody", "multica", "cumora", "paseo", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct"
+      "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
@@ -358,8 +358,9 @@
       "slashCommands": []
     },
     {
-      "id": "slock",
-      "name": "Raft (formerly Slock)",
+      "id": "raft",
+      "aliases": ["slock"],
+      "name": "Raft",
       "category": "orchestrator",
       "type": "orchestrator",
       "version": null,
@@ -392,12 +393,12 @@
       },
       "install": {
         "command": "Connect the AI tool Raft launches, then set NMEM_AGENT_ID=<agent-slug> in each Raft agent runtime config.",
-        "detectionHint": "Running inside a Raft-managed child agent (legacy originator: slock-daemon)",
+        "detectionHint": "Running inside a Raft-managed child agent (originator: raft-daemon; legacy alias: slock-daemon)",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Raft path to configure this worker. Connect the AI tool Raft launches first, then set NMEM_AGENT_ID=<agent-slug>; add NMEM_SPACE only if this whole worker should override its default space. Use Mem skills or MCP inside Raft. Do not save the managed Codex rollout as the Raft conversation. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
           "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Raft 路径配置这个 worker。先连接 Raft 启动的 AI 工具，再设置 NMEM_AGENT_ID=<agent-slug>；只有当整个 worker 需要覆盖默认 Space 时，才添加 NMEM_SPACE。在 Raft 内使用 Mem skills 或 MCP，不要把托管 Codex rollout 当作 Raft 对话保存。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结你改了什么。"
         },
-        "docsUrl": "/docs/integrations/slock"
+        "docsUrl": "/docs/integrations/raft"
       },
       "toolNaming": {
         "convention": "mediated-host",
@@ -868,7 +869,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.6",
+      "version": "0.8.7",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1028,7 +1029,7 @@
       "name": "Amp",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-amp-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1091,7 +1092,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.3.7",
+      "version": "0.3.8",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1307,7 +1308,7 @@
       "name": "DeepSeek Harness",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.3",
       "directory": "nowledge-mem-deepseek-harness-plugin",
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
       "transport": "dsh-bundle+mcp+cli",
@@ -1683,6 +1684,61 @@
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": ["/nmem-save", "/nmem-search", "/nmem-status"]
+    },
+    {
+      "id": "langgraph",
+      "name": "LangGraph",
+      "category": "orchestrator",
+      "type": "connector",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-langgraph",
+      "externalRepo": "https://github.com/langchain-ai/langgraph",
+      "transport": "python+mcp+rest",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "middleware-import",
+        "runtime": "langgraph",
+        "note": "The Python middleware imports completed top-level LangGraph conversations through POST /threads/import. LangGraph thread_id plus a stable application_id defines the Mem Thread; assistant_id remains deployment provenance. Nested subgraph checkpoint namespaces are skipped to prevent duplicate parent/subagent Threads."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "automatic",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install nowledge-mem-langgraph in the Agent Server or application environment",
+          "Set one stable NMEM_LANGGRAPH_APP_ID per deployed application and keep it unchanged across releases",
+          "Pass invocation-specific agent_id and space_id under runtime context.nowledge; keep authorization in NMEM_API_KEY",
+          "Load Mem tools with await NowledgeClient().tools() and attach NowledgeMiddleware to LangChain create_agent",
+          "Keep the LangGraph checkpointer as the execution-state owner; do not replace it with Nowledge Mem",
+          "For raw StateGraph applications, call the explicit Context Bundle and Thread sync helpers at the real model and completion boundaries"
+        ]
+      },
+      "install": {
+        "command": "python -m pip install nowledge-mem-langgraph",
+        "updateCommand": "python -m pip install --upgrade nowledge-mem-langgraph",
+        "configRequired": "Set NMEM_API_URL and NMEM_API_KEY for remote Mem, choose a stable NMEM_LANGGRAPH_APP_ID, then add NowledgeMiddleware and the async MCP tools to the agent graph. Pass trusted per-invocation Agent and Space selectors under context.nowledge.",
+        "detectionHint": "A Python project imports langgraph or langchain.agents.create_agent, has langgraph.json, or deploys a LangGraph Agent Server.",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the LangGraph instructions. Install nowledge-mem-langgraph, choose a stable NMEM_LANGGRAPH_APP_ID, attach NowledgeMiddleware and the Mem MCP tools, pass trusted Agent and Space identity under context.nowledge, then verify with nmem status and the Context Bundle or Working Memory check plus one idempotent top-level Thread import.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 LangGraph 说明操作。安装 nowledge-mem-langgraph，设置稳定的 NMEM_LANGGRAPH_APP_ID，接入 NowledgeMiddleware 和 Mem MCP tools，在 context.nowledge 下传入受信任的 Agent 与 Space identity，然后用 nmem status 和 Context Bundle 或 Working Memory 检查验证，并确认一次顶层 Thread 幂等导入。"
+        },
+        "docsUrl": "/docs/integrations/langgraph"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "langchain-mcp-adapters exposes Nowledge's bounded external-agent tool set. An invocation interceptor overwrites model-supplied identity and Space arguments with trusted runtime context and matching headers."
+      },
+      "skills": [],
+      "slashCommands": []
     },
     {
       "id": "mirasim",
@@ -2252,6 +2308,68 @@
         "note": "Standalone extraction CLI, no agent-facing tools"
       },
       "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "devin",
+      "name": "Devin",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-devin-plugin",
+      "transport": "plugin+mcp+cli+api",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "hook+cli-native+api-v3",
+        "runtime": "devin",
+        "command": "nmem t sync --from devin --session-id <session-id> --apply",
+        "historicalCommand": "nmem t sync --from devin",
+        "note": "Local CLI/Desktop capture reads Devin's selected message chain from sessions.db. Hooks trigger idempotent sync after turns and compaction. Enterprise Cloud sync uses Devin's read-only v3 session API; child sessions remain distinct Threads."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Enable Devin's native plugin closed beta and install nowledge-co/community#nowledge-mem-devin-plugin",
+          "Keep nmem available on the machine that owns Devin CLI/Desktop history",
+          "Use nmem config mcp show --host devin for remote or authenticated Mem",
+          "For Devin Cloud, use a dedicated service user with only ViewOrgSessions and keep its credential outside the plugin"
+        ]
+      },
+      "install": {
+        "command": "devin plugins install nowledge-co/community#nowledge-mem-devin-plugin",
+        "updateCommand": "devin plugins update nowledge-mem",
+        "configRequired": "Devin native plugins are currently a closed beta. The bundled MCP entry is loopback-only and credential-free. Account administrators can require this git-subdir package through Devin's managed plugin manifest. Cloud session API credentials must belong to a least-privilege service user and must never be committed or shared through the plugin.",
+        "detectionHint": "Running in Devin CLI/Desktop/Cloud; Devin plugin support is enabled, or a local Devin sessions.db exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and install or update Nowledge Mem for Devin with devin plugins install nowledge-co/community#nowledge-mem-devin-plugin. Verify with nmem status and the Context Bundle or Working Memory check, open a short session, and confirm nmem t list --source devin shows a real Thread.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，使用 devin plugins install nowledge-co/community#nowledge-mem-devin-plugin 为 Devin 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，运行一个短会话，并确认 nmem t list --source devin 能看到真实 Thread。"
+        },
+        "docsUrl": "/docs/integrations/devin"
+      },
+      "toolNaming": {
+        "convention": "devin-plugin+mcp+cli",
+        "note": "Devin loads namespaced skills from the dedicated plugin; MCP is the structured memory surface and nmem imports Devin-owned transcripts."
+      },
+      "skills": [
+        "check-integration",
+        "status",
+        "read-working-memory",
+        "save-thread",
+        "distill-memory",
+        "save-handoff",
+        "search-memory"
+      ],
       "slashCommands": []
     },
     {

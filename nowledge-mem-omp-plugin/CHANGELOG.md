@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Inherit Pi's acknowledged message-suffix sync so repeated lifecycle events no
+  longer resend the complete OMP branch.
+
 ## 0.1.1
 
 - Inherit the Pi runtime's resilient thread-sync timeout, safe create-to-append fallback, latest-turn coalescing, and quiet interactive diagnostics.

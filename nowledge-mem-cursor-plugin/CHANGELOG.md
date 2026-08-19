@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Stop capture now hands the exact conversation transcript to the shared
+  durable queue instead of waiting for the full importer in the hook process.
+
 ## [0.2.0] - 2026-08-08
 
 ### Added

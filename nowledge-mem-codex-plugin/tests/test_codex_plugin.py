@@ -68,6 +68,84 @@ class HookTests(unittest.TestCase):
             ],
         )
 
+    def test_build_enqueue_command_carries_exact_session_and_transcript(self):
+        command = self.module._build_enqueue_command(
+            "/usr/local/bin/nmem",
+            {
+                "session_id": "019abc",
+                "cwd": "/tmp/project with spaces",
+                "transcript_path": "/tmp/codex/rollout.jsonl",
+            },
+        )
+
+        self.assertEqual(
+            command,
+            [
+                "/usr/local/bin/nmem",
+                "--json",
+                "t",
+                "capture",
+                "--from",
+                "codex",
+                "--session-id",
+                "019abc",
+                "--project",
+                str(Path("/tmp/project with spaces").expanduser()),
+                "--transcript-path",
+                str(Path("/tmp/codex/rollout.jsonl").expanduser()),
+            ],
+        )
+
+    def test_stop_returns_after_durable_enqueue_without_full_save(self):
+        payload = {
+            "session_id": "019abc",
+            "cwd": "/tmp/project",
+            "transcript_path": "/tmp/codex/rollout.jsonl",
+        }
+        enqueued = mock.Mock(
+            returncode=0,
+            stdout='{"status":"enqueued","worker_started":true}',
+            stderr="",
+        )
+        with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+             mock.patch.object(self.module, "_run_enqueue", return_value=enqueued), \
+             mock.patch.object(self.module, "_dispatch_skill_outcomes") as outcomes, \
+             mock.patch.object(self.module, "_run_save_with_retries") as legacy, \
+             mock.patch.object(self.module, "_claim_capture_event") as claim, \
+             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: json.dumps(payload))):
+            self.assertEqual(self.module.main(), 0)
+
+        outcomes.assert_called_once_with(payload)
+        legacy.assert_not_called()
+        claim.assert_not_called()
+
+    def test_skill_outcome_dispatch_preserves_nested_hook_identity(self):
+        payload = {
+            "data": {
+                "input": {
+                    "sessionId": "nested-session",
+                    "cwd": "/tmp/nested-project",
+                    "transcriptPath": "/tmp/nested-rollout.jsonl",
+                }
+            }
+        }
+        with mock.patch.object(self.module.subprocess, "Popen") as popen:
+            self.module._dispatch_skill_outcomes(payload)
+
+        command = popen.call_args.args[0]
+        encoded = command[command.index("--skill-outcome-payload") + 1]
+        decoded = json.loads(
+            self.module.base64.urlsafe_b64decode(encoded.encode("ascii")).decode("utf-8")
+        )
+        self.assertEqual(
+            decoded,
+            {
+                "session_id": "nested-session",
+                "cwd": "/tmp/nested-project",
+                "transcript_path": "/tmp/nested-rollout.jsonl",
+            },
+        )
+
     def test_build_save_command_delegates_windows_shim_to_runtime(self):
         nmem = r"C:\Users\jockie\AppData\Local\Nowledge Mem\cli\nmem.CMD"
         bridged = [r"C:\Windows\System32\cmd.exe", "/d", "/s", "/c", "command"]
@@ -88,38 +166,31 @@ class HookTests(unittest.TestCase):
         self.assertIn("--project", build.call_args.args)
         self.assertIn("--session-id", build.call_args.args)
 
-    def test_retry_without_session_id_on_lookup_miss(self):
-        calls = []
-
-        def fake_run(nmem, payload, *, include_session_id, deadline=None):
-            calls.append(include_session_id)
-            proc = mock.Mock(
-                returncode=1 if include_session_id else 0,
-                stdout=(
-                    "No codex sessions found"
-                    if include_session_id
-                    else '{"results":[{"action":"created"}]}'
-                ),
-                stderr="",
-            )
-            return (not include_session_id), proc
-
-        with mock.patch.object(self.module, "_nmem_command", return_value="/usr/local/bin/nmem"), \
-             mock.patch.object(self.module, "_run_save_with_retries", side_effect=fake_run), \
-             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: json.dumps({"session_id": "full-uuid"}))):
+    def test_rejected_enqueue_does_not_run_full_save(self):
+        rejected = mock.Mock(
+            returncode=2,
+            stdout='{"status":"error"}',
+            stderr="capture unavailable",
+        )
+        with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+             mock.patch.object(self.module, "_run_enqueue", return_value=rejected), \
+             mock.patch.object(self.module, "_run_save_with_retries") as full_save, \
+             mock.patch.object(
+                 self.module.sys,
+                 "stdin",
+                 mock.Mock(read=lambda: json.dumps({"session_id": "full-uuid"})),
+             ):
             self.assertEqual(self.module.main(), 0)
 
-        self.assertEqual(calls, [True, False])
+        full_save.assert_not_called()
 
     def test_stop_capture_budget_matches_packaged_hook_timeout(self):
         payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
         hook = payload["hooks"]["Stop"][0]["hooks"][0]
 
-        self.assertEqual(hook["timeout"], 120)
-        self.assertEqual(self.module.CAPTURE_DEADLINE_SECONDS, 105.0)
-        self.assertEqual(self.module.CAPTURE_ATTEMPT_TIMEOUT_SECONDS, 25.0)
-        self.assertEqual(self.module.SAVE_RETRY_DELAYS_SECONDS, (0.0, 1.0, 3.0, 6.0))
-        self.assertLess(self.module.CAPTURE_DEADLINE_SECONDS, hook["timeout"])
+        self.assertEqual(hook["timeout"], 15)
+        self.assertEqual(self.module.CAPTURE_ENQUEUE_TIMEOUT_SECONDS, 5.0)
+        self.assertLess(self.module.CAPTURE_ENQUEUE_TIMEOUT_SECONDS, hook["timeout"])
 
     def test_run_save_retries_until_nmem_reports_saved_result(self):
         calls = [
@@ -208,27 +279,6 @@ class HookTests(unittest.TestCase):
             )
 
         self.assertNotIn("creationflags", run.call_args.kwargs)
-
-    def test_run_save_falls_back_for_legacy_nmem_without_json_support(self):
-        calls = [
-            mock.Mock(returncode=2, stdout="", stderr="No such option: --json"),
-            mock.Mock(returncode=0, stdout="", stderr=""),
-        ]
-
-        with mock.patch.object(self.module, "SAVE_RETRY_DELAYS_SECONDS", (0.0,)), \
-             mock.patch.object(self.module, "_run_save", side_effect=calls) as run:
-            captured, proc = self.module._run_save_with_retries(
-                "/usr/local/bin/nmem",
-                {"session_id": "019abc"},
-                include_session_id=True,
-                deadline=None,
-            )
-
-        self.assertTrue(captured)
-        self.assertEqual(proc.returncode, 0)
-        self.assertEqual(run.call_count, 2)
-        self.assertTrue(run.call_args_list[0].kwargs["json_output"])
-        self.assertFalse(run.call_args_list[1].kwargs["json_output"])
 
     def test_extract_skill_outcomes_from_mcp_tool_call_end(self):
         transcript = self.temp_path / "codex-transcript.jsonl"
@@ -387,7 +437,7 @@ class HookTests(unittest.TestCase):
         return transcript
 
     def test_delegated_conversation_originator_is_session_scoped(self):
-        for originator in ("slock-daemon", "raft-daemon"):
+        for originator in ("raft-daemon", "slock-daemon"):
             transcript = self._write_session_meta(originator)
             self.assertEqual(
                 self.module._delegated_conversation_originator(
@@ -405,7 +455,7 @@ class HookTests(unittest.TestCase):
             )
 
     def test_main_skips_only_delegated_thread_capture_but_reports_skills(self):
-        transcript = self._write_session_meta("slock-daemon")
+        transcript = self._write_session_meta("raft-daemon")
         hook_payload = json.dumps(
             {
                 "session_id": "session-1",
@@ -416,7 +466,7 @@ class HookTests(unittest.TestCase):
         with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
              mock.patch.object(self.module, "_claim_capture_event", return_value=True), \
              mock.patch.object(self.module, "_run_save_with_retries") as save, \
-             mock.patch.object(self.module, "_report_skill_outcomes") as report, \
+             mock.patch.object(self.module, "_dispatch_skill_outcomes") as report, \
              mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: hook_payload)):
             self.assertEqual(self.module.main(), 0)
 
@@ -1034,7 +1084,7 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn("echo keep", stop[0]["hooks"][0]["command"])
         self.assertIn("nowledge-mem-stop-save.py", stop[1]["hooks"][0]["command"])
         self.assertNotIn("async", stop[1]["hooks"][0])
-        self.assertEqual(stop[1]["hooks"][0]["timeout"], 120)
+        self.assertEqual(stop[1]["hooks"][0]["timeout"], 15)
         self.assertIn("statusMessage", stop[1]["hooks"][0])
         self.assertNotIn("/old/nmem-stop-save.py", json.dumps(stop))
 

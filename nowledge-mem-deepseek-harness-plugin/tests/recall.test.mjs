@@ -3,20 +3,27 @@ import test from 'node:test'
 
 import { shouldRecallForPrompt } from '../src/recall.js'
 
-// Mirrors the trigger keywords in DEFAULT_PROMPT_RECALL_PATTERN closely enough
-// to exercise both the content-bearing and bare-continuation-filler cases.
+// Mirrors the default trigger closely enough to exercise content-bearing and
+// continuation-only prompts without importing the DSH runtime dependencies.
 const PATTERN = /continue|remember|memory|decision|继续|记忆|决策/iu
 
-// Regression for a resumed-after-interruption prompt (e.g. after a quota
-// error) that is nothing but a bare "继续"/"continue": it must not trigger a
-// memory search, because the prompt IS the search query, and a query with no
-// content beyond the trigger word itself surfaces unrelated memories instead
-// of anything about the interrupted turn.
 test('a bare continuation prompt does not trigger recall', () => {
-  assert.equal(shouldRecallForPrompt('继续', PATTERN), false)
-  assert.equal(shouldRecallForPrompt('continue', PATTERN), false)
-  assert.equal(shouldRecallForPrompt('  继续!  ', PATTERN), false)
-  assert.equal(shouldRecallForPrompt('Continue.', PATTERN), false)
+  for (const prompt of [
+    '继续',
+    '繼續',
+    '接着',
+    'continue',
+    'go on',
+    'keep going',
+    'carry on',
+    '  继续!  ',
+    'Continue.',
+    '“continue”',
+    '(继续)',
+    'continue:',
+  ]) {
+    assert.equal(shouldRecallForPrompt(prompt, PATTERN), false, prompt)
+  }
 })
 
 test('a continuation word inside a substantive prompt still triggers recall', () => {

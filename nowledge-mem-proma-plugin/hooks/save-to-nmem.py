@@ -15,8 +15,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -55,7 +56,7 @@ API_BASE = (
 ).rstrip("/")
 API_KEY = os.environ.get("NMEM_API_KEY") or _config_value("apiKey", "api_key") or ""
 REQUEST_TIMEOUT = 15
-SAVE_RETRY_DELAYS = (0.0, 0.5, 1.5, 3.0)
+ENQUEUE_TIMEOUT_SECONDS = 5
 
 def _env_path(name: str, default: Path) -> Path:
     raw = os.environ.get(name)
@@ -335,6 +336,69 @@ def upload_thread(session_id: str, messages: list[dict[str, Any]], cwd: str | No
     return api_request("POST", "/threads", body) is not None
 
 
+def build_enqueue_command(
+    nmem: str,
+    session_id: str,
+    session_file: Path,
+    cwd: str | None,
+) -> list[str]:
+    return [
+        nmem,
+        "--json",
+        "t",
+        "capture",
+        "--from",
+        "proma",
+        "--session-id",
+        session_id,
+        "--project",
+        cwd or ".",
+        "--transcript-path",
+        str(session_file),
+        "--sync",
+        "--all-projects",
+    ]
+
+
+def enqueue_capture(
+    session_id: str,
+    session_file: Path,
+    cwd: str | None,
+) -> bool:
+    nmem = shutil.which("nmem") or shutil.which("nmem.exe") or shutil.which("nmem.cmd")
+    if not nmem:
+        return False
+    try:
+        result = subprocess.run(
+            build_enqueue_command(nmem, session_id, session_file, cwd),
+            text=True,
+            capture_output=True,
+            timeout=ENQUEUE_TIMEOUT_SECONDS,
+            check=False,
+            creationflags=(
+                getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                if sys.platform == "win32"
+                else 0
+            ),
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        log(f"enqueue unavailable: {exc}")
+        return False
+    if result.returncode == 0 and capture_acknowledged(result.stdout or ""):
+        return True
+    detail = (result.stderr or result.stdout or "").strip().replace("\n", " ")[:500]
+    log(f"enqueue rejected: {detail}")
+    return False
+
+
+def capture_acknowledged(stdout: str) -> bool:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(payload, dict) and payload.get("status") == "enqueued"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--event", default="stop")
@@ -361,24 +425,10 @@ def main() -> int:
         return 0
 
     resolved_session_id = session_id or session_file.stem
-    log(f"parsing: {session_file}")
-    messages = parse_session_messages(session_file)
-    log(f"parsed {len(messages)} messages")
-
-    if not messages:
-        log("skip: no messages to upload")
+    if enqueue_capture(resolved_session_id, session_file, cwd):
+        log(f"queued session={resolved_session_id} file={session_file}")
         return 0
-
-    for attempt, delay in enumerate(SAVE_RETRY_DELAYS):
-        if delay:
-            time.sleep(delay)
-        log(f"upload attempt {attempt + 1}/{len(SAVE_RETRY_DELAYS)}")
-        if upload_thread(resolved_session_id, messages, cwd):
-            log("upload ok")
-            return 0
-        log(f"upload attempt {attempt + 1} failed")
-
-    log("upload failed after all retries")
+    log("capture skipped because durable enqueue was not acknowledged")
     return 0
 
 

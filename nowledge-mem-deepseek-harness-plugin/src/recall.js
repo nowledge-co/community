@@ -13,7 +13,7 @@
 // search surfaces whatever happens to score highest globally instead of
 // anything related to the interrupted turn. Exclude that case explicitly
 // rather than trying to make an empty query search well.
-const CONTINUATION_ONLY_PATTERN = /^[\s.!?。！？,，]*(?:continue|go on|keep going|carry on|继续|接着|繼續)[\s.!?。！？,，]*$/iu
+const CONTINUATION_ONLY_PATTERN = /^[\s\p{P}]*(?:continue|go on|keep going|carry on|继续|接着|繼續)[\s\p{P}]*$/iu
 
 export function shouldRecallForPrompt(prompt, pattern) {
   const trimmed = prompt.trim()

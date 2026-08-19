@@ -38,6 +38,23 @@ second required identity variable. The child plugin still reports its real
 runtime as `source_app`; the env var selects the right Nowledge AI Identity
 through Context Bundle.
 
+## Community Linux packages
+
+The official Linux release channels remain the APT repository, `.deb`,
+AppImage, and Docker paths documented at
+[mem.nowledge.co/docs/installation](https://mem.nowledge.co/docs/installation).
+The packages below are maintained by community contributors for users who
+prefer their distro's native package manager. Review the package metadata or
+PKGBUILD before installing, as you would for any community-maintained package.
+
+| Target | Package | Maintainer | Install |
+|--------|---------|------------|---------|
+| Fedora / RPM-based Linux | [Fedora COPR: `abn/nowledge-mem`](https://copr.fedorainfracloud.org/coprs/abn/nowledge-mem/) | [abn](https://github.com/abn) | `sudo dnf install dnf-plugins-core`<br/>`sudo dnf copr enable abn/nowledge-mem`<br/>`sudo dnf install nowledge-mem` |
+| Fedora / RPM-based headless server | `nowledge-mem-server` from [the same COPR](https://copr.fedorainfracloud.org/coprs/abn/nowledge-mem/) | [abn](https://github.com/abn) | `sudo dnf install nowledge-mem-server` |
+| Fedora / RPM-based CLI only | `nowledge-mem-cli` from [the same COPR](https://copr.fedorainfracloud.org/coprs/abn/nowledge-mem/) | [abn](https://github.com/abn) | `sudo dnf install nowledge-mem-cli` |
+| Arch Linux desktop app | [AUR: `nowledge-mem`](https://aur.archlinux.org/packages/nowledge-mem) or [`nowledge-mem-bin`](https://aur.archlinux.org/packages/nowledge-mem-bin) | Community-maintained | `yay -S nowledge-mem`<br/>or `yay -S nowledge-mem-bin` |
+| Arch Linux CLI only | [AUR: `nmem-cli`](https://aur.archlinux.org/packages/nmem-cli) | [czyt](https://github.com/czyt) | `yay -S nmem-cli`<br/>or `paru -S nmem-cli` |
+
 ## Integrations
 
 Each directory is a standalone integration. Pick the one that matches your tool.
@@ -56,7 +73,7 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[Windsurf Trajectory Extractor](https://github.com/jijiamoer/windsurf-trajectory-extractor)** | `git clone https://github.com/jijiamoer/windsurf-trajectory-extractor.git` | Offline protobuf extraction for Windsurf Cascade conversation history. |
 | **[Cursor Plugin](nowledge-mem-cursor-plugin)** | Link `nowledge-mem-cursor-plugin` into `~/.cursor/plugins/local/nowledge-mem-cursor` | Cursor-native plugin with session-start context, MCP recall, exact-session transcript capture, manual `save-thread`, and summary-only `save-handoff`. |
 | **[Codex Plugin](nowledge-mem-codex-plugin)** | `codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin` then `codex plugin add nowledge-mem@nowledge-community`; enable `plugins` and `hooks`, run setup, then trust the hooks when Codex asks | Native startup context and memory routing, bundled MCP retrieval and writes, plus Stop-hook capture of real Codex sessions. Coexists cleanly with Codex local Memory. |
-| **Raft (formerly Slock)** | Configure per-worker environment variables in Raft runtime config | Install the child runtime connector, set `NMEM_AGENT_ID=<agent-slug>` per worker, and use Mem skills/MCP inside Raft. Raft-managed Codex rollouts are execution traces and are excluded from Codex Thread capture. |
+| **Raft** | Configure per-worker environment variables in Raft runtime config | Install the child runtime connector, set `NMEM_AGENT_ID=<agent-slug>` per worker, and use Mem skills/MCP inside Raft. Raft-managed Codex rollouts are execution traces and are excluded from Codex Thread capture. |
 | **Lody** | Configure the child runtime in Lody Agent Config | Runtime launcher setup: install the child runtime connector first; set `NMEM_AGENT_ID=<agent-slug>` only when that Agent Config represents a stable role. |
 | **Multica** | Configure the Multica agent MCP settings and custom environment | Multi-agent orchestrator setup: install the child runtime connector first; for Claude Code agents, save the Mem MCP config on the Multica agent; then set `NMEM_AGENT_ID=<agent-slug>` in custom env. |
 | **Cumora** | Configure the child runtime plus each teammate persona | AI teammate workspace setup: connect Mem at the runtime/daemon boundary, then use a per-persona Context Bundle instruction unless Cumora exposes per-agent runtime environment variables. |
@@ -71,6 +88,7 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[Amp Plugin](nowledge-mem-amp-plugin)** | `bash nowledge-mem-amp-plugin/scripts/install.sh` | Native Amp plugin with Context Bundle, Working Memory, search/save tools, `agent.end` automatic thread capture, handoff, status, and an Amp skill. |
 | **[Craft Agent Connector](nowledge-mem-craft-agent-connector)** | `nmem config mcp show --host craft-agent` | Craft workspace source + guide setup: MCP memory tools inside Craft Agent, plus `nmem t sync --from craft-agent` for real local session import from Craft `session.jsonl` files. |
 | **[WorkBuddy Plugin](nowledge-mem-workbuddy-plugin)** | In WorkBuddy: `/plugin marketplace add https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json --name nowledge-community`, then `/plugin install nowledge-mem@nowledge-community` | WorkBuddy-native setup through the CodeBuddy-compatible plugin abstraction: startup context, bundled MCP, slash commands, lifecycle hooks, and real WorkBuddy thread capture through `nmem` using WorkBuddy's `transcript_path`. |
+| **[Devin Plugin](nowledge-mem-devin-plugin)** | `devin plugins install nowledge-co/community#nowledge-mem-devin-plugin` | Devin-native MCP, memory skills, lifecycle capture, selected-chain local import, and read-only enterprise Cloud v3 synchronization. Native plugins are currently a Devin closed beta. |
 | **[CodeBuddy Plugin](nowledge-mem-codebuddy-plugin)** | `codebuddy plugin marketplace add nowledge-co/community` then `codebuddy plugin install nowledge-mem@nowledge-community` | CodeBuddy-native plugin with startup context, bundled MCP, slash commands, lifecycle hooks, and real CodeBuddy thread capture through `nmem` using CodeBuddy's `transcript_path`. |
 | **[Kimi Code Plugin](nowledge-mem-kimi-code-plugin)** | In Kimi Code, run `/plugins install https://github.com/nowledge-co/community/tree/main`, then `/reload` | Kimi-native plugin metadata, session-start skill, native lifecycle hooks, slash commands, user-owned MCP config via `nmem config mcp show --host kimi-code`, and real Kimi Code thread capture through `nmem`. |
 | **[Kimi Work Connector](nowledge-mem-kimi-work-connector)** | `python3 ~/.cache/nowledge-community/nowledge-mem-kimi-work-connector/scripts/install_kimi_work_plugin.py` | Kimi Work desktop connector for its embedded Kimi Code runtime: session-start skill, bundled local MCP, and explicit `nmem t sync --from kimi-work` session import. |
@@ -78,6 +96,7 @@ Each directory is a standalone integration. Pick the one that matches your tool.
 | **[DeepSeek Harness Plugin](nowledge-mem-deepseek-harness-plugin)** | `dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness` | Community DSH bundle with native Context Bundle injection, prompt-time recall, Mem MCP tools, and `session/event` turn-end transcript capture through `nmem`. The standalone repo is tagged `dsh-plugin` for DeepSeek Harness ecosystem discovery. |
 | **[Hermes Agent](nowledge-mem-hermes)** | `bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/setup.sh)` | Native Hermes memory provider with Context Bundle / Working Memory startup context, pre-turn recall, clean `nmem_` tools, and session-end transcript capture into Mem threads. MCP remains available as a fallback mode. |
 | **[Proma Plugin](nowledge-mem-proma-plugin)** | Manual setup with MCP, hooks, and skills; see [Proma guide](https://mem.nowledge.co/docs/integrations/proma) | Proma desktop agent setup with startup context, Stop-hook thread capture, MCP memory tools, and standard Nowledge Mem skills. |
+| **[LangGraph Connector](nowledge-mem-langgraph)** | `pip install nowledge-mem-langgraph` | Python middleware and explicit `StateGraph` helpers for transient Context Bundle injection, identity-scoped MCP tools, and idempotent top-level Thread capture without replacing LangGraph checkpoints. |
 | **[Cradle](https://github.com/wibus-wee/cradle-app/tree/main/plugins/nowledge-mem)** | Enable the bundled Nowledge Mem plugin in Cradle's Plugin Marketplace | Cradle's official adapter provides guided Working Memory, Context Bundle, memory, and thread operations, with optional direct MCP registration. Automatic recall and session capture await Cradle lifecycle hooks. |
 | **[Arkloop](https://arkloop.io/zh/docs/features/memory)** | Settings > Memory > Enable > select Nowledge | Arkloop's official Memory provider injects Working Memory and relevant recall, keeps Arkloop threads in Mem, and can automatically triage and distill completed conversations. |
 | **[OpticLM](https://github.com/OpticLM/nmem)** | Enable Nowledge Mem from Optic's Extension settings | Optic's official integration uses its own `@opticlm/nmem` SDK for Mem spaces and thread continuity. Add Mem MCP separately when you also want agent-facing Working Memory and recall tools. |

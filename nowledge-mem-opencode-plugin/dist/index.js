@@ -1,10 +1,113 @@
 // Generated from src/index.ts. Run npm run build before publishing.
 
-// src/index.ts
+// nowledge-mem-opencode-plugin/src/index.ts
 import { tool } from "@opencode-ai/plugin";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
+// nowledge-mem-opencode-plugin/src/session-delta.ts
+import { createHash } from "node:crypto";
+function sessionSyncLaneKey(sessionId, spaceId) {
+  return `${spaceId ?? ""}\0${sessionId}`;
+}
+function stableMessageFingerprint(message) {
+  return JSON.stringify(message);
+}
+function normalizedTimestamp(raw) {
+  if (raw === null || raw === void 0) return void 0;
+  try {
+    const timestamp = new Date(raw);
+    return Number.isNaN(timestamp.getTime()) ? void 0 : timestamp.toISOString();
+  } catch {
+    return void 0;
+  }
+}
+function prefixFingerprint(messages, end, messageFingerprint) {
+  const hash = createHash("sha256");
+  for (const message of messages.slice(0, end)) {
+    const value = messageFingerprint(message);
+    hash.update(String(Buffer.byteLength(value)));
+    hash.update(":");
+    hash.update(value);
+  }
+  return hash.digest("hex");
+}
+function isThreadNotFoundResponse(status, data) {
+  if (typeof data === "object" && data !== null && data.error_code === "thread_not_found") return true;
+  if (status === 404) return true;
+  return JSON.stringify(data).toLowerCase().includes("thread not found");
+}
+function isThreadAlreadyExistsResponse(status, data) {
+  if (status === 409) return true;
+  const text = JSON.stringify(data).toLowerCase();
+  return text.includes("thread already exists") || text.includes("already exists in space");
+}
+function isCheckpointConflictResponse(data) {
+  return typeof data === "object" && data !== null && data.error_code === "checkpoint_conflict";
+}
+function isCheckpointedAppendAck(data) {
+  return typeof data === "object" && data !== null && data.success === true && Number.isInteger(data.messages_added) && Number.isInteger(data.total_messages) && data.append_mode === "checkpointed";
+}
+function appendAcknowledgedRemoteCount(data) {
+  if (typeof data !== "object" || data === null || data.success !== true || !Number.isInteger(data.messages_added) || !Number.isInteger(data.total_messages)) return void 0;
+  return data.total_messages;
+}
+function createAcknowledgedRemoteCount(data, expectedThreadId) {
+  if (typeof data !== "object" || data === null) return void 0;
+  const thread = data.thread;
+  if (typeof thread !== "object" || thread === null) return void 0;
+  if (thread.thread_id !== expectedThreadId) return void 0;
+  const messageCount = thread.message_count;
+  if (Number.isInteger(messageCount) && messageCount >= 0) {
+    return messageCount;
+  }
+  const messages = data.messages;
+  return Array.isArray(messages) ? messages.length : void 0;
+}
+async function recreateMissingThread(response, recreate) {
+  if (response.ok || !isThreadNotFoundResponse(response.status, response.data)) {
+    return { response, recreated: false };
+  }
+  return { response: await recreate(), recreated: true };
+}
+function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprint = stableMessageFingerprint) {
+  let start = cursor?.count ?? 0;
+  let reset = false;
+  const acknowledgedPrefix = start >= 0 && start <= messages.length ? prefixFingerprint(messages, start, messageFingerprint) : "";
+  if (start < 0 || start > messages.length || start > 0 && (externalId(messages[start - 1]) !== cursor?.lastExternalId || acknowledgedPrefix !== cursor?.prefixFingerprint)) {
+    start = 0;
+    reset = true;
+  }
+  const end = messages.length;
+  return {
+    start,
+    end,
+    messages: messages.slice(start),
+    next: {
+      count: end,
+      remoteCount: cursor?.remoteCount ?? end,
+      ...end > 0 ? { lastExternalId: externalId(messages[end - 1]) } : {},
+      prefixFingerprint: prefixFingerprint(messages, end, messageFingerprint)
+    },
+    reset
+  };
+}
+
+// nowledge-mem-opencode-plugin/src/thread-sync-timeout.ts
+var DEFAULT_THREAD_SYNC_TIMEOUT_MS = 12e4;
+var MIN_THREAD_SYNC_TIMEOUT_MS = 1e3;
+var MAX_THREAD_SYNC_TIMEOUT_MS = 30 * 6e4;
+function resolveThreadSyncTimeoutMs(raw) {
+  const parsed = Number(raw);
+  if (!raw?.trim() || !Number.isSafeInteger(parsed) || parsed <= 0) {
+    return DEFAULT_THREAD_SYNC_TIMEOUT_MS;
+  }
+  return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed));
+}
+
+// nowledge-mem-opencode-plugin/src/index.ts
+var THREAD_SYNC_TIMEOUT_MS = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS);
 var BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
 You have Nowledge Mem tools for cross-tool knowledge management. Use them proactively.
@@ -195,26 +298,21 @@ ${reasoning}
       }
       return segments.join("\n") || "(empty message)";
     }
-    function safeTimestamp(raw) {
-      try {
-        const d = new Date(raw);
-        if (!isNaN(d.getTime())) return d.toISOString();
-      } catch {
-      }
-      return (/* @__PURE__ */ new Date()).toISOString();
-    }
     function toThreadMessages(sdkMessages) {
-      return sdkMessages.filter((m) => m?.info).map(({ info, parts }) => ({
-        content: extractMessageContent(parts ?? []),
-        role: info.role === "user" ? "user" : "assistant",
-        timestamp: safeTimestamp(info.time?.created ?? Date.now()),
-        metadata: {
-          external_id: `opencode-msg-${info.id}`,
-          source_app: "opencode",
-          ...info.agent ? { agent: info.agent } : {},
-          ...info.role === "assistant" && info.modelID ? { model: info.modelID } : {}
-        }
-      }));
+      return sdkMessages.filter((m) => m?.info).map(({ info, parts }) => {
+        const timestamp = normalizedTimestamp(info.time?.created);
+        return {
+          content: extractMessageContent(parts ?? []),
+          role: info.role === "user" ? "user" : "assistant",
+          ...timestamp ? { timestamp } : {},
+          metadata: {
+            external_id: `opencode-msg-${info.id}`,
+            source_app: "opencode",
+            ...info.agent ? { agent: info.agent } : {},
+            ...info.role === "assistant" && info.modelID ? { model: info.modelID } : {}
+          }
+        };
+      });
     }
     function normalizeSessionMessages(raw) {
       if (Array.isArray(raw)) return raw;
@@ -256,11 +354,12 @@ ${reasoning}
     const autoSyncEnabled = !["0", "false", "off", "no"].includes(
       (process.env.NMEM_OPENCODE_AUTO_SYNC ?? "1").trim().toLowerCase()
     );
-    function syncStateFor(sessionID) {
-      const existing = syncStates.get(sessionID);
+    function syncStateFor(sessionID, spaceId = ambientSpaceId) {
+      const key = sessionSyncLaneKey(sessionID, spaceId);
+      const existing = syncStates.get(key);
       if (existing) return existing;
       const created = {};
-      syncStates.set(sessionID, created);
+      syncStates.set(key, created);
       return created;
     }
     function lastExternalId(messages) {
@@ -308,43 +407,75 @@ ${reasoning}
       if (!hasUser || !hasAssistant) {
         return { skipped: true, reason: "incomplete_turn", session_id: ctx.sessionID };
       }
-      const signature = `${threadMessages.length}:${lastExternalId(threadMessages)}`;
-      const state = syncStateFor(ctx.sessionID);
-      if (!options.force && state.lastSignature === signature) {
+      const state = syncStateFor(ctx.sessionID, options.spaceId || ambientSpaceId);
+      const delta = selectAcknowledgedDelta(
+        threadMessages,
+        options.force ? void 0 : state.acknowledged,
+        (message) => String(message?.metadata?.external_id ?? ""),
+        stableMessageFingerprint
+      );
+      if (delta.messages.length === 0) {
         return { skipped: true, reason: "already_synced", session_id: ctx.sessionID };
       }
       const threadId = `opencode-${ctx.sessionID}`.toLowerCase();
       const title = options.summary || threadMessages.find((message) => message.role === "user")?.content?.slice(0, 120) || threadMessages[0]?.content?.slice(0, 120) || "OpenCode Session";
       const metadata = threadMetadata(ctx.sessionID, options.reason);
       const projectPath = ctx.directory ?? directory;
-      let res = await nmemApi(
-        "/threads",
-        {
-          thread_id: threadId,
-          title,
-          messages: threadMessages,
-          source: "opencode",
-          project: projectPath,
-          workspace: projectPath,
-          ...options.spaceId ? { space_id: options.spaceId } : {},
-          metadata
-        },
-        timeoutMs
-      );
-      let action = "created";
-      if (!res.ok) {
+      const createBody = {
+        thread_id: threadId,
+        title,
+        messages: threadMessages,
+        source: "opencode",
+        project: projectPath,
+        workspace: projectPath,
+        ...options.spaceId ? { space_id: options.spaceId } : {},
+        metadata
+      };
+      let res = state.created ? { ok: false, status: 409, data: null } : await nmemApi("/threads", createBody, timeoutMs);
+      let action = state.created ? "appended" : "created";
+      let checkpointed = false;
+      let persistedMessages = delta.messages.length;
+      if (!res.ok && isThreadAlreadyExistsResponse(res.status, res.data)) {
+        state.created = true;
         await mergeThreadMetadata(threadId, metadata, timeoutMs).catch(() => void 0);
+        res = await nmemApi(
+          `/threads/${encodeURIComponent(threadId)}/append`,
+          {
+            messages: delta.messages,
+            deduplicate: true,
+            idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
+            ...state.acknowledged && !delta.reset ? { expected_message_count: state.acknowledged.remoteCount } : {},
+            ...options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}
+          },
+          timeoutMs
+        );
+        checkpointed = Boolean(state.acknowledged && !delta.reset);
+        action = "appended";
+      }
+      if (!res.ok && checkpointed && isCheckpointConflictResponse(res.data)) {
         res = await nmemApi(
           `/threads/${encodeURIComponent(threadId)}/append`,
           {
             messages: threadMessages,
             deduplicate: true,
-            idempotency_key: `opencode:live:${ctx.sessionID}`,
+            idempotency_key: `opencode:reconcile:${ctx.sessionID}:${delta.next.prefixFingerprint}`,
             ...options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}
           },
           timeoutMs
         );
-        action = "appended";
+        checkpointed = false;
+        persistedMessages = threadMessages.length;
+        action = "reconciled";
+      }
+      const recovered = await recreateMissingThread(res, async () => {
+        state.created = false;
+        return nmemApi("/threads", createBody, timeoutMs);
+      });
+      if (recovered.recreated) {
+        res = recovered.response;
+        action = "created";
+        checkpointed = false;
+        persistedMessages = threadMessages.length;
       }
       if (!res.ok) {
         return {
@@ -353,12 +484,29 @@ ${reasoning}
           session_id: ctx.sessionID
         };
       }
-      state.lastSignature = signature;
+      const remoteCount = action === "created" ? createAcknowledgedRemoteCount(res.data, threadId) : appendAcknowledgedRemoteCount(res.data);
+      if (remoteCount === void 0) {
+        return {
+          error: "Thread save did not include an explicit persistence acknowledgement; cursor was preserved",
+          thread_id: threadId,
+          session_id: ctx.sessionID
+        };
+      }
+      if (checkpointed && !isCheckpointedAppendAck(res.data)) {
+        return {
+          error: "Thread append was not acknowledged as checkpointed; cursor was preserved",
+          thread_id: threadId,
+          session_id: ctx.sessionID
+        };
+      }
+      state.created = true;
+      state.acknowledged = { ...delta.next, remoteCount };
       return {
         success: true,
         action,
         thread_id: threadId,
-        messages_saved: threadMessages.length,
+        messages_saved: persistedMessages,
+        checkpoint_reset: delta.reset,
         title,
         sync_reason: options.reason
       };
@@ -380,7 +528,7 @@ ${reasoning}
       }
       state.inFlight = syncSessionThread(
         { sessionID, directory },
-        { reason, force: false, timeoutMs: 1e4 }
+        { reason, force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS }
       ).then((result) => {
         if ("error" in result) {
           console.warn("[nowledge-mem] automatic OpenCode thread sync failed:", result.error);
@@ -578,7 +726,7 @@ ${reasoning}
         if (input2.sessionID) {
           await syncSessionThread(
             { sessionID: input2.sessionID, directory },
-            { reason: "session_compacting", force: false, timeoutMs: 1e4 }
+            { reason: "session_compacting", force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS }
           ).catch((err) => {
             console.warn("[nowledge-mem] pre-compaction OpenCode thread sync failed:", err?.message ?? err);
           });

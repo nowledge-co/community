@@ -61,6 +61,23 @@ def test_boundary_capture_hooks_are_synchronous():
     assert session_end.get("timeout") == 35
 
 
+def test_hooks_use_cross_shell_python_runner():
+    repo_root = Path(__file__).parent.parent
+    hooks = json.loads((repo_root / "hooks" / "hooks.json").read_text())["hooks"]
+    commands = []
+    for groups in hooks.values():
+        for group in groups:
+            for hook in group["hooks"]:
+                commands.append(hook["command"])
+
+    assert commands
+    for command in commands:
+        assert "copilot-hook.py" in command
+        assert "python3 -c" in command
+        for posix_only in ("function ", "${", "command -v", ">/dev/null", "||", "&&", "if ["):
+            assert posix_only not in command
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

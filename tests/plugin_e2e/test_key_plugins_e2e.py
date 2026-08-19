@@ -520,7 +520,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.3.7"
+    assert opencode_pkg["version"] == "0.3.8"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -544,7 +544,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert 'statusType === "idle"' in opencode_source
     assert 'event.type === "session.idle"' in opencode_source
     assert "syncSessionThread" in opencode_source
-    assert "idempotency_key: `opencode:live:${ctx.sessionID}`" in opencode_source
+    assert "idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}" in opencode_source
 
     copilot_manifest = _read_json(COPILOT_PLUGIN / ".claude-plugin" / "plugin.json")
     copilot_hooks = _read_json(COPILOT_PLUGIN / "hooks" / "hooks.json")
@@ -704,7 +704,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.6"
+    assert pi_pkg["version"] == "0.8.7"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
@@ -718,6 +718,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert 'metadata: {' in pi_extension
     assert "external_id" in pi_extension
     assert "deduplicate: true" in pi_extension
+    assert "NMEM_SYNC_TIMEOUT_MS" in pi_extension
+    assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in pi_extension
     assert "NMEM_AGENT_ID" in pi_extension
     assert "NMEM_HOST_AGENT_ID" in pi_extension
     assert "custom_message" in pi_extension
@@ -1327,7 +1329,7 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
         env["NMEM_API_URL"] = f"http://127.0.0.1:{server.server_address[1]}"
         env["NMEM_SPACE"] = "pi-history-space"
         env["NMEM_AGENT_ID"] = "PiHistoryAgent"
-        env["NMEM_HOST_AGENT_ID"] = "slock:PiHistoryAgent"
+        env["NMEM_HOST_AGENT_ID"] = "raft:PiHistoryAgent"
         result = _run(
             ["node", str(script), "--session-dir", str(session_dir), "--json", "--apply"],
             env=env,
@@ -1352,7 +1354,7 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
     assert create_body["metadata"]["analysis"] == "searchable-now-distill-on-demand"
     assert create_body["metadata"]["sync_reason"] == "history_sync"
     assert create_body["metadata"]["agent_id"] == "PiHistoryAgent"
-    assert create_body["metadata"]["host_agent_id"] == "slock:PiHistoryAgent"
+    assert create_body["metadata"]["host_agent_id"] == "raft:PiHistoryAgent"
     assert create_body["project"] == "/tmp/pi-history-project"
     assert create_body["workspace"] == "/tmp/pi-history-project"
     assert [message["content"] for message in create_body["messages"]] == [
@@ -1444,6 +1446,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
 
     by_id = {entry["id"]: entry for entry in integrations}
+    assert "raft" in integration_ids
+    assert "slock" not in integration_ids
+    assert "slock" in by_id["raft"]["aliases"]
     assert by_id["copilot-cli"]["version"] == "0.1.4"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
     assert by_id["cursor"]["version"] == "0.2.0"
@@ -1456,8 +1461,8 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.3.7"
-    assert by_id["pi"]["version"] == "0.8.6"
+    assert by_id["opencode"]["version"] == "0.3.8"
+    assert by_id["pi"]["version"] == "0.8.7"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["kimi-code"]["version"] == "0.2.4"
@@ -1517,7 +1522,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.1.0"
+    assert dsh["version"] == "0.1.3"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1579,11 +1584,13 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.1.0"
+    assert pkg["version"] == "0.1.3"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
     assert "dsh-plugin" in pkg["keywords"]
+    assert pkg["peerDependenciesMeta"]["@deepseek-ai/dsh-session"]["optional"] is True
+    assert pkg["peerDependenciesMeta"]["@deepseek-ai/dsh-mcp-client"]["optional"] is True
     assert dsh_registry["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh_registry["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
     assert dsh_registry["version"] == pkg["version"]
@@ -1596,12 +1603,20 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "id: nowledge-mem-mcp" in patch
     assert "name: '@deepseek-ai/dsh-mcp-client'" in patch
     assert "serverName: nowledge_mem" in patch
-    assert "X-Nowledge-Tool-Schema-Profile: slim" in patch
+    assert "'X-Nowledge-Tool-Schema-Profile': 'slim'" in patch
+    assert "Object.fromEntries(Object.entries" in patch
+    assert "typeof value === 'string' && value.length > 0" in patch
+    assert "'X-NMEM-Agent-ID': process.env.NMEM_AGENT_ID" in patch
 
     assert "export const inject = ['agents', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
     assert "ctx.on('session/event'" in source
     assert "event.type === 'turn/end'" in source
+    assert "SANDBOX_UNAVAILABLE" in source
+    assert "isSandboxUnavailableError" in source
+    assert "sandboxPolicy: dangerFullAccessPolicy(ctx, session)" in source
+    assert "pre-step context injection failed" in source
+    assert "turn-end transcript import failed" in source
     assert "'--json', 'context', '--source-app', config.sourceApp" in source
     assert "'--json', 'm', 'search', query" in source
     assert "NMEM_IMPORT_ORIGIN" in source
@@ -1668,7 +1683,7 @@ def test_opencode_plugin_static_contract_is_self_contained():
     assert "fetchSessionMessages" in source
     assert "path: { id: ctx.sessionID }" in source
     assert "syncSessionThread" in source
-    assert "idempotency_key: `opencode:live:${ctx.sessionID}`" in source
+    assert "idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}" in source
     assert "event: async ({ event })" in source
     assert 'event.type === "session.status"' in source
     assert 'statusType === "idle"' in source
@@ -1682,6 +1697,30 @@ def test_opencode_plugin_static_contract_is_self_contained():
     assert "OpenCode integration guide" in readme
     assert "Explicit tool arguments override" in readme
     assert "compaction hook now injects" in changelog
+
+
+def test_opencode_thread_sync_timeout_contract():
+    pkg = _read_json(OPENCODE_PLUGIN / "package.json")
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    opencode_registry = next(
+        item for item in registry["integrations"] if item.get("id") == "opencode"
+    )
+    source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
+    timeout_source = (OPENCODE_PLUGIN / "src" / "thread-sync-timeout.ts").read_text(
+        encoding="utf-8"
+    )
+    readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
+    changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
+
+    assert pkg["version"] == "0.3.8"
+    assert opencode_registry["version"] == pkg["version"]
+    assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in timeout_source
+    assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source
+    assert source.count("timeoutMs: THREAD_SYNC_TIMEOUT_MS") == 2
+    assert "timeoutMs: 10_000" not in source
+    assert "NMEM_SYNC_TIMEOUT_MS" in readme
+    assert "later lifecycle sync safely reconciles" in readme
+    assert "## [0.3.8] - 2026-08-19" in changelog
 
 
 def test_amp_plugin_static_contract_is_self_contained():
@@ -1716,7 +1755,7 @@ def test_amp_plugin_static_contract_is_self_contained():
 
     # Package manifest and registry entry agree on the basics.
     assert pkg["name"] == "amp-nowledge-mem"
-    assert pkg["version"] == "0.1.2"
+    assert pkg["version"] == "0.1.3"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.ts"
     assert "@ampcode/plugin" in pkg["peerDependencies"]
@@ -2078,6 +2117,26 @@ def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
     assert '"ok":true' in result.stdout.replace(" ", "")
 
 
+def test_pi_thread_sync_timeout_contract():
+    pi_pkg = _read_json(PI_PLUGIN / "package.json")
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    pi_registry = next(
+        item for item in registry["integrations"] if item.get("id") == "pi"
+    )
+    extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
+    readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
+    changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
+
+    assert pi_pkg["version"] == "0.8.7"
+    assert pi_registry["version"] == pi_pkg["version"]
+    assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in extension
+    assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension
+    assert "shouldTryRemoteApiFallback(response.status)" in extension
+    assert "NMEM_SYNC_TIMEOUT_MS" in readme
+    assert "next lifecycle sync safely reconciles" in readme
+    assert "## [0.8.7] - 2026-08-18" in changelog
+
+
 @pytest.mark.skipif(_skip_live_host("pi"), reason="Pi live E2E not requested")
 def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
     _require_live_host("pi")
@@ -2160,7 +2219,7 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
         process.env.NMEM_API_URL = `http://127.0.0.1:${port}`;
         process.env.NMEM_SPACE = "pi-smoke-space";
         process.env.NMEM_AGENT_ID = "PiSmokeAgent";
-        process.env.NMEM_HOST_AGENT_ID = "slock:PiSmokeAgent";
+        process.env.NMEM_HOST_AGENT_ID = "raft:PiSmokeAgent";
 
         const handlers = new Map();
         nowledgeMemPi({ on(event, handler) { handlers.set(event, handler); } });
@@ -2253,7 +2312,7 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
           throw new Error("space not propagated");
         }
         if (create.body.metadata.agent_id !== "PiSmokeAgent") throw new Error("agent_id missing");
-        if (create.body.metadata.host_agent_id !== "slock:PiSmokeAgent") {
+        if (create.body.metadata.host_agent_id !== "raft:PiSmokeAgent") {
           throw new Error("host_agent_id missing");
         }
         if (create.body.messages.length !== 2) {
@@ -2289,7 +2348,7 @@ def test_pi_live_package_install_and_extension_smoke(tmp_path: Path):
     assert "--agent-id" in context_call, f"context call missing --agent-id: {context_call}"
     assert "PiSmokeAgent" in context_call, f"context call missing agent id value: {context_call}"
     assert "--host-agent-id" in context_call, f"context call missing --host-agent-id: {context_call}"
-    assert "slock:PiSmokeAgent" in context_call, f"context call missing host agent id value: {context_call}"
+    assert "raft:PiSmokeAgent" in context_call, f"context call missing host agent id value: {context_call}"
 
 
 @pytest.mark.skipif(_skip_live_host("claude"), reason="Claude live E2E not requested")
