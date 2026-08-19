@@ -4,6 +4,20 @@ import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
+import {
+  appendAcknowledgedRemoteCount,
+  createAcknowledgedRemoteCount,
+  isCheckpointConflictResponse,
+  isCheckpointedAppendAck,
+  isThreadAlreadyExistsResponse,
+  recreateMissingThread,
+  normalizedTimestamp,
+  selectAcknowledgedDelta,
+  sessionSyncLaneKey,
+  stableMessageFingerprint,
+  type AcknowledgedCursor,
+} from "./session-delta"
+
 const BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
 You have Nowledge Mem tools for cross-tool knowledge management. Use them proactively.
@@ -252,28 +266,23 @@ export default {
       return segments.join("\n") || "(empty message)"
     }
 
-    function safeTimestamp(raw: unknown): string {
-      try {
-        const d = new Date(raw as any)
-        if (!isNaN(d.getTime())) return d.toISOString()
-      } catch { /* fall through */ }
-      return new Date().toISOString()
-    }
-
     function toThreadMessages(sdkMessages: any[]): any[] {
       return sdkMessages
         .filter((m: any) => m?.info)
-        .map(({ info, parts }: any) => ({
-          content: extractMessageContent(parts ?? []),
-          role: info.role === "user" ? "user" : "assistant",
-          timestamp: safeTimestamp(info.time?.created ?? Date.now()),
-          metadata: {
-            external_id: `opencode-msg-${info.id}`,
-            source_app: "opencode",
-            ...(info.agent ? { agent: info.agent } : {}),
-            ...(info.role === "assistant" && info.modelID ? { model: info.modelID } : {}),
-          },
-        }))
+        .map(({ info, parts }: any) => {
+          const timestamp = normalizedTimestamp(info.time?.created)
+          return {
+            content: extractMessageContent(parts ?? []),
+            role: info.role === "user" ? "user" : "assistant",
+            ...(timestamp ? { timestamp } : {}),
+            metadata: {
+              external_id: `opencode-msg-${info.id}`,
+              source_app: "opencode",
+              ...(info.agent ? { agent: info.agent } : {}),
+              ...(info.role === "assistant" && info.modelID ? { model: info.modelID } : {}),
+            },
+          }
+        })
     }
 
     function normalizeSessionMessages(raw: any): any[] {
@@ -316,7 +325,8 @@ export default {
       timer?: ReturnType<typeof setTimeout>
       inFlight?: Promise<void>
       pending?: boolean
-      lastSignature?: string
+      created?: boolean
+      acknowledged?: AcknowledgedCursor
     }
     const syncStates = new Map<string, SessionSyncState>()
     const autoSyncDebounceMs = Math.max(
@@ -327,11 +337,12 @@ export default {
       (process.env.NMEM_OPENCODE_AUTO_SYNC ?? "1").trim().toLowerCase(),
     )
 
-    function syncStateFor(sessionID: string): SessionSyncState {
-      const existing = syncStates.get(sessionID)
+    function syncStateFor(sessionID: string, spaceId = ambientSpaceId): SessionSyncState {
+      const key = sessionSyncLaneKey(sessionID, spaceId)
+      const existing = syncStates.get(key)
       if (existing) return existing
       const created: SessionSyncState = {}
-      syncStates.set(sessionID, created)
+      syncStates.set(key, created)
       return created
     }
 
@@ -400,9 +411,14 @@ export default {
         return { skipped: true, reason: "incomplete_turn", session_id: ctx.sessionID }
       }
 
-      const signature = `${threadMessages.length}:${lastExternalId(threadMessages)}`
-      const state = syncStateFor(ctx.sessionID)
-      if (!options.force && state.lastSignature === signature) {
+      const state = syncStateFor(ctx.sessionID, options.spaceId || ambientSpaceId)
+      const delta = selectAcknowledgedDelta(
+        threadMessages,
+        options.force ? undefined : state.acknowledged,
+        (message) => String(message?.metadata?.external_id ?? ""),
+        stableMessageFingerprint,
+      )
+      if (delta.messages.length === 0) {
         return { skipped: true, reason: "already_synced", session_id: ctx.sessionID }
       }
 
@@ -416,35 +432,68 @@ export default {
       const metadata = threadMetadata(ctx.sessionID, options.reason)
       const projectPath = ctx.directory ?? directory
 
-      let res = await nmemApi(
-        "/threads",
-        {
-          thread_id: threadId,
-          title,
-          messages: threadMessages,
-          source: "opencode",
-          project: projectPath,
-          workspace: projectPath,
-          ...(options.spaceId ? { space_id: options.spaceId } : {}),
-          metadata,
-        },
-        timeoutMs,
-      )
-      let action = "created"
+      const createBody = {
+        thread_id: threadId,
+        title,
+        messages: threadMessages,
+        source: "opencode",
+        project: projectPath,
+        workspace: projectPath,
+        ...(options.spaceId ? { space_id: options.spaceId } : {}),
+        metadata,
+      }
+      let res = state.created
+        ? { ok: false, status: 409, data: null }
+        : await nmemApi("/threads", createBody, timeoutMs)
+      let action = state.created ? "appended" : "created"
+      let checkpointed = false
+      let persistedMessages = delta.messages.length
 
-      if (!res.ok) {
+      if (!res.ok && isThreadAlreadyExistsResponse(res.status, res.data)) {
+        state.created = true
         await mergeThreadMetadata(threadId, metadata, timeoutMs).catch(() => undefined)
+        res = await nmemApi(
+          `/threads/${encodeURIComponent(threadId)}/append`,
+          {
+            messages: delta.messages,
+            deduplicate: true,
+            idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
+            ...(state.acknowledged && !delta.reset
+              ? { expected_message_count: state.acknowledged.remoteCount }
+              : {}),
+            ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
+          },
+          timeoutMs,
+        )
+        checkpointed = Boolean(state.acknowledged && !delta.reset)
+        action = "appended"
+      }
+
+      if (!res.ok && checkpointed && isCheckpointConflictResponse(res.data)) {
         res = await nmemApi(
           `/threads/${encodeURIComponent(threadId)}/append`,
           {
             messages: threadMessages,
             deduplicate: true,
-            idempotency_key: `opencode:live:${ctx.sessionID}`,
+            idempotency_key: `opencode:reconcile:${ctx.sessionID}:${delta.next.prefixFingerprint}`,
             ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
           },
           timeoutMs,
         )
-        action = "appended"
+        checkpointed = false
+        persistedMessages = threadMessages.length
+        action = "reconciled"
+      }
+
+      const recovered = await recreateMissingThread(res, async () => {
+        state.created = false
+        return nmemApi("/threads", createBody, timeoutMs)
+      })
+      if (recovered.recreated) {
+        res = recovered.response
+        action = "created"
+        checkpointed = false
+        persistedMessages = threadMessages.length
       }
 
       if (!res.ok) {
@@ -454,13 +503,32 @@ export default {
           session_id: ctx.sessionID,
         }
       }
+      const remoteCount = action === "created"
+        ? createAcknowledgedRemoteCount(res.data, threadId)
+        : appendAcknowledgedRemoteCount(res.data)
+      if (remoteCount === undefined) {
+        return {
+          error: "Thread save did not include an explicit persistence acknowledgement; cursor was preserved",
+          thread_id: threadId,
+          session_id: ctx.sessionID,
+        }
+      }
+      if (checkpointed && !isCheckpointedAppendAck(res.data)) {
+        return {
+          error: "Thread append was not acknowledged as checkpointed; cursor was preserved",
+          thread_id: threadId,
+          session_id: ctx.sessionID,
+        }
+      }
 
-      state.lastSignature = signature
+      state.created = true
+      state.acknowledged = { ...delta.next, remoteCount }
       return {
         success: true,
         action,
         thread_id: threadId,
-        messages_saved: threadMessages.length,
+        messages_saved: persistedMessages,
+        checkpoint_reset: delta.reset,
         title,
         sync_reason: options.reason,
       }

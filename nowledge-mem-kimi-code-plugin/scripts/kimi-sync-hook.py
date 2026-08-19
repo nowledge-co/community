@@ -11,15 +11,13 @@ import json
 import os
 import subprocess
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
 SOURCE_APP = "kimi-code"
-DEFAULT_TIMEOUT_SECONDS = 35
-DEFAULT_RETRIES = 2
+ENQUEUE_TIMEOUT_SECONDS = 5
 
 
 def _windows_no_window_kwargs() -> dict[str, int]:
@@ -46,17 +44,6 @@ def _log(message: str) -> None:
         return
 
 
-def _positive_int_env(name: str, default: int) -> int:
-    raw = os.environ.get(name)
-    if raw is None or not raw.strip():
-        return default
-    try:
-        parsed = int(raw)
-    except ValueError:
-        return default
-    return parsed if parsed > 0 else default
-
-
 def _read_payload() -> dict[str, Any]:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -69,26 +56,38 @@ def _read_payload() -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def _run_sync(session_id: str) -> subprocess.CompletedProcess[str]:
-    command = [
+def _build_enqueue_command(session_id: str) -> list[str]:
+    return [
         "nmem",
         "--json",
         "t",
-        "sync",
+        "capture",
         "--from",
         SOURCE_APP,
         "--session-id",
         session_id,
-        "--apply",
+        "--sync",
+        "--all-projects",
     ]
+
+
+def _run_enqueue(session_id: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        command,
+        _build_enqueue_command(session_id),
         text=True,
         capture_output=True,
-        timeout=_positive_int_env("NMEM_KIMI_SYNC_TIMEOUT", DEFAULT_TIMEOUT_SECONDS),
+        timeout=ENQUEUE_TIMEOUT_SECONDS,
         check=False,
         **_windows_no_window_kwargs(),
     )
+
+
+def _capture_acknowledged(stdout: str) -> bool:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(payload, dict) and payload.get("status") == "enqueued"
 
 
 def main() -> int:
@@ -99,32 +98,19 @@ def main() -> int:
         _log(f"skip {event}: missing session_id")
         return 0
 
-    attempts = _positive_int_env("NMEM_KIMI_SYNC_RETRIES", DEFAULT_RETRIES)
-    for attempt in range(1, attempts + 1):
-        try:
-            result = _run_sync(session_id)
-        except FileNotFoundError:
-            _log(f"skip {event} {session_id}: nmem not found on PATH")
+    try:
+        enqueued = _run_enqueue(session_id)
+    except FileNotFoundError:
+        _log(f"skip {event} {session_id}: nmem not found on PATH")
+        return 0
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        _log(f"enqueue unavailable {event} {session_id}: {exc}")
+    else:
+        if enqueued.returncode == 0 and _capture_acknowledged(enqueued.stdout or ""):
+            _log(f"queued {event} {session_id}")
             return 0
-        except subprocess.TimeoutExpired:
-            _log(f"timeout {event} {session_id}: nmem sync exceeded timeout")
-            return 0
-        except Exception as exc:
-            _log(f"error {event} {session_id}: {exc}")
-            return 0
-
-        if result.returncode == 0:
-            _log(f"synced {event} {session_id}")
-            return 0
-
-        stderr = (result.stderr or "").strip().replace("\n", " ")[:600]
-        stdout = (result.stdout or "").strip().replace("\n", " ")[:600]
-        _log(
-            f"sync failed {event} {session_id} attempt={attempt}/{attempts} "
-            f"exit={result.returncode} stderr={stderr!r} stdout={stdout!r}"
-        )
-        if attempt < attempts:
-            time.sleep(0.7)
+        detail = (enqueued.stderr or enqueued.stdout or "").strip().replace("\n", " ")[:600]
+        _log(f"enqueue rejected {event} {session_id}: {detail!r}")
 
     return 0
 

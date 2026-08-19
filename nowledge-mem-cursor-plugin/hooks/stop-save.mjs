@@ -20,9 +20,9 @@ import {
   withStartupScopeArgs,
 } from './nmem-runtime.mjs';
 
-const ATTEMPT_DELAYS_MS = [0, 500, 1500, 3000];
-const ATTEMPT_TIMEOUT_MS = 8000;
-const INTERNAL_BUDGET_MS = 30000;
+const ATTEMPT_DELAYS_MS = [0, 250, 750, 1500];
+const ATTEMPT_TIMEOUT_MS = 3000;
+const INTERNAL_BUDGET_MS = 8000;
 const CLAIM_STALE_MS = 90000;
 const LOG_MAX_BYTES = 1024 * 1024;
 
@@ -57,20 +57,20 @@ export function buildSaveArgs(capture, env = process.env) {
     return [];
   }
 
-  return withStartupScopeArgs(
-    [
-      't',
-      'save',
-      '--from',
-      'cursor',
-      '--truncate',
-      '--project',
-      capture.project,
-      '--session-id',
-      capture.conversationId,
-    ],
-    env,
-  );
+  const args = [
+    't',
+    'capture',
+    '--from',
+    'cursor',
+    '--project',
+    capture.project,
+    '--session-id',
+    capture.conversationId,
+  ];
+  if (capture.transcriptPath) {
+    args.push('--transcript-path', capture.transcriptPath);
+  }
+  return withStartupScopeArgs(args, env);
 }
 
 function transcriptFingerprint(transcriptPath) {
@@ -197,7 +197,7 @@ function logEvent(event, options = {}) {
 }
 
 function saveResultHasThread(result) {
-  return result.ok && Array.isArray(result.data?.results) && result.data.results.length > 0;
+  return result.ok && result.data?.status === 'enqueued';
 }
 
 const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));

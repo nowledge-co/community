@@ -1,5 +1,10 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## Unreleased
+
+- Lifecycle capture now durably enqueues the exact Proma session before parsing
+  it, removing complete JSONL reads from the hook's blocking path.
+
 ## 0.1.5 (2026-07-31)
 
 - Make Proma MCP examples explicit about `"enabled": true`, which recent Proma builds require before they inject the MCP server or mark Nowledge Mem hooks as active.

@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Stop hooks now durably enqueue capture in bounded time. The worker uses the
+  CLI's acknowledged JSONL byte checkpoint, while skill telemetry runs in a
+  detached child. Plugin and CLI upgrades must land together; no synchronous
+  full-session fallback runs inside Stop.
+
 ## [0.1.31] - 2026-08-13
 
 ### Fixed

@@ -70,14 +70,15 @@ test('stop capture resolves exact Cursor identity and builds scoped save args', 
   });
   assert.deepEqual(buildSaveArgs(capture, env), [
     't',
-    'save',
+    'capture',
     '--from',
     'cursor',
-    '--truncate',
     '--project',
     '/workspace/project',
     '--session-id',
     'conversation-123',
+    '--transcript-path',
+    '/cursor/transcript.jsonl',
     '--agent-id',
     'cursor-agent',
     '--space',
@@ -133,7 +134,7 @@ test('stop capture retries transcript flush and suppresses duplicate delivery', 
       attempts += 1;
       return {
         ok: true,
-        data: { status: 'success', results: attempts === 1 ? [] : [{ action: 'created' }] },
+        data: attempts === 1 ? { status: 'success', results: [] } : { status: 'enqueued' },
       };
     },
   };
@@ -143,7 +144,7 @@ test('stop capture retries transcript flush and suppresses duplicate delivery', 
 
   assert.deepEqual(first, { saved: true, reason: 'saved', attempts: 2 });
   assert.deepEqual(second, { saved: false, reason: 'duplicate' });
-  assert.deepEqual(delays, [0, 500]);
+  assert.deepEqual(delays, [0, 250]);
   assert.equal(attempts, 2);
 });
 
@@ -171,7 +172,7 @@ test('failed capture releases its claim so a later stop can retry', async (conte
   });
   const retried = await saveCapture(capture, {
     ...baseOptions,
-    runNmem: () => ({ ok: true, data: { results: [{ action: 'created' }] } }),
+    runNmem: () => ({ ok: true, data: { status: 'enqueued' } }),
   });
 
   assert.deepEqual(failed, { saved: false, reason: 'save-failed', attempts: 4 });

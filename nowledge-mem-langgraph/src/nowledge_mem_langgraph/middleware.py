@@ -13,7 +13,13 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.types import ModelRequest, ModelResponse
 from langchain_core.messages import BaseMessage, SystemMessage
 
-from .client import NowledgeClient
+from .client import NowledgeClient, ThreadCheckpointConflict
+from .messages import (
+    AcknowledgedCursor,
+    default_title,
+    normalize_messages,
+    select_acknowledged_delta,
+)
 
 logger = logging.getLogger("nowledge_mem_langgraph")
 
@@ -30,6 +36,8 @@ class NowledgeMiddleware(AgentMiddleware):
         self._cache_size = max(cache_size, 1)
         self._context_cache: OrderedDict[str, str] = OrderedDict()
         self._cache_lock = Lock()
+        self._thread_cursors: OrderedDict[str, AcknowledgedCursor] = OrderedDict()
+        self._thread_cursor_lock = Lock()
 
     @staticmethod
     def _is_nested(runtime: object | None) -> bool:
@@ -78,6 +86,31 @@ class NowledgeMiddleware(AgentMiddleware):
             self._context_cache.move_to_end(key)
             while len(self._context_cache) > self._cache_size:
                 self._context_cache.popitem(last=False)
+
+    def _thread_cursor_key(self, thread_id: str, runtime: object) -> str:
+        identity = self.client.settings.resolve_identity(runtime)
+        return "\0".join(
+            [
+                thread_id,
+                identity.space_id or "",
+                identity.agent_id or "",
+                identity.host_agent_id or "",
+            ]
+        )
+
+    def _get_thread_cursor(self, key: str) -> AcknowledgedCursor | None:
+        with self._thread_cursor_lock:
+            value = self._thread_cursors.get(key)
+            if value is not None:
+                self._thread_cursors.move_to_end(key)
+            return value
+
+    def _put_thread_cursor(self, key: str, value: AcknowledgedCursor) -> None:
+        with self._thread_cursor_lock:
+            self._thread_cursors[key] = value
+            self._thread_cursors.move_to_end(key)
+            while len(self._thread_cursors) > self._cache_size:
+                self._thread_cursors.popitem(last=False)
 
     @staticmethod
     def _inject(request: ModelRequest[Any], context: str) -> ModelRequest[Any]:
@@ -158,8 +191,41 @@ class NowledgeMiddleware(AgentMiddleware):
         messages = [m for m in state.get("messages", []) if isinstance(m, BaseMessage)]
         if not messages:
             return
+        cursor_key = self._thread_cursor_key(thread_id, runtime)
+        normalized = normalize_messages(messages)
+        cursor = self._get_thread_cursor(cursor_key)
+        delta, next_cursor, reset = select_acknowledged_delta(normalized, cursor)
+        if not delta:
+            return
         try:
-            self.client.sync_thread(thread_id=thread_id, messages=messages, runtime=runtime)
+            response = self.client.sync_thread(
+                thread_id=thread_id,
+                messages=messages,
+                runtime=runtime,
+                title=default_title(messages),
+                normalized_messages=delta,
+                expected_message_count=cursor[3] if cursor is not None and not reset else None,
+                idempotency_key=(
+                    f"langgraph:{thread_id}:{cursor[0]}-{next_cursor[0]}:{next_cursor[2]}"
+                    if cursor is not None and not reset
+                    else None
+                ),
+            )
+            remote_count = self.client.thread_sync_message_count(response)
+            self._put_thread_cursor(cursor_key, (*next_cursor[:3], remote_count))
+        except ThreadCheckpointConflict:
+            try:
+                response = self.client.sync_thread(
+                    thread_id=thread_id,
+                    messages=messages,
+                    runtime=runtime,
+                    title=default_title(messages),
+                    normalized_messages=normalized,
+                )
+                remote_count = self.client.thread_sync_message_count(response)
+                self._put_thread_cursor(cursor_key, (*next_cursor[:3], remote_count))
+            except Exception as error:
+                self._on_failure("thread reconciliation", error)
         except Exception as error:
             self._on_failure("thread sync", error)
 
@@ -172,7 +238,40 @@ class NowledgeMiddleware(AgentMiddleware):
         messages = [m for m in state.get("messages", []) if isinstance(m, BaseMessage)]
         if not messages:
             return
+        cursor_key = self._thread_cursor_key(thread_id, runtime)
+        normalized = normalize_messages(messages)
+        cursor = self._get_thread_cursor(cursor_key)
+        delta, next_cursor, reset = select_acknowledged_delta(normalized, cursor)
+        if not delta:
+            return
         try:
-            await self.client.async_thread(thread_id=thread_id, messages=messages, runtime=runtime)
+            response = await self.client.async_thread(
+                thread_id=thread_id,
+                messages=messages,
+                runtime=runtime,
+                title=default_title(messages),
+                normalized_messages=delta,
+                expected_message_count=cursor[3] if cursor is not None and not reset else None,
+                idempotency_key=(
+                    f"langgraph:{thread_id}:{cursor[0]}-{next_cursor[0]}:{next_cursor[2]}"
+                    if cursor is not None and not reset
+                    else None
+                ),
+            )
+            remote_count = self.client.thread_sync_message_count(response)
+            self._put_thread_cursor(cursor_key, (*next_cursor[:3], remote_count))
+        except ThreadCheckpointConflict:
+            try:
+                response = await self.client.async_thread(
+                    thread_id=thread_id,
+                    messages=messages,
+                    runtime=runtime,
+                    title=default_title(messages),
+                    normalized_messages=normalized,
+                )
+                remote_count = self.client.thread_sync_message_count(response)
+                self._put_thread_cursor(cursor_key, (*next_cursor[:3], remote_count))
+            except Exception as error:
+                self._on_failure("thread reconciliation", error)
         except Exception as error:
             self._on_failure("thread sync", error)

@@ -10,6 +10,9 @@ from typing import Any
 
 from langchain_core.messages import BaseMessage
 
+AcknowledgedCursor = tuple[int, str, str, int]
+LegacyAcknowledgedCursor = tuple[int, str, str]
+
 NOWLEDGE_TOOL_NAMES = frozenset(
     {
         "read_context_bundle",
@@ -105,6 +108,48 @@ def normalize_messages(messages: Iterable[BaseMessage]) -> list[dict[str, Any]]:
         metadata["external_id"] = f"langgraph:{message_id}"
         normalized.append({"role": role, "content": content, "metadata": metadata})
     return normalized
+
+
+def select_acknowledged_delta(
+    messages: list[dict[str, Any]],
+    cursor: AcknowledgedCursor | LegacyAcknowledgedCursor | None,
+) -> tuple[list[dict[str, Any]], AcknowledgedCursor, bool]:
+    """Return the suffix after a verified remote acknowledgement anchor."""
+
+    def prefix_fingerprint(end: int) -> str:
+        encoded = json.dumps(
+            messages[:end], ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode()
+        return hashlib.sha256(encoded).hexdigest()
+
+    start = cursor[0] if cursor is not None else 0
+    cursor_external_id = cursor[1] if cursor is not None else None
+    cursor_fingerprint = cursor[2] if cursor is not None else None
+    reset = False
+    if (
+        start < 0
+        or start > len(messages)
+        or (
+            start > 0
+            and (
+                messages[start - 1].get("metadata", {}).get("external_id")
+                != cursor_external_id
+                or prefix_fingerprint(start) != cursor_fingerprint
+            )
+        )
+    ):
+        start = 0
+        reset = True
+    end = len(messages)
+    last_external_id = (
+        str(messages[-1].get("metadata", {}).get("external_id", "")) if messages else ""
+    )
+    remote_count = (
+        cursor[3]
+        if cursor is not None and len(cursor) == 4
+        else start if cursor is not None else end
+    )
+    return messages[start:], (end, last_external_id, prefix_fingerprint(end), remote_count), reset
 
 
 def default_title(messages: Iterable[BaseMessage]) -> str:

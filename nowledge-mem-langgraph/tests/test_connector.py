@@ -19,7 +19,11 @@ from nowledge_mem_langgraph import (
     NowledgeMiddleware,
     NowledgeSettings,
 )
-from nowledge_mem_langgraph.messages import NOWLEDGE_TOOL_NAMES, normalize_messages
+from nowledge_mem_langgraph.messages import (
+    NOWLEDGE_TOOL_NAMES,
+    normalize_messages,
+    select_acknowledged_delta,
+)
 
 
 class ProbeState(TypedDict):
@@ -159,7 +163,17 @@ def test_thread_payload_uses_thread_not_assistant_and_excludes_mem_tool_output()
 
     def handle(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json={"success": True}, request=request)
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "failed_count": 0,
+                "results": [
+                    {"success": True, "append_mode": "created", "message_count": 4}
+                ],
+            },
+            request=request,
+        )
 
     transport = httpx.MockTransport(handle)
     http = httpx.Client(base_url="http://mem.test", transport=transport)
@@ -195,6 +209,333 @@ def test_fallback_message_ids_are_deterministic_and_distinguish_repeats() -> Non
     assert first[0]["metadata"]["external_id"] != first[1]["metadata"]["external_id"]
 
 
+@pytest.mark.parametrize(
+    "response",
+    [
+        {},
+        {"success": False, "failed_count": 0, "results": [{"success": True}]},
+        {"success": True, "failed_count": 0, "results": []},
+    ],
+)
+def test_thread_sync_requires_explicit_successful_result(response: object) -> None:
+    with pytest.raises(RuntimeError):
+        NowledgeClient._validate_thread_sync_ack(response, None)
+
+
+def test_acknowledged_delta_resets_when_compaction_replaces_anchor() -> None:
+    original = normalize_messages(
+        [HumanMessage(content="first", id="h1"), AIMessage(content="answer", id="a1")]
+    )
+    cursor = select_acknowledged_delta(original, None)[1]
+    compacted = normalize_messages(
+        [HumanMessage(content="replacement", id="h2"), AIMessage(content="new", id="a2")]
+    )
+    delta, next_cursor, reset = select_acknowledged_delta(compacted, cursor)
+    assert delta == compacted
+    assert next_cursor[0:2] == (2, "langgraph:a2")
+    assert reset is True
+
+
+def test_acknowledged_delta_resets_when_earlier_content_changes() -> None:
+    original = normalize_messages(
+        [HumanMessage(content="old", id="h1"), AIMessage(content="same", id="a1")]
+    )
+    cursor = select_acknowledged_delta(original, None)[1]
+    changed = normalize_messages(
+        [HumanMessage(content="new", id="h1"), AIMessage(content="same", id="a1")]
+    )
+    delta, _, reset = select_acknowledged_delta(changed, cursor)
+    assert delta == changed
+    assert reset is True
+
+
+def test_acknowledged_delta_accepts_legacy_three_field_cursor() -> None:
+    messages = normalize_messages(
+        [HumanMessage(content="first", id="h1"), AIMessage(content="answer", id="a1")]
+    )
+    cursor = select_acknowledged_delta(messages, None)[1]
+    delta, next_cursor, reset = select_acknowledged_delta(messages, cursor[:3])
+    assert delta == []
+    assert next_cursor[3] == len(messages)
+    assert reset is False
+
+
+def test_thread_sync_uploads_only_acknowledged_delta_and_retries_after_failure() -> None:
+    requests: list[dict[str, Any]] = []
+    statuses = iter([200, 500, 200])
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        body = __import__("json").loads(request.content)
+        requests.append(body)
+        status = next(statuses)
+        result = {
+            "success": True,
+            "failed_count": 0,
+            "results": [
+                {
+                    "success": True,
+                    "message_count": len(body["messages"])
+                    + int(body.get("expected_message_count", 0)),
+                    **(
+                        {"append_mode": "checkpointed"}
+                        if "expected_message_count" in body
+                        else {"append_mode": "created"}
+                    ),
+                }
+            ],
+        }
+        return httpx.Response(status, json=result, request=request)
+
+    http = httpx.Client(base_url="http://mem.test", transport=httpx.MockTransport(handle))
+    middleware = NowledgeMiddleware(
+        NowledgeClient(NowledgeSettings(api_url="http://mem.test"), client=http)
+    )
+    first = [HumanMessage(content="hello", id="h1"), AIMessage(content="one", id="a1")]
+    second = [*first, HumanMessage(content="next", id="h2"), AIMessage(content="two", id="a2")]
+
+    middleware.after_agent({"messages": first}, runtime())
+    middleware.after_agent({"messages": second}, runtime())
+    middleware.after_agent({"messages": second}, runtime())
+
+    assert [
+        [message["metadata"]["external_id"] for message in body["messages"]] for body in requests
+    ] == [
+        ["langgraph:h1", "langgraph:a1"],
+        ["langgraph:h2", "langgraph:a2"],
+        ["langgraph:h2", "langgraph:a2"],
+    ]
+    assert [body.get("expected_message_count") for body in requests] == [None, 2, 2]
+
+
+def test_thread_sync_keeps_cursor_after_http_200_semantic_failure() -> None:
+    requests: list[dict[str, Any]] = []
+    responses = iter(["created", "failed", "checkpointed"])
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        body = __import__("json").loads(request.content)
+        requests.append(body)
+        outcome = next(responses)
+        if outcome == "failed":
+            result = {
+                "failed_count": 0,
+                "results": [
+                    {"success": True, "append_mode": "checkpointed", "message_count": 4}
+                ],
+            }
+        else:
+            result = {
+                "success": True,
+                "failed_count": 0,
+                "results": [
+                    {
+                        "success": True,
+                        "append_mode": outcome,
+                        "message_count": len(body["messages"])
+                        + int(body.get("expected_message_count", 0)),
+                    }
+                ],
+            }
+        return httpx.Response(200, json=result, request=request)
+
+    http = httpx.Client(base_url="http://mem.test", transport=httpx.MockTransport(handle))
+    middleware = NowledgeMiddleware(
+        NowledgeClient(NowledgeSettings(api_url="http://mem.test"), client=http)
+    )
+    first = [HumanMessage(content="hello", id="h1"), AIMessage(content="one", id="a1")]
+    second = [*first, HumanMessage(content="next", id="h2"), AIMessage(content="two", id="a2")]
+
+    middleware.after_agent({"messages": first}, runtime())
+    middleware.after_agent({"messages": second}, runtime())
+    middleware.after_agent({"messages": second}, runtime())
+
+    assert requests[1]["messages"] == requests[2]["messages"]
+    assert requests[1]["expected_message_count"] == 2
+    assert requests[2]["expected_message_count"] == 2
+
+
+def test_thread_sync_reconciles_typed_checkpoint_conflict_and_uses_remote_count() -> None:
+    requests: list[dict[str, Any]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        body = __import__("json").loads(request.content)
+        requests.append(body)
+        index = len(requests)
+        if index == 2:
+            response = {
+                "success": False,
+                "failed_count": 1,
+                "results": [
+                    {
+                        "success": False,
+                        "error_code": "checkpoint_conflict",
+                        "error": "remote count moved",
+                    }
+                ],
+            }
+        else:
+            response = {
+                "success": True,
+                "failed_count": 0,
+                "results": [
+                    {
+                        "success": True,
+                        "append_mode": (
+                            "checkpointed" if "expected_message_count" in body else "deduplicated"
+                        ),
+                        "message_count": {1: 2, 3: 5, 4: 7}[index],
+                    }
+                ],
+            }
+        return httpx.Response(200, json=response, request=request)
+
+    http = httpx.Client(base_url="http://mem.test", transport=httpx.MockTransport(handle))
+    middleware = NowledgeMiddleware(
+        NowledgeClient(NowledgeSettings(api_url="http://mem.test"), client=http)
+    )
+    first = [HumanMessage(content="hello", id="h1"), AIMessage(content="one", id="a1")]
+    second = [*first, HumanMessage(content="next", id="h2"), AIMessage(content="two", id="a2")]
+    third = [*second, HumanMessage(content="again", id="h3"), AIMessage(content="three", id="a3")]
+
+    middleware.after_agent({"messages": first}, runtime())
+    middleware.after_agent({"messages": second}, runtime())
+    middleware.after_agent({"messages": third}, runtime())
+
+    assert [len(body["messages"]) for body in requests] == [2, 2, 4, 2]
+    assert [body.get("expected_message_count") for body in requests] == [None, 2, None, 5]
+
+
+@pytest.mark.asyncio
+async def test_async_thread_sync_keeps_cursor_after_http_200_semantic_failure() -> None:
+    requests: list[dict[str, Any]] = []
+    responses = iter(["created", "failed", "checkpointed"])
+
+    async def handle(request: httpx.Request) -> httpx.Response:
+        body = __import__("json").loads(request.content)
+        requests.append(body)
+        outcome = next(responses)
+        if outcome == "failed":
+            result = {
+                "success": False,
+                "failed_count": 1,
+                "results": [{"success": False, "error": "rejected"}],
+            }
+        else:
+            result = {
+                "success": True,
+                "failed_count": 0,
+                "results": [
+                    {
+                        "success": True,
+                        "append_mode": outcome,
+                        "message_count": len(body["messages"])
+                        + int(body.get("expected_message_count", 0)),
+                    }
+                ],
+            }
+        return httpx.Response(200, json=result, request=request)
+
+    http = httpx.AsyncClient(base_url="http://mem.test", transport=httpx.MockTransport(handle))
+    middleware = NowledgeMiddleware(
+        NowledgeClient(NowledgeSettings(api_url="http://mem.test"), async_client=http)
+    )
+    first = [HumanMessage(content="hello", id="h1"), AIMessage(content="one", id="a1")]
+    second = [*first, HumanMessage(content="next", id="h2"), AIMessage(content="two", id="a2")]
+
+    await middleware.aafter_agent({"messages": first}, runtime())
+    await middleware.aafter_agent({"messages": second}, runtime())
+    await middleware.aafter_agent({"messages": second}, runtime())
+
+    assert requests[1]["messages"] == requests[2]["messages"]
+    assert requests[1]["expected_message_count"] == 2
+    assert requests[2]["expected_message_count"] == 2
+    await http.aclose()
+
+
+@pytest.mark.asyncio
+async def test_async_thread_sync_reconciles_checkpoint_conflict() -> None:
+    requests: list[dict[str, Any]] = []
+
+    async def handle(request: httpx.Request) -> httpx.Response:
+        body = __import__("json").loads(request.content)
+        requests.append(body)
+        index = len(requests)
+        if index == 2:
+            response = {
+                "success": False,
+                "failed_count": 1,
+                "results": [{"success": False, "error_code": "checkpoint_conflict"}],
+            }
+        else:
+            response = {
+                "success": True,
+                "failed_count": 0,
+                "results": [
+                    {
+                        "success": True,
+                        "append_mode": (
+                            "checkpointed" if "expected_message_count" in body else "deduplicated"
+                        ),
+                        "message_count": {1: 2, 3: 5, 4: 7}[index],
+                    }
+                ],
+            }
+        return httpx.Response(200, json=response, request=request)
+
+    http = httpx.AsyncClient(base_url="http://mem.test", transport=httpx.MockTransport(handle))
+    middleware = NowledgeMiddleware(
+        NowledgeClient(NowledgeSettings(api_url="http://mem.test"), async_client=http)
+    )
+    first = [HumanMessage(content="hello", id="h1"), AIMessage(content="one", id="a1")]
+    second = [*first, HumanMessage(content="next", id="h2"), AIMessage(content="two", id="a2")]
+    third = [*second, HumanMessage(content="again", id="h3"), AIMessage(content="three", id="a3")]
+
+    await middleware.aafter_agent({"messages": first}, runtime())
+    await middleware.aafter_agent({"messages": second}, runtime())
+    await middleware.aafter_agent({"messages": third}, runtime())
+
+    assert [len(body["messages"]) for body in requests] == [2, 2, 4, 2]
+    assert [body.get("expected_message_count") for body in requests] == [None, 2, None, 5]
+    await http.aclose()
+
+
+def test_thread_cursor_isolated_by_destination_identity() -> None:
+    requests: list[dict[str, Any]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(__import__("json").loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "failed_count": 0,
+                "results": [{"success": True, "append_mode": "created"}],
+            },
+            request=request,
+        )
+
+    http = httpx.Client(base_url="http://mem.test", transport=httpx.MockTransport(handle))
+    middleware = NowledgeMiddleware(
+        NowledgeClient(NowledgeSettings(api_url="http://mem.test"), client=http)
+    )
+    state = {
+        "messages": [
+            HumanMessage(content="hello", id="h1"),
+            AIMessage(content="answer", id="a1"),
+        ]
+    }
+
+    middleware.after_agent(
+        state,
+        runtime(context={"nowledge": {"agent_id": "agent-a", "space_id": "shared"}}),
+    )
+    middleware.after_agent(
+        state,
+        runtime(context={"nowledge": {"agent_id": "agent-b", "space_id": "shared"}}),
+    )
+
+    assert [body["metadata"]["agent_id"] for body in requests] == ["agent-a", "agent-b"]
+
+
 def test_sync_middleware_injects_context_once_per_turn_and_syncs_top_level() -> None:
     calls: list[tuple[str, dict[str, Any]]] = []
 
@@ -203,7 +544,14 @@ def test_sync_middleware_injects_context_once_per_turn_and_syncs_top_level() -> 
         calls.append((request.url.path, body))
         if request.url.path == "/context/bundle":
             return httpx.Response(200, json={"rendered_markdown": "## Working Memory\nShip it"})
-        return httpx.Response(200, json={"success": True})
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "failed_count": 0,
+                "results": [{"success": True, "append_mode": "created"}],
+            },
+        )
 
     http = httpx.Client(base_url="http://mem.test", transport=httpx.MockTransport(handle))
     client = NowledgeClient(NowledgeSettings(api_url="http://mem.test"), client=http)
