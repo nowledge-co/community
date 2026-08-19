@@ -356,7 +356,7 @@ export class NowledgeMemClient {
 		return this._fetch("GET", `/threads/${encodeURIComponent(id)}`, { params });
 	}
 
-	async createThread(title, content, messages, source = "alma", id = null) {
+	async createThread(title, content, messages, source = "alma", id = null, { timeout } = {}) {
 		const body = { title, source };
 		if (id) body.thread_id = id;
 		if (Array.isArray(messages) && messages.length > 0) {
@@ -370,16 +370,27 @@ export class NowledgeMemClient {
 			const titleHash = createHash("md5").update(title || "").digest("hex").slice(0, 6);
 			body.thread_id = `alma-${ts}-${titleHash}`;
 		}
-		const data = await this._fetch("POST", "/threads", { body, timeout: this._threadSyncTimeoutMs });
-		const threadData = data.thread ?? {};
-		const remoteCount = Number.isInteger(threadData.message_count)
-			? threadData.message_count
-			: Array.isArray(data.messages) ? data.messages.length : undefined;
+		const data = await this._fetch("POST", "/threads", {
+			body,
+			...(timeout !== undefined ? { timeout } : {}),
+		});
+		const threadData = data?.thread;
+		const threadId =
+			threadData !== null && typeof threadData === "object" && typeof threadData.thread_id === "string"
+				? threadData.thread_id.trim()
+				: "";
+		if (!threadId) {
+			throw new Error("Thread create did not include a thread identity");
+		}
+		const remoteCount = threadData.message_count;
+		if (!Number.isInteger(remoteCount) || remoteCount < 0) {
+			throw new Error("Thread create did not include an explicit total message count");
+		}
 		return {
 			success: true,
-			id: threadData.thread_id ?? body.thread_id,
+			id: threadId,
 			title: threadData.title ?? title,
-			messages: (data.messages ?? []).length,
+			messages: Array.isArray(data.messages) ? data.messages.length : 0,
 			total_messages: remoteCount,
 		};
 	}
@@ -1536,6 +1547,9 @@ export async function activate(context) {
 			return buf.inFlight;
 		}
 
+		const flushDestinationKey = buf.destinationKey;
+		const flushClient = client;
+
 		const run = (async () => {
 		// Cancel this buffer's idle timer
 		if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
@@ -1566,39 +1580,43 @@ export async function activate(context) {
 					.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
 					.join("\n");
 				logger.info?.(`nowledge-mem: creating thread ${buf.nowledgeThreadId} for ${threadId} (${msgsToSend.length} msgs, title="${buf.title}")`);
-				const created = await client.createThread(
+				const created = await flushClient.createThread(
 					buf.title,
 					escapeForInline(summary, 1200),
 					msgsToSend,
 					"alma",
 					buf.nowledgeThreadId,
+					{ timeout: flushClient._threadSyncTimeoutMs },
 				);
 				return {
 					messages_added: msgsToSend.length,
-					total_messages: Number.isInteger(created.total_messages)
-						? created.total_messages
-						: msgsToSend.length,
+					total_messages: created.total_messages,
 				};
 			};
 
 			let result;
 			try {
 				logger.info?.(`nowledge-mem: appending ${delta.messages.length} msgs to ${buf.nowledgeThreadId}`);
-				result = await client.appendThread(buf.nowledgeThreadId, delta.messages, {
+				result = await flushClient.appendThread(buf.nowledgeThreadId, delta.messages, {
 					idempotencyKey,
 					expectedMessageCount,
 				});
 			} catch (appendErr) {
-				if (client.isCheckpointConflictError(appendErr)) {
+				if (flushClient.isCheckpointConflictError(appendErr)) {
 					logger.info?.(`nowledge-mem: reconciling checkpoint conflict for ${buf.nowledgeThreadId}`);
-					result = await client.appendThread(buf.nowledgeThreadId, snapshot.slice(0, delta.end), {
+					result = await flushClient.appendThread(buf.nowledgeThreadId, snapshot.slice(0, delta.end), {
 						idempotencyKey: `${idempotencyKey}:reconcile`,
 					});
-				} else if (client.isThreadNotFoundError(appendErr)) {
+				} else if (flushClient.isThreadNotFoundError(appendErr)) {
 					result = await persistCreate();
 				} else {
 					throw appendErr;
 				}
+			}
+
+			if (buf.destinationKey !== flushDestinationKey || client !== flushClient) {
+				buf.pending = true;
+				return;
 			}
 
 			buf.acknowledged = {
@@ -1611,6 +1629,9 @@ export async function activate(context) {
 			logger.info?.(`nowledge-mem: thread synced (${threadId}, ${buf.messages.length} msgs)`);
 		} catch (err) {
 			logger.error?.(`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`);
+			if (buf.destinationKey !== flushDestinationKey || client !== flushClient) {
+				buf.pending = true;
+			}
 		} finally {
 			if (finishInFlightFlush(buf) === "rerun") {
 				buf.inFlight = flushThread(threadId);

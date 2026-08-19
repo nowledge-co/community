@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { NowledgeMemClient } from "../main.js";
+import { activate, NowledgeMemClient } from "../main.js";
 
 const logger = { info() {}, warn() {}, debug() {}, error() {} };
 
@@ -75,30 +75,249 @@ test("appendThread rejects a non-checkpointed ack when a checkpoint was required
 	}
 });
 
-test("create and append use the configured thread-sync timeout, not the 15s default", async () => {
-	const timeouts = [];
+function captureFetchTimeouts(client) {
+	const calls = [];
+	const original = client._fetch.bind(client);
+	client._fetch = async (method, path, options = {}) => {
+		calls.push({ method, path, timeout: options.timeout });
+		return original(method, path, options);
+	};
+	return calls;
+}
+
+test("manual createThread keeps the 15s request timeout", async () => {
 	const previous = globalThis.fetch;
-	globalThis.fetch = async (_url, init) => {
-		timeouts.push(init.signal);
-		return jsonResponse(200, {
-			success: true,
-			append_mode: "checkpointed",
-			messages_added: 1,
-			total_messages: 1,
+	globalThis.fetch = async () =>
+		jsonResponse(200, {
 			thread: { thread_id: "alma-x", message_count: 1 },
 			messages: [{ role: "user", content: "hi" }],
 		});
-	};
 	try {
 		const client = new NowledgeMemClient(logger, { threadSyncTimeoutMs: 90_000 });
-		assert.equal(client._threadSyncTimeoutMs, 90_000);
+		const calls = captureFetchTimeouts(client);
 		await client.createThread("t", "", [{ role: "user", content: "hi" }], "alma", "alma-x");
+		assert.equal(calls.length, 1);
+		assert.equal(calls[0].path, "/threads");
+		assert.equal(calls[0].timeout, undefined);
+	} finally {
+		globalThis.fetch = previous;
+	}
+});
+
+test("automatic createThread path can pass the configured sync timeout", async () => {
+	const previous = globalThis.fetch;
+	globalThis.fetch = async () =>
+		jsonResponse(200, {
+			thread: { thread_id: "alma-x", message_count: 1 },
+			messages: [{ role: "user", content: "hi" }],
+		});
+	try {
+		const client = new NowledgeMemClient(logger, { threadSyncTimeoutMs: 90_000 });
+		const calls = captureFetchTimeouts(client);
+		await client.createThread(
+			"t",
+			"",
+			[{ role: "user", content: "hi" }],
+			"alma",
+			"alma-x",
+			{ timeout: client._threadSyncTimeoutMs },
+		);
+		assert.equal(calls[0].timeout, 90_000);
+	} finally {
+		globalThis.fetch = previous;
+	}
+});
+
+test("appendThread still uses the configured thread-sync timeout", async () => {
+	const previous = globalThis.fetch;
+	globalThis.fetch = async () =>
+		jsonResponse(200, {
+			success: true,
+			append_mode: "checkpointed",
+			messages_added: 1,
+			total_messages: 2,
+		});
+	try {
+		const client = new NowledgeMemClient(logger, { threadSyncTimeoutMs: 90_000 });
+		const calls = captureFetchTimeouts(client);
 		await client.appendThread("alma-x", [{ role: "assistant", content: "ok" }], {
 			expectedMessageCount: 1,
 		});
-		assert.equal(timeouts.length, 2);
+		assert.equal(calls[0].timeout, 90_000);
 	} finally {
 		globalThis.fetch = previous;
+	}
+});
+
+test("createThread requires a thread identity and a non-negative total message count", async () => {
+	const previous = globalThis.fetch;
+	try {
+		const client = new NowledgeMemClient(logger, {});
+		globalThis.fetch = async () => jsonResponse(200, {});
+		await assert.rejects(
+			() => client.createThread("t", "hi", [], "alma", "alma-x"),
+			/thread identity/,
+		);
+		globalThis.fetch = async () =>
+			jsonResponse(200, { thread: { thread_id: "alma-x" }, messages: [{ role: "user", content: "hi" }] });
+		await assert.rejects(
+			() => client.createThread("t", "hi", [], "alma", "alma-x"),
+			/explicit total message count/,
+		);
+		globalThis.fetch = async () =>
+			jsonResponse(200, { thread: { thread_id: "alma-x", message_count: -1 } });
+		await assert.rejects(
+			() => client.createThread("t", "hi", [], "alma", "alma-x"),
+			/explicit total message count/,
+		);
+		globalThis.fetch = async () =>
+			jsonResponse(200, { thread: { thread_id: "alma-x", message_count: 2 } });
+		const created = await client.createThread(
+			"t",
+			"",
+			[{ role: "user", content: "a" }, { role: "assistant", content: "b" }],
+			"alma",
+			"alma-x",
+		);
+		assert.equal(created.id, "alma-x");
+		assert.equal(created.total_messages, 2);
+	} finally {
+		globalThis.fetch = previous;
+	}
+});
+
+function makePluginHarness(initialSettings = {}) {
+	const store = {
+		"nowledgeMem.recallPolicy": "off",
+		"nowledgeMem.autoCapture": true,
+		"nowledgeMem.autoRecall": false,
+		...initialSettings,
+	};
+	const listeners = [];
+	const tools = new Map();
+	const events = new Map();
+	return {
+		tools,
+		events,
+		changeSettings(patch) {
+			Object.assign(store, patch);
+			for (const fn of listeners) fn();
+		},
+		context: {
+			logger,
+			settings: {
+				get(key) {
+					return store[key];
+				},
+				onDidChange(fn) {
+					listeners.push(fn);
+					return { dispose() {} };
+				},
+			},
+			tools: {
+				register(name, tool) {
+					if (typeof name === "string") tools.set(name, tool);
+					return { dispose() {} };
+				},
+			},
+			events: {
+				on(name, handler) {
+					events.set(name, handler);
+					return { dispose() {} };
+				},
+			},
+		},
+	};
+}
+
+async function captureUserAndAssistant(events, threadId = "thread-1") {
+	await events.get("chat.message.willSend")({ threadId, content: "hello from alma" });
+	events.get("chat.message.didReceive")({
+		threadId,
+		response: { content: "hi from mem" },
+	});
+}
+
+test("manual thread_create tool keeps the 15s timeout while automatic flush uses NMEM_SYNC_TIMEOUT_MS", async () => {
+	const previousFetch = globalThis.fetch;
+	const previousEnv = process.env.NMEM_SYNC_TIMEOUT_MS;
+	const originalFetch = NowledgeMemClient.prototype._fetch;
+	const calls = [];
+	NowledgeMemClient.prototype._fetch = async function (method, path, options = {}) {
+		calls.push({ method, path, timeout: options.timeout, apiUrl: this._apiUrl });
+		if (String(path).includes("/append")) {
+			const err = new Error("HTTP 404: Thread not found");
+			err.status = 404;
+			throw err;
+		}
+		if (method === "POST" && path === "/threads") {
+			return {
+				thread: {
+					thread_id: options.body?.thread_id || "alma-x",
+					message_count: Array.isArray(options.body?.messages) ? options.body.messages.length : 1,
+				},
+			};
+		}
+		return {};
+	};
+	process.env.NMEM_SYNC_TIMEOUT_MS = "90000";
+	const harness = makePluginHarness();
+	const plugin = await activate(harness.context);
+	try {
+		await captureUserAndAssistant(harness.events);
+		await harness.events.get("app.willQuit")({}, { cancel: false });
+		const autoCreate = calls.find((call) => call.method === "POST" && call.path === "/threads");
+		assert.equal(autoCreate?.timeout, 90_000);
+
+		calls.length = 0;
+		const tool = harness.tools.get("nowledge_mem_thread_create");
+		const result = await tool.execute({ title: "manual", content: "hello" });
+		assert.equal(result.ok, true);
+		assert.equal(calls[0].path, "/threads");
+		assert.equal(calls[0].timeout, undefined);
+	} finally {
+		NowledgeMemClient.prototype._fetch = originalFetch;
+		globalThis.fetch = previousFetch;
+		if (previousEnv === undefined) delete process.env.NMEM_SYNC_TIMEOUT_MS;
+		else process.env.NMEM_SYNC_TIMEOUT_MS = previousEnv;
+		await plugin.dispose();
+	}
+});
+
+test("flush discards a stale ack after the destination changes and reruns", async () => {
+	const previous = globalThis.fetch;
+	const posts = [];
+	const harness = makePluginHarness();
+	globalThis.fetch = async (url, init) => {
+		const href = String(url);
+		const body = init?.body ? JSON.parse(init.body) : undefined;
+		posts.push({ href, body });
+		if (href.includes("/append") && posts.filter((post) => post.href.includes("127.0.0.1")).length === 1) {
+			harness.changeSettings({ "nowledgeMem.apiUrl": "http://mem-b:14242" });
+		}
+		if (href.includes("/append")) {
+			return jsonResponse(200, {
+				success: true,
+				append_mode: "checkpointed",
+				messages_added: 2,
+				total_messages: 2,
+			});
+		}
+		return jsonResponse(200, {
+			thread: { thread_id: body?.thread_id || "alma-x", message_count: 2 },
+		});
+	};
+	const plugin = await activate(harness.context);
+	try {
+		await captureUserAndAssistant(harness.events);
+		await harness.events.get("app.willQuit")({}, { cancel: false });
+		const appends = posts.filter((post) => post.href.includes("/append"));
+		assert.equal(appends.length, 2);
+		assert.match(appends[0].href, /127\.0\.0\.1/);
+		assert.match(appends[1].href, /mem-b:14242/);
+	} finally {
+		globalThis.fetch = previous;
+		await plugin.dispose();
 	}
 });
 
