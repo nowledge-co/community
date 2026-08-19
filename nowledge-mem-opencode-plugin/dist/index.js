@@ -14,6 +14,14 @@ function sessionSyncLaneKey(sessionId, spaceId) {
 function stableMessageFingerprint(message) {
   return JSON.stringify(message);
 }
+function normalizedTimestamp(raw) {
+  try {
+    const timestamp = new Date(raw);
+    return Number.isNaN(timestamp.getTime()) ? void 0 : timestamp.toISOString();
+  } catch {
+    return void 0;
+  }
+}
 function prefixFingerprint(messages, end, messageFingerprint) {
   const hash = createHash("sha256");
   for (const message of messages.slice(0, end)) {
@@ -44,10 +52,11 @@ function appendAcknowledgedRemoteCount(data) {
   if (typeof data !== "object" || data === null || data.success !== true || !Number.isInteger(data.messages_added) || !Number.isInteger(data.total_messages)) return void 0;
   return data.total_messages;
 }
-function createAcknowledgedRemoteCount(data) {
+function createAcknowledgedRemoteCount(data, expectedThreadId) {
   if (typeof data !== "object" || data === null) return void 0;
   const thread = data.thread;
   if (typeof thread !== "object" || thread === null) return void 0;
+  if (thread.thread_id !== expectedThreadId) return void 0;
   const messageCount = thread.message_count;
   if (Number.isInteger(messageCount) && messageCount >= 0) {
     return messageCount;
@@ -275,26 +284,21 @@ ${reasoning}
       }
       return segments.join("\n") || "(empty message)";
     }
-    function safeTimestamp(raw) {
-      try {
-        const d = new Date(raw);
-        if (!isNaN(d.getTime())) return d.toISOString();
-      } catch {
-      }
-      return (/* @__PURE__ */ new Date()).toISOString();
-    }
     function toThreadMessages(sdkMessages) {
-      return sdkMessages.filter((m) => m?.info).map(({ info, parts }) => ({
-        content: extractMessageContent(parts ?? []),
-        role: info.role === "user" ? "user" : "assistant",
-        timestamp: safeTimestamp(info.time?.created ?? Date.now()),
-        metadata: {
-          external_id: `opencode-msg-${info.id}`,
-          source_app: "opencode",
-          ...info.agent ? { agent: info.agent } : {},
-          ...info.role === "assistant" && info.modelID ? { model: info.modelID } : {}
-        }
-      }));
+      return sdkMessages.filter((m) => m?.info).map(({ info, parts }) => {
+        const timestamp = normalizedTimestamp(info.time?.created);
+        return {
+          content: extractMessageContent(parts ?? []),
+          role: info.role === "user" ? "user" : "assistant",
+          ...timestamp ? { timestamp } : {},
+          metadata: {
+            external_id: `opencode-msg-${info.id}`,
+            source_app: "opencode",
+            ...info.agent ? { agent: info.agent } : {},
+            ...info.role === "assistant" && info.modelID ? { model: info.modelID } : {}
+          }
+        };
+      });
     }
     function normalizeSessionMessages(raw) {
       if (Array.isArray(raw)) return raw;
@@ -466,7 +470,7 @@ ${reasoning}
           session_id: ctx.sessionID
         };
       }
-      const remoteCount = action === "created" ? createAcknowledgedRemoteCount(res.data) : appendAcknowledgedRemoteCount(res.data);
+      const remoteCount = action === "created" ? createAcknowledgedRemoteCount(res.data, threadId) : appendAcknowledgedRemoteCount(res.data);
       if (remoteCount === void 0) {
         return {
           error: "Thread save did not include an explicit persistence acknowledgement; cursor was preserved",

@@ -7,6 +7,7 @@ import {
   isCheckpointConflictResponse,
   isCheckpointedAppendAck,
   isThreadAlreadyExistsResponse,
+  normalizedTimestamp,
   isThreadNotFoundResponse,
   recreateMissingThread,
   selectAcknowledgedDelta,
@@ -70,7 +71,21 @@ test("recognizes missing-thread and checkpoint acknowledgements", () => {
     isThreadAlreadyExistsResponse(422, { detail: "Thread opencode-x already exists in space default" }),
     true,
   )
-  assert.equal(createAcknowledgedRemoteCount({ thread: { message_count: 5 } }), 5)
+  assert.equal(
+    createAcknowledgedRemoteCount({ thread: { thread_id: "opencode-x", message_count: 5 } }, "opencode-x"),
+    5,
+  )
+  assert.equal(createAcknowledgedRemoteCount({ thread: { message_count: 5 } }, "opencode-x"), undefined)
+  assert.equal(
+    createAcknowledgedRemoteCount({ thread: { thread_id: "other", message_count: 5 } }, "opencode-x"),
+    undefined,
+  )
+})
+
+test("omits invalid synthesized timestamps from checkpoint input", () => {
+  assert.equal(normalizedTimestamp(undefined), undefined)
+  assert.equal(normalizedTimestamp("not-a-date"), undefined)
+  assert.equal(normalizedTimestamp(0), "1970-01-01T00:00:00.000Z")
 })
 
 test("rebuilds the remote count after checkpoint conflict reconciliation", () => {

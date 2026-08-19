@@ -11,6 +11,7 @@ import {
   isCheckpointedAppendAck,
   isThreadAlreadyExistsResponse,
   recreateMissingThread,
+  normalizedTimestamp,
   selectAcknowledgedDelta,
   sessionSyncLaneKey,
   stableMessageFingerprint,
@@ -265,28 +266,23 @@ export default {
       return segments.join("\n") || "(empty message)"
     }
 
-    function safeTimestamp(raw: unknown): string {
-      try {
-        const d = new Date(raw as any)
-        if (!isNaN(d.getTime())) return d.toISOString()
-      } catch { /* fall through */ }
-      return new Date().toISOString()
-    }
-
     function toThreadMessages(sdkMessages: any[]): any[] {
       return sdkMessages
         .filter((m: any) => m?.info)
-        .map(({ info, parts }: any) => ({
-          content: extractMessageContent(parts ?? []),
-          role: info.role === "user" ? "user" : "assistant",
-          timestamp: safeTimestamp(info.time?.created ?? Date.now()),
-          metadata: {
-            external_id: `opencode-msg-${info.id}`,
-            source_app: "opencode",
-            ...(info.agent ? { agent: info.agent } : {}),
-            ...(info.role === "assistant" && info.modelID ? { model: info.modelID } : {}),
-          },
-        }))
+        .map(({ info, parts }: any) => {
+          const timestamp = normalizedTimestamp(info.time?.created)
+          return {
+            content: extractMessageContent(parts ?? []),
+            role: info.role === "user" ? "user" : "assistant",
+            ...(timestamp ? { timestamp } : {}),
+            metadata: {
+              external_id: `opencode-msg-${info.id}`,
+              source_app: "opencode",
+              ...(info.agent ? { agent: info.agent } : {}),
+              ...(info.role === "assistant" && info.modelID ? { model: info.modelID } : {}),
+            },
+          }
+        })
     }
 
     function normalizeSessionMessages(raw: any): any[] {
@@ -508,7 +504,7 @@ export default {
         }
       }
       const remoteCount = action === "created"
-        ? createAcknowledgedRemoteCount(res.data)
+        ? createAcknowledgedRemoteCount(res.data, threadId)
         : appendAcknowledgedRemoteCount(res.data)
       if (remoteCount === undefined) {
         return {

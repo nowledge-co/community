@@ -23,6 +23,15 @@ export function stableMessageFingerprint(message: unknown): string {
   return JSON.stringify(message)
 }
 
+export function normalizedTimestamp(raw: unknown): string | undefined {
+  try {
+    const timestamp = new Date(raw as any)
+    return Number.isNaN(timestamp.getTime()) ? undefined : timestamp.toISOString()
+  } catch {
+    return undefined
+  }
+}
+
 function prefixFingerprint<T>(
   messages: T[],
   end: number,
@@ -84,10 +93,14 @@ export function appendAcknowledgedRemoteCount(data: unknown): number | undefined
   return (data as { total_messages: number }).total_messages
 }
 
-export function createAcknowledgedRemoteCount(data: unknown): number | undefined {
+export function createAcknowledgedRemoteCount(
+  data: unknown,
+  expectedThreadId: string,
+): number | undefined {
   if (typeof data !== "object" || data === null) return undefined
   const thread = (data as { thread?: unknown }).thread
   if (typeof thread !== "object" || thread === null) return undefined
+  if ((thread as { thread_id?: unknown }).thread_id !== expectedThreadId) return undefined
   const messageCount = (thread as { message_count?: unknown }).message_count
   if (Number.isInteger(messageCount) && (messageCount as number) >= 0) {
     return messageCount as number
