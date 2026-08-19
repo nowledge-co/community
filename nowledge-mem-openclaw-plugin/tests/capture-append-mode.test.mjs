@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
+	_resetSyncCursors,
 	appendOrCreateThread,
 	buildThreadTitle,
 	normalizeRoleMessage,
@@ -86,6 +87,11 @@ class FakeThreadClient {
 
 	async appendThread(request) {
 		this.appendCalls.push(request);
+		if (this.failAppend) {
+			const error = new Error(this.failAppend);
+			if (this.failAppendCode) error.code = this.failAppendCode;
+			throw error;
+		}
 		const messagesToAdd = request.deduplicate
 			? request.messages.filter((message) => {
 					const externalId = message?.metadata?.external_id;
@@ -432,4 +438,145 @@ test("OpenClaw mirror identity wins over transcript idempotency key for stable d
 	});
 
 	assert.equal(normalized.externalHint, "turn-1:prompt");
+});
+
+
+test("snapshot capture sends a content-bound checkpoint contract after the first ack", async () => {
+	_resetSyncCursors();
+	const client = new FakeThreadClient({ existingCount: 0 });
+	const ctx = {
+		sessionId: "session-checkpoint",
+		sessionKey: "agent:main:telegram:direct:checkpoint",
+	};
+	await appendOrCreateThread({
+		client,
+		logger,
+		event: { messages: [message("user", "first"), message("assistant", "second")] },
+		ctx,
+		reason: "agent_end",
+	});
+	const second = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [
+				message("user", "first"),
+				message("assistant", "second"),
+				message("user", "third"),
+				message("assistant", "fourth"),
+			],
+		},
+		ctx,
+		reason: "agent_end",
+	});
+	assert.equal(second.messagesAdded, 2);
+	assert.equal(client.appendCalls.length, 2);
+	assert.equal(typeof client.appendCalls[1].idempotencyKey, "string");
+	assert.match(client.appendCalls[1].idempotencyKey, /^oc:agent_end:/);
+	assert.equal(client.appendCalls[1].expectedMessageCount, 2);
+});
+
+test("snapshot capture resets a same-length prefix replacement to a full replay", async () => {
+	_resetSyncCursors();
+	const client = new FakeThreadClient({ existingCount: 0 });
+	const ctx = {
+		sessionId: "session-same-length",
+		sessionKey: "agent:main:telegram:direct:same-length",
+	};
+	await appendOrCreateThread({
+		client,
+		logger,
+		event: { messages: [message("user", "old prompt"), message("assistant", "old answer")] },
+		ctx,
+		reason: "agent_end",
+	});
+	const replaced = await appendOrCreateThread({
+		client,
+		logger,
+		event: { messages: [message("user", "new prompt"), message("assistant", "new answer")] },
+		ctx,
+		reason: "agent_end",
+	});
+	assert.equal(replaced.messagesAdded, 2);
+	assert.deepEqual(
+		client.appendCalls[1].messages.map((msg) => msg.content),
+		["new prompt", "new answer"],
+	);
+	assert.equal(client.appendCalls[1].expectedMessageCount, undefined);
+});
+
+test("destination lanes isolate cursors by api url, key, and space", async () => {
+	_resetSyncCursors();
+	class LaneClient extends FakeThreadClient {
+		constructor(lane, existingCount) {
+			super({ existingCount });
+			this.lane = lane;
+		}
+		cursorKey(threadId) {
+			return `${this.lane}\0${threadId}`;
+		}
+	}
+	const first = new LaneClient("https://mem\0key-a\0space-a", 0);
+	const second = new LaneClient("https://mem\0key-a\0space-b", 0);
+	const ctx = {
+		sessionId: "session-lane",
+		sessionKey: "agent:main:telegram:direct:lane",
+	};
+	const event = { messages: [message("user", "hello"), message("assistant", "hi")] };
+	await appendOrCreateThread({ client: first, logger, event, ctx, reason: "agent_end" });
+	await appendOrCreateThread({ client: second, logger, event, ctx, reason: "agent_end" });
+	assert.equal(first.appendCalls.length, 1);
+	assert.equal(second.appendCalls.length, 1);
+});
+
+test("failed appends do not advance the local cursor", async () => {
+	_resetSyncCursors();
+	const client = new FakeThreadClient({ existingCount: 0 });
+	const ctx = {
+		sessionId: "session-no-ack",
+		sessionKey: "agent:main:telegram:direct:no-ack",
+	};
+	await appendOrCreateThread({
+		client,
+		logger,
+		event: { messages: [message("user", "first"), message("assistant", "second")] },
+		ctx,
+		reason: "agent_end",
+	});
+	client.failAppend = "Thread append was not acknowledged as checkpointed";
+	const failed = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [
+				message("user", "first"),
+				message("assistant", "second"),
+				message("user", "third"),
+				message("assistant", "fourth"),
+			],
+		},
+		ctx,
+		reason: "agent_end",
+	});
+	assert.equal(failed, null);
+	client.failAppend = "";
+	const retried = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [
+				message("user", "first"),
+				message("assistant", "second"),
+				message("user", "third"),
+				message("assistant", "fourth"),
+			],
+		},
+		ctx,
+		reason: "agent_end",
+	});
+	assert.equal(retried.messagesAdded, 2);
+	assert.deepEqual(
+		client.appendCalls.at(-1).messages.map((msg) => msg.content),
+		["third", "fourth"],
+	);
 });

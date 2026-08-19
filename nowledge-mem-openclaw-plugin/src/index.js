@@ -1,4 +1,5 @@
 import { NowledgeMemClient } from "./client.js";
+import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout.js";
 import { createCliRegistrar } from "./commands/cli.js";
 import {
 	createForgetCommand,
@@ -46,6 +47,7 @@ export default {
 			apiUrl: cfg.apiUrl,
 			apiKey: cfg.apiKey,
 			space: cfg.space,
+			threadSyncTimeoutMs: resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS),
 		});
 
 		const { memorySlot, memorySlotSelected } = resolveRegistrationMode({
