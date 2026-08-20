@@ -1580,6 +1580,9 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     pkg = _read_json(DEEPSEEK_HARNESS_PLUGIN / "package.json")
     patch = (DEEPSEEK_HARNESS_PLUGIN / "cordis.patch.yml").read_text(encoding="utf-8")
     source = (DEEPSEEK_HARNESS_PLUGIN / "src" / "index.js").read_text(encoding="utf-8")
+    thread_import = (DEEPSEEK_HARNESS_PLUGIN / "src" / "thread-import.js").read_text(
+        encoding="utf-8"
+    )
     sandbox_retry = (DEEPSEEK_HARNESS_PLUGIN / "src" / "sandbox-retry.js").read_text(
         encoding="utf-8"
     )
@@ -1613,6 +1616,12 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "Object.fromEntries(Object.entries" in patch
     assert "typeof value === 'string' && value.length > 0" in patch
     assert "'X-NMEM-Agent-ID': process.env.NMEM_AGENT_ID" in patch
+    assert "sessionThreadTitle(" in source
+    assert "cursor?.title" in source
+    assert source.count("buildThreadImportArgs({") == 2
+    assert "payload.title" in thread_import
+    assert "expectedMessageCount === undefined" in thread_import
+    assert "message?.source?.kind === 'plugin'" in thread_import
 
     assert "export const inject = ['agents', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
