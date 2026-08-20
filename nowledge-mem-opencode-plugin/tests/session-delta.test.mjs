@@ -123,29 +123,28 @@ test("recreates the complete Thread after a 400 missing-thread response", async 
 })
 
 test("session checkpoints are isolated by destination lane", () => {
-  const base = ["https://mem", "key", "space-a", "agent-a", undefined]
-  assert.notEqual(
-    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", undefined, undefined),
-    sessionSyncLaneKey("session-1", "https://mem", "key", "space-b", undefined, undefined),
-  )
-  assert.notEqual(
-    sessionSyncLaneKey("session-1", "https://mem-a", "key", "space", undefined, undefined),
-    sessionSyncLaneKey("session-1", "https://mem-b", "key", "space", undefined, undefined),
-  )
-  assert.notEqual(
-    sessionSyncLaneKey("session-1", "https://mem", "key-a", "space", undefined, undefined),
-    sessionSyncLaneKey("session-1", "https://mem", "key-b", "space", undefined, undefined),
-  )
-  assert.notEqual(
+  const messages = [{ id: "a" }, { id: "b" }]
+  const base = ["https://mem-a", "key-a", "space-a", "agent-a", "host-a"]
+  const states = new Map()
+  states.set(
     sessionSyncLaneKey("session-1", ...base),
-    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", "agent-b", undefined),
+    selectAcknowledgedDelta(messages.slice(0, 1), undefined, id).next,
   )
-  assert.notEqual(
-    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", undefined, "host-a"),
-    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", undefined, "host-b"),
-  )
-  assert.equal(
-    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", "agent-a", "host-a"),
-    sessionSyncLaneKey("session-1", "https://mem", "key", "space-a", "agent-a", "host-a"),
-  )
+
+  const changedDestinations = [
+    ["https://mem-b", "key-a", "space-a", "agent-a", "host-a"],
+    ["https://mem-a", "key-b", "space-a", "agent-a", "host-a"],
+    ["https://mem-a", "key-a", "space-b", "agent-a", "host-a"],
+    ["https://mem-a", "key-a", "space-a", "agent-b", "host-a"],
+    ["https://mem-a", "key-a", "space-a", "agent-a", "host-b"],
+  ]
+
+  for (const destination of changedDestinations) {
+    const cursor = states.get(sessionSyncLaneKey("session-1", ...destination))
+    assert.equal(cursor, undefined)
+    assert.deepEqual(selectAcknowledgedDelta(messages, cursor, id).messages, messages)
+  }
+
+  const existingCursor = states.get(sessionSyncLaneKey("session-1", ...base))
+  assert.deepEqual(selectAcknowledgedDelta(messages, existingCursor, id).messages, [{ id: "b" }])
 })
