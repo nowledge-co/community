@@ -121,7 +121,7 @@ esac
     assert "context --source-app claude-code --agent-id reviewer --host-agent-id lody:reviewer" in command_log
 
 
-def test_read_hook_uses_grok_source_app_when_grok_env_is_present(tmp_path):
+def test_read_hook_skips_grok_passive_context_output(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls.log"
@@ -148,12 +148,11 @@ esac
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "grok context"
-    command_log = calls.read_text(encoding="utf-8")
-    assert "context --source-app grok" in command_log
+    assert result.stdout == ""
+    assert not calls.exists()
 
 
-def test_read_hook_uses_grok_source_app_when_only_plugin_root_is_present(tmp_path):
+def test_read_hook_skips_grok_when_only_plugin_root_is_present(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls.log"
@@ -182,12 +181,11 @@ esac
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "grok plugin context"
-    command_log = calls.read_text(encoding="utf-8")
-    assert "context --source-app grok" in command_log
+    assert result.stdout == ""
+    assert not calls.exists()
 
 
-def test_read_hook_uses_grok_source_app_for_claude_compat_plugin_root(tmp_path):
+def test_read_hook_skips_grok_for_claude_compat_plugin_root(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls.log"
@@ -219,9 +217,8 @@ esac
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "grok compat context"
-    command_log = calls.read_text(encoding="utf-8")
-    assert "context --source-app grok" in command_log
+    assert result.stdout == ""
+    assert not calls.exists()
 
 
 def test_read_hook_falls_back_to_default_space_when_project_space_empty(tmp_path):

@@ -35,6 +35,23 @@ def test_packaged_subagent_hook_uses_bounded_wrapper():
     assert hook["timeout"] > _load_module().SUBAGENT_CONTEXT_TIMEOUT_SECONDS
 
 
+def test_grok_subagent_start_skips_passive_context_output():
+    module = _load_module()
+    stdout = io.StringIO()
+
+    with mock.patch.dict(
+        module.os.environ,
+        {"GROK_HOOK_EVENT": "subagent_start"},
+    ), mock.patch.object(module, "_load_context") as load, \
+         mock.patch.object(module.sys, "stdout", stdout):
+        assert module.main(
+            {"hookEventName": "subagent_start", "subagentType": "architect"}
+        ) == 0
+
+    load.assert_not_called()
+    assert stdout.getvalue() == ""
+
+
 def test_selected_subagent_injects_bounded_context_and_boundary():
     module = _load_module()
     stdout = io.StringIO()

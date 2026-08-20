@@ -40,6 +40,11 @@ fi
 case "${CLAUDE_PLUGIN_ROOT:-}" in
   */.grok/*|*\\.grok\\*) SOURCE_APP="grok" ;;
 esac
+if [ "$SOURCE_APP" = "grok" ]; then
+  # Grok Build treats SessionStart and SubagentStart as passive hooks and
+  # discards stdout. Context is loaded through the plugin skill instead.
+  exit 0
+fi
 
 parse_context='import sys,json; d=json.load(sys.stdin); c=d.get("rendered_markdown") or d.get("content") or ""; print(c) if c else sys.exit(1)'
 parse_existing_space_wm='import sys,json; d=json.load(sys.stdin); c=d.get("content",""); print(c) if d.get("exists") and c else sys.exit(1)'
