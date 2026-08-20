@@ -321,6 +321,56 @@ test("flush discards a stale ack after the destination changes and reruns", asyn
 	}
 });
 
+test("in-flight flush keeps its stable thread id after a destination reset", async () => {
+	const previous = globalThis.fetch;
+	const harness = makePluginHarness();
+	let releaseTitle;
+	let titleCalls = 0;
+	const titleStarted = new Promise((resolve) => {
+		harness.context.chat = {
+			getThread() {
+				titleCalls += 1;
+				if (titleCalls > 1) return Promise.resolve({ title: "Resolved title" });
+				resolve();
+				return new Promise((finish) => {
+					releaseTitle = finish;
+				});
+			},
+		};
+	});
+	const calls = [];
+	globalThis.fetch = async (url, init) => {
+		const href = String(url);
+		const body = init?.body ? JSON.parse(init.body) : undefined;
+		calls.push({ href, body });
+		if (href.includes("/append")) {
+			return jsonResponse(404, { detail: "Thread not found" });
+		}
+		return jsonResponse(200, {
+			thread: { thread_id: body.thread_id, message_count: body.messages.length },
+		});
+	};
+	const plugin = await activate(harness.context);
+	try {
+		await captureUserAndAssistant(harness.events);
+		const flushing = harness.events.get("app.willQuit")({}, { cancel: false });
+		await titleStarted;
+		harness.changeSettings({ "nowledgeMem.apiUrl": "http://mem-b:14242" });
+		releaseTitle({ title: "Resolved title" });
+		await flushing;
+
+		const oldAppend = calls.find((call) => call.href.includes("127.0.0.1") && call.href.includes("/append"));
+		const oldCreate = calls.find((call) => call.href === "http://127.0.0.1:14242/threads");
+		assert.ok(oldAppend);
+		assert.ok(oldCreate);
+		assert.doesNotMatch(oldAppend.href, /\/threads\/null\/append/);
+		assert.match(oldAppend.href, new RegExp(`/threads/${oldCreate.body.thread_id}/append$`));
+	} finally {
+		globalThis.fetch = previous;
+		await plugin.dispose();
+	}
+});
+
 test("automatic flush leaves a user-only tail buffered until its assistant arrives", async () => {
 	const previous = globalThis.fetch;
 	const appends = [];
@@ -377,4 +427,7 @@ test("isThreadNotFoundError treats HTTP 400 Thread not found as recreate", () =>
 	const other = new Error("HTTP 500: boom");
 	other.status = 500;
 	assert.equal(client.isThreadNotFoundError(other), false);
+	const upstream = new Error("HTTP 500: upstream thread not found");
+	upstream.status = 500;
+	assert.equal(client.isThreadNotFoundError(upstream), false);
 });

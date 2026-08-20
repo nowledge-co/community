@@ -70,11 +70,14 @@ test("acknowledgement helpers require explicit checkpointed acks", () => {
 		true,
 	);
 	assert.equal(isThreadAppendAck({ success: true, messages_added: 1, total_messages: 3 }), true);
+	assert.equal(isThreadAppendAck({ success: true, messages_added: -1, total_messages: 3 }), false);
+	assert.equal(isThreadAppendAck({ success: true, messages_added: 1, total_messages: -1 }), false);
 	assert.equal(isCheckpointedAppendAck({ success: true, messages_added: 1, total_messages: 3 }), false);
 	assert.equal(isCheckpointConflictResponse({ error_code: "checkpoint_conflict" }), true);
 	assert.equal(isThreadNotFoundResponse(400, { detail: "Thread not found: alma-x" }), true);
 	assert.equal(isThreadNotFoundResponse(400, { error_code: "thread_not_found" }), true);
 	assert.equal(isThreadNotFoundResponse(500, { detail: "other" }), false);
+	assert.equal(isThreadNotFoundResponse(500, { detail: "upstream thread not found" }), false);
 	assert.match(
 		contentBoundIdempotencyKey("alma-thread", "t", 2, 4, "abc"),
 		/^alma-thread:t:2-4:abc$/,

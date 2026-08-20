@@ -425,8 +425,7 @@ export class NowledgeMemClient {
 		return (
 			err?.code === "thread_not_found" ||
 			err?.status === 404 ||
-			(err?.status === 400 && message.includes("thread not found")) ||
-			message.includes("thread not found")
+			(err?.status === 400 && message.includes("thread not found"))
 		);
 	}
 
@@ -1556,6 +1555,7 @@ export async function activate(context) {
 
 		// Ensure stable thread ID (survives plugin restarts and LRU eviction)
 		if (!buf.nowledgeThreadId) buf.nowledgeThreadId = stableThreadId(threadId);
+		const flushThreadId = buf.nowledgeThreadId;
 
 		try {
 			// Resolve title right before saving (Alma generates titles asynchronously)
@@ -1569,7 +1569,7 @@ export async function activate(context) {
 			const { delta, expectedMessageCount, idempotencyKey } = planAutomaticFlush({
 				messages: snapshot,
 				cursor: buf.acknowledged,
-				threadId: buf.nowledgeThreadId,
+				threadId: flushThreadId,
 			});
 			if (delta.messages.length === 0) return;
 
@@ -1579,13 +1579,13 @@ export async function activate(context) {
 					.slice(-8)
 					.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
 					.join("\n");
-				logger.info?.(`nowledge-mem: creating thread ${buf.nowledgeThreadId} for ${threadId} (${msgsToSend.length} msgs, title="${buf.title}")`);
+				logger.info?.(`nowledge-mem: creating thread ${flushThreadId} for ${threadId} (${msgsToSend.length} msgs, title="${buf.title}")`);
 				const created = await flushClient.createThread(
 					buf.title,
 					escapeForInline(summary, 1200),
 					msgsToSend,
 					"alma",
-					buf.nowledgeThreadId,
+					flushThreadId,
 					{ timeout: flushClient._threadSyncTimeoutMs },
 				);
 				return {
@@ -1596,15 +1596,15 @@ export async function activate(context) {
 
 			let result;
 			try {
-				logger.info?.(`nowledge-mem: appending ${delta.messages.length} msgs to ${buf.nowledgeThreadId}`);
-				result = await flushClient.appendThread(buf.nowledgeThreadId, delta.messages, {
+				logger.info?.(`nowledge-mem: appending ${delta.messages.length} msgs to ${flushThreadId}`);
+				result = await flushClient.appendThread(flushThreadId, delta.messages, {
 					idempotencyKey,
 					expectedMessageCount,
 				});
 			} catch (appendErr) {
 				if (flushClient.isCheckpointConflictError(appendErr)) {
-					logger.info?.(`nowledge-mem: reconciling checkpoint conflict for ${buf.nowledgeThreadId}`);
-					result = await flushClient.appendThread(buf.nowledgeThreadId, snapshot.slice(0, delta.end), {
+					logger.info?.(`nowledge-mem: reconciling checkpoint conflict for ${flushThreadId}`);
+					result = await flushClient.appendThread(flushThreadId, snapshot.slice(0, delta.end), {
 						idempotencyKey: `${idempotencyKey}:reconcile`,
 					});
 				} else if (flushClient.isThreadNotFoundError(appendErr)) {

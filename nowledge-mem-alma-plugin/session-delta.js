@@ -28,7 +28,9 @@ export function isThreadAppendAck(data) {
 		typeof data === "object" &&
 		data.success === true &&
 		Number.isInteger(data.messages_added) &&
-		Number.isInteger(data.total_messages)
+		data.messages_added >= 0 &&
+		Number.isInteger(data.total_messages) &&
+		data.total_messages >= 0
 	);
 }
 
@@ -49,7 +51,7 @@ export function isThreadNotFoundResponse(status, data) {
 		return true;
 	}
 	if (status === 404) return true;
-	return JSON.stringify(data ?? {}).toLowerCase().includes("thread not found");
+	return status === 400 && JSON.stringify(data ?? {}).toLowerCase().includes("thread not found");
 }
 
 export function selectAcknowledgedDelta(
