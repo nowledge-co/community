@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -330,7 +331,10 @@ esac
         tmp_path,
         cwd=tmp_path,
         env={
-            "PATH": f"{_shell_path(bin_dir)}:/bin:/usr/bin",
+            "PATH": (
+                f"{_shell_path(bin_dir)}:"
+                f"{_shell_path(Path(sys.executable).parent)}:/bin:/usr/bin"
+            ),
             "NMEM_SPACE": 'project"2024',
         },
     )
