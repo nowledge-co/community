@@ -301,8 +301,8 @@ export class SessionSyncManager {
    *
    * Automatic `agent.end` batches are merged into a local snapshot so the
    * checkpoint cursor can see the complete prefix. Manual saves read the full
-   * SDK transcript. Failed incremental persists fall back to that full snapshot
-   * once so a dropped turn can be recovered.
+   * SDK transcript. An automatic failure preserves that snapshot and cursor for
+   * a later lifecycle event rather than retrying immediately.
    *
    * @param threadId - The thread to capture.
    * @param options - Capture options controlling force, timeout, and an optional
@@ -313,22 +313,14 @@ export class SessionSyncManager {
     threadId: ThreadID,
     options: { force: boolean; timeoutMs: number; messages?: readonly unknown[] },
   ): Promise<CaptureResult> {
-    const incremental = options.messages !== undefined && !options.force
+    const incremental = !options.force
     const rawMessages = options.messages ?? await this.ports.readThreadMessages(threadId)
     const result = await this.persistSnapshot(threadId, rawMessages, {
       force: options.force,
       incremental,
       timeoutMs: options.timeoutMs,
     })
-    if (result.error === undefined || !incremental) {
-      return result
-    }
-    const fullMessages = await this.ports.readThreadMessages(threadId)
-    return this.persistSnapshot(threadId, fullMessages, {
-      force: true,
-      incremental: false,
-      timeoutMs: options.timeoutMs,
-    })
+    return result
   }
 
   /**
@@ -356,9 +348,17 @@ export class SessionSyncManager {
     }
 
     const state = this.stateFor(threadId)
-    const threadMessages = options.incremental
+    const snapshot = options.incremental
       ? mergeThreadMessages(state.localSnapshot, incoming)
       : incoming
+    if (options.incremental) {
+      // Keep even an unanswered user tail (and keep it across persist errors),
+      // so a later agent.end batch can complete and upload that turn.
+      state.localSnapshot = snapshot
+    }
+    const threadMessages = options.incremental
+      ? throughLastAssistant(snapshot)
+      : snapshot
     if (!hasUserAndAssistant(threadMessages)) {
       return skipped("incomplete_turn", stableThreadId)
     }
@@ -368,7 +368,7 @@ export class SessionSyncManager {
       timeoutMs: options.timeoutMs,
       state,
     })
-    if (result.error === undefined) {
+    if (!options.incremental && result.error === undefined) {
       state.localSnapshot = threadMessages
     }
     return result
@@ -591,6 +591,14 @@ function hasUserAndAssistant(messages: readonly ThreadMessage[]): boolean {
     else hasAssistant = true
   }
   return hasUser && hasAssistant
+}
+
+/** Returns the prefix ending at the last answered assistant turn. */
+function throughLastAssistant(messages: readonly ThreadMessage[]): ThreadMessage[] {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role === "assistant") return messages.slice(0, index + 1)
+  }
+  return []
 }
 
 /**

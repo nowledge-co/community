@@ -820,20 +820,57 @@ describe("SessionSyncManager incremental checkpoint contract", () => {
     expect(appendBody.messages.map((message) => message.content)).toEqual(["rewritten hello", "hi back"])
   })
 
-  it("falls back to a full transcript read when an incremental persist fails", async () => {
+  it("does not immediately retry or read the full transcript when an incremental persist fails", async () => {
     const timers = fakeTimers()
-    const readThreadMessages = vi.fn(async () => [
-      ...FULL_TRANSCRIPT,
-      ...FOLLOW_UP_TRANSCRIPT,
-    ])
+    const readThreadMessages = vi.fn(async () => FULL_TRANSCRIPT)
+    let attempts = 0
     const nmemApi = fakeNmemApi({
-      "/threads": () => ({ ok: false, status: 500, data: { error: "boom" } }),
+      "/threads": () => {
+        attempts += 1
+        return attempts === 1
+          ? { ok: false, status: 500, data: { error: "boom" } }
+          : createAck(STABLE_THREAD_ID, 4)
+      },
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages, ...timers }))
     manager.scheduleSync(THREAD_ID, FULL_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 1)
+    expect(readThreadMessages).not.toHaveBeenCalled()
+    expect(nmemApi.calls).toEqual(["/threads"])
+
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
     await fireUntil(timers, nmemApi, 2)
-    expect(readThreadMessages).toHaveBeenCalledTimes(1)
+    expect(readThreadMessages).not.toHaveBeenCalled()
     expect(nmemApi.calls).toEqual(["/threads", "/threads"])
+    expect((nmemApi.bodies[1] as { messages: unknown[] }).messages).toHaveLength(4)
+  })
+
+  it("holds an unanswered user tail until a later assistant completes it", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 4, true),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+
+    manager.scheduleSync(THREAD_ID, [
+      ...FULL_TRANSCRIPT,
+      FOLLOW_UP_TRANSCRIPT[0],
+    ])
+    await fireUntil(timers, nmemApi, 1)
+    expect((nmemApi.bodies[0] as { messages: unknown[] }).messages).toHaveLength(2)
+
+    manager.scheduleSync(THREAD_ID, [FOLLOW_UP_TRANSCRIPT[1]])
+    await fireUntil(timers, nmemApi, 2)
+    const appendBody = nmemApi.bodies[1] as {
+      messages: Array<{ metadata: { external_id: string } }>
+      expected_message_count: number
+    }
+    expect(appendBody.messages.map((message) => message.metadata.external_id)).toEqual([
+      "amp-msg-u2",
+      "amp-msg-a2",
+    ])
+    expect(appendBody.expected_message_count).toBe(2)
   })
 
   it("uses the automatic timeout for scheduled captures and the existing manual timeout for syncNow", async () => {
