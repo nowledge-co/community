@@ -111,6 +111,7 @@ test("planAutomaticFlush omits expected_message_count until a trusted fingerprin
 		cursor: { ...initial.delta.next, remoteCount: 2 },
 		threadId: "alma-x",
 	});
+	assert.equal(completed.expectedMessageCount, 2);
 	assert.deepEqual(completed.delta.messages, [
 		{ role: "user", content: "next" },
 		{ role: "assistant", content: "done" },
