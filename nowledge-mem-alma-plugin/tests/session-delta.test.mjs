@@ -97,7 +97,21 @@ test("planAutomaticFlush omits expected_message_count until a trusted fingerprin
 		threadId: "alma-x",
 	});
 	assert.equal(trusted.expectedMessageCount, 2);
-	assert.deepEqual(trusted.delta.messages, [{ role: "user", content: "next" }]);
+	assert.deepEqual(trusted.delta.messages, []);
+
+	const completed = planAutomaticFlush({
+		messages: [
+			...first,
+			{ role: "user", content: "next" },
+			{ role: "assistant", content: "done" },
+		],
+		cursor: { ...initial.delta.next, remoteCount: 2 },
+		threadId: "alma-x",
+	});
+	assert.deepEqual(completed.delta.messages, [
+		{ role: "user", content: "next" },
+		{ role: "assistant", content: "done" },
+	]);
 });
 
 test("resolveThreadSyncTimeoutMs honors 120s default and 1s-30min bounds", () => {

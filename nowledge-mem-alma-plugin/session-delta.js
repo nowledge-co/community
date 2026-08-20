@@ -104,7 +104,14 @@ export function planAutomaticFlush({
 			: stableMessageFingerprint(message),
 	prefix = "alma-thread",
 }) {
-	const delta = selectAcknowledgedDelta(messages, cursor, externalId);
+	let snapshotEnd = 0;
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		if (messages[index]?.role === "assistant") {
+			snapshotEnd = index + 1;
+			break;
+		}
+	}
+	const delta = selectAcknowledgedDelta(messages.slice(0, snapshotEnd), cursor, externalId);
 	const trusted =
 		!delta.reset &&
 		Number.isInteger(cursor?.remoteCount) &&

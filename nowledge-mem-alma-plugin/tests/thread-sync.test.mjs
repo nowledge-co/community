@@ -321,6 +321,51 @@ test("flush discards a stale ack after the destination changes and reruns", asyn
 	}
 });
 
+test("automatic flush leaves a user-only tail buffered until its assistant arrives", async () => {
+	const previous = globalThis.fetch;
+	const appends = [];
+	globalThis.fetch = async (url, init) => {
+		if (String(url).includes("/append")) {
+			const body = JSON.parse(init.body);
+			appends.push(body.messages);
+			return jsonResponse(200, {
+				success: true,
+				append_mode: "checkpointed",
+				messages_added: body.messages.length,
+				total_messages: appends.flat().length,
+			});
+		}
+		return jsonResponse(200, {});
+	};
+	const harness = makePluginHarness();
+	const plugin = await activate(harness.context);
+	try {
+		await captureUserAndAssistant(harness.events);
+		await harness.events.get("chat.message.willSend")({
+			threadId: "thread-1",
+			content: "pending question",
+		});
+		await harness.events.get("app.willQuit")({}, { cancel: false });
+		assert.deepEqual(appends, [[
+			{ role: "user", content: "hello from alma" },
+			{ role: "assistant", content: "hi from mem" },
+		]]);
+
+		harness.events.get("chat.message.didReceive")({
+			threadId: "thread-1",
+			response: { content: "pending answer" },
+		});
+		await harness.events.get("app.willQuit")({}, { cancel: false });
+		assert.deepEqual(appends[1], [
+			{ role: "user", content: "pending question" },
+			{ role: "assistant", content: "pending answer" },
+		]);
+	} finally {
+		globalThis.fetch = previous;
+		await plugin.dispose();
+	}
+});
+
 test("isThreadNotFoundError treats HTTP 400 Thread not found as recreate", () => {
 	const client = new NowledgeMemClient(logger, {});
 	const err = new Error("HTTP 400: Thread not found: alma-x");
