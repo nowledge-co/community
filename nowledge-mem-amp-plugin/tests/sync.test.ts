@@ -820,29 +820,45 @@ describe("SessionSyncManager incremental checkpoint contract", () => {
     expect(appendBody.messages.map((message) => message.content)).toEqual(["rewritten hello", "hi back"])
   })
 
-  it("does not immediately retry or read the full transcript when an incremental persist fails", async () => {
+  it("retries a failed incremental suffix without rereading the full transcript", async () => {
     const timers = fakeTimers()
     const readThreadMessages = vi.fn(async () => FULL_TRANSCRIPT)
-    let attempts = 0
+    let appendAttempts = 0
     const nmemApi = fakeNmemApi({
-      "/threads": () => {
-        attempts += 1
-        return attempts === 1
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => {
+        appendAttempts += 1
+        return appendAttempts === 1
           ? { ok: false, status: 500, data: { error: "boom" } }
-          : createAck(STABLE_THREAD_ID, 4)
+          : appendAck(2, 4, true)
       },
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages, ...timers }))
-    manager.scheduleSync(THREAD_ID, FULL_TRANSCRIPT)
-    await fireUntil(timers, nmemApi, 1)
-    expect(readThreadMessages).not.toHaveBeenCalled()
-    expect(nmemApi.calls).toEqual(["/threads"])
+    await manager.syncNow(THREAD_ID)
+    expect(readThreadMessages).toHaveBeenCalledTimes(1)
 
     manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
     await fireUntil(timers, nmemApi, 2)
-    expect(readThreadMessages).not.toHaveBeenCalled()
-    expect(nmemApi.calls).toEqual(["/threads", "/threads"])
-    expect((nmemApi.bodies[1] as { messages: unknown[] }).messages).toHaveLength(4)
+    expect(readThreadMessages).toHaveBeenCalledTimes(1)
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
+
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 3)
+    expect(readThreadMessages).toHaveBeenCalledTimes(1)
+    expect(nmemApi.calls).toEqual([
+      "/threads",
+      "/threads/amp-t-abc123/append",
+      "/threads/amp-t-abc123/append",
+    ])
+    const appendBodies = nmemApi.bodies.slice(1) as Array<{
+      messages: Array<{ content: string }>
+      expected_message_count: number
+    }>
+    expect(appendBodies.map((body) => body.messages.map((message) => message.content))).toEqual([
+      ["second turn", "second answer"],
+      ["second turn", "second answer"],
+    ])
+    expect(appendBodies.map((body) => body.expected_message_count)).toEqual([2, 2])
   })
 
   it("holds an unanswered user tail until a later assistant completes it", async () => {
