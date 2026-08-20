@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -18,8 +19,10 @@ def _run_hook(tmp_path: Path, *, cwd: Path, env: dict[str, str]) -> subprocess.C
     hook_env.update(env)
     hook_env["HOME"] = str(tmp_path / "home")
     (Path(hook_env["HOME"]) / "ai-now").mkdir(parents=True, exist_ok=True)
+    shell = shutil.which("sh", path=hook_env.get("PATH"))
+    assert shell is not None, "sh is required to exercise the packaged hook"
     return subprocess.run(
-        ["/bin/sh", str(SCRIPT_PATH)],
+        [shell, str(SCRIPT_PATH)],
         cwd=str(cwd),
         env=hook_env,
         text=True,

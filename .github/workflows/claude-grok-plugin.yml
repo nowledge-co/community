@@ -33,6 +33,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Add Git Bash to PATH
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '"C:\Program Files\Git\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
       - name: Install test dependency
         run: python -m pip install pytest
       - name: Test Claude Code and Grok Build hook contracts
