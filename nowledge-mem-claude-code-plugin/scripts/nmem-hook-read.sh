@@ -1,8 +1,10 @@
 #!/bin/sh
 # Best-effort Context Bundle / Working Memory injection for Claude Code / Grok Build lifecycle hooks.
 
-if ! command -v nmem >/dev/null 2>&1; then
-  if command -v nmem.cmd >/dev/null 2>&1; then
+NMEM_COMMAND="$(command -v nmem 2>/dev/null || true)"
+case "$NMEM_COMMAND" in
+  ""|*.cmd|*.CMD)
+    if command -v nmem.cmd >/dev/null 2>&1; then
     escape_cmd_arg() {
       printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
     }
@@ -14,8 +16,9 @@ if ! command -v nmem >/dev/null 2>&1; then
       done
       cmd.exe /s /c "\"nmem.cmd\"$q"
     }
-  fi
-fi
+    fi
+    ;;
+esac
 
 PY="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
 
