@@ -21,9 +21,9 @@ def _packaged_hook() -> Path:
 
 
 def main() -> int:
-    hook = _stable_host_hook()
+    hook = _packaged_hook()
     if not hook.is_file():
-        hook = _packaged_hook()
+        hook = _stable_host_hook()
 
     sys.argv = [str(hook), *sys.argv[1:]]
     runpy.run_path(str(hook), run_name="__main__")

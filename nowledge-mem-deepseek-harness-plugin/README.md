@@ -94,6 +94,15 @@ Mem MCP tools are registered through DSH's MCP bridge under the `nowledge_mem` n
 
 After each completed DSH turn, the plugin serializes user, assistant, and tool-result events, skips its own injected context messages, and imports the transcript into Mem as `source=deepseek-harness`.
 
+### Sandbox Compatibility Retry
+
+The plugin does not retry a sandbox-unavailable `nmem` command with
+`danger-full-access` by default. An operator who explicitly accepts that wider
+access may set `allowDangerFullAccessRetry: true` in the `nowledge-mem` plugin
+config. Even with that opt-in, the retry runs only when the DSH host provides
+`ctx.sandboxPolicy` and resolves the requested policy; otherwise it fails
+closed and logs why the retry was skipped.
+
 ## Known Limitations
 
 - DeepSeek Harness is in developer preview, so public package APIs may change.

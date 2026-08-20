@@ -400,7 +400,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.31"
+    assert codex_manifest["version"] == "0.1.32"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -416,6 +416,9 @@ def test_key_plugin_static_contracts_are_declared():
     codex_launcher = (CODEX_PLUGIN / "hooks" / "nmem-stop-launch.py").read_text(encoding="utf-8")
     assert "nowledge-mem-stop-save.py" in codex_launcher
     assert "nmem-stop-save.py" in codex_launcher
+    assert codex_launcher.index("hook = _packaged_hook()") < codex_launcher.index(
+        "hook = _stable_host_hook()"
+    )
     assert "extract_skill_outcomes_from_file" in codex_save_hook
     assert "DELEGATED_CONVERSATION_ORIGINATORS" in codex_save_hook
     assert (CODEX_PLUGIN / "hooks" / "skill_outcome.py").exists()
@@ -1580,6 +1583,9 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     thread_import = (DEEPSEEK_HARNESS_PLUGIN / "src" / "thread-import.js").read_text(
         encoding="utf-8"
     )
+    sandbox_retry = (DEEPSEEK_HARNESS_PLUGIN / "src" / "sandbox-retry.js").read_text(
+        encoding="utf-8"
+    )
     readme = (DEEPSEEK_HARNESS_PLUGIN / "README.md").read_text(encoding="utf-8")
     registry = _read_json(COMMUNITY_ROOT / "integrations.json")
     dsh_registry = next(
@@ -1615,14 +1621,18 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert source.count("buildThreadImportArgs({") == 2
     assert "payload.title" in thread_import
     assert "expectedMessageCount === undefined" in thread_import
+    assert "message?.source?.kind === 'plugin'" in thread_import
 
     assert "export const inject = ['agents', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
     assert "ctx.on('session/event'" in source
     assert "event.type === 'turn/end'" in source
-    assert "SANDBOX_UNAVAILABLE" in source
+    assert "SANDBOX_UNAVAILABLE" in sandbox_retry
     assert "isSandboxUnavailableError" in source
-    assert "sandboxPolicy: dangerFullAccessPolicy(ctx, session)" in source
+    assert "runShellWithHostSandboxRetry(" in source
+    assert "allowDangerFullAccessRetry: config.allowDangerFullAccessRetry ?? false" in source
+    assert "host did not grant danger-full-access; skipping retry" in sandbox_retry
+    assert "danger-full-access retry is not enabled; skipping retry" in sandbox_retry
     assert "pre-step context injection failed" in source
     assert "turn-end transcript import failed" in source
     assert "'--json', 'context', '--source-app', config.sourceApp" in source

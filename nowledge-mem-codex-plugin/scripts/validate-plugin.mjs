@@ -198,10 +198,13 @@ const hookLauncher = readTextIfPresent(path.join(pluginRoot, "hooks/nmem-stop-la
 if (hookLauncher !== null) {
   if (!hookLauncher.includes("runpy.run_path")) fail("Stop hook launcher must delegate with runpy.run_path");
   else ok("Stop hook launcher delegation");
-  if (!hookLauncher.includes("nowledge-mem-stop-save.py")) fail("Stop hook launcher must prefer the stable installed hook");
-  else ok("Stop hook launcher stable fallback");
-  if (!hookLauncher.includes("nmem-stop-save.py")) fail("Stop hook launcher must fall back to the packaged hook");
-  else ok("Stop hook launcher packaged fallback");
+  const packagedSelection = hookLauncher.indexOf("hook = _packaged_hook()");
+  const stableSelection = hookLauncher.indexOf("hook = _stable_host_hook()");
+  if (packagedSelection < 0 || stableSelection < 0 || packagedSelection >= stableSelection) {
+    fail("Stop hook launcher must prefer the packaged hook and use the stable hook only as fallback");
+  } else {
+    ok("Stop hook launcher packaged-first fallback order");
+  }
 }
 
 const integrationsDoc = parseJsonIfPresent(path.join(repoRoot, "integrations.json"), "integrations.json");

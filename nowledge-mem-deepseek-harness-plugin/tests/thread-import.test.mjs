@@ -19,18 +19,18 @@ function argumentValue(args, name) {
   return index < 0 ? undefined : args[index + 1]
 }
 
-test('keeps one session-scoped title when later or compacted windows start elsewhere', () => {
+test('keeps one session-scoped title and ignores every plugin-generated prompt', () => {
   const events = [
     userEvent(1, 'Injected context', { kind: 'plugin', plugin: 'nowledge-mem' }),
-    userEvent(2, '\nOriginal session question\nmore detail'),
-    { type: 'assistant/message', seq: 3 },
-    userEvent(4, 'Later continuation prompt'),
+    userEvent(2, 'Other plugin context', { kind: 'plugin', plugin: 'other-plugin' }),
+    userEvent(3, '\nOriginal session question\nmore detail'),
+    { type: 'assistant/message', seq: 4 },
+    userEvent(5, 'Later continuation prompt'),
   ]
 
   const title = sessionThreadTitle(
     events,
     'session-1',
-    'nowledge-mem',
     message => message.content,
     16_000,
   )
@@ -41,7 +41,6 @@ test('keeps one session-scoped title when later or compacted windows start elsew
   const compactedTitle = sessionThreadTitle(
     [events.at(-1)],
     'session-1',
-    'nowledge-mem',
     message => message.content,
     16_000,
     title,

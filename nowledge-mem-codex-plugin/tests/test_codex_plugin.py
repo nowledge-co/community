@@ -976,11 +976,13 @@ class LauncherTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
-    def test_launcher_prefers_stable_host_hook(self):
+    def test_launcher_prefers_packaged_hook_when_host_hook_exists(self):
         codex_home = self.temp_path / ".codex"
         stable_hook = codex_home / "hooks" / "nowledge-mem-stop-save.py"
         stable_hook.parent.mkdir(parents=True)
         stable_hook.write_text("# stable", encoding="utf-8")
+        packaged_hook = self.temp_path / "nmem-stop-save.py"
+        packaged_hook.write_text("# packaged", encoding="utf-8")
         calls = []
 
         def fake_run_path(path, *, run_name):
@@ -988,28 +990,30 @@ class LauncherTests(unittest.TestCase):
             return {}
 
         with mock.patch.dict(self.module.os.environ, {"CODEX_HOME": str(codex_home)}, clear=False), \
-             mock.patch.object(self.module.runpy, "run_path", side_effect=fake_run_path), \
-             mock.patch.object(self.module.sys, "argv", ["launcher", "--event", "stop"]):
-            self.assertEqual(self.module.main(), 0)
-
-        self.assertEqual(calls, [(stable_hook, "__main__", [str(stable_hook), "--event", "stop"])])
-
-    def test_launcher_falls_back_to_packaged_hook(self):
-        missing_hook = self.temp_path / "missing.py"
-        packaged_hook = self.temp_path / "nmem-stop-save.py"
-        calls = []
-
-        def fake_run_path(path, *, run_name):
-            calls.append((Path(path), run_name, list(self.module.sys.argv)))
-            return {}
-
-        with mock.patch.object(self.module, "_stable_host_hook", return_value=missing_hook), \
              mock.patch.object(self.module, "_packaged_hook", return_value=packaged_hook), \
              mock.patch.object(self.module.runpy, "run_path", side_effect=fake_run_path), \
              mock.patch.object(self.module.sys, "argv", ["launcher", "--event", "stop"]):
             self.assertEqual(self.module.main(), 0)
 
         self.assertEqual(calls, [(packaged_hook, "__main__", [str(packaged_hook), "--event", "stop"])])
+
+    def test_launcher_falls_back_to_stable_host_hook(self):
+        missing_hook = self.temp_path / "missing.py"
+        stable_hook = self.temp_path / "nowledge-mem-stop-save.py"
+        stable_hook.write_text("# stable", encoding="utf-8")
+        calls = []
+
+        def fake_run_path(path, *, run_name):
+            calls.append((Path(path), run_name, list(self.module.sys.argv)))
+            return {}
+
+        with mock.patch.object(self.module, "_packaged_hook", return_value=missing_hook), \
+             mock.patch.object(self.module, "_stable_host_hook", return_value=stable_hook), \
+             mock.patch.object(self.module.runpy, "run_path", side_effect=fake_run_path), \
+             mock.patch.object(self.module.sys, "argv", ["launcher", "--event", "stop"]):
+            self.assertEqual(self.module.main(), 0)
+
+        self.assertEqual(calls, [(stable_hook, "__main__", [str(stable_hook), "--event", "stop"])])
 
     def test_launcher_entrypoint_emits_valid_stop_hook_json(self):
         codex_home = self.temp_path / ".codex"
