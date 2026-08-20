@@ -2,12 +2,18 @@
 
 ## [Unreleased]
 
+## [0.1.32] - 2026-08-20
+
 ### Fixed
 
 - Stop hooks now durably enqueue capture in bounded time. The worker uses the
   CLI's acknowledged JSONL byte checkpoint, while skill telemetry runs in a
   detached child. Plugin and CLI upgrades must land together; no synchronous
   full-session fallback runs inside Stop.
+- The packaged Codex Stop-hook launcher now runs its same-version packaged
+  runtime first and uses the host-level compatibility copy only when the
+  packaged runtime is unavailable, preventing plugin updates from selecting a
+  stale synchronous hook that can exceed Codex's 15-second timeout.
 
 ## [0.1.31] - 2026-08-13
 
