@@ -7,6 +7,13 @@ from pathlib import Path
 SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "nmem-hook-read.sh"
 
 
+def _shell_path(path: Path) -> str:
+    value = path.as_posix()
+    if os.name == "nt" and len(value) >= 3 and value[1:3] == ":/":
+        return f"/{value[0].lower()}{value[2:]}"
+    return value
+
+
 def _write_fake_nmem(bin_dir: Path, body: str) -> Path:
     fake_nmem = bin_dir / "nmem"
     fake_nmem.write_text("#!/bin/sh\n" + body, encoding="utf-8")
@@ -322,7 +329,10 @@ esac
     result = _run_hook(
         tmp_path,
         cwd=tmp_path,
-        env={"PATH": f"{bin_dir}:/bin:/usr/bin", "NMEM_SPACE": 'project"2024'},
+        env={
+            "PATH": f"{_shell_path(bin_dir)}:/bin:/usr/bin",
+            "NMEM_SPACE": 'project"2024',
+        },
     )
 
     assert result.returncode == 0
