@@ -1720,7 +1720,7 @@ def test_opencode_thread_sync_timeout_contract():
     assert "timeoutMs: 10_000" not in source
     assert "NMEM_SYNC_TIMEOUT_MS" in readme
     assert "later lifecycle sync safely reconciles" in readme
-    assert "## [0.3.8] - 2026-08-19" in changelog
+    assert "## [0.3.9] - 2026-08-19" in changelog
 
 
 def test_amp_plugin_static_contract_is_self_contained():
