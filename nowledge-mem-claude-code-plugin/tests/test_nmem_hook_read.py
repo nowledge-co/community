@@ -26,6 +26,14 @@ def _run_hook(tmp_path: Path, *, cwd: Path, env: dict[str, str]) -> subprocess.C
     shell = shutil.which("sh")
     assert shell is not None, "sh is required to exercise the packaged hook"
     hook_env = os.environ.copy()
+    for marker in (
+        "GROK_SESSION_ID",
+        "GROK_HOOK_EVENT",
+        "GROK_WORKSPACE_ROOT",
+        "GROK_PLUGIN_ROOT",
+        "CLAUDE_PLUGIN_ROOT",
+    ):
+        hook_env.pop(marker, None)
     hook_env.update(env)
     hook_env["HOME"] = str(tmp_path / "home")
     (Path(hook_env["HOME"]) / "ai-now").mkdir(parents=True, exist_ok=True)

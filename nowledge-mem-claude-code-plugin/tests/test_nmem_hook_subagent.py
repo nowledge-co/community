@@ -21,8 +21,16 @@ def _load_module():
 
 
 @pytest.fixture(autouse=True)
-def _clear_subagent_context_override(monkeypatch):
-    monkeypatch.delenv("NMEM_SUBAGENT_CONTEXT_TYPES", raising=False)
+def _clear_subagent_test_environment(monkeypatch):
+    for marker in (
+        "GROK_SESSION_ID",
+        "GROK_HOOK_EVENT",
+        "GROK_WORKSPACE_ROOT",
+        "GROK_PLUGIN_ROOT",
+        "CLAUDE_PLUGIN_ROOT",
+        "NMEM_SUBAGENT_CONTEXT_TYPES",
+    ):
+        monkeypatch.delenv(marker, raising=False)
 
 
 def test_packaged_subagent_hook_uses_bounded_wrapper():
@@ -45,7 +53,7 @@ def test_grok_subagent_start_skips_passive_context_output():
     ), mock.patch.object(module, "_load_context") as load, \
          mock.patch.object(module.sys, "stdout", stdout):
         assert module.main(
-            {"hookEventName": "subagent_start", "subagentType": "architect"}
+            {"hook_event_name": "SubagentStart", "agent_type": "architect"}
         ) == 0
 
     load.assert_not_called()
