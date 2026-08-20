@@ -112,8 +112,12 @@ class FakeThreadClient {
 
 	async createThread(request) {
 		this.createCalls.push(request);
+		if (this.createAck !== undefined) return this.createAck;
 		this.existingCount = request.messages.length;
-		return request.threadId;
+		return {
+			threadId: request.threadId,
+			totalMessages: request.messages.length,
+		};
 	}
 
 	isThreadNotFoundError(error) {
@@ -608,6 +612,69 @@ test("skips persist until a user+assistant pair exists", async () => {
 	assert.equal(result, undefined);
 	assert.equal(client.appendCalls.length, 0);
 	assert.equal(client.createCalls.length, 0);
+});
+
+test("snapshot capture leaves a trailing user turn for the next assistant", async () => {
+	_resetSyncCursors();
+	const client = new FakeThreadClient({ existingCount: 0 });
+	const ctx = {
+		sessionId: "session-trailing-user",
+		sessionKey: "agent:main:telegram:direct:trailing-user",
+	};
+	const first = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [
+				message("user", "first"),
+				message("assistant", "answer"),
+				message("user", "wait for me"),
+			],
+		},
+		ctx,
+		reason: "before_reset",
+	});
+	assert.equal(first.messagesAdded, 2);
+	assert.deepEqual(client.appendCalls[0].messages.map((msg) => msg.content), ["first", "answer"]);
+
+	const second = await appendOrCreateThread({
+		client,
+		logger,
+		event: {
+			messages: [
+				message("user", "first"),
+				message("assistant", "answer"),
+				message("user", "wait for me"),
+				message("assistant", "now complete"),
+			],
+		},
+		ctx,
+		reason: "agent_end",
+	});
+	assert.equal(second.messagesAdded, 2);
+	assert.deepEqual(client.appendCalls[1].messages.map((msg) => msg.content), [
+		"wait for me",
+		"now complete",
+	]);
+});
+
+test("create without an explicit persistence ack does not advance the cursor", async () => {
+	_resetSyncCursors();
+	const client = new FakeThreadClient();
+	client.failAppend = "thread not found";
+	client.failAppendCode = "thread_not_found";
+	client.createAck = null;
+	const ctx = {
+		sessionId: "session-create-no-ack",
+		sessionKey: "agent:main:telegram:direct:create-no-ack",
+	};
+	const event = { messages: [message("user", "hello"), message("assistant", "hi")] };
+	const failed = await appendOrCreateThread({ client, logger, event, ctx, reason: "agent_end" });
+	assert.equal(failed, null);
+	client.failAppend = "";
+	const retried = await appendOrCreateThread({ client, logger, event, ctx, reason: "agent_end" });
+	assert.equal(retried.messagesAdded, 2);
+	assert.equal(client.appendCalls.at(-1).messages.length, 2);
 });
 
 test("capture continues when remote message count lookup fails", async () => {

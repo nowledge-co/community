@@ -44,6 +44,22 @@ export function isThreadAppendAck(data) {
 	);
 }
 
+export function threadCreateAck(data, expectedThreadId) {
+	if (data === null || typeof data !== "object") return null;
+	const thread =
+		data.thread !== null && typeof data.thread === "object" ? data.thread : data;
+	const threadId = String(thread.thread_id ?? "").trim();
+	const totalMessages = thread.message_count ?? thread.total_messages;
+	if (
+		threadId !== String(expectedThreadId || "").trim() ||
+		!Number.isInteger(totalMessages) ||
+		totalMessages < 0
+	) {
+		return null;
+	}
+	return { threadId, totalMessages };
+}
+
 export function isCheckpointedAppendAck(data) {
 	return isThreadAppendAck(data) && data.append_mode === "checkpointed";
 }

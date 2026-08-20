@@ -11,6 +11,7 @@ import {
 	selectSnapshotDelta,
 	sessionSyncLaneKey,
 	stableMessageFingerprint,
+	threadCreateAck,
 } from "../src/session-delta.js";
 import { resolveThreadSyncTimeoutMs } from "../src/thread-sync-timeout.js";
 
@@ -82,6 +83,16 @@ test("acknowledgement helpers require explicit checkpointed acks", () => {
 		contentBoundIdempotencyKey("oc:agent_end", "t", 2, 4, "abc"),
 		/^oc:agent_end:t:2-4:abc$/,
 	);
+});
+
+test("threadCreateAck requires the target id and an explicit non-negative count", () => {
+	assert.deepEqual(threadCreateAck({ thread_id: "target", message_count: 2 }, "target"), {
+		threadId: "target",
+		totalMessages: 2,
+	});
+	assert.equal(threadCreateAck({ thread_id: "other", message_count: 2 }, "target"), null);
+	assert.equal(threadCreateAck({ thread_id: "target" }, "target"), null);
+	assert.equal(threadCreateAck({ thread_id: "target", message_count: -1 }, "target"), null);
 });
 
 test("resolveThreadSyncTimeoutMs honors 120s default and 1s-30min bounds", () => {

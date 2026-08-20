@@ -486,11 +486,28 @@ export async function appendOrCreateThread({
 		.map((message) => normalizeRoleMessage(message, maxMessageChars))
 		.filter(Boolean);
 	if (normalized.length === 0) return;
-	if (!hasUserAndAssistant(normalized)) return;
-	const title = buildThreadTitle(ctx, normalized);
+	const resolvedMessageMode =
+		messageMode === CAPTURE_MESSAGE_MODE_DELTA ||
+		(messageMode === CAPTURE_MESSAGE_MODE_AUTO &&
+			hasStableExternalHints(normalized))
+			? CAPTURE_MESSAGE_MODE_DELTA
+			: CAPTURE_MESSAGE_MODE_SNAPSHOT;
+	let captured = normalized;
+	if (resolvedMessageMode === CAPTURE_MESSAGE_MODE_SNAPSHOT) {
+		let lastAssistantIndex = -1;
+		for (let index = normalized.length - 1; index >= 0; index -= 1) {
+			if (normalized[index].role === "assistant") {
+				lastAssistantIndex = index;
+				break;
+			}
+		}
+		captured = normalized.slice(0, lastAssistantIndex + 1);
+	}
+	if (!hasUserAndAssistant(captured)) return;
+	const title = buildThreadTitle(ctx, captured);
 
 	const buildMessages = (resolvedMessageMode) =>
-		normalized.map((message, index) => ({
+		captured.map((message, index) => ({
 			role: message.role,
 			content: message.content,
 			timestamp: message.timestamp,
@@ -536,12 +553,6 @@ export async function appendOrCreateThread({
 		}
 	}
 
-	const resolvedMessageMode =
-		messageMode === CAPTURE_MESSAGE_MODE_DELTA ||
-		(messageMode === CAPTURE_MESSAGE_MODE_AUTO &&
-			hasStableExternalHints(normalized))
-			? CAPTURE_MESSAGE_MODE_DELTA
-			: CAPTURE_MESSAGE_MODE_SNAPSHOT;
 	if (resolvedMessageMode === CAPTURE_MESSAGE_MODE_DELTA) {
 		allMessages = buildMessages(CAPTURE_MESSAGE_MODE_DELTA);
 		const next = {
@@ -698,16 +709,16 @@ async function persistMessages({
 	}
 
 	try {
-		const createdId = await client.createThread({
+		const created = await client.createThread({
 			threadId,
 			title,
 			messages: allMessages,
 			source: "openclaw",
 		});
 		logger.info(
-			`capture: created thread ${createdId} with ${allMessages.length} ${label} messages (${reason || "event"})`,
+			`capture: created thread ${created.threadId} with ${created.totalMessages} persisted messages (${reason || "event"})`,
 		);
-		return acknowledge(allMessages.length, allMessages.length);
+		return acknowledge(created.totalMessages, allMessages.length);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.warn(`capture: thread create failed for ${threadId}: ${message}`);

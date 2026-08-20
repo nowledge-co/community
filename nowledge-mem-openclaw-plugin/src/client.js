@@ -4,6 +4,7 @@ import {
 	isCheckpointedAppendAck,
 	isThreadAppendAck,
 	sessionSyncLaneKey,
+	threadCreateAck,
 } from "./session-delta.js";
 
 /**
@@ -635,9 +636,13 @@ export class NowledgeMemClient {
 			this._threadSyncTimeoutMs,
 		);
 
-		return String(
-			data.id ?? data.thread?.thread_id ?? data.thread_id ?? "created",
-		);
+		const ack = threadCreateAck(data, threadId);
+		if (!ack) {
+			throw new Error(
+				"Thread create did not include an explicit persistence acknowledgement",
+			);
+		}
+		return ack;
 	}
 
 	async appendThread({
