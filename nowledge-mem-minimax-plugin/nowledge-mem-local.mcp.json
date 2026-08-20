@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "mcpServers": {
+    "nowledge-mem": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:14242/mcp/",
+      "description": "Durable, cross-tool memory from the Nowledge Mem app on this computer",
+      "timeout": 30000
+    }
+  }
+}
