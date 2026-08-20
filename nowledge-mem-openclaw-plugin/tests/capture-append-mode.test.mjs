@@ -27,6 +27,41 @@ test("thread-not-found detection does not recreate after an unrelated server fai
 	assert.equal(client.isThreadNotFoundError(upstream), false);
 });
 
+test("createThread requires and sends a normalized thread id", async () => {
+	const client = new NowledgeMemClient(logger, {});
+	const requests = [];
+	client.apiJson = async (method, path, body) => {
+		requests.push({ method, path, body });
+		return { thread_id: "oc-target", message_count: 1 };
+	};
+	const messages = [{ role: "user", content: "hello" }];
+
+	await assert.rejects(
+		client.createThread({ threadId: " ", title: "title", messages }),
+		/createThread requires threadId/,
+	);
+	assert.equal(requests.length, 0);
+
+	const ack = await client.createThread({
+		threadId: "  oc-target  ",
+		title: "title",
+		messages,
+	});
+	assert.deepEqual(ack, { threadId: "oc-target", totalMessages: 1 });
+	assert.deepEqual(requests, [
+		{
+			method: "POST",
+			path: "/threads",
+			body: {
+				thread_id: "oc-target",
+				title: "title",
+				source: "openclaw",
+				messages,
+			},
+		},
+	]);
+});
+
 function message(role, content, extra = {}) {
 	return {
 		role,
@@ -317,7 +352,7 @@ test("auto capture remains idempotent when a stable full transcript is emitted",
 	assert.equal(client.appendCalls[0].messages.length, 4);
 });
 
-test("snapshot capture still treats a shorter transcript as compaction shrink", async () => {
+test("snapshot capture does not trust a remote count as a local prefix", async () => {
 	const client = new FakeThreadClient({ existingCount: 6 });
 	const result = await appendOrCreateThread({
 		client,
@@ -335,12 +370,17 @@ test("snapshot capture still treats a shorter transcript as compaction shrink", 
 		reason: "after_compaction",
 	});
 
-	assert.equal(result.messagesAdded, 0);
-	assert.equal(client.appendCalls.length, 0);
+	assert.equal(result.messagesAdded, 2);
+	assert.equal(client.appendCalls.length, 1);
+	assert.deepEqual(
+		client.appendCalls[0].messages.map((msg) => msg.content),
+		["summarized prompt", "summarized answer"],
+	);
+	assert.equal(client.appendCalls[0].expectedMessageCount, undefined);
 	assert.equal(client.createCalls.length, 0);
 });
 
-test("auto capture requires stable identities before treating a short batch as delta", async () => {
+test("auto capture replays a short snapshot batch without stable identities", async () => {
 	const client = new FakeThreadClient({ existingCount: 6 });
 	const result = await appendOrCreateThread({
 		client,
@@ -360,12 +400,20 @@ test("auto capture requires stable identities before treating a short batch as d
 		messageMode: "auto",
 	});
 
-	assert.equal(result.messagesAdded, 0);
-	assert.equal(client.appendCalls.length, 0);
+	assert.equal(result.messagesAdded, 2);
+	assert.equal(client.appendCalls.length, 1);
+	assert.deepEqual(
+		client.appendCalls[0].messages.map((msg) => msg.content),
+		[
+			"short prompt without host identity",
+			"short answer without host identity",
+		],
+	);
+	assert.equal(client.appendCalls[0].expectedMessageCount, undefined);
 	assert.equal(client.createCalls.length, 0);
 });
 
-test("snapshot capture appends only the tail of full-transcript hook payloads", async () => {
+test("snapshot capture replays the local transcript until its prefix is acknowledged", async () => {
 	const client = new FakeThreadClient({ existingCount: 2 });
 	const result = await appendOrCreateThread({
 		client,
@@ -385,12 +433,13 @@ test("snapshot capture appends only the tail of full-transcript hook payloads", 
 		reason: "agent_end",
 	});
 
-	assert.equal(result.messagesAdded, 2);
+	assert.equal(result.messagesAdded, 4);
 	assert.equal(client.appendCalls.length, 1);
 	assert.deepEqual(
 		client.appendCalls[0].messages.map((msg) => msg.content),
-		["third", "fourth"],
+		["first", "second", "third", "fourth"],
 	);
+	assert.equal(client.appendCalls[0].expectedMessageCount, undefined);
 });
 
 test("snapshot fallback external IDs preserve the legacy seed shape", async () => {

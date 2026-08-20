@@ -616,6 +616,10 @@ export class NowledgeMemClient {
 	}
 
 	async createThread({ threadId, title, messages, source = "openclaw" }) {
+		const normalizedThreadId = String(threadId || "").trim();
+		if (!normalizedThreadId) {
+			throw new Error("createThread requires threadId");
+		}
 		const normalizedTitle = String(title || "").trim();
 		if (!normalizedTitle) {
 			throw new Error("createThread requires a non-empty title");
@@ -628,7 +632,7 @@ export class NowledgeMemClient {
 			"POST",
 			"/threads",
 			{
-				...(threadId ? { thread_id: String(threadId) } : {}),
+				thread_id: normalizedThreadId,
 				title: normalizedTitle,
 				source: String(source),
 				messages,
@@ -636,7 +640,7 @@ export class NowledgeMemClient {
 			this._threadSyncTimeoutMs,
 		);
 
-		const ack = threadCreateAck(data, threadId);
+		const ack = threadCreateAck(data, normalizedThreadId);
 		if (!ack) {
 			throw new Error(
 				"Thread create did not include an explicit persistence acknowledgement",

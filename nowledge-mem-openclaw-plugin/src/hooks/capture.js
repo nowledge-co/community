@@ -546,7 +546,7 @@ export async function appendOrCreateThread({
 		}
 		if (remoteCount !== null && Number.isFinite(remoteCount) && remoteCount >= 0) {
 			cursor = {
-				count: Math.trunc(remoteCount),
+				count: 0,
 				remoteCount: Math.trunc(remoteCount),
 				prefixFingerprint: "",
 			};
