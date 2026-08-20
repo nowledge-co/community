@@ -7,7 +7,7 @@ Persistent, cross-tool memory for MiniMax Code and MiniMax Agent.
 | Surface | Connection | Available after install |
 | --- | --- | --- |
 | MiniMax Code | Local Streamable HTTP MCP at `127.0.0.1:14242` | Context Bundle, Working Memory, recall, durable memory writes, thread search, and graph/Library tools exposed by the user's Mem instance |
-| MiniMax Agent | MiniMax-managed App/Connector to Nowledge Cloud | Prepared for the same core context, recall, write, and search workflow, scoped to the connected Cloud member and Agent identity; Marketplace App approval is required before this path is enabled |
+| MiniMax Agent | MiniMax-managed App/Connector to Nowledge Cloud | Available only after MiniMax Marketplace App approval and provider configuration; once enabled, it follows the same core context, recall, write, and search workflow scoped to the connected Cloud member and Agent identity |
 
 The desktop MCP entry contains no credential. Cloud credentials must be collected and stored by MiniMax's managed connection flow; they are never part of this repository or plugin package.
 
