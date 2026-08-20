@@ -15,12 +15,12 @@ def _write_fake_nmem(bin_dir: Path, body: str) -> Path:
 
 
 def _run_hook(tmp_path: Path, *, cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    shell = shutil.which("sh")
+    assert shell is not None, "sh is required to exercise the packaged hook"
     hook_env = os.environ.copy()
     hook_env.update(env)
     hook_env["HOME"] = str(tmp_path / "home")
     (Path(hook_env["HOME"]) / "ai-now").mkdir(parents=True, exist_ok=True)
-    shell = shutil.which("sh", path=hook_env.get("PATH"))
-    assert shell is not None, "sh is required to exercise the packaged hook"
     return subprocess.run(
         [shell, str(SCRIPT_PATH)],
         cwd=str(cwd),
