@@ -1,0 +1,20 @@
+{
+  "name": "nowledge-mem-openai",
+  "version": "0.1.0",
+  "description": "Nowledge Mem for ChatGPT and Codex: shared context, memory search, and durable handoffs.",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Nowledge Mem",
+    "shortDescription": "Shared memory for ChatGPT and Codex",
+    "developerName": "Nowledge Labs",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://mem.nowledge.co",
+    "defaultPrompt": [
+      "What do we already know about this?",
+      "Find the relevant context from my Nowledge Mem.",
+      "Save the durable takeaways from this work."
+    ]
+  }
+}
