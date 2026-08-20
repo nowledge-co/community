@@ -104,10 +104,24 @@ describe("acknowledgement helpers", () => {
     expect(isCheckpointedAppendAck({ append_mode: "checkpointed" })).toBe(false)
     expect(isCheckpointedAppendAck({ success: false, append_mode: "checkpointed" })).toBe(false)
     expect(isCheckpointedAppendAck({ success: true })).toBe(false)
+    expect(isCheckpointedAppendAck({
+      success: true,
+      append_mode: "checkpointed",
+      messages_added: -1,
+      total_messages: 3,
+    })).toBe(false)
+    expect(isCheckpointedAppendAck({
+      success: true,
+      append_mode: "checkpointed",
+      messages_added: 1,
+      total_messages: -1,
+    })).toBe(false)
   })
 
   it("validates create and append acknowledgements", () => {
     expect(appendAcknowledgedRemoteCount({ success: true, messages_added: 1, total_messages: 3 })).toBe(3)
+    expect(appendAcknowledgedRemoteCount({ success: true, messages_added: -1, total_messages: 3 })).toBeUndefined()
+    expect(appendAcknowledgedRemoteCount({ success: true, messages_added: 1, total_messages: -1 })).toBeUndefined()
     expect(appendAcknowledgedRemoteCount({})).toBeUndefined()
     expect(createAcknowledgedRemoteCount({ thread: { thread_id: "amp-x", message_count: 5 } }, "amp-x")).toBe(5)
     expect(createAcknowledgedRemoteCount({ thread: { thread_id: "amp-x" }, messages: [{}, {}] }, "amp-x")).toBe(2)
@@ -123,6 +137,7 @@ describe("acknowledgement helpers", () => {
     expect(isThreadNotFoundResponse(400, { error_code: "thread_not_found" })).toBe(true)
     expect(isThreadNotFoundResponse(404, { detail: "missing" })).toBe(true)
     expect(isThreadNotFoundResponse(500, { detail: "other" })).toBe(false)
+    expect(isThreadNotFoundResponse(500, { detail: "upstream thread not found" })).toBe(false)
     expect(isThreadAlreadyExistsResponse(409, {})).toBe(true)
     expect(isThreadAlreadyExistsResponse(422, { detail: "Thread amp-x already exists in space default" })).toBe(true)
     expect(isThreadAlreadyExistsResponse(422, { detail: "unrelated" })).toBe(false)

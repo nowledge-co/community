@@ -1755,7 +1755,7 @@ def test_amp_plugin_static_contract_is_self_contained():
 
     # Package manifest and registry entry agree on the basics.
     assert pkg["name"] == "amp-nowledge-mem"
-    assert pkg["version"] == "0.1.3"
+    assert pkg["version"] == "0.1.4"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.ts"
     assert "@ampcode/plugin" in pkg["peerDependencies"]

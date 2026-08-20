@@ -109,7 +109,7 @@ export function isThreadNotFoundResponse(status: number, data: unknown): boolean
     return true
   }
   if (status === 404) return true
-  return JSON.stringify(data).toLowerCase().includes("thread not found")
+  return status === 400 && JSON.stringify(data).toLowerCase().includes("thread not found")
 }
 
 /**
@@ -157,6 +157,8 @@ export function isCheckpointedAppendAck(data: unknown): boolean {
     && (data as { success?: unknown }).success === true
     && Number.isInteger((data as { messages_added?: unknown }).messages_added)
     && Number.isInteger((data as { total_messages?: unknown }).total_messages)
+    && (data as { messages_added: number }).messages_added >= 0
+    && (data as { total_messages: number }).total_messages >= 0
     && (data as { append_mode?: unknown }).append_mode === "checkpointed"
   )
 }
@@ -174,6 +176,8 @@ export function appendAcknowledgedRemoteCount(data: unknown): number | undefined
     || (data as { success?: unknown }).success !== true
     || !Number.isInteger((data as { messages_added?: unknown }).messages_added)
     || !Number.isInteger((data as { total_messages?: unknown }).total_messages)
+    || (data as { messages_added: number }).messages_added < 0
+    || (data as { total_messages: number }).total_messages < 0
   ) {
     return undefined
   }
