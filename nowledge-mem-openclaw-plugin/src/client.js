@@ -732,9 +732,8 @@ export class NowledgeMemClient {
 		).toLowerCase();
 		return (
 			err?.code === "thread_not_found" ||
-			message.includes("thread not found") ||
-			message.includes("404") ||
-			message.includes("not found")
+			err?.status === 404 ||
+			(err?.status === 400 && message.includes("thread not found"))
 		);
 	}
 

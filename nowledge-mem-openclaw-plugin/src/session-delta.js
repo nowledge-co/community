@@ -40,7 +40,9 @@ export function isThreadAppendAck(data) {
 		typeof data === "object" &&
 		data.success === true &&
 		Number.isInteger(data.messages_added) &&
-		Number.isInteger(data.total_messages)
+		data.messages_added >= 0 &&
+		Number.isInteger(data.total_messages) &&
+		data.total_messages >= 0
 	);
 }
 

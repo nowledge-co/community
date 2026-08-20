@@ -8,12 +8,24 @@ import {
 	buildThreadTitle,
 	normalizeRoleMessage,
 } from "../src/hooks/capture.js";
+import { NowledgeMemClient } from "../src/client.js";
 
 const logger = {
 	info() {},
 	warn() {},
 	debug() {},
 };
+
+test("thread-not-found detection does not recreate after an unrelated server failure", () => {
+	const client = new NowledgeMemClient(logger, {});
+	const missing = new Error("Thread not found: oc-x");
+	missing.status = 400;
+	assert.equal(client.isThreadNotFoundError(missing), true);
+
+	const upstream = new Error("Upstream failed: thread not found");
+	upstream.status = 500;
+	assert.equal(client.isThreadNotFoundError(upstream), false);
+});
 
 function message(role, content, extra = {}) {
 	return {
