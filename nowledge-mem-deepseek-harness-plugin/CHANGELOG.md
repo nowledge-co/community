@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Makes the sandbox-unavailable `danger-full-access` retry fail closed unless
+  the plugin explicitly opts in and the DSH host resolves the policy.
 - Turn-end capture now imports only events after the last acknowledged DSH
   sequence, stamps stable message external IDs, and replays safely after event
   compaction or a failed write.

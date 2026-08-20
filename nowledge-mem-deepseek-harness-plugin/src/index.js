@@ -14,6 +14,12 @@ import { join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
+import {
+  errorMessage,
+  isSandboxUnavailableError,
+  runShellWithHostSandboxRetry,
+  warn,
+} from './sandbox-retry.js'
 import { importAcknowledgement, selectUnacknowledgedEvents } from './session-delta.js'
 
 export const name = 'nowledge-mem'
@@ -28,7 +34,6 @@ const DEFAULT_THREAD_MESSAGE_MAX_CHARS = 16_000
 const DEFAULT_RECALL_LIMIT = 8
 const DEFAULT_TIMEOUT_MS = 8_000
 const DEFAULT_STDOUT_MAX_BYTES = 512 * 1024
-const SANDBOX_UNAVAILABLE_CODE = 'SANDBOX_UNAVAILABLE'
 const DEFAULT_PROMPT_RECALL_PATTERN = [
   'remember',
   'memory',
@@ -65,6 +70,7 @@ export const Config = z.object({
   contextOnSessionStart: z.boolean(),
   recallOnPrompt: z.boolean(),
   syncOnTurnEnd: z.boolean(),
+  allowDangerFullAccessRetry: z.boolean(),
   promptRecallPattern: z.string(),
   recallLimit: z.number(),
   maxPromptChars: z.number(),
@@ -103,6 +109,7 @@ function resolveConfig(config = {}) {
     contextOnSessionStart: config.contextOnSessionStart ?? true,
     recallOnPrompt: config.recallOnPrompt ?? true,
     syncOnTurnEnd: config.syncOnTurnEnd ?? true,
+    allowDangerFullAccessRetry: config.allowDangerFullAccessRetry ?? false,
     promptRecallPattern: new RegExp(config.promptRecallPattern ?? DEFAULT_PROMPT_RECALL_PATTERN, 'iu'),
     recallLimit: config.recallLimit ?? DEFAULT_RECALL_LIMIT,
     maxPromptChars: config.maxPromptChars ?? DEFAULT_PROMPT_MAX_CHARS,
@@ -139,40 +146,7 @@ function envFor(config, includeImportOrigin) {
   return env
 }
 
-function errorMessage(error) {
-  if (error instanceof Error) return `${error.name}: ${error.message}`
-  return String(error)
-}
-
-function warn(ctx, message) {
-  if (typeof ctx.logger?.warn === 'function') ctx.logger.warn(message)
-}
-
-export function isSandboxUnavailableError(error) {
-  if (typeof error !== 'object' || error === null) return false
-  return error.code === SANDBOX_UNAVAILABLE_CODE || error.name === 'SandboxUnavailableError'
-}
-
-function dangerFullAccessPolicy(ctx, session) {
-  const service = typeof ctx.get === 'function' ? ctx.get('sandboxPolicy') : undefined
-  if (typeof service?.resolve === 'function') {
-    try {
-      return service.resolve(session === undefined
-        ? { mode: 'danger-full-access' }
-        : { session, mode: 'danger-full-access' })
-    } catch (error) {
-      warn(ctx, `nowledge-mem: failed to resolve danger-full-access sandbox policy: ${errorMessage(error)}`)
-    }
-  }
-  return {
-    mode: 'danger-full-access',
-    workspaceRoot: optionalString(session?.header?.cwd) ?? process.cwd(),
-  }
-}
-
-async function runShell(ctx, request) {
-  return await ctx.shell.run(ctx.shell.resolve(request))
-}
+export { isSandboxUnavailableError }
 
 async function runNmem(ctx, config, args, signal, includeImportOrigin, stdin, session) {
   const command = [config.cliPath, ...args].map(shellQuote).join(' ')
@@ -184,24 +158,12 @@ async function runNmem(ctx, config, args, signal, includeImportOrigin, stdin, se
     stdin,
     env: envFor(config, includeImportOrigin),
   }
-  try {
-    return await runShell(ctx, request)
-  } catch (error) {
-    if (!isSandboxUnavailableError(error)) {
-      warn(ctx, `nowledge-mem: nmem shell call failed: ${errorMessage(error)}`)
-      return undefined
-    }
-    warn(ctx, `nowledge-mem: nmem shell sandbox unavailable; retrying without sandbox confinement: ${errorMessage(error)}`)
-  }
-  try {
-    return await runShell(ctx, {
-      ...request,
-      sandboxPolicy: dangerFullAccessPolicy(ctx, session),
-    })
-  } catch (error) {
-    warn(ctx, `nowledge-mem: nmem shell retry failed: ${errorMessage(error)}`)
-    return undefined
-  }
+  return await runShellWithHostSandboxRetry(
+    ctx,
+    request,
+    session,
+    config.allowDangerFullAccessRetry,
+  )
 }
 
 function successfulStdout(result) {

@@ -1580,6 +1580,9 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     pkg = _read_json(DEEPSEEK_HARNESS_PLUGIN / "package.json")
     patch = (DEEPSEEK_HARNESS_PLUGIN / "cordis.patch.yml").read_text(encoding="utf-8")
     source = (DEEPSEEK_HARNESS_PLUGIN / "src" / "index.js").read_text(encoding="utf-8")
+    sandbox_retry = (DEEPSEEK_HARNESS_PLUGIN / "src" / "sandbox-retry.js").read_text(
+        encoding="utf-8"
+    )
     readme = (DEEPSEEK_HARNESS_PLUGIN / "README.md").read_text(encoding="utf-8")
     registry = _read_json(COMMUNITY_ROOT / "integrations.json")
     dsh_registry = next(
@@ -1615,9 +1618,12 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "ctx.on('agent/pre-step'" in source
     assert "ctx.on('session/event'" in source
     assert "event.type === 'turn/end'" in source
-    assert "SANDBOX_UNAVAILABLE" in source
+    assert "SANDBOX_UNAVAILABLE" in sandbox_retry
     assert "isSandboxUnavailableError" in source
-    assert "sandboxPolicy: dangerFullAccessPolicy(ctx, session)" in source
+    assert "runShellWithHostSandboxRetry(" in source
+    assert "allowDangerFullAccessRetry: config.allowDangerFullAccessRetry ?? false" in source
+    assert "host did not grant danger-full-access; skipping retry" in sandbox_retry
+    assert "danger-full-access retry is not enabled; skipping retry" in sandbox_retry
     assert "pre-step context injection failed" in source
     assert "turn-end transcript import failed" in source
     assert "'--json', 'context', '--source-app', config.sourceApp" in source
