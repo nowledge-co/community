@@ -57,7 +57,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.8"]
+  "plugin": ["opencode-nowledge-mem@0.3.9"]
 }
 ```
 
