@@ -31,8 +31,8 @@ This shows:
 
 If status fails:
 - Ensure the Nowledge Mem desktop app is running, or start the server manually
-- Check that `nmem` is installed: use the desktop app's **Install CLI**, `pip install nmem-cli`, `uvx --from nmem-cli nmem`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`
-- For remote mode, verify `~/.nowledge-mem/config.json` has correct `apiUrl` and `apiKey`
+- Check that `nmem` is installed: use the desktop app's **Install CLI**, `pip install 'nmem-cli==0.10.0'`, `uvx --from 'nmem-cli==0.10.0' nmem`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`
+- For remote mode, set `NMEM_API_URL` and `NMEM_API_KEY` for the process, then rerun `nmem --json status`. Never print raw configuration or an API key.
 
 ## Native Connector
 

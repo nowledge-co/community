@@ -27,8 +27,8 @@ description: Search your personal knowledge base when past insights would improv
 
 ## Retrieval Routing
 
-1. Start with `nmem --json m search` for durable knowledge.
-2. Use `nmem --json t search` when the user is really asking about a prior conversation or exact session history.
+1. Start with `nmem --json m search "<query>"` for durable knowledge.
+2. Use `nmem --json t search "<query>"` when the user is really asking about a prior conversation or exact session history.
 3. If a result includes `source_thread`, inspect it progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 4. Prefer the smallest retrieval surface that answers the question.
 

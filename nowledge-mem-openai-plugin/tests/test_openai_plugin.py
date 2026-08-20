@@ -13,6 +13,12 @@ def main() -> None:
 
     assert manifest["name"] == "nowledge-mem-openai"
     assert manifest["version"] == "0.1.0"
+    interface = manifest["interface"]
+    assert len(interface["shortDescription"]) <= 30
+    assert interface["longDescription"]
+    for field in ("supportURL", "privacyPolicyURL", "termsOfServiceURL"):
+        assert interface[field]
+        assert interface[field].startswith("https://")
     assert manifest["skills"] == "./skills/"
     assert manifest["mcpServers"] == "./.mcp.json"
     assert mcp["mcpServers"]["nowledge-mem"]["type"] == "streamable-http"

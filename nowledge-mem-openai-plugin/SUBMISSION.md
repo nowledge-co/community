@@ -33,9 +33,11 @@ and create a **With MCP** submission. The package's listing should use:
 
 Provide a privacy policy and terms URL accepted by the current Nowledge Mem
 website. Use starter prompts that demonstrate recall, explicit saving, and
-handoff. Include both successful read and write test cases, plus an
-unauthorized or missing-authorization case that proves the server fails
-closed.
+handoff. Prepare exactly five positive cases: Working Memory read, semantic
+memory search, prior-thread search, durable memory write, and explicit handoff
+save. Prepare exactly three negative cases: missing authorization, expired or
+wrong-resource authorization, and a write attempted outside the authorized
+space. Each negative case must prove the server fails closed.
 
 ## Do not claim
 

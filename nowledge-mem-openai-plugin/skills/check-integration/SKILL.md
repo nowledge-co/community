@@ -31,18 +31,18 @@ Do not install the PyPI CLI over the desktop-bundled CLI on the user's own deskt
 If the agent is not on the desktop machine and `nmem` is missing, install the PyPI CLI:
 
 ```bash
-python3 -m pip install --user nmem-cli
-# or: pipx install nmem-cli
-# or for one-off checks: uvx --from nmem-cli nmem --json status
+python3 -m pip install --user 'nmem-cli==0.10.0'
+# or: pipx install 'nmem-cli==0.10.0'
+# or for one-off checks: uvx --from 'nmem-cli==0.10.0' nmem --json status
 
 nmem config client set url https://<their-mem-server>
-nmem config client set api-key nmem_...
+export NMEM_API_KEY='nmem_...'
 nmem --json status
 ```
 
 If `nmem` exists but status fails, Nowledge Mem is not reachable from this machine. Guide the user:
 - Local desktop: open the Nowledge Mem app, then retry `nmem --json status`
-- Remote/client machine: verify the URL/API key with `nmem config client show`
+- Remote/client machine: verify the URL with `nmem --json status`; keep the API key in `NMEM_API_KEY` and never print raw client configuration
 - Full install guide: https://mem.nowledge.co/docs/installation
 - Remote access guide: https://mem.nowledge.co/docs/remote-access
 
@@ -111,7 +111,7 @@ If the agent is not listed above:
 
 - use the Universal Agent Plugin when the host supports Agent Plugins
 - otherwise use direct MCP plus the recommended prompt block
-- use the shared `npx skills` package when the host supports shared skills but has no MCP tool surface
+- use the skills bundled in this package when the host supports shared skills but has no MCP tool surface
 
 Do not describe raw MCP as equivalent to a native connector.
 
