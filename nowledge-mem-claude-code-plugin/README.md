@@ -195,25 +195,17 @@ Use `CLAUDE.local.md` for small personal memory-behavior changes such as "prefer
 
 ## Beyond the default tools
 
-The MCP tools this plugin exposes are a deliberately small set -- memory
-search/write, thread retrieval, typed filesystem access, skill feedback, and
-a few others. That is on purpose: giving Claude Code every internal Nowledge
-Mem tool would bloat every model request with tool schemas, which is exactly
-what caused real slowdowns before this set was bounded.
-
-Graph-relationship queries -- expanding a memory's or Crystal's neighbors,
-walking an EVOLVES chain, and similar -- aren't in that default set. For
-those, use the `nmem` CLI directly (it's already installed alongside this
-plugin):
+The `nmem` CLI (already installed alongside this plugin) can do a lot more
+than the per-turn MCP tools cover -- including graph and relationship
+queries:
 
 ```bash
 nmem graph expand <memory-or-crystal-id> --depth 2
 nmem graph evolves <memory-id>
 ```
 
-`nmem --help` and `nmem graph --help` list everything else the CLI can do
-that the default MCP surface doesn't cover -- reach for it whenever you need
-something the per-turn tools don't expose.
+Run `nmem --help` (and `nmem graph --help`, `nmem <command> --help`, etc.)
+to see its full capabilities.
 
 ## Troubleshooting
 
