@@ -2,6 +2,17 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
+import {
+	beginInFlightFlush,
+	finishInFlightFlush,
+	hasUserAndAssistant,
+	isCheckpointConflictResponse,
+	isCheckpointedAppendAck,
+	isThreadAppendAck,
+	planAutomaticFlush,
+	sessionSyncLaneKey,
+} from "./session-delta.js";
+import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout.js";
 
 function clamp(value, min, max) {
 	return Math.min(max, Math.max(min, value));
@@ -141,6 +152,13 @@ export class NowledgeMemClient {
 		this._apiUrl = (credentials.apiUrl || "").trim() || "http://127.0.0.1:14242";
 		this._apiKey = (credentials.apiKey || "").trim();
 		this._spaceRef = normalizeSpaceRef(credentials.space || "");
+		this._threadSyncTimeoutMs = Number.isInteger(credentials.threadSyncTimeoutMs)
+			? credentials.threadSyncTimeoutMs
+			: 120_000;
+	}
+
+	cursorKey(threadId) {
+		return sessionSyncLaneKey(threadId, this._apiUrl, this._apiKey, this._spaceRef);
 	}
 
 	// --- HTTP transport (async, non-blocking) ---
@@ -191,8 +209,11 @@ export class NowledgeMemClient {
 			});
 			if (!resp.ok) {
 				const text = await resp.text().catch(() => "");
+				let parsed = {};
+				try { parsed = text ? JSON.parse(text) : {}; } catch { parsed = {}; }
 				const err = new Error(`HTTP ${resp.status}: ${text.slice(0, 200)}`);
 				err.status = resp.status;
+				err.code = typeof parsed?.error_code === "string" ? parsed.error_code : undefined;
 				throw err;
 			}
 			const ct = resp.headers.get("content-type") || "";
@@ -335,7 +356,7 @@ export class NowledgeMemClient {
 		return this._fetch("GET", `/threads/${encodeURIComponent(id)}`, { params });
 	}
 
-	async createThread(title, content, messages, source = "alma", id = null) {
+	async createThread(title, content, messages, source = "alma", id = null, { timeout } = {}) {
 		const body = { title, source };
 		if (id) body.thread_id = id;
 		if (Array.isArray(messages) && messages.length > 0) {
@@ -349,27 +370,68 @@ export class NowledgeMemClient {
 			const titleHash = createHash("md5").update(title || "").digest("hex").slice(0, 6);
 			body.thread_id = `alma-${ts}-${titleHash}`;
 		}
-		const data = await this._fetch("POST", "/threads", { body, timeout: 30_000 });
-		const threadData = data.thread ?? {};
+		const data = await this._fetch("POST", "/threads", {
+			body,
+			...(timeout !== undefined ? { timeout } : {}),
+		});
+		const threadData = data?.thread;
+		const threadId =
+			threadData !== null && typeof threadData === "object" && typeof threadData.thread_id === "string"
+				? threadData.thread_id.trim()
+				: "";
+		if (!threadId) {
+			throw new Error("Thread create did not include a thread identity");
+		}
+		const remoteCount = threadData.message_count;
+		if (!Number.isInteger(remoteCount) || remoteCount < 0) {
+			throw new Error("Thread create did not include an explicit total message count");
+		}
 		return {
 			success: true,
-			id: threadData.thread_id ?? body.thread_id,
+			id: threadId,
 			title: threadData.title ?? title,
-			messages: (data.messages ?? []).length,
+			messages: Array.isArray(data.messages) ? data.messages.length : 0,
+			total_messages: remoteCount,
 		};
 	}
 
-	async appendThread(threadId, messages) {
+	async appendThread(threadId, messages, { idempotencyKey, expectedMessageCount } = {}) {
+		const checkpointed = Number.isInteger(expectedMessageCount);
 		const data = await this._fetch("POST", `/threads/${encodeURIComponent(threadId)}/append`, {
-			body: { messages, deduplicate: true },
-			timeout: 30_000,
+			body: {
+				messages,
+				deduplicate: true,
+				...(idempotencyKey ? { idempotency_key: String(idempotencyKey) } : {}),
+				...(checkpointed ? { expected_message_count: expectedMessageCount } : {}),
+				...(checkpointed ? { append_mode: "checkpointed" } : {}),
+			},
+			timeout: this._threadSyncTimeoutMs,
 		});
+		if (!isThreadAppendAck(data)) {
+			throw new Error("Thread append did not include an explicit persistence acknowledgement");
+		}
+		if (checkpointed && !isCheckpointedAppendAck(data)) {
+			throw new Error("Thread append was not acknowledged as checkpointed");
+		}
 		return {
-			success: data.success ?? true,
+			success: true,
 			id: threadId,
-			messages_added: data.messages_added ?? 0,
-			total_messages: data.total_messages ?? 0,
+			messages_added: data.messages_added,
+			total_messages: data.total_messages,
 		};
+	}
+
+	isThreadNotFoundError(err) {
+		const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+		return (
+			err?.code === "thread_not_found" ||
+			err?.status === 404 ||
+			(err?.status === 400 && message.includes("thread not found"))
+		);
+	}
+
+	isCheckpointConflictError(err) {
+		return err?.code === "checkpoint_conflict" || isCheckpointConflictResponse({ error_code: err?.code });
 	}
 
 	async deleteThread(id, cascade = false) {
@@ -584,10 +646,13 @@ export async function activate(context) {
 	let apiUrl = getSetting(context.settings, "nowledgeMem.apiUrl", "") || "";
 	let apiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
 	let ambientSpace = resolveAmbientSpace(context.settings, logger);
+	const threadSyncTimeoutMs = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS);
+	let resetDestinationCursors = () => {};
 	let client = new NowledgeMemClient(logger, {
 		apiUrl,
 		apiKey,
 		space: ambientSpace.space,
+		threadSyncTimeoutMs,
 	});
 	const recalledThreads = new Set();
 
@@ -624,7 +689,11 @@ export async function activate(context) {
 						apiUrl,
 						apiKey,
 						space: ambientSpace.space,
+						threadSyncTimeoutMs,
 					});
+					if (typeof resetDestinationCursors === "function") {
+						resetDestinationCursors();
+					}
 					const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
 					logger.info?.(
 						`nowledge-mem: settings updated, mode=${remoteMode ? `remote → ${apiUrl}` : "local"}, space=${ambientSpace.space || "Default"}`,
@@ -1407,10 +1476,30 @@ export async function activate(context) {
 	// and timing may cause it to miss the latest message.
 	//
 	// Buffer schema: { title, messages: [{role,content}], savedCount: number,
-	//   nowledgeThreadId: string|null, flushing: boolean, timer: number|null }
+	//   acknowledged: {count, remoteCount, lastExternalId?, prefixFingerprint}|null,
+	//   destinationKey: string, nowledgeThreadId: string|null,
+	//   flushing: boolean, pending: boolean, inFlight: Promise|undefined, timer: number|null }
 	const MAX_THREAD_BUFFERS = 20;
 	const threadBuffers = new Map();
 	let activeThreadId = null;
+
+	const destinationLane = () =>
+		sessionSyncLaneKey("", client._apiUrl, client._apiKey, client._spaceRef);
+
+	const attachDestination = (buf) => {
+		const dest = destinationLane();
+		if (buf.destinationKey !== dest) {
+			buf.destinationKey = dest;
+			buf.savedCount = 0;
+			buf.acknowledged = null;
+			buf.nowledgeThreadId = null;
+		}
+		return buf;
+	};
+
+	resetDestinationCursors = () => {
+		for (const buf of threadBuffers.values()) attachDestination(buf);
+	};
 
 	/** Resolve the best possible thread title via Alma APIs, falling back to first user message. */
 	const resolveTitle = async (threadId, buf) => {
@@ -1451,67 +1540,110 @@ export async function activate(context) {
 	/** Flush a thread buffer to Nowledge Mem if it has new messages. */
 	const flushThread = async (threadId) => {
 		const buf = threadBuffers.get(threadId);
-		if (!buf || buf.messages.length < 2) return;
-		if (buf.messages.length <= buf.savedCount) return;
-		if (buf.flushing) return; // guard against concurrent flush
-		buf.flushing = true;
+		if (!buf) return;
+		attachDestination(buf);
+		if (!hasUserAndAssistant(buf.messages)) return;
+		if (beginInFlightFlush(buf) === "wait") {
+			return buf.inFlight;
+		}
 
+		const flushDestinationKey = buf.destinationKey;
+		const flushClient = client;
+
+		const run = (async () => {
 		// Cancel this buffer's idle timer
 		if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
 
 		// Ensure stable thread ID (survives plugin restarts and LRU eviction)
 		if (!buf.nowledgeThreadId) buf.nowledgeThreadId = stableThreadId(threadId);
+		const flushThreadId = buf.nowledgeThreadId;
 
 		try {
 			// Resolve title right before saving (Alma generates titles asynchronously)
 			const resolved = await resolveTitle(threadId, buf);
 			if (resolved) buf.title = escapeForInline(resolved, 120);
 
-			// Snapshot message count before async work. New messages may arrive
-			// via willSend/didReceive during the awaits; snapshotting prevents
-			// counting those as already saved.
-			const snapshotCount = buf.messages.length;
+			// Snapshot messages before async work. New turns may arrive via
+			// willSend/didReceive during the awaits; only this prefix is sent
+			// and the cursor advances only after an explicit ack.
+			const snapshot = buf.messages.slice();
+			const { delta, expectedMessageCount, idempotencyKey } = planAutomaticFlush({
+				messages: snapshot,
+				cursor: buf.acknowledged,
+				threadId: flushThreadId,
+			});
+			if (delta.messages.length === 0) return;
 
-			if (buf.savedCount > 0) {
-				// Already synced before in this session: append new messages
-				const newMessages = buf.messages.slice(buf.savedCount, snapshotCount);
-				logger.info?.(`nowledge-mem: appending ${newMessages.length} msgs to ${buf.nowledgeThreadId}`);
-				await client.appendThread(buf.nowledgeThreadId, newMessages);
-			} else {
-				// First flush for this buffer: try append (thread may exist from prior session), fall back to create
-				const msgsToSend = buf.messages.slice(0, snapshotCount);
-				try {
-					logger.info?.(`nowledge-mem: appending ${msgsToSend.length} msgs to ${buf.nowledgeThreadId} (reconnect)`);
-					await client.appendThread(buf.nowledgeThreadId, msgsToSend);
-				} catch (appendErr) {
-					// Only fall back to create when the thread genuinely doesn't exist (404).
-					// Rethrow transient errors (5xx, timeouts) so the outer catch handles them.
-					const isNotFound =
-						appendErr?.status === 404 ||
-						/not.found/i.test(appendErr instanceof Error ? appendErr.message : "");
-					if (!isNotFound) throw appendErr;
-					logger.debug?.(`nowledge-mem: thread not found, creating ${buf.nowledgeThreadId}`);
-					const summary = msgsToSend
-						.slice(-8)
-						.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
-						.join("\n");
-					logger.info?.(`nowledge-mem: creating thread ${buf.nowledgeThreadId} for ${threadId} (${msgsToSend.length} msgs, title="${buf.title}")`);
-					await client.createThread(
-						buf.title,
-						escapeForInline(summary, 1200),
-						msgsToSend,
-						"alma",
-						buf.nowledgeThreadId,
-					);
+			const persistCreate = async () => {
+				const msgsToSend = snapshot.slice(0, delta.end);
+				const summary = msgsToSend
+					.slice(-8)
+					.map((msg) => `[${msg.role}] ${escapeForInline(msg.content, 280)}`)
+					.join("\n");
+				logger.info?.(`nowledge-mem: creating thread ${flushThreadId} for ${threadId} (${msgsToSend.length} msgs, title="${buf.title}")`);
+				const created = await flushClient.createThread(
+					buf.title,
+					escapeForInline(summary, 1200),
+					msgsToSend,
+					"alma",
+					flushThreadId,
+					{ timeout: flushClient._threadSyncTimeoutMs },
+				);
+				return {
+					messages_added: msgsToSend.length,
+					total_messages: created.total_messages,
+				};
+			};
+
+			let result;
+			try {
+				logger.info?.(`nowledge-mem: appending ${delta.messages.length} msgs to ${flushThreadId}`);
+				result = await flushClient.appendThread(flushThreadId, delta.messages, {
+					idempotencyKey,
+					expectedMessageCount,
+				});
+			} catch (appendErr) {
+				if (flushClient.isCheckpointConflictError(appendErr)) {
+					logger.info?.(`nowledge-mem: reconciling checkpoint conflict for ${flushThreadId}`);
+					result = await flushClient.appendThread(flushThreadId, snapshot.slice(0, delta.end), {
+						idempotencyKey: `${idempotencyKey}:reconcile`,
+					});
+				} else if (flushClient.isThreadNotFoundError(appendErr)) {
+					result = await persistCreate();
+				} else {
+					throw appendErr;
 				}
 			}
-			buf.savedCount = snapshotCount;
+
+			if (buf.destinationKey !== flushDestinationKey || client !== flushClient) {
+				buf.pending = true;
+				return;
+			}
+
+			buf.acknowledged = {
+				...delta.next,
+				remoteCount: Number.isInteger(result.total_messages)
+					? result.total_messages
+					: delta.next.remoteCount,
+			};
+			buf.savedCount = delta.next.count;
 			logger.info?.(`nowledge-mem: thread synced (${threadId}, ${buf.messages.length} msgs)`);
 		} catch (err) {
 			logger.error?.(`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`);
+			if (buf.destinationKey !== flushDestinationKey || client !== flushClient) {
+				buf.pending = true;
+			}
 		} finally {
-			buf.flushing = false;
+			if (finishInFlightFlush(buf) === "rerun") {
+				buf.inFlight = flushThread(threadId);
+				await buf.inFlight;
+			} else if (buf.inFlight === run) {
+				buf.inFlight = undefined;
+			}
 		}
+		})();
+		buf.inFlight = run;
+		await run;
 	};
 
 	const resetIdleTimer = (threadId) => {
@@ -1531,7 +1663,7 @@ export async function activate(context) {
 				const oldest = threadBuffers.keys().next().value;
 				const evicted = threadBuffers.get(oldest);
 				// Best-effort flush before eviction (fire-and-forget)
-				if (evicted && evicted.messages.length > evicted.savedCount && evicted.messages.length >= 2) {
+				if (evicted && evicted.messages.length > evicted.savedCount && hasUserAndAssistant(evicted.messages)) {
 					flushThread(oldest).catch(() => {});
 				}
 				if (evicted?.timer) clearTimeout(evicted.timer);
@@ -1541,12 +1673,16 @@ export async function activate(context) {
 				title: escapeForInline(`Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
 				messages: [],
 				savedCount: 0,
+				acknowledged: null,
+				destinationKey: destinationLane(),
 				nowledgeThreadId: null,
 				flushing: false,
+				pending: false,
+				inFlight: undefined,
 				timer: null,
 			});
 		}
-		return threadBuffers.get(threadId);
+		return attachDestination(threadBuffers.get(threadId));
 	};
 
 	// --- Hook: willSend (recall injection + capture user message) ---
@@ -1639,8 +1775,10 @@ export async function activate(context) {
 			const flushPromises = [];
 			for (const [tid, buf] of threadBuffers) {
 				if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
-				if (buf.messages.length >= 2 && buf.messages.length > buf.savedCount) {
+				if (hasUserAndAssistant(buf.messages) && buf.messages.length > buf.savedCount) {
 					flushPromises.push(flushThread(tid));
+				} else if (buf.inFlight) {
+					flushPromises.push(buf.inFlight);
 				}
 			}
 			await Promise.allSettled(flushPromises);
@@ -1680,12 +1818,15 @@ export async function activate(context) {
 			// This covers plugin disable/reload paths where quit hooks may not fire.
 			const flushPromises = [];
 			for (const [threadId, buf] of threadBuffers) {
-				if (autoCapture && buf.messages.length > buf.savedCount && !buf.flushing) {
+				if (autoCapture && buf.messages.length > buf.savedCount) {
+					if (buf.flushing) buf.pending = true;
 					flushPromises.push(
-						flushThread(threadId).catch((err) =>
+						Promise.resolve(flushThread(threadId)).catch((err) =>
 							logger.error?.(`nowledge-mem: dispose flush failed for ${threadId}: ${err}`),
 						),
 					);
+				} else if (autoCapture && buf.inFlight) {
+					flushPromises.push(buf.inFlight);
 				}
 			}
 			if (flushPromises.length > 0) {
