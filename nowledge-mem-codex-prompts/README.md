@@ -110,6 +110,21 @@ Then copy or merge the project guidance file:
 curl -O https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-codex-prompts/AGENTS.md
 ```
 
+## Beyond the default tools
+
+Use the MCP tools for the day-to-day per-turn loop. For anything beyond
+that -- including graph and relationship queries -- reach for the `nmem`
+CLI directly (already installed alongside this integration). We recommend
+it whenever you hit a gap in the per-turn tool set:
+
+```bash
+nmem graph expand <memory-or-crystal-id> --depth 2
+nmem graph evolves <memory-id>
+```
+
+Run `nmem --help` (and `nmem graph --help`, `nmem <command> --help`, etc.)
+to see its full capabilities.
+
 ## Troubleshooting
 
 - **"Command not found: uvx"** → Install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh`

@@ -177,6 +177,21 @@ For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Open
 
 Shared spaces, default retrieval, and agent guidance still come from Mem's own space profile. OpenCode should pick the lane once, not invent a second plugin-local memory partition.
 
+## Beyond the default tools
+
+Use the MCP tools for the day-to-day per-turn loop. For anything beyond
+that -- including graph and relationship queries -- reach for the `nmem`
+CLI directly (already installed alongside this plugin). We recommend it
+whenever you hit a gap in the per-turn tool set:
+
+```bash
+nmem graph expand <memory-or-crystal-id> --depth 2
+nmem graph evolves <memory-id>
+```
+
+Run `nmem --help` (and `nmem graph --help`, `nmem <command> --help`, etc.)
+to see its full capabilities.
+
 ## Troubleshooting
 
 - **nmem not found.** Install with `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`, then run `nmem status` to verify.

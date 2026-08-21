@@ -108,6 +108,21 @@ Verify capture with a distinctive phrase from the session:
 nmem t search "distinctive phrase"
 ```
 
+## Beyond The Default Tools
+
+Use the MCP tools for the day-to-day per-turn loop. For anything beyond
+that -- including graph and relationship queries -- reach for the `nmem`
+CLI directly. We recommend it whenever you hit a gap in the per-turn
+tool set:
+
+```bash
+nmem graph expand <memory-or-crystal-id> --depth 2
+nmem graph evolves <memory-id>
+```
+
+Run `nmem --help` (and `nmem graph --help`, `nmem <command> --help`, etc.)
+to see its full capabilities.
+
 ## Spaces And Identity
 
 Spaces are optional. The startup and capture hooks honor `NMEM_SPACE` (or legacy `NMEM_SPACE_ID`), `NMEM_AGENT_ID`, and `NMEM_HOST_AGENT_ID` when Cursor is launched in a stable lane.

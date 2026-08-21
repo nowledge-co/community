@@ -189,6 +189,21 @@ Use Kimi Code's own instruction surfaces for personal behavior:
 
 Do not edit files under `$KIMI_CODE_HOME/plugins/managed/`; those are managed copies and can be replaced by Kimi Code updates.
 
+## Beyond the default tools
+
+Use the MCP tools for the day-to-day per-turn loop. For anything beyond
+that -- including graph and relationship queries -- reach for the `nmem`
+CLI directly (already installed alongside this plugin). We recommend it
+whenever you hit a gap in the per-turn tool set:
+
+```bash
+nmem graph expand <memory-or-crystal-id> --depth 2
+nmem graph evolves <memory-id>
+```
+
+Run `nmem --help` (and `nmem graph --help`, `nmem <command> --help`, etc.)
+to see its full capabilities.
+
 ## Links
 
 - [Kimi Code guide](https://mem.nowledge.co/docs/integrations/kimi-code)
