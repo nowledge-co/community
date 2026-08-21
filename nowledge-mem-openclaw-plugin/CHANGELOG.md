@@ -4,6 +4,8 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.32] - 2026-08-21
+
 ### Fixed
 
 - Automatic thread capture now sends the paired Mem checkpoint contract

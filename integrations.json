@@ -21,7 +21,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.23",
+      "version": "0.7.24",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -74,7 +74,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.23",
+      "version": "0.7.24",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -711,7 +711,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.31",
+      "version": "0.8.32",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -737,7 +737,7 @@
         "bestResultRequires": [
           "Install the native OpenClaw plugin",
           "Use OpenClaw 2026.5.3 or later for current ClawHub packages",
-          "Use plugin 0.8.31 or later for OpenClaw 2026.6.11 timestamp compatibility, readable thread titles, and tool-contract diagnostics",
+          "Use plugin 0.8.32 or later for OpenClaw 2026.6.11 timestamp compatibility, readable thread titles, tool-contract diagnostics, and checkpointed thread capture",
           "Grant plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess for the agent_end capture safety net",
           "When tools.profile is restrictive, add openclaw-nowledge-mem to tools.alsoAllow or the existing tools.allow list",
           "Keep nmem available on this machine",
@@ -768,7 +768,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.4",
+      "version": "0.7.5",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {

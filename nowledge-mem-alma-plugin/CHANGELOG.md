@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.5
+
 ### Fixed
 
 - Automatic thread capture now sends the paired Mem checkpoint contract
