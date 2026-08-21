@@ -36,6 +36,7 @@ test("appendThread sends checkpoint fields and requires a checkpointed ack", asy
 		);
 		assert.equal(result.total_messages, 3);
 		assert.equal(bodies[0].expected_message_count, 2);
+		assert.equal(bodies[0].append_mode, "checkpointed");
 		assert.equal(bodies[0].idempotency_key, "alma-thread:alma-x:2-3:abc");
 		assert.equal(bodies[0].deduplicate, true);
 	} finally {

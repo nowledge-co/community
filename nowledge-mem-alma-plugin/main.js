@@ -403,6 +403,7 @@ export class NowledgeMemClient {
 				deduplicate: true,
 				...(idempotencyKey ? { idempotency_key: String(idempotencyKey) } : {}),
 				...(checkpointed ? { expected_message_count: expectedMessageCount } : {}),
+				...(checkpointed ? { append_mode: "checkpointed" } : {}),
 			},
 			timeout: this._threadSyncTimeoutMs,
 		});
