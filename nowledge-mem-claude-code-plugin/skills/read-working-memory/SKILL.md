@@ -1,15 +1,15 @@
 ---
 name: read-working-memory
-description: Read your daily Working Memory briefing to understand current context. Contains active focus areas, priorities, unresolved flags, and recent knowledge changes. Load this automatically at the beginning of sessions for cross-tool continuity.
+description: Read your daily Working Memory briefing to understand current context. Contains active focus areas, priorities, unresolved flags, and recent knowledge changes. In Grok Build, invoke this on the first relevant turn because passive startup-hook output is not model context.
 ---
 
 # Read Working Memory
 
-> Start every session with context. Claude Code and Grok Build hooks prefer Context Bundle when available: owner identity, AI Identity, active scope, active rules, and Working Memory. Working Memory alone is the lighter fallback.
+> Start every relevant session with context. Claude Code hooks prefer Context Bundle when available: owner identity, AI Identity, active scope, active rules, and Working Memory. Grok Build loads the same context through this skill because it discards passive hook stdout. Working Memory alone is the lighter fallback.
 
 ## When to Use
 
-**At session start:**
+**At session start or the first relevant Grok Build turn:**
 
 - Beginning of a new conversation
 - Returning to a project after a break
@@ -65,7 +65,7 @@ The Working Memory briefing contains:
 
 ### How to Use This Context
 
-1. **Read once at session start** — don't re-read unless asked
+1. **Read once at session start** — in Grok Build, run this skill on the first relevant turn; don't re-read unless asked
 2. **Reference naturally** — mention relevant context when it connects to the current task
 3. **Avoid duplicate reads** — if Context Bundle was already injected and includes Working Memory, do not read Working Memory again
 4. **Don't overwhelm** — share only the parts relevant to what the user is working on

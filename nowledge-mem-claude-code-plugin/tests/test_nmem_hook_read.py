@@ -1,9 +1,18 @@
 import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
 SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "nmem-hook-read.sh"
+
+
+def _shell_path(path: Path) -> str:
+    value = path.as_posix()
+    if os.name == "nt" and len(value) >= 3 and value[1:3] == ":/":
+        return f"/{value[0].lower()}{value[2:]}"
+    return value
 
 
 def _write_fake_nmem(bin_dir: Path, body: str) -> Path:
@@ -14,12 +23,22 @@ def _write_fake_nmem(bin_dir: Path, body: str) -> Path:
 
 
 def _run_hook(tmp_path: Path, *, cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    shell = shutil.which("sh")
+    assert shell is not None, "sh is required to exercise the packaged hook"
     hook_env = os.environ.copy()
+    for marker in (
+        "GROK_SESSION_ID",
+        "GROK_HOOK_EVENT",
+        "GROK_WORKSPACE_ROOT",
+        "GROK_PLUGIN_ROOT",
+        "CLAUDE_PLUGIN_ROOT",
+    ):
+        hook_env.pop(marker, None)
     hook_env.update(env)
     hook_env["HOME"] = str(tmp_path / "home")
     (Path(hook_env["HOME"]) / "ai-now").mkdir(parents=True, exist_ok=True)
     return subprocess.run(
-        ["/bin/sh", str(SCRIPT_PATH)],
+        [shell, str(SCRIPT_PATH)],
         cwd=str(cwd),
         env=hook_env,
         text=True,
@@ -121,7 +140,7 @@ esac
     assert "context --source-app claude-code --agent-id reviewer --host-agent-id lody:reviewer" in command_log
 
 
-def test_read_hook_uses_grok_source_app_when_grok_env_is_present(tmp_path):
+def test_read_hook_skips_grok_passive_context_output(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls.log"
@@ -148,12 +167,11 @@ esac
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "grok context"
-    command_log = calls.read_text(encoding="utf-8")
-    assert "context --source-app grok" in command_log
+    assert result.stdout == ""
+    assert not calls.exists()
 
 
-def test_read_hook_uses_grok_source_app_when_only_plugin_root_is_present(tmp_path):
+def test_read_hook_skips_grok_when_only_plugin_root_is_present(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls.log"
@@ -182,12 +200,11 @@ esac
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "grok plugin context"
-    command_log = calls.read_text(encoding="utf-8")
-    assert "context --source-app grok" in command_log
+    assert result.stdout == ""
+    assert not calls.exists()
 
 
-def test_read_hook_uses_grok_source_app_for_claude_compat_plugin_root(tmp_path):
+def test_read_hook_skips_grok_for_claude_compat_plugin_root(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls.log"
@@ -219,9 +236,8 @@ esac
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "grok compat context"
-    command_log = calls.read_text(encoding="utf-8")
-    assert "context --source-app grok" in command_log
+    assert result.stdout == ""
+    assert not calls.exists()
 
 
 def test_read_hook_falls_back_to_default_space_when_project_space_empty(tmp_path):
@@ -322,7 +338,13 @@ esac
     result = _run_hook(
         tmp_path,
         cwd=tmp_path,
-        env={"PATH": f"{bin_dir}:/bin:/usr/bin", "NMEM_SPACE": 'project"2024'},
+        env={
+            "PATH": (
+                f"{_shell_path(bin_dir)}:"
+                f"{_shell_path(Path(sys.executable).parent)}:/bin:/usr/bin"
+            ),
+            "NMEM_SPACE": 'project"2024',
+        },
     )
 
     assert result.returncode == 0
