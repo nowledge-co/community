@@ -530,9 +530,10 @@ describe("SessionSyncManager.scheduleSync", () => {
 })
 
 describe("SessionSyncManager.dispose", () => {
-  it("clears pending timers and prevents scheduling after dispose", () => {
+  it("flushes pending messages, clears their timer, and prevents later scheduling", async () => {
     let setCount = 0
     let clearedCount = 0
+    const nmemApi = fakeNmemApi({ "/threads": () => createAck() })
     const manager = new SessionSyncManager(
       managerOptions({
         autoSyncEnabled: true,
@@ -543,32 +544,41 @@ describe("SessionSyncManager.dispose", () => {
         clearTimer: () => {
           clearedCount += 1
         },
-        nmemApi: fakeNmemApi({ "/threads": () => createAck() }),
+        nmemApi,
       }),
     )
-    manager.scheduleSync(THREAD_ID)
+    manager.scheduleSync(THREAD_ID, FULL_TRANSCRIPT)
     expect(setCount).toBe(1)
-    manager.dispose()
+    await manager.dispose()
     expect(clearedCount).toBe(1)
+    expect(nmemApi.calls).toEqual(["/threads"])
     manager.scheduleSync(THREAD_ID)
     expect(setCount).toBe(1)
   })
 
-  it("does not reschedule pending work after dispose", async () => {
+  it("waits for in-flight work before flushing the queued suffix", async () => {
     const timers = fakeTimers()
     let resolveRequest: ((response: HttpResponse) => void) | undefined
     const nmemApi = fakeNmemApi({
       "/threads": () => new Promise<HttpResponse>((resolve) => { resolveRequest = resolve }),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 4, true),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
-    manager.scheduleSync(THREAD_ID)
+    manager.scheduleSync(THREAD_ID, FULL_TRANSCRIPT)
     timers.fireAll()
     await flushMicrotasks()
-    manager.scheduleSync(THREAD_ID)
-    manager.dispose()
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    const disposing = manager.dispose()
+    expect(nmemApi.calls).toEqual(["/threads"])
     resolveRequest?.(createAck())
-    await flushMicrotasks()
+    await disposing
     expect(timers.handles).toHaveLength(0)
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
+    const body = nmemApi.bodies[1] as { readonly messages: Array<{ readonly metadata: { readonly external_id: string } }> }
+    expect(body.messages.map((message) => message.metadata.external_id)).toEqual([
+      "amp-msg-u2",
+      "amp-msg-a2",
+    ])
   })
 
   it("serializes concurrent manual captures", async () => {
@@ -617,9 +627,10 @@ describe("SessionSyncManager.dispose", () => {
     timers.fireAll()
     await vi.waitFor(() => expect(nmemApi.calls).toHaveLength(1))
     const manual = manager.syncNow(THREAD_ID)
-    manager.dispose()
+    const disposing = manager.dispose()
     pending.shift()?.(createAck())
     const result = await manual
+    await disposing
     expect(result.reason).toBe("disposed")
   })
 

@@ -17,7 +17,7 @@ vi.mock("node:child_process", () => ({ execFile: execFileMock }))
 
 interface FakeAmp {
   readonly events: Map<string, (...args: readonly unknown[]) => unknown>
-  readonly disposers: Array<() => void>
+  readonly disposers: Array<() => void | Promise<void>>
   readonly tools: string[]
   readonly toolDefinitions: Array<{
     readonly name: string
@@ -55,12 +55,12 @@ interface FakeAmp {
   }) => void
   readonly registerCommand: (id: string, definition: object, execute: (ctx: unknown) => Promise<void>) => void
   readonly on: (eventName: string, handler: (...args: readonly unknown[]) => unknown) => void
-  readonly onDispose: (handler: () => void) => void
+  readonly onDispose: (handler: () => void | Promise<void>) => void
 }
 
 function createFakeAmp(): FakeAmp {
   const events = new Map<string, (...args: readonly unknown[]) => unknown>()
-  const disposers: Array<() => void> = []
+  const disposers: Array<() => void | Promise<void>> = []
   const tools: string[] = []
   const toolDefinitions: FakeAmp["toolDefinitions"] = []
   const commands: string[] = []
@@ -155,7 +155,7 @@ describe("Amp plugin entrypoint", () => {
         { role: "assistant", id: "a2", content: [{ type: "text", text: "done" }] },
       ],
     })
-    amp.disposers[0]!()
+    await amp.disposers[0]!()
     expect(amp.logger.log).not.toHaveBeenCalled()
   })
 
@@ -163,13 +163,13 @@ describe("Amp plugin entrypoint", () => {
     const amp = createFakeAmp()
     const mod = await import("../src/index")
     mod.default(amp as unknown as Parameters<typeof mod.default>[0])
-    amp.disposers[0]!()
+    await amp.disposers[0]!()
     expect(amp.logger.log).not.toHaveBeenCalled()
 
     const debugAmp = createFakeAmp()
     vi.stubEnv("NMEM_AMP_DEBUG", "1")
     mod.default(debugAmp as unknown as Parameters<typeof mod.default>[0])
-    debugAmp.disposers[0]!()
+    await debugAmp.disposers[0]!()
 
     expect(debugAmp.logger.log).toHaveBeenCalledTimes(2)
     expect(vi.mocked(debugAmp.logger.log).mock.calls[0]![0]).toMatch(/^amp connector loaded: \d+ bytes/)

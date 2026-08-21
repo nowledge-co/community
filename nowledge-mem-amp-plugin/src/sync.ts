@@ -78,6 +78,8 @@ export interface SessionSyncManagerOptions extends SyncPorts {
 
 /** Per-thread state used for debounce, in-flight coalescing, and checkpoints. */
 interface SyncState {
+  /** Raw Amp thread id associated with this destination-lane state. */
+  readonly threadId: ThreadID
   /** Pending debounce timer handle, if a sync is scheduled. */
   timer: TimerHandle | undefined
   /** In-flight capture promise, if a sync is currently running. */
@@ -128,7 +130,7 @@ function skipped(reason: string, threadId: string): CaptureResult {
  *
  * One instance serves all threads for a plugin run. Per-thread state is kept in
  * a map keyed by destination lane. Call {@link dispose} on plugin teardown to
- * clear any pending debounce timers.
+ * flush pending captures and clear their debounce timers.
  */
 export class SessionSyncManager {
   private readonly ports: SyncPorts
@@ -239,19 +241,33 @@ export class SessionSyncManager {
     return guarded
   }
 
-  /**
-   * Clears all pending debounce timers.
-   *
-   * Called from the plugin's `onDispose` hook so no timer fires after teardown.
-   */
-  public dispose(): void {
+  /** Flushes pending captures and waits for active work during teardown. */
+  public async dispose(): Promise<void> {
     this.disposed = true
+    const flushes: Promise<unknown>[] = []
     for (const state of this.states.values()) {
+      const shouldFlush = state.timer !== undefined || state.pending
       if (state.timer !== undefined) {
         this.ports.clearTimer(state.timer)
         state.timer = undefined
       }
+      const pendingMessages = state.pendingMessages
+      state.pending = false
+      state.pendingMessages = undefined
+      flushes.push((async () => {
+        await Promise.allSettled(
+          [state.inFlight, state.manualQueue].filter((run) => run !== undefined),
+        )
+        if (shouldFlush) {
+          await this.captureThread(state.threadId, {
+            force: false,
+            messages: pendingMessages,
+            timeoutMs: this.autoSyncTimeoutMs,
+          })
+        }
+      })())
     }
+    await Promise.allSettled(flushes)
     this.states.clear()
   }
 
@@ -524,6 +540,7 @@ export class SessionSyncManager {
     let state = this.states.get(key)
     if (state === undefined) {
       state = {
+        threadId,
         timer: undefined,
         inFlight: undefined,
         pending: false,

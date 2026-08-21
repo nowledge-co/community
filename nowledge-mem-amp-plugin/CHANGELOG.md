@@ -16,6 +16,8 @@
 - Automatic capture honors `NMEM_SYNC_TIMEOUT_MS` with the same 1-second to
   30-minute bounds as the Pi and OpenCode connectors. Explicit manual saves keep
   their existing two-minute timeout.
+- Graceful plugin shutdown now waits for active captures and flushes any
+  completed turn still queued behind the debounce timer.
 
 ## [0.1.3] - 2026-08-19
 

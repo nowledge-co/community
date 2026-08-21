@@ -202,9 +202,9 @@ export default function ampKnowledgeMem(amp: PluginAPI): void {
   })
   amp.on("agent.start", async (event) => bootstrapManager.consume(event.thread.id))
 
-  amp.onDispose(() => {
+  amp.onDispose(async () => {
     bootstrapManager.dispose()
-    syncManager.dispose()
+    await syncManager.dispose()
     if (config.debugLogging) logger.log(`${SOURCE_APP} connector disposed`)
   })
 
