@@ -363,6 +363,21 @@ If you used `nowledge-mem-codex-prompts` before:
 | `distill` | `$nowledge-mem:distill-memory` |
 | *(none)* | `$nowledge-mem:status` |
 
+## Beyond the default tools
+
+Use the MCP tools for the day-to-day per-turn loop. For anything beyond
+that -- including graph and relationship queries -- reach for the `nmem`
+CLI directly (already installed alongside this plugin). We recommend it
+whenever you hit a gap in the per-turn tool set:
+
+```bash
+nmem graph expand <memory-or-crystal-id> --depth 2
+nmem graph evolves <memory-id>
+```
+
+Run `nmem --help` (and `nmem graph --help`, `nmem <command> --help`, etc.)
+to see its full capabilities.
+
 ## Troubleshooting
 
 - **"Command not found: nmem"**: update the plugin to `0.1.29` or newer. Its
