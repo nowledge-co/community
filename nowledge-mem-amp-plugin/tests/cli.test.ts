@@ -15,6 +15,7 @@ const BASE_CONFIG: ResolvedConfig = {
   autoSyncDebounceMs: 1500,
   bootstrapEnabled: true,
   debugLogging: false,
+  threadSyncTimeoutMs: 120_000,
 }
 
 /** Records the args a fake execFile was invoked with. */

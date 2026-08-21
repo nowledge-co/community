@@ -29,6 +29,15 @@ const BOOTSTRAP_DISABLED_VALUES = new Set(["0", "false", "off", "no"])
 /** Truthy string values that enable verbose connector lifecycle logging. */
 const DEBUG_ENABLED_VALUES = new Set(["1", "true", "on", "yes"])
 
+/** Default HTTP timeout (milliseconds) for automatic thread sync. */
+const DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000
+
+/** Minimum accepted `NMEM_SYNC_TIMEOUT_MS` value. */
+const MIN_THREAD_SYNC_TIMEOUT_MS = 1_000
+
+/** Maximum accepted `NMEM_SYNC_TIMEOUT_MS` value (30 minutes). */
+const MAX_THREAD_SYNC_TIMEOUT_MS = 30 * 60_000
+
 /**
  * Fully resolved connector configuration.
  *
@@ -54,6 +63,8 @@ export interface ResolvedConfig {
   readonly bootstrapEnabled: boolean
   /** Whether verbose connector lifecycle logging (`loaded`/`disposed`) is enabled. */
   readonly debugLogging: boolean
+  /** HTTP timeout (milliseconds) for automatic thread sync. */
+  readonly threadSyncTimeoutMs: number
 }
 
 /**
@@ -155,6 +166,8 @@ export function resolveConfig(
   const debugRaw = nonEmptyString(env.NMEM_AMP_DEBUG) ?? "0"
   const debugLogging = DEBUG_ENABLED_VALUES.has(debugRaw.toLowerCase())
 
+  const threadSyncTimeoutMs = resolveThreadSyncTimeoutMs(env.NMEM_SYNC_TIMEOUT_MS)
+
   return {
     apiUrl,
     apiKey,
@@ -165,5 +178,24 @@ export function resolveConfig(
     autoSyncDebounceMs,
     bootstrapEnabled,
     debugLogging,
+    threadSyncTimeoutMs,
   }
+}
+
+/**
+ * Resolves the automatic thread-sync timeout from `NMEM_SYNC_TIMEOUT_MS`.
+ *
+ * Unset, empty, or non-integer values fall back to two minutes. Values are
+ * clamped to the same 1-second–30-minute bounds used by the Pi and OpenCode
+ * connectors. The explicit manual save tool keeps its own existing timeout.
+ *
+ * @param raw - Raw environment value.
+ * @returns A timeout in milliseconds.
+ */
+export function resolveThreadSyncTimeoutMs(raw: string | undefined): number {
+  const parsed = Number(raw)
+  if (!raw?.trim() || !Number.isSafeInteger(parsed) || parsed <= 0) {
+    return DEFAULT_THREAD_SYNC_TIMEOUT_MS
+  }
+  return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed))
 }

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.4] - 2026-08-19
+
+### Fixed
+
+- Automatic session capture now uploads acknowledged suffixes instead of
+  resending the complete local snapshot after every turn.
+- Suffix appends require the paired Mem checkpoint contract
+  (`expected_message_count`, a content-bound idempotency key, and
+  `append_mode: "checkpointed"`) before the local cursor advances.
+- Same-length and earlier-prefix replacements reset to a full replay; HTTP 400
+  `Thread not found` recreates the complete snapshot.
+- Destination-lane cursor state is isolated by API URL, credentials, space, and
+  identity so two spaces never share a checkpoint.
+- Automatic capture honors `NMEM_SYNC_TIMEOUT_MS` with the same 1-second to
+  30-minute bounds as the Pi and OpenCode connectors. Explicit manual saves keep
+  their existing two-minute timeout.
+- Graceful plugin shutdown now waits for active captures and flushes any
+  completed turn still queued behind the debounce timer.
+
 ## [0.1.3] - 2026-08-19
 
 ### Fixed
