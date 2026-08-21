@@ -1,0 +1,24 @@
+{
+  "name": "nowledge-mem-openai",
+  "version": "0.1.0",
+  "description": "Nowledge Mem for ChatGPT and Codex: shared context, memory search, and durable handoffs.",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Nowledge Mem",
+    "shortDescription": "Memory for ChatGPT and Codex",
+    "longDescription": "Nowledge Mem gives ChatGPT and Codex a durable, user-controlled memory workspace. Search relevant context, read Working Memory, distill decisions, and save explicit handoffs through the authenticated Nowledge Cloud MCP server. ChatGPT uses explicit save and handoff actions; Codex lifecycle hooks remain available only in the dedicated Codex connector.",
+    "developerName": "Nowledge Labs",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://mem.nowledge.co",
+    "supportURL": "https://mem.nowledge.co/docs",
+    "privacyPolicyURL": "https://mem.nowledge.co/privacy",
+    "termsOfServiceURL": "https://mem.nowledge.co/terms",
+    "defaultPrompt": [
+      "What do we already know about this?",
+      "Find the relevant context from my Nowledge Mem.",
+      "Save the durable takeaways from this work."
+    ]
+  }
+}

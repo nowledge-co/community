@@ -1849,6 +1849,64 @@
       "slashCommands": []
     },
     {
+      "id": "openai-plugin",
+      "name": "ChatGPT and Codex Plugin",
+      "category": "surface",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-openai-plugin",
+      "transport": "plugin+mcp+oauth",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "explicit-handoff",
+        "note": "ChatGPT uses the public Cloud MCP surface; Codex lifecycle hooks remain in the dedicated Codex connector. This universal package does not claim automatic ChatGPT transcript sync."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "handoff-only",
+        "bestResultRequires": [
+          "Complete the OpenAI public plugin review before listing the package as available",
+          "Authorize the production Cloud MCP connection through standard OAuth",
+          "Use the dedicated Codex connector when Codex hooks or automatic thread capture are required",
+          "Use explicit save-thread or handoff instructions in ChatGPT when a durable record is needed"
+        ]
+      },
+      "install": {
+        "command": "OpenAI plugin submission and public directory",
+        "detectionHint": "ChatGPT or Codex supports the OpenAI universal Plugins Directory",
+        "configRequired": "Use the OpenAI-hosted OAuth flow for https://cloud.nowledge.co/mcp. Do not paste a local desktop URL into the public plugin listing.",
+        "agentGuide": {
+          "prompt": "Use the Nowledge Mem ChatGPT/Codex plugin for context search, Working Memory, and explicit durable handoffs. ChatGPT does not have Codex's local lifecycle hooks, so save a thread or handoff explicitly when the work should be retained.",
+          "promptZh": "使用 Nowledge Mem 的 ChatGPT/Codex 插件读取工作记忆、搜索已有知识，并在需要时明确保存长期结论。ChatGPT 没有 Codex 的本地生命周期 hooks；需要留存完整工作时，请明确执行保存 thread 或 handoff。"
+        },
+        "docsUrl": "/docs/integrations/openai-plugin"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "OpenAI hosts expose the Cloud MCP tools according to their own namespace. The package does not invent a separate tool namespace or alter the dedicated Codex connector."
+      },
+      "standard": {
+        "name": "OpenAI Plugins",
+        "version": "universal-directory",
+        "manifest": ".codex-plugin/plugin.json",
+        "mcp": ".mcp.json",
+        "packagePath": "nowledge-mem-openai-plugin",
+        "compatibleWhen": "The user installs the reviewed public Nowledge Mem plugin from the ChatGPT/Codex universal directory"
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "save-thread", "check-integration", "status"],
+      "slashCommands": []
+    },
+    {
       "id": "agent-plugins",
       "name": "Universal Agent Plugin",
       "category": "surface",

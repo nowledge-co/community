@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nowledge-mem": {
+      "type": "streamable-http",
+      "url": "https://cloud.nowledge.co/mcp"
+    }
+  }
+}
