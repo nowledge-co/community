@@ -7,7 +7,6 @@
  * after completed turns.
  */
 
-import { createHash } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -15,7 +14,18 @@ import z from '@deepseek-ai/schemastery'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
 import { DEFAULT_PROMPT_RECALL_PATTERN, shouldRecallForPrompt } from './recall.js'
+import {
+  errorMessage,
+  isSandboxUnavailableError,
+  runShellWithHostSandboxRetry,
+  warn,
+} from './sandbox-retry.js'
 import { importAcknowledgement, selectUnacknowledgedEvents } from './session-delta.js'
+import {
+  boundText,
+  buildThreadImportArgs,
+  sessionThreadTitle,
+} from './thread-import.js'
 
 export const name = 'nowledge-mem'
 export const inject = ['agents', 'shell']
@@ -29,7 +39,7 @@ const DEFAULT_THREAD_MESSAGE_MAX_CHARS = 16_000
 const DEFAULT_RECALL_LIMIT = 8
 const DEFAULT_TIMEOUT_MS = 8_000
 const DEFAULT_STDOUT_MAX_BYTES = 512 * 1024
-const SANDBOX_UNAVAILABLE_CODE = 'SANDBOX_UNAVAILABLE'
+
 export const Config = z.object({
   cliPath: z.string(),
   sourceApp: z.string(),
@@ -37,6 +47,7 @@ export const Config = z.object({
   contextOnSessionStart: z.boolean(),
   recallOnPrompt: z.boolean(),
   syncOnTurnEnd: z.boolean(),
+  allowDangerFullAccessRetry: z.boolean(),
   promptRecallPattern: z.string(),
   recallLimit: z.number(),
   maxPromptChars: z.number(),
@@ -55,11 +66,7 @@ function optionalString(value) {
   return trimmed === undefined || trimmed === '' ? undefined : trimmed
 }
 
-export function boundText(text, maxChars) {
-  if (text.length <= maxChars) return text
-  if (maxChars <= 1) return text.slice(0, Math.max(0, maxChars))
-  return `${text.slice(0, maxChars - 1)}...`
-}
+export { boundText }
 
 function requireSafeInteger(field, value, minimum) {
   if (!Number.isSafeInteger(value) || value < minimum) {
@@ -75,6 +82,7 @@ function resolveConfig(config = {}) {
     contextOnSessionStart: config.contextOnSessionStart ?? true,
     recallOnPrompt: config.recallOnPrompt ?? true,
     syncOnTurnEnd: config.syncOnTurnEnd ?? true,
+    allowDangerFullAccessRetry: config.allowDangerFullAccessRetry ?? false,
     promptRecallPattern: new RegExp(config.promptRecallPattern ?? DEFAULT_PROMPT_RECALL_PATTERN, 'iu'),
     recallLimit: config.recallLimit ?? DEFAULT_RECALL_LIMIT,
     maxPromptChars: config.maxPromptChars ?? DEFAULT_PROMPT_MAX_CHARS,
@@ -111,40 +119,7 @@ function envFor(config, includeImportOrigin) {
   return env
 }
 
-function errorMessage(error) {
-  if (error instanceof Error) return `${error.name}: ${error.message}`
-  return String(error)
-}
-
-function warn(ctx, message) {
-  if (typeof ctx.logger?.warn === 'function') ctx.logger.warn(message)
-}
-
-export function isSandboxUnavailableError(error) {
-  if (typeof error !== 'object' || error === null) return false
-  return error.code === SANDBOX_UNAVAILABLE_CODE || error.name === 'SandboxUnavailableError'
-}
-
-function dangerFullAccessPolicy(ctx, session) {
-  const service = typeof ctx.get === 'function' ? ctx.get('sandboxPolicy') : undefined
-  if (typeof service?.resolve === 'function') {
-    try {
-      return service.resolve(session === undefined
-        ? { mode: 'danger-full-access' }
-        : { session, mode: 'danger-full-access' })
-    } catch (error) {
-      warn(ctx, `nowledge-mem: failed to resolve danger-full-access sandbox policy: ${errorMessage(error)}`)
-    }
-  }
-  return {
-    mode: 'danger-full-access',
-    workspaceRoot: optionalString(session?.header?.cwd) ?? process.cwd(),
-  }
-}
-
-async function runShell(ctx, request) {
-  return await ctx.shell.run(ctx.shell.resolve(request))
-}
+export { isSandboxUnavailableError }
 
 async function runNmem(ctx, config, args, signal, includeImportOrigin, stdin, session) {
   const command = [config.cliPath, ...args].map(shellQuote).join(' ')
@@ -156,24 +131,12 @@ async function runNmem(ctx, config, args, signal, includeImportOrigin, stdin, se
     stdin,
     env: envFor(config, includeImportOrigin),
   }
-  try {
-    return await runShell(ctx, request)
-  } catch (error) {
-    if (!isSandboxUnavailableError(error)) {
-      warn(ctx, `nowledge-mem: nmem shell call failed: ${errorMessage(error)}`)
-      return undefined
-    }
-    warn(ctx, `nowledge-mem: nmem shell sandbox unavailable; retrying without sandbox confinement: ${errorMessage(error)}`)
-  }
-  try {
-    return await runShell(ctx, {
-      ...request,
-      sandboxPolicy: dangerFullAccessPolicy(ctx, session),
-    })
-  } catch (error) {
-    warn(ctx, `nowledge-mem: nmem shell retry failed: ${errorMessage(error)}`)
-    return undefined
-  }
+  return await runShellWithHostSandboxRetry(
+    ctx,
+    request,
+    session,
+    config.allowDangerFullAccessRetry,
+  )
 }
 
 function successfulStdout(result) {
@@ -346,19 +309,7 @@ function importRole(event) {
   }
 }
 
-function firstUserTitle(messages, sessionId) {
-  const firstUser = messages.find(message => message.role === 'user')
-  if (firstUser === undefined) return `DeepSeek Harness ${sessionId}`
-  const firstLine = firstUser.content.split(/\r?\n/u).find(line => line.trim() !== '')?.trim()
-  return firstLine === undefined ? `DeepSeek Harness ${sessionId}` : boundText(firstLine, 80)
-}
-
-function stableThreadId(sessionId) {
-  const safe = sessionId.replace(/[^A-Za-z0-9._-]+/gu, '-').replace(/^-+|-+$/gu, '')
-  return `deepseek-harness-${safe === '' ? 'session' : safe}`
-}
-
-function buildThreadImportDelta(session, maxMessageChars, sourceApp, acknowledgedSeq) {
+function buildThreadImportDelta(session, maxMessageChars, sourceApp, acknowledgedSeq, title) {
   const delta = selectUnacknowledgedEvents(session.events, acknowledgedSeq)
   const messages = []
   const sessionId = String(session.header.id)
@@ -399,7 +350,7 @@ function buildThreadImportDelta(session, maxMessageChars, sourceApp, acknowledge
     acknowledgedSeq: delta.nextSeq,
     reset: delta.reset,
     payload: {
-      title: firstUserTitle(messages, sessionId),
+      title,
       messages,
       metadata: {
         source_app: sourceApp,
@@ -414,48 +365,47 @@ function buildThreadImportDelta(session, maxMessageChars, sourceApp, acknowledge
 }
 
 export function buildThreadImportPayload(session, maxMessageChars, sourceApp = DEFAULT_SOURCE_APP) {
-  return buildThreadImportDelta(session, maxMessageChars, sourceApp, -1)?.payload
+  const sessionId = String(session.header.id)
+  const title = sessionThreadTitle(
+    session.events,
+    sessionId,
+    messageText,
+    maxMessageChars,
+  )
+  return buildThreadImportDelta(session, maxMessageChars, sourceApp, -1, title)?.payload
 }
 
 async function importSession(ctx, config, session, cursor) {
+  const sessionId = String(session.header.id)
+  const title = sessionThreadTitle(
+    session.events,
+    sessionId,
+    messageText,
+    config.maxThreadMessageChars,
+    cursor?.title,
+  )
   let delta = buildThreadImportDelta(
     session,
     config.maxThreadMessageChars,
     config.sourceApp,
     cursor?.seq ?? -1,
+    title,
   )
   if (delta === undefined) return undefined
   let payload = delta.payload
   const staging = await mkdtemp(join(tmpdir(), 'dsh-nowledge-mem-'))
   const file = join(staging, 'thread.json')
   try {
-    const baseImportArgs = [
-      '--json',
-      't',
-      'import',
-      '--file',
-      file,
-      '--source',
-      config.sourceApp,
-      '--id',
-      stableThreadId(String(session.header.id)),
-      '--title',
-      payload.title,
-    ]
-    if (config.spaceId !== undefined) baseImportArgs.push('--space-id', config.spaceId)
-    if (config.agentId !== undefined) baseImportArgs.push('--agent-id', config.agentId)
     const expectedMessageCount = cursor !== undefined && !delta.reset ? cursor.count : undefined
-    const importArgs = [...baseImportArgs]
-    if (expectedMessageCount !== undefined) {
-      const batchFingerprint = createHash('sha256')
-        .update(JSON.stringify(payload.messages))
-        .digest('hex')
-      importArgs.push('--expected-message-count', String(expectedMessageCount))
-      importArgs.push(
-        '--idempotency-key',
-        `deepseek-harness:${session.header.id}:${expectedMessageCount}-${expectedMessageCount + payload.messages.length}:${batchFingerprint}`,
-      )
-    }
+    let importArgs = buildThreadImportArgs({
+      file,
+      sourceApp: config.sourceApp,
+      sessionId,
+      payload,
+      spaceId: config.spaceId,
+      agentId: config.agentId,
+      expectedMessageCount,
+    })
     await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
     let result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
     let stdout = successfulStdout(result)
@@ -468,12 +418,21 @@ async function importSession(ctx, config, session, cursor) {
         config.maxThreadMessageChars,
         config.sourceApp,
         -1,
+        title,
       )
       if (reconciliation === undefined) return undefined
       delta = reconciliation
       payload = reconciliation.payload
+      importArgs = buildThreadImportArgs({
+        file,
+        sourceApp: config.sourceApp,
+        sessionId,
+        payload,
+        spaceId: config.spaceId,
+        agentId: config.agentId,
+      })
       await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
-      result = await runNmem(ctx, config, baseImportArgs, undefined, true, undefined, session)
+      result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
       stdout = successfulStdout(result)
       acknowledgement = stdout === undefined
         ? { status: 'failed' }
@@ -483,6 +442,7 @@ async function importSession(ctx, config, session, cursor) {
     return {
       seq: delta.acknowledgedSeq,
       count: acknowledgement.messageCount,
+      title,
     }
   } finally {
     await rm(staging, { recursive: true, force: true })

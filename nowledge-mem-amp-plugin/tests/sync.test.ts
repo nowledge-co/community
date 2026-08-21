@@ -1,9 +1,32 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { SessionSyncManager } from "../src/sync"
+import { MANUAL_SYNC_TIMEOUT_MS, SessionSyncManager } from "../src/sync"
 import type { CaptureResult, SessionSyncManagerOptions } from "../src/sync"
 import type { HttpResponse } from "../src/http"
 import type { ThreadID } from "../src/types"
+
+const STABLE_THREAD_ID = "amp-t-abc123"
+
+function createAck(threadId = STABLE_THREAD_ID, messageCount = 2): HttpResponse {
+  return {
+    ok: true,
+    status: 200,
+    data: { thread: { thread_id: threadId, message_count: messageCount } },
+  }
+}
+
+function appendAck(messagesAdded: number, totalMessages: number, checkpointed = false): HttpResponse {
+  return {
+    ok: true,
+    status: 200,
+    data: {
+      success: true,
+      messages_added: messagesAdded,
+      total_messages: totalMessages,
+      ...(checkpointed ? { append_mode: "checkpointed" } : {}),
+    },
+  }
+}
 
 /** A thread id in the SDK's branded `T-${string}` shape. */
 const THREAD_ID = "T-abc123" as ThreadID
@@ -32,18 +55,25 @@ const INCOMPLETE_TRANSCRIPT = [{ role: "user", id: "u1", parts: [{ type: "text",
 /** Builds a fake nmemApi that responds per-path. Handlers may be async. */
 function fakeNmemApi(
   handlers: Record<string, (() => HttpResponse) | (() => Promise<HttpResponse>)>,
-): SessionSyncManagerOptions["nmemApi"] & { calls: string[]; bodies: unknown[] } {
+): SessionSyncManagerOptions["nmemApi"] & { calls: string[]; bodies: unknown[]; timeouts: Array<number | undefined> } {
   const calls: string[] = []
   const bodies: unknown[] = []
-  const fn = ((path: string, body: unknown) => {
+  const timeouts: Array<number | undefined> = []
+  const fn = ((path: string, body: unknown, timeoutMs?: number) => {
     calls.push(path)
     bodies.push(body)
+    timeouts.push(timeoutMs)
     const handler = handlers[path] ?? handlers["default"]
-    if (handler === undefined) return Promise.resolve({ ok: false, status: 500, data: { error: "no handler" } })
+    if (handler === undefined) {
+      if (path.includes("/append")) return Promise.resolve(appendAck(2, 4, true))
+      if (path === "/threads") return Promise.resolve(createAck())
+      return Promise.resolve({ ok: false, status: 500, data: { error: "no handler" } })
+    }
     return Promise.resolve(handler())
-  }) as unknown as SessionSyncManagerOptions["nmemApi"] & { calls: string[]; bodies: unknown[] }
+  }) as unknown as SessionSyncManagerOptions["nmemApi"] & { calls: string[]; bodies: unknown[]; timeouts: Array<number | undefined> }
   fn.calls = calls
   fn.bodies = bodies
+  fn.timeouts = timeouts
   return fn
 }
 
@@ -51,7 +81,7 @@ function fakeNmemApi(
 function managerOptions(overrides: Partial<SessionSyncManagerOptions> = {}): SessionSyncManagerOptions {
   const timers = fakeTimers()
   return {
-    nmemApi: fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: { id: "T-new" } }) }),
+    nmemApi: fakeNmemApi({ "/threads": () => createAck() }),
     readThreadMessages: async () => FULL_TRANSCRIPT,
     setTimer: timers.setTimer,
     clearTimer: timers.clearTimer,
@@ -59,7 +89,12 @@ function managerOptions(overrides: Partial<SessionSyncManagerOptions> = {}): Ses
     projectPath: "/proj",
     autoSyncEnabled: true,
     autoSyncDebounceMs: 1500,
+    autoSyncTimeoutMs: 45_000,
+    apiUrl: "http://127.0.0.1:14242",
+    apiKey: undefined,
     ambientSpaceId: undefined,
+    ambientAgentId: undefined,
+    ambientHostAgentId: undefined,
     ...overrides,
   }
 }
@@ -98,7 +133,7 @@ function fakeTimers(): {
 
 describe("SessionSyncManager.syncNow", () => {
   it("creates a thread on a fresh transcript", async () => {
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: { id: "T-new" } }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => createAck() })
     const manager = new SessionSyncManager(managerOptions({ nmemApi }))
     const result = await manager.syncNow(THREAD_ID)
 
@@ -117,7 +152,7 @@ describe("SessionSyncManager.syncNow", () => {
   ])("falls back to append when create returns the existing-thread response %i", async (status, data) => {
     const nmemApi = fakeNmemApi({
       "/threads": () => ({ ok: false, status, data }),
-      "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: { appended: true } }),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 2),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ambientSpaceId: "Research" }))
     const result = await manager.syncNow(THREAD_ID)
@@ -132,7 +167,7 @@ describe("SessionSyncManager.syncNow", () => {
   ])("preserves an unrelated 422 create failure", async (data) => {
     const nmemApi = fakeNmemApi({
       "/threads": () => ({ ok: false, status: 422, data }),
-      "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: { appended: true } }),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 2),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi }))
     const result = await manager.syncNow(THREAD_ID)
@@ -145,7 +180,7 @@ describe("SessionSyncManager.syncNow", () => {
   it("preserves the original create failure when it is not a conflict", async () => {
     const nmemApi = fakeNmemApi({
       "/threads": () => ({ ok: false, status: 500, data: { error: "boom" } }),
-      "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: { appended: true } }),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 2),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi }))
     const result = await manager.syncNow(THREAD_ID)
@@ -158,7 +193,7 @@ describe("SessionSyncManager.syncNow", () => {
   it("appends without a space_id when no ambient space is set", async () => {
     const nmemApi = fakeNmemApi({
       "/threads": () => ({ ok: false, status: 409, data: {} }),
-      "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: {} }),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 2),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi }))
     const result = await manager.syncNow(THREAD_ID)
@@ -170,7 +205,7 @@ describe("SessionSyncManager.syncNow", () => {
     let capturedBody: unknown
     const nmemApi = fakeNmemApi({
       "/threads": () => ({ ok: false, status: 409, data: {} }),
-      "/threads/amp-t-abc123/append": () => ({ ok: true, status: 200, data: {} }),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 2),
     })
     // Wrap to capture the body argument.
     const wrapped: SessionSyncManagerOptions["nmemApi"] = ((path: string, body: unknown) => {
@@ -183,8 +218,8 @@ describe("SessionSyncManager.syncNow", () => {
     expect(capturedBody).toMatchObject({
       space_id: "Research",
       deduplicate: true,
-      idempotency_key: "amp:live:amp-t-abc123",
     })
+    expect((capturedBody as { idempotency_key: string }).idempotency_key).toMatch(/^amp:live:amp-t-abc123:0-2:/)
   })
 
   it("returns an append error result when create conflicts and append fails", async () => {
@@ -200,7 +235,7 @@ describe("SessionSyncManager.syncNow", () => {
   })
 
   it("skips with no_messages when the transcript is empty", async () => {
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages: async () => [] }))
     const result = await manager.syncNow(THREAD_ID)
     expect(result.skipped).toBe(true)
@@ -209,7 +244,7 @@ describe("SessionSyncManager.syncNow", () => {
   })
 
   it("skips with no_extractable_messages when messages lack ids", async () => {
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(
       managerOptions({ nmemApi, readThreadMessages: async () => [{ role: "user", parts: [{ type: "text", text: "x" }] }] }),
     )
@@ -219,7 +254,7 @@ describe("SessionSyncManager.syncNow", () => {
   })
 
   it("skips with incomplete_turn when only one role is present", async () => {
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages: async () => INCOMPLETE_TRANSCRIPT }))
     const result = await manager.syncNow(THREAD_ID)
     expect(result.skipped).toBe(true)
@@ -227,11 +262,15 @@ describe("SessionSyncManager.syncNow", () => {
   })
 
   it("forces re-upload on syncNow even when the signature matches a prior run", async () => {
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 2),
+    })
     const manager = new SessionSyncManager(managerOptions({ nmemApi }))
     await manager.syncNow(THREAD_ID)
     await manager.syncNow(THREAD_ID)
-    expect(nmemApi.calls).toHaveLength(2)
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
+    expect(nmemApi.timeouts).toEqual([MANUAL_SYNC_TIMEOUT_MS, MANUAL_SYNC_TIMEOUT_MS])
   })
 
   it("serializes overlapping manual captures and reruns the forced save", async () => {
@@ -245,7 +284,7 @@ describe("SessionSyncManager.syncNow", () => {
         callCount += 1
         return callCount === 1
           ? await firstInFlight
-          : { ok: true, status: 200, data: {} }
+          : createAck()
       },
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi }))
@@ -255,15 +294,15 @@ describe("SessionSyncManager.syncNow", () => {
     await flushMicrotasks()
     expect(nmemApi.calls).toEqual(["/threads"])
 
-    resolveFirst!({ ok: true, status: 200, data: {} })
+    resolveFirst!(createAck())
     await Promise.all([firstSync, secondSync])
 
-    expect(nmemApi.calls).toEqual(["/threads", "/threads"])
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
   })
 
   it("derives the title from the first user message, truncated to 120 chars", async () => {
     const longContent = "x".repeat(200)
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(
       managerOptions({
         nmemApi,
@@ -280,7 +319,7 @@ describe("SessionSyncManager.syncNow", () => {
   it("uses the first user message even when the assistant turn comes first", async () => {
     // Assistant-first ordering still has both roles, so it is not incomplete,
     // and the title still comes from the (second) user turn.
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(
       managerOptions({
         nmemApi,
@@ -298,7 +337,7 @@ describe("SessionSyncManager.syncNow", () => {
     // No user turn means deriveTitle cannot find a user message, so it falls
     // back to messages[0]. The transcript is still incomplete_turn and skipped,
     // so assert the skip path explicitly.
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(
       managerOptions({
         nmemApi,
@@ -317,7 +356,7 @@ describe("SessionSyncManager.syncNow", () => {
 describe("SessionSyncManager.scheduleSync", () => {
   it("does nothing when auto-sync is disabled", async () => {
     const timers = fakeTimers()
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, autoSyncEnabled: false, ...timers }))
     manager.scheduleSync(THREAD_ID)
     expect(timers.handles).toHaveLength(0)
@@ -326,7 +365,7 @@ describe("SessionSyncManager.scheduleSync", () => {
 
   it("schedules a capture that persists the thread", async () => {
     const timers = fakeTimers()
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
     manager.scheduleSync(THREAD_ID)
     expect(nmemApi.calls).toEqual([])
@@ -337,7 +376,7 @@ describe("SessionSyncManager.scheduleSync", () => {
 
   it("persists the incremental agent.end messages without reading the thread", async () => {
     const timers = fakeTimers()
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const readThreadMessages = vi.fn(async () => FULL_TRANSCRIPT)
     const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages, ...timers }))
 
@@ -349,9 +388,24 @@ describe("SessionSyncManager.scheduleSync", () => {
     expect(readThreadMessages).not.toHaveBeenCalled()
   })
 
+  it("keeps host messages without ids when merging debounce batches", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({ "/threads": () => createAck() })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+    const first = { role: "user", parts: [{ type: "text", text: "no-id-one" }] }
+    const second = { role: "assistant", id: { nested: true }, parts: [{ type: "text", text: "no-id-two" }] }
+    manager.scheduleSync(THREAD_ID, [first])
+    manager.scheduleSync(THREAD_ID, [])
+    manager.scheduleSync(THREAD_ID, [first, second])
+    timers.fireAll()
+    await flushMicrotasks()
+    // Messages without usable ids are kept for debounce de-dupe but dropped at convert time.
+    expect(nmemApi.calls).toEqual([])
+  })
+
   it("merges incremental messages scheduled inside the debounce window", async () => {
     const timers = fakeTimers()
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const readThreadMessages = vi.fn(async () => FULL_TRANSCRIPT)
     const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages, ...timers }))
 
@@ -372,7 +426,7 @@ describe("SessionSyncManager.scheduleSync", () => {
 
   it("skips an unchanged transcript on a second non-forced schedule", async () => {
     const timers = fakeTimers()
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
     manager.scheduleSync(THREAD_ID)
     timers.fireAll()
@@ -380,13 +434,13 @@ describe("SessionSyncManager.scheduleSync", () => {
     manager.scheduleSync(THREAD_ID)
     timers.fireAll()
     await flushMicrotasks()
-    // First schedule persists; second is deduped by signature.
+    // First schedule persists; second is an empty acknowledged delta.
     expect(nmemApi.calls).toHaveLength(1)
   })
 
   it("coalesces repeated schedules inside the debounce window", async () => {
     const timers = fakeTimers()
-    const nmemApi = fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) })
+    const nmemApi = fakeNmemApi({ "/threads": () => (createAck()) })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
 
     manager.scheduleSync(THREAD_ID)
@@ -421,14 +475,14 @@ describe("SessionSyncManager.scheduleSync", () => {
     expect(nmemApi.calls).toEqual(["/threads"])
 
     // Allow the first to complete; the pending flag schedules one more capture.
-    resolveFirst!({ ok: true, status: 200, data: {} })
+    resolveFirst!(createAck())
     await firstSync
     await flushMicrotasks()
     expect(timers.handles).toHaveLength(1)
     timers.fireAll()
     await flushMicrotasks()
 
-    // Dedup prevents further persistence of the same signature.
+    // An empty acknowledged delta prevents a second persist of the same snapshot.
     expect(nmemApi.calls).toEqual(["/threads"])
   })
 
@@ -439,10 +493,8 @@ describe("SessionSyncManager.scheduleSync", () => {
     })
     let callCount = 0
     const nmemApi = fakeNmemApi({
-      "/threads": async () => {
-        callCount += 1
-        return callCount === 1 ? await firstInFlight : { ok: true, status: 200, data: {} }
-      },
+      "/threads": async () => await firstInFlight,
+      "/threads/amp-t-abc123/append": () => appendAck(4, 6, true),
     })
     const timers = fakeTimers()
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
@@ -462,7 +514,7 @@ describe("SessionSyncManager.scheduleSync", () => {
     await flushMicrotasks()
     expect(nmemApi.calls).toEqual(["/threads"])
 
-    resolveFirst!({ ok: true, status: 200, data: {} })
+    resolveFirst!(createAck())
     await vi.waitFor(() => expect(timers.handles).toHaveLength(1))
     timers.fireAll()
     await vi.waitFor(() => expect(nmemApi.bodies).toHaveLength(2))
@@ -478,9 +530,10 @@ describe("SessionSyncManager.scheduleSync", () => {
 })
 
 describe("SessionSyncManager.dispose", () => {
-  it("clears pending timers and prevents scheduling after dispose", () => {
+  it("flushes pending messages, clears their timer, and prevents later scheduling", async () => {
     let setCount = 0
     let clearedCount = 0
+    const nmemApi = fakeNmemApi({ "/threads": () => createAck() })
     const manager = new SessionSyncManager(
       managerOptions({
         autoSyncEnabled: true,
@@ -491,67 +544,76 @@ describe("SessionSyncManager.dispose", () => {
         clearTimer: () => {
           clearedCount += 1
         },
-        nmemApi: fakeNmemApi({ "/threads": () => ({ ok: true, status: 200, data: {} }) }),
+        nmemApi,
       }),
     )
-    manager.scheduleSync(THREAD_ID)
+    manager.scheduleSync(THREAD_ID, FULL_TRANSCRIPT)
     expect(setCount).toBe(1)
-    manager.dispose()
+    await manager.dispose()
     expect(clearedCount).toBe(1)
+    expect(nmemApi.calls).toEqual(["/threads"])
     manager.scheduleSync(THREAD_ID)
     expect(setCount).toBe(1)
   })
 
-  it("does not reschedule pending work after dispose", async () => {
+  it("waits for in-flight work before flushing the queued suffix", async () => {
     const timers = fakeTimers()
     let resolveRequest: ((response: HttpResponse) => void) | undefined
     const nmemApi = fakeNmemApi({
       "/threads": () => new Promise<HttpResponse>((resolve) => { resolveRequest = resolve }),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 4, true),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
-    manager.scheduleSync(THREAD_ID)
+    manager.scheduleSync(THREAD_ID, FULL_TRANSCRIPT)
     timers.fireAll()
     await flushMicrotasks()
-    manager.scheduleSync(THREAD_ID)
-    manager.dispose()
-    resolveRequest?.({ ok: true, status: 200, data: {} })
-    await flushMicrotasks()
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    const disposing = manager.dispose()
+    expect(nmemApi.calls).toEqual(["/threads"])
+    resolveRequest?.(createAck())
+    await disposing
     expect(timers.handles).toHaveLength(0)
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
+    const body = nmemApi.bodies[1] as { readonly messages: Array<{ readonly metadata: { readonly external_id: string } }> }
+    expect(body.messages.map((message) => message.metadata.external_id)).toEqual([
+      "amp-msg-u2",
+      "amp-msg-a2",
+    ])
   })
 
   it("serializes concurrent manual captures", async () => {
     const pending: Array<(response: HttpResponse) => void> = []
     const nmemApi = fakeNmemApi({
-      "/threads": () => new Promise<HttpResponse>((resolve) => pending.push(resolve)),
+      default: () => new Promise<HttpResponse>((resolve) => pending.push(resolve)),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi }))
     const first = manager.syncNow(THREAD_ID)
     await vi.waitFor(() => expect(nmemApi.calls).toHaveLength(1))
     const second = manager.syncNow(THREAD_ID)
-    pending.shift()?.({ ok: true, status: 200, data: {} })
+    pending.shift()?.(createAck())
     await first
     await vi.waitFor(() => expect(pending).toHaveLength(1))
-    pending.shift()?.({ ok: true, status: 200, data: {} })
+    pending.shift()?.(appendAck(2, 2))
     await second
-    expect(nmemApi.calls).toHaveLength(2)
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
   })
 
   it("waits for an automatic capture before a manual capture", async () => {
     const timers = fakeTimers()
     const pending: Array<(response: HttpResponse) => void> = []
     const nmemApi = fakeNmemApi({
-      "/threads": () => new Promise<HttpResponse>((resolve) => pending.push(resolve)),
+      default: () => new Promise<HttpResponse>((resolve) => pending.push(resolve)),
     })
     const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
     manager.scheduleSync(THREAD_ID)
     timers.fireAll()
     await vi.waitFor(() => expect(nmemApi.calls).toHaveLength(1))
     const manual = manager.syncNow(THREAD_ID)
-    pending.shift()?.({ ok: true, status: 200, data: {} })
+    pending.shift()?.(createAck())
     await vi.waitFor(() => expect(pending).toHaveLength(1))
-    pending.shift()?.({ ok: true, status: 200, data: {} })
+    pending.shift()?.(appendAck(2, 2))
     await manual
-    expect(nmemApi.calls).toHaveLength(2)
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
   })
 
   it("returns disposed while waiting when teardown occurs", async () => {
@@ -565,9 +627,10 @@ describe("SessionSyncManager.dispose", () => {
     timers.fireAll()
     await vi.waitFor(() => expect(nmemApi.calls).toHaveLength(1))
     const manual = manager.syncNow(THREAD_ID)
-    manager.dispose()
-    pending.shift()?.({ ok: true, status: 200, data: {} })
+    const disposing = manager.dispose()
+    pending.shift()?.(createAck())
     const result = await manual
+    await disposing
     expect(result.reason).toBe("disposed")
   })
 
@@ -579,6 +642,286 @@ describe("SessionSyncManager.dispose", () => {
     expect(result.reason).toBe("disposed")
   })
 })
+
+
+
+describe("SessionSyncManager incremental checkpoint contract", () => {
+  async function fireUntil(
+    timers: ReturnType<typeof fakeTimers>,
+    nmemApi: { readonly calls: string[] },
+    count: number,
+  ): Promise<void> {
+    timers.fireAll()
+    await vi.waitFor(() => expect(nmemApi.calls).toHaveLength(count))
+    await flushMicrotasks()
+    await flushMicrotasks()
+  }
+
+  it("appends only the unacknowledged suffix with a checkpointed request", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 4, true),
+    })
+    const manager = new SessionSyncManager(managerOptions({
+      nmemApi,
+      readThreadMessages: async () => FULL_TRANSCRIPT,
+      ...timers,
+    }))
+
+    await manager.syncNow(THREAD_ID)
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 2)
+
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
+    expect(nmemApi.timeouts[0]).toBe(MANUAL_SYNC_TIMEOUT_MS)
+    expect(nmemApi.timeouts[1]).toBe(45_000)
+    const appendBody = nmemApi.bodies[1] as {
+      readonly messages: Array<{ readonly metadata: { readonly external_id: string } }>
+      readonly expected_message_count: number
+      readonly idempotency_key: string
+    }
+    expect(appendBody.messages.map((message) => message.metadata.external_id)).toEqual([
+      "amp-msg-u2",
+      "amp-msg-a2",
+    ])
+    expect(appendBody.expected_message_count).toBe(2)
+    expect(appendBody.idempotency_key).toMatch(/^amp:live:amp-t-abc123:2-4:/)
+  })
+
+  it("preserves the cursor when the create response lacks an explicit ack", async () => {
+    const nmemApi = fakeNmemApi({
+      "/threads": () => ({ ok: true, status: 200, data: { id: "T-new" } }),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi }))
+    const result = await manager.syncNow(THREAD_ID)
+    expect(result.error).toContain("explicit persistence acknowledgement")
+    await manager.syncNow(THREAD_ID)
+    expect(nmemApi.calls).toEqual(["/threads", "/threads"])
+  })
+
+  it("preserves the cursor when a checkpointed append is not acknowledged as checkpointed", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 4, false),
+    })
+    const manager = new SessionSyncManager(managerOptions({
+      nmemApi,
+      readThreadMessages: async () => FULL_TRANSCRIPT,
+      ...timers,
+    }))
+    await manager.syncNow(THREAD_ID)
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 2)
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 3)
+    expect(nmemApi.calls).toEqual([
+      "/threads",
+      "/threads/amp-t-abc123/append",
+      "/threads/amp-t-abc123/append",
+    ])
+  })
+
+  it("reconciles after a checkpoint conflict", async () => {
+    const timers = fakeTimers()
+    let appendCount = 0
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => {
+        appendCount += 1
+        return appendCount === 1
+          ? { ok: false, status: 409, data: { error_code: "checkpoint_conflict" } }
+          : appendAck(0, 5)
+      },
+    })
+    const manager = new SessionSyncManager(managerOptions({
+      nmemApi,
+      readThreadMessages: async () => FULL_TRANSCRIPT,
+      ambientSpaceId: "Research",
+      ...timers,
+    }))
+    await manager.syncNow(THREAD_ID)
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 3)
+    expect(nmemApi.calls).toEqual([
+      "/threads",
+      "/threads/amp-t-abc123/append",
+      "/threads/amp-t-abc123/append",
+    ])
+    const reconcileBody = nmemApi.bodies[2] as { readonly idempotency_key: string; readonly messages: unknown[]; readonly space_id: string }
+    expect(reconcileBody.idempotency_key).toMatch(/^amp:reconcile:amp-t-abc123:/)
+    expect(reconcileBody.messages).toHaveLength(4)
+    expect(reconcileBody.space_id).toBe("Research")
+  })
+
+  it("reconciles a checkpoint conflict without a space_id when none is configured", async () => {
+    const timers = fakeTimers()
+    let appendCount = 0
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => {
+        appendCount += 1
+        return appendCount === 1
+          ? { ok: false, status: 409, data: { error_code: "checkpoint_conflict" } }
+          : appendAck(0, 5)
+      },
+    })
+    const manager = new SessionSyncManager(managerOptions({
+      nmemApi,
+      readThreadMessages: async () => FULL_TRANSCRIPT,
+      ...timers,
+    }))
+    await manager.syncNow(THREAD_ID)
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 3)
+    expect((nmemApi.bodies[2] as { space_id?: string }).space_id).toBeUndefined()
+  })
+
+  it("recreates the complete thread after HTTP 400 Thread not found", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck("amp-t-abc123", 4),
+      "/threads/amp-t-abc123/append": () => ({
+        ok: false,
+        status: 400,
+        data: { detail: "Thread not found: amp-t-abc123" },
+      }),
+    })
+    const manager = new SessionSyncManager(managerOptions({
+      nmemApi,
+      readThreadMessages: async () => FULL_TRANSCRIPT,
+      ...timers,
+    }))
+    await manager.syncNow(THREAD_ID)
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 3)
+    expect(nmemApi.calls).toEqual([
+      "/threads",
+      "/threads/amp-t-abc123/append",
+      "/threads",
+    ])
+  })
+
+  it("resets to a full suffix when an earlier prefix is replaced", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 2),
+    })
+    const manager = new SessionSyncManager(managerOptions({
+      nmemApi,
+      readThreadMessages: async () => FULL_TRANSCRIPT,
+      ...timers,
+    }))
+    await manager.syncNow(THREAD_ID)
+
+    const rewritten = [
+      { role: "user", id: "u1", parts: [{ type: "text", text: "rewritten hello" }] },
+      { role: "assistant", id: "a1", parts: [{ type: "text", text: "hi back" }] },
+    ]
+    manager.scheduleSync(THREAD_ID, rewritten)
+    await fireUntil(timers, nmemApi, 2)
+
+    const appendBody = nmemApi.bodies[1] as {
+      readonly messages: Array<{ readonly content: string }>
+      readonly expected_message_count?: number
+    }
+    expect(appendBody.expected_message_count).toBeUndefined()
+    expect(appendBody.messages.map((message) => message.content)).toEqual(["rewritten hello", "hi back"])
+  })
+
+  it("retries a failed incremental suffix without rereading the full transcript", async () => {
+    const timers = fakeTimers()
+    const readThreadMessages = vi.fn(async () => FULL_TRANSCRIPT)
+    let appendAttempts = 0
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => {
+        appendAttempts += 1
+        return appendAttempts === 1
+          ? { ok: false, status: 500, data: { error: "boom" } }
+          : appendAck(2, 4, true)
+      },
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, readThreadMessages, ...timers }))
+    await manager.syncNow(THREAD_ID)
+    expect(readThreadMessages).toHaveBeenCalledTimes(1)
+
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 2)
+    expect(readThreadMessages).toHaveBeenCalledTimes(1)
+    expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
+
+    manager.scheduleSync(THREAD_ID, FOLLOW_UP_TRANSCRIPT)
+    await fireUntil(timers, nmemApi, 3)
+    expect(readThreadMessages).toHaveBeenCalledTimes(1)
+    expect(nmemApi.calls).toEqual([
+      "/threads",
+      "/threads/amp-t-abc123/append",
+      "/threads/amp-t-abc123/append",
+    ])
+    const appendBodies = nmemApi.bodies.slice(1) as Array<{
+      messages: Array<{ content: string }>
+      expected_message_count: number
+    }>
+    expect(appendBodies.map((body) => body.messages.map((message) => message.content))).toEqual([
+      ["second turn", "second answer"],
+      ["second turn", "second answer"],
+    ])
+    expect(appendBodies.map((body) => body.expected_message_count)).toEqual([2, 2])
+  })
+
+  it("holds an unanswered user tail until a later assistant completes it", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({
+      "/threads": () => createAck(),
+      "/threads/amp-t-abc123/append": () => appendAck(2, 4, true),
+    })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, ...timers }))
+
+    manager.scheduleSync(THREAD_ID, [
+      ...FULL_TRANSCRIPT,
+      FOLLOW_UP_TRANSCRIPT[0],
+    ])
+    await fireUntil(timers, nmemApi, 1)
+    expect((nmemApi.bodies[0] as { messages: unknown[] }).messages).toHaveLength(2)
+
+    manager.scheduleSync(THREAD_ID, [FOLLOW_UP_TRANSCRIPT[1]])
+    await fireUntil(timers, nmemApi, 2)
+    const appendBody = nmemApi.bodies[1] as {
+      messages: Array<{ metadata: { external_id: string } }>
+      expected_message_count: number
+    }
+    expect(appendBody.messages.map((message) => message.metadata.external_id)).toEqual([
+      "amp-msg-u2",
+      "amp-msg-a2",
+    ])
+    expect(appendBody.expected_message_count).toBe(2)
+  })
+
+  it("uses the automatic timeout for scheduled captures and the existing manual timeout for syncNow", async () => {
+    const timers = fakeTimers()
+    const nmemApi = fakeNmemApi({ "/threads": () => createAck() })
+    const manager = new SessionSyncManager(managerOptions({ nmemApi, autoSyncTimeoutMs: 12_000, ...timers }))
+    manager.scheduleSync(THREAD_ID)
+    await fireUntil(timers, nmemApi, 1)
+    await manager.syncNow(THREAD_ID)
+    expect(nmemApi.timeouts).toEqual([12_000, MANUAL_SYNC_TIMEOUT_MS])
+  })
+
+  it("holds independent checkpoint state across two manager instances", async () => {
+    const firstApi = fakeNmemApi({ "/threads": () => createAck() })
+    const secondApi = fakeNmemApi({ "/threads": () => createAck() })
+    const first = new SessionSyncManager(managerOptions({ nmemApi: firstApi, ambientSpaceId: "space-a" }))
+    const second = new SessionSyncManager(managerOptions({ nmemApi: secondApi, ambientSpaceId: "space-b" }))
+    await first.syncNow(THREAD_ID)
+    await second.syncNow(THREAD_ID)
+    expect(firstApi.calls).toEqual(["/threads"])
+    expect(secondApi.calls).toEqual(["/threads"])
+  })
+})
+
 
 // Ensure CaptureResult is referenced for type-only import side effects in coverage.
 export type { CaptureResult }

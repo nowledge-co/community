@@ -33,6 +33,7 @@ describe("resolveConfig", () => {
       autoSyncDebounceMs: 1500,
       bootstrapEnabled: true,
       debugLogging: false,
+      threadSyncTimeoutMs: 120_000,
     })
   })
 
@@ -158,5 +159,30 @@ describe("resolveConfig", () => {
   it.each(["1", "true", "on", "yes", "ON", "True"])("enables debug logging for NMEM_AMP_DEBUG=%s", (value) => {
     const config = resolveConfig({ NMEM_AMP_DEBUG: value }, sharedConfig({}))
     expect(config.debugLogging).toBe(true)
+  })
+
+  it("defaults automatic thread sync to two minutes", () => {
+    const config = resolveConfig(EMPTY_ENV, sharedConfig({}))
+    expect(config.threadSyncTimeoutMs).toBe(120_000)
+  })
+
+  it("honors a valid NMEM_SYNC_TIMEOUT_MS value", () => {
+    const config = resolveConfig({ NMEM_SYNC_TIMEOUT_MS: "5000" }, sharedConfig({}))
+    expect(config.threadSyncTimeoutMs).toBe(5_000)
+  })
+
+  it.each(["", "   ", "abc", "0", "-10", "1500.5"])("falls back to two minutes for invalid NMEM_SYNC_TIMEOUT_MS=%s", (value) => {
+    const config = resolveConfig({ NMEM_SYNC_TIMEOUT_MS: value }, sharedConfig({}))
+    expect(config.threadSyncTimeoutMs).toBe(120_000)
+  })
+
+  it("clamps NMEM_SYNC_TIMEOUT_MS below one second up to one second", () => {
+    const config = resolveConfig({ NMEM_SYNC_TIMEOUT_MS: "250" }, sharedConfig({}))
+    expect(config.threadSyncTimeoutMs).toBe(1_000)
+  })
+
+  it("clamps NMEM_SYNC_TIMEOUT_MS above 30 minutes down to 30 minutes", () => {
+    const config = resolveConfig({ NMEM_SYNC_TIMEOUT_MS: "9999999" }, sharedConfig({}))
+    expect(config.threadSyncTimeoutMs).toBe(30 * 60_000)
   })
 })

@@ -400,7 +400,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.31"
+    assert codex_manifest["version"] == "0.1.32"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -416,6 +416,9 @@ def test_key_plugin_static_contracts_are_declared():
     codex_launcher = (CODEX_PLUGIN / "hooks" / "nmem-stop-launch.py").read_text(encoding="utf-8")
     assert "nowledge-mem-stop-save.py" in codex_launcher
     assert "nmem-stop-save.py" in codex_launcher
+    assert codex_launcher.index("hook = _packaged_hook()") < codex_launcher.index(
+        "hook = _stable_host_hook()"
+    )
     assert "extract_skill_outcomes_from_file" in codex_save_hook
     assert "DELEGATED_CONVERSATION_ORIGINATORS" in codex_save_hook
     assert (CODEX_PLUGIN / "hooks" / "skill_outcome.py").exists()
@@ -520,7 +523,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.3.8"
+    assert opencode_pkg["version"] == "0.3.9"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -1461,7 +1464,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.3.8"
+    assert by_id["opencode"]["version"] == "0.3.9"
     assert by_id["pi"]["version"] == "0.8.7"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
@@ -1577,6 +1580,12 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     pkg = _read_json(DEEPSEEK_HARNESS_PLUGIN / "package.json")
     patch = (DEEPSEEK_HARNESS_PLUGIN / "cordis.patch.yml").read_text(encoding="utf-8")
     source = (DEEPSEEK_HARNESS_PLUGIN / "src" / "index.js").read_text(encoding="utf-8")
+    thread_import = (DEEPSEEK_HARNESS_PLUGIN / "src" / "thread-import.js").read_text(
+        encoding="utf-8"
+    )
+    sandbox_retry = (DEEPSEEK_HARNESS_PLUGIN / "src" / "sandbox-retry.js").read_text(
+        encoding="utf-8"
+    )
     readme = (DEEPSEEK_HARNESS_PLUGIN / "README.md").read_text(encoding="utf-8")
     registry = _read_json(COMMUNITY_ROOT / "integrations.json")
     dsh_registry = next(
@@ -1607,14 +1616,23 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "Object.fromEntries(Object.entries" in patch
     assert "typeof value === 'string' && value.length > 0" in patch
     assert "'X-NMEM-Agent-ID': process.env.NMEM_AGENT_ID" in patch
+    assert "sessionThreadTitle(" in source
+    assert "cursor?.title" in source
+    assert source.count("buildThreadImportArgs({") == 2
+    assert "payload.title" in thread_import
+    assert "expectedMessageCount === undefined" in thread_import
+    assert "message?.source?.kind === 'plugin'" in thread_import
 
     assert "export const inject = ['agents', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
     assert "ctx.on('session/event'" in source
     assert "event.type === 'turn/end'" in source
-    assert "SANDBOX_UNAVAILABLE" in source
+    assert "SANDBOX_UNAVAILABLE" in sandbox_retry
     assert "isSandboxUnavailableError" in source
-    assert "sandboxPolicy: dangerFullAccessPolicy(ctx, session)" in source
+    assert "runShellWithHostSandboxRetry(" in source
+    assert "allowDangerFullAccessRetry: config.allowDangerFullAccessRetry ?? false" in source
+    assert "host did not grant danger-full-access; skipping retry" in sandbox_retry
+    assert "danger-full-access retry is not enabled; skipping retry" in sandbox_retry
     assert "pre-step context injection failed" in source
     assert "turn-end transcript import failed" in source
     assert "'--json', 'context', '--source-app', config.sourceApp" in source
@@ -1712,7 +1730,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.3.8"
+    assert pkg["version"] == "0.3.9"
     assert opencode_registry["version"] == pkg["version"]
     assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source
@@ -1720,7 +1738,7 @@ def test_opencode_thread_sync_timeout_contract():
     assert "timeoutMs: 10_000" not in source
     assert "NMEM_SYNC_TIMEOUT_MS" in readme
     assert "later lifecycle sync safely reconciles" in readme
-    assert "## [0.3.8] - 2026-08-19" in changelog
+    assert "## [0.3.9] - 2026-08-19" in changelog
 
 
 def test_amp_plugin_static_contract_is_self_contained():
@@ -1755,7 +1773,7 @@ def test_amp_plugin_static_contract_is_self_contained():
 
     # Package manifest and registry entry agree on the basics.
     assert pkg["name"] == "amp-nowledge-mem"
-    assert pkg["version"] == "0.1.3"
+    assert pkg["version"] == "0.1.4"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.ts"
     assert "@ampcode/plugin" in pkg["peerDependencies"]

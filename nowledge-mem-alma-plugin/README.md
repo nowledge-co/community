@@ -225,6 +225,9 @@ The plugin currently uses these defaults:
 - Recall policy: `balanced_thread_once`
 - Auto-capture on app quit: `true`
 - Max recalled memories per injection: `5`
+- Automatic thread create/append timeout: 120s (`NMEM_SYNC_TIMEOUT_MS`, clamped to 1s–30min)
+
+Set `NMEM_SYNC_TIMEOUT_MS` before launching Alma when a remote Mem instance needs a longer automatic sync window. Manual `nowledge_mem_*` tools keep the existing per-request timeouts.
 
 ## License
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Automatic thread capture now sends the paired Mem checkpoint contract
+  (`expected_message_count`, a content-bound idempotency key, and
+  `append_mode: "checkpointed"`) and only advances the local cursor after an
+  explicit append/create acknowledgement.
+- Same-length and earlier-prefix replacements reset to a full replay.
+- Destination-lane cursor state is isolated by API URL, credentials, and space.
+- HTTP 400 `Thread not found` recreates the complete snapshot instead of
+  advancing the local cursor.
+- Automatic thread create/append honor `NMEM_SYNC_TIMEOUT_MS` with a 120s
+  default and 1-second to 30-minute bounds.
+- Automatic capture now waits for a user+assistant pair and coalesces
+  in-flight flushes so a later turn is not dropped while a persist is running.
+
 ## 0.7.4
 
 ### Fixed

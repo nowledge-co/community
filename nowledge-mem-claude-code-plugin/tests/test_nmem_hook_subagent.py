@@ -21,8 +21,16 @@ def _load_module():
 
 
 @pytest.fixture(autouse=True)
-def _clear_subagent_context_override(monkeypatch):
-    monkeypatch.delenv("NMEM_SUBAGENT_CONTEXT_TYPES", raising=False)
+def _clear_subagent_test_environment(monkeypatch):
+    for marker in (
+        "GROK_SESSION_ID",
+        "GROK_HOOK_EVENT",
+        "GROK_WORKSPACE_ROOT",
+        "GROK_PLUGIN_ROOT",
+        "CLAUDE_PLUGIN_ROOT",
+        "NMEM_SUBAGENT_CONTEXT_TYPES",
+    ):
+        monkeypatch.delenv(marker, raising=False)
 
 
 def test_packaged_subagent_hook_uses_bounded_wrapper():
@@ -33,6 +41,23 @@ def test_packaged_subagent_hook_uses_bounded_wrapper():
     assert hook_group["matcher"] == ".*"
     assert "nmem-hook-subagent.py" in hook["command"]
     assert hook["timeout"] > _load_module().SUBAGENT_CONTEXT_TIMEOUT_SECONDS
+
+
+def test_grok_subagent_start_skips_passive_context_output():
+    module = _load_module()
+    stdout = io.StringIO()
+
+    with mock.patch.dict(
+        module.os.environ,
+        {"GROK_HOOK_EVENT": "subagent_start"},
+    ), mock.patch.object(module, "_load_context") as load, \
+         mock.patch.object(module.sys, "stdout", stdout):
+        assert module.main(
+            {"hook_event_name": "SubagentStart", "agent_type": "architect"}
+        ) == 0
+
+    load.assert_not_called()
+    assert stdout.getvalue() == ""
 
 
 def test_selected_subagent_injects_bounded_context_and_boundary():

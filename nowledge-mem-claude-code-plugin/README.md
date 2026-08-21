@@ -20,6 +20,12 @@ Grok Build:
 grok plugin install nowledge-co/community#nowledge-mem-claude-code-plugin --trust
 ```
 
+Restart Grok Build, then run `grok plugin details nowledge-mem` and open
+`/hooks` to verify that the plugin is enabled, trusted, and its lifecycle
+hooks are registered. Grok can load skills from an enabled plugin while
+still blocking hooks from an untrusted plugin, so skill visibility alone is
+not a capture check.
+
 **Prerequisite:** `nmem` CLI must be in your PATH. Hook capture also needs `python3` or `python` available on the same machine:
 
 ```bash
@@ -47,17 +53,25 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 
 ## What You Get
 
-**Automatic (no action needed):**
+**Claude Code lifecycle hooks:**
 
 - Context Bundle loaded at every session start, resume, and clear when available, with Working Memory fallback
 - Bounded Context Bundle injected for selected Claude Code subagent types, with routing-only or no-op behavior for simpler agents
 - Per-turn behavioral nudge with memory search, thread search, and save syntax
 - Per-turn managed-skills nudge for recurring procedural work (`find_skills` / `nmem skills match`)
+
+**Grok Build lifecycle hooks:**
+
+- Stop, PreCompact, SubagentStop, and SessionEnd capture the exact Grok Build session through `nmem`
+- Passive Grok hooks do not inject stdout into model context; the `read-working-memory` skill loads Context Bundle on the first relevant turn
+
+**Both hosts:**
+
 - Session conversations captured to your knowledge graph on each response
 - Session conversations captured again before context compaction
-- Context recovered after compaction events
+- Context recovered after compaction events in Claude Code; Grok Build can re-run `read-working-memory` after compaction when continuity is needed
 
-**Autonomous skills (Claude acts on its own):**
+**Autonomous skills (the host invokes when relevant):**
 
 - **Search Memory** -- searches both distilled memories and prior sessions when continuity matters
 - **Distill Memory** -- suggests saving breakthroughs and decisions
@@ -78,18 +92,24 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 
 | Event | Trigger | Action |
 |-------|---------|--------|
-| `SessionStart` | New, resume, or clear | Loads Context Bundle via `nmem context`, then falls back to `nmem wm read` |
-| `SessionStart` | After compaction | Re-loads Context Bundle or Working Memory + checkpoint prompt |
+| `SessionStart` | New, resume, or clear | Claude Code loads Context Bundle via `nmem context`, then falls back to `nmem wm read` |
+| `SessionStart` | After compaction | Claude Code re-loads Context Bundle or Working Memory + checkpoint prompt |
 | `SubagentStart` | Claude Code spawns a subagent | Selects full context, routing-only, or no-op behavior from `agent_type` |
-| `UserPromptSubmit` | Every user message | Injects search/save syntax as context |
+| `UserPromptSubmit` | Every user message | Claude Code injects search/save syntax as context |
 | `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code or Grok Build session by hook `session_id` before context is compressed |
 | `Stop` | Model finishes responding | Captures session to knowledge graph |
 | `SubagentStop` | Grok Build subagent finishes | Captures the subagent session without blocking the subagent gate |
 | `SessionEnd` | Grok Build process exits | Performs a final best-effort session capture after the last turn |
 
-The `SessionStart` hook tries `nmem context` first so Claude receives owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths when the installed CLI supports it. It falls back to `nmem wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
+In Claude Code, the `SessionStart` hook tries `nmem context` first so the model receives owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths when the installed CLI supports it. It falls back to `nmem wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
-The `SubagentStart` hook reuses the same source but caps the complete bootstrap envelope at 4 KiB. Full Context Bundle injection uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` allowlist, which defaults to `Plan,code-reviewer,architect,researcher`. `Explore` receives no Mem prompt by default; other unlisted types receive retrieval routing without loading the Context Bundle. Setting the variable replaces the default allowlist, and an empty value disables full Context Bundle injection for every type.
+The Claude Code `SubagentStart` hook reuses the same source but caps the complete bootstrap envelope at 4 KiB. Full Context Bundle injection uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` allowlist, which defaults to `Plan,code-reviewer,architect,researcher`. `Explore` receives no Mem prompt by default; other unlisted types receive retrieval routing without loading the Context Bundle. Setting the variable replaces the default allowlist, and an empty value disables full Context Bundle injection for every type.
+
+Grok Build treats `SessionStart`, `UserPromptSubmit`, and `SubagentStart` as
+passive hooks and discards their stdout. The plugin therefore does not spend
+an API call producing context that Grok cannot deliver. Grok exposes the same
+Context Bundle flow through the model-invoked `read-working-memory` skill;
+run `/read-working-memory` explicitly when you want to force a refresh.
 
 The `PreCompact` hook runs the same client-side thread save before the host compresses context. The `Stop`, `SubagentStop`, and `SessionEnd` hooks run it again through a detached worker with a bounded retry window, so short transcript-flush delays or process exit do not turn into silent no-op saves. Claude Code uses `nmem t save --from claude-code`; Grok Build uses `nmem t save --from grok`. Both paths pass the host session id into `nmem t save`, so concurrent sessions in the same project do not have to rely on "latest session" guessing.
 
@@ -153,7 +173,15 @@ Shared spaces, default retrieval, and agent guidance still live in Mem's own spa
 claude plugin marketplace update nowledge-community
 claude plugin update nowledge-mem@nowledge-community
 # Restart Claude Code to apply changes
+
+# Grok Build
+grok plugin update nowledge-mem
+grok plugin details nowledge-mem
 ```
+
+After a Grok Build or plugin update, restart Grok and re-check `/hooks`. A
+completed turn should create or update a `grok-*` thread in Mem; plugin skills
+being visible does not prove capture hooks are trusted and active.
 
 ## Customize without editing the plugin
 
@@ -172,6 +200,11 @@ Use `CLAUDE.local.md` for small personal memory-behavior changes such as "prefer
 **Server not running:** Start the Nowledge Mem desktop app, or run `nmem serve` on your server
 
 **Check status:** Run `/status` or `nmem status` to see connection details
+
+**Grok skills load but sessions are not captured:** Run
+`grok plugin details nowledge-mem`, then inspect `/hooks`. Reinstall with
+`--trust` if the hooks are blocked, restart Grok Build, complete one turn, and
+confirm a recent thread with `nmem t search "a phrase from that turn" --source grok`.
 
 ## Links
 

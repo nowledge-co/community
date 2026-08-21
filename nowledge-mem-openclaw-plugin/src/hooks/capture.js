@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { buildStableThreadId } from "./thread-identity.js";
+import {
+	contentBoundIdempotencyKey,
+	hasUserAndAssistant,
+	prefixFingerprint,
+	selectSnapshotDelta,
+} from "../session-delta.js";
 export {
 	_resetConversationRoots,
 	buildStableThreadId,
@@ -25,7 +31,7 @@ const OPENCLAW_INTERNAL_SENDER_BLOCK_RE =
 // Evicted opportunistically when new entries are set (see _setLastCapture).
 const _lastCaptureAt = new Map();
 const _MAX_COOLDOWN_ENTRIES = 200;
-const _syncedMessageCounts = new Map();
+const _acknowledgedCursors = new Map();
 const _MAX_SYNC_CURSOR_ENTRIES = 500;
 const CAPTURE_MESSAGE_MODE_AUTO = "auto";
 const CAPTURE_MESSAGE_MODE_SNAPSHOT = "snapshot";
@@ -70,18 +76,32 @@ function _setLastCapture(threadId, now) {
 	}
 }
 
-function _setSyncedMessageCount(threadId, count) {
-	if (!threadId || !Number.isFinite(count) || count < 0) return;
-	_syncedMessageCounts.set(threadId, Math.trunc(count));
-	if (_syncedMessageCounts.size > _MAX_SYNC_CURSOR_ENTRIES) {
-		const excess = _syncedMessageCounts.size - _MAX_SYNC_CURSOR_ENTRIES;
+function _laneKey(client, threadId) {
+	return typeof client?.cursorKey === "function"
+		? client.cursorKey(threadId)
+		: String(threadId || "");
+}
+
+function _getCursor(client, threadId) {
+	return _acknowledgedCursors.get(_laneKey(client, threadId));
+}
+
+function _setAcknowledgedCursor(client, threadId, cursor) {
+	if (!threadId || !cursor) return;
+	_acknowledgedCursors.set(_laneKey(client, threadId), cursor);
+	if (_acknowledgedCursors.size > _MAX_SYNC_CURSOR_ENTRIES) {
+		const excess = _acknowledgedCursors.size - _MAX_SYNC_CURSOR_ENTRIES;
 		let removed = 0;
-		for (const key of _syncedMessageCounts.keys()) {
-			_syncedMessageCounts.delete(key);
+		for (const key of _acknowledgedCursors.keys()) {
+			_acknowledgedCursors.delete(key);
 			removed += 1;
 			if (removed >= excess) break;
 		}
 	}
+}
+
+export function _resetSyncCursors() {
+	_acknowledgedCursors.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -386,18 +406,18 @@ function buildExternalId({
 	return `oc-msg:${digest}`;
 }
 
-function buildAppendIdempotencyKey(threadId, reason, messages) {
-	const seed = {
-		threadId: String(threadId || ""),
-		reason: String(reason || "event"),
-		count: Array.isArray(messages) ? messages.length : 0,
-		externalIds: Array.isArray(messages)
-			? messages
-					.map((m) => m?.metadata?.external_id)
-					.filter((v) => typeof v === "string" && v.length > 0)
-			: [],
-	};
-	return `oc-batch:${createHash("sha1").update(JSON.stringify(seed)).digest("hex")}`;
+function messageExternalId(message) {
+	return String(message?.metadata?.external_id || "");
+}
+
+function buildContentBoundIdempotencyKey(threadId, reason, start, end, fingerprint) {
+	return contentBoundIdempotencyKey(
+		`oc:${String(reason || "event")}`,
+		threadId,
+		start,
+		end,
+		fingerprint,
+	);
 }
 
 function hasStableExternalHints(normalized) {
@@ -466,10 +486,28 @@ export async function appendOrCreateThread({
 		.map((message) => normalizeRoleMessage(message, maxMessageChars))
 		.filter(Boolean);
 	if (normalized.length === 0) return;
-	const title = buildThreadTitle(ctx, normalized);
+	const resolvedMessageMode =
+		messageMode === CAPTURE_MESSAGE_MODE_DELTA ||
+		(messageMode === CAPTURE_MESSAGE_MODE_AUTO &&
+			hasStableExternalHints(normalized))
+			? CAPTURE_MESSAGE_MODE_DELTA
+			: CAPTURE_MESSAGE_MODE_SNAPSHOT;
+	let captured = normalized;
+	if (resolvedMessageMode === CAPTURE_MESSAGE_MODE_SNAPSHOT) {
+		let lastAssistantIndex = -1;
+		for (let index = normalized.length - 1; index >= 0; index -= 1) {
+			if (normalized[index].role === "assistant") {
+				lastAssistantIndex = index;
+				break;
+			}
+		}
+		captured = normalized.slice(0, lastAssistantIndex + 1);
+	}
+	if (!hasUserAndAssistant(captured)) return;
+	const title = buildThreadTitle(ctx, captured);
 
 	const buildMessages = (resolvedMessageMode) =>
-		normalized.map((message, index) => ({
+		captured.map((message, index) => ({
 			role: message.role,
 			content: message.content,
 			timestamp: message.timestamp,
@@ -495,111 +533,174 @@ export async function appendOrCreateThread({
 			: CAPTURE_MESSAGE_MODE_SNAPSHOT,
 	);
 
-	let syncedCount = _syncedMessageCounts.get(threadId);
-	if (syncedCount === undefined) {
-		syncedCount = await client.getThreadMessageCount(threadId);
-		if (syncedCount !== null) {
-			_setSyncedMessageCount(threadId, syncedCount);
-		}
-	}
-
-	const resolvedMessageMode =
-		messageMode === CAPTURE_MESSAGE_MODE_DELTA ||
-		(messageMode === CAPTURE_MESSAGE_MODE_AUTO &&
-			hasStableExternalHints(normalized))
-			? CAPTURE_MESSAGE_MODE_DELTA
-			: CAPTURE_MESSAGE_MODE_SNAPSHOT;
-	if (resolvedMessageMode === CAPTURE_MESSAGE_MODE_DELTA) {
-		allMessages = buildMessages(CAPTURE_MESSAGE_MODE_DELTA);
-		const idempotencyKey = buildAppendIdempotencyKey(
-			threadId,
-			reason,
-			allMessages,
-		);
+	let cursor = _getCursor(client, threadId);
+	if (cursor === undefined) {
+		let remoteCount = null;
 		try {
-			const appended = await client.appendThread({
-				threadId,
-				messages: allMessages,
-				deduplicate: true,
-				idempotencyKey,
-			});
-			const added = appended.messagesAdded ?? 0;
-			const total =
-				Number.isFinite(appended.totalMessages) && appended.totalMessages >= 0
-					? appended.totalMessages
-					: typeof syncedCount === "number"
-						? syncedCount + added
-						: allMessages.length;
-			_setSyncedMessageCount(threadId, total);
-			logger.info(
-				`capture: appended ${added} delta messages to ${threadId} (${reason || "event"})`,
-			);
-			return { threadId, normalized, messagesAdded: added };
-		} catch (err) {
-			if (!client.isThreadNotFoundError(err)) {
-				const message = err instanceof Error ? err.message : String(err);
-				logger.warn(
-					`capture: thread append failed for ${threadId}: ${message}`,
-				);
-				return null;
-			}
-		}
-
-		try {
-			const createdId = await client.createThread({
-				threadId,
-				title,
-				messages: allMessages,
-				source: "openclaw",
-			});
-			_setSyncedMessageCount(threadId, allMessages.length);
-			logger.info(
-				`capture: created thread ${createdId} with ${allMessages.length} delta messages (${reason || "event"})`,
-			);
-			return { threadId, normalized, messagesAdded: allMessages.length };
+			remoteCount = await client.getThreadMessageCount(threadId);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
-			logger.warn(`capture: thread create failed for ${threadId}: ${message}`);
-			return null;
+			logger.warn(
+				`capture: remote message count failed for ${threadId}: ${message}`,
+			);
+		}
+		if (remoteCount !== null && Number.isFinite(remoteCount) && remoteCount >= 0) {
+			cursor = {
+				count: 0,
+				remoteCount: Math.trunc(remoteCount),
+				prefixFingerprint: "",
+			};
 		}
 	}
 
-	if (typeof syncedCount === "number" && syncedCount > allMessages.length) {
-		// OpenClaw compaction can shrink the active transcript after we already
-		// stored the pre-compaction history. Reset the local cursor to the new
-		// compacted length so future turns append only the tail after compaction.
-		_setSyncedMessageCount(threadId, allMessages.length);
-		return { threadId, normalized, messagesAdded: 0 };
+	if (resolvedMessageMode === CAPTURE_MESSAGE_MODE_DELTA) {
+		allMessages = buildMessages(CAPTURE_MESSAGE_MODE_DELTA);
+		const next = {
+			count: allMessages.length,
+			remoteCount: cursor?.remoteCount ?? allMessages.length,
+			...(allMessages.length > 0
+				? { lastExternalId: messageExternalId(allMessages[allMessages.length - 1]) }
+				: {}),
+			prefixFingerprint: prefixFingerprint(allMessages, allMessages.length),
+		};
+		return persistMessages({
+			client,
+			logger,
+			threadId,
+			title,
+			reason,
+			normalized,
+			allMessages,
+			toSend: allMessages,
+			start: 0,
+			end: allMessages.length,
+			next,
+			cursor,
+			reset: false,
+			label: "delta",
+		});
 	}
 
-	const appendStart =
-		typeof syncedCount === "number" && syncedCount > 0
-			? Math.min(syncedCount, allMessages.length)
-			: 0;
-	const newMessages = allMessages.slice(appendStart);
-	if (newMessages.length === 0) {
+	const delta = selectSnapshotDelta(
+		allMessages,
+		cursor,
+		messageExternalId,
+	);
+	if (delta.compactionShrink) {
+		_setAcknowledgedCursor(client, threadId, delta.next);
 		return { threadId, normalized, messagesAdded: 0 };
 	}
-	const idempotencyKey = buildAppendIdempotencyKey(
+	if (delta.messages.length === 0) {
+		return { threadId, normalized, messagesAdded: 0 };
+	}
+	return persistMessages({
+		client,
+		logger,
+		threadId,
+		title,
+		reason,
+		normalized,
+		allMessages,
+		toSend: delta.messages,
+		start: delta.start,
+		end: delta.end,
+		next: delta.next,
+		cursor,
+		reset: delta.reset,
+		label: "snapshot",
+	});
+}
+
+async function persistMessages({
+	client,
+	logger,
+	threadId,
+	title,
+	reason,
+	normalized,
+	allMessages,
+	toSend,
+	start,
+	end,
+	next,
+	cursor,
+	reset,
+	label,
+}) {
+	const fingerprint = next.prefixFingerprint;
+	const idempotencyKey = buildContentBoundIdempotencyKey(
 		threadId,
 		reason,
-		newMessages,
+		start,
+		end,
+		fingerprint,
 	);
+	const expectedMessageCount =
+		!reset && Number.isInteger(cursor?.remoteCount) && cursor.prefixFingerprint
+			? cursor.remoteCount
+			: undefined;
+
+	const acknowledge = (remoteCount, added) => {
+		_setAcknowledgedCursor(client, threadId, {
+			...next,
+			remoteCount,
+		});
+		return { threadId, normalized, messagesAdded: added };
+	};
 
 	try {
 		const appended = await client.appendThread({
 			threadId,
-			messages: newMessages,
+			messages: toSend,
 			deduplicate: true,
 			idempotencyKey,
+			expectedMessageCount,
 		});
 		const added = appended.messagesAdded ?? 0;
-		_setSyncedMessageCount(threadId, allMessages.length);
+		const total =
+			Number.isInteger(appended.totalMessages) && appended.totalMessages >= 0
+				? appended.totalMessages
+				: toSend.length;
 		logger.info(
-			`capture: appended ${added} messages to ${threadId} (${reason || "event"})`,
+			`capture: appended ${added} ${label} messages to ${threadId} (${reason || "event"})`,
 		);
-		return { threadId, normalized, messagesAdded: added };
+		return acknowledge(total, added);
 	} catch (err) {
+		if (client.isCheckpointConflictError?.(err)) {
+			try {
+				const reconciled = await client.appendThread({
+					threadId,
+					messages: allMessages,
+					deduplicate: true,
+					idempotencyKey: buildContentBoundIdempotencyKey(
+						threadId,
+						`${reason || "event"}-reconcile`,
+						0,
+						allMessages.length,
+						fingerprint,
+					),
+				});
+				const added = reconciled.messagesAdded ?? allMessages.length;
+				const total =
+					Number.isInteger(reconciled.totalMessages) &&
+					reconciled.totalMessages >= 0
+						? reconciled.totalMessages
+						: allMessages.length;
+				logger.info(
+					`capture: reconciled ${added} messages to ${threadId} (${reason || "event"})`,
+				);
+				return acknowledge(total, added);
+			} catch (reconcileErr) {
+				const message =
+					reconcileErr instanceof Error
+						? reconcileErr.message
+						: String(reconcileErr);
+				logger.warn(
+					`capture: thread reconcile failed for ${threadId}: ${message}`,
+				);
+				return null;
+			}
+		}
 		if (!client.isThreadNotFoundError(err)) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.warn(`capture: thread append failed for ${threadId}: ${message}`);
@@ -608,17 +709,16 @@ export async function appendOrCreateThread({
 	}
 
 	try {
-		const createdId = await client.createThread({
+		const created = await client.createThread({
 			threadId,
 			title,
 			messages: allMessages,
 			source: "openclaw",
 		});
-		_setSyncedMessageCount(threadId, allMessages.length);
 		logger.info(
-			`capture: created thread ${createdId} with ${allMessages.length} messages (${reason || "event"})`,
+			`capture: created thread ${created.threadId} with ${created.totalMessages} persisted messages (${reason || "event"})`,
 		);
-		return { threadId, normalized, messagesAdded: allMessages.length };
+		return acknowledge(created.totalMessages, allMessages.length);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		logger.warn(`capture: thread create failed for ${threadId}: ${message}`);

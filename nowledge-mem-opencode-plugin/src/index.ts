@@ -341,7 +341,14 @@ export default {
     )
 
     function syncStateFor(sessionID: string, spaceId = ambientSpaceId): SessionSyncState {
-      const key = sessionSyncLaneKey(sessionID, spaceId)
+      const key = sessionSyncLaneKey(
+        sessionID,
+        apiUrl,
+        apiKey,
+        spaceId,
+        ambientAgentId,
+        ambientHostAgentId,
+      )
       const existing = syncStates.get(key)
       if (existing) return existing
       const created: SessionSyncState = {}

@@ -1,4 +1,11 @@
 import { buildNmemSpawnEnv } from "./spawn-env.js";
+import {
+	isCheckpointConflictResponse,
+	isCheckpointedAppendAck,
+	isThreadAppendAck,
+	sessionSyncLaneKey,
+	threadCreateAck,
+} from "./session-delta.js";
 
 /**
  * Patch a single markdown section in a Working Memory document.
@@ -94,6 +101,26 @@ export class NowledgeMemClient {
 				? credentials.spaceId
 				: "";
 		this._spaceRef = String(resolvedSpace ?? "").trim();
+		this._threadSyncTimeoutMs = Number.isInteger(credentials.threadSyncTimeoutMs)
+			? credentials.threadSyncTimeoutMs
+			: 120_000;
+	}
+
+	getSpaceRef() {
+		return this._spaceRef;
+	}
+
+	getThreadSyncTimeoutMs() {
+		return this._threadSyncTimeoutMs;
+	}
+
+	cursorKey(threadId) {
+		return sessionSyncLaneKey(
+			threadId,
+			this._apiUrl,
+			this._apiKey,
+			this._spaceRef,
+		);
 	}
 
 	// ── API helpers (fallback path and direct operations) ─────────────────────
@@ -162,7 +189,11 @@ export class NowledgeMemClient {
 							: typeof data?.raw === "string"
 								? data.raw
 								: `HTTP ${response.status}`;
-				throw new Error(detail);
+				const error = new Error(detail);
+				error.status = response.status;
+				error.code =
+					typeof data?.error_code === "string" ? data.error_code : undefined;
+				throw error;
 			}
 			return data;
 		} finally {
@@ -585,6 +616,10 @@ export class NowledgeMemClient {
 	}
 
 	async createThread({ threadId, title, messages, source = "openclaw" }) {
+		const normalizedThreadId = String(threadId || "").trim();
+		if (!normalizedThreadId) {
+			throw new Error("createThread requires threadId");
+		}
 		const normalizedTitle = String(title || "").trim();
 		if (!normalizedTitle) {
 			throw new Error("createThread requires a non-empty title");
@@ -597,16 +632,21 @@ export class NowledgeMemClient {
 			"POST",
 			"/threads",
 			{
-				...(threadId ? { thread_id: String(threadId) } : {}),
+				thread_id: normalizedThreadId,
 				title: normalizedTitle,
 				source: String(source),
 				messages,
 			},
+			this._threadSyncTimeoutMs,
 		);
 
-		return String(
-			data.id ?? data.thread?.thread_id ?? data.thread_id ?? "created",
-		);
+		const ack = threadCreateAck(data, normalizedThreadId);
+		if (!ack) {
+			throw new Error(
+				"Thread create did not include an explicit persistence acknowledgement",
+			);
+		}
+		return ack;
 	}
 
 	async appendThread({
@@ -614,6 +654,7 @@ export class NowledgeMemClient {
 		messages,
 		deduplicate = true,
 		idempotencyKey,
+		expectedMessageCount,
 	}) {
 		const normalizedThreadId = String(threadId || "").trim();
 		if (!normalizedThreadId) {
@@ -623,6 +664,7 @@ export class NowledgeMemClient {
 			return { messagesAdded: 0, totalMessages: 0 };
 		}
 
+		const checkpointed = Number.isInteger(expectedMessageCount);
 		const data = await this.apiJson(
 			"POST",
 			`/threads/${encodeURIComponent(normalizedThreadId)}/append`,
@@ -632,11 +674,25 @@ export class NowledgeMemClient {
 				...(idempotencyKey
 					? { idempotency_key: String(idempotencyKey) }
 					: {}),
+				...(checkpointed
+					? { expected_message_count: expectedMessageCount }
+					: {}),
 			},
+			this._threadSyncTimeoutMs,
 		);
+		if (!isThreadAppendAck(data)) {
+			throw new Error(
+				"Thread append did not include an explicit persistence acknowledgement",
+			);
+		}
+		if (checkpointed && !isCheckpointedAppendAck(data)) {
+			throw new Error(
+				"Thread append was not acknowledged as checkpointed",
+			);
+		}
 		return {
-			messagesAdded: Number(data.messages_added ?? 0),
-			totalMessages: Number(data.total_messages ?? 0),
+			messagesAdded: data.messages_added,
+			totalMessages: data.total_messages,
 		};
 	}
 
@@ -679,9 +735,16 @@ export class NowledgeMemClient {
 			err instanceof Error ? err.message : String(err)
 		).toLowerCase();
 		return (
-			message.includes("thread not found") ||
-			message.includes("404") ||
-			message.includes("not found")
+			err?.code === "thread_not_found" ||
+			err?.status === 404 ||
+			(err?.status === 400 && message.includes("thread not found"))
+		);
+	}
+
+	isCheckpointConflictError(err) {
+		return (
+			err?.code === "checkpoint_conflict" ||
+			isCheckpointConflictResponse({ error_code: err?.code })
 		);
 	}
 

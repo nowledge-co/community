@@ -31,6 +31,23 @@ point, not complete evidence."""
 _READ_HOOK = Path(__file__).resolve().with_name("nmem-hook-read.sh")
 
 
+def _looks_like_grok_path(value: str | None) -> bool:
+    if not value:
+        return False
+    normalized = value.replace("\\", "/")
+    return "/.grok/" in normalized or normalized.endswith("/.grok")
+
+
+def _is_grok_runtime() -> bool:
+    return bool(
+        os.environ.get("GROK_SESSION_ID")
+        or os.environ.get("GROK_HOOK_EVENT")
+        or os.environ.get("GROK_WORKSPACE_ROOT")
+        or os.environ.get("GROK_PLUGIN_ROOT")
+        or _looks_like_grok_path(os.environ.get("CLAUDE_PLUGIN_ROOT"))
+    )
+
+
 def _read_hook_input() -> dict[str, Any]:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -104,6 +121,11 @@ def _write_response(additional_context: str) -> None:
 def main(payload: dict[str, Any] | None = None) -> int:
     if payload is None:
         payload = _read_hook_input()
+
+    # Grok Build ignores stdout from passive SubagentStart hooks. Avoid a
+    # Context Bundle read that cannot reach the child model.
+    if _is_grok_runtime():
+        return 0
 
     agent_type = str(payload.get("agent_type") or "").strip()
     context_types = _context_types()

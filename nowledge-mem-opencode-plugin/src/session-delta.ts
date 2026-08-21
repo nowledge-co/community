@@ -15,8 +15,23 @@ export type AcknowledgedDelta<T> = {
   reset: boolean
 }
 
-export function sessionSyncLaneKey(sessionId: string, spaceId?: string): string {
-  return `${spaceId ?? ""}\0${sessionId}`
+/**
+ * Builds a destination-lane key so cursor state never crosses servers, keys,
+ * spaces, or identities. Hashes the destination fields and binds the result
+ * to the host session id.
+ */
+export function sessionSyncLaneKey(
+  sessionId: string,
+  apiUrl: string,
+  apiKey: string | undefined,
+  spaceId: string | undefined,
+  agentId: string | undefined,
+  hostAgentId: string | undefined,
+): string {
+  const destination = createHash("sha256")
+    .update([apiUrl, apiKey ?? "", spaceId ?? "", agentId ?? "", hostAgentId ?? ""].join("\0"))
+    .digest("hex")
+  return `${destination}\0${sessionId}`
 }
 
 export function stableMessageFingerprint(message: unknown): string {

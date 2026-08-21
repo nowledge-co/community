@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Automatic Claude-compatible thread capture now durably enqueues the exact
   session and returns without waiting for a complete transcript import.
+- Grok Build no longer performs Context Bundle reads from passive
+  `SessionStart` or `SubagentStart` hooks whose stdout the host discards. The
+  plugin now documents model-invoked `read-working-memory` as Grok's context
+  path and adds trust and hook-registration verification for session capture.
 
 ## [0.7.23] - 2026-08-10
 

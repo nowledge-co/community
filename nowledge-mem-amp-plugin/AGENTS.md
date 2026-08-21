@@ -40,6 +40,7 @@ The plugin reads the shared Nowledge Mem client config at `~/.nowledge-mem/confi
 | `NMEM_HOST_AGENT_ID` | *(none)* | Advanced external-alias mapping. |
 | `NMEM_AMP_AUTO_SYNC` | `1` | Set to `0`/`false`/`off`/`no` to disable automatic session capture. |
 | `NMEM_AMP_AUTO_SYNC_DEBOUNCE_MS` | `1500` | Debounce window for automatic capture. |
+| `NMEM_SYNC_TIMEOUT_MS` | `120000` | Automatic thread-sync timeout (1s–30min). Manual save stays at 120s. |
 
 ## Customize without editing the plugin
 

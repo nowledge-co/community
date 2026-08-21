@@ -1,15 +1,16 @@
-// Generated from src/index.ts. Run npm run build before publishing.
+// Generated from src/index.ts. Run bun run build before publishing.
 
-// nowledge-mem-opencode-plugin/src/index.ts
+// src/index.ts
 import { tool } from "@opencode-ai/plugin";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-// nowledge-mem-opencode-plugin/src/session-delta.ts
+// src/session-delta.ts
 import { createHash } from "node:crypto";
-function sessionSyncLaneKey(sessionId, spaceId) {
-  return `${spaceId ?? ""}\0${sessionId}`;
+function sessionSyncLaneKey(sessionId, apiUrl, apiKey, spaceId, agentId, hostAgentId) {
+  const destination = createHash("sha256").update([apiUrl, apiKey ?? "", spaceId ?? "", agentId ?? "", hostAgentId ?? ""].join("\0")).digest("hex");
+  return `${destination}\0${sessionId}`;
 }
 function stableMessageFingerprint(message) {
   return JSON.stringify(message);
@@ -94,7 +95,7 @@ function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprin
   };
 }
 
-// nowledge-mem-opencode-plugin/src/thread-sync-timeout.ts
+// src/thread-sync-timeout.ts
 var DEFAULT_THREAD_SYNC_TIMEOUT_MS = 12e4;
 var MIN_THREAD_SYNC_TIMEOUT_MS = 1e3;
 var MAX_THREAD_SYNC_TIMEOUT_MS = 30 * 6e4;
@@ -106,7 +107,7 @@ function resolveThreadSyncTimeoutMs(raw) {
   return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed));
 }
 
-// nowledge-mem-opencode-plugin/src/index.ts
+// src/index.ts
 var THREAD_SYNC_TIMEOUT_MS = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS);
 var BEHAVIORAL_GUIDANCE = `## Nowledge Mem
 
@@ -355,7 +356,14 @@ ${reasoning}
       (process.env.NMEM_OPENCODE_AUTO_SYNC ?? "1").trim().toLowerCase()
     );
     function syncStateFor(sessionID, spaceId = ambientSpaceId) {
-      const key = sessionSyncLaneKey(sessionID, spaceId);
+      const key = sessionSyncLaneKey(
+        sessionID,
+        apiUrl,
+        apiKey,
+        spaceId,
+        ambientAgentId,
+        ambientHostAgentId
+      );
       const existing = syncStates.get(key);
       if (existing) return existing;
       const created = {};
