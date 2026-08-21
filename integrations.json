@@ -1308,7 +1308,7 @@
       "name": "DeepSeek Harness",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-deepseek-harness-plugin",
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
       "transport": "dsh-bundle+mcp+cli",
