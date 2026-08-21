@@ -197,7 +197,8 @@ Use `CLAUDE.local.md` for small personal memory-behavior changes such as "prefer
 
 The `nmem` CLI (already installed alongside this plugin) can do a lot more
 than the per-turn MCP tools cover -- including graph and relationship
-queries:
+queries. **We recommend reaching for `nmem` directly** whenever you need
+something outside the per-turn tool set:
 
 ```bash
 nmem graph expand <memory-or-crystal-id> --depth 2
