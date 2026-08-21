@@ -220,7 +220,7 @@ flowchart TD
 
 **Key points:**
 - Thread capture is unconditional: every conversation is saved and searchable via `nowledge_mem_thread_search`
-- Thread sync is incremental: the plugin preserves the real transcript but appends only the unsynced tail instead of replaying the whole session
+- Thread sync is incremental: the plugin preserves the real transcript, appends only the unsynced tail, and requires Mem's checkpointed acknowledgement before the local cursor advances
 - LLM distillation only runs at `agent_end`, not during compaction/reset checkpoints
 - Distilled memories carry `sourceThreadId`, linking them back to the source conversation
 - Cooldown (`digestMinInterval`, default 300s) prevents burst distillation
@@ -498,6 +498,7 @@ NMEM_CORPUS_MAX_RESULTS=5
 NMEM_CORPUS_MIN_SCORE=0
 NMEM_API_URL=https://...
 NMEM_API_KEY=your-key
+NMEM_SYNC_TIMEOUT_MS=120000
 ```
 
 ### Priority

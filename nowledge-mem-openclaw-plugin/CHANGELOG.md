@@ -4,6 +4,22 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+### Fixed
+
+- Automatic thread capture now sends the paired Mem checkpoint contract
+  (`expected_message_count`, a content-bound idempotency key, and
+  `append_mode: "checkpointed"`) and only advances the local cursor after an
+  explicit append/create acknowledgement.
+- Same-length and earlier-prefix replacements reset to a full replay. OpenClaw
+  compaction shrinks still reset the local cursor without replaying the
+  compacted summary.
+- Destination-lane cursor state is isolated by API URL, credentials, and space.
+- Thread create/append honor `NMEM_SYNC_TIMEOUT_MS` with a 120s default and
+  1-second to 30-minute bounds.
+- Automatic capture now skips persist until a user+assistant pair exists,
+  so a user-only reset checkpoint is not stored as a complete thread.
+
+
 ## [0.8.31] - 2026-07-12
 
 ### Improved
