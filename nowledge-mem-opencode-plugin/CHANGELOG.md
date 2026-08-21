@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.9] - 2026-08-19
+
+### Fixed
+
+- Automatic session checkpoints now isolate cursor state by destination
+  lane (API URL, API key, space, and AI Identity), not just the ambient
+  space id. Switching server, key, or identity no longer reuses another
+  lane's acknowledged suffix.
+
 ## [0.3.8] - 2026-08-19
 
 ### Fixed

@@ -523,7 +523,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.3.8"
+    assert opencode_pkg["version"] == "0.3.9"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -1464,7 +1464,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.31"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.3.8"
+    assert by_id["opencode"]["version"] == "0.3.9"
     assert by_id["pi"]["version"] == "0.8.7"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
@@ -1730,7 +1730,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.3.8"
+    assert pkg["version"] == "0.3.9"
     assert opencode_registry["version"] == pkg["version"]
     assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source
@@ -1738,7 +1738,7 @@ def test_opencode_thread_sync_timeout_contract():
     assert "timeoutMs: 10_000" not in source
     assert "NMEM_SYNC_TIMEOUT_MS" in readme
     assert "later lifecycle sync safely reconciles" in readme
-    assert "## [0.3.8] - 2026-08-19" in changelog
+    assert "## [0.3.9] - 2026-08-19" in changelog
 
 
 def test_amp_plugin_static_contract_is_self_contained():

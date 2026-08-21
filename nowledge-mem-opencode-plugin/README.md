@@ -57,7 +57,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.8"]
+  "plugin": ["opencode-nowledge-mem@0.3.9"]
 }
 ```
 
@@ -173,7 +173,7 @@ The plugin's Context Bundle, Working Memory, search, save, and full-session thre
 
 When a single request names another Space, OpenCode can pass `space` or `space_id` directly to the relevant `nowledge_mem_*` tool. The ambient setting remains the default only for calls that do not provide an explicit Space.
 
-For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned OpenCode worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced external aliases. Context Bundle will use the stable identity while keeping `source_app=opencode` for provenance.
+For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned OpenCode worker. Add `NMEM_SPACE` only when that run should override the AI Identity's default space. `NMEM_HOST_AGENT_ID` is for advanced external aliases. Context Bundle will use the stable identity while keeping `source_app=opencode` for provenance. Automatic session checkpoints isolate cursor state by destination lane (API URL, API key, space, and identity) so one process cannot reuse another destination's acknowledged suffix.
 
 Shared spaces, default retrieval, and agent guidance still come from Mem's own space profile. OpenCode should pick the lane once, not invent a second plugin-local memory partition.
 
