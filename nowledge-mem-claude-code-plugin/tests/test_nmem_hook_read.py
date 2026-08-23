@@ -319,13 +319,22 @@ def test_read_hook_invokes_windows_nmem_cmd_directly(tmp_path):
     calls = tmp_path / "cmd.log"
 
     nmem_cmd = bin_dir / "nmem.cmd"
-    nmem_cmd.write_text(
-        f'''#!/bin/sh
+    if os.name == "nt":
+        nmem_cmd.write_text(
+            f'''@echo off
+> "{calls}" echo %*
+echo {{"exists": true, "content": "cmd briefing"}}
+''',
+            encoding="utf-8",
+        )
+    else:
+        nmem_cmd.write_text(
+            f'''#!/bin/sh
 printf '%s\\n' "$*" > "{calls}"
 printf '%s\\n' '{{"exists": true, "content": "cmd briefing"}}'
 ''',
-        encoding="utf-8",
-    )
+            encoding="utf-8",
+        )
     nmem_cmd.chmod(0o755)
 
     result = _run_hook(
