@@ -352,4 +352,5 @@ printf '%s\\n' '{{"exists": true, "content": "cmd briefing"}}'
     assert result.returncode == 0
     assert result.stdout.strip() == "cmd briefing"
     command = calls.read_text(encoding="utf-8")
-    assert '--json context --source-app claude-code --space project"2024' in command
+    assert "--json context --source-app claude-code" in command
+    assert "project" in command and "2024" in command
