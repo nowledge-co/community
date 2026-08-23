@@ -313,27 +313,20 @@ def test_read_hook_falls_back_to_local_memory_file_without_nmem(tmp_path):
     assert result.stdout.strip() == "file briefing"
 
 
-def test_read_hook_invokes_windows_nmem_cmd_by_command_name(tmp_path):
+def test_read_hook_invokes_windows_nmem_cmd_directly(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "cmd.log"
 
     nmem_cmd = bin_dir / "nmem.cmd"
-    nmem_cmd.write_text("", encoding="utf-8")
-    nmem_cmd.chmod(0o755)
-
-    cmd_exe = bin_dir / "cmd.exe"
-    cmd_exe.write_text(
-        f"""#!/bin/sh
+    nmem_cmd.write_text(
+        f'''#!/bin/sh
 printf '%s\\n' "$*" > "{calls}"
-case "$*" in
-  *"nmem.cmd"*) printf '%s\\n' '{{"exists": true, "content": "cmd briefing"}}' ;;
-  *) exit 1 ;;
-esac
-""",
+printf '%s\\n' '{{"exists": true, "content": "cmd briefing"}}'
+''',
         encoding="utf-8",
     )
-    cmd_exe.chmod(0o755)
+    nmem_cmd.chmod(0o755)
 
     result = _run_hook(
         tmp_path,
@@ -350,5 +343,4 @@ esac
     assert result.returncode == 0
     assert result.stdout.strip() == "cmd briefing"
     command = calls.read_text(encoding="utf-8")
-    assert '"nmem.cmd" "--json" "context" "--source-app" "claude-code"' in command
-    assert '"project\\"2024"' in command
+    assert '--json context --source-app claude-code --space project"2024' in command
