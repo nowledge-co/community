@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4
+
+- Flushes DSH write-behind session persistence before exporting a completed
+  turn, while keeping Mem capture fail-open when the host storage backend is
+  unavailable.
+- Detects the Context Bundle from DSH's model-visible derived message surface,
+  so compaction can re-inject it when the prior snapshot is no longer visible.
+
 ## 0.1.3
 
 - Makes the sandbox-unavailable `danger-full-access` retry fail closed unless

@@ -5,6 +5,8 @@ import {
   buildThreadImportArgs,
   sessionThreadTitle,
 } from '../src/thread-import.js'
+import { hasContextBundle } from '../src/context.js'
+import { flushBeforeImport } from '../src/session-flush.js'
 
 function userEvent(seq, content, source = { kind: 'user' }) {
   return {
@@ -87,4 +89,28 @@ test('rebuilds reconciliation arguments from the full payload', () => {
   assert.equal(argumentValue(reconciliationArgs, '--idempotency-key'), undefined)
   assert.equal(argumentValue(reconciliationArgs, '--space-id'), 'space-1')
   assert.equal(argumentValue(reconciliationArgs, '--agent-id'), 'agent-1')
+})
+
+test('checks the model-visible session projection after compaction', () => {
+  const contextMessage = {
+    source: { kind: 'plugin', plugin: 'nowledge-mem', form: 'snapshot' },
+  }
+
+  assert.equal(hasContextBundle({ deriveMessages: () => [contextMessage] }), true)
+  assert.equal(hasContextBundle({ deriveMessages: () => [] }), false)
+})
+
+test('flushes DSH write-behind persistence before import and fails open', async () => {
+  const calls = []
+  const session = {}
+  const ctx = { sessions: { flush: async value => calls.push(value) } }
+
+  assert.equal(await flushBeforeImport(ctx, session, () => assert.fail('unexpected flush error')), true)
+  assert.deepEqual(calls, [session])
+
+  const error = new Error('storage unavailable')
+  const reported = []
+  const failingCtx = { sessions: { flush: async () => { throw error } } }
+  assert.equal(await flushBeforeImport(failingCtx, session, value => reported.push(value)), false)
+  assert.deepEqual(reported, [error])
 })
