@@ -3,22 +3,18 @@
 
 NMEM_COMMAND="$(command -v nmem 2>/dev/null || true)"
 case "$NMEM_COMMAND" in
-  ""|*.cmd|*.CMD)
+  "")
     if command -v nmem.cmd >/dev/null 2>&1; then
-    escape_cmd_arg() {
-      printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
-    }
-
-    nmem() {
-      q=""
-      for a in "$@"; do
-        q="$q \"$(escape_cmd_arg "$a")\""
-      done
-      cmd.exe /s /c "\"nmem.cmd\"$q"
-    }
+      NMEM_COMMAND="$(command -v nmem.cmd)"
     fi
     ;;
 esac
+
+if [ -n "$NMEM_COMMAND" ]; then
+  nmem() {
+    "$NMEM_COMMAND" "$@"
+  }
+fi
 
 PY="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
 
