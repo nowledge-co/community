@@ -133,6 +133,21 @@ Copilot CLI already has a native instruction layer. Use that as your override pa
 
 Keep the plugin for lifecycle hooks and capture. Put your custom memory behavior in Copilot instruction files so updates do not wipe it out.
 
+## Beyond the default tools
+
+Use the MCP tools for the day-to-day per-turn loop. For anything beyond
+that -- including graph and relationship queries -- reach for the `nmem`
+CLI directly (already installed alongside this plugin). We recommend it
+whenever you hit a gap in the per-turn tool set:
+
+```bash
+nmem graph expand <memory-or-crystal-id> --depth 2
+nmem graph evolves <memory-id>
+```
+
+Run `nmem --help` (and `nmem graph --help`, `nmem <command> --help`, etc.)
+to see its full capabilities.
+
 ## Troubleshooting
 
 **nmem not found:** Install with `pip install nmem-cli` or `pipx install nmem-cli`. If you're in WSL, see the [WSL setup](#wsl-setup) above.
