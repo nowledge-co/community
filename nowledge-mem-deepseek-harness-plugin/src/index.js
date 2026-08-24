@@ -14,6 +14,8 @@ import z from '@deepseek-ai/schemastery'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
 import { DEFAULT_PROMPT_RECALL_PATTERN, shouldRecallForPrompt } from './recall.js'
+import { hasContextBundle } from './context.js'
+import { flushBeforeImport } from './session-flush.js'
 import {
   errorMessage,
   isSandboxUnavailableError,
@@ -28,7 +30,7 @@ import {
 } from './thread-import.js'
 
 export const name = 'nowledge-mem'
-export const inject = ['agents', 'shell']
+export const inject = ['agents', 'sessions', 'shell']
 
 const DEFAULT_SOURCE_APP = 'deepseek-harness'
 const DEFAULT_CLI_PATH = 'nmem'
@@ -247,13 +249,6 @@ function pluginContextMessage(form, sectionName, text) {
   })
 }
 
-function hasContextBundle(session) {
-  return session.events.some(event => event.type === 'user/message'
-    && event.data.source.kind === 'plugin'
-    && event.data.source.plugin === name
-    && event.data.source.form === 'snapshot')
-}
-
 async function loadContextMessage(ctx, config, signal, session) {
   const output = successfulStdout(await runNmem(
     ctx,
@@ -459,7 +454,7 @@ export function apply(ctx, config = {}) {
     if (decision.kind === 'reject' || signal.aborted) return decision
     try {
       const additions = []
-      if (resolved.contextOnSessionStart && !hasContextBundle(agent.session)) {
+      if (resolved.contextOnSessionStart && !hasContextBundle(agent.session, name)) {
         const contextMessage = await loadContextMessage(ctx, resolved, signal, agent.session)
         if (contextMessage !== undefined) additions.push(contextMessage)
       }
@@ -484,6 +479,14 @@ export function apply(ctx, config = {}) {
       .catch(() => undefined)
       .then(async () => {
         try {
+          // DSH persistence is write-behind. Make the session log durable before
+          // exporting its events, while keeping Mem capture fail-open if the
+          // host persistence backend is unavailable.
+          await flushBeforeImport(
+            ctx,
+            session,
+            error => warn(ctx, `nowledge-mem: DSH session flush failed before transcript import: ${errorMessage(error)}`),
+          )
           const acknowledgedCursor = await importSession(
             ctx,
             resolved,
