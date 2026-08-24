@@ -1688,7 +1688,7 @@
     {
       "id": "langgraph",
       "name": "LangGraph",
-      "category": "orchestrator",
+      "category": "framework",
       "type": "connector",
       "version": "0.1.0",
       "directory": "nowledge-mem-langgraph",
