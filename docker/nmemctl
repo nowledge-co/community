@@ -489,27 +489,33 @@ cmd_license() {
       ;;
     activate)
       local code="${2:-}"
-      [[ -n "$code" ]] || fail "usage: ./nmemctl license activate <LICENSE-ID>"
+      [[ -n "$code" ]] || fail "usage: ./nmemctl license activate <LICENSE-CODE>"
       bring_up_and_wait
       step "Activating license"
-      # POST /api/license/activate with {"license_id":"..."}. The license id
-      # is embedded verbatim in a JSON body; reject characters that would
+      # POST /api/license/activate with {"license_code":"..."}. The license
+      # code is embedded verbatim in a JSON body; reject characters that would
       # break out of the quoted string so we never emit malformed JSON.
       case "$code" in
-        *\"*|*\\*) fail "invalid license id (contains quote or backslash)" ;;
+        *\"*|*\\*) fail "invalid license code (contains quote or backslash)" ;;
       esac
       local out
-      out="$("${DC[@]}" exec -T "$SVC" curl -fsS -X POST \
+      out="$("${DC[@]}" exec -T "$SVC" curl -sS -X POST \
         -H 'Content-Type: application/json' \
-        -d "{\"license_id\":\"${code}\"}" \
-        http://127.0.0.1:14242/api/license/activate 2>/dev/null || true)"
-      [[ -n "$out" ]] || fail "license activation request failed (no response from /api/license/activate)."
+        -d "{\"license_code\":\"${code}\"}" \
+        http://127.0.0.1:14242/api/license/activate 2>/dev/null)"
+      [[ -n "$out" ]] || fail "license activation request failed (empty response from /api/license/activate)."
+      local activation_status
+      activation_status="$(printf '%s' "$out" | _json_field status)"
+      case "$activation_status" in
+        activated|verified_offline|verified_offline_pending_activation) ;;
+        *) fail "license activation failed: $out" ;;
+      esac
       printf '%s\n' "$out" | sed 's/^/    /'
       step "License status"
       print_license_status || warn "license status unavailable"
       ;;
     *)
-      fail "usage: ./nmemctl license [status | activate LICENSE-ID]"
+      fail "usage: ./nmemctl license [status | activate LICENSE-CODE]"
       ;;
   esac
 }
