@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed automatic session startup and stop capture when Cursor runs plugin
+  hooks from a project directory instead of the installed plugin directory.
 - Stop capture now hands the exact conversation transcript to the shared
   durable queue instead of waiting for the full importer in the hook process.
 
