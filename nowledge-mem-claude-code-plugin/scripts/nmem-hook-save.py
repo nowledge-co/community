@@ -330,11 +330,14 @@ def _cmd_exe_path(path: str) -> str:
 
 def _build_nmem_command(nmem: str, *args: str) -> list[str]:
     if nmem.lower().endswith(".cmd"):
+        command_line = subprocess.list2cmdline([_cmd_exe_path(nmem), *args])
         return [
             "cmd.exe",
             "/s",
             "/c",
-            subprocess.list2cmdline([_cmd_exe_path(nmem), *args]),
+            # /s /c strips the first and last quote pair. Wrap the complete
+            # command so a quoted .cmd path keeps its executable boundary.
+            f'"{command_line}"',
         ]
     return [nmem, *args]
 
