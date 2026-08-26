@@ -198,6 +198,20 @@ def test_build_command_wraps_windows_cmd_for_wsl_bridge():
     assert "--session-id session-1" in command[3]
 
 
+def test_build_command_preserves_spaces_in_windows_cmd_path():
+    command = nmem_hook_save._build_command(
+        r"C:\Users\Alice\AppData\Local\Nowledge Mem CLI\bin\nmem.cmd",
+        {"session_id": "session-with-spaces"},
+    )
+
+    assert command[:3] == ["cmd.exe", "/s", "/c"]
+    assert command[3].startswith(
+        r'""C:\Users\Alice\AppData\Local\Nowledge Mem CLI\bin\nmem.cmd"'
+    )
+    assert command[3].endswith('"')
+    assert "--session-id session-with-spaces" in command[3]
+
+
 def test_build_command_converts_wsl_project_path_for_windows_cmd():
     with patch.object(nmem_hook_save.shutil, "which", return_value=None), \
         patch.dict(nmem_hook_save.os.environ, {"WSL_DISTRO_NAME": "Ubuntu"}):
