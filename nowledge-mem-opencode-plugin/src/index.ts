@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
+import { createNmemCliRunner } from "./cli-runner.mjs"
 import {
   appendAcknowledgedRemoteCount,
   createAcknowledgedRemoteCount,
@@ -55,18 +56,21 @@ export default {
   id: "nowledge-mem",
   server: async (input) => {
     const { $, client, directory } = input
+    const runNmemCli = createNmemCliRunner($)
 
     // --- CLI transport (for memory operations) ---
 
     async function nmem(args: string[]): Promise<string> {
       try {
-        // Bun's $ tagged template escapes each array element as a separate
-        // shell argument, so values containing spaces/quotes are safe.
-        const result = await $`nmem --json ${withAmbientSpaceArg(args)}`.text()
+        const result = await runNmemCli(withAmbientSpaceArg(args))
         return result.trim()
       } catch (err: any) {
         const stderr = String(err?.stderr ?? "")
-        if (stderr.includes("command not found") || stderr.includes("not recognized")) {
+        if (
+          err?.code === "ENOENT" ||
+          stderr.includes("command not found") ||
+          stderr.includes("not recognized")
+        ) {
           return JSON.stringify({
             error: "nmem CLI not found. Install it from Nowledge Mem: Settings > Developer Tools > Install CLI, or run: pip install nmem-cli",
           })
