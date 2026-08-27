@@ -25,7 +25,7 @@ After install, start Nowledge Mem Desktop or point your local `nmem` CLI at your
 The standard `mcp.json` deliberately points to local Mem:
 
 ```text
-http://127.0.0.1:14242/mcp/
+http://127.0.0.1:14242/mcp
 ```
 
 Agent Plugins 1.0 allows literal HTTP headers, but does not define a safe cross-client credential reference for API keys. Do not publish private keys in this package.

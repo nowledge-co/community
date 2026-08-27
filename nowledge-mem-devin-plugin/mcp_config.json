@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "nowledge-mem": {
-      "serverUrl": "http://127.0.0.1:14242/mcp/",
+      "serverUrl": "http://127.0.0.1:14242/mcp",
       "headers": {
         "APP": "Devin"
       }

@@ -42,7 +42,7 @@ if (existsSync(join(root, ".mcp.json"))) {
   errors.push("Devin loads mcp_config.json, not .mcp.json");
 }
 const server = mcp.mcpServers?.["nowledge-mem"];
-if (server?.serverUrl !== "http://127.0.0.1:14242/mcp/") {
+if (server?.serverUrl !== "http://127.0.0.1:14242/mcp") {
   errors.push("bundled MCP must remain credential-free loopback");
 }
 if (JSON.stringify(mcp).match(/api[_-]?key|authorization|bearer/i)) {

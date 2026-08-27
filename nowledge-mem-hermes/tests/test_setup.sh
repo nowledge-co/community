@@ -214,7 +214,7 @@ set -e
 
 [ "$mcp_status" -eq 0 ] \
   || { echo "$mcp_output" >&2; fail "mcp-no-python exited non-zero without Python"; }
-grep -Fq 'http://127.0.0.1:14242/mcp/' "$mcp_hermes/config.yaml" \
+grep -Fqx '    url: "http://127.0.0.1:14242/mcp"' "$mcp_hermes/config.yaml" \
   || fail "mcp-no-python did not write MCP server config to config.yaml"
 grep -Fq 'nowledge-mem:' "$mcp_hermes/config.yaml" \
   || fail "mcp-no-python did not write nowledge-mem MCP entry"

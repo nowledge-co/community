@@ -170,7 +170,7 @@ On current Codex builds, enabled plugins contribute `hooks/hooks.json` automatic
 
 The same setup asks `nmem` for a Codex MCP config and writes a managed `mcp_servers.nowledge-mem` block into `~/.codex/config.toml`. Besides remote URL and authentication, this block maps `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` through Codex's native environment-backed HTTP headers. A named Raft/Codex worker therefore appears automatically under **Context → AI Identities**, and its MCP searches and writes use that identity's configured default Space. Existing user-owned MCP blocks are never replaced.
 
-The package still includes a local fallback MCP server at `http://127.0.0.1:14242/mcp/`, but its static plugin manifest cannot resolve process-specific environment values. Rerun `scripts/install_hooks.py` after updating the plugin so named agents receive the identity-aware managed block.
+The package still includes a local fallback MCP server at `http://127.0.0.1:14242/mcp`, but its static plugin manifest cannot resolve process-specific environment values. Rerun `scripts/install_hooks.py` after updating the plugin so named agents receive the identity-aware managed block.
 
 If you prefer to copy a bundled example, see [`codex.config.example.toml`](./codex.config.example.toml).
 

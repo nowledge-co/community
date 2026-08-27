@@ -26,7 +26,7 @@ nmem config mcp show --host deepseek-harness
 The bundle connects to the local Mem MCP endpoint by default:
 
 ```text
-http://127.0.0.1:14242/mcp/
+http://127.0.0.1:14242/mcp
 ```
 
 For Nowledge Cloud or another remote Mem, set:
