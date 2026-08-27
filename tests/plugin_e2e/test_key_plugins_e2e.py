@@ -339,6 +339,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
+    assert registry_by_id["claude-code"]["capabilities"]["autoCapture"] is True
     assert {"SessionStart", "SubagentStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
     assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
     assert "nmem-hook-subagent.py" in json.dumps(claude_hooks["SubagentStart"])
@@ -611,7 +612,14 @@ def test_key_plugin_static_contracts_are_declared():
     cursor_stop_hook = (CURSOR_PLUGIN / "hooks" / "stop-save.mjs").read_text(
         encoding="utf-8"
     )
-    assert cursor_manifest["version"] == "0.2.0"
+    cursor_readme = (CURSOR_PLUGIN / "README.md").read_text(encoding="utf-8")
+    cursor_rule = (CURSOR_PLUGIN / "rules" / "nowledge-mem.mdc").read_text(
+        encoding="utf-8"
+    )
+    cursor_working_memory_skill = (
+        CURSOR_PLUGIN / "skills" / "read-working-memory" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert cursor_manifest["version"] == "0.2.1"
     assert cursor_hooks["hooks"]["sessionStart"][0]["timeout"] == 15
     assert cursor_hooks["hooks"]["stop"][0] == {
         "command": "node ./hooks/stop-save.mjs",
@@ -630,6 +638,9 @@ def test_key_plugin_static_contracts_are_declared():
     assert "'--session-id'," in cursor_stop_hook
     assert "ATTEMPT_DELAYS_MS" in cursor_stop_hook
     assert "latest" not in cursor_stop_hook.lower()
+    for cursor_guidance in (cursor_readme, cursor_rule, cursor_working_memory_skill):
+        assert "read_context_bundle" in cursor_guidance
+        assert "read_working_memory" not in cursor_guidance
 
     workbuddy_marketplace = _read_json(
         COMMUNITY_ROOT / ".workbuddy-plugin" / "marketplace.json"
@@ -1454,7 +1465,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "slock" in by_id["raft"]["aliases"]
     assert by_id["copilot-cli"]["version"] == "0.1.4"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
-    assert by_id["cursor"]["version"] == "0.2.0"
+    assert by_id["cursor"]["version"] == "0.2.1"
     assert by_id["cursor"]["transport"] == "mcp+hook"
     assert by_id["cursor"]["capabilities"]["autoCapture"] is True
     assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"

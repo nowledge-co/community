@@ -167,9 +167,23 @@ async function main() {
     'does not currently have a first-class Nowledge live session importer',
   ];
   const readmeText = await assertNonEmpty('README.md');
+  const workingMemorySkillText = await assertNonEmpty('skills/read-working-memory/SKILL.md');
   for (const staleClaim of staleClaims) {
     if (ruleText.includes(staleClaim) || readmeText.includes(staleClaim)) {
       fail(`Cursor plugin still contains stale transcript-capture guidance: ${staleClaim}`);
+    }
+  }
+
+  for (const [relPath, text] of [
+    ['README.md', readmeText],
+    ['rules/nowledge-mem.mdc', ruleText],
+    ['skills/read-working-memory/SKILL.md', workingMemorySkillText],
+  ]) {
+    if (text.includes('read_working_memory')) {
+      fail(`${relPath} must not instruct Cursor to call the Cloud-only read_working_memory compatibility tool`);
+    }
+    if (!text.includes('read_context_bundle')) {
+      fail(`${relPath} must point Cursor at the desktop read_context_bundle tool`);
     }
   }
 
