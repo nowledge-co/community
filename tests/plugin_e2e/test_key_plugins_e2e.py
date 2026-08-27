@@ -861,8 +861,11 @@ def test_key_plugin_static_contracts_are_declared():
     assert "--from" in kimi_hook
     assert "kimi-code" in kimi_hook
     assert "--session-id" in kimi_hook
-    assert "--apply" in kimi_hook
-    assert "NMEM_KIMI_SYNC_TIMEOUT" in kimi_hook
+    assert '"capture"' in kimi_hook
+    assert '"--sync"' in kimi_hook
+    assert '"--all-projects"' in kimi_hook
+    assert "ENQUEUE_TIMEOUT_SECONDS = 5" in kimi_hook
+    assert 'payload.get("status") == "enqueued"' in kimi_hook
     assert "CREATE_NO_WINDOW" in kimi_hook
 
     kimi_work_manifest = _read_json(KIMI_WORK_CONNECTOR / "kimi.plugin.json")
