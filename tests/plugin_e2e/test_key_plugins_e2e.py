@@ -552,15 +552,18 @@ def test_key_plugin_static_contracts_are_declared():
 
     copilot_manifest = _read_json(COPILOT_PLUGIN / ".claude-plugin" / "plugin.json")
     copilot_hooks = _read_json(COPILOT_PLUGIN / "hooks" / "hooks.json")
+    copilot_hook = (COPILOT_PLUGIN / "hooks" / "copilot-hook.py").read_text(
+        encoding="utf-8"
+    )
     copilot_capture = (COPILOT_PLUGIN / "hooks" / "copilot-stop-save.py").read_text(encoding="utf-8")
     assert copilot_manifest["version"] == "0.1.4"
     assert copilot_marketplace_plugin["version"] == copilot_manifest["version"]
     assert registry_by_id["copilot-cli"]["version"] == copilot_manifest["version"]
-    assert "--source-app copilot-cli" in json.dumps(copilot_hooks)
-    assert "NMEM_AGENT_ID" in json.dumps(copilot_hooks)
-    assert "NMEM_HOST_AGENT_ID" in json.dumps(copilot_hooks)
-    assert "rendered_markdown" in json.dumps(copilot_hooks)
-    assert "wm read" in json.dumps(copilot_hooks)
+    assert '"context", "--source-app", "copilot-cli"' in copilot_hook
+    assert "NMEM_AGENT_ID" in copilot_hook
+    assert "NMEM_HOST_AGENT_ID" in copilot_hook
+    assert "rendered_markdown" in copilot_hook
+    assert '"wm", "read"' in copilot_hook
     assert "CREATE_NO_WINDOW" in copilot_capture
 
     droid_manifest = _read_json(DROID_PLUGIN / ".factory-plugin" / "plugin.json")
