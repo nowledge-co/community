@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.10] - 2026-08-26
+
+### Fixed
+
+- CLI-backed tools now work in OpenCode Desktop's Node sidecar, where Bun's
+  shell helper is unavailable. The fallback launches `nmem` with an exact argv
+  array, preserving spaces and special characters without shell parsing. On
+  Windows it resolves the Rust executable behind the installed `nmem.cmd`
+  wrapper before launching it.
+
 ## [0.3.9] - 2026-08-19
 
 ### Fixed

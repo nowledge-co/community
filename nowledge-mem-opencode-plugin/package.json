@@ -1,12 +1,13 @@
 {
   "name": "opencode-nowledge-mem",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "Nowledge Mem plugin for OpenCode. Cross-tool knowledge with idle-event thread capture, Context Bundle, search, save, and handoffs.",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --external:@opencode-ai/plugin --outfile=dist/index.js --banner:js='// Generated from src/index.ts. Run npm run build before publishing.'",
-    "check": "npm run build && node --check dist/index.js"
+    "check": "npm run build && node --check dist/index.js",
+    "test": "node --test tests/*.test.mjs"
   },
   "files": [
     "dist",
