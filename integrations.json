@@ -29,7 +29,7 @@
         "search": true,
         "distill": true,
         "autoRecall": true,
-        "autoCapture": false,
+        "autoCapture": true,
         "graphExploration": false,
         "status": true
       },
@@ -610,7 +610,7 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "directory": "nowledge-mem-cursor-plugin",
       "transport": "mcp+hook",
       "capabilities": {

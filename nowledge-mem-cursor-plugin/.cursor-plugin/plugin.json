@@ -1,7 +1,7 @@
 {
   "name": "nowledge-mem-cursor",
   "description": "Bring startup context, memory recall, and automatic Cursor transcript capture into Cursor with Nowledge Mem.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Nowledge Labs",
     "email": "hello@nowledge-labs.ai",
