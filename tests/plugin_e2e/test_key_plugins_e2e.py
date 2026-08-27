@@ -637,8 +637,9 @@ def test_key_plugin_static_contracts_are_declared():
     assert "NMEM_HOST_AGENT_ID" in cursor_runtime
     assert "rendered_markdown" in cursor_runtime
     assert "'t'," in cursor_stop_hook
-    assert "'save'," in cursor_stop_hook
+    assert "'capture'," in cursor_stop_hook
     assert "'--session-id'," in cursor_stop_hook
+    assert "result.data?.status === 'enqueued'" in cursor_stop_hook
     assert "ATTEMPT_DELAYS_MS" in cursor_stop_hook
     assert "latest" not in cursor_stop_hook.lower()
     for cursor_guidance in (cursor_readme, cursor_rule, cursor_working_memory_skill):
