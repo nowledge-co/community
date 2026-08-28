@@ -3,13 +3,13 @@
   "hooks": {
     "sessionStart": [
       {
-        "command": "node ./hooks/session-start.mjs",
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs\"",
         "timeout": 15
       }
     ],
     "stop": [
       {
-        "command": "node ./hooks/stop-save.mjs",
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/stop-save.mjs\"",
         "timeout": 40
       }
     ]

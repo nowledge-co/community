@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -15,6 +15,22 @@ import {
 function temporaryStateRoot() {
   return mkdtempSync(path.join(os.tmpdir(), 'nmem-cursor-hook-test-'));
 }
+
+test('plugin hooks resolve bundled scripts independently of the project cwd', () => {
+  const hooksPath = new URL('../hooks/hooks.json', import.meta.url);
+  const hooks = JSON.parse(readFileSync(hooksPath, 'utf8'));
+
+  assert.equal(
+    hooks.hooks.sessionStart[0].command,
+    'node "${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs"',
+  );
+  assert.equal(
+    hooks.hooks.stop[0].command,
+    'node "${CURSOR_PLUGIN_ROOT}/hooks/stop-save.mjs"',
+  );
+  assert.doesNotMatch(hooks.hooks.sessionStart[0].command, /node \.\/hooks\//);
+  assert.doesNotMatch(hooks.hooks.stop[0].command, /node \.\/hooks\//);
+});
 
 test('sessionStart emits only the documented additional_context field', () => {
   const output = buildHookOutput({

@@ -196,8 +196,8 @@ async function main() {
     fail('hooks/hooks.json must define a sessionStart hook');
   }
   const sessionStartCommand = sessionStartHooks[0]?.command;
-  if (sessionStartCommand !== 'node ./hooks/session-start.mjs') {
-    fail('hooks/hooks.json sessionStart command must stay node ./hooks/session-start.mjs');
+  if (sessionStartCommand !== 'node "${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs"') {
+    fail('hooks/hooks.json sessionStart command must resolve from CURSOR_PLUGIN_ROOT');
   }
   if (sessionStartHooks[0]?.timeout !== 15) {
     fail('hooks/hooks.json sessionStart timeout must stay 15 seconds');
@@ -206,8 +206,8 @@ async function main() {
   if (!Array.isArray(stopHooks) || stopHooks.length === 0) {
     fail('hooks/hooks.json must define a stop hook for real transcript capture');
   }
-  if (stopHooks[0]?.command !== 'node ./hooks/stop-save.mjs') {
-    fail('hooks/hooks.json stop command must stay node ./hooks/stop-save.mjs');
+  if (stopHooks[0]?.command !== 'node "${CURSOR_PLUGIN_ROOT}/hooks/stop-save.mjs"') {
+    fail('hooks/hooks.json stop command must resolve from CURSOR_PLUGIN_ROOT');
   }
   if (stopHooks[0]?.timeout !== 40) {
     fail('hooks/hooks.json stop timeout must stay 40 seconds');

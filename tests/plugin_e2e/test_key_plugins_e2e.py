@@ -627,9 +627,12 @@ def test_key_plugin_static_contracts_are_declared():
         CURSOR_PLUGIN / "skills" / "read-working-memory" / "SKILL.md"
     ).read_text(encoding="utf-8")
     assert cursor_manifest["version"] == "0.2.1"
-    assert cursor_hooks["hooks"]["sessionStart"][0]["timeout"] == 15
+    assert cursor_hooks["hooks"]["sessionStart"][0] == {
+        "command": 'node "${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs"',
+        "timeout": 15,
+    }
     assert cursor_hooks["hooks"]["stop"][0] == {
-        "command": "node ./hooks/stop-save.mjs",
+        "command": 'node "${CURSOR_PLUGIN_ROOT}/hooks/stop-save.mjs"',
         "timeout": 40,
     }
     assert "'context', '--source-app', 'cursor'" in cursor_hook

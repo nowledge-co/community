@@ -10,6 +10,9 @@
   served by the desktop MCP surface, instead of the Cloud-only legacy
   `read_working_memory` compatibility name.
 
+- Fixed automatic session startup and stop capture when Cursor runs plugin
+  hooks from a project directory instead of the installed plugin directory.
+
 ### Changed
 
 - Stop capture now hands the exact conversation transcript to the shared
