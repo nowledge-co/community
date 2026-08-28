@@ -7,7 +7,7 @@ Kimi Work is separate from the Kimi Code CLI you may have installed yourself. It
 ## What You Get
 
 - Startup guidance that tells Kimi Work when to read Context Bundle or Working Memory.
-- A bundled local MCP declaration for Mem running at `http://127.0.0.1:14242/mcp/`.
+- A bundled local MCP declaration for Mem running at `http://127.0.0.1:14242/mcp`.
 - CLI fallback for memory search, save, status, and thread search.
 - Historical Kimi Work conversation import with `nmem t sync --from kimi-work`.
 

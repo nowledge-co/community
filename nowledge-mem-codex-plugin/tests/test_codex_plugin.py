@@ -1379,7 +1379,7 @@ class InstallHookTests(unittest.TestCase):
             "rendered": "\n".join(
                 [
                     "[mcp_servers.nowledge-mem]",
-                    'url = "http://127.0.0.1:14242/mcp/"',
+                    'url = "http://127.0.0.1:14242/mcp"',
                     "",
                     "[mcp_servers.nowledge-mem.http_headers]",
                     'APP = "Codex"',
@@ -1418,7 +1418,7 @@ class InstallHookTests(unittest.TestCase):
             "rendered": "\n".join(
                 [
                     "[mcp_servers.nowledge-mem]",
-                    'url = "http://127.0.0.1:14242/mcp/"',
+                    'url = "http://127.0.0.1:14242/mcp"',
                     "",
                     "[mcp_servers.nowledge-mem.http_headers]",
                     'APP = "Codex"',
@@ -1455,7 +1455,7 @@ class InstallHookTests(unittest.TestCase):
             "rendered": "\n".join(
                 [
                     "[mcp_servers.nowledge-mem]",
-                    'url = "http://127.0.0.1:14242/mcp/"',
+                    'url = "http://127.0.0.1:14242/mcp"',
                     "",
                     "[mcp_servers.nowledge-mem.http_headers]",
                     'Authorization = "Bearer nmem_test"',
@@ -1492,7 +1492,7 @@ class InstallHookTests(unittest.TestCase):
             "rendered": "\n".join(
                 [
                     "[mcp_servers.nowledge-mem]",
-                    'url = "http://127.0.0.1:14242/mcp/"',
+                    'url = "http://127.0.0.1:14242/mcp"',
                     "",
                     "[mcp_servers.nowledge-mem.http_headers]",
                     'Authorization = "Bearer nmem_test"',
@@ -1511,12 +1511,12 @@ class InstallHookTests(unittest.TestCase):
     def test_install_codex_mcp_config_writes_identity_aware_local_override(self):
         payload = {
             "apiKeyConfigured": False,
-            "endpoint": "http://127.0.0.1:14242/mcp/",
+            "endpoint": "http://127.0.0.1:14242/mcp",
             "warnings": [],
             "rendered": "\n".join(
                 [
                     "[mcp_servers.nowledge-mem]",
-                    'url = "http://127.0.0.1:14242/mcp/"',
+                    'url = "http://127.0.0.1:14242/mcp"',
                     'env_http_headers = { "X-Nmem-Agent-Id" = "NMEM_AGENT_ID" }',
                     "",
                     "[mcp_servers.nowledge-mem.http_headers]",
@@ -1554,12 +1554,12 @@ class InstallHookTests(unittest.TestCase):
         )
         payload = {
             "apiKeyConfigured": False,
-            "endpoint": "http://127.0.0.1:14242/mcp/",
+            "endpoint": "http://127.0.0.1:14242/mcp",
             "warnings": [],
             "rendered": "\n".join(
                 [
                     "[mcp_servers.nowledge-mem]",
-                    'url = "http://127.0.0.1:14242/mcp/"',
+                    'url = "http://127.0.0.1:14242/mcp"',
                     'env_http_headers = { "X-Nmem-Agent-Id" = "NMEM_AGENT_ID" }',
                     "",
                     "[mcp_servers.nowledge-mem.http_headers]",
@@ -1600,7 +1600,7 @@ class InstallHookTests(unittest.TestCase):
             "rendered": "\n".join(
                 [
                     "[mcp_servers.nowledge-mem]",
-                    'url = "http://127.0.0.1:14242/mcp/"',
+                    'url = "http://127.0.0.1:14242/mcp"',
                     "",
                     "[mcp_servers.nowledge-mem.http_headers]",
                     'Authorization = "Bearer nmem_test"',

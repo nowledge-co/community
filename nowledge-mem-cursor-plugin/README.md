@@ -6,7 +6,7 @@ This package follows Cursor's plugin format with `.cursor-plugin/plugin.json`, b
 
 ## What You Get
 
-- MCP-backed `read_working_memory`, `memory_search`, `thread_search`, `thread_fetch_messages`, `memory_add`, and `memory_update`
+- MCP-backed `read_context_bundle`, `memory_search`, `thread_search`, `thread_fetch_messages`, `memory_add`, and `memory_update`
 - Session-start Context Bundle or Working Memory bootstrap when `nmem` is available
 - Automatic import of the exact current Cursor Agent transcript on `stop`
 - Cursor rules for Working Memory timing, proactive recall, retrieval routing, and add-vs-update behavior

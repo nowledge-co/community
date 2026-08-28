@@ -1,10 +1,78 @@
-// Generated from src/index.ts. Run bun run build before publishing.
+// Generated from src/index.ts. Run npm run build before publishing.
 
 // src/index.ts
 import { tool } from "@opencode-ai/plugin";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
+// src/cli-runner.mjs
+import { execFile } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+var MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
+function createNmemCliRunner(shell, execFileImpl = execFile, { platform = process.platform, readFileImpl = readFileSync, existsImpl = existsSync } = {}) {
+  if (typeof shell === "function") {
+    return async (args) => shell`nmem --json ${args}`.text();
+  }
+  let commandPromise;
+  const command = async () => {
+    if (platform !== "win32") return "nmem";
+    commandPromise ??= resolveWindowsNmemExecutable(execFileImpl, readFileImpl, existsImpl);
+    return commandPromise;
+  };
+  return async (args) => {
+    const executable = await command();
+    if (!executable) {
+      const error = new Error("nmem CLI executable was not found");
+      error.code = "ENOENT";
+      throw error;
+    }
+    return new Promise((resolve, reject) => {
+      execFileImpl(
+        executable,
+        ["--json", ...args],
+        { encoding: "utf8", maxBuffer: MAX_OUTPUT_BYTES },
+        (error, stdout, stderr) => {
+          if (error) {
+            error.stderr = String(stderr ?? "");
+            reject(error);
+            return;
+          }
+          resolve(String(stdout ?? ""));
+        }
+      );
+    });
+  };
+}
+function runExecFile(execFileImpl, file, args, options) {
+  return new Promise((resolve) => {
+    execFileImpl(file, args, options, (error, stdout, stderr) => {
+      resolve({ error, stdout: String(stdout ?? ""), stderr: String(stderr ?? "") });
+    });
+  });
+}
+async function resolveWindowsNmemExecutable(execFileImpl, readFileImpl, existsImpl) {
+  const whereOptions = { encoding: "utf8", maxBuffer: 64 * 1024 };
+  const direct = await runExecFile(execFileImpl, "where.exe", ["nmem.exe"], whereOptions);
+  if (!direct.error) {
+    const directPath = direct.stdout.split(/\r?\n/).map((line) => line.trim()).find((line) => line && existsImpl(line));
+    if (directPath) return directPath;
+  }
+  const wrapper = await runExecFile(execFileImpl, "where.exe", ["nmem.cmd"], whereOptions);
+  if (wrapper.error) return null;
+  for (const candidate of wrapper.stdout.split(/\r?\n/).map((line) => line.trim())) {
+    if (!candidate) continue;
+    let contents;
+    try {
+      contents = readFileImpl(candidate, "utf8");
+    } catch {
+      continue;
+    }
+    const match = contents.match(/^\s*"([^"\r\n]+\.exe)"\s+%\*\s*$/m);
+    if (match?.[1] && existsImpl(match[1])) return match[1];
+  }
+  return null;
+}
 
 // src/session-delta.ts
 import { createHash } from "node:crypto";
@@ -142,13 +210,14 @@ var index_default = {
   id: "nowledge-mem",
   server: async (input) => {
     const { $, client, directory } = input;
+    const runNmemCli = createNmemCliRunner($);
     async function nmem(args) {
       try {
-        const result = await $`nmem --json ${withAmbientSpaceArg(args)}`.text();
+        const result = await runNmemCli(withAmbientSpaceArg(args));
         return result.trim();
       } catch (err) {
         const stderr = String(err?.stderr ?? "");
-        if (stderr.includes("command not found") || stderr.includes("not recognized")) {
+        if (err?.code === "ENOENT" || stderr.includes("command not found") || stderr.includes("not recognized")) {
           return JSON.stringify({
             error: "nmem CLI not found. Install it from Nowledge Mem: Settings > Developer Tools > Install CLI, or run: pip install nmem-cli"
           });
@@ -167,8 +236,8 @@ var index_default = {
     function readSharedConfig() {
       const path = join(homedir(), ".nowledge-mem", "config.json");
       try {
-        if (!existsSync(path)) return {};
-        const parsed = JSON.parse(readFileSync(path, "utf8"));
+        if (!existsSync2(path)) return {};
+        const parsed = JSON.parse(readFileSync2(path, "utf8"));
         return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
       } catch {
         return {};

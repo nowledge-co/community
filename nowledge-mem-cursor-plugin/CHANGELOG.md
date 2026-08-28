@@ -2,8 +2,19 @@
 
 ## Unreleased
 
+## [0.2.1] - 2026-08-27
+
+### Fixed
+
+- Pointed all Cursor MCP guidance at `read_context_bundle`, the briefing tool
+  served by the desktop MCP surface, instead of the Cloud-only legacy
+  `read_working_memory` compatibility name.
+
 - Fixed automatic session startup and stop capture when Cursor runs plugin
   hooks from a project directory instead of the installed plugin directory.
+
+### Changed
+
 - Stop capture now hands the exact conversation transcript to the shared
   durable queue instead of waiting for the full importer in the hook process.
 

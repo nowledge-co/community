@@ -93,7 +93,7 @@ class NowledgeSettings:
         return NowledgeSettings(
             api_url=api_url,
             api_key=_clean(self.api_key),
-            mcp_url=(self.mcp_url or f"{api_url}/mcp/").rstrip("/") + "/",
+            mcp_url=(self.mcp_url or f"{api_url}/mcp").rstrip("/"),
             application_id=application_id,
             identity=self.identity.normalized(),
             include_context=self.include_context,

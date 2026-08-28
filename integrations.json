@@ -29,7 +29,7 @@
         "search": true,
         "distill": true,
         "autoRecall": true,
-        "autoCapture": false,
+        "autoCapture": true,
         "graphExploration": false,
         "status": true
       },
@@ -1092,7 +1092,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.3.9",
+      "version": "0.3.10",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -2406,7 +2406,7 @@
         ]
       },
       "install": {
-        "command": "Point your MCP client at http://127.0.0.1:14242/mcp/",
+        "command": "Point your MCP client at http://127.0.0.1:14242/mcp",
         "docsUrl": "/docs/integrations#model-context-protocol-mcp"
       },
       "toolNaming": {

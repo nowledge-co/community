@@ -339,6 +339,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
+    assert registry_by_id["claude-code"]["capabilities"]["autoCapture"] is True
     assert {"SessionStart", "SubagentStart", "UserPromptSubmit", "PreCompact", "Stop"} <= set(claude_hooks)
     assert "nmem-hook-read.sh" in json.dumps(claude_hooks)
     assert "nmem-hook-subagent.py" in json.dumps(claude_hooks["SubagentStart"])
@@ -381,7 +382,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert agent_plugin_mcp["$schema"] == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
     assert agent_plugin_mcp["mcpServers"]["nowledge-mem"] == {
         "type": "streamable-http",
-        "url": "http://127.0.0.1:14242/mcp/",
+        "url": "http://127.0.0.1:14242/mcp",
     }
     assert "Authorization" not in json.dumps(agent_plugin_mcp)
     assert "Bearer" not in json.dumps(agent_plugin_mcp)
@@ -406,6 +407,10 @@ def test_key_plugin_static_contracts_are_declared():
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
     assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
+    assert (
+        codex_mcp["mcpServers"]["nowledge-mem"]["url"]
+        == "http://127.0.0.1:14242/mcp"
+    )
     assert {"SessionStart", "SubagentStart", "UserPromptSubmit", "Stop"} <= set(codex_hooks)
     assert "nmem-context.py" in json.dumps(codex_hooks["SessionStart"])
     assert "nmem-context.py" in json.dumps(codex_hooks["SubagentStart"])
@@ -523,7 +528,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.3.9"
+    assert opencode_pkg["version"] == "0.3.10"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -551,15 +556,18 @@ def test_key_plugin_static_contracts_are_declared():
 
     copilot_manifest = _read_json(COPILOT_PLUGIN / ".claude-plugin" / "plugin.json")
     copilot_hooks = _read_json(COPILOT_PLUGIN / "hooks" / "hooks.json")
+    copilot_hook = (COPILOT_PLUGIN / "hooks" / "copilot-hook.py").read_text(
+        encoding="utf-8"
+    )
     copilot_capture = (COPILOT_PLUGIN / "hooks" / "copilot-stop-save.py").read_text(encoding="utf-8")
     assert copilot_manifest["version"] == "0.1.4"
     assert copilot_marketplace_plugin["version"] == copilot_manifest["version"]
     assert registry_by_id["copilot-cli"]["version"] == copilot_manifest["version"]
-    assert "--source-app copilot-cli" in json.dumps(copilot_hooks)
-    assert "NMEM_AGENT_ID" in json.dumps(copilot_hooks)
-    assert "NMEM_HOST_AGENT_ID" in json.dumps(copilot_hooks)
-    assert "rendered_markdown" in json.dumps(copilot_hooks)
-    assert "wm read" in json.dumps(copilot_hooks)
+    assert '"context", "--source-app", "copilot-cli"' in copilot_hook
+    assert "NMEM_AGENT_ID" in copilot_hook
+    assert "NMEM_HOST_AGENT_ID" in copilot_hook
+    assert "rendered_markdown" in copilot_hook
+    assert '"wm", "read"' in copilot_hook
     assert "CREATE_NO_WINDOW" in copilot_capture
 
     droid_manifest = _read_json(DROID_PLUGIN / ".factory-plugin" / "plugin.json")
@@ -611,10 +619,20 @@ def test_key_plugin_static_contracts_are_declared():
     cursor_stop_hook = (CURSOR_PLUGIN / "hooks" / "stop-save.mjs").read_text(
         encoding="utf-8"
     )
-    assert cursor_manifest["version"] == "0.2.0"
-    assert cursor_hooks["hooks"]["sessionStart"][0]["timeout"] == 15
+    cursor_readme = (CURSOR_PLUGIN / "README.md").read_text(encoding="utf-8")
+    cursor_rule = (CURSOR_PLUGIN / "rules" / "nowledge-mem.mdc").read_text(
+        encoding="utf-8"
+    )
+    cursor_working_memory_skill = (
+        CURSOR_PLUGIN / "skills" / "read-working-memory" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    assert cursor_manifest["version"] == "0.2.1"
+    assert cursor_hooks["hooks"]["sessionStart"][0] == {
+        "command": 'node "${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs"',
+        "timeout": 15,
+    }
     assert cursor_hooks["hooks"]["stop"][0] == {
-        "command": "node ./hooks/stop-save.mjs",
+        "command": 'node "${CURSOR_PLUGIN_ROOT}/hooks/stop-save.mjs"',
         "timeout": 40,
     }
     assert "'context', '--source-app', 'cursor'" in cursor_hook
@@ -626,10 +644,14 @@ def test_key_plugin_static_contracts_are_declared():
     assert "NMEM_HOST_AGENT_ID" in cursor_runtime
     assert "rendered_markdown" in cursor_runtime
     assert "'t'," in cursor_stop_hook
-    assert "'save'," in cursor_stop_hook
+    assert "'capture'," in cursor_stop_hook
     assert "'--session-id'," in cursor_stop_hook
+    assert "result.data?.status === 'enqueued'" in cursor_stop_hook
     assert "ATTEMPT_DELAYS_MS" in cursor_stop_hook
     assert "latest" not in cursor_stop_hook.lower()
+    for cursor_guidance in (cursor_readme, cursor_rule, cursor_working_memory_skill):
+        assert "read_context_bundle" in cursor_guidance
+        assert "read_working_memory" not in cursor_guidance
 
     workbuddy_marketplace = _read_json(
         COMMUNITY_ROOT / ".workbuddy-plugin" / "marketplace.json"
@@ -683,6 +705,10 @@ def test_key_plugin_static_contracts_are_declared():
     assert (
         workbuddy_mcp["mcpServers"]["nowledge-mem"]["headers"]["APP"]
         == "WorkBuddy"
+    )
+    assert (
+        workbuddy_mcp["mcpServers"]["nowledge-mem"]["url"]
+        == "http://127.0.0.1:14242/mcp"
     )
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop", "SubagentStop", "SessionEnd"} <= set(
         workbuddy_hooks
@@ -846,8 +872,11 @@ def test_key_plugin_static_contracts_are_declared():
     assert "--from" in kimi_hook
     assert "kimi-code" in kimi_hook
     assert "--session-id" in kimi_hook
-    assert "--apply" in kimi_hook
-    assert "NMEM_KIMI_SYNC_TIMEOUT" in kimi_hook
+    assert '"capture"' in kimi_hook
+    assert '"--sync"' in kimi_hook
+    assert '"--all-projects"' in kimi_hook
+    assert "ENQUEUE_TIMEOUT_SECONDS = 5" in kimi_hook
+    assert 'payload.get("status") == "enqueued"' in kimi_hook
     assert "CREATE_NO_WINDOW" in kimi_hook
 
     kimi_work_manifest = _read_json(KIMI_WORK_CONNECTOR / "kimi.plugin.json")
@@ -863,7 +892,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert kimi_work_manifest["sessionStart"]["skill"] == "nowledge-mem"
     assert (
         kimi_work_manifest["mcpServers"]["nowledge-mem"]["url"]
-        == "http://127.0.0.1:14242/mcp/"
+        == "http://127.0.0.1:14242/mcp"
     )
     assert "hooks" not in kimi_work_manifest
     assert "nmem --json context --source-app kimi-work" in kimi_work_skill
@@ -1454,7 +1483,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "slock" in by_id["raft"]["aliases"]
     assert by_id["copilot-cli"]["version"] == "0.1.4"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
-    assert by_id["cursor"]["version"] == "0.2.0"
+    assert by_id["cursor"]["version"] == "0.2.1"
     assert by_id["cursor"]["transport"] == "mcp+hook"
     assert by_id["cursor"]["capabilities"]["autoCapture"] is True
     assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"
@@ -1464,7 +1493,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.32"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.3.9"
+    assert by_id["opencode"]["version"] == "0.3.10"
     assert by_id["pi"]["version"] == "0.8.7"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
@@ -1612,6 +1641,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "id: nowledge-mem-mcp" in patch
     assert "name: '@deepseek-ai/dsh-mcp-client'" in patch
     assert "serverName: nowledge_mem" in patch
+    assert "'http://127.0.0.1:14242/mcp').replace(/\\/+$/, '')" in patch
     assert "'X-Nowledge-Tool-Schema-Profile': 'slim'" in patch
     assert "Object.fromEntries(Object.entries" in patch
     assert "typeof value === 'string' && value.length > 0" in patch
