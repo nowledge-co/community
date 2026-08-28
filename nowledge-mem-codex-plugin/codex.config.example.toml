@@ -42,7 +42,7 @@ enabled = true
 # nmem config mcp show --host codex
 #
 # [mcp_servers.nowledge-mem]
-# url = "https://mem.example.com/mcp/"
+# url = "https://mem.example.com/mcp"
 # env_http_headers = { "X-Nmem-Agent-Id" = "NMEM_AGENT_ID", "X-Nmem-Host-Agent-Id" = "NMEM_HOST_AGENT_ID", "X-Nmem-Space-Id" = "NMEM_SPACE" }
 #
 # [mcp_servers.nowledge-mem.http_headers]

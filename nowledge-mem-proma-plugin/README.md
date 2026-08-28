@@ -46,7 +46,7 @@ Local Nowledge Mem:
 {
   "servers": {
     "nowledge-mem": {
-      "url": "http://127.0.0.1:14242/mcp/",
+      "url": "http://127.0.0.1:14242/mcp",
       "type": "streamableHttp",
       "enabled": true,
       "headers": {
@@ -63,7 +63,7 @@ Remote Nowledge Mem:
 {
   "servers": {
     "nowledge-mem": {
-      "url": "https://mem.example.com/mcp/",
+      "url": "https://mem.example.com/mcp",
       "type": "streamableHttp",
       "enabled": true,
       "headers": {
@@ -267,7 +267,7 @@ Logs are written to:
 
 - Proma uses `"servers"` as the top-level key in `mcp.json`, not `"mcpServers"`.
 - The `nowledge-mem` entry must include `"enabled": true`; recent Proma builds skip disabled or missing-enabled MCP entries and their related hooks.
-- Confirm the endpoint ends with `/mcp/`.
+- Confirm the endpoint ends with `/mcp` and has no trailing slash.
 - Restart Proma after changing `mcp.json`.
 
 **Hooks do not run**

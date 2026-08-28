@@ -2406,7 +2406,7 @@
         ]
       },
       "install": {
-        "command": "Point your MCP client at http://127.0.0.1:14242/mcp/",
+        "command": "Point your MCP client at http://127.0.0.1:14242/mcp",
         "docsUrl": "/docs/integrations#model-context-protocol-mcp"
       },
       "toolNaming": {

@@ -15,7 +15,7 @@
   "skillInstructions": "Use Nowledge Mem for durable cross-tool memory. Prefer MCP tools when they are connected; use nmem CLI as the fallback and for Kimi Work transcript import.",
   "mcpServers": {
     "nowledge-mem": {
-      "url": "http://127.0.0.1:14242/mcp/",
+      "url": "http://127.0.0.1:14242/mcp",
       "enabled": true
     }
   },

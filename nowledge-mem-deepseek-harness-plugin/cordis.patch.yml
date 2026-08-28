@@ -21,7 +21,7 @@
       config:
         serverName: nowledge_mem
         transport: streamable-http
-        url: !!js process.env.NMEM_MCP_URL ?? process.env.NOWLEDGE_MEM_MCP_URL ?? 'http://127.0.0.1:14242/mcp/'
+        url: !!js (process.env.NMEM_MCP_URL ?? process.env.NOWLEDGE_MEM_MCP_URL ?? 'http://127.0.0.1:14242/mcp').replace(/\/+$/, '')
         headers: !!js >
           Object.fromEntries(Object.entries({
             APP: 'DeepSeek Harness',

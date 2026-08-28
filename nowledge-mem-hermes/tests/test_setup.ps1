@@ -51,7 +51,10 @@ try {
 
     $McpHome = Join-Path $TempRoot "mcp"
     & $Setup -Mcp -HermesHome $McpHome | Out-Null
-    Assert (([IO.File]::ReadAllText((Join-Path $McpHome "config.yaml"))).Contains("http://127.0.0.1:14242/mcp/")) "MCP config missing"
+    $McpConfig = [IO.File]::ReadAllText((Join-Path $McpHome "config.yaml"))
+    Assert ($McpConfig.Contains('url: "http://127.0.0.1:14242/mcp"')) "MCP config missing"
+    $LegacyMcpUrl = "http://127.0.0.1:14242/mcp" + "/"
+    Assert (-not $McpConfig.Contains($LegacyMcpUrl)) "MCP config uses legacy trailing slash"
     Assert (([IO.File]::ReadAllText((Join-Path $McpHome "SOUL.md"))).Contains("# Nowledge Mem for Hermes")) "MCP guidance missing"
 
     Write-Host "[ok] Hermes native PowerShell installer regression checks passed"

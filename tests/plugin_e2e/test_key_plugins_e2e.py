@@ -382,7 +382,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert agent_plugin_mcp["$schema"] == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
     assert agent_plugin_mcp["mcpServers"]["nowledge-mem"] == {
         "type": "streamable-http",
-        "url": "http://127.0.0.1:14242/mcp/",
+        "url": "http://127.0.0.1:14242/mcp",
     }
     assert "Authorization" not in json.dumps(agent_plugin_mcp)
     assert "Bearer" not in json.dumps(agent_plugin_mcp)
@@ -407,6 +407,10 @@ def test_key_plugin_static_contracts_are_declared():
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
     assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
+    assert (
+        codex_mcp["mcpServers"]["nowledge-mem"]["url"]
+        == "http://127.0.0.1:14242/mcp"
+    )
     assert {"SessionStart", "SubagentStart", "UserPromptSubmit", "Stop"} <= set(codex_hooks)
     assert "nmem-context.py" in json.dumps(codex_hooks["SessionStart"])
     assert "nmem-context.py" in json.dumps(codex_hooks["SubagentStart"])
@@ -699,6 +703,10 @@ def test_key_plugin_static_contracts_are_declared():
         workbuddy_mcp["mcpServers"]["nowledge-mem"]["headers"]["APP"]
         == "WorkBuddy"
     )
+    assert (
+        workbuddy_mcp["mcpServers"]["nowledge-mem"]["url"]
+        == "http://127.0.0.1:14242/mcp"
+    )
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop", "SubagentStop", "SessionEnd"} <= set(
         workbuddy_hooks
     )
@@ -881,7 +889,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert kimi_work_manifest["sessionStart"]["skill"] == "nowledge-mem"
     assert (
         kimi_work_manifest["mcpServers"]["nowledge-mem"]["url"]
-        == "http://127.0.0.1:14242/mcp/"
+        == "http://127.0.0.1:14242/mcp"
     )
     assert "hooks" not in kimi_work_manifest
     assert "nmem --json context --source-app kimi-work" in kimi_work_skill
@@ -1630,6 +1638,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "id: nowledge-mem-mcp" in patch
     assert "name: '@deepseek-ai/dsh-mcp-client'" in patch
     assert "serverName: nowledge_mem" in patch
+    assert "'http://127.0.0.1:14242/mcp').replace(/\\/+$/, '')" in patch
     assert "'X-Nowledge-Tool-Schema-Profile': 'slim'" in patch
     assert "Object.fromEntries(Object.entries" in patch
     assert "typeof value === 'string' && value.length > 0" in patch

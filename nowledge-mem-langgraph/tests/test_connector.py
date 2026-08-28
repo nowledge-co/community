@@ -72,6 +72,21 @@ def runtime(
     )
 
 
+@pytest.mark.parametrize(
+    ("mcp_url", "expected"),
+    [
+        (None, "http://mem.test/mcp"),
+        ("https://cloud.nowledge.co/mcp/", "https://cloud.nowledge.co/mcp"),
+    ],
+)
+def test_settings_normalize_mcp_url_without_trailing_slash(
+    mcp_url: str | None, expected: str
+) -> None:
+    settings = NowledgeSettings(api_url="http://mem.test/", mcp_url=mcp_url).normalized()
+
+    assert settings.mcp_url == expected
+
+
 def test_runtime_identity_is_atomic_and_server_identity_is_only_host_provenance() -> None:
     settings = NowledgeSettings(
         identity=NowledgeIdentity(

@@ -1,0 +1,23 @@
+name: MCP endpoint contract
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Reject legacy trailing-slash MCP endpoints
+        run: python -m unittest tests/plugin_e2e/test_mcp_endpoint_contract.py

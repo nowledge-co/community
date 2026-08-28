@@ -171,14 +171,14 @@ function Install-McpMode {
         Write-Host "[ok] MCP server already in $ConfigPath"
         $McpReady = $true
     } elseif (-not (Test-Path -LiteralPath $ConfigPath)) {
-        Write-Utf8File $ConfigPath "mcp_servers:`n  nowledge-mem:`n    url: `"http://127.0.0.1:14242/mcp/`"`n    timeout: 120`n"
+        Write-Utf8File $ConfigPath "mcp_servers:`n  nowledge-mem:`n    url: `"http://127.0.0.1:14242/mcp`"`n    timeout: 120`n"
         Write-Host "[ok] Created $ConfigPath with Nowledge Mem MCP server"
         $McpReady = $true
     } else {
         Write-Host "`n[action needed] $ConfigPath exists but does not contain nowledge-mem."
         Write-Host "Add this under the existing mcp_servers block:"
         Write-Host "  nowledge-mem:"
-        Write-Host '    url: "http://127.0.0.1:14242/mcp/"'
+        Write-Host '    url: "http://127.0.0.1:14242/mcp"'
         Write-Host "    timeout: 120"
     }
 

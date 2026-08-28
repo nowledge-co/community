@@ -28,7 +28,7 @@ In Cindy, add a custom MCP server named `nowledge-mem` using the generated URL
 and headers. For local desktop Mem, that points to:
 
 ```text
-http://127.0.0.1:14242/mcp/
+http://127.0.0.1:14242/mcp
 ```
 
 For Nowledge Cloud, Access Anywhere, or a self-hosted server, configure the
