@@ -41,7 +41,7 @@ passes. The publisher is taken from the authenticated `clawhub` account.
 
 ```bash
 clawhub --workdir "$PWD" publish . \
-  --slug openclaw-nowledge-mem \
+  --slug nowledge-mem \
   --version 0.8.33 \
   --tags latest \
   --changelog "OpenClaw 2.0 Incognito-safe automatic capture and package-version diagnostics"
@@ -51,7 +51,7 @@ clawhub --workdir "$PWD" publish . \
 
 These still need a real OpenClaw install smoke test:
 
-- install from ClawHub with `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem`
+- install from ClawHub with `openclaw plugins install clawhub:nowledge-mem`
 - install from the local folder with `openclaw plugins install --link .`
 - confirm the plugin loads without manifest or config-schema errors
 - confirm the memory slot switches to `openclaw-nowledge-mem`
@@ -71,7 +71,7 @@ The package name is scoped as `@nowledge/openclaw-nowledge-mem`, and ClawHub
 enforces that the scoped package owner exists and matches:
 
 ```bash
-clawhub inspect openclaw-nowledge-mem
+clawhub inspect nowledge-mem
 ```
 
 If the owner is not `nowledge`, transfer it before publishing another version:
@@ -84,7 +84,7 @@ Publish after the readiness checks:
 
 ```bash
 clawhub --workdir /path/to/community/nowledge-mem-openclaw-plugin publish . \
-  --slug openclaw-nowledge-mem \
+  --slug nowledge-mem \
   --version 0.8.33 \
   --tags latest \
   --changelog "OpenClaw 2.0 Incognito-safe automatic capture and package-version diagnostics"
@@ -116,8 +116,8 @@ npm publish --access public
 - run `node scripts/validate-plugin.mjs`
 - run `npm pack --dry-run`
 - run `clawhub whoami` and confirm the intended publisher is logged in
-- run `clawhub inspect openclaw-nowledge-mem` when an existing listing is expected
-- run `clawhub --workdir "$PWD" publish . --slug openclaw-nowledge-mem --version 0.8.33 --tags latest`
+- run `clawhub inspect nowledge-mem` when an existing listing is expected
+- run `clawhub --workdir "$PWD" publish . --slug nowledge-mem --version 0.8.33 --tags latest`
 - manually test install in OpenClaw
 - publish to ClawHub
 - optionally publish to npm after the ClawHub release is confirmed

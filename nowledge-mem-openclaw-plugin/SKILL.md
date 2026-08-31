@@ -105,7 +105,7 @@ Success means the backend responds correctly through `nmem`. Do not skip this st
 Default install:
 
 ```bash
-openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:nowledge-mem
 ```
 
 If this fails with `archive integrity mismatch`, update OpenClaw first, then
@@ -114,7 +114,7 @@ retry. Current ClawHub packages require OpenClaw 2026.5.3 or later.
 To update an existing install:
 
 ```bash
-openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force
+openclaw plugins install clawhub:nowledge-mem --force
 ```
 
 Alternatively, if the user is installing from OpenClaw's default registry rather than ClawHub, this also works:
@@ -232,7 +232,7 @@ If only `memory_search` and `memory_get` tools are available (other Nowledge Mem
 }
 ```
 
-If missing, reinstall (`openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem`) which sets the slot automatically. This is common after upgrading OpenClaw to 3.22+ where the default memory slot changed.
+If missing, reinstall (`openclaw plugins install clawhub:nowledge-mem`) which sets the slot automatically. This is common after upgrading OpenClaw to 3.22+ where the default memory slot changed.
 
 Then verify in chat.
 
@@ -282,7 +282,7 @@ What to expect:
 | `nmem --json status` fails in local mode | Start Nowledge Mem locally first |
 | Remote mode fails | Re-run `nmem --json --api-url ... status` with the exact URL and auth you plan to use |
 | `openclaw nowledge-mem status` fails after install | Restart OpenClaw and confirm the plugin was installed successfully |
-| ClawHub reports `archive integrity mismatch` | Update OpenClaw to 2026.5.3+ or latest, then reinstall with `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force` |
+| ClawHub reports `archive integrity mismatch` | Update OpenClaw to 2026.5.3+ or latest, then reinstall with `openclaw plugins install clawhub:nowledge-mem --force` |
 | `plugins.allow is empty` warning | Add `openclaw-nowledge-mem` to `plugins.allow` if the user wants explicit trust |
 | Remote config seems ignored | Check whether `~/.nowledge-mem/openclaw.json` is overriding plugin settings |
 | Local mode unexpectedly talks to a remote server | Check for stale `NMEM_API_URL` / `NMEM_API_KEY` in the environment or an overriding `~/.nowledge-mem/openclaw.json` |

@@ -19,7 +19,7 @@ the user intentionally asks Mem to keep.
 ## Installation
 
 ```bash
-openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:nowledge-mem
 ```
 
 OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. On current OpenClaw builds, that same install flow may also set `plugins.slots.contextEngine` to `openclaw-nowledge-mem`. Plugin `0.8.18+` accepts that automatically as a compatibility alias.
@@ -35,7 +35,7 @@ If `openclaw config get tools` shows a restrictive profile such as `coding`, pre
 To update the plugin, re-run the ClawHub install with `--force`:
 
 ```bash
-openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force
+openclaw plugins install clawhub:nowledge-mem --force
 ```
 
 Use this instead of `openclaw plugins update openclaw-nowledge-mem` when an old install record is pinned to a specific version.
@@ -543,7 +543,7 @@ If you also use linked or workspace copies, review `plugins.load.paths` before r
 The memory slot is probably still set to the built-in `memory-core`. OpenClaw 3.22+ defaults to `memory-core` when no explicit slot is configured. Reinstall to reset the slot automatically:
 
 ```bash
-openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:nowledge-mem
 ```
 
 Or set the slot manually in `~/.openclaw/openclaw.json`:

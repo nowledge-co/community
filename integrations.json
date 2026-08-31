@@ -745,8 +745,8 @@
         ]
       },
       "install": {
-        "command": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem",
-        "updateCommand": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force",
+        "command": "openclaw plugins install clawhub:nowledge-mem",
+        "updateCommand": "openclaw plugins install clawhub:nowledge-mem --force",
         "detectionHint": "Running as OpenClaw agent; ~/.openclaw/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for OpenClaw. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
