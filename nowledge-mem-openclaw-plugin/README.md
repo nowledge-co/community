@@ -11,10 +11,15 @@ This is not a flat note store. Nowledge Mem links related knowledge into a graph
 - [Nowledge Mem](https://mem.nowledge.co) desktop app **or** `nmem` CLI
 - [OpenClaw](https://openclaw.ai) >= 2026.5.3 for ClawHub installs. Older 2026.4.x builds can reject current ClawHub packages with an archive integrity mismatch before the plugin is installed.
 
+OpenClaw 2.0 (`2026.8.1`) is supported. Automatic capture follows OpenClaw's
+privacy boundary: Incognito sessions are never copied to Nowledge Mem or
+distilled automatically. An explicit memory tool call can still save something
+the user intentionally asks Mem to keep.
+
 ## Installation
 
 ```bash
-openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:nowledge-mem
 ```
 
 OpenClaw's installer writes the install record, enables the plugin, and switches the `memory` slot to `openclaw-nowledge-mem`. On current OpenClaw builds, that same install flow may also set `plugins.slots.contextEngine` to `openclaw-nowledge-mem`. Plugin `0.8.18+` accepts that automatically as a compatibility alias.
@@ -30,7 +35,7 @@ If `openclaw config get tools` shows a restrictive profile such as `coding`, pre
 To update the plugin, re-run the ClawHub install with `--force`:
 
 ```bash
-openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force
+openclaw plugins install clawhub:nowledge-mem --force
 ```
 
 Use this instead of `openclaw plugins update openclaw-nowledge-mem` when an old install record is pinned to a specific version.
@@ -538,7 +543,7 @@ If you also use linked or workspace copies, review `plugins.load.paths` before r
 The memory slot is probably still set to the built-in `memory-core`. OpenClaw 3.22+ defaults to `memory-core` when no explicit slot is configured. Reinstall to reset the slot automatically:
 
 ```bash
-openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem
+openclaw plugins install clawhub:nowledge-mem
 ```
 
 Or set the slot manually in `~/.openclaw/openclaw.json`:

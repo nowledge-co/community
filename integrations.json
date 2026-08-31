@@ -711,7 +711,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.32",
+      "version": "0.8.34",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -727,7 +727,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Plugin captures interactive sessions through Context Engine afterTurn and, when plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true, agent_end as a safety net. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron/session keys excluded (OpenClaw isCronSessionKey via plugin-sdk/routing). Memory tools still use nmem CLI."
+        "note": "Plugin captures interactive sessions through Context Engine afterTurn and, when plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true, agent_end as a safety net. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron, subagent, and OpenClaw 2.0 Incognito session keys are excluded from automatic capture. Memory tools still use nmem CLI."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -737,7 +737,7 @@
         "bestResultRequires": [
           "Install the native OpenClaw plugin",
           "Use OpenClaw 2026.5.3 or later for current ClawHub packages",
-          "Use plugin 0.8.32 or later for OpenClaw 2026.6.11 timestamp compatibility, readable thread titles, tool-contract diagnostics, and checkpointed thread capture",
+          "Use plugin 0.8.34 or later for OpenClaw 2.0 Incognito privacy, timestamp compatibility, readable thread titles, tool-contract diagnostics, and checkpointed thread capture",
           "Grant plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess for the agent_end capture safety net",
           "When tools.profile is restrictive, add openclaw-nowledge-mem to tools.alsoAllow or the existing tools.allow list",
           "Keep nmem available on this machine",
@@ -745,8 +745,8 @@
         ]
       },
       "install": {
-        "command": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem",
-        "updateCommand": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force",
+        "command": "openclaw plugins install clawhub:nowledge-mem",
+        "updateCommand": "openclaw plugins install clawhub:nowledge-mem --force",
         "detectionHint": "Running as OpenClaw agent; ~/.openclaw/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for OpenClaw. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
