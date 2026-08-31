@@ -40,7 +40,7 @@ locally, then run the publish command only after the OpenClaw install smoke
 passes. The publisher is taken from the authenticated `clawhub` account.
 
 ```bash
-clawhub publish . \
+clawhub --workdir "$PWD" publish . \
   --slug openclaw-nowledge-mem \
   --version 0.8.33 \
   --tags latest \
@@ -83,7 +83,7 @@ clawhub whoami
 Publish after the readiness checks:
 
 ```bash
-clawhub publish /path/to/community/nowledge-mem-openclaw-plugin \
+clawhub --workdir /path/to/community/nowledge-mem-openclaw-plugin publish . \
   --slug openclaw-nowledge-mem \
   --version 0.8.33 \
   --tags latest \
@@ -117,7 +117,7 @@ npm publish --access public
 - run `npm pack --dry-run`
 - run `clawhub whoami` and confirm the intended publisher is logged in
 - run `clawhub inspect openclaw-nowledge-mem` when an existing listing is expected
-- run `clawhub publish . --slug openclaw-nowledge-mem --version 0.8.33 --tags latest`
+- run `clawhub --workdir "$PWD" publish . --slug openclaw-nowledge-mem --version 0.8.33 --tags latest`
 - manually test install in OpenClaw
 - publish to ClawHub
 - optionally publish to npm after the ClawHub release is confirmed
