@@ -11,6 +11,11 @@ This is not a flat note store. Nowledge Mem links related knowledge into a graph
 - [Nowledge Mem](https://mem.nowledge.co) desktop app **or** `nmem` CLI
 - [OpenClaw](https://openclaw.ai) >= 2026.5.3 for ClawHub installs. Older 2026.4.x builds can reject current ClawHub packages with an archive integrity mismatch before the plugin is installed.
 
+OpenClaw 2.0 (`2026.8.1`) is supported. Automatic capture follows OpenClaw's
+privacy boundary: Incognito sessions are never copied to Nowledge Mem or
+distilled automatically. An explicit memory tool call can still save something
+the user intentionally asks Mem to keep.
+
 ## Installation
 
 ```bash

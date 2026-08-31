@@ -30,8 +30,8 @@ import { BASE_GUIDANCE, SESSION_CONTEXT_GUIDANCE } from "./hooks/behavioral.js";
 import {
 	appendOrCreateThread,
 	hasSkipMarker,
-	isInternalCaptureSessionKey,
 	isCronCaptureSessionKey,
+	isInternalCaptureSessionKey,
 	matchesExcludePattern,
 	triageAndDistill,
 } from "./hooks/capture.js";
@@ -41,6 +41,7 @@ import {
 	buildRecalledKnowledgeBlock,
 	escapeForPrompt,
 } from "./hooks/recall.js";
+import { NOWLEDGE_MEM_PLUGIN_VERSION } from "./plugin-version.js";
 
 // ---------------------------------------------------------------------------
 // Per-session state
@@ -183,7 +184,7 @@ export function createNowledgeMemContextEngineFactory(
 			info: {
 				id: "nowledge-mem",
 				name: "Nowledge Mem",
-				version: "0.8.25",
+				version: NOWLEDGE_MEM_PLUGIN_VERSION,
 				ownsCompaction: false,
 			},
 

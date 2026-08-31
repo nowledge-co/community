@@ -157,6 +157,21 @@ export function isCronCaptureSessionKey(sessionKey) {
 }
 
 /**
+ * OpenClaw 2.0 reserves these process-only keys for Incognito sessions.
+ * Keep this aligned with the host's routing helper so automatic capture does
+ * not turn an in-memory conversation into a durable external transcript.
+ * Explicit memory tool calls are unaffected because this only guards hooks.
+ */
+export function isIncognitoCaptureSessionKey(sessionKey) {
+	const raw = String(sessionKey || "")
+		.trim()
+		.toLowerCase();
+	return /^(?:dashboard|subagent|internal-session-effects):incognito-[^:]+$/u.test(
+		raw,
+	);
+}
+
+/**
  * Check if any message contains the skip marker text.
  * Scans both raw message content and nested message objects.
  *
@@ -184,7 +199,7 @@ export function isInternalCaptureSessionKey(sessionKey) {
 		.toLowerCase();
 	if (!raw) return false;
 	if (raw.startsWith("temp:")) return true;
-	return isSubagentSessionKey(raw);
+	return isSubagentSessionKey(raw) || isIncognitoCaptureSessionKey(raw);
 }
 
 function stripOpenClawDirectiveTags(text) {

@@ -7,7 +7,7 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 - Plugin target: OpenClaw plugin runtime (memory slot + context engine)
 - Runtime: JS ESM modules under `src/`, no TS build pipeline
 - Memory backend: `nmem` CLI (fallback: `uvx --from nmem-cli nmem`)
-- OpenClaw minimum: `2026.4.5` (`registerMemoryCorpusSupplement` for dreaming integration)
+- OpenClaw minimum: `2026.5.3` (`registerMemoryCorpusSupplement` for dreaming integration)
 - Architecture: **CLI-first via OpenClaw runtime** - all CLI execution goes through `api.runtime.system.runCommandWithTimeout`, not direct `child_process`
 - Context engine: registered under the canonical id `nowledge-mem` plus the compatibility alias `openclaw-nowledge-mem`. Activated when OpenClaw sets either value in `plugins.slots.contextEngine`. Manual config should still prefer `nowledge-mem`. Falls back to hooks when CE is not active.
 - Remote mode: `~/.nowledge-mem/config.json` (shared) or OpenClaw dashboard. Legacy `openclaw.json` still honored.
@@ -57,6 +57,8 @@ openclaw.plugin.json - manifest + config schema (version, uiHints, configSchema,
 ~/.nowledge-mem/openclaw.json - legacy config file (still honored, deprecated in docs)
 ~/.nowledge-mem/config.json   - shared credentials (apiUrl/apiKey) read by all Nowledge Mem tools
 ```
+
+Automatic capture excludes OpenClaw 2.0's canonical Incognito session keys. Explicit memory tool calls remain available for intentional saves.
 
 ## Corpus Supplement (Dreaming Integration)
 

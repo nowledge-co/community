@@ -5,6 +5,8 @@ import test from "node:test";
 import {
 	_resetSyncCursors,
 	appendOrCreateThread,
+	buildAgentEndCaptureHandler,
+	buildBeforeResetCaptureHandler,
 	buildThreadTitle,
 	normalizeRoleMessage,
 } from "../src/hooks/capture.js";
@@ -94,6 +96,29 @@ test("normalizes OpenClaw epoch-millisecond timestamps for the Mem API", () => {
 		).timestamp,
 		undefined,
 	);
+});
+
+test("automatic capture handlers leave OpenClaw 2.0 Incognito sessions untouched", async () => {
+	const client = {
+		appendThread: async () => {
+			throw new Error("automatic capture must not run for Incognito");
+		},
+		createThread: async () => {
+			throw new Error("automatic capture must not run for Incognito");
+		},
+	};
+	const cfg = { captureExclude: [], captureSkipMarker: "#nmem-skip", sessionDigest: true };
+	const ctx = {
+		sessionId: "incognito-session",
+		sessionKey: "dashboard:incognito-session",
+	};
+	const event = {
+		success: true,
+		messages: [message("user", "private"), message("assistant", "reply")],
+	};
+
+	await buildAgentEndCaptureHandler(client, cfg, logger)(event, ctx);
+	await buildBeforeResetCaptureHandler(client, cfg, logger)(event, ctx);
 });
 
 test("uses the first user message as a readable thread title", () => {

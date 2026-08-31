@@ -1,14 +1,15 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import test from "node:test";
 
-import { resolveRegistrationMode } from "../src/register-mode.js";
 import {
 	NOWLEDGE_MEM_CONTEXT_ENGINE_COMPAT_ALIAS,
 	NOWLEDGE_MEM_CONTEXT_ENGINE_ID,
 	NOWLEDGE_MEM_CONTEXT_ENGINE_IDS,
 	isNowledgeMemContextEngineSlot,
 } from "../src/context-engine-ids.js";
+import { NOWLEDGE_MEM_PLUGIN_VERSION } from "../src/plugin-version.js";
+import { resolveRegistrationMode } from "../src/register-mode.js";
 
 test("supplement mode keeps compatibility tools off when memory-core owns the slot", () => {
 	const mode = resolveRegistrationMode({
@@ -65,6 +66,13 @@ test("manifest declares every OpenClaw agent tool contract", () => {
 		"nowledge_mem_thread_fetch",
 		"nowledge_mem_status",
 	]);
+});
+
+test("runtime context-engine version comes from package metadata", async () => {
+	const pkg = JSON.parse(
+		readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+	);
+	assert.equal(NOWLEDGE_MEM_PLUGIN_VERSION, pkg.version);
 });
 
 test("context engine ids include the canonical id plus the plugin-id compatibility alias", () => {

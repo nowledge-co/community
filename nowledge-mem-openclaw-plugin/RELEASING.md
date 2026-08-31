@@ -68,6 +68,9 @@ These still need a real OpenClaw install smoke test:
 - confirm session-end thread capture and distillation work
 - confirm remote Mem mode works with `apiUrl` and `apiKey`
 - confirm `corpusSupplement` avoids duplicate recall when enabled
+- run the isolated smoke against OpenClaw `2026.8.1` or a newer supported host
+- verify an Incognito session does not create or append a Mem Thread, while an
+  explicit memory tool call still works
 
 ## Publish
 
@@ -126,6 +129,7 @@ npm publish --access public
 - bump `version` in `package.json` and `openclaw.plugin.json`
 - update `CHANGELOG.md`
 - keep `package.json` `openclaw.install.npmSpec`, `openclaw.compat`, and `openclaw.build` aligned with the tested OpenClaw baseline
+- keep the package, manifest, integration registry, and runtime Context Engine version aligned
 - keep `openclaw.install.minHostVersion` omitted for this plugin; `scripts/validate-plugin.mjs` enforces this and is the source of truth if the policy ever changes
 - keep `.clawhubignore` aligned with the npm package surface so ClawHub releases do not ship tests or build-only files
 - run `node scripts/validate-plugin.mjs`

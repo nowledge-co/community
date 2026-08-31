@@ -28,6 +28,8 @@ When talking to users:
 - For remote mode, say "Set `apiUrl`, and add `apiKey` when the server requires auth."
 - Do not imply that OpenClaw is the only source of truth. It is one client of the user's larger memory system.
 - Do not imply that cloud backup is the default. Our default story is local-first.
+- OpenClaw 2.0 Incognito sessions are never automatically captured or distilled.
+  Only an explicit memory-writing tool call persists information by user choice.
 
 Good user-facing explanation:
 

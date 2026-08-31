@@ -4,6 +4,16 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.33] - 2026-08-31
+
+### Fixed
+
+- Automatic thread capture now honors OpenClaw 2.0 Incognito session keys.
+  Incognito conversations remain process-only unless the user explicitly calls
+  a memory-writing tool.
+- Context Engine diagnostics now report the package version instead of a stale
+  hardcoded version.
+
 ## [0.8.32] - 2026-08-21
 
 ### Fixed
