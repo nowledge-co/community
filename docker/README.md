@@ -257,7 +257,9 @@ Anyone on the LAN can hit these without a key (by design — they're for
 probes, sign-in, and serving static assets):
 
 - `GET /livez` — orchestrator liveness; no DB touch
-- `GET /health` — readiness; DB ping included
+- `GET /health` — public status-only liveness response
+- `GET /health/details` — detailed readiness, version, and build information;
+  requires the API key except for the server's loopback path
 - `GET /capabilities` — feature flags (for the web/MCP client to adapt UI)
 - `GET /app` + `/app/assets/*` — the SPA itself
 
@@ -362,7 +364,7 @@ you pulled was not produced by our pipeline.
 To confirm exactly which commit a running container was built from:
 
     docker compose exec -T mem nmem-server --build-info     # version + build sha
-    curl -s http://127.0.0.1:14242/health | jq '.build_sha'  # same sha over HTTP
+    curl -s http://127.0.0.1:14242/health/details | jq '.build_sha'  # same sha over HTTP
 
 See `docs/implementation/BUILD_PROVENANCE_AND_CACHE_INTEGRITY.md` for the `nmem-build-sha:` stamp contract.
 
@@ -606,14 +608,14 @@ rotation (`max-size: 10m`, `max-file: 5`). To follow:
 ### Health probes
 
 - `GET /livez` — process is up. Use this for orchestrator liveness restarts.
-- `GET /health` — process is up **and** the database is open. Use this for
-  readiness gating (k8s readinessProbe, load balancer health check).
+- `GET /health` — public status-only liveness response. Use `/livez` for
+  orchestrator probes and `/health/details` for detailed readiness diagnostics.
 
 ### Embedding status and search quality
 
-A bare container with no local model and no remote embedding configured runs in hash-fallback mode: keyword/FTS search works, but semantic search quality is degraded. `/health` reports this explicitly:
+A bare container with no local model and no remote embedding configured runs in hash-fallback mode: keyword/FTS search works, but semantic search quality is degraded. `/health/details` reports this explicitly:
 
-    curl -s http://127.0.0.1:14242/health | jq '.embedding'
+    curl -s http://127.0.0.1:14242/health/details | jq '.embedding'
     # { "mode": "remote" | "local-gguf" | "local-hash-fallback",
     #   "degraded": true | false }
 
@@ -626,7 +628,7 @@ A bare container with no local model and no remote embedding configured runs in 
 When the embedding identity changes (new model, new dimension), the server no longer blocks startup on a full reindex. It boots immediately and serves search in an FTS-degraded mode while the semantic index is stale. It surfaces `reindex_needed`:
 
 - `GET /models/bge-m3/status` (the desktop/web titlebar banner reads this), and
-- `GET /health` under the embedding block.
+- `GET /health/details` under the embedding block.
 
 You trigger the rebuild yourself when ready:
 
@@ -695,7 +697,7 @@ you've hit a buffer-pool exhaustion (`docker compose logs mem | grep
 ```bash
 docker compose restart mem
 # Then verify the new floor:
-curl -s http://127.0.0.1:14242/health \
+curl -s http://127.0.0.1:14242/health/details \
   | jq '{
       pool:  .buffer_pool_current_mb,
       floor: .buffer_pool_auto_floor_mb,
@@ -766,10 +768,10 @@ The backend reads the same file; nothing else changes.
 
 ## Troubleshooting
 
-**`/health` returns `degraded` shortly after start.** Normal during the first
+**`/health/details` returns `degraded` shortly after start.** Normal during the first
 ~60 s while Kuzu opens and the content store reconciles. The image's
 `start_period` (90 s) accounts for this; `/livez` is green immediately. This is
-distinct from `/health.embedding.degraded` (hash-fallback mode), which reflects
+distinct from `/health/details.embedding.degraded` (hash-fallback mode), which reflects
 embedding configuration, not boot timing. See "Embedding status and search
 quality" above.
 

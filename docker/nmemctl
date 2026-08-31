@@ -412,11 +412,13 @@ cmd_version_inner() {
   image_tag="$(read_image_tag 2>/dev/null || true)"
   [[ -n "$image_tag" ]] && note "image:   $image_tag"
   if is_running; then
-    local health sha
-    health="$("${DC[@]}" exec -T "$SVC" curl -fsS \
-        http://127.0.0.1:14242/health 2>/dev/null || true)"
-    binary_ver="$(printf '%s' "$health" | _json_field version | tr -d '\r\n')"
-    sha="$(printf '%s' "$health" | _json_field build_sha_short | tr -d '\r\n')"
+    # /health is intentionally status-only. Version and build identity live on
+    # the detailed endpoint, which remains reachable over container loopback.
+    local details sha
+    details="$("${DC[@]}" exec -T "$SVC" curl -fsS \
+        http://127.0.0.1:14242/health/details 2>/dev/null || true)"
+    binary_ver="$(printf '%s' "$details" | _json_field version | tr -d '\r\n')"
+    sha="$(printf '%s' "$details" | _json_field build_sha_short | tr -d '\r\n')"
     if [[ -n "$binary_ver" ]]; then
       if [[ -n "$sha" ]]; then
         note "binary:  $binary_ver ($sha)"
