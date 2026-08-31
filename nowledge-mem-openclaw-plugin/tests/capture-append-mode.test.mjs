@@ -119,6 +119,10 @@ test("automatic capture handlers leave OpenClaw 2.0 Incognito sessions untouched
 
 	await buildAgentEndCaptureHandler(client, cfg, logger)(event, ctx);
 	await buildBeforeResetCaptureHandler(client, cfg, logger)(event, ctx);
+	await buildAgentEndCaptureHandler(client, cfg, logger)(event, {
+		...ctx,
+		sessionKey: "agent:main:dashboard:incognito-session",
+	});
 });
 
 test("uses the first user message as a readable thread title", () => {

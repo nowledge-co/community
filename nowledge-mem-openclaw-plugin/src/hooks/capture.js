@@ -166,9 +166,8 @@ export function isIncognitoCaptureSessionKey(sessionKey) {
 	const raw = String(sessionKey || "")
 		.trim()
 		.toLowerCase();
-	return /^(?:dashboard|subagent|internal-session-effects):incognito-[^:]+$/u.test(
-		raw,
-	);
+	const candidate = parseAgentSessionKey(raw)?.rest ?? raw;
+	return /^(?:dashboard|subagent|internal-session-effects):incognito-[^:]+$/u.test(candidate);
 }
 
 /**

@@ -27,6 +27,16 @@ test("automatic capture recognizes OpenClaw 2.0 Incognito session keys", () => {
 		true,
 	);
 	assert.equal(
+		isIncognitoCaptureSessionKey("agent:main:dashboard:incognito-abc123"),
+		true,
+	);
+	assert.equal(
+		isIncognitoCaptureSessionKey(
+			"agent:main:internal-session-effects:incognito-abc123",
+		),
+		true,
+	);
+	assert.equal(
 		isIncognitoCaptureSessionKey("agent:main:telegram:direct:abc123"),
 		false,
 	);
