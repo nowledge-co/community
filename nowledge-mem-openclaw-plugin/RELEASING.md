@@ -42,7 +42,7 @@ passes. The publisher is taken from the authenticated `clawhub` account.
 ```bash
 clawhub --workdir "$PWD" publish . \
   --slug nowledge-mem \
-  --version 0.8.33 \
+  --version 0.8.34 \
   --tags latest \
   --changelog "OpenClaw 2.0 Incognito-safe automatic capture and package-version diagnostics"
 ```
@@ -85,7 +85,7 @@ Publish after the readiness checks:
 ```bash
 clawhub --workdir /path/to/community/nowledge-mem-openclaw-plugin publish . \
   --slug nowledge-mem \
-  --version 0.8.33 \
+  --version 0.8.34 \
   --tags latest \
   --changelog "OpenClaw 2.0 Incognito-safe automatic capture and package-version diagnostics"
 ```
@@ -117,7 +117,7 @@ npm publish --access public
 - run `npm pack --dry-run`
 - run `clawhub whoami` and confirm the intended publisher is logged in
 - run `clawhub inspect nowledge-mem` when an existing listing is expected
-- run `clawhub --workdir "$PWD" publish . --slug nowledge-mem --version 0.8.33 --tags latest`
+- run `clawhub --workdir "$PWD" publish . --slug nowledge-mem --version 0.8.34 --tags latest`
 - manually test install in OpenClaw
 - publish to ClawHub
 - optionally publish to npm after the ClawHub release is confirmed

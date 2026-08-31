@@ -4,6 +4,11 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.34] - 2026-08-31
+
+- Fixed automatic capture for agent-scoped OpenClaw 2.0 Incognito session keys.
+- Added regression coverage for bare and agent-prefixed Incognito sessions.
+
 ## [0.8.33] - 2026-08-31
 
 ### Fixed
