@@ -7,11 +7,12 @@
     "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for the AI tool I am using.",
     "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为我当前使用的 AI 工具安装或更新 Nowledge Mem。",
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
-    "appliesTo": [
+      "appliesTo": [
       "claude-code", "grok", "grok-bot", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
-      "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct"
+      "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct",
+      "chatgpt-cloud", "claude-cloud", "minimax-cloud"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
@@ -168,6 +169,150 @@
         "convention": "mcp-backend",
         "prefix": "memory_",
         "note": "Grok Bot uses the standard Nowledge Mem MCP tool surface. The exact tool names are supplied by the connected MCP server; the connector does not add a local CLI or transcript hook."
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "chatgpt-cloud",
+      "name": "ChatGPT Web and Desktop",
+      "category": "cloud",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Remote MCP gives ChatGPT access to Mem but not Mem access to ChatGPT transcripts. Use the browser extension or an official export for capture."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Use the public Cloud MCP endpoint ending in /mcp",
+          "Complete the host's OAuth connector approval when requested",
+          "Use the browser extension or an official export when you need conversation capture",
+          "Keep ChatGPT's connector identity separate from any local ChatGPT export source"
+        ]
+      },
+      "install": {
+        "detectionHint": "ChatGPT Web and desktop are cloud clients and are not locally detectable by the desktop app",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT Cloud path. Configure the public Nowledge Mem Cloud MCP endpoint through ChatGPT's remote connector flow, complete OAuth, and verify a search plus one scoped write. Use the browser extension or official export for conversation capture; do not claim MCP captures ChatGPT threads.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 云端路径操作。通过 ChatGPT 的远程连接器流程配置公开的 Nowledge Mem Cloud MCP 地址，完成 OAuth，并验证一次搜索和一次有范围的写入。对话捕获请使用浏览器扩展或官方导出；不要声称 MCP 会捕获 ChatGPT 会话。"
+        },
+        "docsUrl": "/docs/integrations/chatgpt-web"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "The connected Cloud MCP server supplies the tool names; this cloud connector adds no local CLI or hook."
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "claude-cloud",
+      "name": "Claude Cloud",
+      "category": "cloud",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Remote MCP does not expose Claude's private hosted transcripts. Use a supported export or the local Claude Code connector for capture."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Use the public Cloud MCP endpoint ending in /mcp",
+          "Complete Claude's remote custom connector OAuth approval",
+          "Use an export or local Claude Code connector for transcript capture",
+          "Configure a durable AI Identity explicitly when several Claude agents share a workspace"
+        ]
+      },
+      "install": {
+        "detectionHint": "Claude Cloud is a hosted client and is not locally detectable by the desktop app",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Claude Cloud path. Configure the public Nowledge Mem Cloud /mcp endpoint as a remote Claude connector, approve the requested workspace scopes, and verify a search plus one scoped write. Do not use localhost or claim automatic transcript capture.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Claude 云端路径操作。将公开的 Nowledge Mem Cloud /mcp 地址配置为 Claude 远程连接器，确认请求的 workspace scope，并验证一次搜索和一次有范围的写入。不要使用 localhost，也不要声称会自动捕获对话。"
+        },
+        "docsUrl": "/docs/integrations/claude-cloud"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "The connected Cloud MCP server supplies the tool names; Claude Cloud has no local Nowledge hook in this connector."
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "minimax-cloud",
+      "name": "MiniMax Cloud",
+      "category": "cloud",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Remote MCP gives MiniMax access to Mem but does not provide a transcript hook or private-history access."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Use a public Cloud MCP endpoint ending in /mcp when the MiniMax client supports remote MCP",
+          "Complete the authentication flow offered by the MiniMax client",
+          "Use a supported export or local connector for conversation capture",
+          "Configure an explicit AI Identity for each durable agent role"
+        ]
+      },
+      "install": {
+        "detectionHint": "MiniMax Cloud is a hosted client and is not locally detectable by the desktop app",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the MiniMax Cloud path. If this client supports remote MCP, configure the public Nowledge Mem Cloud /mcp endpoint, complete its authentication flow, and verify a search before any write. Do not use localhost or claim automatic transcript capture.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 MiniMax 云端路径操作。如果当前客户端支持远程 MCP，请配置公开的 Nowledge Mem Cloud /mcp 地址，完成认证流程，并先验证搜索再写入。不要使用 localhost，也不要声称会自动捕获对话。"
+        },
+        "docsUrl": "/docs/integrations/minimax-cloud"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "The connected Cloud MCP server supplies the tool names; this connector adds no local CLI or transcript hook."
       },
       "skills": [],
       "slashCommands": []
