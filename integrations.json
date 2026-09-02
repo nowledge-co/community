@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth: other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none. connect.skillUrl is the universal install contract. Per-tool install.agentGuide prompts must point to that skill first; per-tool docs remain behavior and troubleshooting references.",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "connect": {
     "skillUrl": "https://mem.nowledge.co/SKILL.md",
     "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for the AI tool I am using.",
     "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为我当前使用的 AI 工具安装或更新 Nowledge Mem。",
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
-      "claude-code", "grok", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
+      "claude-code", "grok", "grok-bot", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
       "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct"
@@ -121,6 +121,55 @@
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
       "slashCommands": ["/save", "/search", "/sum", "/status"]
+    },
+    {
+      "id": "grok-bot",
+      "name": "Grok Bot",
+      "category": "cloud",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Grok Bot is a cloud-managed host. The reviewed public documentation establishes custom MCP connectors, but not a Bot transcript export, webhook, or lifecycle hook that can provide automatic full-thread capture. Use MCP for memory operations and supported import paths for conversations you can export."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Use a public HTTPS Mem MCP endpoint; a local 127.0.0.1 or localhost address is not reachable from Grok Bot",
+          "Add the custom connector in Grok Bot and configure its authentication there",
+          "Read the Nowledge Mem Grok Bot guide before testing memory tools",
+          "Keep each Bot's role and identity explicit in Mem rather than inferring identity from source_app"
+        ]
+      },
+      "install": {
+        "detectionHint": "Grok Bot is a cloud-managed host and is not locally detectable by the desktop app",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow its Grok Bot path. Configure Nowledge Mem as a public HTTPS MCP connector for this Grok Bot, then verify with a Context Bundle or Working Memory check, a memory search, and a scoped memory write. Do not use localhost, and do not claim that Grok Bot transcript capture is automatic unless the host provides a documented export or hook.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按其中的 Grok Bot 路径操作。为这个 Grok Bot 配置可从公网访问的 Nowledge Mem HTTPS MCP 连接器，然后用 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次有明确范围的记忆写入验证。不要使用 localhost，也不要声称 Grok Bot 会自动捕获完整会话，除非宿主提供了有文档说明的导出或 hook。"
+        },
+        "docsUrl": "/docs/integrations/grok-bot"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "prefix": "memory_",
+        "note": "Grok Bot uses the standard Nowledge Mem MCP tool surface. The exact tool names are supplied by the connected MCP server; the connector does not add a local CLI or transcript hook."
+      },
+      "skills": [],
+      "slashCommands": []
     },
     {
       "id": "copilot-cli",
