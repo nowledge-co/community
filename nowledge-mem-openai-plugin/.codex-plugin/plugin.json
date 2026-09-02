@@ -1,0 +1,28 @@
+{
+  "name": "nowledge-mem-cloud",
+  "version": "0.1.0",
+  "description": "Search and update a Nowledge Mem Cloud workspace from ChatGPT and Codex with explicit scope and transcript boundaries.",
+  "author": {
+    "name": "Nowledge Labs",
+    "url": "https://mem.nowledge.co"
+  },
+  "homepage": "https://mem.nowledge.co/docs/integrations/chatgpt-web",
+  "repository": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-openai-plugin",
+  "license": "MIT",
+  "keywords": ["memory", "knowledge", "mcp", "chatgpt", "codex"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Nowledge Mem Cloud",
+    "shortDescription": "Memory that follows you across AI tools",
+    "longDescription": "Use a scoped Nowledge Mem Cloud connection to recall decisions, search threads and Library context, and save durable knowledge. Remote MCP does not import ChatGPT or Codex transcripts.",
+    "developerName": "Nowledge Labs",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://mem.nowledge.co",
+    "defaultPrompt": [
+      "Search my Mem for the decision relevant to this task.",
+      "Read my current working context from Mem.",
+      "Save the durable takeaway from this conversation."
+    ]
+  }
+}
