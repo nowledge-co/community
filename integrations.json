@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth: other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none. connect.skillUrl is the universal install contract. Per-tool install.agentGuide prompts must point to that skill first; per-tool docs remain behavior and troubleshooting references.",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "connect": {
     "skillUrl": "https://mem.nowledge.co/SKILL.md",
     "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for the AI tool I am using.",
@@ -150,6 +150,7 @@
         "threads": "none",
         "bestResultRequires": [
           "Use a public HTTPS Mem MCP endpoint; a local 127.0.0.1 or localhost address is not reachable from Grok Bot",
+          "Access Anywhere Quick link works without a Plus or Max subscription; Nowledge Link is the stable managed-link option for Plus and Max",
           "Add the custom connector in Grok Bot and configure its authentication there",
           "Read the Nowledge Mem Grok Bot guide before testing memory tools",
           "Keep each Bot's role and identity explicit in Mem rather than inferring identity from source_app"
@@ -158,8 +159,8 @@
       "install": {
         "detectionHint": "Grok Bot is a cloud-managed host and is not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow its Grok Bot path. Configure Nowledge Mem as a public HTTPS MCP connector for this Grok Bot, then verify with a Context Bundle or Working Memory check, a memory search, and a scoped memory write. Do not use localhost, and do not claim that Grok Bot transcript capture is automatic unless the host provides a documented export or hook.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按其中的 Grok Bot 路径操作。为这个 Grok Bot 配置可从公网访问的 Nowledge Mem HTTPS MCP 连接器，然后用 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次有明确范围的记忆写入验证。不要使用 localhost，也不要声称 Grok Bot 会自动捕获完整会话，除非宿主提供了有文档说明的导出或 hook。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow its Grok Bot path. Configure Nowledge Mem as a public HTTPS MCP connector for this Grok Bot. If the user does not have Plus or Max, use Access Anywhere Quick link; do not imply that Nowledge Link is required. Then verify with a Context Bundle or Working Memory check, a memory search, and a scoped memory write. Do not use localhost, and do not claim that Grok Bot transcript capture is automatic unless the host provides a documented export or hook.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按其中的 Grok Bot 路径操作。为这个 Grok Bot 配置可从公网访问的 Nowledge Mem HTTPS MCP 连接器。如果用户没有 Plus 或 Max，请使用 Access Anywhere 的 Quick link，不要让用户误以为必须订阅 Nowledge Link。然后用 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次有明确范围的记忆写入验证。不要使用 localhost，也不要声称 Grok Bot 会自动捕获完整会话，除非宿主提供了有文档说明的导出或 hook。"
         },
         "docsUrl": "/docs/integrations/grok-bot"
       },
