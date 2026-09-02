@@ -2429,7 +2429,7 @@
       "type": "plugin",
       "version": "0.1.1",
       "directory": "nowledge-mem-minimax-plugin",
-      "transport": "plugin+skill+mcp+app",
+      "transport": "plugin+skill+mcp",
       "capabilities": {
         "workingMemory": true,
         "search": true,
@@ -2451,26 +2451,26 @@
         "bestResultRequires": [
           "Install Nowledge Mem from the MiniMax Plugin Marketplace",
           "For MiniMax Code, keep the Nowledge Mem app running on the same computer",
-          "For MiniMax Agent, connect a Nowledge Cloud workspace through MiniMax's managed App flow",
+          "Treat MiniMax Agent Cloud access as unavailable until MiniMax confirms the managed App provider contract",
           "Do not expect automatic full-conversation capture from the current marketplace contract"
         ]
       },
       "install": {
         "command": "MiniMax Code: Plugins > search 'Nowledge Mem' > Install",
-        "cloudCommand": "MiniMax Agent: Plugins > Nowledge Mem > Connect",
+        "cloudCommand": "Unavailable while cloudProviderStatus is pending MiniMax confirmation",
         "updateCommand": "Update Nowledge Mem from MiniMax's plugin manager",
-        "configRequired": "Desktop uses credential-free loopback MCP. Cloud must use the MiniMax-managed Nowledge Mem App provider; never paste or commit a Nowledge Cloud key.",
+        "configRequired": "Desktop uses credential-free loopback MCP. Cloud is unavailable until MiniMax confirms and enables the managed Nowledge Mem App provider; never paste or commit a Nowledge Cloud key.",
         "cloudProviderStatus": "pending-minimax-confirmation",
         "detectionHint": "Running in MiniMax Code or MiniMax Agent; ~/.minimax exists on desktop",
         "agentGuide": {
-          "prompt": "Install or update Nowledge Mem from the MiniMax Plugin Marketplace. On MiniMax Code, open the Nowledge Mem app and verify that the Context Bundle tool works. On MiniMax Agent, use the plugin's Connect action for Nowledge Cloud; never ask me to paste a key into chat.",
-          "promptZh": "从 MiniMax 插件市场安装或更新 Nowledge Mem。在 MiniMax Code 中打开 Nowledge Mem App，并验证 Context Bundle 工具可用；在 MiniMax Agent 中使用插件的“连接”操作接入 Nowledge Cloud，不要让我把密钥粘贴到聊天中。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the MiniMax instructions. Install or update Nowledge Mem from the MiniMax Plugin Marketplace. On MiniMax Code, open the Nowledge Mem app and verify that the Context Bundle tool works. Treat MiniMax Agent Cloud access as unavailable while cloudProviderStatus is pending MiniMax confirmation, and never ask me to paste a key into chat.",
+          "promptZh": "先阅读 https://mem.nowledge.co/SKILL.md，并按其中的 MiniMax 指引操作。从 MiniMax 插件市场安装或更新 Nowledge Mem；在 MiniMax Code 中打开 Nowledge Mem App，并验证 Context Bundle 工具可用。cloudProviderStatus 仍待 MiniMax 确认时，不要宣称 MiniMax Agent 已支持云端连接，也不要让我把密钥粘贴到聊天中。"
         },
         "docsUrl": "/docs/integrations/minimax"
       },
       "toolNaming": {
-        "convention": "minimax-plugin+mcp+app",
-        "note": "MiniMax loads one dedicated behavioral Skill; local MCP or the managed Cloud App supplies the same Nowledge tool contract."
+        "convention": "minimax-plugin+mcp",
+        "note": "MiniMax loads one dedicated behavioral Skill and local MCP. A managed Cloud App may add the same Nowledge tool contract only after MiniMax confirms the provider integration."
       },
       "skills": [
         "nowledge-mem"

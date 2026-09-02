@@ -52,7 +52,7 @@ def test_minimax_local_mcp_is_loopback_streamable_http_without_credentials() -> 
 
     server = config["mcpServers"]["nowledge-mem"]
     assert server["type"] == "streamable-http"
-    assert server["url"] == "http://127.0.0.1:14242/mcp/"
+    assert server["url"] == "http://127.0.0.1:14242/mcp"
     assert server["enabled"] if "enabled" in server else True
     assert "headers" not in server
     assert "env" not in server
@@ -84,7 +84,10 @@ def test_minimax_package_has_no_secret_material_or_forbidden_payloads() -> None:
             continue
         assert path.suffix.lower() not in forbidden_suffixes
         assert path.name not in {"install.sh", "install.ps1", "setup.py"}
-        assert not (path.stat().st_mode & stat.S_IXUSR), f"executable bit is forbidden: {path}"
+        executable_mask = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+        assert not (path.stat().st_mode & executable_mask), (
+            f"executable bit is forbidden: {path}"
+        )
         if path.suffix.lower() in {".json", ".md", ".txt"}:
             text = path.read_text(encoding="utf-8").lower()
             for marker in FORBIDDEN_SECRET_MARKERS:
@@ -107,7 +110,7 @@ def test_minimax_registry_entry_matches_package() -> None:
 
     assert entry["directory"] == PLUGIN_ROOT.name
     assert entry["version"] == manifest["version"]
-    assert entry["transport"] == "plugin+skill+mcp+app"
+    assert entry["transport"] == "plugin+skill+mcp"
     assert entry["capabilities"]["autoCapture"] is False
     assert entry["autonomy"]["threads"] == "handoff-only"
     assert entry["install"]["cloudProviderStatus"] == "pending-minimax-confirmation"
@@ -120,20 +123,48 @@ def test_minimax_registry_entry_matches_package() -> None:
 def test_minimax_local_mcp_initialize_and_tool_discovery() -> None:
     import urllib.request
 
-    def rpc(payload: dict) -> dict:
+    session_id: str | None = None
+
+    def rpc(payload: dict, *, expect_response: bool = True) -> dict:
+        nonlocal session_id
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        }
+        if session_id:
+            headers["Mcp-Session-Id"] = session_id
         request = urllib.request.Request(
-            "http://127.0.0.1:14242/mcp/",
+            "http://127.0.0.1:14242/mcp",
             data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json, text/event-stream",
-            },
+            headers=headers,
             method="POST",
         )
         with urllib.request.urlopen(request, timeout=10) as response:
             body = response.read().decode("utf-8")
-        if body.startswith("event:"):
-            body = next(line[6:] for line in body.splitlines() if line.startswith("data: "))
+            response_session_id = response.headers.get("Mcp-Session-Id")
+        if response_session_id:
+            session_id = response_session_id
+        if not expect_response:
+            assert not body.strip()
+            return {}
+        if not body.strip():
+            pytest.fail("MCP response body was empty")
+        if body.lstrip().startswith(("event:", "data:")):
+            messages = []
+            for event in body.replace("\r\n", "\n").split("\n\n"):
+                data_lines = [
+                    line.removeprefix("data:").lstrip()
+                    for line in event.splitlines()
+                    if line.startswith("data:")
+                ]
+                if data_lines:
+                    messages.append(json.loads("\n".join(data_lines)))
+            assert messages, "SSE response did not contain a data event"
+            expected_id = payload.get("id")
+            return next(
+                (message for message in messages if message.get("id") == expected_id),
+                messages[0],
+            )
         return json.loads(body)
 
     initialized = rpc(
@@ -149,6 +180,15 @@ def test_minimax_local_mcp_initialize_and_tool_discovery() -> None:
         }
     )
     assert initialized["result"]["serverInfo"]["name"]
+
+    rpc(
+        {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {},
+        },
+        expect_response=False,
+    )
 
     tools = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
     names = {tool["name"] for tool in tools["result"]["tools"]}
