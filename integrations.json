@@ -11,7 +11,8 @@
       "claude-code", "grok", "grok-bot", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
-      "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct"
+      "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct",
+      "chatgpt-cloud", "claude-cloud"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
@@ -168,6 +169,105 @@
         "convention": "mcp-backend",
         "prefix": "memory_",
         "note": "Grok Bot uses the standard Nowledge Mem MCP tool surface. The exact tool names are supplied by the connected MCP server. A compatible package may add skills and lifecycle hooks when enabled by the host, but that optional path does not by itself grant access to the Bot's private transcript."
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "chatgpt-cloud",
+      "name": "ChatGPT Web and Desktop",
+      "category": "cloud",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-openai-plugin",
+      "transport": "openai-plugin+mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Remote MCP gives ChatGPT access to Mem but not Mem access to ChatGPT transcripts. Use the browser extension or an official export for capture."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Use the public Cloud MCP endpoint ending in /mcp",
+          "Complete the host's OAuth connector approval when requested",
+          "Treat the universal public plugin as pending until OpenAI assigns a real production MCP technical ID and approves the submission",
+          "Use the browser extension or an official export when you need conversation capture",
+          "Keep ChatGPT's connector identity separate from any local ChatGPT export source"
+        ]
+      },
+      "install": {
+        "publicDirectoryStatus": "pending-production-app-registration-and-submission",
+        "detectionHint": "ChatGPT Web and desktop are cloud clients and are not locally detectable by the desktop app",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT Cloud path. Until the universal Nowledge Mem plugin is published, configure the public Nowledge Mem Cloud MCP endpoint through ChatGPT's custom connector flow, complete OAuth, and verify a search plus one scoped write. Never invent a plugin_asdk_app ID. Use the browser extension or official export for conversation capture; do not claim MCP captures ChatGPT threads.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 云端路径操作。在通用 Nowledge Mem plugin 正式发布前，请通过 ChatGPT 自定义 connector 流程配置公开的 Nowledge Mem Cloud MCP 地址，完成 OAuth，并验证一次搜索和一次有范围的写入。不要伪造 plugin_asdk_app ID。对话捕获请使用浏览器扩展或官方导出；不要声称 MCP 会捕获 ChatGPT 会话。"
+        },
+        "docsUrl": "/docs/integrations/chatgpt-web"
+      },
+      "toolNaming": {
+        "convention": "openai-plugin+mcp-backend",
+        "note": "The plugin contributes the reusable workflow; the registered Cloud MCP connection supplies tools. The dedicated Codex package remains the local hook and transcript-capture path."
+      },
+      "skills": ["nowledge-mem"],
+      "slashCommands": []
+    },
+    {
+      "id": "claude-cloud",
+      "name": "Claude Cloud",
+      "category": "cloud",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "transport": "mcp",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Remote MCP does not expose Claude's private hosted transcripts. Use a supported export or the local Claude Code connector for capture."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "Use Claude or Claude Desktop on a Pro, Max, Team, or Enterprise plan while remote custom connectors remain in beta",
+          "Add the public Cloud /mcp endpoint under Settings > Connectors, not claude_desktop_config.json",
+          "Complete Claude's remote custom connector OAuth approval",
+          "Use an export or local Claude Code connector for transcript capture",
+          "Configure a durable AI Identity explicitly when several Claude agents share a workspace"
+        ]
+      },
+      "install": {
+        "detectionHint": "Claude Cloud is a hosted client and is not locally detectable by the desktop app",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Claude Cloud path. In Claude Settings > Connectors, add the public Nowledge Mem Cloud /mcp endpoint as a custom connector, approve the requested workspace scopes, and verify a search plus one scoped write. Do not put this remote server in claude_desktop_config.json, use localhost, or claim automatic transcript capture.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Claude 云端路径操作。在 Claude 的 Settings > Connectors 中，把公开的 Nowledge Mem Cloud /mcp 地址添加为自定义 connector，确认请求的 workspace scopes，并验证一次搜索和一次有范围的写入。不要把这个远程 server 写进 claude_desktop_config.json，不要使用 localhost，也不要声称会自动捕获对话。"
+        },
+        "docsUrl": "/docs/integrations/claude-cloud"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "The connected Cloud MCP server supplies the tool names; Claude Cloud has no local Nowledge hook in this connector."
       },
       "skills": [],
       "slashCommands": []
