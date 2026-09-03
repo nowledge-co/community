@@ -1497,6 +1497,13 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["pi"]["version"] == "0.8.7"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
+    assert by_id["grok-bot"]["version"] is None
+    assert by_id["grok-bot"]["directory"] is None
+    assert by_id["grok-bot"]["transport"] == "mcp"
+    assert by_id["grok-bot"]["capabilities"]["autoCapture"] is False
+    assert by_id["grok-bot"]["autonomy"]["threads"] == "none"
+    assert "command" not in by_id["grok-bot"]["install"]
+    assert "updateCommand" not in by_id["grok-bot"]["install"]
     assert by_id["kimi-code"]["version"] == "0.2.4"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "skills+hook+mcp-config"
