@@ -1,6 +1,6 @@
 # Nowledge Mem Cloud for ChatGPT and Codex
 
-This is the public OpenAI plugin package for using a Nowledge Mem Cloud workspace from ChatGPT and Codex.
+This is the public OpenAI plugin package for using a Nowledge Mem Cloud workspace from ChatGPT and Codex. OpenAI currently presents these integrations as Apps and publishes approved packages in the Plugins Directory.
 
 The checked-in package is intentionally skills-only. OpenAI requires an `.app.json` entry to reference a production MCP connection registered in ChatGPT developer mode. That registration has not produced a technical `plugin_asdk_app_…` ID yet, so this repository does not contain an invented ID or a placeholder `.app.json`.
 
@@ -11,7 +11,7 @@ The checked-in package is intentionally skills-only. OpenAI requires an `.app.js
 - `scripts/finalize-app-connection.mjs`: owner-only finalization after OpenAI returns the real technical ID
 - `SUBMISSION.md`: registration, validation, smoke, and public-directory handoff
 
-The package contains no workspace URL, credential, or user-specific Access Anywhere address. The production connection must point to the stable public Nowledge Mem Cloud `/mcp` endpoint and complete OAuth per user.
+The package contains no workspace URL, credential, or user-specific Access Anywhere address. Its directory connection must point to the stable public Nowledge Mem Cloud `/mcp` endpoint and complete OAuth per user. Users can separately create a custom App for an App workspace by supplying its own public Access Anywhere `/mcp` address; that per-user endpoint cannot be embedded in a fixed marketplace package.
 
 ## Separate local connector
 
