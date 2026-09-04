@@ -9,6 +9,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 - **Pick up where you left off.** A native SessionStart hook injects your Context Bundle automatically, with Working Memory as fallback, while SubagentStart selectively gives context-heavy roles a bounded context snapshot.
 - **Stronger retrieval on modern Codex.** The package bundles the local Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
 - **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, sources, and artifacts as one tree.
+- **See retrieved memories in context.** Memory search automatically follows with a focused graph of the exact results: inline through MCP Apps when supported, or in the standalone Graph Explorer as a fallback.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
 - **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary.
 - **Quick diagnostics.** One command to verify everything is connected.
@@ -25,9 +26,10 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 | Skill | When it runs | What it does |
 |-------|-------------|-------------|
 | `working-memory` | Session start, "what am I working on" | Loads Context Bundle when full identity/scope/rules matter; otherwise loads the daily briefing and prefers MCP when present |
-| `search-memory` | Prior work, past decisions | Searches memories and conversations, preferring MCP retrieval when present |
+| `search-memory` | Prior work, past decisions | Searches memories and conversations, then graphs Memory results and reports the observable retrieval trace |
 | `save-thread` | Manual fallback, "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
+| `explore-graph` | Memory search result or explicit graph request | Renders the exact retrieved Memory subgraph inline when possible, with a focused standalone fallback |
 | `status` | "Is Mem working?", errors | Checks connectivity |
 
 ## Knowledge Tree for Agents
@@ -361,6 +363,7 @@ If you used `nowledge-mem-codex-prompts` before:
 | `search_memory` | `$nowledge-mem:search-memory` |
 | `save_session` | `$nowledge-mem:save-thread` |
 | `distill` | `$nowledge-mem:distill-memory` |
+| *(none)* | `$nowledge-mem:explore-graph` |
 | *(none)* | `$nowledge-mem:status` |
 
 ## Beyond the default tools

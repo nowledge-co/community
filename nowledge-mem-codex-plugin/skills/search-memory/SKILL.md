@@ -48,8 +48,29 @@ Otherwise:
 3. If a result includes `source_thread`, inspect it progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 
 Prefer the smallest retrieval that answers the question. Do not over-fetch.
+Use a limit of 5 for ordinary Memory retrieval unless the task needs more.
 
 If the runtime already knows the active project or agent lane, add `--space "<space name>"` to these commands.
+
+## Show what was retrieved
+
+After every successful `memory_search` that returns at least one Memory,
+automatically visualize the result set. Preserve the server's ranked order and
+pass all returned Memory IDs; never infer or substitute IDs.
+
+1. Prefer the MCP `explore_graph` tool with the comma-separated IDs,
+   `depth=1`, and `limit=15`. Its MCP App metadata lets a capable host render
+   the focused graph inline in chat.
+2. If `explore_graph` is unavailable, use the `explore-graph` skill's
+   standalone fallback with the same exact IDs.
+3. Do not open a second standalone graph when the inline App succeeds. Do not
+   open a graph for an empty result set or for thread-only retrieval.
+
+Whenever Memory results materially inform the answer, include a compact
+retrieval trace with the observable `query`, `mode`, `scope`, `filters`, and
+the result `rank`, Memory ID, title, and server-returned `score` when present.
+Name whether MCP or the `nmem` CLI performed the search. If the server omits a
+field, say it was unavailable instead of guessing. Do not expose or invent hidden reasoning; this trace describes tool inputs and outputs only.
 
 ## Deep mode
 
@@ -93,7 +114,7 @@ Add filters only when the task clearly implies them:
 - By importance: `--importance 0.7`
 - By date range: `--event-from 2026-01-01` / `--event-to 2026-03-01`
 - By source: `-s codex`
-- Limit results: `-n 10`
+- Limit results: `-n 5` by default; increase only when the task needs it
 
 Summarize only the strongest matches and clearly say when nothing relevant was found.
 

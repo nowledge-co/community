@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.1.33] - 2026-09-04
+
+### Added
+
+- Memory retrieval now automatically follows with a focused graph of the exact
+  returned Memories and a compact, observable retrieval trace.
+- The `explore-graph` skill prefers an inline MCP App card and falls back to
+  the existing standalone Graph Explorer when the host cannot render Apps.
+
 ## [0.1.32] - 2026-08-20
 
 ### Fixed
