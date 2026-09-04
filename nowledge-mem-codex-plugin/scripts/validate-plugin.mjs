@@ -90,17 +90,36 @@ const exploreGraphSkill = readTextIfPresent(
 if (exploreGraphSkill) {
   for (const requiredText of [
     "name: explore-graph",
-    "Trigger only when",
+    "automatically after a successful Nowledge Memory search",
+    "Prefer the MCP `explore_graph` tool",
     "nmem --json status",
-    "/graph/vis?standalone=1",
+    "memory_ids=<URL-encoded comma-separated IDs>",
     "Never put an API key in a URL.",
-    "Routine memory searches stay",
+    "Only open the full overview",
   ]) {
     if (!exploreGraphSkill.includes(requiredText)) {
       fail(`explore-graph skill must include: ${requiredText}`);
     }
   }
-  ok("explore-graph explicit activation contract");
+  ok("explore-graph focused inline/fallback contract");
+}
+
+const searchMemorySkill = readTextIfPresent(
+  path.join(pluginRoot, "skills/search-memory/SKILL.md"),
+  "skills/search-memory/SKILL.md",
+);
+if (searchMemorySkill) {
+  for (const requiredText of [
+    "After every successful `memory_search`",
+    "all returned Memory IDs",
+    "`explore_graph`",
+    "Do not expose or invent hidden reasoning",
+  ]) {
+    if (!searchMemorySkill.includes(requiredText)) {
+      fail(`search-memory skill must include: ${requiredText}`);
+    }
+  }
+  ok("search-memory automatic focused graph contract");
 }
 
 const manifest = parseJsonIfPresent(

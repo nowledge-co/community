@@ -17,6 +17,8 @@ CONTEXT_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem-context.py"
 RUNTIME_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem_runtime.py"
 INSTALL_MODULE_PATH = PLUGIN_ROOT / "scripts" / "install_hooks.py"
 HOOKS_JSON_PATH = PLUGIN_ROOT / "hooks" / "hooks.json"
+SEARCH_MEMORY_SKILL_PATH = PLUGIN_ROOT / "skills" / "search-memory" / "SKILL.md"
+EXPLORE_GRAPH_SKILL_PATH = PLUGIN_ROOT / "skills" / "explore-graph" / "SKILL.md"
 
 
 def load_module(module_name: str, module_path: Path):
@@ -25,6 +27,31 @@ def load_module(module_name: str, module_path: Path):
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+class MemoryGraphSkillTests(unittest.TestCase):
+    def test_search_automatically_graphs_the_exact_memory_results(self):
+        skill = SEARCH_MEMORY_SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("After every successful `memory_search`", skill)
+        self.assertIn("all returned Memory IDs", skill)
+        self.assertIn("`explore_graph`", skill)
+        self.assertIn("depth=1", skill)
+
+    def test_search_reports_observable_retrieval_trace(self):
+        skill = SEARCH_MEMORY_SKILL_PATH.read_text(encoding="utf-8")
+
+        for field in ["query", "mode", "scope", "filters", "rank", "score"]:
+            self.assertIn(f"`{field}`", skill)
+        self.assertIn("Do not expose or invent hidden reasoning", skill)
+
+    def test_graph_prefers_inline_and_focuses_the_standalone_fallback(self):
+        skill = EXPLORE_GRAPH_SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("automatically after a successful Nowledge Memory search", skill)
+        self.assertIn("Prefer the MCP `explore_graph` tool", skill)
+        self.assertIn("memory_ids=<URL-encoded comma-separated IDs>", skill)
+        self.assertIn("Only open the full overview", skill)
 
 
 class HookTests(unittest.TestCase):

@@ -6,8 +6,10 @@
 
 ### Added
 
-- An explicit `explore-graph` skill opens the existing standalone interactive
-  Memory Graph even when the Codex host does not support MCP Apps.
+- Memory retrieval now automatically follows with a focused graph of the exact
+  returned Memories and a compact, observable retrieval trace.
+- The `explore-graph` skill prefers an inline MCP App card and falls back to
+  the existing standalone Graph Explorer when the host cannot render Apps.
 
 ## [0.1.32] - 2026-08-20
 
