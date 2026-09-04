@@ -19,7 +19,7 @@ def main() -> None:
 
     assert manifest["name"] == "nowledge-mem"
     assert manifest["displayName"] == "Nowledge Mem"
-    assert manifest["version"] == "0.1.2"
+    assert manifest["version"] == "0.1.3"
     assert manifest["icon"] == "icon.png"
     example_queries = manifest["exampleQueries"]
     assert 0 <= len(example_queries) <= 3

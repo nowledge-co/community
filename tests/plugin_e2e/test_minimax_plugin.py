@@ -53,12 +53,19 @@ def test_minimax_live_probe_ignores_empty_sse_keepalive() -> None:
     ]
 
 
+def test_minimax_submission_retry_stays_new_until_listing_exists() -> None:
+    submission = (PLUGIN_ROOT / "SUBMISSION.md").read_text(encoding="utf-8")
+
+    assert "- Operation: `New plugin` until the first submission passes validation." in submission
+    assert "A validation failure does not create an existing Marketplace plugin." in submission
+
+
 def test_minimax_manifest_matches_official_package_contract() -> None:
     manifest = read_json(MANIFEST_PATH)
 
     assert manifest["schemaVersion"] == 1
     assert manifest["name"] == "nowledge-mem"
-    assert manifest["version"] == "0.1.2"
+    assert manifest["version"] == "0.1.3"
     assert manifest["author"] == "Nowledge Labs"
     assert manifest["apps"] == []
     assert manifest["mcpServers"] == ["nowledge-mem-local.mcp.json"]

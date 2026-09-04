@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "name": "nowledge-mem",
   "displayName": "Nowledge Mem",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Give MiniMax durable, cross-tool memory with scoped context, recall, and knowledge capture.",
   "author": "Nowledge Labs",
   "icon": "icon.png",
