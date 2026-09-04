@@ -1504,6 +1504,18 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["grok-bot"]["autonomy"]["threads"] == "none"
     assert "command" not in by_id["grok-bot"]["install"]
     assert "updateCommand" not in by_id["grok-bot"]["install"]
+    chatgpt_prompt = by_id["chatgpt-cloud"]["install"]["agentGuide"]["prompt"]
+    chatgpt_prompt_zh = by_id["chatgpt-cloud"]["install"]["agentGuide"]["promptZh"]
+    for text in (chatgpt_prompt, chatgpt_prompt_zh):
+        assert "Pro" in text
+        assert "Business" in text
+        assert "Enterprise" in text
+        assert "Edu" in text
+        assert "read/fetch" in text
+        assert "scoped write" in text or "范围明确的写入" in text
+    assert "Plugins Directory" in " ".join(
+        by_id["chatgpt-cloud"]["autonomy"]["bestResultRequires"]
+    )
     assert by_id["kimi-code"]["version"] == "0.2.4"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "skills+hook+mcp-config"
