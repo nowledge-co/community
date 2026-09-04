@@ -77,9 +77,30 @@ for (const file of [
   "skills/save-thread/scripts/save_thread.sh",
   "skills/save-thread/scripts/save_thread.ps1",
   "skills/distill-memory/SKILL.md",
+  "skills/explore-graph/SKILL.md",
   "skills/status/SKILL.md",
 ]) {
   requireFile(file);
+}
+
+const exploreGraphSkill = readTextIfPresent(
+  path.join(pluginRoot, "skills/explore-graph/SKILL.md"),
+  "skills/explore-graph/SKILL.md",
+);
+if (exploreGraphSkill) {
+  for (const requiredText of [
+    "name: explore-graph",
+    "Trigger only when",
+    "nmem --json status",
+    "/graph/vis?standalone=1",
+    "Never put an API key in a URL.",
+    "Routine memory searches stay",
+  ]) {
+    if (!exploreGraphSkill.includes(requiredText)) {
+      fail(`explore-graph skill must include: ${requiredText}`);
+    }
+  }
+  ok("explore-graph explicit activation contract");
 }
 
 const manifest = parseJsonIfPresent(

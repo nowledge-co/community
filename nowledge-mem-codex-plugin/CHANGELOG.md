@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- An explicit `explore-graph` skill opens the existing standalone interactive
+  Memory Graph even when the Codex host does not support MCP Apps.
+
 ## [0.1.32] - 2026-08-20
 
 ### Fixed

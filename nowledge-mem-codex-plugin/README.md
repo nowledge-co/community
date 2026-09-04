@@ -28,6 +28,7 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 | `search-memory` | Prior work, past decisions | Searches memories and conversations, preferring MCP retrieval when present |
 | `save-thread` | Manual fallback, "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
+| `explore-graph` | Explicit request to view the memory graph | Opens the existing interactive Graph Explorer without requiring MCP Apps |
 | `status` | "Is Mem working?", errors | Checks connectivity |
 
 ## Knowledge Tree for Agents
@@ -361,6 +362,7 @@ If you used `nowledge-mem-codex-prompts` before:
 | `search_memory` | `$nowledge-mem:search-memory` |
 | `save_session` | `$nowledge-mem:save-thread` |
 | `distill` | `$nowledge-mem:distill-memory` |
+| *(none)* | `$nowledge-mem:explore-graph` |
 | *(none)* | `$nowledge-mem:status` |
 
 ## Beyond the default tools
