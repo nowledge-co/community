@@ -401,7 +401,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.32"
+    assert codex_manifest["version"] == "0.1.33"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -457,6 +457,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert any('python3 -c "import os, runpy, sys' in command for command in codex_windows_commands)
     assert (CODEX_PLUGIN / "scripts" / "install_hooks.py").exists()
     assert (CODEX_PLUGIN / "skills" / "working-memory" / "SKILL.md").exists()
+    assert (CODEX_PLUGIN / "skills" / "explore-graph" / "SKILL.md").exists()
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
     assert "from nmem_runtime import" in codex_save_hook
     assert "CREATE_NO_WINDOW" in codex_runtime

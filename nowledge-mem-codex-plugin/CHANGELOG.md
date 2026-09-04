@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.33] - 2026-09-04
+
 ### Added
 
 - An explicit `explore-graph` skill opens the existing standalone interactive
