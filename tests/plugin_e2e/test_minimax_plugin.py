@@ -26,17 +26,49 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def parse_sse_messages(body: str) -> list[dict]:
+    messages = []
+    for event in body.replace("\r\n", "\n").split("\n\n"):
+        data_lines = []
+        for line in event.splitlines():
+            if line.startswith("data:"):
+                data = line.removeprefix("data:").lstrip()
+                if data:
+                    data_lines.append(data)
+        if data_lines:
+            messages.append(json.loads("\n".join(data_lines)))
+    return messages
+
+
+def test_minimax_live_probe_ignores_empty_sse_keepalive() -> None:
+    body = (
+        "data: \n"
+        "id: 0\n"
+        "retry: 3000\n\n"
+        'data: {"jsonrpc":"2.0","id":1,"result":{"ok":true}}\n\n'
+    )
+
+    assert parse_sse_messages(body) == [
+        {"jsonrpc": "2.0", "id": 1, "result": {"ok": True}}
+    ]
+
+
 def test_minimax_manifest_matches_official_package_contract() -> None:
     manifest = read_json(MANIFEST_PATH)
 
     assert manifest["schemaVersion"] == 1
     assert manifest["name"] == "nowledge-mem"
-    assert manifest["version"] == "0.1.1"
+    assert manifest["version"] == "0.1.2"
     assert manifest["author"] == "Nowledge Labs"
     assert manifest["apps"] == []
     assert manifest["mcpServers"] == ["nowledge-mem-local.mcp.json"]
     assert manifest["skills"] == ["skills/nowledge-mem/SKILL.md"]
-    assert manifest["exampleQueries"]
+    example_queries = manifest["exampleQueries"]
+    assert 0 <= len(example_queries) <= 3
+    assert all(
+        isinstance(query, str) and query.strip() and len(query) <= 4_096
+        for query in example_queries
+    )
 
     referenced = [manifest["icon"], *manifest["mcpServers"], *manifest["skills"]]
     for relative in referenced:
@@ -150,15 +182,7 @@ def test_minimax_local_mcp_initialize_and_tool_discovery() -> None:
         if not body.strip():
             pytest.fail("MCP response body was empty")
         if body.lstrip().startswith(("event:", "data:")):
-            messages = []
-            for event in body.replace("\r\n", "\n").split("\n\n"):
-                data_lines = [
-                    line.removeprefix("data:").lstrip()
-                    for line in event.splitlines()
-                    if line.startswith("data:")
-                ]
-                if data_lines:
-                    messages.append(json.loads("\n".join(data_lines)))
+            messages = parse_sse_messages(body)
             assert messages, "SSE response did not contain a data event"
             expected_id = payload.get("id")
             return next(
