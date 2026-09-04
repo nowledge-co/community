@@ -5,10 +5,10 @@ This file is the owner handoff for the MiniMax Marketplace form. It is not a run
 ## Package
 
 - Plugin name: `nowledge-mem`
-- Package version: `0.1.1`
+- Package version: `0.1.2`
 - Source: `https://github.com/nowledge-co/community/tree/main/nowledge-mem-minimax-plugin`
 - Manifest: `.minimax-plugin/plugin.json`
-- Operation: `New plugin` for the first submission; use `Update` for later package versions.
+- Operation: `Update` after the initial `PLUGIN-202609040138` validation failure.
 
 ## Requested catalog placement
 

@@ -19,8 +19,14 @@ def main() -> None:
 
     assert manifest["name"] == "nowledge-mem"
     assert manifest["displayName"] == "Nowledge Mem"
-    assert manifest["version"] == "0.1.1"
+    assert manifest["version"] == "0.1.2"
     assert manifest["icon"] == "icon.png"
+    example_queries = manifest["exampleQueries"]
+    assert 0 <= len(example_queries) <= 3
+    assert all(
+        isinstance(query, str) and query.strip() and len(query) <= 4_096
+        for query in example_queries
+    )
     assert manifest["mcpServers"] == ["nowledge-mem-local.mcp.json"]
     assert mcp["mcpServers"]["nowledge-mem"]["type"] == "streamable-http"
     assert mcp["mcpServers"]["nowledge-mem"]["url"] == "http://127.0.0.1:14242/mcp"

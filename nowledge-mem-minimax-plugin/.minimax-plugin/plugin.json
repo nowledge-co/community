@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "name": "nowledge-mem",
   "displayName": "Nowledge Mem",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Give MiniMax durable, cross-tool memory with scoped context, recall, and knowledge capture.",
   "author": "Nowledge Labs",
   "icon": "icon.png",
@@ -10,8 +10,7 @@
   "exampleQueries": [
     "What decisions have I made about this project?",
     "Read my current context and continue where I left off",
-    "Save this decision and its rationale for future sessions",
-    "查找我之前关于这个项目的决定"
+    "保存这个决定和理由，供以后继续使用"
   ],
   "apps": [],
   "mcpServers": [
