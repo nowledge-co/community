@@ -1,5 +1,5 @@
 /**
- * Community Nowledge Mem bundle for DeepSeek Harness.
+ * Nowledge Mem bundle for DeepSeek Harness.
  *
  * The plugin uses DSH-native Cordis events instead of patching the official
  * DeepSeek Harness repository: `agent/pre-step` injects durable Mem context
@@ -22,11 +22,11 @@ import {
   runShellWithHostSandboxRetry,
   warn,
 } from './sandbox-retry.js'
-import { importAcknowledgement, selectUnacknowledgedEvents } from './session-delta.js'
+import { importResultAcknowledgement } from './session-delta.js'
+import { captureSession } from './session-capture.js'
 import {
   boundText,
   buildThreadImportArgs,
-  sessionThreadTitle,
 } from './thread-import.js'
 
 export const name = 'nowledge-mem'
@@ -278,114 +278,25 @@ async function loadRecallMessage(ctx, config, query, signal, session) {
   return rendered === undefined ? undefined : pluginContextMessage('recall', 'nowledge-mem-recall', rendered)
 }
 
-function eventMessage(event) {
-  switch (event.type) {
-    case 'user/message':
-      return event.data
-    case 'assistant/message':
-      return event.data.message
-    case 'tool/result':
-      return event.data.message
-    default:
-      return undefined
-  }
-}
-
-function importRole(event) {
-  switch (event.type) {
-    case 'user/message':
-      return 'user'
-    case 'assistant/message':
-      return 'assistant'
-    case 'tool/result':
-      return 'tool'
-    default:
-      return undefined
-  }
-}
-
-function buildThreadImportDelta(session, maxMessageChars, sourceApp, acknowledgedSeq, title) {
-  const delta = selectUnacknowledgedEvents(session.events, acknowledgedSeq)
-  const messages = []
-  const sessionId = String(session.header.id)
-  for (const event of delta.events) {
-    const role = importRole(event)
-    const message = eventMessage(event)
-    if (role === undefined || message === undefined) continue
-    if (message.source.kind === 'plugin' && message.source.plugin === name) continue
-    const content = boundText(messageText(message).trim(), maxMessageChars)
-    if (content === '') continue
-    const metadata = {
-      external_id: `deepseek-harness:${sessionId}:${event.seq}:${message.id}`,
-      dsh_seq: event.seq,
-      dsh_event_type: event.type,
-      dsh_message_id: message.id,
-      dsh_source_kind: message.source.kind,
-    }
-    if (event.type === 'assistant/message') {
-      metadata.dsh_turn = event.data.turn
-      metadata.dsh_step = event.data.step
-      metadata.dsh_model_provider = event.data.message.source.provider
-      metadata.dsh_model = event.data.message.source.model
-    } else if (event.type === 'tool/result') {
-      metadata.dsh_turn = event.data.turn
-      metadata.dsh_step = event.data.step
-      metadata.dsh_tool_call_id = event.data.message.source.callId
-      if (event.data.error !== undefined) metadata.dsh_tool_error = event.data.error
-    }
-    messages.push({
-      role,
-      content,
-      timestamp: new Date(event.time).toISOString(),
-      metadata,
-    })
-  }
-  if (messages.length === 0) return undefined
-  return {
-    acknowledgedSeq: delta.nextSeq,
-    reset: delta.reset,
-    payload: {
-      title,
-      messages,
-      metadata: {
-        source_app: sourceApp,
-        dsh_session_id: sessionId,
-        dsh_cwd: session.header.cwd,
-        dsh_parent_session: session.header.parentSession,
-        dsh_origin: session.header.origin,
-        dsh_agent_preset: session.header.agentPreset,
-      },
-    },
-  }
-}
-
 export function buildThreadImportPayload(session, maxMessageChars, sourceApp = DEFAULT_SOURCE_APP) {
-  const sessionId = String(session.header.id)
-  const title = sessionThreadTitle(
-    session.events,
-    sessionId,
-    messageText,
+  return captureSession(session, {
+    sourceApp,
+    pluginName: name,
+    renderMessage: messageText,
     maxMessageChars,
-  )
-  return buildThreadImportDelta(session, maxMessageChars, sourceApp, -1, title)?.payload
+  }).deltaFrom(-1)?.payload
 }
 
 async function importSession(ctx, config, session, cursor) {
-  const sessionId = String(session.header.id)
-  const title = sessionThreadTitle(
-    session.events,
-    sessionId,
-    messageText,
-    config.maxThreadMessageChars,
-    cursor?.title,
-  )
-  let delta = buildThreadImportDelta(
-    session,
-    config.maxThreadMessageChars,
-    config.sourceApp,
-    cursor?.seq ?? -1,
-    title,
-  )
+  const capture = captureSession(session, {
+    sourceApp: config.sourceApp,
+    pluginName: name,
+    renderMessage: messageText,
+    maxMessageChars: config.maxThreadMessageChars,
+    establishedTitle: cursor?.title,
+  })
+  const { sessionId, title } = capture
+  let delta = capture.deltaFrom(cursor?.seq ?? -1)
   if (delta === undefined) return undefined
   let payload = delta.payload
   const staging = await mkdtemp(join(tmpdir(), 'dsh-nowledge-mem-'))
@@ -403,18 +314,12 @@ async function importSession(ctx, config, session, cursor) {
     })
     await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
     let result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
-    let stdout = successfulStdout(result)
-    let acknowledgement = stdout === undefined
-      ? { status: 'failed' }
-      : importAcknowledgement(stdout, expectedMessageCount !== undefined)
+    let acknowledgement = importResultAcknowledgement(
+      result,
+      expectedMessageCount !== undefined,
+    )
     if (acknowledgement.status === 'conflict' && expectedMessageCount !== undefined) {
-      const reconciliation = buildThreadImportDelta(
-        session,
-        config.maxThreadMessageChars,
-        config.sourceApp,
-        -1,
-        title,
-      )
+      const reconciliation = capture.deltaFrom(-1)
       if (reconciliation === undefined) return undefined
       delta = reconciliation
       payload = reconciliation.payload
@@ -428,10 +333,7 @@ async function importSession(ctx, config, session, cursor) {
       })
       await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
       result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
-      stdout = successfulStdout(result)
-      acknowledgement = stdout === undefined
-        ? { status: 'failed' }
-        : importAcknowledgement(stdout, false)
+      acknowledgement = importResultAcknowledgement(result, false)
     }
     if (acknowledgement.status !== 'acknowledged') return undefined
     return {

@@ -45,3 +45,25 @@ export function importAcknowledgement(stdout, checkpointed) {
 export function importAcknowledged(stdout, checkpointed) {
   return importAcknowledgement(stdout, checkpointed).status === 'acknowledged'
 }
+
+/**
+ * Classify the CLI process and its structured import response together.
+ * `nmem t import` reports checkpoint drift as JSON on stdout with a non-zero
+ * exit code. That one typed failure is recoverable; every other process-level
+ * failure remains a failure even if its payload happens to say success.
+ */
+export function importResultAcknowledgement(result, checkpointed) {
+  if (
+    result === undefined
+    || result.signal !== null
+    || result.timedOut
+    || result.aborted
+  ) return { status: 'failed' }
+  const stdout = result.stdout?.text?.trim()
+  if (stdout === undefined || stdout === '') return { status: 'failed' }
+  const acknowledgement = importAcknowledgement(stdout, checkpointed)
+  if (result.exitCode === 0 || acknowledgement.status === 'conflict') {
+    return acknowledgement
+  }
+  return { status: 'failed' }
+}

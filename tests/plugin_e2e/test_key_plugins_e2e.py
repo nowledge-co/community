@@ -1573,7 +1573,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.1.4"
+    assert dsh["version"] == "0.1.5"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1631,6 +1631,12 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     thread_import = (DEEPSEEK_HARNESS_PLUGIN / "src" / "thread-import.js").read_text(
         encoding="utf-8"
     )
+    session_capture = (DEEPSEEK_HARNESS_PLUGIN / "src" / "session-capture.js").read_text(
+        encoding="utf-8"
+    )
+    session_events = (DEEPSEEK_HARNESS_PLUGIN / "src" / "session-events.js").read_text(
+        encoding="utf-8"
+    )
     sandbox_retry = (DEEPSEEK_HARNESS_PLUGIN / "src" / "sandbox-retry.js").read_text(
         encoding="utf-8"
     )
@@ -1641,7 +1647,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.1.4"
+    assert pkg["version"] == "0.1.5"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
@@ -1665,14 +1671,16 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "Object.fromEntries(Object.entries" in patch
     assert "typeof value === 'string' && value.length > 0" in patch
     assert "'X-NMEM-Agent-ID': process.env.NMEM_AGENT_ID" in patch
-    assert "sessionThreadTitle(" in source
+    assert "sessionThreadTitle(" in session_capture
     assert "cursor?.title" in source
     assert source.count("buildThreadImportArgs({") == 2
+    assert "snapshotEvents()" in session_events
+    assert "Array.isArray(session?.events)" in session_events
     assert "payload.title" in thread_import
     assert "expectedMessageCount === undefined" in thread_import
     assert "message?.source?.kind === 'plugin'" in thread_import
 
-    assert "export const inject = ['agents', 'shell']" in source
+    assert "export const inject = ['agents', 'sessions', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
     assert "ctx.on('session/event'" in source
     assert "event.type === 'turn/end'" in source
@@ -1688,7 +1696,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "'--json', 'm', 'search', query" in source
     assert "NMEM_IMPORT_ORIGIN" in source
     assert "--source" in source and "deepseek-harness" in source
-    assert "message.source.kind === 'plugin' && message.source.plugin === name" in source
+    assert "message.source.kind === 'plugin' && message.source.plugin === capture.pluginName" in session_capture
     assert "dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "dsh-plugin" in readme
