@@ -1012,15 +1012,15 @@ def test_workbuddy_subagent_stop_syncs_exact_agent_transcript(tmp_path: Path):
     assert args == [
         "--json",
         "t",
-        "sync",
+        "capture",
         "--from",
         "workbuddy",
         "--session-id",
         "wb-agent-1",
-        "--session-dir",
+        "--transcript-path",
         str(agent_transcript),
+        "--sync",
         "--all-projects",
-        "--apply",
     ]
 
 
@@ -1153,7 +1153,7 @@ def test_kimi_code_sync_hook_invokes_nmem_for_session_id(tmp_path: Path):
                 "import json, os, sys",
                 "with open(os.environ['NMEM_FAKE_CALLS'], 'a', encoding='utf-8') as handle:",
                 "    handle.write(json.dumps(sys.argv[1:]) + '\\n')",
-                "print('{\"status\":\"ok\"}')",
+                "print('{\"status\":\"enqueued\"}')",
             ]
         ),
         encoding="utf-8",
@@ -1183,16 +1183,17 @@ def test_kimi_code_sync_hook_invokes_nmem_for_session_id(tmp_path: Path):
         [
             "--json",
             "t",
-            "sync",
+            "capture",
             "--from",
             "kimi-code",
             "--session-id",
             "kimi-session-123",
-            "--apply",
+            "--sync",
+            "--all-projects",
         ]
     ]
     log_text = (kimi_home / "logs" / "nowledge-mem-hook.log").read_text(encoding="utf-8")
-    assert "synced Stop kimi-session-123" in log_text
+    assert "queued Stop kimi-session-123" in log_text
 
 
 def test_kimi_work_installer_writes_managed_plugin_record(tmp_path: Path):
@@ -1787,7 +1788,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.3.9"
+    assert pkg["version"] == "0.3.10"
     assert opencode_registry["version"] == pkg["version"]
     assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source

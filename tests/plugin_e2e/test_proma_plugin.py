@@ -227,12 +227,12 @@ class TestHookScripts:
             encoding="utf-8",
         )
 
-        uploads = []
+        captures = []
         monkeypatch.setattr(
             module,
-            "upload_thread",
-            lambda session_id, messages, cwd: (
-                uploads.append((session_id, messages, cwd)) or True
+            "enqueue_capture",
+            lambda session_id, session_file, cwd: (
+                captures.append((session_id, session_file, cwd)) or True
             ),
         )
         monkeypatch.setattr(sys, "argv", ["save-to-nmem.py"])
@@ -243,16 +243,10 @@ class TestHookScripts:
         )
 
         assert module.main() == 0
-        assert uploads == [
+        assert captures == [
             (
                 "session-123",
-                [
-                    {
-                        "role": "user",
-                        "content": "sync without cwd",
-                        "metadata": {"external_id": "proma:u1"},
-                    }
-                ],
+                session_dir / "session-123.jsonl",
                 None,
             )
         ]
@@ -266,11 +260,11 @@ class TestHookScripts:
             PLUGIN_DIR / "hooks" / "save-to-nmem.py",
         )
 
-        uploads = []
+        captures = []
         monkeypatch.setattr(
             module,
-            "upload_thread",
-            lambda *args: uploads.append(args) or True,
+            "enqueue_capture",
+            lambda *args: captures.append(args) or True,
         )
         monkeypatch.setattr(sys, "argv", ["save-to-nmem.py"])
         monkeypatch.setattr(
@@ -280,7 +274,7 @@ class TestHookScripts:
         )
 
         assert module.main() == 0
-        assert uploads == []
+        assert captures == []
 
     def test_save_script_parses_current_proma_sdk_jsonl(self, tmp_path, monkeypatch):
         proma_home = tmp_path / ".proma"
