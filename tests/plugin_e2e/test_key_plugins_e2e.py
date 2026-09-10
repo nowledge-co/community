@@ -1505,6 +1505,22 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["grok-bot"]["autonomy"]["threads"] == "none"
     assert "command" not in by_id["grok-bot"]["install"]
     assert "updateCommand" not in by_id["grok-bot"]["install"]
+    grok_prompt = by_id["grok-bot"]["install"]["agentGuide"]["prompt"]
+    grok_prompt_zh = by_id["grok-bot"]["install"]["agentGuide"]["promptZh"]
+    for text in (grok_prompt, grok_prompt_zh):
+        assert "Nowledge Cloud" in text
+        assert "Mem App" in text
+        assert "OAuth" in text
+        assert "secret" in text
+        assert "API key" in text
+        assert "shell" in text
+        assert "environment" in text or "环境变量" in text
+        assert "logs" in text or "日志" in text
+        assert "Space" in text
+        assert "exact-ID readback" in text or "精确 ID 回读" in text
+        assert "complete-thread capture" in text or "完整会话" in text
+    assert "do not ask me for a credential" in grok_prompt
+    assert "不要向我索要凭据" in grok_prompt_zh
     chatgpt_prompt = by_id["chatgpt-cloud"]["install"]["agentGuide"]["prompt"]
     chatgpt_prompt_zh = by_id["chatgpt-cloud"]["install"]["agentGuide"]["promptZh"]
     for text in (chatgpt_prompt, chatgpt_prompt_zh):
