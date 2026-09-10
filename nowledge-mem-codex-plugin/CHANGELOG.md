@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.1.34] - 2026-09-10
+
+### Fixed
+
+- Stop hooks quietly skip capture when no transcript path is supplied and the
+  project directory is missing, relative, or a filesystem root. Valid project
+  capture and explicit transcript capture keep using the durable queue.
+
 ## [0.1.33] - 2026-09-10
 
 ### Fixed

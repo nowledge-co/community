@@ -120,6 +120,83 @@ class HookTests(unittest.TestCase):
         legacy.assert_not_called()
         claim.assert_not_called()
 
+    def test_stop_skips_unresolved_capture_context(self):
+        for cwd in (
+            None, "", " ", "/", "//", "/tmp/..", ".", "relative-project",
+            "\\", "C:\\", "C:", r"\\server\share",
+        ):
+            with self.subTest(cwd=cwd):
+                payload = {"session_id": "contextless-session", "cwd": cwd}
+                output = io.StringIO()
+                accepted = mock.Mock(returncode=0, stdout='{"status":"enqueued"}', stderr="")
+                with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+                     mock.patch.object(self.module, "_run_enqueue", return_value=accepted) as enqueue, \
+                     mock.patch.object(self.module, "_run_save_with_retries") as legacy, \
+                     mock.patch.object(self.module, "_dispatch_skill_outcomes") as outcomes, \
+                     mock.patch.object(self.module.sys, "stdin", io.StringIO(json.dumps(payload))), \
+                     mock.patch.object(self.module.sys, "stdout", output):
+                    self.assertEqual(self.module._run_entrypoint(), 0)
+                enqueue.assert_not_called()
+                legacy.assert_not_called()
+                outcomes.assert_not_called()
+                self.assertEqual(json.loads(output.getvalue()), {"continue": True, "suppressOutput": True})
+
+    def test_stop_preserves_project_capture_without_transcript(self):
+        payload = {"session_id": "project-session", "cwd": str(self.temp_path)}
+        accepted = mock.Mock(returncode=0, stdout='{"status":"enqueued"}', stderr="")
+        with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+             mock.patch.object(self.module, "_run_enqueue", return_value=accepted) as enqueue, \
+             mock.patch.object(self.module, "_dispatch_skill_outcomes"), \
+             mock.patch.object(self.module.sys, "stdin", io.StringIO(json.dumps(payload))):
+            self.assertEqual(self.module.main(), 0)
+        enqueue.assert_called_once_with("nmem", payload)
+
+    def test_stop_process_does_not_launch_cli_without_context(self):
+        marker = self.temp_path / "cli-called"
+        shim = self.temp_path / ("nmem-probe.cmd" if os.name == "nt" else "nmem-probe")
+        shim.write_text(
+            '@echo off\necho called>>"%NMEM_CAPTURE_PROBE%"\nexit /b 2\n'
+            if os.name == "nt"
+            else '#!/bin/sh\nprintf called >> "$NMEM_CAPTURE_PROBE"\nexit 2\n',
+            encoding="utf-8",
+        )
+        shim.chmod(0o755)
+        env = dict(os.environ, NMEM_CLI_PATH=str(shim), NMEM_CAPTURE_PROBE=str(marker))
+
+        def invoke(cwd):
+            return subprocess.run(
+                [sys.executable, str(HOOK_MODULE_PATH), "--event", "stop"],
+                input=json.dumps({"session_id": "subprocess-session", "cwd": cwd}),
+                text=True, capture_output=True, env=env, timeout=10, check=True,
+            )
+
+        for cwd in (None, self.temp_path.anchor, "relative-project"):
+            with self.subTest(cwd=cwd):
+                result = invoke(cwd)
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(json.loads(result.stdout), {"continue": True, "suppressOutput": True})
+                self.assertFalse(marker.exists(), "contextless Stop must not launch nmem")
+
+        # Prove the harmless CLI can actually run on this host; absence of a
+        # marker above must not be caused by an unusable subprocess fixture.
+        invoke(str(self.temp_path))
+        self.assertIn("called", marker.read_text(encoding="utf-8"))
+
+    def test_stop_preserves_explicit_transcript_without_project_context(self):
+        for cwd in (None, "/"):
+            with self.subTest(cwd=cwd):
+                payload = {"data": {"input": {
+                    "sessionId": "transcript-session", "cwd": cwd,
+                    "transcriptPath": str(self.temp_path / "rollout.jsonl"),
+                }}}
+                accepted = mock.Mock(returncode=0, stdout='{"status":"enqueued"}', stderr="")
+                with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+                     mock.patch.object(self.module, "_run_enqueue", return_value=accepted) as enqueue, \
+                     mock.patch.object(self.module, "_dispatch_skill_outcomes"), \
+                     mock.patch.object(self.module.sys, "stdin", io.StringIO(json.dumps(payload))):
+                    self.assertEqual(self.module.main(), 0)
+                enqueue.assert_called_once_with("nmem", payload)
+
     def test_skill_outcome_dispatch_preserves_nested_hook_identity(self):
         payload = {
             "data": {
@@ -179,7 +256,7 @@ class HookTests(unittest.TestCase):
              mock.patch.object(
                  self.module.sys,
                  "stdin",
-                 mock.Mock(read=lambda: json.dumps({"session_id": "full-uuid"})),
+                 mock.Mock(read=lambda: json.dumps({"session_id": "full-uuid", "cwd": str(self.temp_path)})),
              ):
             self.assertEqual(self.module.main(), 0)
 

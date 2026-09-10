@@ -339,6 +339,18 @@ def _build_save_command(
     return _build_nmem_command(nmem, *args)
 
 
+def _has_capture_context(payload: dict[str, Any]) -> bool:
+    if _payload_value(payload, "transcript_path", "transcriptPath"):
+        return True
+    cwd = _payload_value(payload, "cwd")
+    if not cwd:
+        return False
+    # Do not resolve relative paths against the hook process's directory or
+    # enqueue a filesystem root as a substitute for an unknown project.
+    project = Path(os.path.normpath(os.path.expanduser(cwd)))
+    return project.is_absolute() and project != Path(project.anchor)
+
+
 def _build_enqueue_command(nmem: str, payload: dict[str, Any]) -> list[str]:
     args = ["--json", "t", "capture", "--from", "codex"]
     session_id = _payload_value(payload, "session_id", "sessionId")
@@ -692,6 +704,9 @@ def main() -> int:
 
     if not session_id:
         _log("skip: durable capture requires session identity")
+        return 0
+    if not _has_capture_context(payload):
+        _log("skip: no transcript or resolved project context")
         return 0
     try:
         enqueue_proc = _run_enqueue(nmem, payload)
