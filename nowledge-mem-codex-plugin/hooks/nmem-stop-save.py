@@ -391,14 +391,23 @@ def _run_enqueue(
     )
 
 
-def _enqueue_succeeded(proc: subprocess.CompletedProcess[str]) -> bool:
+def _enqueue_outcome(proc: subprocess.CompletedProcess[str]) -> str | None:
     if proc.returncode != 0:
-        return False
+        return None
     try:
         payload = json.loads(proc.stdout or "{}")
     except json.JSONDecodeError:
-        return False
-    return isinstance(payload, dict) and payload.get("status") == "enqueued"
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("status") == "enqueued":
+        return "enqueued"
+    if (
+        payload.get("status") == "skipped"
+        and payload.get("reason") == "automatic_capture_disabled"
+    ):
+        return "automatic_capture_disabled"
+    return None
 
 
 def _background_spawn_kwargs() -> dict[str, Any]:
@@ -713,9 +722,13 @@ def main() -> int:
     except (subprocess.TimeoutExpired, OSError) as exc:
         _log(f"enqueue: unavailable; capture skipped: {exc}")
         return 0
-    if _enqueue_succeeded(enqueue_proc):
+    enqueue_outcome = _enqueue_outcome(enqueue_proc)
+    if enqueue_outcome:
         _dispatch_skill_outcomes(payload)
-        _log("enqueue: durable capture accepted")
+        if enqueue_outcome == "enqueued":
+            _log("enqueue: durable capture accepted")
+        else:
+            _log("enqueue: automatic capture disabled by user policy")
         return 0
     detail = (enqueue_proc.stderr or enqueue_proc.stdout or "").strip()
     _log(
