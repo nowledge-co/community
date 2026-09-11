@@ -29,6 +29,8 @@ def main() -> None:
     assert app == {"apps": {"nowledge-mem": {"id": production_id}}}
     assert "never ask the user to paste a Nowledge API key" in skill
     assert "does not let Mem read the host's private transcript" in skill
+    assert "references the production MCP App registered with OpenAI" in skill
+    assert "skills-only" not in skill
     assert "does not replace `nowledge-mem-codex-plugin`" in readme
     assert "Never substitute a guessed ID" in submission
     assert production_id in submission

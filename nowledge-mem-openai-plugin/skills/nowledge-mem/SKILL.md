@@ -11,7 +11,7 @@ Use the connected Nowledge Mem tools when the answer depends on prior decisions,
 
 If the Nowledge Mem tools are unavailable, direct the user to the official setup guide at `https://mem.nowledge.co/docs/integrations/chatgpt-web`. The MCP endpoint must be public HTTPS and end in `/mcp`. Complete the host's OAuth flow; never ask the user to paste a Nowledge API key into chat.
 
-This public plugin package is skills-only until its production MCP connection is registered with OpenAI. Do not invent an app identifier or imply that installing the skill alone creates a Cloud connection.
+This public plugin package references the production MCP App registered with OpenAI. The bundled skill guides usage after the host establishes that per-user OAuth connection; installing the skill alone does not authorize or expose a Cloud workspace.
 
 ## Use
 

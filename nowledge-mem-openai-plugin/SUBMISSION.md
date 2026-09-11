@@ -10,7 +10,7 @@ Owner handoff for the public directory shared by ChatGPT and Codex. Do not put c
 - Authentication: OAuth with dynamic client registration
 - Requested scopes: `mem:read`, `threads:read`, `library:read`, `mem:write`, `library:write`, `offline_access`
 
-The App was created and installed from a verified Nowledge Labs OpenAI organization on 2026-09-11. A real ChatGPT client completed OAuth against the production endpoint, created Memory `63144d60-5c99-424c-abdf-4652103a190a`, and fetched it by ID with the exact title and marker returned. Delete that synthetic Memory after retaining the review evidence.
+The App was created and installed from a verified Nowledge Labs OpenAI organization on 2026-09-11. A real ChatGPT client completed OAuth against the production endpoint, created a synthetic Memory, and fetched it by ID with the exact title and marker returned. Delete that synthetic Memory after retaining the private review evidence.
 
 ## Finalization procedure
 
