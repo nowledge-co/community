@@ -386,7 +386,14 @@ def _enqueue_succeeded(proc: subprocess.CompletedProcess[str]) -> bool:
         payload = json.loads(proc.stdout or "{}")
     except json.JSONDecodeError:
         return False
-    return isinstance(payload, dict) and payload.get("status") == "enqueued"
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("status") == "enqueued":
+        return True
+    return (
+        payload.get("status") == "skipped"
+        and payload.get("reason") == "automatic_capture_disabled"
+    )
 
 
 def _background_spawn_kwargs() -> dict[str, Any]:

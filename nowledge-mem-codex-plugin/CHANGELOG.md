@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The Stop hook now treats an explicit Auto-Sync policy skip as a successful
+  no-op, so disabling automatic session capture does not fall back to a legacy
+  full-session save. Manual thread saves remain available.
+
 ## [0.1.32] - 2026-08-20
 
 ### Fixed

@@ -119,6 +119,29 @@ class HookTests(unittest.TestCase):
         legacy.assert_not_called()
         claim.assert_not_called()
 
+    def test_stop_treats_disabled_automatic_capture_as_handled(self):
+        payload = {
+            "session_id": "019abc",
+            "cwd": "/tmp/project",
+            "transcript_path": "/tmp/codex/rollout.jsonl",
+        }
+        skipped = mock.Mock(
+            returncode=0,
+            stdout='{"status":"skipped","reason":"automatic_capture_disabled"}',
+            stderr="",
+        )
+        with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+             mock.patch.object(self.module, "_run_enqueue", return_value=skipped), \
+             mock.patch.object(self.module, "_dispatch_skill_outcomes") as outcomes, \
+             mock.patch.object(self.module, "_run_save_with_retries") as legacy, \
+             mock.patch.object(self.module, "_claim_capture_event") as claim, \
+             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: json.dumps(payload))):
+            self.assertEqual(self.module.main(), 0)
+
+        outcomes.assert_called_once_with(payload)
+        legacy.assert_not_called()
+        claim.assert_not_called()
+
     def test_skill_outcome_dispatch_preserves_nested_hook_identity(self):
         payload = {
             "data": {
