@@ -1,6 +1,6 @@
 ---
 name: search-memory
-description: Search cross-tool Nowledge memories and threads for prior decisions, procedures, learnings, or exact history. Trigger for continuation, reviews, regressions, releases, rationale, or recall language even if Codex local Memory already shows a related summary.
+description: Search cross-tool Nowledge memories and threads for prior decisions, procedures, learnings, or exact history, with normal, deep, and progressive graph-backed retrieval. Trigger for continuation, reviews, regressions, releases, rationale, or recall language even if Codex local Memory already shows a related summary.
 ---
 
 Find what the user already knows. Search their memories and past conversations for decisions, procedures, and context that make the current task sharper.
@@ -48,8 +48,94 @@ Otherwise:
 3. If a result includes `source_thread`, inspect it progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 
 Prefer the smallest retrieval that answers the question. Do not over-fetch.
+Use a limit of 5 for ordinary Memory retrieval unless the task needs more.
 
-If the runtime already knows the active project or agent lane, add `--space "<space name>"` to these commands.
+## Intelligent retrieval routing
+
+Treat retrieval mode and graph traversal as separate decisions. Start with the
+smallest mode that can answer the user's question, then escalate only when the
+result or the user's intent justifies it.
+
+1. **Normal (default)**: use `memory_search` (or
+   `nmem --json m search "query" --mode normal`) for a bounded recall of a
+   concrete fact, a recent decision, or a simple "what do we know" question.
+   Keep the default limit at 5.
+2. **Deep**: use `mode="deep"` (or `--mode deep`) when the user asks about
+   concepts, rationale, history, relationships across topics, or why a choice
+   was made. Escalate after Normal when it is empty, ambiguous, weakly
+   supported, conflicting, or leaves an important part of the question
+   unanswered. Prefer the server's evidence and trust warnings over a hardcoded
+   score threshold; never invent a threshold the server did not return.
+3. **Progressive graph search**: use it when the user names an exact Memory ID
+   or URI, asks to start from a node, or wants related memories, neighbors,
+   lineage, or a trace. If no seed is supplied, run a bounded Normal/Deep
+   search first and select only exact IDs from its ranked results.
+
+After a non-empty search, the default graph view is a focused graph of that
+result set. A graph view does not by itself mean "search the whole graph".
+Use progressive expansion only when more relational evidence is needed or the
+user asks to continue.
+
+### Progressive one-hop protocol
+
+Maintain this explicit state across expansion calls:
+
+- `seed`: the exact starting Memory ID(s)
+- `visited`: IDs already inspected, including the seed
+- `frontier`: newly discovered candidate IDs that may be expanded next
+- `hop`: the current graph distance from the seed
+
+For each step, expand one selected frontier node by one hop:
+
+```bash
+nmem --json graph expand <memory-id> --depth 1 --limit 20
+```
+
+Use an equivalent graph-expansion MCP tool when the host exposes one. Keep
+`depth=1` per call, de-duplicate against `visited`, preserve edge types and
+the returned order, and update `frontier` only with new relevant IDs. Default
+limits are at most 5 hops and 20 neighbors per hop. Do not automatically
+expand every neighbor or empty the whole graph in one turn. Stop when the
+answer is sufficiently supported, the next frontier is empty/repeated, or the
+maximum depth is reached. If the user explicitly requests a deeper walk, still
+make it one hop per call and stop at depth 5 unless the server advertises a
+different safe limit.
+
+For progressive results, report the seed, hop, center node, newly discovered
+IDs, remaining frontier, and the reason for stopping or continuing. This is a
+retrieval trace, not hidden chain-of-thought.
+
+Preserve the configured identity and Space. Use explicit scope arguments only
+where the installed command supports them; do not infer a Space from the
+current folder. The graph expansion command may rely on ambient configuration
+and may not support `--space`. Apply the scope checks in `explore-graph` before
+expansion; if the graph surface cannot enforce the retrieval scope, skip it.
+
+## Show what was retrieved
+
+After every successful `memory_search` or equivalent CLI/KFS Memory search that
+returns at least one Memory,
+automatically visualize the result set. Preserve the server's ranked order and
+pass all returned Memory IDs; never infer or substitute IDs.
+
+First apply the `explore-graph` skill's identity and Space checks. Exact seed
+IDs do not enforce authorization. For Space- or Team-restricted retrieval,
+visualize only when the graph surface is confirmed to enforce the same
+owner/member/Space restrictions. Otherwise skip the graph and explain why.
+
+1. Prefer the MCP `explore_graph` tool with the comma-separated IDs,
+   `depth=1`, and `limit=15`. Its MCP App metadata lets a capable host render
+   the focused graph inline in chat.
+2. If `explore_graph` is unavailable, use the `explore-graph` skill's
+   standalone fallback with the same exact IDs.
+3. Do not open a second standalone graph when the inline App succeeds. Do not
+   open a graph for an empty result set or for thread-only retrieval.
+
+Whenever Memory results materially inform the answer, include a compact
+retrieval trace with the observable `query`, `mode`, `scope`, `filters`, and
+the result `rank`, Memory ID, title, and server-returned `score` when present.
+Name whether MCP or the `nmem` CLI performed the search. If the server omits a
+field, say it was unavailable instead of guessing. Do not expose or invent hidden reasoning; this trace describes tool inputs and outputs only.
 
 ## Deep mode
 
@@ -93,7 +179,7 @@ Add filters only when the task clearly implies them:
 - By importance: `--importance 0.7`
 - By date range: `--event-from 2026-01-01` / `--event-to 2026-03-01`
 - By source: `-s codex`
-- Limit results: `-n 10`
+- Limit results: `-n 5` by default; increase only when the task needs it
 
 Summarize only the strongest matches and clearly say when nothing relevant was found.
 

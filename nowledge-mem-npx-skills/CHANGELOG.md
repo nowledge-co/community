@@ -4,6 +4,22 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
 
 ## Unreleased
 
+## [0.6.1] - 2026-09-14
+
+### Added
+
+- `explore-graph` as a portable skill for automatic focused graphs after
+  successful Memory retrieval, inline MCP Apps, standalone links, and bounded
+  progressive expansion.
+
+### Changed
+
+- Search now routes Normal, Deep, and Progressive retrieval while preserving
+  the configured identity and active space. Graph failures leave successful
+  retrieval usable.
+- The npx graph skill is the canonical source for the self-contained Codex and
+  Agent Plugins package copies, with package tests checking for drift.
+
 ### Fixed
 
 - Updated `check-integration` to route Agent Plugins-compatible clients to the

@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.1.34] - 2026-09-05
+
+- Share the portable `explore-graph` contract with generic npx and Agent Plugins packages, with independent-install parity tests and explicit identity/Space-safe fallback.
+
+### Added
+
+- Search-memory now teaches an explicit Agent router for bounded Normal,
+  conceptual/historical Deep, and one-hop Progressive graph retrieval.
+- Non-empty Memory results keep the default focused graph, while Progressive
+  expansion tracks seed, visited IDs, frontier, and hop bounds instead of
+  crawling the entire graph.
+- Codex integration metadata now advertises graph exploration and registers the
+  `explore-graph` skill.
+
+## [0.1.33] - 2026-09-04
+
+### Added
+
+- Memory retrieval now automatically follows with a focused graph of the exact
+  returned Memories and a compact, observable retrieval trace.
+- The `explore-graph` skill prefers an inline MCP App card and falls back to
+  the existing standalone Graph Explorer when the host cannot render Apps.
+
 ## [0.1.32] - 2026-08-20
 
 ### Fixed

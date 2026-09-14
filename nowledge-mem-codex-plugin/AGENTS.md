@@ -72,6 +72,13 @@ If the runtime already has an ambient lane, add `--space "<space name>"` to Cont
 
 Use `--mode deep` when the first pass is weak or the need is conceptual.
 
+Follow `search-memory` for Normal, Deep, and Progressive retrieval routing.
+Before any graph rendering or expansion, follow `explore-graph` and its
+identity and Space checks. If the graph surface cannot preserve the retrieval
+scope, skip visualization and retain the retrieved evidence. Keep the graph
+focused on exact returned Memory IDs; use the skill's bounded one-hop protocol
+for Progressive requests.
+
 ## Knowledge Tree
 
 When the task needs to browse across memories, threads, wiki pages, working memory, activities, sources, and artifacts as one shape, use the Knowledge Filesystem:

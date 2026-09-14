@@ -11,6 +11,7 @@
 These skills extend your AI coding agent with persistent memory capabilities powered by [Nowledge Mem](https://mem.nowledge.co):
 
 - **Search Memory** - Automatically route recall across distilled memories and prior discussion threads
+- **[Explore Graph](skills/explore-graph/SKILL.md)** - Show focused graphs of retrieved memories and explore related nodes one hop at a time
 - **Read Working Memory** - Load your daily briefing at session start for cross-tool continuity
 - **Save Handoff** - Leave resumable handoff summaries in generic agent environments
 - **Save Thread (Deprecated Compatibility)** - Preserved for users who already installed the old skill name; in generic runtimes it must degrade honestly to a handoff, not claim lossless transcript import
@@ -34,6 +35,9 @@ npx skills add nowledge-co/community/nowledge-mem-npx-skills --list
 
 # Install specific skill
 npx skills add nowledge-co/community/nowledge-mem-npx-skills --skill search-memory
+
+# Add the graph fallback and progressive exploration skill
+npx skills add nowledge-co/community/nowledge-mem-npx-skills --skill explore-graph
 
 # Install to specific agent
 npx skills add nowledge-co/community/nowledge-mem-npx-skills -a claude-code
@@ -119,6 +123,33 @@ You: I'm getting that authentication error again
 Agent: [Automatically searches knowledge base]
 Found it! We solved this 2 weeks ago. The issue was token expiration...
 ```
+
+Search uses Normal mode for bounded recall, Deep for conceptual or weak-result
+questions, and Progressive when the user wants to follow relationships from an
+exact Memory ID. Non-empty Memory results automatically trigger a focused graph;
+thread-only and empty results do not. Install `explore-graph` alongside
+`search-memory` when selecting skills individually to include its fallback and
+progressive exploration instructions.
+
+### Explore Graph (`explore-graph`)
+
+Shows the exact retrieved Memory IDs in ranked order, normally with
+`depth=1` and `limit=15`. It can also start from a selected Memory and expand one hop
+at a time, bounded to 5 hops and 20 neighbors per hop by default.
+
+The skill prefers an inline MCP App when the host exposes `explore_graph` and
+supports rendering it. Otherwise, it uses `nmem --json status` to construct a
+focused standalone graph URL. A suitable host browser can open a local graph;
+other hosts return a link. Remote links require the browser's existing
+authenticated session. API keys never appear in links.
+
+Graph viewing requires the same owner/member permissions and space as retrieval;
+exact result IDs alone do not provide access control. For Space- or
+Team-restricted searches, the graph surface must be confirmed to enforce those
+restrictions. Browser links also require confirmation of the browser's identity
+and active space, which the CLI configuration does not establish. If those checks
+are unavailable, or a required tool fails, the agent skips the graph and keeps
+the successful search results. A dedicated native connector is optional.
 
 ### Save Handoff (`save-handoff`)
 
@@ -210,7 +241,7 @@ nmem --json m search "React patterns"
 
 ### Memory Lifecycle
 
-The reusable skills follow the same core flow as the richer native connectors: read Working Memory, route recall across memories and threads, save a resumable handoff when asked, and distill durable knowledge.
+The reusable skills follow the same core flow as the richer native connectors: read Working Memory, route recall across memories and threads, show a focused graph of retrieved memories, save a resumable handoff when asked, and distill durable knowledge.
 
 For generic `npx skills` environments, treat `save-handoff` as the honest default. The deprecated `save-thread` compatibility skill stays published only so existing indexed installs do not break or mislead users.
 
@@ -254,6 +285,7 @@ Retrieval routing:
 - Use `nmem --json t search` when the user is asking about a prior discussion or exact conversation history.
 - If a memory result includes `source_thread`, inspect that conversation progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 - If the host does not know a lane, stay in the default space. Do not invent one in the prompt.
+- After non-empty Memory retrieval, use `explore-graph` to show the exact result IDs in the same scope; skip empty and thread-only results. If visualization fails, report the reason and retain the retrieved evidence.
 
 When preserving knowledge:
 - Use `nmem --json m add` for genuinely new durable knowledge.
@@ -311,6 +343,31 @@ See [nowledge-mem-claude-code-plugin](../nowledge-mem-claude-code-plugin) for de
 - [Nowledge Mem](https://mem.nowledge.co)
 - [Discord Community](https://nowled.ge/discord)
 - [GitHub](https://github.com/nowledge-co/community)
+
+## Maintaining the Shared Graph Skill
+
+[`skills/explore-graph/SKILL.md`](skills/explore-graph/SKILL.md) is the canonical
+graph skill source. The Codex and Agent Plugins packages ship identical ordinary
+files so each package works when installed on its own. Do not replace those
+package copies with symlinks or runtime references outside the installed package:
+Codex's sparse marketplace install does not include the npx skills directory.
+
+After editing the canonical source, run these commands from the community
+repository root:
+
+```bash
+cp nowledge-mem-npx-skills/skills/explore-graph/SKILL.md nowledge-mem-codex-plugin/skills/explore-graph/SKILL.md
+cp nowledge-mem-npx-skills/skills/explore-graph/SKILL.md nowledge-mem-agent-plugin/skills/explore-graph/SKILL.md
+```
+
+Keep the npx and Agent Plugins `search-memory` skills aligned as well. Run the
+existing package tests to check graph content, package independence, search
+routing, and registry declarations:
+
+```bash
+python3 -m unittest nowledge-mem-codex-plugin/tests/test_codex_plugin.py
+node nowledge-mem-codex-plugin/scripts/validate-plugin.mjs
+```
 
 ---
 

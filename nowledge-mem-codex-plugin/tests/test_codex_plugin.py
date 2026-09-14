@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,8 @@ CONTEXT_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem-context.py"
 RUNTIME_MODULE_PATH = PLUGIN_ROOT / "hooks" / "nmem_runtime.py"
 INSTALL_MODULE_PATH = PLUGIN_ROOT / "scripts" / "install_hooks.py"
 HOOKS_JSON_PATH = PLUGIN_ROOT / "hooks" / "hooks.json"
+SEARCH_MEMORY_SKILL_PATH = PLUGIN_ROOT / "skills" / "search-memory" / "SKILL.md"
+EXPLORE_GRAPH_SKILL_PATH = PLUGIN_ROOT / "skills" / "explore-graph" / "SKILL.md"
 
 
 def load_module(module_name: str, module_path: Path):
@@ -25,6 +28,108 @@ def load_module(module_name: str, module_path: Path):
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+class MemoryGraphSkillTests(unittest.TestCase):
+    def test_global_graph_entrypoint_requires_the_scoped_skill(self):
+        instructions = (PLUGIN_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("Before any graph rendering or expansion", instructions)
+        self.assertIn("`explore-graph`", instructions)
+        self.assertIn("identity and Space checks", instructions)
+        self.assertNotIn("nmem --json graph expand", instructions)
+
+    def test_graph_skill_is_identical_and_self_contained_in_each_package(self):
+        repo_root = PLUGIN_ROOT.parent
+        packages = [
+            "nowledge-mem-npx-skills",
+            "nowledge-mem-agent-plugin",
+            "nowledge-mem-codex-plugin",
+        ]
+        relative_skill = Path("skills/explore-graph/SKILL.md")
+        canonical = (repo_root / packages[0] / relative_skill).read_bytes()
+
+        for package in packages:
+            with self.subTest(package=package), tempfile.TemporaryDirectory() as root:
+                # Model an isolated package install, retaining links so an
+                # out-of-package symlink cannot pass by being dereferenced.
+                installed = Path(root) / package
+                shutil.copytree(
+                    repo_root / package / "skills", installed / "skills", symlinks=True
+                )
+                skill = installed / relative_skill
+                self.assertTrue(skill.is_file())
+                self.assertFalse(skill.is_symlink())
+                self.assertFalse(skill.parent.is_symlink())
+                self.assertEqual(skill.read_bytes(), canonical)
+
+    def test_generic_search_packages_route_memory_results_to_graph(self):
+        repo_root = PLUGIN_ROOT.parent
+        generic = repo_root / "nowledge-mem-npx-skills/skills/search-memory/SKILL.md"
+        standard = repo_root / "nowledge-mem-agent-plugin/skills/search-memory/SKILL.md"
+        self.assertEqual(generic.read_bytes(), standard.read_bytes())
+        skill = generic.read_text(encoding="utf-8")
+        for term in ["explore-graph", "Memory IDs", "thread-only", "Normal", "Deep", "Progressive"]:
+            self.assertIn(term, skill)
+
+    def test_registry_advertises_packaged_graph_skills(self):
+        repo_root = PLUGIN_ROOT.parent
+        registry = json.loads((repo_root / "integrations.json").read_text(encoding="utf-8"))
+        by_id = {entry["id"]: entry for entry in registry["integrations"]}
+        for integration_id in ["codex-cli", "npx-skills", "agent-plugins"]:
+            with self.subTest(integration=integration_id):
+                entry = by_id[integration_id]
+                self.assertTrue(entry["capabilities"]["graphExploration"])
+                self.assertIn("explore-graph", entry["skills"])
+                self.assertTrue(
+                    (repo_root / entry["directory"] / "skills/explore-graph/SKILL.md").is_file()
+                )
+
+    def test_search_automatically_graphs_the_exact_memory_results(self):
+        skill = SEARCH_MEMORY_SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("After every successful `memory_search`", skill)
+        self.assertIn("all returned Memory IDs", skill)
+        self.assertIn("`explore_graph`", skill)
+        self.assertIn("depth=1", skill)
+
+    def test_search_routes_normal_deep_and_progressive_modes(self):
+        skill = SEARCH_MEMORY_SKILL_PATH.read_text(encoding="utf-8")
+
+        for term in [
+            "Normal (default)",
+            "Deep",
+            "Progressive graph search",
+            "nmem --json graph expand <memory-id> --depth 1 --limit 20",
+            "`seed`",
+            "`visited`",
+            "`frontier`",
+            "`hop`",
+            "maximum depth",
+        ]:
+            self.assertIn(term, skill)
+
+    def test_search_reports_observable_retrieval_trace(self):
+        skill = SEARCH_MEMORY_SKILL_PATH.read_text(encoding="utf-8")
+
+        for field in ["query", "mode", "scope", "filters", "rank", "score"]:
+            self.assertIn(f"`{field}`", skill)
+        self.assertIn("Do not expose or invent hidden reasoning", skill)
+
+    def test_graph_prefers_inline_and_focuses_the_standalone_fallback(self):
+        skill = EXPLORE_GRAPH_SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("automatically after a successful Nowledge Memory search", skill)
+        self.assertIn("Prefer the MCP `explore_graph` tool", skill)
+        self.assertIn("memory_ids=<URL-encoded comma-separated IDs>", skill)
+        self.assertIn("Only open the full overview", skill)
+
+    def test_graph_skill_documents_bounded_progressive_expansion(self):
+        skill = EXPLORE_GRAPH_SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("progressively", skill)
+        self.assertIn("nmem --json graph expand <memory-id> --depth 1 --limit 20", skill)
+        self.assertIn("Track `seed`, `visited`, `frontier`, and `hop`", skill)
+        self.assertIn("5 hops", skill)
 
 
 class HookTests(unittest.TestCase):
