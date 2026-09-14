@@ -1,6 +1,6 @@
 ---
 name: search-memory
-description: Search cross-tool Nowledge memories and threads for prior decisions, procedures, learnings, or exact history. Trigger for continuation, reviews, regressions, releases, rationale, or recall language even if Codex local Memory already shows a related summary.
+description: Search cross-tool Nowledge memories and threads for prior decisions, procedures, learnings, or exact history, with normal, deep, and progressive graph-backed retrieval. Trigger for continuation, reviews, regressions, releases, rationale, or recall language even if Codex local Memory already shows a related summary.
 ---
 
 Find what the user already knows. Search their memories and past conversations for decisions, procedures, and context that make the current task sharper.
@@ -50,11 +50,67 @@ Otherwise:
 Prefer the smallest retrieval that answers the question. Do not over-fetch.
 Use a limit of 5 for ordinary Memory retrieval unless the task needs more.
 
+## Intelligent retrieval routing
+
+Treat retrieval mode and graph traversal as separate decisions. Start with the
+smallest mode that can answer the user's question, then escalate only when the
+result or the user's intent justifies it.
+
+1. **Normal (default)**: use `memory_search` (or
+   `nmem --json m search "query" --mode normal`) for a bounded recall of a
+   concrete fact, a recent decision, or a simple "what do we know" question.
+   Keep the default limit at 5.
+2. **Deep**: use `mode="deep"` (or `--mode deep`) when the user asks about
+   concepts, rationale, history, relationships across topics, or why a choice
+   was made. Escalate after Normal when it is empty, ambiguous, weakly
+   supported, conflicting, or leaves an important part of the question
+   unanswered. Prefer the server's evidence and trust warnings over a hardcoded
+   score threshold; never invent a threshold the server did not return.
+3. **Progressive graph search**: use it when the user names an exact Memory ID
+   or URI, asks to start from a node, or wants related memories, neighbors,
+   lineage, or a trace. If no seed is supplied, run a bounded Normal/Deep
+   search first and select only exact IDs from its ranked results.
+
+After a non-empty search, the default graph view is a focused graph of that
+result set. A graph view does not by itself mean "search the whole graph".
+Use progressive expansion only when more relational evidence is needed or the
+user asks to continue.
+
+### Progressive one-hop protocol
+
+Maintain this explicit state across expansion calls:
+
+- `seed`: the exact starting Memory ID(s)
+- `visited`: IDs already inspected, including the seed
+- `frontier`: newly discovered candidate IDs that may be expanded next
+- `hop`: the current graph distance from the seed
+
+For each step, expand one selected frontier node by one hop:
+
+```bash
+nmem --json graph expand <memory-id> --depth 1 --limit 20
+```
+
+Use an equivalent graph-expansion MCP tool when the host exposes one. Keep
+`depth=1` per call, de-duplicate against `visited`, preserve edge types and
+the returned order, and update `frontier` only with new relevant IDs. Default
+limits are at most 5 hops and 20 neighbors per hop. Do not automatically
+expand every neighbor or empty the whole graph in one turn. Stop when the
+answer is sufficiently supported, the next frontier is empty/repeated, or the
+maximum depth is reached. If the user explicitly requests a deeper walk, still
+make it one hop per call and stop at depth 5 unless the server advertises a
+different safe limit.
+
+For progressive results, report the seed, hop, center node, newly discovered
+IDs, remaining frontier, and the reason for stopping or continuing. This is a
+retrieval trace, not hidden chain-of-thought.
+
 If the runtime already knows the active project or agent lane, add `--space "<space name>"` to these commands.
 
 ## Show what was retrieved
 
-After every successful `memory_search` that returns at least one Memory,
+After every successful `memory_search` or equivalent CLI/KFS Memory search that
+returns at least one Memory,
 automatically visualize the result set. Preserve the server's ranked order and
 pass all returned Memory IDs; never infer or substitute IDs.
 

@@ -38,6 +38,22 @@ class MemoryGraphSkillTests(unittest.TestCase):
         self.assertIn("`explore_graph`", skill)
         self.assertIn("depth=1", skill)
 
+    def test_search_routes_normal_deep_and_progressive_modes(self):
+        skill = SEARCH_MEMORY_SKILL_PATH.read_text(encoding="utf-8")
+
+        for term in [
+            "Normal (default)",
+            "Deep",
+            "Progressive graph search",
+            "nmem --json graph expand <memory-id> --depth 1 --limit 20",
+            "`seed`",
+            "`visited`",
+            "`frontier`",
+            "`hop`",
+            "maximum depth",
+        ]:
+            self.assertIn(term, skill)
+
     def test_search_reports_observable_retrieval_trace(self):
         skill = SEARCH_MEMORY_SKILL_PATH.read_text(encoding="utf-8")
 
@@ -52,6 +68,14 @@ class MemoryGraphSkillTests(unittest.TestCase):
         self.assertIn("Prefer the MCP `explore_graph` tool", skill)
         self.assertIn("memory_ids=<URL-encoded comma-separated IDs>", skill)
         self.assertIn("Only open the full overview", skill)
+
+    def test_graph_skill_documents_bounded_progressive_expansion(self):
+        skill = EXPLORE_GRAPH_SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("progressively", skill)
+        self.assertIn("nmem --json graph expand <memory-id> --depth 1 --limit 20", skill)
+        self.assertIn("Track `seed`, `visited`, `frontier`, and `hop`", skill)
+        self.assertIn("5 hops", skill)
 
 
 class HookTests(unittest.TestCase):

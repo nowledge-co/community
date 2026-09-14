@@ -96,6 +96,8 @@ if (exploreGraphSkill) {
     "memory_ids=<URL-encoded comma-separated IDs>",
     "Never put an API key in a URL.",
     "Only open the full overview",
+    "progressive expansion",
+    "nmem --json graph expand <memory-id> --depth 1 --limit 20",
   ]) {
     if (!exploreGraphSkill.includes(requiredText)) {
       fail(`explore-graph skill must include: ${requiredText}`);
@@ -114,6 +116,14 @@ if (searchMemorySkill) {
     "all returned Memory IDs",
     "`explore_graph`",
     "Do not expose or invent hidden reasoning",
+    "Normal (default)",
+    "Deep",
+    "Progressive graph search",
+    "`seed`",
+    "`visited`",
+    "`frontier`",
+    "`hop`",
+    "maximum depth",
   ]) {
     if (!searchMemorySkill.includes(requiredText)) {
       fail(`search-memory skill must include: ${requiredText}`);
