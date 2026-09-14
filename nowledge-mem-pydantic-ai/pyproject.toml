@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nowledge-mem-pydantic-ai"
+version = "0.1.0"
+description = "Scoped Nowledge Mem context, MCP tools, and optional Thread sync for Pydantic AI"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Nowledge Labs", email = "hello@nowledge-labs.ai" }]
+dependencies = [
+  "pydantic-ai-slim[mcp]>=2.43,<3",
+  "fastmcp-slim[client]>=3.3,<4",
+  "httpx>=0.27,<1",
+]
+
+[project.urls]
+Source = "https://github.com/nowledge-co/community/tree/main/nowledge-mem-pydantic-ai"
+Issues = "https://github.com/nowledge-co/community/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.25", "ruff>=0.11", "pyright>=1.1.400", "build>=1.2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nowledge_mem_pydantic_ai"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+include = ["src", "tests"]

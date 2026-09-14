@@ -1,0 +1,57 @@
+name: Pydantic AI integration
+
+on:
+  pull_request:
+    paths:
+      - nowledge-mem-pydantic-ai/**
+      - .github/workflows/pydantic-ai.yml
+  push:
+    branches: [main]
+    paths:
+      - nowledge-mem-pydantic-ai/**
+      - .github/workflows/pydantic-ai.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Python ${{ matrix.python }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.10"
+          - os: ubuntu-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.13"
+          - os: windows-latest
+            python: "3.13"
+    defaults:
+      run:
+        working-directory: nowledge-mem-pydantic-ai
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: nowledge-mem-pydantic-ai/pyproject.toml
+      - name: Install package and development tools
+        run: python -m pip install '.[dev]'
+      - name: Lint
+        run: python -m ruff check .
+      - name: Check formatting
+        run: python -m ruff format --check .
+      - name: Check types
+        run: python -m pyright --project pyproject.toml
+      - name: Exercise the SDK and MCP contract
+        run: python -m pytest
+      - name: Build distribution artifacts
+        run: python -m build
