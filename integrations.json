@@ -2009,7 +2009,7 @@
       "name": "Universal Agent Plugin",
       "category": "surface",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-agent-plugin",
       "transport": "agent-plugin+mcp",
       "capabilities": {
@@ -2018,7 +2018,7 @@
         "distill": true,
         "autoRecall": false,
         "autoCapture": false,
-        "graphExploration": false,
+        "graphExploration": true,
         "status": true
       },
       "threadSave": {
@@ -2060,7 +2060,7 @@
         "packagePath": "nowledge-mem-agent-plugin",
         "compatibleWhen": "The host supports Agent Plugins and no dedicated Nowledge connector exists"
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "save-thread", "check-integration", "status"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "save-thread", "check-integration", "status", "explore-graph"],
       "slashCommands": []
     },
     {
@@ -2068,7 +2068,7 @@
       "name": "npx Skills",
       "category": "surface",
       "type": "skills",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "directory": "nowledge-mem-npx-skills",
       "transport": "cli",
       "capabilities": {
@@ -2077,7 +2077,7 @@
         "distill": true,
         "autoRecall": false,
         "autoCapture": false,
-        "graphExploration": false,
+        "graphExploration": true,
         "status": true
       },
       "threadSave": {
@@ -2105,7 +2105,7 @@
         "convention": "cli-direct",
         "note": "Skills teach agents to invoke nmem CLI directly"
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "save-thread", "check-integration", "status"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "save-thread", "check-integration", "status", "explore-graph"],
       "slashCommands": []
     },
     {

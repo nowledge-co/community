@@ -72,15 +72,12 @@ If the runtime already has an ambient lane, add `--space "<space name>"` to Cont
 
 Use `--mode deep` when the first pass is weak or the need is conceptual.
 
-Route retrieval modes deliberately: Normal is the bounded default; Deep is for
-conceptual, historical, rationale, cross-topic, conflicting, or weak-result
-questions; Progressive starts from an exact Memory ID and expands one graph hop
-at a time. After any non-empty Memory result, show its focused graph; do not
-turn that default visualization into an unbounded graph crawl.
-
-For Progressive, keep `seed`, `visited`, `frontier`, and `hop`, use
-`nmem --json graph expand <memory-id> --depth 1 --limit 20`, cap the walk at 5
-hops by default, and report why the walk continued or stopped.
+Follow `search-memory` for Normal, Deep, and Progressive retrieval routing.
+Before any graph rendering or expansion, follow `explore-graph` and its
+identity and Space checks. If the graph surface cannot preserve the retrieval
+scope, skip visualization and retain the retrieved evidence. Keep the graph
+focused on exact returned Memory IDs; use the skill's bounded one-hop protocol
+for Progressive requests.
 
 ## Knowledge Tree
 

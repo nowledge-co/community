@@ -4,6 +4,8 @@
 
 ## [0.1.34] - 2026-09-05
 
+- Share the portable `explore-graph` contract with generic npx and Agent Plugins packages, with independent-install parity tests and explicit identity/Space-safe fallback.
+
 ### Added
 
 - Search-memory now teaches an explicit Agent router for bounded Normal,

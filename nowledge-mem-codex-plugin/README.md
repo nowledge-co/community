@@ -415,3 +415,15 @@ to see its full capabilities.
 - [Documentation](https://mem.nowledge.co/docs)
 - [Discord](https://nowled.ge/discord)
 - [GitHub](https://github.com/nowledge-co/community)
+
+### Shared graph skill source
+
+The canonical `explore-graph` skill lives in the generic npx skills package.
+This plugin carries an identical regular-file copy so sparse marketplace
+installs remain self-contained. Maintain the npx source and follow its README
+synchronization commands; the plugin tests enforce package parity.
+
+Graph viewing preserves the retrieval identity and Space restrictions. Exact
+Memory IDs do not enforce authorization. If the graph surface or browser
+session cannot be confirmed to enforce the same owner/member/Space scope,
+skip visualization and keep the retrieved evidence.

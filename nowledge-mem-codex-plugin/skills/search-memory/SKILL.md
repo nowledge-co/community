@@ -105,7 +105,11 @@ For progressive results, report the seed, hop, center node, newly discovered
 IDs, remaining frontier, and the reason for stopping or continuing. This is a
 retrieval trace, not hidden chain-of-thought.
 
-If the runtime already knows the active project or agent lane, add `--space "<space name>"` to these commands.
+Preserve the configured identity and Space. Use explicit scope arguments only
+where the installed command supports them; do not infer a Space from the
+current folder. The graph expansion command may rely on ambient configuration
+and may not support `--space`. Apply the scope checks in `explore-graph` before
+expansion; if the graph surface cannot enforce the retrieval scope, skip it.
 
 ## Show what was retrieved
 
@@ -113,6 +117,11 @@ After every successful `memory_search` or equivalent CLI/KFS Memory search that
 returns at least one Memory,
 automatically visualize the result set. Preserve the server's ranked order and
 pass all returned Memory IDs; never infer or substitute IDs.
+
+First apply the `explore-graph` skill's identity and Space checks. Exact seed
+IDs do not enforce authorization. For Space- or Team-restricted retrieval,
+visualize only when the graph surface is confirmed to enforce the same
+owner/member/Space restrictions. Otherwise skip the graph and explain why.
 
 1. Prefer the MCP `explore_graph` tool with the comma-separated IDs,
    `depth=1`, and `limit=15`. Its MCP App metadata lets a capable host render
