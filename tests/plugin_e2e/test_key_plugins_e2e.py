@@ -1013,15 +1013,15 @@ def test_workbuddy_subagent_stop_syncs_exact_agent_transcript(tmp_path: Path):
     assert args == [
         "--json",
         "t",
-        "sync",
+        "capture",
         "--from",
         "workbuddy",
         "--session-id",
         "wb-agent-1",
-        "--session-dir",
+        "--transcript-path",
         str(agent_transcript),
+        "--sync",
         "--all-projects",
-        "--apply",
     ]
 
 
@@ -1154,7 +1154,7 @@ def test_kimi_code_sync_hook_invokes_nmem_for_session_id(tmp_path: Path):
                 "import json, os, sys",
                 "with open(os.environ['NMEM_FAKE_CALLS'], 'a', encoding='utf-8') as handle:",
                 "    handle.write(json.dumps(sys.argv[1:]) + '\\n')",
-                "print('{\"status\":\"ok\"}')",
+                "print('{\"status\":\"enqueued\"}')",
             ]
         ),
         encoding="utf-8",
@@ -1184,16 +1184,17 @@ def test_kimi_code_sync_hook_invokes_nmem_for_session_id(tmp_path: Path):
         [
             "--json",
             "t",
-            "sync",
+            "capture",
             "--from",
             "kimi-code",
             "--session-id",
             "kimi-session-123",
-            "--apply",
+            "--sync",
+            "--all-projects",
         ]
     ]
     log_text = (kimi_home / "logs" / "nowledge-mem-hook.log").read_text(encoding="utf-8")
-    assert "synced Stop kimi-session-123" in log_text
+    assert "queued Stop kimi-session-123" in log_text
 
 
 def test_kimi_work_installer_writes_managed_plugin_record(tmp_path: Path):
@@ -1505,6 +1506,34 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["grok-bot"]["autonomy"]["threads"] == "none"
     assert "command" not in by_id["grok-bot"]["install"]
     assert "updateCommand" not in by_id["grok-bot"]["install"]
+    grok_prompt = by_id["grok-bot"]["install"]["agentGuide"]["prompt"]
+    grok_prompt_zh = by_id["grok-bot"]["install"]["agentGuide"]["promptZh"]
+    for text in (grok_prompt, grok_prompt_zh):
+        assert "Nowledge Cloud" in text
+        assert "Mem App" in text
+        assert "OAuth" in text
+        assert "secret" in text
+        assert "API key" in text
+        assert "shell" in text
+        assert "environment" in text or "环境变量" in text
+        assert "logs" in text or "日志" in text
+        assert "Space" in text
+        assert "exact-ID readback" in text or "精确 ID 回读" in text
+        assert "complete-thread capture" in text or "完整会话" in text
+    assert "do not ask me for a credential" in grok_prompt
+    assert "不要向我索要凭据" in grok_prompt_zh
+    chatgpt_prompt = by_id["chatgpt-cloud"]["install"]["agentGuide"]["prompt"]
+    chatgpt_prompt_zh = by_id["chatgpt-cloud"]["install"]["agentGuide"]["promptZh"]
+    for text in (chatgpt_prompt, chatgpt_prompt_zh):
+        assert "Pro" in text
+        assert "Business" in text
+        assert "Enterprise" in text
+        assert "Edu" in text
+        assert "read/fetch" in text
+        assert "scoped write" in text or "范围明确的写入" in text
+    assert "Plugins Directory" in " ".join(
+        by_id["chatgpt-cloud"]["autonomy"]["bestResultRequires"]
+    )
     assert by_id["kimi-code"]["version"] == "0.2.4"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "skills+hook+mcp-config"
@@ -1562,7 +1591,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.1.4"
+    assert dsh["version"] == "0.1.5"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1620,6 +1649,12 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     thread_import = (DEEPSEEK_HARNESS_PLUGIN / "src" / "thread-import.js").read_text(
         encoding="utf-8"
     )
+    session_capture = (DEEPSEEK_HARNESS_PLUGIN / "src" / "session-capture.js").read_text(
+        encoding="utf-8"
+    )
+    session_events = (DEEPSEEK_HARNESS_PLUGIN / "src" / "session-events.js").read_text(
+        encoding="utf-8"
+    )
     sandbox_retry = (DEEPSEEK_HARNESS_PLUGIN / "src" / "sandbox-retry.js").read_text(
         encoding="utf-8"
     )
@@ -1630,7 +1665,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.1.4"
+    assert pkg["version"] == "0.1.5"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
@@ -1654,14 +1689,16 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "Object.fromEntries(Object.entries" in patch
     assert "typeof value === 'string' && value.length > 0" in patch
     assert "'X-NMEM-Agent-ID': process.env.NMEM_AGENT_ID" in patch
-    assert "sessionThreadTitle(" in source
+    assert "sessionThreadTitle(" in session_capture
     assert "cursor?.title" in source
     assert source.count("buildThreadImportArgs({") == 2
+    assert "snapshotEvents()" in session_events
+    assert "Array.isArray(session?.events)" in session_events
     assert "payload.title" in thread_import
     assert "expectedMessageCount === undefined" in thread_import
     assert "message?.source?.kind === 'plugin'" in thread_import
 
-    assert "export const inject = ['agents', 'shell']" in source
+    assert "export const inject = ['agents', 'sessions', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
     assert "ctx.on('session/event'" in source
     assert "event.type === 'turn/end'" in source
@@ -1677,7 +1714,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "'--json', 'm', 'search', query" in source
     assert "NMEM_IMPORT_ORIGIN" in source
     assert "--source" in source and "deepseek-harness" in source
-    assert "message.source.kind === 'plugin' && message.source.plugin === name" in source
+    assert "message.source.kind === 'plugin' && message.source.plugin === capture.pluginName" in session_capture
     assert "dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "dsh-plugin" in readme
@@ -1768,7 +1805,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.3.9"
+    assert pkg["version"] == "0.3.10"
     assert opencode_registry["version"] == pkg["version"]
     assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source

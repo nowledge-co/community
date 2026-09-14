@@ -20,16 +20,20 @@ def main() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     submission = (ROOT / "SUBMISSION.md").read_text(encoding="utf-8")
     finalizer = ROOT / "scripts" / "finalize-app-connection.mjs"
+    app = read_json(ROOT / ".app.json")
+    production_id = "plugin_asdk_app_6aa369289c1c81919c64940abad926f0"
 
     assert manifest["name"] == "nowledge-mem-cloud"
     assert manifest["skills"] == "./skills/"
-    assert "apps" not in manifest
-    assert not (ROOT / ".app.json").exists()
-    assert "plugin_asdk_app_" not in json.dumps(manifest)
+    assert manifest["apps"] == "./.app.json"
+    assert app == {"apps": {"nowledge-mem": {"id": production_id}}}
     assert "never ask the user to paste a Nowledge API key" in skill
     assert "does not let Mem read the host's private transcript" in skill
+    assert "references the production MCP App registered with OpenAI" in skill
+    assert "skills-only" not in skill
     assert "does not replace `nowledge-mem-codex-plugin`" in readme
     assert "Never substitute a guessed ID" in submission
+    assert production_id in submission
 
     with tempfile.TemporaryDirectory(prefix="nmem-openai-plugin-") as temp:
         probe = Path(temp) / ROOT.name

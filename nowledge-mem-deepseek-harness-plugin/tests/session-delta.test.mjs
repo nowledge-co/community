@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   importAcknowledged,
   importAcknowledgement,
+  importResultAcknowledgement,
   selectUnacknowledgedEvents,
 } from '../src/session-delta.js'
 
@@ -109,5 +110,48 @@ test('classifies typed checkpoint drift for full reconciliation', () => {
       false,
     ),
     { status: 'acknowledged', messageCount: 5 },
+  )
+})
+
+function processResult(exitCode, body, overrides = {}) {
+  return {
+    exitCode,
+    signal: null,
+    timedOut: false,
+    aborted: false,
+    stdout: { text: body },
+    ...overrides,
+  }
+}
+
+test('preserves typed conflict output from a non-zero import process', () => {
+  const conflict = JSON.stringify({
+    success: false,
+    failed_count: 1,
+    results: [{ success: false, error_code: 'checkpoint_conflict' }],
+  })
+  assert.deepEqual(
+    importResultAcknowledgement(processResult(1, conflict), true),
+    { status: 'conflict' },
+  )
+})
+
+test('never accepts other non-zero, interrupted, or empty process results', () => {
+  const success = JSON.stringify({
+    success: true,
+    failed_count: 0,
+    results: [{ success: true, append_mode: 'checkpointed', message_count: 3 }],
+  })
+  assert.deepEqual(
+    importResultAcknowledgement(processResult(1, success), true),
+    { status: 'failed' },
+  )
+  assert.deepEqual(
+    importResultAcknowledgement(processResult(0, success, { timedOut: true }), true),
+    { status: 'failed' },
+  )
+  assert.deepEqual(
+    importResultAcknowledgement(processResult(0, ''), true),
+    { status: 'failed' },
   )
 })
