@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.8] - 2026-09-15
+
+### Added
+
+- Continue an explicitly selected Mem Thread in a fresh Pi session with verified context before the first agent turn.
+- Persist the exact native-session binding across restarts and append new occurrences to the same Thread with replay-safe capture and source attribution.
+
 ### Fixed
 
 - Automatic Pi and OMP sync now uploads only the suffix after a verified

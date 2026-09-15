@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -26,6 +27,7 @@ CONTEXT_ATTEMPT_TIMEOUT_SECONDS = 7.0
 SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS = 4.0
 SUBAGENT_CONTEXT_ATTEMPT_TIMEOUT_SECONDS = 3.0
 SUBAGENT_CONTEXT_MAX_BYTES = 4 * 1024
+RESUME_PREFIX = "NMEM_THREAD_RESUME_V1:"
 DEFAULT_SUBAGENT_CONTEXT_TYPES = frozenset(
     {"planner", "code-reviewer", "architect", "researcher"}
 )
@@ -196,9 +198,73 @@ def _write_hook_response(event_name: str, additional_context: str) -> None:
     sys.stdout.write("\n")
 
 
+def _write_resume_block(reason: str, event_name: str = "UserPromptSubmit") -> None:
+    # Codex's synchronous UserPromptSubmit contract blocks before model input.
+    # Exit 0 prevents the hooks.json Python-runtime fallback from retrying it.
+    response = {"continue": False, "stopReason": reason}
+    if event_name == "UserPromptSubmit":
+        response.update({"decision": "block", "reason": reason})
+    json.dump(response, sys.stdout, ensure_ascii=True)
+    sys.stdout.write("\n")
+
+
+def _resume_context(payload: dict[str, Any]) -> tuple[str, bool]:
+    prompt = payload.get("prompt")
+    first_line = prompt.split("\n", 1)[0] if isinstance(prompt, str) else ""
+    explicit = first_line.startswith("NMEM_THREAD_RESUME_")
+    if explicit and not first_line.startswith(RESUME_PREFIX):
+        raise ValueError("Unsupported Thread resume protocol. Copy a new continuation from Mem.")
+    native_id = payload.get("session_id") or payload.get("sessionId")
+    if not isinstance(native_id, str) or not native_id:
+        if explicit:
+            raise ValueError("Codex did not provide an exact native session ID. Start a new task and retry.")
+        return "", False
+    config_dir = Path(os.environ.get("NMEM_CLI_CONFIG_DIR", Path.home() / ".nowledge-mem"))
+    native_key = hashlib.sha256(json.dumps(["codex", native_id], ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+    required = explicit or (config_dir / "thread-resume" / f"{native_key}.json").exists()
+    nmem = _nmem_command()
+    if not nmem:
+        if required:
+            raise ValueError("Install or update nmem before continuing the selected Thread.")
+        return "", False
+    args = ["t", "resume-bootstrap", "--from", "codex", "--session-id", native_id]
+    if explicit:
+        args.extend(["--locator", first_line[len(RESUME_PREFIX):]])
+    transcript = payload.get("transcript_path") or payload.get("transcriptPath")
+    if isinstance(transcript, str) and transcript:
+        args.extend(["--transcript-path", transcript])
+    reply = _run_nmem_json(nmem, args, timeout_seconds=25)
+    if not reply:
+        if not required:
+            return "", False
+        # Binding resolution has stronger guarantees than optional Working
+        # Memory guidance. Never turn a failed bound lookup into a new Thread.
+        raise ValueError("Thread continuation could not be verified. Check the Mem connection and run nmem status, then retry.")
+    resume_error = reply.get("resume_error")
+    if isinstance(resume_error, dict):
+        if required or resume_error.get("required") is True:
+            raise ValueError(str(resume_error.get("message") or "Thread continuation could not be verified."))
+        return "", False
+    if reply.get("binding") is None:
+        if explicit:
+            raise ValueError("Mem did not acknowledge the requested Thread binding.")
+        return "", False
+    context = reply.get("context", {}).get("context_text")
+    if not isinstance(context, str) or not context:
+        raise ValueError("Mem did not return the selected Thread's bootstrap context.")
+    return context, True
+
+
 def main(payload: dict[str, Any] | None = None) -> int:
     payload = _read_hook_input() if payload is None else payload
     event_name = str(payload.get("hook_event_name") or "SessionStart")
+    resume_context = ""
+    if event_name in {"SessionStart", "UserPromptSubmit"}:
+        try:
+            resume_context, _bound = _resume_context(payload)
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            _write_resume_block(str(error), event_name)
+            return 0
     if event_name == "UserPromptSubmit":
         guidance = PROMPT_ROUTING_GUIDANCE
     elif event_name == "SubagentStart":
@@ -215,6 +281,8 @@ def main(payload: dict[str, Any] | None = None) -> int:
         guidance = ROUTING_GUIDANCE.strip()
 
     context_parts = [guidance]
+    if resume_context:
+        context_parts.append(resume_context)
     if event_name == "SessionStart":
         startup_context = _load_startup_context()
         if startup_context:
@@ -242,6 +310,12 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main(hook_payload))
     except Exception:
+        if hook_event_name in {"SessionStart", "UserPromptSubmit"} and (
+            hook_payload.get("session_id") or hook_payload.get("sessionId")
+            or str(hook_payload.get("prompt", "")).startswith("NMEM_THREAD_RESUME_")
+        ):
+            _write_resume_block("Thread continuation verification failed. Check nmem and retry.", hook_event_name)
+            raise SystemExit(0) from None
         # Lifecycle guidance must never block the user's Codex task.
         if hook_event_name == "UserPromptSubmit":
             guidance = PROMPT_ROUTING_GUIDANCE

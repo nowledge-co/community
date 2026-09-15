@@ -8,8 +8,9 @@
             "type": "command",
             "command": "python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\"",
             "commandWindows": "py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\"",
-            "timeout": 15,
-            "statusMessage": "Loading Nowledge Mem context..."
+            "timeout": 45,
+            "statusMessage": "Loading Nowledge Mem context...",
+            "additionalContextLimit": 0
           }
         ]
       }
@@ -35,7 +36,8 @@
             "type": "command",
             "command": "python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\"",
             "commandWindows": "py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\" || python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'], 'hooks', 'nmem-context.py'), run_name='__main__')\"",
-            "timeout": 5
+            "timeout": 45,
+            "additionalContextLimit": 0
           }
         ]
       }
