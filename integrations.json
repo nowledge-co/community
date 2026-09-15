@@ -458,7 +458,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.35",
+      "version": "0.1.36",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -476,7 +476,8 @@
         "method": "hook+cli-native",
         "runtime": "codex",
         "command": "nmem t save --from codex",
-        "historicalCommand": "nmem t sync --from codex --all-projects"
+        "historicalCommand": "nmem t sync --from codex --all-projects",
+        "note": "Thread resume v1 binds a fresh Codex native session to an exact existing Mem Thread. UserPromptSubmit must be synchronous, enabled, and trusted; Stop capture then appends to the bound Thread."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -1025,7 +1026,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.7",
+      "version": "0.8.8",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1040,7 +1041,7 @@
       "threadSave": {
         "method": "plugin-capture",
         "historicalCommand": "nmem t sync --from pi",
-        "note": "The Pi extension injects startup Context Bundle or Working Memory, syncs completed session branches as Mem threads, and nmem t sync --from pi can backfill older Pi session files. nowledge-mem-pi-sync remains an older-CLI fallback; save-thread remains available for curated handoff summaries."
+        "note": "The Pi extension injects startup Context Bundle or Working Memory and syncs completed session branches. Thread resume v1 binds a fresh Pi session to an exact existing Mem Thread and blocks startup if verified context is unavailable. nmem t sync --from pi resolves the same binding for history imports."
       },
       "autonomy": {
         "bootstrap": "guided",

@@ -20,6 +20,24 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 - Codex lifecycle hooks for startup context, bounded subagent bootstrap, per-prompt memory routing, and automatic transcript capture
 - project `AGENTS.md` for repo-specific follow-through
 
+## Continue a selected Mem Thread
+
+In Mem, open a Thread and choose **Continue in → Codex CLI**. Run the copied
+`nmem t resume` command in the project directory. It verifies the exact Thread,
+Space, and Mem connection, checks Codex's active hook trust, and starts a fresh
+native Codex session whose new messages append to that same Mem Thread.
+
+For **Codex GUI**, open a new task and paste the copied continuation prompt.
+The updated plugin's **synchronous UserPromptSubmit hook must be enabled and
+trusted**. The hook binds Codex's actual native session ID and injects verified
+history before the model starts. Review changed hooks through `/hooks`; merely
+installing or enabling a plugin does not trust its hooks.
+
+The handoff contains exact identifiers, never API keys or a transcript copy.
+Deleted, moved, inaccessible, or mismatched targets stop continuation. Ordinary
+native Resume still resumes the original Codex session. Historical imports
+resolve the same binding instead of creating another Mem Thread.
+
 ## Skills
 
 | Skill | When it runs | What it does |
