@@ -10,7 +10,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 - **Stronger retrieval on modern Codex.** The package bundles the local Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
 - **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, sources, and artifacts as one tree.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
-- **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary.
+- **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary. The Nowledge Mem Auto-Sync switch can pause lifecycle capture without disabling manual saves.
 - **Quick diagnostics.** One command to verify everything is connected.
 
 The full bootstrap is Context Bundle when available, with Working Memory as the lightweight briefing and compatibility fallback. On modern Codex, the best setup is:
