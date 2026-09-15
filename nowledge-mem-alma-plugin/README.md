@@ -131,7 +131,20 @@ The plugin provides two tiers of memory:
 
 ### Tier 1: Thread capture (automatic)
 
-Conversations are synced to Nowledge Mem automatically during normal use. The plugin saves your thread after a few seconds of idle, when you switch threads, or when you quit Alma. You don't need to do anything — conversations are preserved as they happen.
+The plugin attempts to sync completed conversation turns to Nowledge Mem after a few seconds of idle, on thread switches, and during quit or plugin disposal. Capture is best-effort, not a guarantee that every message survives shutdown.
+
+Alma documents a shared 3-second budget for `app.willQuit` handlers and a 5-second budget for plugin `dispose()`. This plugin uses one 2.5-second quit deadline or 4.5-second disposal deadline for all automatic sync work, including requests already in flight, response bodies, title lookup, and sequential append/create/reconciliation. Deadline expiry aborts HTTP and prevents further requests or ACK advancement. Concurrent or repeated lifecycle callbacks without intervening activity do not renew the deadline. Normal automatic HTTP requests retain their independent 120-second default; manual create retains 30 seconds. Teardown stops waiting for title APIs and uses the captured user text as a fallback so HTTP can use the remaining budget. Public title APIs themselves cannot be canceled; their late results do not start further sync work.
+
+The active buffer cache holds up to 20 threads. Evicted buffers with unsaved messages remain in a separate in-memory draining set until fully acknowledged. Revisiting a draining thread reuses its buffer and in-flight request. Failed drains and incomplete turns remain available for a later revisit or quit/dispose attempt. Each capture is persisted to `thread-sync-outbox.json` under Alma's public plugin `storagePath`, before HTTP transmission; every save atomically replaces the entire outbox rather than appending a record. The outbox stores only authorized captured text, the necessary acknowledged prefix/checkpoint, and the frozen pending batch/idempotency key. Matching-destination records are restored on activation and scheduled for a single idle attempt when capture is enabled. Fully acknowledged records are removed; failed or incomplete records are retained, not silently aged out. The draining set and pending outbox can still grow during prolonged failure. There is no unlimited background retry loop.
+
+For live buffers, a destination change resets the sync cursor and replays retained history to the new destination. An already-running request may still send its pre-change snapshot to the old destination, but cannot include messages captured after the change. Recovered outbox records are stricter: they remain bound to the hash of their original URL, credentials, and space, including a settings change after restoration. Other lanes remain dormant. No API keys, authorization headers, or raw endpoint URLs are stored in the outbox.
+
+Durability boundaries:
+
+- Outbox replacement uses a private, uniquely named temporary file, file `fsync`, same-directory atomic rename, then directory `fsync`. Synchronous writes preserve ordering within the host event loop. A writer token fences superseded activations in that host; sharing one storage directory between independent host processes is not supported. Invalid records fail activation before hook registration, and a failed pre-send write prevents HTTP.
+- The outbox is local plaintext with mode `0600`, not a second encrypted secret store. Disable automatic capture to stop new capture; existing pending records are retained. Successful ACKs remove their records, but filesystem snapshots/backups may retain older bytes.
+- Recovery requires the same plugin storage to survive. **Storage retention alone does not establish product recovery after uninstall or reinstall; that recovery is not promised.** The plugin does not copy data outside host-owned storage to evade deletion. A missing `storagePath` produces an explicit warning and falls back to legacy memory-only behavior.
+- This is not a hard real-time or power-loss guarantee. Whole-outbox serialization and synchronous filesystem I/O (including `fsync`) block the event loop and cannot be preempted by timers or AbortController, so a large backlog or blocked filesystem can exceed the nominal deadline; another plugin may consume the host's shared quit allowance before this handler runs. Messages lost before their capture write completes, disk failure/fullness, device cache/fsync limitations, storage deletion, and backend durability/contract violations remain boundaries. A lost response retains the frozen attempt for checkpoint/idempotency replay, rather than assuming the server did not write.
 
 Saved threads appear in the Nowledge Mem desktop app under Threads and can be distilled into structured memories later.
 
@@ -227,7 +240,7 @@ The plugin currently uses these defaults:
 - Max recalled memories per injection: `5`
 - Automatic thread create/append timeout: 120s (`NMEM_SYNC_TIMEOUT_MS`, clamped to 1s–30min)
 
-Set `NMEM_SYNC_TIMEOUT_MS` before launching Alma when a remote Mem instance needs a longer automatic sync window. Manual `nowledge_mem_*` tools keep the existing per-request timeouts.
+Set `NMEM_SYNC_TIMEOUT_MS` before launching Alma when a remote Mem instance needs a longer automatic sync window. Manual thread creation uses a 30-second timeout, independently of the automatic sync setting. Other manual `nowledge_mem_*` tools keep their existing per-request timeouts.
 
 ## License
 

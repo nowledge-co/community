@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed
+
+- Freeze automatic flush messages and checkpoint planning before title lookup, so a destination switch cannot send subsequently captured messages to the old destination.
+- Retain evicted buffers while draining, reuse them on revisit, and include them in quit/dispose attempts. Failed drains retain their unsaved messages in memory for a later attempt.
+- Restore the 30-second manual thread-create timeout without changing automatic sync timeouts.
+
+- Apply one lifecycle deadline to in-flight and sequential automatic HTTP/title work without shortening normal sync timeouts.
+- Journal captured messages and frozen attempts in public plugin storage before sending; restore only matching destination lanes and prune fully acknowledged records. Abort, malformed ACKs, and failed journal writes do not advance the cursor.
+- Fence stale activations, validate restored records before registering hooks, and retain pending data when automatic capture is disabled.
+
+### Documentation
+
+- State the filesystem, host-budget, backend-contract, and uninstall-storage boundaries explicitly; do not claim verified uninstall recovery.
+
 ## 0.7.5
 
 ### Fixed
