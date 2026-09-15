@@ -356,7 +356,7 @@ export class NowledgeMemClient {
 		return this._fetch("GET", `/threads/${encodeURIComponent(id)}`, { params });
 	}
 
-	async createThread(title, content, messages, source = "alma", id = null, { timeout } = {}) {
+	async createThread(title, content, messages, source = "alma", id = null, { timeout = 30_000 } = {}) {
 		const body = { title, source };
 		if (id) body.thread_id = id;
 		if (Array.isArray(messages) && messages.length > 0) {
@@ -1481,6 +1481,7 @@ export async function activate(context) {
 	//   flushing: boolean, pending: boolean, inFlight: Promise|undefined, timer: number|null }
 	const MAX_THREAD_BUFFERS = 20;
 	const threadBuffers = new Map();
+	const drainingBuffers = new Map();
 	let activeThreadId = null;
 
 	const destinationLane = () =>
@@ -1498,7 +1499,7 @@ export async function activate(context) {
 	};
 
 	resetDestinationCursors = () => {
-		for (const buf of threadBuffers.values()) attachDestination(buf);
+		for (const buf of [...threadBuffers.values(), ...drainingBuffers.values()]) attachDestination(buf);
 	};
 
 	/** Resolve the best possible thread title via Alma APIs, falling back to first user message. */
@@ -1539,7 +1540,7 @@ export async function activate(context) {
 
 	/** Flush a thread buffer to Nowledge Mem if it has new messages. */
 	const flushThread = async (threadId) => {
-		const buf = threadBuffers.get(threadId);
+		const buf = threadBuffers.get(threadId) ?? drainingBuffers.get(threadId);
 		if (!buf) return;
 		attachDestination(buf);
 		if (!hasUserAndAssistant(buf.messages)) return;
@@ -1558,20 +1559,16 @@ export async function activate(context) {
 		if (!buf.nowledgeThreadId) buf.nowledgeThreadId = stableThreadId(threadId);
 		const flushThreadId = buf.nowledgeThreadId;
 
-		try {
-			// Resolve title right before saving (Alma generates titles asynchronously)
-			const resolved = await resolveTitle(threadId, buf);
-			if (resolved) buf.title = escapeForInline(resolved, 120);
+		const snapshot = buf.messages.slice();
+		const { delta, expectedMessageCount, idempotencyKey } = planAutomaticFlush({
+			messages: snapshot,
+			cursor: buf.acknowledged,
+			threadId: flushThreadId,
+		});
 
-			// Snapshot messages before async work. New turns may arrive via
-			// willSend/didReceive during the awaits; only this prefix is sent
-			// and the cursor advances only after an explicit ack.
-			const snapshot = buf.messages.slice();
-			const { delta, expectedMessageCount, idempotencyKey } = planAutomaticFlush({
-				messages: snapshot,
-				cursor: buf.acknowledged,
-				threadId: flushThreadId,
-			});
+		try {
+			const resolved = await resolveTitle(threadId, { messages: snapshot });
+			if (resolved) buf.title = escapeForInline(resolved, 120);
 			if (delta.messages.length === 0) return;
 
 			const persistCreate = async () => {
@@ -1644,10 +1641,13 @@ export async function activate(context) {
 		})();
 		buf.inFlight = run;
 		await run;
+		if (drainingBuffers.get(threadId) === buf && !buf.flushing && buf.savedCount === buf.messages.length) {
+			drainingBuffers.delete(threadId);
+		}
 	};
 
 	const resetIdleTimer = (threadId) => {
-		const buf = threadBuffers.get(threadId);
+		const buf = threadBuffers.get(threadId) ?? drainingBuffers.get(threadId);
 		if (!buf) return;
 		if (buf.timer) clearTimeout(buf.timer);
 		buf.timer = setTimeout(() => {
@@ -1662,14 +1662,14 @@ export async function activate(context) {
 			if (threadBuffers.size >= MAX_THREAD_BUFFERS) {
 				const oldest = threadBuffers.keys().next().value;
 				const evicted = threadBuffers.get(oldest);
-				// Best-effort flush before eviction (fire-and-forget)
-				if (evicted && evicted.messages.length > evicted.savedCount && hasUserAndAssistant(evicted.messages)) {
+				threadBuffers.delete(oldest);
+				if (evicted?.timer) { clearTimeout(evicted.timer); evicted.timer = null; }
+				if (evicted && (evicted.flushing || evicted.messages.length > evicted.savedCount)) {
+					drainingBuffers.set(oldest, evicted);
 					flushThread(oldest).catch(() => {});
 				}
-				if (evicted?.timer) clearTimeout(evicted.timer);
-				threadBuffers.delete(oldest);
 			}
-			threadBuffers.set(threadId, {
+			threadBuffers.set(threadId, drainingBuffers.get(threadId) ?? {
 				title: escapeForInline(`Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
 				messages: [],
 				savedCount: 0,
@@ -1682,6 +1682,7 @@ export async function activate(context) {
 				timer: null,
 			});
 		}
+		drainingBuffers.delete(threadId);
 		return attachDestination(threadBuffers.get(threadId));
 	};
 
@@ -1747,6 +1748,7 @@ export async function activate(context) {
 
 		const buf = ensureBuffer(threadId);
 		buf.messages.push({ role: "assistant", content: aiContent });
+		if (buf.flushing) buf.pending = true;
 		activeThreadId = threadId;
 		logger.debug?.(`nowledge-mem: buffered AI msg for ${threadId} (${buf.messages.length} total)`);
 		resetIdleTimer(threadId);
@@ -1773,7 +1775,7 @@ export async function activate(context) {
 		try {
 			// Flush all buffers with unsaved messages
 			const flushPromises = [];
-			for (const [tid, buf] of threadBuffers) {
+			for (const [tid, buf] of [...threadBuffers, ...drainingBuffers]) {
 				if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
 				if (hasUserAndAssistant(buf.messages) && buf.messages.length > buf.savedCount) {
 					flushPromises.push(flushThread(tid));
@@ -1801,7 +1803,7 @@ export async function activate(context) {
 	// Cleanup disposable for all idle timers
 	disposables.push({
 		dispose() {
-			for (const buf of threadBuffers.values()) {
+			for (const buf of [...threadBuffers.values(), ...drainingBuffers.values()]) {
 				if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
 			}
 		},
@@ -1817,7 +1819,7 @@ export async function activate(context) {
 			// Flush any unsynced thread buffers before tearing down.
 			// This covers plugin disable/reload paths where quit hooks may not fire.
 			const flushPromises = [];
-			for (const [threadId, buf] of threadBuffers) {
+			for (const [threadId, buf] of [...threadBuffers, ...drainingBuffers]) {
 				if (autoCapture && buf.messages.length > buf.savedCount) {
 					if (buf.flushing) buf.pending = true;
 					flushPromises.push(

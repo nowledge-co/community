@@ -86,7 +86,7 @@ function captureFetchTimeouts(client) {
 	return calls;
 }
 
-test("manual createThread keeps the 15s request timeout", async () => {
+test("manual createThread keeps the 30s request timeout", async () => {
 	const previous = globalThis.fetch;
 	globalThis.fetch = async () =>
 		jsonResponse(200, {
@@ -99,7 +99,7 @@ test("manual createThread keeps the 15s request timeout", async () => {
 		await client.createThread("t", "", [{ role: "user", content: "hi" }], "alma", "alma-x");
 		assert.equal(calls.length, 1);
 		assert.equal(calls[0].path, "/threads");
-		assert.equal(calls[0].timeout, undefined);
+		assert.equal(calls[0].timeout, 30_000);
 	} finally {
 		globalThis.fetch = previous;
 	}
@@ -239,7 +239,7 @@ async function captureUserAndAssistant(events, threadId = "thread-1") {
 	});
 }
 
-test("manual thread_create tool keeps the 15s timeout while automatic flush uses NMEM_SYNC_TIMEOUT_MS", async () => {
+test("manual thread_create tool keeps the 30s timeout while automatic flush uses NMEM_SYNC_TIMEOUT_MS", async () => {
 	const previousFetch = globalThis.fetch;
 	const previousEnv = process.env.NMEM_SYNC_TIMEOUT_MS;
 	const originalFetch = NowledgeMemClient.prototype._fetch;
@@ -275,7 +275,7 @@ test("manual thread_create tool keeps the 15s timeout while automatic flush uses
 		const result = await tool.execute({ title: "manual", content: "hello" });
 		assert.equal(result.ok, true);
 		assert.equal(calls[0].path, "/threads");
-		assert.equal(calls[0].timeout, undefined);
+		assert.equal(calls[0].timeout, 30_000);
 	} finally {
 		NowledgeMemClient.prototype._fetch = originalFetch;
 		globalThis.fetch = previousFetch;
@@ -357,6 +357,8 @@ test("in-flight flush keeps its stable thread id after a destination reset", asy
 		const flushing = harness.events.get("app.willQuit")({}, { cancel: false });
 		await titleStarted;
 		harness.changeSettings({ "nowledgeMem.apiUrl": "http://mem-b:14242" });
+		await harness.events.get("chat.message.willSend")({ threadId: "thread-1", content: "DESTINATION_B_ONLY_USER" });
+		harness.events.get("chat.message.didReceive")({ threadId: "thread-1", response: { content: "DESTINATION_B_ONLY_ASSISTANT" } });
 		releaseTitle({ title: "Resolved title" });
 		await flushing;
 
@@ -364,6 +366,8 @@ test("in-flight flush keeps its stable thread id after a destination reset", asy
 		const oldCreate = calls.find((call) => call.href === "http://127.0.0.1:14242/threads");
 		assert.ok(oldAppend);
 		assert.ok(oldCreate);
+		assert.doesNotMatch(JSON.stringify(calls.filter((call) => call.href.includes("127.0.0.1"))), /DESTINATION_B_ONLY/);
+		assert.match(JSON.stringify(calls.filter((call) => call.href.includes("mem-b"))), /DESTINATION_B_ONLY_ASSISTANT/);
 		assert.doesNotMatch(oldAppend.href, /\/threads\/null\/append/);
 		assert.match(oldAppend.href, new RegExp(`/threads/${oldCreate.body.thread_id}/append$`));
 	} finally {
@@ -414,6 +418,142 @@ test("automatic flush leaves a user-only tail buffered until its assistant arriv
 	} finally {
 		globalThis.fetch = previous;
 		await plugin.dispose();
+	}
+});
+
+for (const teardown of ["quit", "dispose", "revisit", "retry"]) {
+	test(`LRU draining retains completed turns during ${teardown}`, async () => {
+		const previous = globalThis.fetch;
+		const harness = makePluginHarness();
+		const appends = [];
+		let releaseFirst;
+		let started;
+		let activeRequests = 0;
+		let maxActiveRequests = 0;
+		const firstStarted = new Promise((resolve) => { started = resolve; });
+		globalThis.fetch = async (url, init) => {
+			assert.match(String(url), /\/append$/);
+			const body = JSON.parse(init.body);
+			appends.push(body);
+			activeRequests += 1;
+			maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+			if (appends.length === 1) {
+				started();
+				await new Promise((resolve) => { releaseFirst = resolve; });
+			}
+			activeRequests -= 1;
+			if (teardown === "retry" && appends.length <= 2) return jsonResponse(503, { detail: "Unavailable" });
+			return jsonResponse(200, {
+				success: true, append_mode: "checkpointed", messages_added: body.messages.length,
+				total_messages: (body.expected_message_count || 0) + body.messages.length,
+			});
+		};
+		const plugin = await activate(harness.context);
+		try {
+			await captureUserAndAssistant(harness.events, "oldest");
+			const flushing = harness.events.get("thread.activated")({ threadId: "away" });
+			await firstStarted;
+			await harness.events.get("chat.message.willSend")({ threadId: "oldest", content: "TAIL_USER" });
+			harness.events.get("chat.message.didReceive")({ threadId: "oldest", response: { content: "TAIL_ASSISTANT" } });
+			for (let index = 0; index < 20; index += 1) {
+				await harness.events.get("chat.message.willSend")({ threadId: `other-${index}`, content: "user only" });
+			}
+			if (teardown === "revisit") {
+				await harness.events.get("chat.message.willSend")({ threadId: "oldest", content: "REVISIT_USER" });
+				harness.events.get("chat.message.didReceive")({ threadId: "oldest", response: { content: "REVISIT_ASSISTANT" } });
+			}
+			let finished = false;
+			const closing = teardown === "dispose" ? plugin.dispose().then(() => { finished = true; }) : null;
+			await Promise.resolve();
+			if (closing) assert.equal(finished, false);
+			releaseFirst();
+			await flushing;
+			if (teardown === "retry") assert.equal(appends.length, 2);
+			if (closing) await closing;
+			else await harness.events.get("app.willQuit")({}, { cancel: false });
+			const delivered = appends.slice(teardown === "retry" ? 2 : 0).flatMap((body) => body.messages);
+			assert.equal(delivered.filter((message) => message.content === "TAIL_ASSISTANT").length, 1);
+			assert.equal(delivered.length, teardown === "revisit" ? 6 : 4);
+			assert.equal(maxActiveRequests, 1);
+		} finally {
+			releaseFirst?.();
+			await plugin.dispose();
+			globalThis.fetch = previous;
+		}
+	});
+}
+
+test("an evicted incomplete turn resumes from its acknowledged cursor on revisit", async () => {
+	const previous = globalThis.fetch;
+	const harness = makePluginHarness();
+	const appends = [];
+	globalThis.fetch = async (_url, init) => {
+		const body = JSON.parse(init.body);
+		appends.push(body);
+		return jsonResponse(200, {
+			success: true, append_mode: "checkpointed", messages_added: body.messages.length,
+			total_messages: (body.expected_message_count || 0) + body.messages.length,
+		});
+	};
+	const plugin = await activate(harness.context);
+	try {
+		await captureUserAndAssistant(harness.events, "oldest");
+		await harness.events.get("thread.activated")({ threadId: "away" });
+		await harness.events.get("chat.message.willSend")({ threadId: "oldest", content: "pending question" });
+		for (let index = 0; index < 20; index += 1) {
+			await harness.events.get("chat.message.willSend")({ threadId: `other-${index}`, content: "user only" });
+		}
+		await harness.events.get("app.willQuit")({}, { cancel: false });
+		assert.equal(appends.length, 1);
+		harness.events.get("chat.message.didReceive")({ threadId: "oldest", response: { content: "pending answer" } });
+		await harness.events.get("app.willQuit")({}, { cancel: false });
+		assert.equal(appends.length, 2);
+		assert.equal(appends[1].expected_message_count, 2);
+		assert.deepEqual(appends[1].messages, [
+			{ role: "user", content: "pending question" },
+			{ role: "assistant", content: "pending answer" },
+		]);
+		await plugin.dispose();
+		assert.equal(appends.length, 2);
+	} finally {
+		await plugin.dispose();
+		globalThis.fetch = previous;
+	}
+});
+
+test("transport uses 30s for the manual tool and independent automatic timeouts", async () => {
+	const previousFetch = globalThis.fetch;
+	const previousTimeout = globalThis.setTimeout;
+	const previousEnv = process.env.NMEM_SYNC_TIMEOUT_MS;
+	const timeouts = [];
+	process.env.NMEM_SYNC_TIMEOUT_MS = "90000";
+	globalThis.setTimeout = (callback, delay, ...args) => {
+		timeouts.push(delay);
+		return previousTimeout(callback, delay, ...args);
+	};
+	globalThis.fetch = async (url, init) => {
+		if (String(url).includes("/append")) return jsonResponse(404, { detail: "Thread not found" });
+		const body = JSON.parse(init.body);
+		assert.ok(init.signal instanceof AbortSignal);
+		return jsonResponse(200, { thread: { thread_id: body.thread_id, message_count: body.messages.length } });
+	};
+	const harness = makePluginHarness();
+	const plugin = await activate(harness.context);
+	try {
+		const result = await harness.tools.get("nowledge_mem_thread_create").execute({ title: "manual", content: "hello" });
+		assert.equal(result.ok, true);
+		assert.deepEqual(timeouts, [30_000]);
+		timeouts.length = 0;
+		await captureUserAndAssistant(harness.events);
+		timeouts.length = 0;
+		await harness.events.get("app.willQuit")({}, { cancel: false });
+		assert.deepEqual(timeouts, [90_000, 90_000]);
+	} finally {
+		await plugin.dispose();
+		globalThis.fetch = previousFetch;
+		globalThis.setTimeout = previousTimeout;
+		if (previousEnv === undefined) Reflect.deleteProperty(process.env, "NMEM_SYNC_TIMEOUT_MS");
+		else process.env.NMEM_SYNC_TIMEOUT_MS = previousEnv;
 	}
 });
 

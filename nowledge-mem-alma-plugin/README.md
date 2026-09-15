@@ -131,7 +131,13 @@ The plugin provides two tiers of memory:
 
 ### Tier 1: Thread capture (automatic)
 
-Conversations are synced to Nowledge Mem automatically during normal use. The plugin saves your thread after a few seconds of idle, when you switch threads, or when you quit Alma. You don't need to do anything — conversations are preserved as they happen.
+The plugin attempts to sync completed conversation turns to Nowledge Mem after a few seconds of idle, on thread switches, and during quit or plugin disposal. Capture is best-effort, not a guarantee that every message survives shutdown.
+
+Alma documents a shared 3-second budget for `app.willQuit` handlers and a 5-second budget for plugin `dispose()`. Automatic HTTP requests default to 120 seconds each; title lookup and sequential fallback requests can take additional time. Awaiting a flush does not extend the host's budget, and increasing `NMEM_SYNC_TIMEOUT_MS` does not make shutdown reliable. There is no durable outbox: unsent in-memory messages can be lost when the process exits or the plugin is unloaded.
+
+The active buffer cache holds up to 20 threads. Evicted buffers with unsaved messages remain in a separate in-memory draining set until fully acknowledged. Revisiting a draining thread reuses its buffer and in-flight request. Failed drains and incomplete turns remain available for a later revisit or quit/dispose attempt; they are not retried in a background loop or persisted across restarts. This set can grow during prolonged failures or with many incomplete threads.
+
+A destination change resets the sync cursor and replays the retained history to the new destination. An already-running request may still send its pre-change snapshot to the old destination, but cannot include messages captured after the change.
 
 Saved threads appear in the Nowledge Mem desktop app under Threads and can be distilled into structured memories later.
 
@@ -227,7 +233,7 @@ The plugin currently uses these defaults:
 - Max recalled memories per injection: `5`
 - Automatic thread create/append timeout: 120s (`NMEM_SYNC_TIMEOUT_MS`, clamped to 1s–30min)
 
-Set `NMEM_SYNC_TIMEOUT_MS` before launching Alma when a remote Mem instance needs a longer automatic sync window. Manual `nowledge_mem_*` tools keep the existing per-request timeouts.
+Set `NMEM_SYNC_TIMEOUT_MS` before launching Alma when a remote Mem instance needs a longer automatic sync window. Manual thread creation uses a 30-second timeout, independently of the automatic sync setting. Other manual `nowledge_mem_*` tools keep their existing per-request timeouts.
 
 ## License
 

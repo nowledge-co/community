@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed
+
+- Freeze automatic flush messages and checkpoint planning before title lookup, so a destination switch cannot send subsequently captured messages to the old destination.
+- Retain evicted buffers while draining, reuse them on revisit, and include them in quit/dispose attempts. Failed drains retain their unsaved messages in memory for a later attempt.
+- Restore the 30-second manual thread-create timeout without changing automatic sync timeouts.
+
+### Documentation
+
+- Clarify best-effort capture, host lifecycle budgets, and the absence of a durable outbox. Shutdown and plugin unload can still lose unsent messages.
+
 ## 0.7.5
 
 ### Fixed
