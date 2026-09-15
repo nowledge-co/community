@@ -354,7 +354,7 @@ test("in-flight flush keeps its stable thread id after a destination reset", asy
 	const plugin = await activate(harness.context);
 	try {
 		await captureUserAndAssistant(harness.events);
-		const flushing = harness.events.get("app.willQuit")({}, { cancel: false });
+		const flushing = harness.events.get("thread.activated")({ threadId: "away" });
 		await titleStarted;
 		harness.changeSettings({ "nowledgeMem.apiUrl": "http://mem-b:14242" });
 		await harness.events.get("chat.message.willSend")({ threadId: "thread-1", content: "DESTINATION_B_ONLY_USER" });
@@ -547,7 +547,9 @@ test("transport uses 30s for the manual tool and independent automatic timeouts"
 		await captureUserAndAssistant(harness.events);
 		timeouts.length = 0;
 		await harness.events.get("app.willQuit")({}, { cancel: false });
-		assert.deepEqual(timeouts, [90_000, 90_000]);
+		assert.equal(timeouts.length, 3);
+		assert.ok(timeouts[0] > 0 && timeouts[0] <= 2_500);
+		assert.deepEqual(timeouts.slice(1), [90_000, 90_000]);
 	} finally {
 		await plugin.dispose();
 		globalThis.fetch = previousFetch;

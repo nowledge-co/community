@@ -12,6 +12,8 @@ import {
 	planAutomaticFlush,
 	sessionSyncLaneKey,
 } from "./session-delta.js";
+import { createSyncScope, withAbort } from "./sync-lifecycle.js";
+import { openSyncOutbox } from "./sync-outbox.js";
 import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout.js";
 
 function clamp(value, min, max) {
@@ -189,7 +191,7 @@ export class NowledgeMemClient {
 	}
 
 	/** Core async fetch with timeout. All data operations route through this. */
-	async _fetch(method, path, { body, params, timeout = 15_000 } = {}) {
+	async _fetch(method, path, { body, params, timeout = 15_000, signal } = {}) {
 		const url = new URL(path, this._apiUrl);
 		const resolvedParams = this._withSpaceQuery(params);
 		if (resolvedParams) {
@@ -197,7 +199,10 @@ export class NowledgeMemClient {
 				if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
 			}
 		}
+		signal?.throwIfAborted();
 		const controller = new AbortController();
+		const abort = () => controller.abort(signal.reason);
+		signal?.addEventListener("abort", abort, { once: true });
 		const timer = setTimeout(() => controller.abort(), timeout);
 		const resolvedBody = this._withSpaceBody(body);
 		try {
@@ -217,9 +222,12 @@ export class NowledgeMemClient {
 				throw err;
 			}
 			const ct = resp.headers.get("content-type") || "";
-			return ct.includes("application/json") ? resp.json() : resp.text();
+			const data = await (ct.includes("application/json") ? resp.json() : resp.text());
+			controller.signal.throwIfAborted();
+			return data;
 		} finally {
 			clearTimeout(timer);
+			signal?.removeEventListener("abort", abort);
 		}
 	}
 
@@ -356,7 +364,7 @@ export class NowledgeMemClient {
 		return this._fetch("GET", `/threads/${encodeURIComponent(id)}`, { params });
 	}
 
-	async createThread(title, content, messages, source = "alma", id = null, { timeout = 30_000 } = {}) {
+	async createThread(title, content, messages, source = "alma", id = null, { timeout = 30_000, signal } = {}) {
 		const body = { title, source };
 		if (id) body.thread_id = id;
 		if (Array.isArray(messages) && messages.length > 0) {
@@ -372,6 +380,7 @@ export class NowledgeMemClient {
 		}
 		const data = await this._fetch("POST", "/threads", {
 			body,
+			signal,
 			...(timeout !== undefined ? { timeout } : {}),
 		});
 		const threadData = data?.thread;
@@ -379,11 +388,11 @@ export class NowledgeMemClient {
 			threadData !== null && typeof threadData === "object" && typeof threadData.thread_id === "string"
 				? threadData.thread_id.trim()
 				: "";
-		if (!threadId) {
+		if (!threadId || (id && threadId !== id)) {
 			throw new Error("Thread create did not include a thread identity");
 		}
 		const remoteCount = threadData.message_count;
-		if (!Number.isInteger(remoteCount) || remoteCount < 0) {
+		if (!Number.isInteger(remoteCount) || remoteCount < (body.messages?.length ?? 0)) {
 			throw new Error("Thread create did not include an explicit total message count");
 		}
 		return {
@@ -395,7 +404,7 @@ export class NowledgeMemClient {
 		};
 	}
 
-	async appendThread(threadId, messages, { idempotencyKey, expectedMessageCount } = {}) {
+	async appendThread(threadId, messages, { idempotencyKey, expectedMessageCount, signal } = {}) {
 		const checkpointed = Number.isInteger(expectedMessageCount);
 		const data = await this._fetch("POST", `/threads/${encodeURIComponent(threadId)}/append`, {
 			body: {
@@ -406,9 +415,13 @@ export class NowledgeMemClient {
 				...(checkpointed ? { append_mode: "checkpointed" } : {}),
 			},
 			timeout: this._threadSyncTimeoutMs,
+			signal,
 		});
 		if (!isThreadAppendAck(data)) {
 			throw new Error("Thread append did not include an explicit persistence acknowledgement");
+		}
+		if (data.messages_added > messages.length || data.total_messages < (expectedMessageCount ?? 0) + messages.length) {
+			throw new Error("Thread append acknowledgement does not cover the requested messages");
 		}
 		if (checkpointed && !isCheckpointedAppendAck(data)) {
 			throw new Error("Thread append was not acknowledged as checkpointed");
@@ -642,6 +655,7 @@ function buildMemoryContextBlock(workingMemory, results, options = {}) {
 
 export async function activate(context) {
 	const logger = context.logger ?? console;
+	const outbox = openSyncOutbox(context.storagePath, logger);
 
 	let apiUrl = getSetting(context.settings, "nowledgeMem.apiUrl", "") || "";
 	let apiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
@@ -668,11 +682,13 @@ export async function activate(context) {
 	);
 
 	const disposables = [];
+	let disposed = false;
 
 	// React to settings changes — recreate client with fresh credentials
 	if (context.settings?.onDidChange) {
 		try {
 			const settingsDisposable = context.settings.onDidChange(() => {
+				if (disposed) return;
 				const newApiUrl = getSetting(context.settings, "nowledgeMem.apiUrl", "") || "";
 				const newApiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
 				const nextAmbientSpace = resolveAmbientSpace(context.settings, logger);
@@ -1483,6 +1499,10 @@ export async function activate(context) {
 	const threadBuffers = new Map();
 	const drainingBuffers = new Map();
 	let activeThreadId = null;
+	let syncScope = createSyncScope();
+	let lifecycleRun;
+	let lifecycleFinished = false;
+	let lifecycleTimer;
 
 	const destinationLane = () =>
 		sessionSyncLaneKey("", client._apiUrl, client._apiKey, client._spaceRef);
@@ -1490,6 +1510,7 @@ export async function activate(context) {
 	const attachDestination = (buf) => {
 		const dest = destinationLane();
 		if (buf.destinationKey !== dest) {
+			buf.attempt = null;
 			buf.destinationKey = dest;
 			buf.savedCount = 0;
 			buf.acknowledged = null;
@@ -1499,28 +1520,42 @@ export async function activate(context) {
 	};
 
 	resetDestinationCursors = () => {
-		for (const buf of [...threadBuffers.values(), ...drainingBuffers.values()]) attachDestination(buf);
+		for (const [threadId, buf] of [...threadBuffers, ...drainingBuffers]) {
+			if (buf.recovered && buf.destinationKey !== destinationLane()) {
+				if (buf.timer) clearTimeout(buf.timer);
+				threadBuffers.delete(threadId);
+				drainingBuffers.delete(threadId);
+				continue;
+			}
+			outbox.save(threadId, buf);
+			attachDestination(buf);
+			outbox.save(threadId, buf);
+		}
 	};
 
 	/** Resolve the best possible thread title via Alma APIs, falling back to first user message. */
-	const resolveTitle = async (threadId, buf) => {
+	const resolveTitle = async (threadId, buf, scope) => {
+		const signal = AbortSignal.any([scope.controller.signal, scope.titleController.signal]);
 		try {
+			signal.throwIfAborted();
 			const chat = context.chat;
 			if (chat?.getThread) {
 				try {
-					const t = await chat.getThread(threadId);
+					const t = await withAbort(chat.getThread(threadId), signal);
 					if (t?.title && typeof t.title === "string" && t.title.trim()) return t.title.trim();
 				} catch (_) {}
 			}
+			signal.throwIfAborted();
 			if (chat?.getActiveThread) {
 				try {
-					const t = await chat.getActiveThread();
+					const t = await withAbort(chat.getActiveThread(), signal);
 					if (t?.title && typeof t.title === "string" && t.title.trim()) return t.title.trim();
 				} catch (_) {}
 			}
+			signal.throwIfAborted();
 			if (chat?.listThreads) {
 				try {
-					const threads = await chat.listThreads();
+					const threads = await withAbort(chat.listThreads(), signal);
 					const t = Array.isArray(threads) ? threads.find((th) => th?.id === threadId) : null;
 					if (t?.title && typeof t.title === "string" && t.title.trim()) return t.title.trim();
 				} catch (_) {}
@@ -1540,8 +1575,11 @@ export async function activate(context) {
 
 	/** Flush a thread buffer to Nowledge Mem if it has new messages. */
 	const flushThread = async (threadId) => {
+		const scope = syncScope;
+		const signal = scope.controller.signal;
 		const buf = threadBuffers.get(threadId) ?? drainingBuffers.get(threadId);
-		if (!buf) return;
+		if (!buf || signal.aborted) return;
+		if (buf.recovered && buf.destinationKey !== destinationLane()) return;
 		attachDestination(buf);
 		if (!hasUserAndAssistant(buf.messages)) return;
 		if (beginInFlightFlush(buf) === "wait") {
@@ -1559,15 +1597,22 @@ export async function activate(context) {
 		if (!buf.nowledgeThreadId) buf.nowledgeThreadId = stableThreadId(threadId);
 		const flushThreadId = buf.nowledgeThreadId;
 
-		const snapshot = buf.messages.slice();
-		const { delta, expectedMessageCount, idempotencyKey } = planAutomaticFlush({
+		const snapshot = buf.attempt?.snapshot ?? buf.messages.slice();
+		const plan = buf.attempt?.plan ?? planAutomaticFlush({
 			messages: snapshot,
 			cursor: buf.acknowledged,
 			threadId: flushThreadId,
 		});
+		const { delta, expectedMessageCount, idempotencyKey } = plan;
 
 		try {
-			const resolved = await resolveTitle(threadId, { messages: snapshot });
+			if (delta.messages.length === 0) return;
+			scope.check();
+			buf.attempt = { snapshot, plan };
+			outbox.save(threadId, buf);
+			scope.check();
+			const resolved = await resolveTitle(threadId, { messages: snapshot }, scope);
+			scope.check();
 			if (resolved) buf.title = escapeForInline(resolved, 120);
 			if (delta.messages.length === 0) return;
 
@@ -1584,7 +1629,7 @@ export async function activate(context) {
 					msgsToSend,
 					"alma",
 					flushThreadId,
-					{ timeout: flushClient._threadSyncTimeoutMs },
+					{ timeout: flushClient._threadSyncTimeoutMs, signal },
 				);
 				return {
 					messages_added: msgsToSend.length,
@@ -1597,13 +1642,16 @@ export async function activate(context) {
 				logger.info?.(`nowledge-mem: appending ${delta.messages.length} msgs to ${flushThreadId}`);
 				result = await flushClient.appendThread(flushThreadId, delta.messages, {
 					idempotencyKey,
-					expectedMessageCount,
-				});
+				expectedMessageCount,
+				signal,
+			});
 			} catch (appendErr) {
+				scope.check();
 				if (flushClient.isCheckpointConflictError(appendErr)) {
 					logger.info?.(`nowledge-mem: reconciling checkpoint conflict for ${flushThreadId}`);
 					result = await flushClient.appendThread(flushThreadId, snapshot.slice(0, delta.end), {
 						idempotencyKey: `${idempotencyKey}:reconcile`,
+						signal,
 					});
 				} else if (flushClient.isThreadNotFoundError(appendErr)) {
 					result = await persistCreate();
@@ -1612,18 +1660,23 @@ export async function activate(context) {
 				}
 			}
 
+			scope.check();
 			if (buf.destinationKey !== flushDestinationKey || client !== flushClient) {
 				buf.pending = true;
 				return;
 			}
 
-			buf.acknowledged = {
+			const acknowledged = {
 				...delta.next,
 				remoteCount: Number.isInteger(result.total_messages)
 					? result.total_messages
 					: delta.next.remoteCount,
 			};
+			outbox.save(threadId, { ...buf, acknowledged, savedCount: delta.next.count, attempt: null });
+			buf.acknowledged = acknowledged;
 			buf.savedCount = delta.next.count;
+			buf.attempt = null;
+			if (planAutomaticFlush({ messages: buf.messages, cursor: buf.acknowledged, threadId: flushThreadId }).delta.messages.length) buf.pending = true;
 			logger.info?.(`nowledge-mem: thread synced (${threadId}, ${buf.messages.length} msgs)`);
 		} catch (err) {
 			logger.error?.(`nowledge-mem: thread sync failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -1631,16 +1684,15 @@ export async function activate(context) {
 				buf.pending = true;
 			}
 		} finally {
-			if (finishInFlightFlush(buf) === "rerun") {
+			if (finishInFlightFlush(buf) === "rerun" && (!signal.aborted || (scope !== syncScope && !disposed))) {
 				buf.inFlight = flushThread(threadId);
 				await buf.inFlight;
-			} else if (buf.inFlight === run) {
-				buf.inFlight = undefined;
 			}
 		}
 		})();
 		buf.inFlight = run;
 		await run;
+		if (buf.inFlight === run) buf.inFlight = undefined;
 		if (drainingBuffers.get(threadId) === buf && !buf.flushing && buf.savedCount === buf.messages.length) {
 			drainingBuffers.delete(threadId);
 		}
@@ -1652,11 +1704,27 @@ export async function activate(context) {
 		if (buf.timer) clearTimeout(buf.timer);
 		buf.timer = setTimeout(() => {
 			buf.timer = null;
+			if (disposed) return;
+			resumeSync();
 			flushThread(threadId);
 		}, 7_000);
 	};
 
+	const resumeSync = () => {
+		if (disposed || !lifecycleFinished) return;
+		lifecycleRun = undefined;
+		lifecycleFinished = false;
+		syncScope = createSyncScope();
+	};
+
 	const ensureBuffer = (threadId) => {
+		resumeSync();
+		const existing = threadBuffers.get(threadId) ?? drainingBuffers.get(threadId);
+		if (existing?.recovered && existing.destinationKey !== destinationLane()) {
+			if (existing.timer) clearTimeout(existing.timer);
+			threadBuffers.delete(threadId);
+			drainingBuffers.delete(threadId);
+		}
 		if (!threadBuffers.has(threadId)) {
 			// Evict oldest buffer if at capacity
 			if (threadBuffers.size >= MAX_THREAD_BUFFERS) {
@@ -1669,6 +1737,7 @@ export async function activate(context) {
 					flushThread(oldest).catch(() => {});
 				}
 			}
+			const recovered = outbox.records(destinationLane()).find((record) => record.threadId === threadId);
 			threadBuffers.set(threadId, drainingBuffers.get(threadId) ?? {
 				title: escapeForInline(`Alma Thread ${new Date().toISOString().slice(0, 10)}`, 120),
 				messages: [],
@@ -1680,6 +1749,8 @@ export async function activate(context) {
 				pending: false,
 				inFlight: undefined,
 				timer: null,
+				...recovered,
+				recovered: Boolean(recovered),
 			});
 		}
 		drainingBuffers.delete(threadId);
@@ -1692,9 +1763,10 @@ export async function activate(context) {
 		const { threadId, currentContent } = payload;
 
 		// Capture user message into buffer
-		if (autoCapture && currentContent && currentContent.trim()) {
+		if (autoCapture && !disposed && currentContent && currentContent.trim()) {
 			const buf = ensureBuffer(threadId);
 			buf.messages.push({ role: "user", content: currentContent });
+			outbox.save(threadId, buf);
 			activeThreadId = threadId;
 			logger.debug?.(`nowledge-mem: buffered user msg for ${threadId} (${buf.messages.length} total)`);
 		}
@@ -1739,7 +1811,7 @@ export async function activate(context) {
 
 	// --- Hook: didReceive (capture AI response + start idle timer) ---
 	registerEvent("chat.message.didReceive", (input, _output) => {
-		if (!autoCapture) return;
+		if (!autoCapture || disposed) return;
 		const threadId = input?.threadId;
 		// Use extractText to handle both string and array-of-blocks content
 		const aiContent = extractText(input?.response?.content);
@@ -1748,6 +1820,7 @@ export async function activate(context) {
 
 		const buf = ensureBuffer(threadId);
 		buf.messages.push({ role: "assistant", content: aiContent });
+		outbox.save(threadId, buf);
 		if (buf.flushing) buf.pending = true;
 		activeThreadId = threadId;
 		logger.debug?.(`nowledge-mem: buffered AI msg for ${threadId} (${buf.messages.length} total)`);
@@ -1756,7 +1829,8 @@ export async function activate(context) {
 
 	// --- Hook: thread.activated (flush on thread switch) ---
 	registerEvent("thread.activated", async (input, _output) => {
-		if (!autoCapture) return;
+		if (!autoCapture || disposed) return;
+		resumeSync();
 		const newThreadId = input?.threadId;
 		logger.debug?.(`nowledge-mem: thread.activated fired, threadId=${newThreadId}`);
 		// Flush the previous thread (await to avoid race with new thread's hooks)
@@ -1767,32 +1841,38 @@ export async function activate(context) {
 	});
 
 	// --- Quit hooks as safety net ---
-	const handleAutoCapture = async (_input, output) => {
-		if (!autoCapture) {
-			if (output && typeof output === "object") output.cancel = false;
-			return;
+	const flushLifecycle = (budgetMs) => {
+		if (lifecycleFinished) return lifecycleRun;
+		const scope = syncScope;
+		scope.titleController.abort(new Error("Thread sync title fallback during teardown"));
+		const syncSignal = scope.controller.signal;
+		const deadline = Date.now() + budgetMs;
+		if (deadline < scope.deadline && !syncSignal.aborted) {
+			scope.deadline = deadline;
+			clearTimeout(lifecycleTimer);
+			lifecycleTimer = setTimeout(() => scope.controller.abort(new Error("Thread sync lifecycle deadline exceeded")), Math.max(0, deadline - Date.now()));
 		}
-		try {
-			// Flush all buffers with unsaved messages
+		if (lifecycleRun) return lifecycleRun;
+		lifecycleRun = (async () => {
 			const flushPromises = [];
-			for (const [tid, buf] of [...threadBuffers, ...drainingBuffers]) {
+			for (const [threadId, buf] of [...threadBuffers, ...drainingBuffers]) {
 				if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
-				if (hasUserAndAssistant(buf.messages) && buf.messages.length > buf.savedCount) {
-					flushPromises.push(flushThread(tid));
-				} else if (buf.inFlight) {
-					flushPromises.push(buf.inFlight);
-				}
+				if (autoCapture) flushPromises.push(flushThread(threadId));
 			}
-			await Promise.allSettled(flushPromises);
-			logger.info?.(`nowledge-mem: auto-capture on quit (flushed ${flushPromises.length} threads)`);
-		} catch (err) {
-			logger.error?.(
-				`nowledge-mem auto-capture failed: ${err instanceof Error ? err.message : String(err)}`,
-			);
-		}
-		if (output && typeof output === "object") {
-			output.cancel = false;
-		}
+			try {
+				await withAbort(Promise.allSettled(flushPromises), syncSignal);
+			} catch (err) {
+				logger.warn?.(`nowledge-mem: lifecycle flush stopped; outbox retained: ${err.message}`);
+			} finally {
+				clearTimeout(lifecycleTimer);
+				scope.controller.abort(new Error("Thread sync lifecycle finished"));
+				lifecycleFinished = true;
+			}
+		})();
+		return lifecycleRun;
+	};
+	const handleAutoCapture = async () => {
+		await flushLifecycle(2_500);
 	};
 	// Alma event naming can vary across versions.
 	registerEvent("app.willQuit", handleAutoCapture);
@@ -1809,6 +1889,13 @@ export async function activate(context) {
 		},
 	});
 
+	for (const record of outbox.records(destinationLane())) {
+		drainingBuffers.set(record.threadId, { ...record, recovered: true, flushing: false, pending: false, inFlight: undefined, timer: null });
+	}
+	if (autoCapture) {
+		for (const threadId of drainingBuffers.keys()) resetIdleTimer(threadId);
+	}
+
 	const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
 	logger.info?.(
 		`nowledge-mem activated for Alma (recallPolicy=${recallPolicy}, recallInjectionEnabled=${recallInjectionEnabled}, recallFrequency=${recallFrequency}, injectCliPlaybook=${injectCliPlaybook}, autoCapture=${autoCapture}, maxRecallResults=${maxRecallResults}, mode=${remoteMode ? `remote → ${apiUrl}` : "local"}, space=${ambientSpace.space || "Default"})`,
@@ -1816,24 +1903,9 @@ export async function activate(context) {
 
 	return {
 		async dispose() {
-			// Flush any unsynced thread buffers before tearing down.
-			// This covers plugin disable/reload paths where quit hooks may not fire.
-			const flushPromises = [];
-			for (const [threadId, buf] of [...threadBuffers, ...drainingBuffers]) {
-				if (autoCapture && buf.messages.length > buf.savedCount) {
-					if (buf.flushing) buf.pending = true;
-					flushPromises.push(
-						Promise.resolve(flushThread(threadId)).catch((err) =>
-							logger.error?.(`nowledge-mem: dispose flush failed for ${threadId}: ${err}`),
-						),
-					);
-				} else if (autoCapture && buf.inFlight) {
-					flushPromises.push(buf.inFlight);
-				}
-			}
-			if (flushPromises.length > 0) {
-				await Promise.allSettled(flushPromises);
-			}
+			disposed = true;
+			await flushLifecycle(4_500);
+			syncScope.controller.abort(new Error("Thread sync disposed"));
 			for (const d of disposables) {
 				try { d.dispose(); } catch { /* best effort */ }
 			}
