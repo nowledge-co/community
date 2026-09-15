@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -557,11 +558,11 @@ class PackagedHookConfigTests(unittest.TestCase):
 
         self.assertEqual(set(payload.keys()), {"hooks"})
 
-    def test_packaged_stop_hook_prefers_stable_installed_runtime(self):
+    def test_packaged_stop_hook_resolves_runtime_from_environment(self):
         payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
         hook = payload["hooks"]["Stop"][0]["hooks"][0]
 
-        self.assertIn("os.environ['PLUGIN_ROOT']", hook["command"])
+        self.assertIn("os.environ.get('PLUGIN_ROOT')", hook["command"])
         self.assertIn("nmem-stop-launch.py", hook["command"])
         self.assertIn('python3 -c "import os, runpy, sys', hook["command"])
         self.assertIn('python -c "import os, runpy, sys', hook["command"])
@@ -569,7 +570,7 @@ class PackagedHookConfigTests(unittest.TestCase):
         self.assertNotIn("%PLUGIN_ROOT%", hook["command"])
         self.assertNotIn("if [", hook["command"])
         self.assertNotIn("$HOME/.codex/hooks/nowledge-mem-stop-save.py", hook["command"])
-        self.assertIn("os.environ['PLUGIN_ROOT']", hook["commandWindows"])
+        self.assertIn("os.environ.get('PLUGIN_ROOT')", hook["commandWindows"])
         self.assertIn("nmem-stop-launch.py", hook["commandWindows"])
         self.assertNotIn("${PLUGIN_ROOT}", hook["commandWindows"])
         self.assertNotIn("%PLUGIN_ROOT%", hook["commandWindows"])
@@ -603,6 +604,132 @@ class PackagedHookConfigTests(unittest.TestCase):
             subagent_timeout,
             context_module.SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS,
         )
+
+
+class PackagedStopCommandTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        self.temp_path = Path(self.temp_dir.name)
+        self.codex_home = self.temp_path / "Codex Home"
+        self.host_hook = self.codex_home / "hooks" / "nowledge-mem-stop-save.py"
+        self.host_hook.parent.mkdir(parents=True)
+        self.env = os.environ.copy()
+        self.env.pop("PLUGIN_ROOT", None)
+        self.env["CODEX_HOME"] = str(self.codex_home)
+        self.bin_dir = self.temp_path / "bin"
+        self.bin_dir.mkdir()
+        if os.name != "nt":
+            (self.bin_dir / "python3").symlink_to(sys.executable)
+            self.env["PATH"] = str(self.bin_dir)
+        payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
+        hook = payload["hooks"]["Stop"][0]["hooks"][0]
+        self.command = hook["commandWindows" if os.name == "nt" else "command"]
+
+    def write_capture_hook(self, path, label):
+        path.write_text(
+            "import json, sys\n"
+            f"json.dump({{'runtime': {label!r}, 'argv': sys.argv[1:], "
+            "'input': json.load(sys.stdin)}, sys.stdout)\n",
+            encoding="utf-8",
+        )
+
+    def run_command(self, payload=None):
+        if payload is None:
+            payload = {"session_id": "synthetic-session"}
+        return subprocess.run(
+            self.command if os.name == "nt" else ["/bin/sh", "-c", self.command],
+            shell=os.name == "nt",
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            env=self.env,
+            cwd=self.temp_path,
+            timeout=10,
+            check=False,
+        )
+
+    def assert_capture(self, result, runtime):
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout),
+            {
+                "runtime": runtime,
+                "argv": ["--event", "stop"],
+                "input": {"session_id": "synthetic-session"},
+            },
+        )
+
+    def test_manifest_uses_installed_hook_without_plugin_root(self):
+        self.write_capture_hook(self.host_hook, "installed")
+        self.assert_capture(self.run_command(), "installed")
+
+    def test_manifest_uses_installed_hook_with_empty_plugin_root(self):
+        self.env["PLUGIN_ROOT"] = ""
+        self.write_capture_hook(self.host_hook, "installed")
+        self.assert_capture(self.run_command(), "installed")
+
+    def test_manifest_runs_installed_runtime_without_session_metadata(self):
+        for source, name in (
+            (HOOK_MODULE_PATH, self.host_hook.name),
+            (RUNTIME_MODULE_PATH, RUNTIME_MODULE_PATH.name),
+            (PLUGIN_ROOT / "hooks" / "skill_outcome.py", "skill_outcome.py"),
+        ):
+            shutil.copy2(source, self.host_hook.parent / name)
+        result = self.run_command({})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout), {"continue": True, "suppressOutput": True}
+        )
+
+    def test_manifest_keeps_packaged_runtime_when_root_is_available(self):
+        plugin_root = self.temp_path / "Plugin With Spaces"
+        hooks_dir = plugin_root / "hooks"
+        hooks_dir.mkdir(parents=True)
+        shutil.copy2(LAUNCH_MODULE_PATH, hooks_dir / LAUNCH_MODULE_PATH.name)
+        self.write_capture_hook(hooks_dir / "nmem-stop-save.py", "packaged")
+        self.write_capture_hook(self.host_hook, "installed")
+        self.env["PLUGIN_ROOT"] = str(plugin_root)
+        self.assert_capture(self.run_command(), "packaged")
+
+    @unittest.skipIf(os.name == "nt", "POSIX interpreter selection")
+    def test_missing_runtime_has_actionable_error_without_exit_127(self):
+        self.write_capture_hook(self.temp_path / "nmem-stop-launch.py", "untrusted-cwd")
+        result = self.run_command()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("PLUGIN_ROOT", result.stderr)
+        self.assertIn("install_hooks.py", result.stderr)
+        self.assertNotIn("KeyError", result.stderr)
+        self.assertNotIn("not found", result.stderr)
+
+    @unittest.skipIf(os.name == "nt", "POSIX interpreter selection")
+    def test_runtime_failure_is_not_retried_with_another_interpreter(self):
+        (self.bin_dir / "python").symlink_to(sys.executable)
+        plugin_root = self.temp_path / "Failing Plugin"
+        hooks_dir = plugin_root / "hooks"
+        hooks_dir.mkdir(parents=True)
+        self.env["PLUGIN_ROOT"] = str(plugin_root)
+        (hooks_dir / "nmem-stop-launch.py").write_text(
+            "import sys\nprint('runtime failed', file=sys.stderr)\nsys.exit(23)\n",
+            encoding="utf-8",
+        )
+        result = self.run_command()
+        self.assertEqual(result.returncode, 23, result.stderr)
+        self.assertEqual(result.stderr, "runtime failed\n")
+
+    @unittest.skipIf(os.name == "nt", "POSIX interpreter selection")
+    def test_manifest_uses_python_when_python3_is_absent(self):
+        (self.bin_dir / "python3").rename(self.bin_dir / "python")
+        self.write_capture_hook(self.host_hook, "installed")
+        self.assert_capture(self.run_command(), "installed")
+
+    @unittest.skipIf(os.name == "nt", "POSIX interpreter selection")
+    def test_missing_python_has_interpreter_diagnostic(self):
+        self.env["PATH"] = str(self.temp_path / "missing-bin")
+        result = self.run_command()
+        self.assertEqual(result.returncode, 127, result.stderr)
+        self.assertIn("Nowledge Mem Stop hook requires Python 3", result.stderr)
 
 
 class ContextHookTests(unittest.TestCase):

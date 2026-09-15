@@ -148,6 +148,12 @@ read: `explorer` is silent and the other built-in roles get routing only. Define
 a context-heavy custom role or explicitly include `worker` when that role should
 always receive the full snapshot.
 
+Run setup again after updating the plugin to refresh the installed Stop fallback.
+When Codex omits `PLUGIN_ROOT`, Stop uses this copy under `CODEX_HOME/hooks`
+(or `~/.codex/hooks`). A plugin-only install without either path cannot locate
+its capture runtime and reports a setup error. The other lifecycle hooks still
+require Codex to provide the plugin root.
+
 Restart Codex after setup. Codex treats **enabled** and **trusted** as separate hook states: review and trust the four Nowledge Mem hooks when Codex prompts you. This confirmation is deliberately user-owned; the installer never bypasses Codex's hook security boundary.
 
 Raft can run a managed Codex worker on the same computer as your normal Codex sessions. The hook reads Codex's structured `session_meta.originator` for each transcript: normal Codex sessions still capture automatically, while `raft-daemon` rollouts are skipped because they contain Raft inbox/control traffic rather than the human-visible conversation. The legacy `slock-daemon` originator remains supported. Memory skills and MCP remain available inside the Raft worker.

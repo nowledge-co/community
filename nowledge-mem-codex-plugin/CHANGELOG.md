@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.1.33] - 2026-09-10
+
+### Fixed
+
+- Stop capture can use the installed host hook when Codex does not provide
+  `PLUGIN_ROOT`. Run `scripts/install_hooks.py` after updating to refresh this
+  fallback under `CODEX_HOME` (or `~/.codex`).
+- On macOS and Linux, the Stop hook chooses an available Python interpreter
+  before running capture, so a runtime failure is reported once with its actual
+  exit status. Missing hook files now include setup instructions.
+
 ## [0.1.32] - 2026-08-20
 
 ### Fixed
