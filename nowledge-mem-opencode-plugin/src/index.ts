@@ -13,6 +13,7 @@ import {
   isThreadAlreadyExistsResponse,
   recreateMissingThread,
   normalizedTimestamp,
+  opencodeThreadId,
   selectAcknowledgedDelta,
   sessionSyncLaneKey,
   stableMessageFingerprint,
@@ -436,8 +437,7 @@ export default {
         return { skipped: true, reason: "already_synced", session_id: ctx.sessionID }
       }
 
-      // Match import service convention: lowercase for dedup consistency.
-      const threadId = `opencode-${ctx.sessionID}`.toLowerCase()
+      const threadId = opencodeThreadId(ctx.sessionID)
       const title =
         options.summary ||
         threadMessages.find((message) => message.role === "user")?.content?.slice(0, 120) ||

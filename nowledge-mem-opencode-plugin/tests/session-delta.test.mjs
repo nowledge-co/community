@@ -8,6 +8,7 @@ import {
   isCheckpointedAppendAck,
   isThreadAlreadyExistsResponse,
   normalizedTimestamp,
+  opencodeThreadId,
   isThreadNotFoundResponse,
   recreateMissingThread,
   selectAcknowledgedDelta,
@@ -15,6 +16,11 @@ import {
 } from "../src/session-delta.ts"
 
 const id = (message) => message.id
+
+test("preserves mixed-case OpenCode provider ids in canonical Thread identity", () => {
+  assert.equal(opencodeThreadId("Ses_MixedCase9"), "opencode-Ses_MixedCase9")
+  assert.notEqual(opencodeThreadId("Ses_MixedCase9"), opencodeThreadId("ses_mixedcase9"))
+})
 
 test("selects only messages after the acknowledged anchor", () => {
   const messages = [{ id: "a" }, { id: "b" }, { id: "c" }]

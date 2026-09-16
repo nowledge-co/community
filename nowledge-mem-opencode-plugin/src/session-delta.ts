@@ -15,6 +15,11 @@ export type AcknowledgedDelta<T> = {
   reset: boolean
 }
 
+/** Preserve OpenCode's provider session identity exactly across live capture and CLI sync. */
+export function opencodeThreadId(sessionId: string): string {
+  return `opencode-${sessionId}`
+}
+
 /**
  * Builds a destination-lane key so cursor state never crosses servers, keys,
  * spaces, or identities. Hashes the destination fields and binds the result

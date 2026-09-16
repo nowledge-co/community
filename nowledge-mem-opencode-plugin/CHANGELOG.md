@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Live capture now preserves OpenCode's mixed-case provider session ID, so it
+  converges with `nmem t sync --from opencode` instead of creating a second,
+  lowercased Thread.
+
 ## [0.3.10] - 2026-08-26
 
 ### Fixed
