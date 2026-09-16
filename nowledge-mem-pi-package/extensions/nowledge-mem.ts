@@ -1,8 +1,10 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, win32 as pathWin32 } from "node:path";
+import { basename, join, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { RESUME_ENTRY, parseResumePrompt, requireResumeReply, resumeBootstrapArgs, type ResumeReply } from "./thread-resume.ts";
 
 import {
 	isCheckpointConflictResponse,
@@ -18,7 +20,7 @@ import {
 } from "./session-delta.ts";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.7";
+const DEFAULT_PLUGIN_VERSION = "0.8.8";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -96,6 +98,7 @@ interface SyncPayload {
 	body: JsonObject;
 	laneKey: string;
 	destination: ReturnType<typeof resolveConfig>;
+	binding?: ResumeReply["binding"];
 }
 
 type StartupContextEntry = {
@@ -106,6 +109,7 @@ type StartupContextEntry = {
 const syncStates = new Map<string, SyncState>();
 const startupContextCache = new Map<string, StartupContextEntry>();
 const startupContextWarnings = new Set<string>();
+const resumeStates = new Map<string, { reply?: ResumeReply; error?: string }>();
 const WINDOWS_CMD_ENV_EXPANSION_RE = /%[A-Za-z_][A-Za-z0-9_]*%/;
 
 function debugWarn(message: string): void {
@@ -229,7 +233,7 @@ async function postJson(
 		headers.Authorization = `Bearer ${config.apiKey}`;
 		headers["X-NMEM-API-Key"] = config.apiKey;
 	}
-	const requestBody = JSON.stringify(withSpace(body, config.space));
+	const requestBody = JSON.stringify(path.startsWith("/threads/resume/") ? body : withSpace(body, config.space));
 	let urls: string[];
 	try {
 		urls = [`${config.apiUrl}${path}`];
@@ -443,6 +447,8 @@ function sessionId(ctx: ExtensionContext): string {
 }
 
 function threadIdFor(ctx: ExtensionContext): string {
+	const binding = resumeStates.get(sessionId(ctx))?.reply?.binding;
+	if (binding) return binding.target.thread_id;
 	return `${sourceApp()}-${sessionId(ctx)}`.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
 }
 
@@ -464,6 +470,8 @@ function shouldSync(messages: ThreadMessage[]): boolean {
 }
 
 function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | undefined {
+	const resume = resumeStates.get(sessionId(ctx));
+	if (sourceApp() === "pi" && (!resume || resume.error)) return undefined;
 	const messages = buildMessages(ctx);
 	if (!shouldSync(messages)) return undefined;
 
@@ -494,6 +502,7 @@ function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | 
 		sessionId: id,
 		messages,
 		body,
+		binding: resume?.reply?.binding,
 		laneKey: sessionSyncLaneKey(
 			threadId,
 			config.apiUrl,
@@ -501,7 +510,7 @@ function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | 
 			config.space,
 			config.agentId,
 			config.hostAgentId,
-		),
+		) + (resume?.reply ? `:${id}:${resume.reply.binding.binding_id}` : ""),
 		destination: config,
 	};
 }
@@ -515,6 +524,42 @@ async function flushOnce(payload: SyncPayload, state: SyncState): Promise<void> 
 		stableMessageFingerprint,
 	);
 	if (delta.messages.length === 0) return;
+	if (payload.binding) {
+		const binding = payload.binding;
+		let total = state.acknowledged?.remoteCount;
+		let batch: JsonObject[] = [];
+		let bytes = 0;
+		const send = async (): Promise<void> => {
+			if (!batch.length) return;
+			const result = await postJson("/threads/resume/append", {
+				binding_id: binding.binding_id,
+				connection_id: binding.target.connection_id,
+				messages: batch,
+			}, payload.destination);
+			if (!result.ok || !isThreadAppendAck(result.data)) {
+				throw new Error("Bound Thread sync failed. Check the selected Thread and Mem connection; it was not recreated.");
+			}
+			total = Number((result.data as JsonObject).total_messages);
+			batch = [];
+			bytes = 0;
+		};
+		try {
+			for (const message of delta.messages) {
+				const item = { ...message, external_id: externalId(message) };
+				const size = Buffer.byteLength(JSON.stringify(item));
+				if (bytes + size > 900_000 || batch.length === 128) await send();
+				batch.push(item);
+				bytes += size;
+			}
+			await send();
+			state.acknowledged = { ...delta.next, remoteCount: total ?? 0 };
+			state.lastError = undefined;
+		} catch (error) {
+			state.lastError = error instanceof Error ? error.message : String(error);
+			debugWarn(state.lastError);
+		}
+		return;
+	}
 
 	if (!state.created) {
 		const createResult = await postJson("/threads", payload.body, payload.destination);
@@ -636,6 +681,7 @@ async function flush(ctx: ExtensionContext, reason: string): Promise<void> {
 
 function evictSyncState(ctx: ExtensionContext): void {
 	const config = resolveConfig();
+	const binding = resumeStates.get(sessionId(ctx))?.reply?.binding;
 	const key = sessionSyncLaneKey(
 		threadIdFor(ctx),
 		config.apiUrl,
@@ -643,7 +689,7 @@ function evictSyncState(ctx: ExtensionContext): void {
 		config.space,
 		config.agentId,
 		config.hostAgentId,
-	);
+	) + (binding ? `:${sessionId(ctx)}:${binding.binding_id}` : "");
 	const state = syncStates.get(key);
 	if (state?.timer) clearTimeout(state.timer);
 	syncStates.delete(key);
@@ -738,6 +784,7 @@ function remainingStartupContextTimeout(deadline: number): number {
 
 function spawnNmem(args: string[], timeoutMs = STARTUP_CONTEXT_TIMEOUT_MS): Promise<NmemResult> {
 	const baseArgs = ["--json", ...args];
+	const executable = process.env.NMEM_CLI_PATH || (process.platform === "win32" ? "nmem.cmd" : "nmem");
 	return new Promise((resolve) => {
 		const handle = (error: Error | null, stdout: string, stderr: string) => {
 			const stderrText = stderr.trim();
@@ -747,12 +794,12 @@ function spawnNmem(args: string[], timeoutMs = STARTUP_CONTEXT_TIMEOUT_MS): Prom
 			}
 			resolve({ ok: true, stdout: stdout.trim() });
 		};
-		if (process.platform === "win32") {
+		if (process.platform === "win32" && /\.(cmd|bat)$/i.test(executable)) {
 			try {
 				// `/s` strips one outer quote pair before parsing the command.
 				// Keep that pair outside the per-argument quoting, and tell Node
 				// the command line is already escaped so it is not rewritten.
-				const line = `"${windowsCommandLine(["nmem.cmd", ...baseArgs])}"`;
+				const line = `"${windowsCommandLine([executable, ...baseArgs])}"`;
 				execFile(
 					windowsComspec(),
 					["/d", "/s", "/c", line],
@@ -768,7 +815,7 @@ function spawnNmem(args: string[], timeoutMs = STARTUP_CONTEXT_TIMEOUT_MS): Prom
 				resolve({ ok: false, error: error instanceof Error ? error.message : String(error) });
 			}
 		} else {
-			execFile("nmem", baseArgs, { timeout: timeoutMs, encoding: "utf8" }, handle);
+			execFile(executable, baseArgs, { timeout: timeoutMs, encoding: "utf8", windowsHide: true }, handle);
 		}
 	});
 }
@@ -901,12 +948,68 @@ async function appendMemoryContext(systemPrompt: string, ctx: ExtensionContext):
 }
 
 export default function nowledgeMemPi(pi: ExtensionAPI) {
+	const bootstrap = async (ctx: ExtensionContext, locator?: string): Promise<void> => {
+		if (sourceApp() !== "pi") return;
+		const id = sessionId(ctx);
+		try {
+			const manager = ctx.sessionManager as unknown as { getEntries: () => JsonObject[] };
+			const saved = manager.getEntries().find((entry) => entry.type === "custom" && entry.customType === RESUME_ENTRY);
+			const savedLocator = saved?.data && typeof saved.data === "object" ? (saved.data as JsonObject).locator : undefined;
+			const effectiveLocator = locator ?? (typeof savedLocator === "string" ? savedLocator : undefined);
+			const nativeKey = createHash("sha256").update(JSON.stringify(["pi", id])).digest("hex");
+			const configDir = process.env.NMEM_CLI_CONFIG_DIR || join(homedir(), ".nowledge-mem");
+			const required = Boolean(effectiveLocator) || Boolean(resumeStates.get(id)?.reply)
+				|| existsSync(join(configDir, "thread-resume", `${nativeKey}.json`));
+			if (locator && !saved && buildMessages(ctx).some((message) => message.role === "assistant" || message.role === "user")) {
+				throw new Error("Start a new Pi session before continuing a selected Mem Thread.");
+			}
+			const result = await spawnNmem(resumeBootstrapArgs(id, effectiveLocator), 30_000);
+			if (!result.ok) {
+				if (!required) {
+					resumeStates.set(id, {});
+					return;
+				}
+				throw new Error("Thread continuation could not be verified. Check nmem and the Mem connection, then retry.");
+			}
+			const reply = requireResumeReply(parseNmemObject(result.stdout), required);
+			if (reply && (reply.binding.source !== "pi" || reply.binding.native_session_id !== id)) {
+				throw new Error("Mem returned a binding for a different native session.");
+			}
+			resumeStates.set(id, { reply });
+			if (reply && !saved) {
+				pi.appendEntry(RESUME_ENTRY, { locator: Buffer.from(JSON.stringify(reply.binding.target)).toString("base64url") });
+			}
+		} catch (error) {
+			resumeStates.set(id, { error: error instanceof Error ? error.message : String(error) });
+		}
+	};
+
 	pi.on("session_start", async (_event, ctx) => {
+		await bootstrap(ctx);
 		await refreshStartupContext(ctx);
 	});
 
+	pi.on("input", async (event, ctx) => {
+		if (sourceApp() !== "pi") return { action: "continue" };
+		let handoff: ReturnType<typeof parseResumePrompt>;
+		try { handoff = parseResumePrompt(event.text); }
+		catch (error) {
+			ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+			return { action: "handled" };
+		}
+		await bootstrap(ctx, handoff?.locator);
+		const state = resumeStates.get(sessionId(ctx));
+		if (state?.error) {
+			ctx.ui.notify(state.error, "error");
+			return { action: "handled" };
+		}
+		return handoff ? { action: "transform", text: handoff.text, images: event.images } : { action: "continue" };
+	});
+
 	pi.on("before_agent_start", async (event, ctx) => {
-		return { systemPrompt: await appendMemoryContext(event.systemPrompt, ctx) };
+		const context = resumeStates.get(sessionId(ctx))?.reply?.context.context_text;
+		const prompt = context ? `${event.systemPrompt}\n\n${context}` : event.systemPrompt;
+		return { systemPrompt: await appendMemoryContext(prompt, ctx) };
 	});
 
 	pi.on("agent_end", async (_event, ctx) => {

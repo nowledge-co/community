@@ -401,7 +401,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.32"
+    assert codex_manifest["version"] == "0.1.36"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -733,7 +733,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.7"
+    assert pi_pkg["version"] == "0.8.8"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
@@ -1495,7 +1495,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.34"
     assert by_id["proma"]["version"] == "0.1.5"
     assert by_id["opencode"]["version"] == "0.3.10"
-    assert by_id["pi"]["version"] == "0.8.7"
+    assert by_id["pi"]["version"] == "0.8.8"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["grok-bot"]["version"] is None
@@ -2040,9 +2040,24 @@ def test_key_plugin_credentials_stay_out_of_static_runtime_urls():
     assert "Authorization" not in (CODEX_PLUGIN / ".mcp.json").read_text(encoding="utf-8")
 
 
-def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
+def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload(tmp_path: Path):
     if shutil.which("bun") is None:
         pytest.skip("Pi extension concurrency smoke requires bun on PATH")
+
+    fake_script = tmp_path / "nmem_fake.py"
+    fake_script.write_text(
+        "import json, sys\n"
+        "print(json.dumps({'binding': None} if 'resume-bootstrap' in sys.argv "
+        "else {'rendered_markdown': 'Isolated Pi concurrency fixture'}))\n",
+        encoding="utf-8",
+    )
+    fake_cli = tmp_path / ("nmem.cmd" if os.name == "nt" else "nmem")
+    fake_cli.write_text(
+        f'@"{sys.executable}" "{fake_script}" %*\r\n' if os.name == "nt"
+        else f'#!/bin/sh\nexec "{sys.executable}" "{fake_script}" "$@"\n',
+        encoding="utf-8",
+    )
+    fake_cli.chmod(0o755)
 
     script = dedent(
         """
@@ -2074,18 +2089,22 @@ def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
               return;
             }
             if (req.url === "/threads") {
-              resolveCreateSeen();
-              setTimeout(() => res.end(JSON.stringify({ ok: true })), 100);
+              if (body.thread_id === "pi-latest-payload") resolveCreateSeen();
+              setTimeout(() => res.end(JSON.stringify({ thread: {
+                thread_id: body.thread_id, message_count: body.messages.length,
+              } })), 100);
               return;
             }
             if (req.url?.includes("pi-latest-payload")) {
               setTimeout(() => {
                 latestAppendCompleted = true;
-                res.end(JSON.stringify({ ok: true }));
+                res.end(JSON.stringify({ success: true, messages_added: body.messages.length,
+                  total_messages: 4, append_mode: "checkpointed" }));
               }, 100);
               return;
             }
-            res.end(JSON.stringify({ ok: true }));
+            res.end(JSON.stringify({ success: true, messages_added: body.messages.length,
+              total_messages: body.messages.length }));
           });
         });
         await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -2111,6 +2130,7 @@ def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
         const contextFor = (id, entries) => ({
           hasUI: true,
           sessionManager: {
+            getEntries: () => entries,
             getBranch: () => entries,
             getSessionId: () => id,
             getSessionName: () => id,
@@ -2120,19 +2140,24 @@ def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
         });
 
         const failedEntries = entriesFor("failed");
+        const failedContext = contextFor("transport-failure", failedEntries);
+        await handlers.get("session_start")?.({}, failedContext);
         await handlers.get("session_before_compact")?.(
           { type: "session_before_compact" },
-          contextFor("transport-failure", failedEntries),
+          failedContext,
         );
 
         const existingEntries = entriesFor("existing");
+        const existingContext = contextFor("existing-thread", existingEntries);
+        await handlers.get("session_start")?.({}, existingContext);
         await handlers.get("session_before_compact")?.(
           { type: "session_before_compact" },
-          contextFor("existing-thread", existingEntries),
+          existingContext,
         );
 
         const latestEntries = entriesFor("latest");
         const latestContext = contextFor("latest-payload", latestEntries);
+        await handlers.get("session_start")?.({}, latestContext);
         const first = handlers.get("session_before_compact")?.(
           { type: "session_before_compact" },
           latestContext,
@@ -2163,6 +2188,7 @@ def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
 
         const boundaryEntries = entriesFor("boundary");
         const boundaryContext = contextFor("boundary", boundaryEntries);
+        await handlers.get("session_start")?.({}, boundaryContext);
         await handlers.get("agent_end")?.({ type: "agent_end" }, boundaryContext);
         await handlers.get("session_shutdown")?.(
           { type: "session_shutdown", reason: "quit" },
@@ -2195,7 +2221,10 @@ def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
         if (latestCalls[0].body.messages.length !== 2) {
           throw new Error(`initial payload changed: ${JSON.stringify(latestCalls[0])}`);
         }
-        if (latestCalls[1].body.messages.length !== 4) {
+        if (latestCalls[1].body.messages.length !== 2 ||
+            latestCalls[1].body.messages[0].content !== "latest user two" ||
+            latestCalls[1].body.messages[1].content !== "latest assistant two" ||
+            latestCalls[1].body.expected_message_count !== 2) {
           throw new Error(`latest payload was dropped: ${JSON.stringify(latestCalls[1])}`);
         }
         if (!secondResolvedAfterAppend) {
@@ -2215,6 +2244,10 @@ def test_pi_sync_does_not_amplify_transport_failures_and_keeps_latest_payload():
     )
     env = os.environ.copy()
     env["PI_EXTENSION_URL"] = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").resolve().as_uri()
+    env["NMEM_CLI_PATH"] = str(fake_cli)
+    env["NMEM_CLI_CONFIG_DIR"] = str(tmp_path / "nmem-config")
+    env["NMEM_API_KEY"] = "isolated-test-key"
+    env["NMEM_PLUGIN_SOURCE_APP"] = "pi"
     result = _run(["bun", "--eval", script], env=env, timeout=30)
     assert '"ok":true' in result.stdout.replace(" ", "")
 
@@ -2229,7 +2262,7 @@ def test_pi_thread_sync_timeout_contract():
     readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pi_pkg["version"] == "0.8.7"
+    assert pi_pkg["version"] == "0.8.8"
     assert pi_registry["version"] == pi_pkg["version"]
     assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in extension
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension

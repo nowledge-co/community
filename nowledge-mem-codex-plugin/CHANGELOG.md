@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.1.36] - 2026-09-15
+
+### Added
+
+- Continue an explicitly selected Mem Thread in a new Codex session. A synchronous, trusted prompt hook verifies its exact locator and injects bounded context before the agent starts.
+- Capture new native message occurrences into the same Thread, retaining per-session provenance and rejecting changed, deleted, or inaccessible targets.
+
 ## [0.1.35] - 2026-09-15
 
 ### Fixed
