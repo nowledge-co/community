@@ -76,6 +76,9 @@ async function resolveWindowsNmemExecutable(execFileImpl, readFileImpl, existsIm
 
 // src/session-delta.ts
 import { createHash } from "node:crypto";
+function opencodeThreadId(sessionId) {
+  return `opencode-${sessionId}`;
+}
 function sessionSyncLaneKey(sessionId, apiUrl, apiKey, spaceId, agentId, hostAgentId) {
   const destination = createHash("sha256").update([apiUrl, apiKey ?? "", spaceId ?? "", agentId ?? "", hostAgentId ?? ""].join("\0")).digest("hex");
   return `${destination}\0${sessionId}`;
@@ -494,7 +497,7 @@ ${reasoning}
       if (delta.messages.length === 0) {
         return { skipped: true, reason: "already_synced", session_id: ctx.sessionID };
       }
-      const threadId = `opencode-${ctx.sessionID}`.toLowerCase();
+      const threadId = opencodeThreadId(ctx.sessionID);
       const title = options.summary || threadMessages.find((message) => message.role === "user")?.content?.slice(0, 120) || threadMessages[0]?.content?.slice(0, 120) || "OpenCode Session";
       const metadata = threadMetadata(ctx.sessionID, options.reason);
       const projectPath = ctx.directory ?? directory;
