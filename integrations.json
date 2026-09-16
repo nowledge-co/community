@@ -152,8 +152,7 @@
         "bestResultRequires": [
           "Use a public HTTPS Mem MCP endpoint; a local 127.0.0.1 or localhost address is not reachable from Grok Bot",
           "Access Anywhere Quick link works without a Plus or Max subscription; Nowledge Link is the stable managed-link option for Plus and Max",
-          "At grok.com/connectors, use OAuth for a Cloud workspace or the connector secret field for an App workspace API key",
-          "Never ask the user to send an API key or move it through chat, shell commands, environment variables, files, tool calls, or logs",
+          "At grok.com/connectors, use OAuth for either a Cloud workspace or a public App workspace endpoint supplied by Access Anywhere",
           "Use the Cloud endpoint for a Cloud workspace or an Access Anywhere endpoint for an App workspace",
           "Read the Nowledge Mem Grok Bot guide before testing memory tools",
           "Keep each Bot's role and identity explicit in Mem rather than inferring identity from source_app"
@@ -162,8 +161,8 @@
       "install": {
         "detectionHint": "Grok Bot is a cloud-managed host and is not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow its Grok Bot path. First ask me to choose Nowledge Cloud or Mem App and a target Space; do not ask me for a credential. Then open https://grok.com/connectors and guide me to add the public Nowledge Mem /mcp endpoint as a Custom connector. For Cloud, use its Cloud endpoint and complete OAuth. For App, use Access Anywhere Quick link, Nowledge Link, or my public domain; if an API key is required, stop and have me enter it only in the connector's secret field. Never ask me to send the key or put it in chat, shell commands, environment variables, files, tool calls, results, or logs; never echo or inspect it. Do not run a local Grok plugin command or use localhost. After I confirm the connector is added, verify connected status, a Context Bundle or Working Memory check, bounded search, one scoped test write to my chosen Space, and exact-ID readback without printing credentials. Report the created test Memory ID and that complete-thread capture is not automatic unless Grok Bot supplies a documented export or hook payload.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按其中的 Grok Bot 路径操作。先让我选择 Nowledge Cloud 或 Mem App，以及目标 Space；不要向我索要凭据。然后打开 https://grok.com/connectors，引导我把公开的 Nowledge Mem /mcp 地址添加为 Custom connector。Cloud 使用 Cloud endpoint 并完成 OAuth；App 使用 Access Anywhere Quick link、Nowledge Link 或我的公开域名。如果需要 API key，停下来让我只在连接器的 secret 字段中亲自输入。绝不要让我把 key 发给你，也不要把它放进聊天、shell 命令、环境变量、文件、工具调用、结果或日志；不要回显或检查它。不要运行本地 Grok 插件命令，也不要使用 localhost。我确认连接器已添加后，在不打印凭据的前提下验证 connected 状态、进行 Context Bundle 或 Working Memory 检查、一次有界搜索、向所选 Space 写入一条范围明确的测试记忆，并按精确 ID 回读。最后报告测试 Memory ID，并说明除非 Grok Bot 提供有文档说明的导出或 hook payload，否则不会自动捕获完整会话。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow its Grok connector path. First ask me to choose Nowledge Cloud or Mem App and a target Space. Then open https://grok.com/connectors and guide me to add the public Nowledge Mem /mcp endpoint as a Custom connector. For Cloud, use its Cloud endpoint. For App, use the endpoint supplied by Access Anywhere Quick link, Nowledge Link, or my public domain. Complete OAuth; do not ask for or paste a Mem API key. Do not run a local Grok Build plugin command or use localhost. After I confirm the connector is added, verify connected status, a Context Bundle or Working Memory check, bounded search, one scoped test write to my chosen Space, and exact-ID readback. Report the created test Memory ID and that complete-thread capture is not automatic unless Grok provides a documented export or hook payload.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按其中的 Grok connector 路径操作。先让我选择 Nowledge Cloud 或 Mem App，以及目标 Space。然后打开 https://grok.com/connectors，引导我把公开的 Nowledge Mem /mcp 地址添加为 Custom connector。Cloud 使用 Cloud endpoint；App 使用 Access Anywhere Quick link、Nowledge Link 或我的公开域名提供的 endpoint。完成 OAuth；不要索要或粘贴 Mem API key。不要运行本地 Grok Build plugin 命令，也不要使用 localhost。我确认连接器已添加后，验证 connected 状态、进行 Context Bundle 或 Working Memory 检查、一次有界搜索、向所选 Space 写入一条范围明确的测试记忆，并按精确 ID 回读。最后报告测试 Memory ID，并说明除非 Grok 提供有文档说明的导出或 hook payload，否则不会自动捕获完整会话。"
         },
         "docsUrl": "/docs/integrations/grok-bot"
       },
@@ -204,20 +203,20 @@
         "bestResultRequires": [
           "Use the public MCP endpoint ending in /mcp: Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace",
           "Complete the host's OAuth connector approval when requested",
-          "Match verification to ChatGPT eligibility: Pro supports read/fetch only; full write MCP is limited to Business and Enterprise/Edu",
-          "Business creation and publication require an admin/owner; Enterprise/Edu admins may authorize developers to create and test, but only admins/owners publish",
-          "If the plan or role cannot create a custom App, use browser capture until the public plugin is approved",
-          "Treat the universal public plugin as pending until an owner creates the production MCP App, records its real technical ID, and OpenAI approves the Plugins Directory submission",
+          "Custom MCP Apps can expose both read and write tools when the ChatGPT plan, workspace policy, and approved OAuth scopes allow them",
+          "Directory publication is separate from private Developer mode setup and remains subject to OpenAI review",
+          "If the account cannot create a custom App, use browser capture until the public plugin is approved",
+          "Treat the universal public plugin as submitted and pending review until OpenAI approves the Plugins Directory listing",
           "Use the browser extension or an official export when you need conversation capture",
           "Keep ChatGPT's connector identity separate from any local ChatGPT export source"
         ]
       },
       "install": {
-        "publicDirectoryStatus": "pending-production-app-registration-and-submission",
+        "publicDirectoryStatus": "submitted-pending-review",
         "detectionHint": "ChatGPT Web and desktop are cloud clients and are not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT Cloud path. First check plan and role: Pro supports custom-App read/fetch only; full write MCP is limited to Business and Enterprise/Edu, with admin/owner publication controls. If eligible, create a custom App from ChatGPT Apps settings, add the public Nowledge Mem /mcp endpoint, and complete OAuth. Use the Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace. Verify with a Context Bundle or Working Memory check and a memory search; verify a scoped write only when the plan and workspace policy allow write actions. If the create action is unavailable, use browser capture until the public plugin is approved. Never invent a plugin_asdk_app ID or claim MCP captures ChatGPT threads.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 云端路径操作。先检查套餐和角色：Pro 的自定义 App 只支持 read/fetch；完整写入 MCP 仅限 Business、Enterprise 和 Edu，并受 admin/owner 发布权限控制。符合条件时，从 ChatGPT 的 Apps 设置创建自定义 App，添加公开的 Nowledge Mem /mcp 地址并完成 OAuth；Cloud workspace 使用 Cloud endpoint，App workspace 使用 Access Anywhere。通过 Context Bundle 或 Working Memory 检查和记忆搜索进行验证；只有套餐和 workspace 策略允许写 action 时才验证范围明确的写入。如果没有创建入口，先用浏览器扩展捕获内容并等待公开 plugin。不要伪造 plugin_asdk_app ID，也不要声称 MCP 会捕获 ChatGPT 会话。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT Cloud path. If custom Apps are available for this account, create one from ChatGPT Apps settings, add the public Nowledge Mem /mcp endpoint, and complete OAuth. Use the Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace. Verify a Context Bundle or Working Memory check, a memory search, and one scoped write when the approved scopes and workspace policy allow it. If the create action is unavailable, use browser capture until the submitted public plugin is approved. Never invent a plugin_asdk_app ID or claim MCP captures ChatGPT threads.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 云端路径操作。如果这个账号可以使用自定义 App，就从 ChatGPT 的 Apps 设置创建一个，添加公开的 Nowledge Mem /mcp 地址并完成 OAuth；Cloud workspace 使用 Cloud endpoint，App workspace 使用 Access Anywhere。在已授权 scope 和 workspace 策略允许时，完成 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次范围明确的写入。如果没有创建入口，先用浏览器扩展捕获内容，并等待已经提交审核的公开 plugin。不要伪造 plugin_asdk_app ID，也不要声称 MCP 会捕获 ChatGPT 会话。"
         },
         "docsUrl": "/docs/integrations/chatgpt-web"
       },
@@ -255,8 +254,8 @@
         "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "Use Claude or Claude Desktop on a Pro, Max, Team, or Enterprise plan while remote custom connectors remain in beta",
-          "Add the public /mcp endpoint under Settings > Connectors, not claude_desktop_config.json",
+          "Remote custom connectors are available on Free, Pro, Max, Team, and Enterprise; Free accounts can add one custom connector",
+          "Open Claude's prefilled custom-connector link or add the public /mcp endpoint under Customize > Connectors, not claude_desktop_config.json",
           "Use the Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace",
           "Complete Claude's remote custom connector OAuth approval",
           "Use an export or local Claude Code connector for transcript capture",
@@ -266,8 +265,8 @@
       "install": {
         "detectionHint": "Claude Cloud is a hosted client and is not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Claude Cloud path. In Claude Settings > Connectors, add the public Nowledge Mem /mcp endpoint as a custom connector and approve the requested workspace scopes. Use the Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace. Verify with a Context Bundle or Working Memory check, a memory search, and one scoped write. Do not put this remote server in claude_desktop_config.json, use localhost, or claim automatic transcript capture.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Claude 云端路径操作。在 Claude 的 Settings > Connectors 中，把公开的 Nowledge Mem /mcp 地址添加为自定义 connector，并确认请求的 workspace scopes。Cloud workspace 使用 Cloud endpoint；App workspace 使用 Access Anywhere。通过 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次有范围的写入进行验证。不要把这个远程 server 写进 claude_desktop_config.json，不要使用 localhost，也不要声称会自动捕获对话。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Claude Cloud path. Open the prefilled Connect to Claude link for the selected public Nowledge Mem /mcp endpoint, review the name and URL, then approve the requested workspace scopes. Use the Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace. Verify a Context Bundle or Working Memory check, a memory search, and one scoped write. Do not put this remote server in claude_desktop_config.json, use localhost, or claim automatic transcript capture.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Claude 云端路径操作。打开所选公开 Nowledge Mem /mcp endpoint 对应的 Connect to Claude 预填链接，确认名称和 URL，再批准请求的 workspace scopes。Cloud workspace 使用 Cloud endpoint；App workspace 使用 Access Anywhere。通过 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次有范围的写入进行验证。不要把这个远程 server 写进 claude_desktop_config.json，不要使用 localhost，也不要声称会自动捕获对话。"
         },
         "docsUrl": "/docs/integrations/claude-cloud"
       },

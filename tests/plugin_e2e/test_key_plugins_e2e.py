@@ -1511,28 +1511,38 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert "Nowledge Cloud" in text
         assert "Mem App" in text
         assert "OAuth" in text
-        assert "secret" in text
         assert "API key" in text
-        assert "shell" in text
-        assert "environment" in text or "环境变量" in text
-        assert "logs" in text or "日志" in text
+        assert "grok.com/connectors" in text
         assert "Space" in text
         assert "exact-ID readback" in text or "精确 ID 回读" in text
         assert "complete-thread capture" in text or "完整会话" in text
-    assert "do not ask me for a credential" in grok_prompt
-    assert "不要向我索要凭据" in grok_prompt_zh
+    assert "do not ask for or paste a Mem API key" in grok_prompt
+    assert "不要索要或粘贴 Mem API key" in grok_prompt_zh
     chatgpt_prompt = by_id["chatgpt-cloud"]["install"]["agentGuide"]["prompt"]
     chatgpt_prompt_zh = by_id["chatgpt-cloud"]["install"]["agentGuide"]["promptZh"]
     for text in (chatgpt_prompt, chatgpt_prompt_zh):
-        assert "Pro" in text
-        assert "Business" in text
-        assert "Enterprise" in text
-        assert "Edu" in text
-        assert "read/fetch" in text
+        assert "custom App" in text or "自定义 App" in text
+        assert "workspace policy" in text or "workspace 策略" in text
         assert "scoped write" in text or "范围明确的写入" in text
+        assert "public plugin" in text or "公开 plugin" in text
     assert "Plugins Directory" in " ".join(
         by_id["chatgpt-cloud"]["autonomy"]["bestResultRequires"]
     )
+    assert by_id["chatgpt-cloud"]["install"]["publicDirectoryStatus"] == (
+        "submitted-pending-review"
+    )
+    claude_prompt = by_id["claude-cloud"]["install"]["agentGuide"]["prompt"]
+    claude_prompt_zh = by_id["claude-cloud"]["install"]["agentGuide"]["promptZh"]
+    for text in (claude_prompt, claude_prompt_zh):
+        assert "Connect to Claude" in text
+        assert "Access Anywhere" in text
+        assert "scoped write" in text or "有范围的写入" in text
+    claude_requirements = " ".join(
+        by_id["claude-cloud"]["autonomy"]["bestResultRequires"]
+    )
+    for plan in ("Free", "Pro", "Max", "Team", "Enterprise"):
+        assert plan in claude_requirements
+    assert "beta" not in claude_requirements.lower()
     assert by_id["kimi-code"]["version"] == "0.2.4"
     assert by_id["kimi-code"]["directory"] == "nowledge-mem-kimi-code-plugin"
     assert by_id["kimi-code"]["transport"] == "skills+hook+mcp-config"
