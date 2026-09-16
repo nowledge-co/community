@@ -10,6 +10,7 @@ test("Pi boots exact context, appends only native turns, and never recreates del
     const root = mkdtempSync(join(tmpdir(), "nmem-pi-resume-"));
     const priorPath = process.env.PATH;
     const priorCliPath = process.env.NMEM_CLI_PATH;
+    const priorApiUrl = process.env.NMEM_API_URL;
     const priorFetch = globalThis.fetch;
     const target = { thread_id: "selected-thread", thread_storage_id: "storage-1", space_id: "", connection_id: "connection-1" };
     const binding = { binding_id: "binding-1", source: "pi", native_session_id: "pi-native", target };
@@ -28,6 +29,10 @@ test("Pi boots exact context, appends only native turns, and never recreates del
     chmodSync(executable, 0o700);
     process.env.PATH = `${root}${delimiter}${priorPath}`;
     process.env.NMEM_CLI_PATH = executable;
+    // The integration owns its transport fixture. Do not inherit a developer's
+    // shared config (for example a /remote-api URL whose 404 compatibility
+    // fallback intentionally performs a second request).
+    process.env.NMEM_API_URL = "http://127.0.0.1:14242";
     const handlers = new Map();
     const entries = [];
     const notices = [];
@@ -82,6 +87,8 @@ test("Pi boots exact context, appends only native turns, and never recreates del
         process.env.PATH = priorPath;
         if (priorCliPath === undefined) delete process.env.NMEM_CLI_PATH;
         else process.env.NMEM_CLI_PATH = priorCliPath;
+        if (priorApiUrl === undefined) delete process.env.NMEM_API_URL;
+        else process.env.NMEM_API_URL = priorApiUrl;
         rmSync(root, { recursive: true, force: true });
     }
 });
