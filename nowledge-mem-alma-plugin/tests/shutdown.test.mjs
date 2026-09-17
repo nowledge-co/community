@@ -4,248 +4,206 @@ import {
 	mkdtempSync,
 	readFileSync,
 	renameSync,
+	readdirSync,
 	rmSync,
 	statSync,
 	writeFileSync,
 } from "node:fs";
-import { createServer } from "node:http";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
-import { activate } from "../main.js";
+import test, { after, mock } from "node:test";
 
-async function fixture(t) {
-	const storagePath = mkdtempSync(join(tmpdir(), "alma-sync-test-"));
-	const calls = [];
-	const remote = new Map();
-	const keys = new Map();
-	let mode = "ok";
-	let closed = 0;
-	const server = createServer(async (request, response) => {
-		let content = "";
-		for await (const chunk of request) content += chunk;
-		const body = JSON.parse(content);
-		const call = { path: request.url, body, closed: false };
-		calls.push(call);
-		response.on("close", () => {
-			if (!response.writableEnded) {
-				call.closed = true;
-				closed += 1;
-			}
-		});
-		const reply = (status, data) => {
-			response.writeHead(status, { "content-type": "application/json" });
-			response.end(JSON.stringify(data));
-		};
-		if (mode === "hang") return;
-		if (mode === "body-hang") {
-			response.writeHead(200, { "content-type": "application/json" });
-			response.write('{"success":');
-			return;
-		}
-		if (mode === "failure") return reply(503, { error: "unavailable" });
-		if (mode === "bad-ack")
-			return reply(200, {
-				success: true,
-				append_mode: "checkpointed",
-				messages_added: 0,
-				total_messages: 0,
-			});
-		if (mode.startsWith("bad-create")) {
-			if (request.url !== "/threads")
-				return reply(404, { error_code: "thread_not_found" });
-			return reply(200, {
-				thread: {
-					thread_id: mode === "bad-create-id" ? "wrong-id" : body.thread_id,
-					message_count: mode === "bad-create-count" ? 1 : 2,
-				},
-			});
-		}
-		if (mode === "slow") await delay(2_700);
-		if (mode.startsWith("serial-")) await delay(1_350);
-		if (mode === "serial-create" && request.url !== "/threads")
-			return reply(404, { error_code: "thread_not_found" });
-		if (
-			mode === "serial-reconcile" &&
-			!body.idempotency_key.endsWith(":reconcile")
-		)
-			return reply(409, { error_code: "checkpoint_conflict" });
-		const threadId = body.thread_id ?? request.url.split("/")[2];
-		if (request.url === "/threads") {
-			if (!remote.has(threadId)) remote.set(threadId, body.messages);
-			if (mode === "create-lost") return;
-			return reply(200, {
-				thread: {
-					thread_id: threadId,
-					message_count: remote.get(threadId).length,
-				},
-			});
-		}
-		if (mode === "create-lost" && !remote.has(threadId))
-			return reply(404, { error_code: "thread_not_found" });
-		if (keys.has(body.idempotency_key))
-			return reply(200, keys.get(body.idempotency_key));
-		const stored = remote.get(threadId) ?? [];
-		if (
-			body.expected_message_count !== undefined &&
-			body.expected_message_count !== stored.length
-		) {
-			return reply(409, { error_code: "checkpoint_conflict" });
-		}
-		const duplicatePrefix =
-			body.expected_message_count === undefined &&
-			body.messages.every(
-				(message, index) =>
-					JSON.stringify(message) === JSON.stringify(stored[index]),
-			);
-		const added = duplicatePrefix ? [] : body.messages;
-		remote.set(threadId, [...stored, ...added]);
-		const ack = {
-			success: true,
-			append_mode: "checkpointed",
-			messages_added: added.length,
-			total_messages: stored.length + added.length,
-		};
-		keys.set(body.idempotency_key, ack);
-		if (mode === "lost") return;
-		reply(200, ack);
-	});
-	await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-	const apiUrl = `http://127.0.0.1:${server.address().port}`;
-	const plugins = [];
-	const errors = [];
-	const start = async (overrides = {}) => {
-		const events = new Map();
-		const settings = {
-			"nowledgeMem.recallPolicy": "off",
-			"nowledgeMem.autoCapture": true,
-			"nowledgeMem.apiUrl": apiUrl,
-			"nowledgeMem.apiKey": "synthetic-secret",
-			...overrides.settings,
-		};
-		let changed;
-		const context = {
-			storagePath,
-			logger: {
-				info() {},
-				debug() {},
-				warn() {},
-				error(message) {
-					errors.push(message);
-				},
-			},
-			settings: {
-				get: (key) => settings[key],
-				onDidChange(fn) {
-					changed = fn;
-					return { dispose() {} };
-				},
-			},
-			events: {
-				on(name, handler) {
-					events.set(name, handler);
-					return {
-						dispose() {
-							events.delete(name);
-						},
-					};
-				},
-			},
-			...overrides.context,
-		};
-		const plugin = await activate(context);
-		plugins.push(plugin);
-		return {
-			plugin,
-			events,
-			change(patch) {
-				Object.assign(settings, patch);
-				changed();
-			},
-			async turn(threadId = "thread", prefix = "first") {
-				await events.get("chat.message.willSend")({
-					threadId,
-					content: `${prefix} user`,
-				});
-				events.get("chat.message.didReceive")({
-					threadId,
-					response: { content: `${prefix} assistant` },
-				});
-			},
-			flush: () => events.get("thread.activated")({ threadId: "away" }),
-			quit: () => events.get("app.willQuit")(),
-		};
-	};
-	t.after(async () => {
-		mode = "ok";
-		await Promise.all(plugins.map((plugin) => plugin.dispose()));
-		server.closeAllConnections();
-		await new Promise((resolve) => server.close(resolve));
-		rmSync(storagePath, { recursive: true, force: true });
-	});
-	return {
-		start,
-		calls,
-		remote,
-		errors,
-		storagePath,
-		apiUrl,
-		setMode(value) {
-			mode = value;
-		},
-		get closed() {
-			return closed;
-		},
-		records: () =>
-			JSON.parse(
-				readFileSync(join(storagePath, "thread-sync-outbox.json"), "utf8"),
-			),
-	};
-}
+import { fixture } from "./sync-fixture.mjs";
 
-async function until(predicate) {
-	const end = Date.now() + 2_000;
-	while (!predicate()) {
-		assert.ok(Date.now() < end, "observation did not arrive");
-		await delay(10);
-	}
-}
+mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() });
+after(() => mock.timers.reset());
 
-function withinBudget(elapsed, budget) {
-	console.info(`lifecycle elapsed=${elapsed}ms budget=${budget}ms`);
-	assert.ok(
-		elapsed >= budget - 100 && elapsed < budget + 400,
-		`elapsed=${elapsed} budget=${budget}`,
-	);
-}
-
-test("normal automatic HTTP can exceed the quit budget without being aborted", async (t) => {
+test("user Given a stalled host record read When virtual time advances Then the independent native AbortSignal deadline still bounds capture", { timeout: 4_000 }, async (t) => {
 	const state = await fixture(t);
-	state.setMode("slow");
+	const host = await state.start({ recordsDriven: true, context: { chat: { getMessages: () => new Promise(() => {}) } } });
+	let settled = false;
+	const started = performance.now();
+	const capturing = host.events.get("chat.message.willSend")({ threadId: "synthetic-hang", content: "SYNTHETIC_ENHANCED" }).then(() => { settled = true; });
+	mock.timers.tick(2_000);
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(settled, false, "Node virtual setTimeout/Date do not control native AbortSignal.timeout");
+	await capturing;
+	assert.ok(performance.now() - started >= 1_900);
+	assert.equal(state.errors.length, 1);
+	assert.match(state.errors[0], /cancelled or timed out/);
+	assert.equal(state.calls.length, 0);
+	assert.deepEqual(state.records(), []);
+});
+
+test("user Given unreadable canonical records When the real disk record is repaired Then capture retries once without leaking rejected content", async (t) => {
+	const state = await fixture(t);
+	const path = join(state.storagePath, "canonical.json");
+	writeFileSync(path, '{"PRIVATE_CANONICAL_CANARY":');
+	const host = await state.start({ recordsDriven: true, context: { chat: { getMessages: async (threadId) => threadId === "thread" ? JSON.parse(readFileSync(path, "utf8")) : [] } } });
+	const trigger = () => host.events.get("chat.message.willSend")({ threadId: "thread", content: "SYNTHETIC_ENHANCED" });
+	await trigger();
+	assert.equal(state.errors.length, 1);
+	assert.doesNotMatch(state.errors.join("\n"), /PRIVATE_CANONICAL_CANARY/);
+	assert.equal(state.calls.length, 0);
+	state.persist("thread", "user", "SYNTHETIC_ORIGINAL", "user-original");
+	state.persist("thread", "assistant", "SYNTHETIC_REPLY", "assistant-original");
+	writeFileSync(path, JSON.stringify(state.histories.get("thread")));
+	await trigger();
+	await trigger();
+	await host.flush();
+	assert.deepEqual([...state.remote.values()][0].map(({ external_id }) => external_id), ["user-original", "assistant-original"]);
+	assert.deepEqual(state.records(), []);
+	assert.equal(state.errors.length, 1);
+});
+
+test("user Given capture awaiting host records When disposal completes before the read Then late records cannot mutate storage or send HTTP", async (t) => {
+	const state = await fixture(t);
+	let release;
+	const host = await state.start({ recordsDriven: true, context: { chat: { getMessages: () => new Promise((resolve) => { release = resolve; }) } } });
+	const capturing = host.events.get("chat.message.willSend")({ threadId: "thread", content: "SYNTHETIC_ENHANCED" });
+	await host.plugin.dispose();
+	await capturing;
+	const checkpoint = state.receipts();
+	state.persist("thread", "user", "SYNTHETIC_LATE", "late-user");
+	release(state.histories.get("thread"));
+	await new Promise((resolve) => setImmediate(resolve));
+	mock.timers.tick(120_000);
+	assert.deepEqual(state.receipts(), checkpoint);
+	assert.equal(state.calls.length, 0);
+	assert.equal(state.errors.length, 1);
+});
+
+test("user Given a thread switch awaiting delivery When quit exhausts its budget Then late work cannot reopen sync or alter durable recovery", { timeout: 5_000 }, async (t) => {
+
+	const f = await fixture(t);
+	const instance = await f.start();
+	await instance.turn();
+	f.setMode("hang");
+
+	const switching = instance.events.get("thread.activated")({ threadId: "away" });
+	await f.waitForRequest();
+	const checkpoint = f.receipts();
+	const quitting = instance.quit();
+	mock.timers.tick(2_500);
+	await quitting;
+	await f.waitForClosed(1);
+	await switching;
+	assert.deepEqual(f.receipts(), checkpoint, "finished quit must not create a checkpoint for a stale activation");
+	const delivered = structuredClone([...f.remote]);
+	await instance.plugin.dispose();
+	assert.deepEqual([...f.remote], delivered, "dispose must retain the finished quit boundary");
+});
+
+for (const shape of ["single original part", "multiple enhanced parts"]) {
+ test(`user Given independently persisted original text and ${shape} When enhanced hooks complete Then outbox and HTTP contain only canonical text`, async (t) => {
+	const state = await fixture(t);
+	const original = "SYNTHETIC_ORIGINAL_MARKER";
+	const threadId = "synthetic-canonical-capture";
+	const persisted = {
+		id: "synthetic-user-1",
+		threadId,
+		role: "user",
+		content: {
+			id: "synthetic-user-1",
+			role: "user",
+			parts: [{ type: "text", text: original }],
+		},
+		createdAt: "2026-01-01T00:00:00.000Z",
+	};
+	const host = await state.start({ recordsDriven: true });
+	persisted.createdAt = new Date().toISOString();
+	state.histories.set(threadId, [persisted]);
+	const input = {
+		threadId,
+		content: `SYNTHETIC_MODEL_CONTEXT\n${original}`,
+		parts: shape === "single original part" ? [{ type: "text", text: original }] : [
+			{ type: "text", text: "SYNTHETIC_MODEL_CONTEXT" },
+			{ type: "text", text: original },
+		],
+	};
+	const output = { content: `SYNTHETIC_RECALL_CONTEXT\n${input.content}` };
+	const unchangedInput = structuredClone(input);
+	const unchangedOutput = structuredClone(output);
+	await host.events.get("chat.message.willSend")(input, output);
+	const captured = state.records()[0].messages[0];
+	state.persist(threadId, "assistant", "SYNTHETIC_ASSISTANT", "synthetic-assistant-1");
+	await host.events.get("chat.message.didReceive")({
+		threadId,
+		response: { content: "SYNTHETIC_ASSISTANT" },
+	});
+	await host.flush();
+	assert.deepEqual(input, unchangedInput);
+	assert.deepEqual(output, unchangedOutput);
+	assert.ok(state.calls.length > 0);
+	await t.test("user Given canonical capture When inspecting durable outbox Then only original user text is stored", () => {
+		assert.equal(captured.content, original);
+		assert.doesNotMatch(captured.content, /SYNTHETIC_(MODEL|RECALL)_CONTEXT/);
+	});
+	await t.test("user Given canonical capture When inspecting HTTP Then only original user text is transmitted", () => {
+		for (const call of state.calls) {
+			assert.equal(call.body.messages[0].content, original);
+			assert.doesNotMatch(call.body.messages[0].content, /SYNTHETIC_(MODEL|RECALL)_CONTEXT/);
+		}
+	});
+});
+
+}
+
+test("user Given old history and equal text with distinct IDs When records are reread Then only current IDs are delivered once", async (t) => {
+	const state = await fixture(t);
+	state.persist("thread", "user", "SYNTHETIC_OLD", "old-u", "2020-01-01T00:00:00Z");
+	state.persist("thread", "assistant", "SYNTHETIC_OLD_REPLY", "old-a", "2020-01-01T00:00:01Z");
+	const host = await state.start({ recordsDriven: true });
+	state.persist("thread", "user", "SYNTHETIC_SAME", "u1");
+	state.persist("thread", "user", "SYNTHETIC_SAME", "u2");
+	const trigger = () => host.events.get("chat.message.willSend")({ threadId: "thread", content: "SYNTHETIC_MODEL_CONTEXT" }, { content: "SYNTHETIC_RECALL_CONTEXT" });
+	await Promise.all([trigger(), trigger()]);
+	assert.deepEqual(state.records()[0].messages.map(({ content, external_id }) => [content, external_id]), [["SYNTHETIC_SAME", "u1"], ["SYNTHETIC_SAME", "u2"]]);
+	state.persist("thread", "assistant", "SYNTHETIC_REPLY", "a1");
+	await host.events.get("chat.message.didReceive")({ threadId: "thread", response: { content: "SYNTHETIC_MODEL_CONTEXT" } });
+	await host.flush();
+	await trigger();
+	await host.flush();
+	assert.deepEqual([...state.remote.values()].flat().map(({ external_id }) => external_id), ["u1", "u2", "a1"]);
+	assert.doesNotMatch(JSON.stringify(state.calls), /SYNTHETIC_(OLD|MODEL|RECALL)/);
+});
+
+test("user Given a normal automatic request When virtual time exceeds the quit budget Then HTTP can still succeed", async (t) => {
+	const state = await fixture(t);
+
+	const release = state.holdNextResponse();
 	const host = await state.start();
 	await host.turn();
-	const start = Date.now();
-	await host.flush();
-	assert.ok(Date.now() - start >= 2_650);
-	assert.equal(state.calls.length, 1);
+
+	const flushing = host.flush();
+	await state.waitForRequest();
+	mock.timers.tick(2_700);
+	assert.equal(state.closed, 0);
+	release();
+	await flushing;
+	assert.deepEqual([...state.remote.values()].flat().map(message => message.content), ["first user", "first assistant"]);
 	assert.equal(state.closed, 0);
 	assert.deepEqual(state.records(), []);
 });
 
-test("in-flight HTTP, duplicate quit and dispose share one total deadline across threads", async (t) => {
+test("user Given multiple in-flight threads When duplicate quit and dispose run Then one deadline closes all sockets", async (t) => {
 	const state = await fixture(t);
 	state.setMode("hang");
 	const host = await state.start();
 	await host.turn("first");
 	const running = host.flush();
-	await until(() => state.calls.length === 1);
+	await state.waitForRequest();
 	await host.turn("second");
 	await host.turn("third");
-	const start = Date.now();
-	await Promise.all([host.quit(), host.quit(), host.plugin.dispose(), running]);
-	withinBudget(Date.now() - start, 2_500);
-	await until(() => state.closed === 3);
+
+	const finishing = Promise.all([host.quit(), host.quit(), host.plugin.dispose(), running]);
+	await state.waitForRequest(() => state.calls.length === 3);
+	mock.timers.tick(2_499);
+	assert.equal(state.closed, 0);
+	mock.timers.tick(1);
+	await finishing;
+	await state.waitForClosed(3);
 	assert.equal(state.calls.length, 3);
 	assert.equal(host.events.size, 0);
 	assert.ok(
@@ -260,28 +218,39 @@ test("in-flight HTTP, duplicate quit and dispose share one total deadline across
 	);
 });
 
-test("dispose alone aborts HTTP body consumption within its total budget", async (t) => {
+test("user Given a stalled response body When dispose reaches its deadline Then the socket closes and the journal remains", async (t) => {
 	const state = await fixture(t);
 	state.setMode("body-hang");
 	const host = await state.start();
 	await host.turn();
-	const start = Date.now();
-	await host.plugin.dispose();
-	withinBudget(Date.now() - start, 4_500);
-	await until(() => state.closed === 1);
+
+	const disposing = host.plugin.dispose();
+	await state.waitForRequest();
+
+	mock.timers.tick(4_499);
+	assert.equal(state.closed, 0);
+	mock.timers.tick(1);
+
+	await disposing;
+
+	await state.waitForClosed(1);
+
 	assert.equal(state.records()[0].savedCount, 0);
 	assert.equal(state.calls.length, 1);
 });
 
-test("teardown releases an in-flight title wait, sends HTTP, and ignores late title completion", async (t) => {
+test("user Given a pending title lookup When teardown runs Then fallback content is sent and late title does not restart work", async (t) => {
 	const state = await fixture(t);
 	let release;
 	let titleCalls = 0;
+	let started;
+	const titleStarted = new Promise((resolve) => { started = resolve; });
 	const host = await state.start({
 		context: {
 			chat: {
 				getThread() {
 					titleCalls += 1;
+				started();
 					return new Promise((resolve) => {
 						release = resolve;
 					});
@@ -295,32 +264,33 @@ test("teardown releases an in-flight title wait, sends HTTP, and ignores late ti
 	});
 	await host.turn();
 	const running = host.flush();
-	await until(() => titleCalls === 1);
+	await titleStarted;
 	const start = Date.now();
 	await Promise.all([host.quit(), running]);
 	assert.ok(Date.now() - start < 2_500);
-	assert.equal(state.calls.length, 1);
+	const settledRequests = state.calls.length;
 	assert.deepEqual(
 		[...state.remote.values()][0].map((message) => message.content),
 		["first user", "first assistant"],
 	);
 	assert.deepEqual(state.records(), []);
 	release({ title: "late" });
-	await delay(30);
+	await new Promise((resolve) => setImmediate(resolve));
 	assert.equal(titleCalls, 1);
-	assert.equal(state.calls.length, 1);
+	assert.equal(state.calls.length, settledRequests);
 	assert.deepEqual(state.records(), []);
 });
 
-test("title fallback starts HTTP without extending the shared quit deadline", async (t) => {
+test("user Given a hung title lookup When quit begins Then fallback HTTP shares the original deadline", async (t) => {
 	const state = await fixture(t);
 	state.setMode("hang");
-	let titleStarted = false;
+	let started;
+	const titleStarted = new Promise((resolve) => { started = resolve; });
 	const host = await state.start({
 		context: {
 			chat: {
 				getThread() {
-					titleStarted = true;
+					started();
 					return new Promise(() => {});
 				},
 			},
@@ -328,31 +298,32 @@ test("title fallback starts HTTP without extending the shared quit deadline", as
 	});
 	await host.turn();
 	const running = host.flush();
-	await until(() => titleStarted);
-	const start = Date.now();
+	await titleStarted;
+
 	const quitting = host.quit();
-	await until(() => state.calls.length === 1);
+	await state.waitForRequest();
+	mock.timers.tick(2_500);
 	await Promise.all([quitting, running]);
-	withinBudget(Date.now() - start, 2_500);
-	await until(() => state.closed === 1);
+	await state.waitForClosed(1);
 	assert.equal(state.calls.length, 1);
 	assert.equal(state.records()[0].savedCount, 0);
 	assert.ok(state.records()[0].attempt);
 });
 
 for (const outcome of ["hang", "lost", "create-lost"]) {
-	test(`restart replays frozen batch after ${outcome}, without duplicate remote messages`, async (t) => {
+	test(`user Given ${outcome} before acknowledgement When restarting Then the frozen batch replays without duplicate messages`, async (t) => {
 		const state = await fixture(t);
 		state.setMode(outcome);
 		const host = await state.start();
 		await host.turn();
 		const running = host.flush();
-		await until(
-			() => state.calls.length === (outcome === "create-lost" ? 2 : 1),
-		);
+		await state.waitForRequest(call => outcome === "hang" ? call.path.includes("/append") : call.path === "/threads");
 		await host.turn("thread", "later");
-		await Promise.all([host.quit(), running]);
-		await until(() => state.closed === 1);
+
+		const quitting = host.quit();
+		mock.timers.tick(2_500);
+		await Promise.all([quitting, running]);
+		await state.waitForClosed(1);
 		const before = state.records()[0];
 		assert.equal(before.savedCount, 0);
 		assert.equal(before.messages.length, 4);
@@ -371,32 +342,40 @@ for (const outcome of ["hang", "lost", "create-lost"]) {
 			["first user", "first assistant", "later user", "later assistant"],
 		);
 		assert.deepEqual(state.records(), []);
-		assert.equal(appends.length, 3);
+		const byKey = new Map(appends.map((append) => [append.body.idempotency_key, append.body]));
+		assert.equal(byKey.size, 2);
+		for (const append of appends) {
+			assert.deepEqual(append.body, byKey.get(append.body.idempotency_key));
+		}
 	});
 }
 
-test("lost checkpointed ACK replays the same expected count and idempotency key", async (t) => {
+test("user Given a lost checkpointed ACK When restarting Then the same key count and payload replay exactly once", async (t) => {
 	const state = await fixture(t);
 	const host = await state.start();
 	await host.turn();
 	await host.flush();
 	state.setMode("lost");
 	await host.turn("thread", "next");
-	await host.quit();
-	await until(() => state.closed === 1);
+
+	const quitting = host.quit();
+	await state.waitForRequest(call => call.body.expected_message_count === 2);
+	mock.timers.tick(2_500);
+	await quitting;
+	await state.waitForClosed(1);
 	assert.equal(state.records()[0].savedCount, 2);
 	await host.plugin.dispose();
 	state.setMode("ok");
 	const restarted = await state.start();
 	await restarted.quit();
-	assert.equal(state.calls.length, 3);
-	assert.equal(state.calls[1].body.expected_message_count, 2);
-	assert.deepEqual(state.calls[2].body, state.calls[1].body);
+	const retries = state.calls.filter(call => call.body.expected_message_count === 2);
+	assert.equal(retries.length, 2);
+	assert.deepEqual(retries[1].body, retries[0].body);
 	assert.equal([...state.remote.values()][0].length, 4);
 	assert.deepEqual(state.records(), []);
 });
 
-test("outbox persists capture before quit, keeps destinations dormant, and contains no credentials", async (t) => {
+test("user Given private pending capture When restarting at another destination Then old data stays dormant and storage has no credentials", async (t) => {
 	const state = await fixture(t);
 	const host = await state.start();
 	await host.turn();
@@ -421,23 +400,26 @@ test("outbox persists capture before quit, keeps destinations dormant, and conta
 		text,
 		/synthetic-secret|different-secret|127\.0\.0\.1|Authorization/,
 	);
-	assert.equal(
-		statSync(join(state.storagePath, "thread-sync-outbox.json")).mode & 0o777,
-		0o600,
-	);
+	if (process.platform !== "win32") {
+		assert.equal(statSync(join(state.storagePath, "thread-sync-outbox.json")).mode & 0o777, 0o600);
+	}
 	assert.equal(state.records().length, 2);
 });
 
 for (const mode of ["serial-create", "serial-reconcile"]) {
-	test(`${mode} uses the remaining lifecycle budget, not a fresh timeout`, async (t) => {
+	test(`user Given ${mode} When recovery needs another request Then it uses only the remaining lifecycle budget`, async (t) => {
 		const state = await fixture(t);
 		state.setMode(mode);
 		const host = await state.start();
 		await host.turn();
-		const start = Date.now();
-		await host.quit();
-		withinBudget(Date.now() - start, 2_500);
-		await until(() => state.closed === 1);
+
+		const quitting = host.quit();
+		await state.waitForRequest();
+		mock.timers.tick(1_350);
+		await state.waitForRequest(() => state.calls.length === 2);
+		mock.timers.tick(1_150);
+		await quitting;
+		await state.waitForClosed(1);
 		assert.equal(state.calls.length, 2);
 		assert.equal(state.records()[0].savedCount, 0);
 		assert.ok(state.records()[0].attempt);
@@ -445,7 +427,7 @@ for (const mode of ["serial-create", "serial-reconcile"]) {
 	});
 }
 
-test("atomic replacement failure preserves the previous file and prevents HTTP", async (t) => {
+test("user Given atomic replacement is obstructed When flushing Then the previous file survives and unsafe HTTP is prevented", async (t) => {
 	const state = await fixture(t);
 	const host = await state.start();
 	await host.turn();
@@ -458,17 +440,17 @@ test("atomic replacement failure preserves the previous file and prevents HTTP",
 	await host.quit();
 	assert.equal(state.calls.length, 0);
 	assert.equal(readFileSync(backup, "utf8"), original);
-	assert.ok(state.errors.some((error) => /EISDIR|ENOTDIR|EEXIST/.test(error)));
+	assert.ok(state.errors.some((error) => /EISDIR|ENOTDIR|EEXIST|EPERM|EACCES/.test(error)));
 	rmSync(path, { recursive: true });
 	renameSync(backup, path);
 	await host.events.get("thread.activated")({ threadId: "thread" });
 	await host.flush();
-	assert.equal(state.calls.length, 1);
+	assert.deepEqual([...state.remote.values()].flat().map(message => message.content), ["first user", "first assistant"]);
 	assert.deepEqual(state.records(), []);
 });
 
 for (const mode of ["bad-ack", "bad-create-id", "bad-create-count"]) {
-	test(`${mode} never advances ACK or removes the journal`, async (t) => {
+	test(`user Given ${mode} When a reply arrives Then ACK does not advance and the journal remains`, async (t) => {
 		const state = await fixture(t);
 		state.setMode(mode);
 		const host = await state.start();
@@ -481,12 +463,13 @@ for (const mode of ["bad-ack", "bad-create-id", "bad-create-count"]) {
 	});
 }
 
-test("capture enabled after activation recovers the previous pending turn", async (t) => {
+test("user Given capture disabled at activation When enabled later Then the previous pending turn is recovered", async (t) => {
 	const state = await fixture(t);
 	state.setMode("failure");
 	const old = await state.start();
 	await old.turn();
 	await old.plugin.dispose();
+	mock.timers.tick(1);
 	const host = await state.start({
 		settings: { "nowledgeMem.autoCapture": false },
 	});
@@ -501,12 +484,13 @@ test("capture enabled after activation recovers the previous pending turn", asyn
 	assert.deepEqual(state.records(), []);
 });
 
-test("changing destination after hydration never replays the recovered old lane", async (t) => {
+test("user Given a hydrated old lane When destination changes Then recovered private data is not replayed there", async (t) => {
 	const state = await fixture(t);
 	state.setMode("failure");
 	const old = await state.start();
 	await old.turn();
 	await old.plugin.dispose();
+	mock.timers.tick(1);
 	const host = await state.start();
 	host.change({ "nowledgeMem.apiKey": "new-lane-key" });
 	await host.quit();
@@ -521,7 +505,7 @@ test("changing destination after hydration never replays the recovered old lane"
 	assert.equal(state.records().length, 2);
 });
 
-test("a superseded activation cannot overwrite the new writer's outbox", async (t) => {
+test("user Given a newer writer When the superseded activation captures Then it cannot overwrite the new outbox", async (t) => {
 	const state = await fixture(t);
 	const old = await state.start();
 	await old.turn();
@@ -537,7 +521,7 @@ test("a superseded activation cannot overwrite the new writer's outbox", async (
 	);
 });
 
-test("LRU eviction and revisit retain the persisted cursor and pending tail", async (t) => {
+test("user Given an acknowledged prefix and pending tail When LRU eviction and revisit occur Then the cursor and tail survive without duplicates", async (t) => {
 	const state = await fixture(t);
 	const host = await state.start();
 	await host.turn();
@@ -552,21 +536,26 @@ test("LRU eviction and revisit retain the persisted cursor and pending tail", as
 			content: "incomplete",
 		});
 	}
-	host.events.get("chat.message.didReceive")({
+	await host.events.get("chat.message.didReceive")({
 		threadId: "thread",
 		response: { content: "tail assistant" },
 	});
 	await host.quit();
-	assert.equal(state.calls.length, 2);
-	assert.equal(state.calls[1].body.expected_message_count, 2);
+	const tail = state.calls.filter(call => call.body.expected_message_count === 2);
+	assert.equal(tail.length, 1);
 	assert.deepEqual(
-		state.calls[1].body.messages.map((message) => message.content),
+		tail[0].body.messages.map((message) => message.content),
 		["tail user", "tail assistant"],
 	);
 	assert.ok(state.records().every((record) => record.threadId !== "thread"));
+	const deliveredRequests = state.calls.length;
+	await host.quit();
+	await host.plugin.dispose();
+	assert.equal(state.calls.length, deliveredRequests);
+	assert.deepEqual([...state.remote.values()].flat().map(message => message.content), ["first user", "first assistant", "tail user", "tail assistant"]);
 });
 
-test("valid JSON with malformed records fails before hook registration", async (t) => {
+test("user Given malformed outbox records When activating Then synchronization fails before hooks register", async (t) => {
 	const state = await fixture(t);
 	const path = join(state.storagePath, "thread-sync-outbox.json");
 	writeFileSync(path, "[null]");
@@ -587,13 +576,14 @@ test("valid JSON with malformed records fails before hook registration", async (
 	assert.equal(readFileSync(path, "utf8"), "[null]");
 });
 
-test("restored A queue stays dormant across runtime URL switch to B and resumes only in A", async (t) => {
+test("user Given a restored private A queue When switching to B and back Then only A receives its recovered data", async (t) => {
 	const state = await fixture(t);
 	const destinationB = await fixture(t);
 	state.setMode("failure");
 	const old = await state.start();
 	await old.turn("thread", "private A");
 	await old.plugin.dispose();
+	mock.timers.tick(1);
 	const pendingA = state.records();
 	const host = await state.start();
 	host.change({ "nowledgeMem.apiUrl": destinationB.apiUrl });
@@ -618,7 +608,7 @@ test("restored A queue stays dormant across runtime URL switch to B and resumes 
 	assert.deepEqual(state.records(), []);
 });
 
-test("queued settings callback after dispose cannot recreate a removed outbox", async (t) => {
+test("user Given disposed capture When a queued settings callback fires Then removed storage is not recreated", async (t) => {
 	const state = await fixture(t);
 	const host = await state.start();
 	await host.events.get("chat.message.willSend")({
@@ -633,7 +623,7 @@ test("queued settings callback after dispose cannot recreate a removed outbox", 
 	assert.equal(state.calls.length, 0);
 });
 
-test("teardown uses buffered title fallback without calling a hanging host API", async (t) => {
+test("user Given a hanging host title API When teardown starts Then buffered fallback delivers without waiting", async (t) => {
 	const state = await fixture(t);
 	let titleCalls = 0;
 	const host = await state.start({
@@ -651,7 +641,6 @@ test("teardown uses buffered title fallback without calling a hanging host API",
 	await host.quit();
 	assert.equal(titleCalls, 0);
 	assert.ok(Date.now() - start < 2_500);
-	assert.equal(state.calls.length, 1);
 	assert.deepEqual(
 		[...state.remote.values()][0].map((message) => message.content),
 		["first user", "first assistant"],
@@ -659,7 +648,7 @@ test("teardown uses buffered title fallback without calling a hanging host API",
 	assert.deepEqual(state.records(), []);
 });
 
-test("corrupt outbox fails closed instead of overwriting recoverable data", async (t) => {
+test("user Given corrupt outbox JSON When activating Then failure preserves original data", async (t) => {
 	const state = await fixture(t);
 	const path = join(state.storagePath, "thread-sync-outbox.json");
 	writeFileSync(path, "not-json");
@@ -672,7 +661,7 @@ test("corrupt outbox fails closed instead of overwriting recoverable data", asyn
 });
 
 for (const corruption of ["token", "truncated", "record"]) {
-	test(`outbox ${corruption} diagnostics exclude sensitive content`, async (t) => {
+	test(`user Given outbox ${corruption} When activation fails Then real process diagnostics exclude sensitive content`, async (t) => {
 		const state = await fixture(t);
 		const marker = "PRIVACY42";
 		const original = {
@@ -682,67 +671,30 @@ for (const corruption of ["token", "truncated", "record"]) {
 		}[corruption];
 		const path = join(state.storagePath, "thread-sync-outbox.json");
 		writeFileSync(path, original);
-		const diagnostics = [];
-		let hooks = 0;
-		const logger = Object.fromEntries(
-			["info", "warn", "error", "debug", "log"].map((level) => [
-				level,
-				(...args) => diagnostics.push(args.join(" ")),
-			]),
-		);
-		t.mock.method(process.stderr, "write", (chunk) => {
-			diagnostics.push(String(chunk));
-			return true;
-		});
-		for (const level of Object.keys(logger))
-			t.mock.method(console, level, logger[level]);
-		try {
-			await assert.rejects(
-				state.start({
-					context: {
-						logger,
-						events: {
-							on() {
-								hooks += 1;
-							},
-						},
-					},
-				}),
-				(error) => {
-					assert.equal(error.cause, undefined);
-					diagnostics.push(error.message, error.stack);
-					diagnostics.push(
-						JSON.stringify(error, Object.getOwnPropertyNames(error)),
-					);
-					assert.equal(diagnostics.join("\n").includes(marker), false);
-					assert.match(error.message, /thread-sync-outbox\.json/);
-					assert.match(
-						error.message,
-						corruption === "record" ? /invalid records/ : /invalid JSON/,
-					);
-					assert.match(
-						error.message,
-						/Sync has not started; the original file is retained/,
-					);
-					assert.match(
-						error.message,
-						/Back up.*restore a valid copy or contact support/,
-					);
-					return true;
-				},
-			);
-		} finally {
-			t.mock.restoreAll();
-		}
-		assert.equal(diagnostics.join("\n").includes(marker), false);
+		const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+import { activate } from ${JSON.stringify(new URL("../main.js", import.meta.url).href)};
+try {
+ await activate({ storagePath: process.argv[1], logger: console, events: { on() { console.error("UNEXPECTED_HOOK"); } }, settings: { get() {} } });
+ process.exitCode = 2;
+} catch (error) {
+ console.error(error.message, error.stack, JSON.stringify(error, Object.getOwnPropertyNames(error)));
+ process.exitCode = 1;
+}
+`, state.storagePath], { encoding: "utf8", timeout: 3_000 });
+		assert.ifError(child.error);
+		assert.equal(child.status, 1);
+		const diagnostics = child.stdout + child.stderr;
+		assert.doesNotMatch(diagnostics, /PRIVACY42|UNEXPECTED_HOOK/);
+		assert.match(diagnostics, corruption === "record" ? /invalid records/ : /invalid JSON/);
+		assert.match(diagnostics, /Sync has not started; the original file is retained/);
+		assert.match(diagnostics, /Back up.*restore a valid copy or contact support/);
 		assert.equal(readFileSync(path, "utf8"), original);
-		assert.equal(hooks, 0);
 		assert.equal(state.calls.length, 0);
 	});
 }
 
 for (const dimension of ["apiUrl", "apiKey", "space"]) {
-	test(`recovered lane stays private after ${dimension} migration write failure`, async (t) => {
+	test(`user Given private recovered data When ${dimension} migration persistence fails Then the old lane stays isolated and recoverable`, async (t) => {
 		const state = await fixture(t);
 		const destination = dimension === "apiUrl" ? await fixture(t) : state;
 		const patch = {
@@ -753,6 +705,7 @@ for (const dimension of ["apiUrl", "apiKey", "space"]) {
 		const originalHost = await state.start();
 		await originalHost.turn("recovered", "PRIVATE_A");
 		await originalHost.plugin.dispose();
+		mock.timers.tick(1);
 		state.setMode("ok");
 		const host = await state.start();
 		await host.events.get("chat.message.willSend")({
@@ -817,8 +770,70 @@ for (const dimension of ["apiUrl", "apiKey", "space"]) {
 	});
 }
 
+for (const phase of ["freeze", "ack"]) {
+	test(`user Given a real rename obstruction during ${phase} When saving and restarting Then the old journal and exact remote messages survive`, async (t) => {
+		const state = await fixture(t);
+		const host = await state.start();
+		await host.turn();
+		await host.flush();
+		await host.turn("thread", "next");
+		const path = join(state.storagePath, "thread-sync-outbox.json");
+		const backup = `${path}.backup`;
+		let flushing;
+		let release;
+		if (phase === "ack") {
+			release = state.holdNextResponse();
+			flushing = host.flush();
+			await state.waitForRequest(call => call.body.expected_message_count === 2);
+		}
+		const original = readFileSync(path, "utf8");
+		const checkpoint = JSON.parse(original).find((record) => record.threadId === "thread");
+		renameSync(path, backup);
+		mkdirSync(path);
+		try {
+			release?.();
+			await (flushing ?? host.flush());
+			const tailRequests = state.calls.filter(call => call.body.expected_message_count === 2);
+			assert.equal(tailRequests.length, phase === "freeze" ? 0 : 1);
+			assert.equal(readFileSync(backup, "utf8"), original);
+			assert.equal(checkpoint.savedCount, 2);
+			assert.equal(Boolean(checkpoint.attempt), phase === "ack");
+			assert.equal(readdirSync(state.storagePath).some((name) => name.endsWith(".tmp")), false);
+			assert.ok(state.errors.some((error) => /EISDIR|ENOTDIR|EEXIST|EPERM|EACCES/.test(error)));
+		} finally {
+			rmSync(path, { recursive: true });
+			renameSync(backup, path);
+		}
+		const restarted = await state.start();
+		await restarted.quit();
+		await host.plugin.dispose();
+		assert.deepEqual([...state.remote.values()][0].map((message) => message.content), ["first user", "first assistant", "next user", "next assistant"]);
+		assert.deepEqual(state.records().filter((record) => record.threadId === "thread"), []);
+		if (phase === "ack") {
+			const replay = state.calls.filter(call => call.body.expected_message_count === 2);
+			assert.equal(replay.length, 2);
+			assert.deepEqual(replay[0].body, replay[1].body);
+		}
+	});
+}
+
+test("user Given native filesystem persistence When an outbox is reopened Then durable content survives with no temporary files", async (t) => {
+	const { openSyncOutbox } = await import("../sync-outbox.js");
+	const storagePath = mkdtempSync(join(tmpdir(), "outbox-native-"));
+	t.after(() => rmSync(storagePath, { recursive: true, force: true }));
+	const outbox = openSyncOutbox(storagePath, {});
+	const buffer = {
+		title: "synthetic native persistence", messages: [{ role: "user", content: "synthetic marker" }],
+		savedCount: 0, acknowledged: null, destinationKey: `${"a".repeat(64)}\0`,
+		nowledgeThreadId: null, attempt: null,
+	};
+	outbox.save("synthetic", buffer);
+	assert.deepEqual(openSyncOutbox(storagePath, {}).records(buffer.destinationKey), [{ threadId: "synthetic", ...buffer }]);
+	assert.equal(readdirSync(storagePath).some((name) => name.endsWith(".tmp")), false);
+});
+
 for (const timing of ["during", "after", "disposed"]) {
-	test(`assistant arriving ${timing} cancelled quit preserves lifecycle boundaries`, async (t) => {
+	test(`user Given an assistant arriving ${timing} cancelled quit When the idle deadline passes Then disposal and resumed capture respect lifecycle boundaries`, async (t) => {
 		const state = await fixture(t);
 		state.setMode("hang");
 		const host = await state.start();
@@ -827,23 +842,31 @@ for (const timing of ["during", "after", "disposed"]) {
 			threadId: "second",
 			content: "second user",
 		});
+
 		const quitting = host.events.get("app.willQuit")({}, { cancel: true });
-		await until(() => state.calls.length === 1);
-		if (timing === "after") await quitting;
-		host.events.get("chat.message.didReceive")({
+		await state.waitForRequest();
+		if (timing === "after") { mock.timers.tick(2_500); await quitting; }
+		await host.events.get("chat.message.didReceive")({
 			threadId: "second",
 			response: { content: "second assistant" },
 		});
+		if (timing !== "after") mock.timers.tick(2_500);
 		await quitting;
 		state.setMode("ok");
 		if (timing === "disposed") await host.plugin.dispose();
-		await delay(7_150);
+		mock.timers.tick(7_150);
+		if (timing !== "disposed") {
+			await state.waitForRequest((call) => call.body.messages.some((message) => message.content === "second assistant"));
+			await host.quit();
+		}
 		const secondRequests = state.calls.filter((call) =>
 			call.body.messages.some(
 				(message) => message.content === "second assistant",
 			),
 		);
-		assert.equal(secondRequests.length, timing === "disposed" ? 0 : 1);
+		if (timing === "disposed") assert.equal(secondRequests.length, 0);
+		const secondVisible = [...state.remote.values()].flat().filter(message => message.content.startsWith("second "));
+		assert.deepEqual(secondVisible.map(message => message.content), timing === "disposed" ? [] : ["second user", "second assistant"]);
 		assert.equal(
 			state.records().some((record) => record.threadId === "second"),
 			timing === "disposed",

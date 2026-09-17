@@ -381,7 +381,7 @@ export class NowledgeMemClient {
 		const data = await this._fetch("POST", "/threads", {
 			body,
 			signal,
-			...(timeout !== undefined ? { timeout } : {}),
+			timeout,
 		});
 		const threadData = data?.thread;
 		const threadId =
@@ -1487,14 +1487,12 @@ export async function activate(context) {
 	});
 
 	// -- Live thread sync state --
-	// Accumulate messages from hook payloads (willSend = user, didReceive = AI).
-	// Never rely on context.chat.getMessages() — not all Alma versions expose it,
-	// and timing may cause it to miss the latest message.
-	//
 	// Buffer schema: { title, messages: [{role,content}], savedCount: number,
 	//   acknowledged: {count, remoteCount, lastExternalId?, prefixFingerprint}|null,
 	//   destinationKey: string, nowledgeThreadId: string|null,
 	//   flushing: boolean, pending: boolean, inFlight: Promise|undefined, timer: number|null }
+	const captureStartedAt = Date.now();
+	let captureController = new AbortController();
 	const MAX_THREAD_BUFFERS = 20;
 	const threadBuffers = new Map();
 	const drainingBuffers = new Map();
@@ -1520,6 +1518,8 @@ export async function activate(context) {
 	};
 
 	resetDestinationCursors = () => {
+		captureController.abort(new Error("Capture destination changed; retry on next activity"));
+		captureController = new AbortController();
 		for (const [threadId, buf] of [...threadBuffers, ...drainingBuffers]) {
 			if (buf.recovered && buf.destinationKey !== destinationLane()) {
 				if (buf.timer) clearTimeout(buf.timer);
@@ -1614,7 +1614,6 @@ export async function activate(context) {
 			const resolved = await resolveTitle(threadId, { messages: snapshot }, scope);
 			scope.check();
 			if (resolved) buf.title = escapeForInline(resolved, 120);
-			if (delta.messages.length === 0) return;
 
 			const persistCreate = async () => {
 				const msgsToSend = snapshot.slice(0, delta.end);
@@ -1684,7 +1683,7 @@ export async function activate(context) {
 				buf.pending = true;
 			}
 		} finally {
-			if (finishInFlightFlush(buf) === "rerun" && (!signal.aborted || (scope !== syncScope && !disposed))) {
+			if (finishInFlightFlush(buf) === "rerun" && !signal.aborted) {
 				buf.inFlight = flushThread(threadId);
 				await buf.inFlight;
 			}
@@ -1693,7 +1692,7 @@ export async function activate(context) {
 		buf.inFlight = run;
 		await run;
 		if (buf.inFlight === run) buf.inFlight = undefined;
-		if (drainingBuffers.get(threadId) === buf && !buf.flushing && buf.savedCount === buf.messages.length) {
+		if (drainingBuffers.get(threadId) === buf && !buf.flushing && !buf.captureReads && buf.savedCount === buf.messages.length) {
 			drainingBuffers.delete(threadId);
 		}
 	};
@@ -1704,10 +1703,11 @@ export async function activate(context) {
 		if (buf.timer) clearTimeout(buf.timer);
 		buf.timer = setTimeout(() => {
 			buf.timer = null;
-			if (disposed) return;
+			if (disposed || (syncScope.controller.signal.aborted && !syncScope.quitCancelled)) return;
 			resumeSync();
-			flushThread(threadId);
+			captureRecords(threadId, false).then(() => flushThread(threadId)).catch((err) => logger.error?.(`nowledge-mem: idle sync failed: ${err.message}`));
 		}, 7_000);
+		buf.timer.unref?.();
 	};
 
 	const resumeSync = () => {
@@ -1718,7 +1718,6 @@ export async function activate(context) {
 	};
 
 	const ensureBuffer = (threadId) => {
-		resumeSync();
 		const existing = threadBuffers.get(threadId) ?? drainingBuffers.get(threadId);
 		if (existing?.recovered && existing.destinationKey !== destinationLane()) {
 			if (existing.timer) clearTimeout(existing.timer);
@@ -1732,7 +1731,7 @@ export async function activate(context) {
 				const evicted = threadBuffers.get(oldest);
 				threadBuffers.delete(oldest);
 				if (evicted?.timer) { clearTimeout(evicted.timer); evicted.timer = null; }
-				if (evicted && (evicted.flushing || evicted.messages.length > evicted.savedCount)) {
+				if (evicted && (evicted.flushing || evicted.captureReads || evicted.messages.length > evicted.savedCount)) {
 					drainingBuffers.set(oldest, evicted);
 					flushThread(oldest).catch(() => {});
 				}
@@ -1757,19 +1756,60 @@ export async function activate(context) {
 		return attachDestination(threadBuffers.get(threadId));
 	};
 
+	const captureRecords = async (threadId, schedule = true) => {
+		if (!autoCapture || disposed || !threadId || syncScope.controller.signal.aborted) return;
+		const buf = ensureBuffer(threadId);
+		const scope = syncScope;
+		const captureClient = client;
+		const lane = destinationLane();
+		const signal = AbortSignal.any([scope.controller.signal, captureController.signal, AbortSignal.timeout(2_000)]);
+		activeThreadId = threadId;
+		buf.captureReads = (buf.captureReads ?? 0) + 1;
+		try {
+			if (buf.captureSince === undefined) {
+				outbox.save(threadId, { ...buf, captureSince: captureStartedAt });
+				buf.captureSince = captureStartedAt;
+			}
+			signal.throwIfAborted();
+			if (!context.chat?.getMessages) throw new Error("chat.getMessages unavailable");
+			const records = await withAbort(context.chat.getMessages(threadId), signal);
+			signal.throwIfAborted();
+			if (disposed || scope !== syncScope || captureClient !== client || lane !== destinationLane() || (threadBuffers.get(threadId) ?? drainingBuffers.get(threadId)) !== buf) return;
+			if (!Array.isArray(records)) throw new Error("chat.getMessages did not return records");
+			const seen = new Set(buf.messages.map((message) => message.external_id));
+			const messages = buf.messages.slice();
+			for (const record of records) {
+				if (!["user", "assistant"].includes(record.role)) continue;
+				const createdAt = Date.parse(record.createdAt);
+				if (!Number.isFinite(createdAt) || typeof record.id !== "string" || !record.id) throw new Error("Stored message lacks a valid timestamp or stable ID");
+				if (createdAt < buf.captureSince || seen.has(record.id)) continue;
+				if (!Array.isArray(record.content?.parts)) throw new Error("Stored message lacks UIMessage.parts");
+				const content = record.content.parts.filter((part) => part.type === "text" && typeof part.text === "string").map((part) => part.text).join("\n");
+				if (!content.trim()) continue;
+				messages.push({ role: record.role, content, external_id: record.id });
+				seen.add(record.id);
+			}
+			if (messages.length !== buf.messages.length) {
+				outbox.save(threadId, { ...buf, messages });
+				buf.messages = messages;
+				if (buf.flushing) buf.pending = true;
+			}
+		} catch (err) {
+			if (err instanceof Error && err.message === "Thread sync outbox writer superseded by another activation") throw err;
+			logger.error?.(`nowledge-mem: stored-message capture failed${signal.aborted ? " (cancelled or timed out)" : ""}; durable progress retained, retry on next activity`);
+		} finally {
+			buf.captureReads -= 1;
+			if (schedule && !disposed && scope === syncScope && !signal.aborted && captureClient === client && (threadBuffers.get(threadId) ?? drainingBuffers.get(threadId)) === buf) resetIdleTimer(threadId);
+		}
+	};
+
 	// --- Hook: willSend (recall injection + capture user message) ---
 	registerEvent("chat.message.willSend", async (first, second) => {
+		resumeSync();
 		const payload = normalizeWillSendPayload(first, second);
 		const { threadId, currentContent } = payload;
 
-		// Capture user message into buffer
-		if (autoCapture && !disposed && currentContent && currentContent.trim()) {
-			const buf = ensureBuffer(threadId);
-			buf.messages.push({ role: "user", content: currentContent });
-			outbox.save(threadId, buf);
-			activeThreadId = threadId;
-			logger.debug?.(`nowledge-mem: buffered user msg for ${threadId} (${buf.messages.length} total)`);
-		}
+		await captureRecords(threadId);
 
 		// Recall injection
 		if (!recallInjectionEnabled) return;
@@ -1811,33 +1851,26 @@ export async function activate(context) {
 
 	// --- Hook: didReceive (capture AI response + start idle timer) ---
 	registerEvent("chat.message.didReceive", (input, _output) => {
-		if (!autoCapture || disposed) return;
-		const threadId = input?.threadId;
-		// Use extractText to handle both string and array-of-blocks content
-		const aiContent = extractText(input?.response?.content);
-		logger.debug?.(`nowledge-mem: didReceive fired, threadId=${threadId}, hasContent=${!!aiContent}`);
-		if (!threadId || !aiContent) return;
-
-		const buf = ensureBuffer(threadId);
-		buf.messages.push({ role: "assistant", content: aiContent });
-		outbox.save(threadId, buf);
-		if (buf.flushing) buf.pending = true;
-		activeThreadId = threadId;
-		logger.debug?.(`nowledge-mem: buffered AI msg for ${threadId} (${buf.messages.length} total)`);
-		resetIdleTimer(threadId);
+		resumeSync();
+		return captureRecords(input?.threadId);
 	});
 
 	// --- Hook: thread.activated (flush on thread switch) ---
 	registerEvent("thread.activated", async (input, _output) => {
 		if (!autoCapture || disposed) return;
 		resumeSync();
+		const scope = syncScope;
 		const newThreadId = input?.threadId;
 		logger.debug?.(`nowledge-mem: thread.activated fired, threadId=${newThreadId}`);
 		// Flush the previous thread (await to avoid race with new thread's hooks)
 		if (activeThreadId && activeThreadId !== newThreadId) {
-			await flushThread(activeThreadId);
+			const previousThreadId = activeThreadId;
+			await captureRecords(previousThreadId, false);
+			if (disposed || scope !== syncScope || scope.controller.signal.aborted) return;
+			await flushThread(previousThreadId);
 		}
-		if (newThreadId) activeThreadId = newThreadId;
+		if (disposed || scope !== syncScope || scope.controller.signal.aborted) return;
+		if (newThreadId) await captureRecords(newThreadId);
 	});
 
 	// --- Quit hooks as safety net ---
@@ -1871,8 +1904,10 @@ export async function activate(context) {
 		})();
 		return lifecycleRun;
 	};
-	const handleAutoCapture = async () => {
+	const handleAutoCapture = async (_input, output) => {
+		const scope = syncScope;
 		await flushLifecycle(2_500);
+		scope.quitCancelled = output?.cancel === true;
 	};
 	// Alma event naming can vary across versions.
 	registerEvent("app.willQuit", handleAutoCapture);
@@ -1904,6 +1939,7 @@ export async function activate(context) {
 	return {
 		async dispose() {
 			disposed = true;
+			captureController.abort(new Error("Stored-message capture disposed"));
 			await flushLifecycle(4_500);
 			syncScope.controller.abort(new Error("Thread sync disposed"));
 			for (const d of disposables) {

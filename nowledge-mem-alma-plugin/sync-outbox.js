@@ -34,6 +34,7 @@ function validRecord(record) {
 		!/^[a-f0-9]{64}$/.test(record.destinationKey.slice(0, -1)) ||
 		!record.destinationKey.endsWith("\0") ||
 		!validMessages(record.messages) ||
+		(record.captureSince !== undefined && (!Number.isFinite(record.captureSince) || record.captureSince < 0)) ||
 		!Number.isInteger(record.savedCount) ||
 		record.savedCount < 0 ||
 		record.savedCount > record.messages.length ||
@@ -113,6 +114,7 @@ export function openSyncOutbox(storagePath, logger) {
 				destinationKey,
 				nowledgeThreadId,
 				attempt,
+				captureSince,
 			} = buffer;
 			const record = {
 				threadId,
@@ -123,13 +125,14 @@ export function openSyncOutbox(storagePath, logger) {
 				destinationKey,
 				nowledgeThreadId,
 				attempt,
+				captureSince,
 			};
 			const next = records.filter(
 				(entry) =>
 					entry.threadId !== threadId ||
 					entry.destinationKey !== destinationKey,
 			);
-			if (messages.length > savedCount || attempt) next.push(record);
+			if (messages.length > savedCount || attempt || captureSince !== undefined) next.push(record);
 			const serialized = JSON.stringify(next);
 			const temporary = `${path}.${randomUUID()}.tmp`;
 			let descriptor;
@@ -141,8 +144,10 @@ export function openSyncOutbox(storagePath, logger) {
 				descriptor = undefined;
 				renameSync(temporary, path);
 				records = JSON.parse(serialized);
-				descriptor = openSync(storagePath, "r");
-				fsyncSync(descriptor);
+				if (process.platform !== "win32") {
+					descriptor = openSync(storagePath, "r");
+					fsyncSync(descriptor);
+				}
 			} finally {
 				if (descriptor !== undefined) closeSync(descriptor);
 				if (existsSync(temporary)) unlinkSync(temporary);

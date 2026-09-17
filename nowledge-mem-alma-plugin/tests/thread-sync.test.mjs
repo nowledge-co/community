@@ -1,202 +1,90 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createServer } from "node:http";
+import { fixture } from "./sync-fixture.mjs";
 
 import { activate, NowledgeMemClient } from "../main.js";
 
 const logger = { info() {}, warn() {}, debug() {}, error() {} };
 
-function jsonResponse(status, data) {
-	return {
-		ok: status >= 200 && status < 300,
-		status,
-		headers: { get: () => "application/json" },
-		json: async () => data,
-		text: async () => JSON.stringify(data),
-	};
+test("user Given an acknowledged prefix When a new message is appended Then the protocol advances the checkpoint without duplicating the prefix", async (t) => {
+	const state = await fixture(t);
+	const client = new NowledgeMemClient(logger, { apiUrl: state.apiUrl });
+	await client.createThread("synthetic", "", [{ role: "user", content: "first" }, { role: "assistant", content: "answer" }], "alma", "alma-x");
+	const messages = [{ role: "user", content: "next", external_id: "synthetic-next" }];
+	const checkpoint = { idempotencyKey: "alma-thread:alma-x:2-3:synthetic", expectedMessageCount: 2 };
+	await client.appendThread("alma-x", messages, checkpoint);
+	await client.appendThread("alma-x", messages, checkpoint);
+	assert.deepEqual(state.remote.get("alma-x"), [{ role: "user", content: "first" }, { role: "assistant", content: "answer" }, ...messages]);
+});
+
+for (const [scenario, body, expected] of [
+	["success without persistence", { success: true }, /explicit persistence acknowledgement/],
+	["an uncheckpointed reply", { success: true, messages_added: 1, total_messages: 2 }, /not acknowledged as checkpointed/],
+]) {
+	test(`user Given ${scenario} When the server responds to a checkpointed append Then the caller is told persistence is unconfirmed`, async (t) => {
+		const state = await fixture(t);
+		state.replyWith(200, body);
+		const client = new NowledgeMemClient(logger, { apiUrl: state.apiUrl });
+		await assert.rejects(client.appendThread("alma-x", [{ role: "user", content: "hi" }], { expectedMessageCount: 1 }), expected);
+	});
 }
 
-test("appendThread sends checkpoint fields and requires a checkpointed ack", async () => {
-	const bodies = [];
-	const previous = globalThis.fetch;
-	globalThis.fetch = async (_url, init) => {
-		bodies.push(JSON.parse(init.body));
-		return jsonResponse(200, {
-			success: true,
-			append_mode: "checkpointed",
-			messages_added: 1,
-			total_messages: 3,
-		});
-	};
-	try {
-		const client = new NowledgeMemClient(logger, { threadSyncTimeoutMs: 5_000 });
-		const result = await client.appendThread(
-			"alma-x",
-			[{ role: "user", content: "next" }],
-			{ idempotencyKey: "alma-thread:alma-x:2-3:abc", expectedMessageCount: 2 },
-		);
-		assert.equal(result.total_messages, 3);
-		assert.equal(bodies[0].expected_message_count, 2);
-		assert.equal(bodies[0].append_mode, "checkpointed");
-		assert.equal(bodies[0].idempotency_key, "alma-thread:alma-x:2-3:abc");
-		assert.equal(bodies[0].deduplicate, true);
-	} finally {
-		globalThis.fetch = previous;
-	}
-});
-
-test("appendThread does not treat a success-only body as an ack", async () => {
-	const previous = globalThis.fetch;
-	globalThis.fetch = async () => jsonResponse(200, { success: true });
-	try {
-		const client = new NowledgeMemClient(logger, {});
-		await assert.rejects(
-			() => client.appendThread("alma-x", [{ role: "user", content: "hi" }]),
-			/explicit persistence acknowledgement/,
-		);
-	} finally {
-		globalThis.fetch = previous;
-	}
-});
-
-test("appendThread rejects a non-checkpointed ack when a checkpoint was required", async () => {
-	const previous = globalThis.fetch;
-	globalThis.fetch = async () =>
-		jsonResponse(200, { success: true, messages_added: 1, total_messages: 2 });
-	try {
-		const client = new NowledgeMemClient(logger, {});
-		await assert.rejects(
-			() =>
-				client.appendThread("alma-x", [{ role: "user", content: "hi" }], {
-					expectedMessageCount: 1,
-				}),
-			/not acknowledged as checkpointed/,
-		);
-	} finally {
-		globalThis.fetch = previous;
-	}
-});
-
-function captureFetchTimeouts(client) {
-	const calls = [];
-	const original = client._fetch.bind(client);
-	client._fetch = async (method, path, options = {}) => {
-		calls.push({ method, path, timeout: options.timeout });
-		return original(method, path, options);
-	};
-	return calls;
+for (const [scenario, body, expected] of [
+	["missing identity", {}, /thread identity/],
+	["missing message count", { thread: { thread_id: "alma-x" } }, /explicit total message count/],
+	["negative message count", { thread: { thread_id: "alma-x", message_count: -1 } }, /explicit total message count/],
+]) {
+	test(`user Given a create response with ${scenario} When saving a conversation Then persistence is not falsely confirmed`, async (t) => {
+		const state = await fixture(t);
+		state.replyWith(200, body);
+		const client = new NowledgeMemClient(logger, { apiUrl: state.apiUrl });
+		await assert.rejects(client.createThread("synthetic", "", [], "alma", "alma-x"), expected);
+	});
 }
 
-test("manual createThread keeps the 30s request timeout", async () => {
-	const previous = globalThis.fetch;
-	globalThis.fetch = async () =>
-		jsonResponse(200, {
-			thread: { thread_id: "alma-x", message_count: 1 },
-			messages: [{ role: "user", content: "hi" }],
-		});
-	try {
-		const client = new NowledgeMemClient(logger, { threadSyncTimeoutMs: 90_000 });
-		const calls = captureFetchTimeouts(client);
-		await client.createThread("t", "", [{ role: "user", content: "hi" }], "alma", "alma-x");
-		assert.equal(calls.length, 1);
-		assert.equal(calls[0].path, "/threads");
-		assert.equal(calls[0].timeout, 30_000);
-	} finally {
-		globalThis.fetch = previous;
-	}
-});
-
-test("automatic createThread path can pass the configured sync timeout", async () => {
-	const previous = globalThis.fetch;
-	globalThis.fetch = async () =>
-		jsonResponse(200, {
-			thread: { thread_id: "alma-x", message_count: 1 },
-			messages: [{ role: "user", content: "hi" }],
-		});
-	try {
-		const client = new NowledgeMemClient(logger, { threadSyncTimeoutMs: 90_000 });
-		const calls = captureFetchTimeouts(client);
-		await client.createThread(
-			"t",
-			"",
-			[{ role: "user", content: "hi" }],
-			"alma",
-			"alma-x",
-			{ timeout: client._threadSyncTimeoutMs },
-		);
-		assert.equal(calls[0].timeout, 90_000);
-	} finally {
-		globalThis.fetch = previous;
-	}
-});
-
-test("appendThread still uses the configured thread-sync timeout", async () => {
-	const previous = globalThis.fetch;
-	globalThis.fetch = async () =>
-		jsonResponse(200, {
-			success: true,
-			append_mode: "checkpointed",
-			messages_added: 1,
-			total_messages: 2,
-		});
-	try {
-		const client = new NowledgeMemClient(logger, { threadSyncTimeoutMs: 90_000 });
-		const calls = captureFetchTimeouts(client);
-		await client.appendThread("alma-x", [{ role: "assistant", content: "ok" }], {
-			expectedMessageCount: 1,
-		});
-		assert.equal(calls[0].timeout, 90_000);
-	} finally {
-		globalThis.fetch = previous;
-	}
-});
-
-test("createThread requires a thread identity and a non-negative total message count", async () => {
-	const previous = globalThis.fetch;
-	try {
-		const client = new NowledgeMemClient(logger, {});
-		globalThis.fetch = async () => jsonResponse(200, {});
-		await assert.rejects(
-			() => client.createThread("t", "hi", [], "alma", "alma-x"),
-			/thread identity/,
-		);
-		globalThis.fetch = async () =>
-			jsonResponse(200, { thread: { thread_id: "alma-x" }, messages: [{ role: "user", content: "hi" }] });
-		await assert.rejects(
-			() => client.createThread("t", "hi", [], "alma", "alma-x"),
-			/explicit total message count/,
-		);
-		globalThis.fetch = async () =>
-			jsonResponse(200, { thread: { thread_id: "alma-x", message_count: -1 } });
-		await assert.rejects(
-			() => client.createThread("t", "hi", [], "alma", "alma-x"),
-			/explicit total message count/,
-		);
-		globalThis.fetch = async () =>
-			jsonResponse(200, { thread: { thread_id: "alma-x", message_count: 2 } });
-		const created = await client.createThread(
-			"t",
-			"",
-			[{ role: "user", content: "a" }, { role: "assistant", content: "b" }],
-			"alma",
-			"alma-x",
-		);
-		assert.equal(created.id, "alma-x");
-		assert.equal(created.total_messages, 2);
-	} finally {
-		globalThis.fetch = previous;
-	}
-});
+for (const operation of ["manual create", "manual tool", "automatic create", "automatic append"]) {
+	test(`user Given a stalled server When ${operation} reaches its deadline Then the request aborts only at its configured budget`, { timeout: 5_000 }, async (t) => {
+		t.after(() => t.mock.timers.reset());
+		const state = await fixture(t);
+		state.setMode("hang");
+		const client = new NowledgeMemClient(logger, { apiUrl: state.apiUrl, threadSyncTimeoutMs: 90_000 });
+		const tools = new Map();
+		await state.start({ context: { tools: { register(name, tool) { tools.set(name, tool); return { dispose() {} }; } } } });
+		t.mock.timers.enable({ apis: ["setTimeout"] });
+		const budget = operation.startsWith("manual") ? 30_000 : 90_000;
+		let completed = false;
+		const request = operation === "manual tool"
+			? tools.get("nowledge_mem_thread_create").execute({ title: "synthetic", content: "hi" })
+			: operation === "automatic append"
+				? client.appendThread("alma-x", [{ role: "user", content: "hi" }])
+				: client.createThread("synthetic", "", [{ role: "user", content: "hi" }], "alma", "alma-x", operation === "automatic create" ? { timeout: 90_000 } : undefined);
+		const outcome = request.then((value) => { completed = true; return value; }, (error) => { completed = true; return { error }; });
+		await state.waitForRequest();
+		t.mock.timers.tick(budget - 1);
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(completed, false, "the user still has their full request budget");
+		t.mock.timers.tick(1);
+		const result = await outcome;
+		assert.ok(result.error);
+		if (operation === "manual tool") assert.equal(result.ok, false);
+		else assert.equal(result.error.name, "AbortError");
+	});
+}
 
 function makePluginHarness(initialSettings = {}) {
 	const store = {
 		"nowledgeMem.recallPolicy": "off",
 		"nowledgeMem.autoCapture": true,
 		"nowledgeMem.autoRecall": false,
+		"nowledgeMem.apiUrl": "http://127.0.0.1:1",
 		...initialSettings,
 	};
 	const listeners = [];
 	const tools = new Map();
 	const events = new Map();
+	const histories = new Map();
+	let sequence = 0;
 	return {
 		tools,
 		events,
@@ -206,6 +94,7 @@ function makePluginHarness(initialSettings = {}) {
 		},
 		context: {
 			logger,
+			chat: { getMessages: async (threadId) => structuredClone(histories.get(threadId) ?? []) },
 			settings: {
 				get(key) {
 					return store[key];
@@ -223,7 +112,17 @@ function makePluginHarness(initialSettings = {}) {
 			},
 			events: {
 				on(name, handler) {
-					events.set(name, handler);
+					events.set(name, async (input, output) => {
+						const role = name === "chat.message.willSend" ? "user" : name === "chat.message.didReceive" ? "assistant" : null;
+						if (role) {
+							const records = histories.get(input.threadId) ?? [];
+							const id = `synthetic-${++sequence}`;
+							const text = role === "user" ? input.content : input.response.content;
+							records.push({ id, role, createdAt: new Date().toISOString(), content: { parts: [{ type: "text", text }] } });
+							histories.set(input.threadId, records);
+						}
+						return handler(input, output);
+					});
 					return { dispose() {} };
 				},
 			},
@@ -233,333 +132,150 @@ function makePluginHarness(initialSettings = {}) {
 
 async function captureUserAndAssistant(events, threadId = "thread-1") {
 	await events.get("chat.message.willSend")({ threadId, content: "hello from alma" });
-	events.get("chat.message.didReceive")({
+	await events.get("chat.message.didReceive")({
 		threadId,
 		response: { content: "hi from mem" },
 	});
 }
 
-test("manual thread_create tool keeps the 30s timeout while automatic flush uses NMEM_SYNC_TIMEOUT_MS", async () => {
-	const previousFetch = globalThis.fetch;
-	const previousEnv = process.env.NMEM_SYNC_TIMEOUT_MS;
-	const originalFetch = NowledgeMemClient.prototype._fetch;
+test("user Given an old destination has an unacknowledged turn When the destination changes before ACK Then the new destination receives the complete retained turn", { timeout: 5_000 }, async (t) => {
+	const oldDestination = await fixture(t);
+	const newDestination = await fixture(t);
+	const host = await oldDestination.start();
+	await host.turn();
+	const release = oldDestination.holdNextResponse();
+	const switching = host.flush();
+	await oldDestination.waitForRequest();
+	host.change({ "nowledgeMem.apiUrl": newDestination.apiUrl });
+	release();
+	await switching;
+	await host.quit();
+	const expected = oldDestination.histories.get("thread").map((record) => ({ role: record.role, content: record.content.parts[0].text, external_id: record.id }));
+	assert.deepEqual([...oldDestination.remote.values()].flat(), expected);
+	assert.deepEqual([...newDestination.remote.values()].flat(), expected);
+	const pending = oldDestination.records();
+	assert.equal(pending.length, 1);
+	assert.deepEqual(pending[0].messages, expected);
+	assert.equal(pending[0].savedCount, 0);
+	assert.ok(pending[0].attempt, "the obsolete ACK cannot clear the old destination's recoverable attempt");
+});
+
+test("user Given a pending title lookup When the destination changes Then the old destination keeps its frozen turn and the new destination receives retained live history", { timeout: 5_000 }, async (t) => {
 	const calls = [];
-	NowledgeMemClient.prototype._fetch = async function (method, path, options = {}) {
-		calls.push({ method, path, timeout: options.timeout, apiUrl: this._apiUrl });
-		if (String(path).includes("/append")) {
-			const err = new Error("HTTP 404: Thread not found");
-			err.status = 404;
-			throw err;
+	const handleRequest = (destination) => async (request, response) => {
+		let content = "";
+		for await (const chunk of request) content += chunk;
+		const body = JSON.parse(content);
+		calls.push({ path: "/" + destination + request.url, body });
+		response.setHeader("content-type", "application/json");
+		if (request.url.endsWith("/append")) {
+			response.writeHead(404);
+			response.end(JSON.stringify({ detail: "Thread not found" }));
+		} else {
+			response.end(JSON.stringify({ thread: { thread_id: body.thread_id, message_count: body.messages.length } }));
 		}
-		if (method === "POST" && path === "/threads") {
-			return {
-				thread: {
-					thread_id: options.body?.thread_id || "alma-x",
-					message_count: Array.isArray(options.body?.messages) ? options.body.messages.length : 1,
-				},
-			};
-		}
-		return {};
 	};
-	process.env.NMEM_SYNC_TIMEOUT_MS = "90000";
-	const harness = makePluginHarness();
-	const plugin = await activate(harness.context);
-	try {
-		await captureUserAndAssistant(harness.events);
-		await harness.events.get("app.willQuit")({}, { cancel: false });
-		const autoCreate = calls.find((call) => call.method === "POST" && call.path === "/threads");
-		assert.equal(autoCreate?.timeout, 90_000);
-
-		calls.length = 0;
-		const tool = harness.tools.get("nowledge_mem_thread_create");
-		const result = await tool.execute({ title: "manual", content: "hello" });
-		assert.equal(result.ok, true);
-		assert.equal(calls[0].path, "/threads");
-		assert.equal(calls[0].timeout, 30_000);
-	} finally {
-		NowledgeMemClient.prototype._fetch = originalFetch;
-		globalThis.fetch = previousFetch;
-		if (previousEnv === undefined) delete process.env.NMEM_SYNC_TIMEOUT_MS;
-		else process.env.NMEM_SYNC_TIMEOUT_MS = previousEnv;
-		await plugin.dispose();
-	}
-});
-
-test("flush discards a stale ack after the destination changes and reruns", async () => {
-	const previous = globalThis.fetch;
-	const posts = [];
-	const harness = makePluginHarness();
-	globalThis.fetch = async (url, init) => {
-		const href = String(url);
-		const body = init?.body ? JSON.parse(init.body) : undefined;
-		posts.push({ href, body });
-		if (href.includes("/append") && posts.filter((post) => post.href.includes("127.0.0.1")).length === 1) {
-			harness.changeSettings({ "nowledgeMem.apiUrl": "http://mem-b:14242" });
-		}
-		if (href.includes("/append")) {
-			return jsonResponse(200, {
-				success: true,
-				append_mode: "checkpointed",
-				messages_added: 2,
-				total_messages: 2,
-			});
-		}
-		return jsonResponse(200, {
-			thread: { thread_id: body?.thread_id || "alma-x", message_count: 2 },
-		});
-	};
-	const plugin = await activate(harness.context);
-	try {
-		await captureUserAndAssistant(harness.events);
-		await harness.events.get("app.willQuit")({}, { cancel: false });
-		const appends = posts.filter((post) => post.href.includes("/append"));
-		assert.equal(appends.length, 2);
-		assert.match(appends[0].href, /127\.0\.0\.1/);
-		assert.match(appends[1].href, /mem-b:14242/);
-	} finally {
-		globalThis.fetch = previous;
-		await plugin.dispose();
-	}
-});
-
-test("in-flight flush keeps its stable thread id after a destination reset", async () => {
-	const previous = globalThis.fetch;
-	const harness = makePluginHarness();
+	const server = createServer(handleRequest("old"));
+	const destinationServer = createServer(handleRequest("new"));
+	await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+	await new Promise((resolve) => destinationServer.listen(0, "127.0.0.1", resolve));
+	const origin = `http://127.0.0.1:${server.address().port}`;
+	const destination = `http://127.0.0.1:${destinationServer.address().port}`;
+	const harness = makePluginHarness({ "nowledgeMem.apiUrl": origin });
 	let releaseTitle;
-	let titleCalls = 0;
+	let titleResolved = false;
 	const titleStarted = new Promise((resolve) => {
-		harness.context.chat = {
-			getThread() {
-				titleCalls += 1;
-				if (titleCalls > 1) return Promise.resolve({ title: "Resolved title" });
-				resolve();
-				return new Promise((finish) => {
-					releaseTitle = finish;
-				});
-			},
+		harness.context.chat.getThread = () => {
+			if (titleResolved) return Promise.resolve({ title: "Resolved title" });
+			resolve();
+			return new Promise((finish) => { releaseTitle = finish; });
 		};
 	});
-	const calls = [];
-	globalThis.fetch = async (url, init) => {
-		const href = String(url);
-		const body = init?.body ? JSON.parse(init.body) : undefined;
-		calls.push({ href, body });
-		if (href.includes("/append")) {
-			return jsonResponse(404, { detail: "Thread not found" });
-		}
-		return jsonResponse(200, {
-			thread: { thread_id: body.thread_id, message_count: body.messages.length },
-		});
-	};
 	const plugin = await activate(harness.context);
-	try {
-		await captureUserAndAssistant(harness.events);
-		const flushing = harness.events.get("thread.activated")({ threadId: "away" });
-		await titleStarted;
-		harness.changeSettings({ "nowledgeMem.apiUrl": "http://mem-b:14242" });
-		await harness.events.get("chat.message.willSend")({ threadId: "thread-1", content: "DESTINATION_B_ONLY_USER" });
-		harness.events.get("chat.message.didReceive")({ threadId: "thread-1", response: { content: "DESTINATION_B_ONLY_ASSISTANT" } });
-		releaseTitle({ title: "Resolved title" });
-		await flushing;
-
-		const oldAppend = calls.find((call) => call.href.includes("127.0.0.1") && call.href.includes("/append"));
-		const oldCreate = calls.find((call) => call.href === "http://127.0.0.1:14242/threads");
-		assert.ok(oldAppend);
-		assert.ok(oldCreate);
-		assert.doesNotMatch(JSON.stringify(calls.filter((call) => call.href.includes("127.0.0.1"))), /DESTINATION_B_ONLY/);
-		assert.match(JSON.stringify(calls.filter((call) => call.href.includes("mem-b"))), /DESTINATION_B_ONLY_ASSISTANT/);
-		assert.doesNotMatch(oldAppend.href, /\/threads\/null\/append/);
-		assert.match(oldAppend.href, new RegExp(`/threads/${oldCreate.body.thread_id}/append$`));
-	} finally {
-		globalThis.fetch = previous;
+	t.after(async () => {
+		titleResolved = true;
+		releaseTitle?.({ title: "Resolved title" });
 		await plugin.dispose();
-	}
+		server.closeAllConnections();
+		await new Promise((resolve) => server.close(resolve));
+		destinationServer.closeAllConnections();
+		await new Promise((resolve) => destinationServer.close(resolve));
+	});
+	await captureUserAndAssistant(harness.events);
+	const switching = harness.events.get("thread.activated")({ threadId: "away" });
+	await titleStarted;
+	harness.changeSettings({ "nowledgeMem.apiUrl": destination });
+	await harness.events.get("chat.message.willSend")({ threadId: "thread-1", content: "DESTINATION_B_ONLY_USER" });
+	await harness.events.get("chat.message.didReceive")({ threadId: "thread-1", response: { content: "DESTINATION_B_ONLY_ASSISTANT" } });
+	titleResolved = true;
+	releaseTitle({ title: "Resolved title" });
+	await switching;
+	await harness.events.get("app.willQuit")({}, { cancel: false });
+	const oldCreate = calls.find((call) => call.path === "/old/threads");
+	const newCreate = calls.find((call) => call.path === "/new/threads");
+	assert.ok(oldCreate);
+	assert.ok(newCreate);
+	assert.deepEqual(oldCreate.body.messages.map(({ content }) => content), ["hello from alma", "hi from mem"]);
+	assert.deepEqual(newCreate.body.messages.map(({ content }) => content), ["hello from alma", "hi from mem", "DESTINATION_B_ONLY_USER", "DESTINATION_B_ONLY_ASSISTANT"]);
+	assert.ok(calls.some((call) => call.path === "/old/threads/" + oldCreate.body.thread_id + "/append"));
+	assert.ok(calls.some((call) => call.path === "/new/threads/" + newCreate.body.thread_id + "/append"));
 });
 
-test("automatic flush leaves a user-only tail buffered until its assistant arrives", async () => {
-	const previous = globalThis.fetch;
-	const appends = [];
-	globalThis.fetch = async (url, init) => {
-		if (String(url).includes("/append")) {
-			const body = JSON.parse(init.body);
-			appends.push(body.messages);
-			return jsonResponse(200, {
-				success: true,
-				append_mode: "checkpointed",
-				messages_added: body.messages.length,
-				total_messages: appends.flat().length,
-			});
-		}
-		return jsonResponse(200, {});
-	};
-	const harness = makePluginHarness();
-	const plugin = await activate(harness.context);
-	try {
-		await captureUserAndAssistant(harness.events);
-		await harness.events.get("chat.message.willSend")({
-			threadId: "thread-1",
-			content: "pending question",
-		});
-		await harness.events.get("app.willQuit")({}, { cancel: false });
-		assert.deepEqual(appends, [[
-			{ role: "user", content: "hello from alma" },
-			{ role: "assistant", content: "hi from mem" },
-		]]);
-
-		harness.events.get("chat.message.didReceive")({
-			threadId: "thread-1",
-			response: { content: "pending answer" },
-		});
-		await harness.events.get("app.willQuit")({}, { cancel: false });
-		assert.deepEqual(appends[1], [
-			{ role: "user", content: "pending question" },
-			{ role: "assistant", content: "pending answer" },
-		]);
-	} finally {
-		globalThis.fetch = previous;
-		await plugin.dispose();
-	}
-});
-
-for (const teardown of ["quit", "dispose", "revisit", "retry"]) {
-	test(`LRU draining retains completed turns during ${teardown}`, async () => {
-		const previous = globalThis.fetch;
-		const harness = makePluginHarness();
-		const appends = [];
-		let releaseFirst;
-		let started;
-		let activeRequests = 0;
-		let maxActiveRequests = 0;
-		const firstStarted = new Promise((resolve) => { started = resolve; });
-		globalThis.fetch = async (url, init) => {
-			assert.match(String(url), /\/append$/);
-			const body = JSON.parse(init.body);
-			appends.push(body);
-			activeRequests += 1;
-			maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
-			if (appends.length === 1) {
-				started();
-				await new Promise((resolve) => { releaseFirst = resolve; });
-			}
-			activeRequests -= 1;
-			if (teardown === "retry" && appends.length <= 2) return jsonResponse(503, { detail: "Unavailable" });
-			return jsonResponse(200, {
-				success: true, append_mode: "checkpointed", messages_added: body.messages.length,
-				total_messages: (body.expected_message_count || 0) + body.messages.length,
-			});
-		};
-		const plugin = await activate(harness.context);
-		try {
-			await captureUserAndAssistant(harness.events, "oldest");
-			const flushing = harness.events.get("thread.activated")({ threadId: "away" });
-			await firstStarted;
-			await harness.events.get("chat.message.willSend")({ threadId: "oldest", content: "TAIL_USER" });
-			harness.events.get("chat.message.didReceive")({ threadId: "oldest", response: { content: "TAIL_ASSISTANT" } });
+for (const evicted of [false, true]) {
+	test(`user Given an acknowledged turn and an incomplete tail${evicted ? " evicted from memory" : ""} When the assistant arrives after quit Then only the complete canonical turns reach memory`, { timeout: 5_000 }, async (t) => {
+		const state = await fixture(t);
+		const host = await state.start();
+		await host.turn("oldest");
+		await host.flush();
+		await host.events.get("chat.message.willSend")({ threadId: "oldest", content: "pending question" });
+		if (evicted) {
 			for (let index = 0; index < 20; index += 1) {
-				await harness.events.get("chat.message.willSend")({ threadId: `other-${index}`, content: "user only" });
+				await host.events.get("chat.message.willSend")({ threadId: "other-" + index, content: "user only" });
 			}
-			if (teardown === "revisit") {
-				await harness.events.get("chat.message.willSend")({ threadId: "oldest", content: "REVISIT_USER" });
-				harness.events.get("chat.message.didReceive")({ threadId: "oldest", response: { content: "REVISIT_ASSISTANT" } });
-			}
-			let finished = false;
-			const closing = teardown === "dispose" ? plugin.dispose().then(() => { finished = true; }) : null;
-			await Promise.resolve();
-			if (closing) assert.equal(finished, false);
-			releaseFirst();
-			await flushing;
-			if (teardown === "retry") assert.equal(appends.length, 2);
-			if (closing) await closing;
-			else await harness.events.get("app.willQuit")({}, { cancel: false });
-			const delivered = appends.slice(teardown === "retry" ? 2 : 0).flatMap((body) => body.messages);
-			assert.equal(delivered.filter((message) => message.content === "TAIL_ASSISTANT").length, 1);
-			assert.equal(delivered.length, teardown === "revisit" ? 6 : 4);
-			assert.equal(maxActiveRequests, 1);
-		} finally {
-			releaseFirst?.();
-			await plugin.dispose();
-			globalThis.fetch = previous;
 		}
+		await host.quit();
+		assert.deepEqual([...state.remote.values()].flat().map(({ content }) => content), ["first user", "first assistant"]);
+		await host.events.get("chat.message.didReceive")({ threadId: "oldest", response: { content: "pending answer" } });
+		await host.quit();
+		const expected = state.histories.get("oldest").map((record) => ({ role: record.role, content: record.content.parts[0].text, external_id: record.id }));
+		assert.deepEqual([...state.remote.values()].flat(), expected);
+		assert.equal(state.records().some((record) => record.threadId === "oldest"), false);
+		await host.plugin.dispose();
+		assert.deepEqual([...state.remote.values()].flat(), expected);
 	});
 }
 
-test("an evicted incomplete turn resumes from its acknowledged cursor on revisit", async () => {
-	const previous = globalThis.fetch;
-	const harness = makePluginHarness();
-	const appends = [];
-	globalThis.fetch = async (_url, init) => {
-		const body = JSON.parse(init.body);
-		appends.push(body);
-		return jsonResponse(200, {
-			success: true, append_mode: "checkpointed", messages_added: body.messages.length,
-			total_messages: (body.expected_message_count || 0) + body.messages.length,
-		});
-	};
-	const plugin = await activate(harness.context);
-	try {
-		await captureUserAndAssistant(harness.events, "oldest");
-		await harness.events.get("thread.activated")({ threadId: "away" });
-		await harness.events.get("chat.message.willSend")({ threadId: "oldest", content: "pending question" });
+for (const teardown of ["quit", "dispose", "revisit", "retry"]) {
+	test(`user Given an evicted turn awaiting delivery When ${teardown} occurs with a completed tail Then memory contains every canonical message exactly once`, { timeout: 5_000 }, async (t) => {
+		const state = await fixture(t);
+		const host = await state.start();
+		const release = state.holdNextResponse();
+		if (teardown === "retry") state.setMode("failure");
+		await host.turn("oldest");
+		const switching = host.flush();
+		await state.waitForRequest();
+		await host.turn("oldest", "tail");
 		for (let index = 0; index < 20; index += 1) {
-			await harness.events.get("chat.message.willSend")({ threadId: `other-${index}`, content: "user only" });
+			await host.events.get("chat.message.willSend")({ threadId: "other-" + index, content: "user only" });
 		}
-		await harness.events.get("app.willQuit")({}, { cancel: false });
-		assert.equal(appends.length, 1);
-		harness.events.get("chat.message.didReceive")({ threadId: "oldest", response: { content: "pending answer" } });
-		await harness.events.get("app.willQuit")({}, { cancel: false });
-		assert.equal(appends.length, 2);
-		assert.equal(appends[1].expected_message_count, 2);
-		assert.deepEqual(appends[1].messages, [
-			{ role: "user", content: "pending question" },
-			{ role: "assistant", content: "pending answer" },
-		]);
-		await plugin.dispose();
-		assert.equal(appends.length, 2);
-	} finally {
-		await plugin.dispose();
-		globalThis.fetch = previous;
-	}
-});
+		if (teardown === "revisit") await host.turn("oldest", "revisit");
+		const closing = teardown === "dispose" ? host.plugin.dispose() : null;
+		release();
+		await switching;
+		if (teardown === "retry") {
+			assert.deepEqual([...state.remote.values()], []);
+			assert.ok(state.records().some((record) => record.threadId === "oldest"));
+			state.setMode("ok");
+		}
+		if (closing) await closing;
+		else await host.quit();
+		const expected = state.histories.get("oldest").map((record) => ({ role: record.role, content: record.content.parts[0].text, external_id: record.id }));
+		assert.deepEqual([...state.remote.values()].flat(), expected);
+		assert.equal(state.records().some((record) => record.threadId === "oldest"), false);
+	});
+}
 
-test("transport uses 30s for the manual tool and independent automatic timeouts", async () => {
-	const previousFetch = globalThis.fetch;
-	const previousTimeout = globalThis.setTimeout;
-	const previousEnv = process.env.NMEM_SYNC_TIMEOUT_MS;
-	const timeouts = [];
-	process.env.NMEM_SYNC_TIMEOUT_MS = "90000";
-	globalThis.setTimeout = (callback, delay, ...args) => {
-		timeouts.push(delay);
-		return previousTimeout(callback, delay, ...args);
-	};
-	globalThis.fetch = async (url, init) => {
-		if (String(url).includes("/append")) return jsonResponse(404, { detail: "Thread not found" });
-		const body = JSON.parse(init.body);
-		assert.ok(init.signal instanceof AbortSignal);
-		return jsonResponse(200, { thread: { thread_id: body.thread_id, message_count: body.messages.length } });
-	};
-	const harness = makePluginHarness();
-	const plugin = await activate(harness.context);
-	try {
-		const result = await harness.tools.get("nowledge_mem_thread_create").execute({ title: "manual", content: "hello" });
-		assert.equal(result.ok, true);
-		assert.deepEqual(timeouts, [30_000]);
-		timeouts.length = 0;
-		await captureUserAndAssistant(harness.events);
-		timeouts.length = 0;
-		await harness.events.get("app.willQuit")({}, { cancel: false });
-		assert.equal(timeouts.length, 3);
-		assert.ok(timeouts[0] > 0 && timeouts[0] <= 2_500);
-		assert.deepEqual(timeouts.slice(1), [90_000, 90_000]);
-	} finally {
-		await plugin.dispose();
-		globalThis.fetch = previousFetch;
-		globalThis.setTimeout = previousTimeout;
-		if (previousEnv === undefined) Reflect.deleteProperty(process.env, "NMEM_SYNC_TIMEOUT_MS");
-		else process.env.NMEM_SYNC_TIMEOUT_MS = previousEnv;
-	}
-});
-
-test("isThreadNotFoundError treats HTTP 400 Thread not found as recreate", () => {
+test("user Given a failed append When only the thread is missing Then recovery allows recreation but never hides an upstream failure", () => {
 	const client = new NowledgeMemClient(logger, {});
 	const err = new Error("HTTP 400: Thread not found: alma-x");
 	err.status = 400;
@@ -574,3 +290,47 @@ test("isThreadNotFoundError treats HTTP 400 Thread not found as recreate", () =>
 	upstream.status = 500;
 	assert.equal(client.isThreadNotFoundError(upstream), false);
 });
+
+for (const revisit of [false, true]) {
+ test(revisit
+  ? "user Given an old canonical read evicted from cache When a newer read saves the complete conversation Then the late read cannot roll durable recovery back"
+  : "user Given a canonical read pending during eviction When it completes and quit follows Then the completed turn reaches memory", async t => {
+  const state = await fixture(t);
+  let releaseRead;
+  let announceRead;
+  let firstRead = true;
+  const readStarted = new Promise(resolve => { announceRead = resolve; });
+  const host = await state.start({ recordsDriven: true, context: { chat: {
+   getMessages: async threadId => {
+    const snapshot = structuredClone(state.histories.get(threadId) ?? []);
+    if (threadId === "owned-target" && firstRead) {
+     firstRead = false;
+     announceRead();
+     return new Promise(resolve => { releaseRead = () => resolve(snapshot); });
+    }
+    return snapshot;
+   }
+  } } });
+  state.persist("owned-target", "user", "SYNTHETIC original");
+  state.persist("owned-target", "assistant", "SYNTHETIC reply");
+  const pending = host.events.get("chat.message.willSend")({ threadId: "owned-target", content: "SYNTHETIC enriched" });
+  await readStarted;
+  for (let index = 0; index < 24; index += 1) {
+   const threadId = "owned-other-" + index;
+   state.persist(threadId, "user", "SYNTHETIC pending");
+   await host.events.get("chat.message.willSend")({ threadId, content: "SYNTHETIC enriched" });
+  }
+  const expected = ["SYNTHETIC original", "SYNTHETIC reply"];
+  if (revisit) {
+   state.persist("owned-target", "user", "SYNTHETIC tail");
+   state.persist("owned-target", "assistant", "SYNTHETIC tail reply");
+   await host.events.get("chat.message.didReceive")({ threadId: "owned-target" });
+   expected.push("SYNTHETIC tail", "SYNTHETIC tail reply");
+  }
+  releaseRead();
+  await pending;
+  assert.deepEqual(state.receipts().find(record => record.threadId === "owned-target").messages.map(message => message.content), expected);
+  await host.quit();
+  assert.deepEqual([...state.remote.values()].flat().map(message => message.content), expected);
+ });
+}
