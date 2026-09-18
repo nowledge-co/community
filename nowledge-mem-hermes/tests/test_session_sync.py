@@ -70,6 +70,9 @@ class FakeClient:
         self.skill_outcome_calls = []
         self.fail_import = False
         self.fail_append = False
+        self.semantic_import_failure = False
+        self.semantic_append_failure = False
+        self.fail_append_after_recording = False
 
     def import_thread(self, thread_id, messages, *, title=None, source="hermes"):
         if self.fail_import:
@@ -82,12 +85,24 @@ class FakeClient:
                 "source": source,
             }
         )
+        if self.semantic_import_failure:
+            return {
+                "success": False,
+                "results": [{"success": False, "error": "import rejected"}],
+            }
         return {"success": True, "thread_id": thread_id}
 
     def append_thread(self, thread_id, messages):
         if self.fail_append:
             raise RuntimeError("append failed")
         self.append_calls.append({"thread_id": thread_id, "messages": messages})
+        if self.fail_append_after_recording:
+            raise RuntimeError("append acknowledgement lost")
+        if self.semantic_append_failure:
+            return {
+                "success": False,
+                "results": [{"success": False, "error": "append rejected"}],
+            }
         return {"success": True, "thread_id": thread_id}
 
     def report_skill_outcome(self, skill_id, version, *, outcome="completed"):
@@ -586,6 +601,251 @@ def test_delta_only_sync_turn_with_messages_uses_current_turn_not_parent_history
         ],
         "title": "branch question",
         "source": "hermes",
+    }
+
+
+def test_failed_delta_only_import_retries_missing_turn_before_later_turn():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-old"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("old question", "old answer", session_id="session-old")
+    instance.on_session_switch("session-branch", parent_session_id="session-old", reset=False)
+
+    instance._client.fail_import = True
+    instance.sync_turn(
+        "first branch question",
+        "first branch answer",
+        session_id="session-branch",
+        messages=[
+            {"role": "user", "content": "old question"},
+            {"role": "assistant", "content": "old answer"},
+            {"role": "user", "content": "first branch question"},
+            {"role": "assistant", "content": "first branch answer"},
+        ],
+    )
+    instance._client.fail_import = False
+
+    instance.sync_turn(
+        "second branch question",
+        "second branch answer",
+        session_id="session-branch",
+        messages=[
+            {"role": "user", "content": "old question"},
+            {"role": "assistant", "content": "old answer"},
+            {"role": "user", "content": "first branch question"},
+            {"role": "assistant", "content": "first branch answer"},
+            {"role": "user", "content": "second branch question"},
+            {"role": "assistant", "content": "second branch answer"},
+        ],
+    )
+
+    assert instance._client.import_calls[-1] == {
+        "thread_id": "session-branch",
+        "messages": [
+            {"role": "user", "content": "first branch question"},
+            {"role": "assistant", "content": "first branch answer"},
+            {"role": "user", "content": "second branch question"},
+            {"role": "assistant", "content": "second branch answer"},
+        ],
+        "title": "first branch question",
+        "source": "hermes",
+    }
+    assert instance._saved_message_counts["session-branch"] == 4
+
+
+def test_session_end_recovers_pending_delta_only_import_without_parent_prefix():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-old"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("old question", "old answer", session_id="session-old")
+    instance.on_session_switch("session-branch", parent_session_id="session-old", reset=False)
+
+    instance._client.fail_import = True
+    instance.sync_turn("branch question", "branch answer", session_id="session-branch")
+    instance._client.fail_import = False
+
+    instance.on_session_end(
+        [
+            {"role": "user", "content": "old question"},
+            {"role": "assistant", "content": "old answer"},
+            {"role": "user", "content": "branch question"},
+            {"role": "assistant", "content": "branch answer"},
+            {"role": "user", "content": "tail question"},
+            {"role": "assistant", "content": "tail answer"},
+        ]
+    )
+
+    assert instance._client.import_calls[-1] == {
+        "thread_id": "session-branch",
+        "messages": [
+            {"role": "user", "content": "branch question"},
+            {"role": "assistant", "content": "branch answer"},
+            {"role": "user", "content": "tail question"},
+            {"role": "assistant", "content": "tail answer"},
+        ],
+        "title": "branch question",
+        "source": "hermes",
+    }
+
+
+def test_failed_append_retries_pending_turn_before_next_turn():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-append"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("first question", "first answer", session_id="session-append")
+    instance._client.fail_append = True
+    instance.sync_turn("second question", "second answer", session_id="session-append")
+    instance._client.fail_append = False
+
+    instance.sync_turn("third question", "third answer", session_id="session-append")
+
+    assert instance._client.append_calls == [
+        {
+            "thread_id": "session-append",
+            "messages": [
+                {"role": "user", "content": "second question"},
+                {"role": "assistant", "content": "second answer"},
+                {"role": "user", "content": "third question"},
+                {"role": "assistant", "content": "third answer"},
+            ],
+        }
+    ]
+    assert instance._saved_message_counts["session-append"] == 6
+
+
+def test_semantic_import_failure_retains_pending_delta_until_success():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-semantic"
+    instance._saved_message_count = 0
+    instance._client.semantic_import_failure = True
+
+    instance.sync_turn("first question", "first answer", session_id="session-semantic")
+    instance.sync_turn("second question", "second answer", session_id="session-semantic")
+
+    assert instance._saved_message_counts["session-semantic"] == 0
+
+    instance._client.semantic_import_failure = False
+    instance.sync_turn("third question", "third answer", session_id="session-semantic")
+
+    assert instance._client.import_calls[-1] == {
+        "thread_id": "session-semantic",
+        "messages": [
+            {"role": "user", "content": "first question"},
+            {"role": "assistant", "content": "first answer"},
+            {"role": "user", "content": "second question"},
+            {"role": "assistant", "content": "second answer"},
+            {"role": "user", "content": "third question"},
+            {"role": "assistant", "content": "third answer"},
+        ],
+        "title": "first question",
+        "source": "hermes",
+    }
+
+
+def test_semantic_append_failure_retains_pending_delta_until_success():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-semantic-append"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("first question", "first answer", session_id="session-semantic-append")
+    instance._client.semantic_append_failure = True
+    instance.sync_turn("second question", "second answer", session_id="session-semantic-append")
+
+    assert instance._saved_message_counts["session-semantic-append"] == 2
+
+    instance._client.semantic_append_failure = False
+    instance.sync_turn("third question", "third answer", session_id="session-semantic-append")
+
+    assert instance._client.append_calls[-1] == {
+        "thread_id": "session-semantic-append",
+        "messages": [
+            {"role": "user", "content": "second question"},
+            {"role": "assistant", "content": "second answer"},
+            {"role": "user", "content": "third question"},
+            {"role": "assistant", "content": "third answer"},
+        ],
+    }
+    assert instance._saved_message_counts["session-semantic-append"] == 6
+
+
+def test_pending_messages_are_isolated_by_session():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-a"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("a1", "a2", session_id="session-a")
+    instance._client.fail_append = True
+    instance.sync_turn("a3", "a4", session_id="session-a")
+    instance._client.fail_append = False
+
+    instance.on_session_switch("session-b", parent_session_id="session-a", reset=True)
+    instance.sync_turn("b1", "b2", session_id="session-b")
+
+    assert instance._client.import_calls[-1] == {
+        "thread_id": "session-b",
+        "messages": [
+            {"role": "user", "content": "b1"},
+            {"role": "assistant", "content": "b2"},
+        ],
+        "title": "b1",
+        "source": "hermes",
+    }
+
+    instance.on_session_switch("session-a", parent_session_id="session-b", reset=False)
+    instance.sync_turn("a5", "a6", session_id="session-a")
+
+    assert instance._client.append_calls == [
+        {
+            "thread_id": "session-a",
+            "messages": [
+                {"role": "user", "content": "a3"},
+                {"role": "assistant", "content": "a4"},
+                {"role": "user", "content": "a5"},
+                {"role": "assistant", "content": "a6"},
+            ],
+        }
+    ]
+
+
+def test_ambiguous_append_failure_retries_exact_payload_without_advancing_count():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._cron_skipped = False
+    instance._session_id = "session-ambiguous"
+    instance._saved_message_count = 0
+
+    instance.sync_turn("first question", "first answer", session_id="session-ambiguous")
+    instance._client.fail_append_after_recording = True
+    instance.sync_turn("second question", "second answer", session_id="session-ambiguous")
+
+    assert instance._saved_message_counts["session-ambiguous"] == 2
+    first_attempt = instance._client.append_calls[-1]["messages"]
+
+    instance._client.fail_append_after_recording = False
+    instance.sync_turn("third question", "third answer", session_id="session-ambiguous")
+
+    assert instance._client.append_calls[-1] == {
+        "thread_id": "session-ambiguous",
+        "messages": [
+            *first_attempt,
+            {"role": "user", "content": "third question"},
+            {"role": "assistant", "content": "third answer"},
+        ],
     }
 
 
