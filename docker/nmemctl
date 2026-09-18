@@ -1309,11 +1309,19 @@ AUTO_UPDATE_OVERLAY="-f compose.updater.yaml"
 ENV_FILE="$SCRIPT_DIR/.env"
 STATE_FILE="$SCRIPT_DIR/.nmemctl-state"
 
+# Read a NAME=VALUE assignment from a file. Empty if not set / file missing.
+read_assignment_var() {
+  local file="$1" name="$2" line
+  [[ -f "$file" ]] || return 0
+  line="$(grep -E "^${name}=" "$file" 2>/dev/null | tail -n 1 || true)"
+  [[ -n "$line" ]] || return 0
+  printf '%s\n' "$line" | sed -E "s/^${name}=//; s/^['\"]//; s/['\"]$//"
+}
+
 # Read a NAME=VALUE from .env. Empty if not set / file missing.
 read_env_var() {
   local name="$1"
-  [[ -f "$ENV_FILE" ]] || return 0
-  grep -E "^${name}=" "$ENV_FILE" 2>/dev/null | tail -n 1 | sed -E "s/^${name}=//; s/^['\"]//; s/['\"]$//"
+  read_assignment_var "$ENV_FILE" "$name"
 }
 
 # Atomically set NAME=VALUE in .env (create if missing, replace if present).
@@ -1345,9 +1353,20 @@ unset_env_var() {
 # Read NAME=VALUE from .nmemctl-state (the persisted overlay state).
 read_state_var() {
   local name="$1"
-  [[ -f "$STATE_FILE" ]] || return 0
-  grep -E "^${name}=" "$STATE_FILE" 2>/dev/null | tail -n 1 \
-    | sed -E "s/^${name}=//; s/^['\"]//; s/['\"]$//"
+  read_assignment_var "$STATE_FILE" "$name"
+}
+
+file_mode_octal() {
+  local path="$1" mode
+  mode="$(stat -c '%a' "$path" 2>/dev/null | head -n 1 || true)"
+  if [[ -z "$mode" ]]; then
+    mode="$(stat -f '%Lp' "$path" 2>/dev/null | head -n 1 || true)"
+  fi
+  if [[ "$mode" =~ ^[0-7]{3,4}$ ]]; then
+    printf '%s\n' "$mode"
+  else
+    printf 'unknown\n'
+  fi
 }
 
 # Atomically rewrite .nmemctl-state to include the auto-update overlay
@@ -1561,7 +1580,7 @@ cmd_auto_update_status() {
   local token
   token="$(read_env_var NOWLEDGE_UPDATER_TOKEN)"
   if [[ -n "$token" ]]; then
-    note "token: present in .env (mode $(stat -f '%Lp' "$ENV_FILE" 2>/dev/null || stat -c '%a' "$ENV_FILE" 2>/dev/null))"
+    note "token: present in .env (mode $(file_mode_octal "$ENV_FILE"))"
   else
     warn "token MISSING from .env — run './nmemctl auto-update enable' to regenerate it and restart the stack"
   fi
