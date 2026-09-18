@@ -1,0 +1,22 @@
+# Loopback updater overlay for host-networked Mem deployments.
+#
+# Use this only after compose.updater.yaml, when the mem service reaches the
+# updater through the host network namespace instead of Docker DNS:
+#
+#   NOWLEDGE_COMPOSE_PROJECT_DIR="$PWD" \
+#     docker compose -f compose.yaml \
+#       -f compose.host-network.local.yaml \
+#       -f compose.updater.yaml \
+#       -f compose.updater.loopback.yaml up -d
+#
+# The updater still stays out of host networking and keeps docker.sock isolated
+# to its own container. Its HTTP surface is published only on host loopback.
+
+services:
+  mem:
+    environment:
+      NOWLEDGE_UPDATER_URL: http://127.0.0.1:${NOWLEDGE_UPDATER_LOOPBACK_PORT:-18080}
+
+  updater:
+    ports:
+      - "127.0.0.1:${NOWLEDGE_UPDATER_LOOPBACK_PORT:-18080}:8080"
