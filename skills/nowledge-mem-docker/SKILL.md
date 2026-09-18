@@ -134,6 +134,8 @@ How to guide the operator through enabling it (only after they ask for it, and a
 **Trust trade-off worth saying out loud:** auto-update adds a small sidecar container that holds `/var/run/docker.sock`. Docker socket access is host-root-equivalent for that container. The Mem container itself does NOT mount the socket; only the sidecar does. Per-deploy random token in `.env` (mode 0600). The sidecar is not exposed beyond the compose-internal network.
 `enable` also sets `NOWLEDGE_ADMIN_REMOTE_OPS=1`, because browser-triggered install is a server-side state change and must be an explicit operator opt-in.
 
+**Host-networked Mem note.** If the operator runs the `mem` service with `network_mode: host`, Docker DNS name `updater` will not resolve from the Mem process. Do not put the updater sidecar in host networking and do not bind it to `0.0.0.0`; it mounts docker.sock. Keep the sidecar on the Compose network and add `compose.updater.loopback.yaml` after `compose.updater.yaml`, which publishes the updater only on `127.0.0.1:${NOWLEDGE_UPDATER_LOOPBACK_PORT:-18080}` and rewrites `NOWLEDGE_UPDATER_URL` to that loopback URL. Preserve the host-network and loopback overlays in `.nmemctl-state` if `nmemctl` manages the deploy.
+
 Before recommending `enable`, hand the operator that trade-off in one short sentence and let them decide.
 
 **How the flow looks once enabled:**

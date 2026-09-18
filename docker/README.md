@@ -548,6 +548,49 @@ entrypoint), and only accepts requests bearing the per-deploy token.
 The mem container itself does **not** mount docker.sock; only the
 sidecar does.
 
+#### Host-networked Mem deployments
+
+The default updater URL, `http://updater:8080`, intentionally uses Docker DNS
+inside the Compose network. If you run the `mem` service with
+`network_mode: host` — for example because the server must reach a host-local
+inference endpoint — that DNS name is not available from the Mem process.
+
+Do **not** fix that by putting the updater sidecar in host networking or by
+publishing it on `0.0.0.0`. The updater mounts `/var/run/docker.sock`, so its
+HTTP listener must not be reachable from the LAN or internet. Keep the updater
+on the Compose network and publish it only to host loopback:
+
+```yaml
+# compose.host-network.local.yaml
+services:
+  mem:
+    network_mode: host
+    ports: !reset []
+```
+
+```bash
+NOWLEDGE_COMPOSE_PROJECT_DIR="$PWD" \
+  docker compose -f compose.yaml \
+    -f compose.host-network.local.yaml \
+    -f compose.updater.yaml \
+    -f compose.updater.loopback.yaml up -d
+```
+
+`compose.updater.loopback.yaml` rewrites the Mem backend's updater URL to
+`http://127.0.0.1:${NOWLEDGE_UPDATER_LOOPBACK_PORT:-18080}` and publishes the
+sidecar as `127.0.0.1:${NOWLEDGE_UPDATER_LOOPBACK_PORT:-18080}:8080`. If that
+host port conflicts with another local service, set
+`NOWLEDGE_UPDATER_LOOPBACK_PORT` to another loopback-only port and reuse the
+same value for every Compose invocation.
+
+If you also use `nmemctl`'s persisted overlay state, keep all required overlays
+in `.nmemctl-state` so future `./nmemctl up`, `restart`, and auto-update
+commands do not silently drop the host-network or loopback binding:
+
+```text
+NMEM_STATE_OVERLAYS="-f compose.host-network.local.yaml -f compose.updater.yaml -f compose.updater.loopback.yaml"
+```
+
 Pair this with the new `/admin/upgrade/*` endpoints on the Mem backend:
 
 | Endpoint | Behavior |
