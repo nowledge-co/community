@@ -97,13 +97,19 @@ type SyncReason = "manual_tool" | "session_status_idle" | "session_idle" | "sess
 type SessionSyncState = {
   timer?: ReturnType<typeof setTimeout>
   inFlight?: Promise<void>
-  pending?: boolean
+  pending?: {
+    reason: SyncReason
+    directory: string
+  }
   created?: boolean
   acknowledged?: AcknowledgedCursor
 }
 
 type V2EventLike = {
   type?: string
+  location?: {
+    directory?: unknown
+  }
   data?: {
     sessionID?: unknown
     sessionId?: unknown
@@ -507,24 +513,32 @@ export default Plugin.define({
       }
     }
 
-    function scheduleAutoThreadSync(sessionID: string, reason: SyncReason): void {
+    function scheduleAutoThreadSync(
+      sessionID: string,
+      reason: SyncReason,
+      sessionDirectory = directory,
+    ): void {
       if (!autoSyncEnabled) return
       const state = syncStateFor(sessionID)
       if (state.timer) clearTimeout(state.timer)
       state.timer = setTimeout(() => {
         state.timer = undefined
-        void runAutoThreadSync(sessionID, reason)
+        void runAutoThreadSync(sessionID, reason, sessionDirectory)
       }, autoSyncDebounceMs)
     }
 
-    async function runAutoThreadSync(sessionID: string, reason: SyncReason): Promise<void> {
+    async function runAutoThreadSync(
+      sessionID: string,
+      reason: SyncReason,
+      sessionDirectory: string,
+    ): Promise<void> {
       const state = syncStateFor(sessionID)
       if (state.inFlight) {
-        state.pending = true
+        state.pending = { reason, directory: sessionDirectory }
         return
       }
       state.inFlight = syncSessionThread(
-        { sessionID, directory },
+        { sessionID, directory: sessionDirectory },
         { reason, force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS },
       )
         .then((result) => {
@@ -537,9 +551,10 @@ export default Plugin.define({
         })
         .finally(() => {
           state.inFlight = undefined
-          if (state.pending) {
-            state.pending = false
-            scheduleAutoThreadSync(sessionID, reason)
+          const pending = state.pending
+          if (pending) {
+            state.pending = undefined
+            scheduleAutoThreadSync(sessionID, pending.reason, pending.directory)
           }
         })
       await state.inFlight
@@ -549,6 +564,11 @@ export default Plugin.define({
       const data = event?.data ?? {}
       const sessionID = data.sessionID ?? data.sessionId ?? data.session?.id
       return typeof sessionID === "string" && sessionID ? sessionID : undefined
+    }
+
+    function directoryFromEvent(event: V2EventLike): string {
+      const eventDirectory = event.location?.directory
+      return typeof eventDirectory === "string" && eventDirectory ? eventDirectory : directory
     }
 
     // --- v2 tool registration (replaces the v1 returned tool map) ---
@@ -818,12 +838,6 @@ export default Plugin.define({
           console.warn("[nowledge-mem] pre-compaction OpenCode thread sync failed:", err?.message ?? err)
         })
       }
-      const reminder = [
-        "IMPORTANT: You have Nowledge Mem tools (nowledge_mem_*) for cross-tool knowledge.",
-        "After compaction, call nowledge_mem_context_bundle when identity, scope, or rules matter; use nowledge_mem_working_memory as the lightweight fallback.",
-        "Continue searching and saving proactively.",
-      ].join("\n")
-      event.system.push({ type: "text", text: reminder })
     })
 
     // --- v2 event subscription (replaces the v1 returned event hook) ---
@@ -835,14 +849,15 @@ export default Plugin.define({
           const event = rawEvent as V2EventLike
           const sessionID = sessionIdFromEvent(event)
           if (!sessionID) continue
+          const sessionDirectory = directoryFromEvent(event)
           if (event.type === "session.status") {
             if (event.data?.status?.type === "idle") {
-              scheduleAutoThreadSync(sessionID, "session_status_idle")
+              scheduleAutoThreadSync(sessionID, "session_status_idle", sessionDirectory)
             }
             continue
           }
           if (event.type === "session.idle") {
-            scheduleAutoThreadSync(sessionID, "session_idle")
+            scheduleAutoThreadSync(sessionID, "session_idle", sessionDirectory)
           }
         }
       } catch (err: any) {

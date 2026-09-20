@@ -1796,7 +1796,8 @@ def test_opencode_plugin_static_contract_is_self_contained():
     assert 'event.type === "session.status"' in source
     assert 'event.data?.status?.type === "idle"' in source
     assert 'event.type === "session.idle"' in source
-    assert 'event.system.push({ type: "text", text: reminder })' in source
+    assert 'event.system.push({ type: "text", text: BEHAVIORAL_GUIDANCE })' in source
+    assert "directoryFromEvent(event)" in source
 
     assert '"plugins": ["opencode-nowledge-mem"]' in readme
     assert '"plugin": ["opencode-nowledge-mem@0.3.10"]' in readme

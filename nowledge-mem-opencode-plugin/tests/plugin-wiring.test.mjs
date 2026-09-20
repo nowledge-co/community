@@ -80,7 +80,7 @@ test("registers every Nowledge Mem tool through the v2 tool transform", async ()
   await cleanup()
 })
 
-test("registers the context and compaction hooks and injects guidance", async () => {
+test("registers context guidance and keeps compaction focused on flushing", async () => {
   const { ctx, hooks } = createFakeContext()
 
   await plugin.setup(ctx)
@@ -92,7 +92,7 @@ test("registers the context and compaction hooks and injects guidance", async ()
 
   const compactionEvent = { sessionID: "session-1", system: [] }
   await hooks.get("compaction")(compactionEvent)
-  assert.match(compactionEvent.system[0].text, /After compaction/)
+  assert.deepEqual(compactionEvent.system, [])
 })
 
 test("schedules capture only for idle events on the v2 event stream", async () => {
@@ -119,6 +119,62 @@ test("schedules capture only for idle events on the v2 event stream", async () =
   assert.ok(observed.includes("session-idle"), `missing session.idle capture: ${observed}`)
   assert.ok(observed.includes("session-status-idle"), `missing session.status idle capture: ${observed}`)
   assert.ok(!observed.includes("session-busy"), `busy status should not capture: ${observed}`)
+})
+
+test("attributes idle capture to the event location instead of the plugin load location", async () => {
+  const requests = []
+  const server = http.createServer((request, response) => {
+    let body = ""
+    request.on("data", (chunk) => {
+      body += chunk
+    })
+    request.on("end", () => {
+      requests.push({ url: request.url, body: JSON.parse(body || "{}") })
+      response.setHeader("Content-Type", "application/json")
+      response.end(JSON.stringify({ thread: { thread_id: "opencode-session-worktree", message_count: 2 } }))
+    })
+  })
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
+
+  try {
+    await withEnv(
+      {
+        NMEM_API_URL: `http://127.0.0.1:${server.address().port}`,
+        NMEM_OPENCODE_AUTO_SYNC_DEBOUNCE_MS: "250",
+      },
+      async () => {
+        const { ctx } = createFakeContext({
+          events: [
+            {
+              type: "session.idle",
+              location: { directory: "/tmp/nowledge-worktree" },
+              data: { sessionID: "session-worktree" },
+            },
+          ],
+          sessionContext: async () => [
+            { type: "user", id: "u1", time: { created: 1 }, text: "hello" },
+            {
+              type: "assistant",
+              id: "a1",
+              time: { created: 2 },
+              agent: "build",
+              model: { id: "gpt-5" },
+              content: [{ type: "text", text: "hi" }],
+            },
+          ],
+        })
+        const cleanup = await plugin.setup(ctx)
+        await new Promise((resolve) => setTimeout(resolve, 450))
+        await cleanup()
+      },
+    )
+
+    const createRequest = requests.find((request) => request.url === "/threads")
+    assert.equal(createRequest.body.project, "/tmp/nowledge-worktree")
+    assert.equal(createRequest.body.workspace, "/tmp/nowledge-worktree")
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+  }
 })
 
 test("save_thread reads ctx.session.context and returns a content payload", async () => {

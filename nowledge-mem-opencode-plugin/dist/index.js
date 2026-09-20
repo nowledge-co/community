@@ -576,23 +576,23 @@ var index_default = Plugin.define({
         sync_reason: options.reason
       };
     }
-    function scheduleAutoThreadSync(sessionID, reason) {
+    function scheduleAutoThreadSync(sessionID, reason, sessionDirectory = directory) {
       if (!autoSyncEnabled) return;
       const state = syncStateFor(sessionID);
       if (state.timer) clearTimeout(state.timer);
       state.timer = setTimeout(() => {
         state.timer = void 0;
-        void runAutoThreadSync(sessionID, reason);
+        void runAutoThreadSync(sessionID, reason, sessionDirectory);
       }, autoSyncDebounceMs);
     }
-    async function runAutoThreadSync(sessionID, reason) {
+    async function runAutoThreadSync(sessionID, reason, sessionDirectory) {
       const state = syncStateFor(sessionID);
       if (state.inFlight) {
-        state.pending = true;
+        state.pending = { reason, directory: sessionDirectory };
         return;
       }
       state.inFlight = syncSessionThread(
-        { sessionID, directory },
+        { sessionID, directory: sessionDirectory },
         { reason, force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS }
       ).then((result) => {
         if ("error" in result) {
@@ -602,9 +602,10 @@ var index_default = Plugin.define({
         console.warn("[nowledge-mem] automatic OpenCode thread sync failed:", err?.message ?? err);
       }).finally(() => {
         state.inFlight = void 0;
-        if (state.pending) {
-          state.pending = false;
-          scheduleAutoThreadSync(sessionID, reason);
+        const pending = state.pending;
+        if (pending) {
+          state.pending = void 0;
+          scheduleAutoThreadSync(sessionID, pending.reason, pending.directory);
         }
       });
       await state.inFlight;
@@ -613,6 +614,10 @@ var index_default = Plugin.define({
       const data = event?.data ?? {};
       const sessionID = data.sessionID ?? data.sessionId ?? data.session?.id;
       return typeof sessionID === "string" && sessionID ? sessionID : void 0;
+    }
+    function directoryFromEvent(event) {
+      const eventDirectory = event.location?.directory;
+      return typeof eventDirectory === "string" && eventDirectory ? eventDirectory : directory;
     }
     await ctx.tool.transform((editor) => {
       editor.add({
@@ -855,12 +860,6 @@ var index_default = Plugin.define({
           console.warn("[nowledge-mem] pre-compaction OpenCode thread sync failed:", err?.message ?? err);
         });
       }
-      const reminder = [
-        "IMPORTANT: You have Nowledge Mem tools (nowledge_mem_*) for cross-tool knowledge.",
-        "After compaction, call nowledge_mem_context_bundle when identity, scope, or rules matter; use nowledge_mem_working_memory as the lightweight fallback.",
-        "Continue searching and saving proactively."
-      ].join("\n");
-      event.system.push({ type: "text", text: reminder });
     });
     const controller = new AbortController();
     void (async () => {
@@ -869,14 +868,15 @@ var index_default = Plugin.define({
           const event = rawEvent;
           const sessionID = sessionIdFromEvent(event);
           if (!sessionID) continue;
+          const sessionDirectory = directoryFromEvent(event);
           if (event.type === "session.status") {
             if (event.data?.status?.type === "idle") {
-              scheduleAutoThreadSync(sessionID, "session_status_idle");
+              scheduleAutoThreadSync(sessionID, "session_status_idle", sessionDirectory);
             }
             continue;
           }
           if (event.type === "session.idle") {
-            scheduleAutoThreadSync(sessionID, "session_idle");
+            scheduleAutoThreadSync(sessionID, "session_idle", sessionDirectory);
           }
         }
       } catch (err) {
