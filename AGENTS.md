@@ -6,6 +6,28 @@
 
 **When adding or modifying any integration, update `integrations.json` first.** Other surfaces (website `integrations.ts`, desktop app integrations view, README tables, marketplace JSONs) derive from or validate against this file.
 
+## Integration Release Contract
+
+`integrations.json` is the canonical registry for every Nowledge Mem
+integration. A plugin version bump is incomplete until all version-bearing
+surfaces agree.
+
+When changing an integration's version:
+
+1. Update the package manifest, such as `plugin.yaml`, `plugin.json`,
+   `package.json`, or the host-specific equivalent.
+2. Update the matching integration's `version` in `integrations.json` in the
+   same pull request.
+3. Update changelogs, documentation, lockfiles, and tests that intentionally
+   pin the released version.
+4. Run the integration's focused test suite and the relevant registry or
+   plugin contract tests.
+
+Before approving or merging an integration release, search the repository for
+the previous version and account for every remaining occurrence. Historical
+changelog entries may remain unchanged; active manifests, registry entries,
+install metadata, and release assertions must not disagree.
+
 ## Universal Install Contract — SKILL.md
 
 `https://mem.nowledge.co/SKILL.md` is the **one URL** an AI agent can fetch before installing Nowledge Mem for a supported host. Source lives at <https://github.com/nowledge-co/nowledge-labs-website/blob/main/nowledge-mem/public/SKILL.md>. The design doc is <https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md>.
