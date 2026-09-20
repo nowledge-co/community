@@ -248,6 +248,7 @@ class NowledgeMemProvider(MemoryProvider):
         self._delta_only_sessions: Set[str] = set()
         self._written_message_signatures: Dict[str, List[str]] = {}
         self._pending_message_batches: Dict[str, List[Dict[str, Any]]] = {}
+        self._delta_parent_signatures: Dict[str, List[str]] = {}
         self._reported_skill_outcomes: Set[tuple[str, str]] = set()
         self._agent_identity = ""
 
@@ -407,6 +408,20 @@ class NowledgeMemProvider(MemoryProvider):
                 {"role": "assistant", "content": assistant_content},
             ]
         )
+        if (
+            messages
+            and cleaned_messages
+            and active_session_id in self._delta_only_sessions
+            and not self._get_saved_message_count(active_session_id)
+            and not self._pending_message_batches.get(active_session_id)
+            and active_session_id not in self._delta_parent_signatures
+        ):
+            history = self._clean_session_messages(messages)
+            signatures = [self._message_signature(message) for message in history]
+            turn = [self._message_signature(message) for message in cleaned_messages]
+            if signatures[-len(turn) :] == turn:
+                # Only the first observed turn establishes the branch boundary.
+                self._delta_parent_signatures[active_session_id] = signatures[: -len(turn)]
         self._write_thread_messages(cleaned_messages, title_messages=cleaned_messages)
         if messages:
             self._report_skill_outcomes(messages)
@@ -433,6 +448,7 @@ class NowledgeMemProvider(MemoryProvider):
             self._delta_only_sessions.discard(session_id)
             self._written_message_signatures.pop(session_id, None)
             self._pending_message_batches.pop(session_id, None)
+            self._delta_parent_signatures.pop(session_id, None)
         elif session_id in self._saved_message_counts:
             count = self._get_saved_message_count(session_id)
         elif session_id == previous_session_id:
@@ -528,11 +544,25 @@ class NowledgeMemProvider(MemoryProvider):
     ) -> List[Dict[str, Any]]:
         pending = list(self._pending_message_batches.get(session_id) or [])
         written = list(self._written_message_signatures.get(session_id) or [])
+        parent = self._delta_parent_signatures.get(session_id)
+        if parent is not None:
+            prefix = [self._message_signature(message) for message in messages[: len(parent)]]
+            if prefix != parent:
+                # Compaction or a different snapshot cannot establish this boundary.
+                return []
+            messages = messages[len(parent) :]
+            if not written:
+                return messages
         if not written:
             if not pending:
                 return []
             pending_start = self._find_message_sequence(messages, pending)
             if pending_start < 0:
+                logger.warning(
+                    "Nowledge Mem retained pending messages for %s: "
+                    "transcript alignment is missing or ambiguous",
+                    session_id,
+                )
                 return []
             return messages[pending_start:]
 
@@ -581,6 +611,9 @@ class NowledgeMemProvider(MemoryProvider):
         limit = len(signatures) - len(needle_signatures) + 1
         for start in range(limit):
             if signatures[start : start + len(needle_signatures)] == needle_signatures:
+                if match_start >= 0:
+                    # Content alone cannot distinguish parent text from branch text.
+                    return -1
                 match_start = start
         return match_start
 
@@ -601,16 +634,11 @@ class NowledgeMemProvider(MemoryProvider):
         first_signatures = [self._message_signature(message) for message in first]
         second_signatures = [self._message_signature(message) for message in second]
 
-        if len(second_signatures) >= len(first_signatures):
-            match_start = -1
-            for start in range(len(second_signatures) - len(first_signatures) + 1):
-                if (
-                    second_signatures[start : start + len(first_signatures)]
-                    == first_signatures
-                ):
-                    match_start = start
-            if match_start >= 0:
-                return self._copy_messages(second[match_start:])
+        for start in range(len(second_signatures) - len(first_signatures) + 1):
+            if second_signatures[start : start + len(first_signatures)] == first_signatures:
+                # Both inputs are session-scoped. Keep the entire newer snapshot,
+                # including content before or between repeated pending sequences.
+                return self._copy_messages(second)
 
         max_overlap = min(len(first_signatures), len(second_signatures))
         for overlap in range(max_overlap, 0, -1):

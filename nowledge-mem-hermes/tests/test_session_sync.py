@@ -6,6 +6,8 @@ import types
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 
 def _load_provider_module():
     plugin_dir = Path(__file__).resolve().parents[1]
@@ -976,3 +978,117 @@ def test_on_session_end_failed_append_does_not_advance_count():
 
     assert instance._saved_message_count == 2
     assert instance._client.append_calls == []
+
+
+@pytest.mark.parametrize("append", [False, True])
+def test_retry_snapshot_preserves_repeated_pending_sequence_and_middle_messages(append):
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._session_id = "repeated-snapshot"
+    pending = [{"role": "user", "content": "A"}, {"role": "assistant", "content": "B"}]
+    history = [
+        *pending,
+        {"role": "user", "content": "C"},
+        *pending,
+        {"role": "assistant", "content": "D"},
+    ]
+    prefix = [{"role": "user", "content": "acknowledged"}] if append else []
+    if append:
+        instance.on_session_end(prefix)
+    instance._client.fail_import = True
+    instance._client.fail_append = True
+    instance.on_session_end([*prefix, *pending])
+    instance._client.fail_import = False
+    instance._client.fail_append = False
+    instance.on_session_end([*prefix, *history])
+    calls = instance._client.append_calls if append else instance._client.import_calls
+    assert calls[-1]["messages"] == history
+    assert instance._saved_message_count == len(prefix) + len(history)
+    instance.on_session_end([*prefix, *history])
+    assert len(calls) == 1
+
+
+def test_delta_recovery_uses_observed_boundary_with_repeated_parent_and_branch_text():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._session_id = "parent"
+    turn = [{"role": "user", "content": "A"}, {"role": "assistant", "content": "B"}]
+    parent = [*turn, {"role": "user", "content": "parent only"}]
+    branch = [
+        *turn,
+        {"role": "user", "content": "C"},
+        *turn,
+        {"role": "assistant", "content": "D"},
+    ]
+    instance.on_session_switch("branch", reset=False)
+    instance._client.fail_import = True
+    instance.sync_turn("A", "B", messages=[*parent, *turn])
+    instance._client.fail_import = False
+    instance.on_session_end([*parent, *branch])
+    assert instance._client.import_calls[-1]["messages"] == branch
+    assert instance._saved_message_count == len(branch)
+    instance.on_session_end([*parent, *branch])
+    assert instance._client.append_calls == []
+
+
+def test_ambiguous_delta_recovery_retains_pending_until_unique_alignment():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._session_id = "parent"
+    instance.on_session_switch("branch", reset=False)
+    turn = [{"role": "user", "content": "A"}, {"role": "assistant", "content": "B"}]
+    history = [*turn, {"role": "user", "content": "parent only"}, *turn]
+    instance._client.fail_import = True
+    instance.sync_turn("A", "B")
+    instance.on_session_end(history)
+    assert instance._pending_message_batches["branch"] == turn
+    assert instance._saved_message_count == 0
+    instance._client.fail_import = False
+    instance.on_session_end(history)
+    assert instance._client.import_calls == []
+    assert instance._pending_message_batches["branch"] == turn
+    instance._client.fail_import = True
+    instance.sync_turn("C", "D")
+    instance._client.fail_import = False
+    tail = [{"role": "user", "content": "C"}, {"role": "assistant", "content": "D"}]
+    instance.on_session_end([*history, *tail])
+    assert instance._client.import_calls[-1]["messages"] == [*turn, *tail]
+    assert instance._saved_message_count == 4
+
+
+def test_merge_retains_session_scoped_prefix_before_pending_sequence():
+    instance = provider.NowledgeMemProvider()
+    pending = [{"role": "user", "content": "A"}, {"role": "assistant", "content": "B"}]
+    history = [{"role": "user", "content": "earlier"}, *pending]
+    assert instance._merge_message_sequences(pending, history) == history
+
+
+def test_observed_branch_boundary_rejects_changed_prefix_and_clears_on_reset():
+    instance = provider.NowledgeMemProvider()
+    instance._client = FakeClient()
+    instance._session_id = "parent"
+    instance.on_session_switch("branch", reset=False)
+    turn = [{"role": "user", "content": "A"}, {"role": "assistant", "content": "B"}]
+    parent = [{"role": "user", "content": "parent only"}]
+    instance._client.fail_import = True
+    instance.sync_turn("A", "B", messages=[*parent, *turn])
+    instance._client.fail_import = False
+    instance.on_session_end([{"role": "user", "content": "changed parent"}, *turn])
+    assert instance._client.import_calls == []
+    assert instance._pending_message_batches["branch"] == turn
+    assert instance._saved_message_count == 0
+    instance.on_session_switch("other", reset=False)
+    instance._client.fail_import = True
+    instance.sync_turn("other question", "other answer")
+    instance._client.fail_import = False
+    other = [
+        {"role": "user", "content": "other question"},
+        {"role": "assistant", "content": "other answer"},
+    ]
+    instance.on_session_end(other)
+    assert instance._client.import_calls[-1]["messages"] == other
+    instance.on_session_switch("branch", reset=True)
+    assert "branch" not in instance._delta_parent_signatures
+    assert "branch" not in instance._pending_message_batches
+    instance.on_session_end(turn)
+    assert instance._client.import_calls[-1]["messages"] == turn
