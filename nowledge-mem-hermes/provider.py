@@ -881,6 +881,8 @@ class NowledgeMemProvider(MemoryProvider):
         self._saved_message_counts.clear()
         self._delta_only_sessions.clear()
         self._written_message_signatures.clear()
+        self._pending_message_batches.clear()
+        self._delta_parent_signatures.clear()
         self._reported_skill_outcomes.clear()
 
     @staticmethod

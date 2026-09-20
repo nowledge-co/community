@@ -1092,3 +1092,26 @@ def test_observed_branch_boundary_rejects_changed_prefix_and_clears_on_reset():
     assert "branch" not in instance._pending_message_batches
     instance.on_session_end(turn)
     assert instance._client.import_calls[-1]["messages"] == turn
+
+
+def test_shutdown_clears_all_session_recovery_state():
+    instance = provider.NowledgeMemProvider()
+    instance._session_id = "branch"
+    instance._saved_message_count = 2
+    instance._saved_message_counts["branch"] = 2
+    instance._delta_only_sessions.add("branch")
+    instance._written_message_signatures["branch"] = ["user\0written"]
+    instance._pending_message_batches["branch"] = [
+        {"role": "user", "content": "pending"}
+    ]
+    instance._delta_parent_signatures["branch"] = ["user\0parent"]
+
+    instance.shutdown()
+
+    assert instance._session_id == ""
+    assert instance._saved_message_count == 0
+    assert instance._saved_message_counts == {}
+    assert instance._delta_only_sessions == set()
+    assert instance._written_message_signatures == {}
+    assert instance._pending_message_batches == {}
+    assert instance._delta_parent_signatures == {}
