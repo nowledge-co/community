@@ -528,18 +528,21 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.3.10"
+    assert opencode_pkg["version"] == "0.4.0"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
+    assert 'from "@opencode/plugin"' in opencode_source
+    assert "Plugin.define" in opencode_source
+    assert "ctx.tool.transform" in opencode_source
     assert "fetchSessionMessages" in opencode_source
-    assert "path: { id: ctx.sessionID }" in opencode_source
+    assert "ctx.session.context({ sessionID }" in opencode_source
     assert "nowledge_mem_context_bundle" in opencode_source
     assert 'nmem(withExplicitSpaceArg(["context", "--source-app", "opencode"], args))' in opencode_source
     assert '"--source", "opencode"' in opencode_source
     assert "withAmbientSpaceArg(args)" in opencode_source
     assert "withExplicitSpaceArg" in opencode_source
-    assert "spaceToolArgs" in opencode_source
+    assert "spaceToolProperties" in opencode_source
     assert '!next.includes("--space-id")' in opencode_source
     assert "ambientAgentId" in opencode_source
     assert "ambientHostAgentId" in opencode_source
@@ -547,12 +550,14 @@ def test_key_plugin_static_contracts_are_declared():
     assert "NMEM_HOST_AGENT_ID" in opencode_source
     assert '["context", "ctx", "wm", "m", "memories", "t", "threads"]' in opencode_source
     assert "nowledge_mem_save_thread" in opencode_source
-    assert "event: async ({ event })" in opencode_source
+    assert 'ctx.session.hook("context"' in opencode_source
+    assert 'ctx.session.hook("compaction"' in opencode_source
+    assert "ctx.event.subscribe" in opencode_source
     assert 'event.type === "session.status"' in opencode_source
-    assert 'statusType === "idle"' in opencode_source
+    assert 'event.data?.status?.type === "idle"' in opencode_source
     assert 'event.type === "session.idle"' in opencode_source
     assert "syncSessionThread" in opencode_source
-    assert "idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}" in opencode_source
+    assert "idempotency_key: `opencode:live:${session.sessionID}:${delta.start}-${delta.end}" in opencode_source
 
     copilot_manifest = _read_json(COPILOT_PLUGIN / ".claude-plugin" / "plugin.json")
     copilot_hooks = _read_json(COPILOT_PLUGIN / "hooks" / "hooks.json")
@@ -1494,7 +1499,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["droid"]["version"] == "0.1.1"
     assert by_id["openclaw"]["version"] == "0.8.34"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.3.10"
+    assert by_id["opencode"]["version"] == "0.4.0"
     assert by_id["pi"]["version"] == "0.8.8"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
@@ -1754,7 +1759,7 @@ def test_opencode_plugin_static_contract_is_self_contained():
     assert pkg["name"] == "opencode-nowledge-mem"
     assert pkg["type"] == "module"
     assert pkg["main"] == "dist/index.js"
-    assert "@opencode-ai/plugin" in pkg["peerDependencies"]
+    assert "@opencode/plugin" in pkg["dependencies"]
     assert opencode_registry["directory"] == "nowledge-mem-opencode-plugin"
     assert opencode_registry["version"] == pkg["version"]
     assert opencode_registry["transport"] == "cli+http"
@@ -1762,39 +1767,40 @@ def test_opencode_plugin_static_contract_is_self_contained():
     assert opencode_registry["autonomy"]["threads"] == "automatic-capture"
     assert opencode_registry["toolNaming"]["tools"] == expected_tools
 
-    assert "import type { PluginModule } from \"@opencode-ai/plugin\"" in source
-    assert "import { tool } from \"@opencode-ai/plugin\"" in source
-    assert "export default {" in source
-    assert "id: \"nowledge-mem\"" in source
-    assert "server: async (input) =>" in source
-    assert "} satisfies PluginModule" in source
+    assert 'from "@opencode/plugin"' in source
+    assert "Plugin.define" in source
+    assert 'id: "nowledge-mem"' in source
+    assert "async setup(ctx)" in source
+    assert "ctx.tool.transform((editor)" in source
+    assert "ctx.event.subscribe" in source
+    assert "return () => {" in source
 
     for tool_name in expected_tools:
-        assert f"{tool_name}: tool(" in source
+        assert f'name: "{tool_name}"' in source
         assert f"`{tool_name}`" in readme or f"| `{tool_name}` |" in readme
 
     assert 'nmem(withExplicitSpaceArg(["context", "--source-app", "opencode"], args))' in source
     assert '"--source", "opencode"' in source
     assert "withAmbientSpaceArg(args)" in source
     assert "withExplicitSpaceArg" in source
-    assert "spaceToolArgs" in source
+    assert "spaceToolProperties" in source
     assert '!next.includes("--space-id")' in source
-    assert 'space_id: tool.schema' in source
     assert "NMEM_AGENT_ID" in source
     assert "NMEM_HOST_AGENT_ID" in source
     assert "fetchSessionMessages" in source
-    assert "path: { id: ctx.sessionID }" in source
+    assert "ctx.session.context({ sessionID }" in source
     assert "syncSessionThread" in source
-    assert "idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}" in source
-    assert "event: async ({ event })" in source
+    assert "idempotency_key: `opencode:live:${session.sessionID}:${delta.start}-${delta.end}" in source
+    assert 'ctx.session.hook("context"' in source
+    assert 'ctx.session.hook("compaction"' in source
     assert 'event.type === "session.status"' in source
-    assert 'statusType === "idle"' in source
+    assert 'event.data?.status?.type === "idle"' in source
     assert 'event.type === "session.idle"' in source
-    assert '"experimental.session.compacting": async (input, output)' in source
-    assert "output.context.push(reminder)" in source
-    assert "output.prompt" not in source
+    assert 'event.system.push({ type: "text", text: BEHAVIORAL_GUIDANCE })' in source
+    assert "directoryFromEvent(event)" in source
 
-    assert '"plugin": ["opencode-nowledge-mem"]' in readme
+    assert '"plugins": ["opencode-nowledge-mem"]' in readme
+    assert '"plugin": ["opencode-nowledge-mem@0.3.10"]' in readme
     assert "nmem t sync --from opencode --all-projects --apply" in readme
     assert "OpenCode integration guide" in readme
     assert "Explicit tool arguments override" in readme
@@ -1814,7 +1820,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.3.10"
+    assert pkg["version"] == "0.4.0"
     assert opencode_registry["version"] == pkg["version"]
     assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source
@@ -2944,18 +2950,18 @@ def test_opencode_live_tool_thread_capture(e2e_context: E2EContext, tmp_path: Pa
         plugin_copy,
         ignore=shutil.ignore_patterns(".git", "node_modules", "coverage", "dist", "*.log"),
     )
-    plugin_dependency = Path.home() / ".config" / "opencode" / "node_modules" / "@opencode-ai" / "plugin"
+    plugin_dependency = Path.home() / ".config" / "opencode" / "node_modules" / "@opencode" / "plugin"
     if not plugin_dependency.exists():
         raise AssertionError(
-            "OpenCode local plugin smoke requires @opencode-ai/plugin in ~/.config/opencode/node_modules. "
-            "Run any OpenCode command once or install the plugin dependency before using a checkout path."
+            "OpenCode 2.x local plugin smoke requires @opencode/plugin in ~/.config/opencode/node_modules. "
+            "Run any OpenCode 2.x command once or install the plugin dependency before using a checkout path."
         )
-    dependency_target = plugin_copy / "node_modules" / "@opencode-ai"
+    dependency_target = plugin_copy / "node_modules" / "@opencode"
     dependency_target.mkdir(parents=True)
     (dependency_target / "plugin").symlink_to(plugin_dependency)
 
     env = e2e_context.env.copy()
-    env["OPENCODE_CONFIG_CONTENT"] = json.dumps({"plugin": [str(plugin_copy)]})
+    env["OPENCODE_CONFIG_CONTENT"] = json.dumps({"plugins": [str(plugin_copy)]})
     model = os.environ.get("NMEM_E2E_OPENCODE_MODEL", "opencode/mimo-v2.5-free")
     prompt = (
         f"Nowledge Mem OpenCode integration test marker {e2e_context.marker}. "
