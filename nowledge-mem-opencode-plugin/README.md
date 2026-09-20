@@ -16,7 +16,7 @@ Nowledge Mem gives OpenCode access to knowledge from all your other AI tools: in
 
 1. **Nowledge Mem desktop app** running (or the server accessible on port 14242)
 2. **`nmem` CLI** on your PATH. In Nowledge Mem go to **Settings > Developer Tools > Install CLI**, use `pip install nmem-cli`, or on Arch Linux use `yay -S nmem-cli` / `paru -S nmem-cli`
-3. **OpenCode** installed
+3. **OpenCode 2.x** installed. This release targets the OpenCode v2 plugin API.
 
 ```bash
 nmem status        # Nowledge Mem is running
@@ -29,7 +29,7 @@ Add the plugin to your OpenCode config:
 
 ```json title="opencode.json"
 {
-  "plugin": ["opencode-nowledge-mem"]
+  "plugins": ["opencode-nowledge-mem"]
 }
 ```
 
@@ -37,11 +37,22 @@ Or install globally:
 
 ```json title="~/.config/opencode/opencode.json"
 {
-  "plugin": ["opencode-nowledge-mem"]
+  "plugins": ["opencode-nowledge-mem"]
 }
 ```
 
 Restart OpenCode to load the plugin.
+
+### OpenCode 1.x
+
+Version `0.4.0` and newer require OpenCode 2.x. On OpenCode 1.x, pin the last
+v1-compatible release with the v1 `plugin` key:
+
+```json title="opencode.json"
+{
+  "plugin": ["opencode-nowledge-mem@0.3.10"]
+}
+```
 
 ## Verify
 
@@ -57,7 +68,7 @@ The plugin follows OpenCode's standard plugin update mechanism. To pin a specifi
 
 ```json
 {
-  "plugin": ["opencode-nowledge-mem@0.3.10"]
+  "plugins": ["opencode-nowledge-mem@0.4.0"]
 }
 ```
 
@@ -109,11 +120,11 @@ Use `-p /path/to/project` instead of `--all-projects` when you only want one pro
 
 ## Hooks
 
-The plugin uses three OpenCode hooks:
+The plugin uses three OpenCode v2 extension points:
 
-- **System prompt injection** (`experimental.chat.system.transform`): teaches the agent when to read Context Bundle, use Working Memory fallback, search proactively, and save autonomously. Active on every turn.
-- **Session event capture** (`event`): listens for `session.status=idle` and legacy `session.idle`, debounces briefly, then saves the current session as a Mem thread with stable dedupe metadata.
-- **Compaction resilience** (`experimental.session.compacting`): flushes the current transcript before compaction and injects a reminder to restore Nowledge Mem context after long sessions trigger context compaction. Ensures the agent doesn't lose awareness of your knowledge tools.
+- **System prompt injection** (`session.hook("context")`): teaches the agent when to read Context Bundle, use Working Memory fallback, search proactively, and save autonomously. Active on every agent-loop request.
+- **Session event capture** (`event.subscribe()`): listens for `session.status=idle` and legacy `session.idle` on the v2 event stream, debounces briefly, then saves the current session as a Mem thread with stable dedupe metadata.
+- **Compaction resilience** (`session.hook("compaction")`): flushes the current transcript before compaction and injects a reminder to restore Nowledge Mem context after long sessions trigger context compaction. Ensures the agent doesn't lose awareness of your knowledge tools.
 
 For project-specific behavioral guidance, add to your `AGENTS.md` or OpenCode instructions. The included `AGENTS.md` in this package serves as a reference.
 
@@ -197,7 +208,7 @@ to see its full capabilities.
 - **nmem not found.** Install with `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`, then run `nmem status` to verify.
 - **Server not responding.** Start the Nowledge Mem desktop app, or check `nmem status` for diagnostics.
 - **Slow automatic thread sync.** Thread writes allow 120 seconds by default. If a remote or heavily loaded Mem server needs a different budget, set `NMEM_SYNC_TIMEOUT_MS` before starting OpenCode. A timeout is not retried immediately because the server may still have completed the write; a later lifecycle sync safely reconciles the transcript through stable message IDs.
-- **Plugin not loading.** Confirm `"opencode-nowledge-mem"` appears in your `opencode.json` plugin array. Restart OpenCode after changes.
+- **Plugin not loading.** Confirm `"opencode-nowledge-mem"` appears in your `opencode.json` `plugins` array on OpenCode 2.x. Restart OpenCode after changes. On OpenCode 1.x, use the v1 `plugin` key and pin `@0.3.10` as shown in Setup.
 - **OpenCode Desktop sees the package but no tools appear.** Fully quit OpenCode Desktop, clear the OpenCode package cache, then restart so it installs the latest package. On Windows the cache is `%USERPROFILE%\.cache\opencode`; on macOS/Linux it is `~/.cache/opencode`.
 
 ## Links

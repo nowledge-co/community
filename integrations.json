@@ -1248,7 +1248,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.3.10",
+      "version": "0.4.0",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1263,7 +1263,7 @@
       "threadSave": {
         "method": "sdk-extract+event-idle",
         "historicalCommand": "nmem t sync --from opencode --all-projects",
-        "note": "Plugin listens for OpenCode session idle events and pre-compaction, reads session messages via OpenCode SDK, and posts to Nowledge Mem thread API over HTTP; save_thread remains an explicit idempotent fallback"
+        "note": "Plugin subscribes to OpenCode session idle events and pre-compaction, reads session messages through ctx.session.context, and posts to Nowledge Mem thread API over HTTP; save_thread remains an explicit idempotent fallback"
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -1271,16 +1271,17 @@
         "distill": "guided",
         "threads": "automatic-capture",
         "bestResultRequires": [
+          "Use OpenCode 2.x; plugin 0.4.0+ targets the v2 plugin API (OpenCode 1.x users pin opencode-nowledge-mem@0.3.10)",
           "Install the native OpenCode plugin",
-          "Restart OpenCode so the plugin registers its event and compaction hooks",
+          "Restart OpenCode so the plugin registers its event subscription and session hooks",
           "Keep nmem available for memory operations, provenance-stamped saves, and handoff flows",
           "Run nmem t sync --from opencode --all-projects --apply only when you want to import older OpenCode sessions",
           "Run nmem config client set url/api-key once when Mem is remote"
         ]
       },
       "install": {
-        "command": "opencode plugin opencode-nowledge-mem -g",
-        "updateCommand": "opencode plugin opencode-nowledge-mem -g --force",
+        "command": "opencode plugin add opencode-nowledge-mem",
+        "updateCommand": "opencode plugin update opencode-nowledge-mem",
         "detectionHint": "Running as OpenCode agent; ~/.config/opencode/ or .opencode/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for OpenCode. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
@@ -1291,7 +1292,7 @@
       "toolNaming": {
         "convention": "canonical",
         "prefix": "nowledge_mem_",
-        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode-ai/plugin",
+        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode/plugin (OpenCode v2)",
         "tools": ["nowledge_mem_context_bundle", "nowledge_mem_working_memory", "nowledge_mem_search", "nowledge_mem_save", "nowledge_mem_update", "nowledge_mem_thread_search", "nowledge_mem_save_thread", "nowledge_mem_save_handoff", "nowledge_mem_status"]
       },
       "skills": [],

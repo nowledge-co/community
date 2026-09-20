@@ -1,5 +1,4 @@
-import type { PluginModule } from "@opencode-ai/plugin"
-import { tool } from "@opencode-ai/plugin"
+import { Plugin } from "@opencode/plugin"
 import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -12,14 +11,14 @@ import {
   isCheckpointedAppendAck,
   isThreadAlreadyExistsResponse,
   recreateMissingThread,
-  normalizedTimestamp,
   opencodeThreadId,
   selectAcknowledgedDelta,
   sessionSyncLaneKey,
   stableMessageFingerprint,
   type AcknowledgedCursor,
-} from "./session-delta"
-import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout"
+} from "./session-delta.ts"
+import { toThreadMessages } from "./thread-messages.ts"
+import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout.ts"
 
 const THREAD_SYNC_TIMEOUT_MS = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)
 
@@ -53,11 +52,84 @@ Save proactively when the conversation produces a decision, preference, plan, pr
 - The conversation produced decisions or context worth preserving as a full thread
 `
 
-export default {
+type SpaceToolArgs = {
+  space?: string
+  space_id?: string
+}
+
+type SearchArgs = SpaceToolArgs & {
+  query: string
+  limit?: number
+  label?: string
+  mode?: "default" | "deep"
+}
+
+type SaveArgs = SpaceToolArgs & {
+  content: string
+  title: string
+  unit_type?: string
+  labels?: string
+  importance?: number
+}
+
+type UpdateArgs = SpaceToolArgs & {
+  memory_id: string
+  content?: string
+  title?: string
+  importance?: number
+}
+
+type ThreadSearchArgs = SpaceToolArgs & {
+  query: string
+  limit?: number
+}
+
+type SaveThreadArgs = SpaceToolArgs & {
+  summary?: string
+}
+
+type HandoffArgs = SpaceToolArgs & {
+  topic: string
+  summary: string
+}
+
+type SyncReason = "manual_tool" | "session_status_idle" | "session_idle" | "session_compacting"
+type SessionSyncState = {
+  timer?: ReturnType<typeof setTimeout>
+  inFlight?: Promise<void>
+  pending?: boolean
+  created?: boolean
+  acknowledged?: AcknowledgedCursor
+}
+
+type V2EventLike = {
+  type?: string
+  data?: {
+    sessionID?: unknown
+    sessionId?: unknown
+    session?: { id?: unknown }
+    status?: { type?: unknown }
+  }
+}
+
+function spaceToolProperties() {
+  return {
+    space: {
+      type: "string",
+      description: "Optional Nowledge Space name or alias for this one call",
+    },
+    space_id: {
+      type: "string",
+      description: "Optional Nowledge Space id/key for this one call; takes priority over space",
+    },
+  }
+}
+
+export default Plugin.define({
   id: "nowledge-mem",
-  server: async (input) => {
-    const { $, client, directory } = input
-    const runNmemCli = createNmemCliRunner($)
+  async setup(ctx) {
+    const directory = ctx.location.directory
+    const runNmemCli = createNmemCliRunner(undefined)
 
     // --- CLI transport (for memory operations) ---
 
@@ -162,41 +234,23 @@ export default {
       return { ...body, space_id: ambientSpaceId }
     }
 
-    type ExplicitSpaceArgs = {
-      space?: unknown
-      space_id?: unknown
-    }
-
     function stringToolValue(value: unknown): string | undefined {
       return typeof value === "string" ? value.trim() || undefined : undefined
     }
 
-    function explicitSpaceForCli(args: ExplicitSpaceArgs): string[] {
+    function explicitSpaceForCli(args: SpaceToolArgs): string[] {
       const spaceId = stringToolValue(args.space_id)
       if (spaceId) return ["--space-id", spaceId]
       const space = stringToolValue(args.space)
       return space ? ["--space", space] : []
     }
 
-    function explicitSpaceForHttp(args: ExplicitSpaceArgs): string | undefined {
+    function explicitSpaceForHttp(args: SpaceToolArgs): string | undefined {
       return stringToolValue(args.space_id) || stringToolValue(args.space)
     }
 
-    function withExplicitSpaceArg(cmd: string[], args: ExplicitSpaceArgs): string[] {
+    function withExplicitSpaceArg(cmd: string[], args: SpaceToolArgs): string[] {
       return [...cmd, ...explicitSpaceForCli(args)]
-    }
-
-    function spaceToolArgs() {
-      return {
-        space: tool.schema
-          .string()
-          .optional()
-          .describe("Optional Nowledge Space name or alias for this one call"),
-        space_id: tool.schema
-          .string()
-          .optional()
-          .describe("Optional Nowledge Space id/key for this one call; takes priority over space"),
-      }
     }
 
     async function nmemApi(
@@ -231,111 +285,27 @@ export default {
     }
 
     /*
-     * Keep declarations above this comment; the next block is the OpenCode SDK
-     * message transform. The ambient identity convention lets orchestrators
+     * Keep declarations above this comment; the next block is the OpenCode v2
+     * session message read. The ambient identity convention lets orchestrators
      * set NMEM_AGENT_ID or NMEM_HOST_AGENT_ID per child agent without changing
      * OpenCode's plugin API.
      */
 
-    // --- Transform OpenCode SDK messages to Nowledge Mem thread format ---
+    // --- Read OpenCode v2 session messages for Nowledge Mem thread capture ---
 
-    function extractMessageContent(parts: any[]): string {
-      const segments: string[] = []
-
-      for (const part of parts) {
-        switch (part.type) {
-          case "text": {
-            const text = part.content || part.text
-            if (text) segments.push(text)
-            break
-          }
-          case "tool": {
-            const name = part.tool ?? part.name ?? "unknown"
-            const status = part.state === "error" ? " (failed)" : ""
-            segments.push(`[Tool: ${name}${status}]`)
-            break
-          }
-          case "reasoning": {
-            const reasoning = part.content || part.text
-            if (reasoning) segments.push(`<thinking>\n${reasoning}\n</thinking>`)
-            break
-          }
-          case "file":
-            segments.push(`[File: ${part.filename ?? part.path ?? "attachment"}]`)
-            break
-          case "patch":
-            segments.push(`[Patch: ${part.path ?? "file change"}]`)
-            break
-          // step-start, step-finish, snapshot, compaction, retry, agent, subtask
-          // are structural markers, not user-visible content; skip them
-        }
-      }
-
-      return segments.join("\n") || "(empty message)"
-    }
-
-    function toThreadMessages(sdkMessages: any[]): any[] {
-      return sdkMessages
-        .filter((m: any) => m?.info)
-        .map(({ info, parts }: any) => {
-          const timestamp = normalizedTimestamp(info.time?.created)
-          return {
-            content: extractMessageContent(parts ?? []),
-            role: info.role === "user" ? "user" : "assistant",
-            ...(timestamp ? { timestamp } : {}),
-            metadata: {
-              external_id: `opencode-msg-${info.id}`,
-              source_app: "opencode",
-              ...(info.agent ? { agent: info.agent } : {}),
-              ...(info.role === "assistant" && info.modelID ? { model: info.modelID } : {}),
-            },
-          }
-        })
-    }
-
-    function normalizeSessionMessages(raw: any): any[] {
-      if (Array.isArray(raw)) return raw
-      if (Array.isArray(raw?.data)) return raw.data
-      if (Array.isArray(raw?.items)) return raw.items
-      if (Array.isArray(raw?.messages)) return raw.messages
-      return []
-    }
-
-    async function fetchSessionMessages(ctx: any): Promise<any[]> {
-      const attempts = [
-        {
-          path: { id: ctx.sessionID },
-          query: ctx.directory ? { directory: ctx.directory } : undefined,
-        },
-        { sessionID: ctx.sessionID },
-      ]
-      let lastError: unknown
-      for (const options of attempts) {
-        try {
-          const messages = normalizeSessionMessages(await client.session.messages(options as any))
-          if (messages.length > 0) return messages
-        } catch (error) {
-          lastError = error
-          // Keep compatibility across OpenCode SDK shapes.
-        }
-      }
-      if (lastError) {
+    async function fetchSessionMessages(sessionID: string): Promise<unknown[]> {
+      try {
+        const messages = await ctx.session.context({ sessionID } as any)
+        return Array.isArray(messages) ? messages : []
+      } catch (error) {
         console.warn(
-          `[nowledge-mem] failed to read OpenCode session messages for ${ctx.sessionID}:`,
-          lastError instanceof Error ? lastError.message : lastError,
+          `[nowledge-mem] failed to read OpenCode session messages for ${sessionID}:`,
+          error instanceof Error ? error.message : error,
         )
+        return []
       }
-      return []
     }
 
-    type SyncReason = "manual_tool" | "session_status_idle" | "session_idle" | "session_compacting"
-    type SessionSyncState = {
-      timer?: ReturnType<typeof setTimeout>
-      inFlight?: Promise<void>
-      pending?: boolean
-      created?: boolean
-      acknowledged?: AcknowledgedCursor
-    }
     const syncStates = new Map<string, SessionSyncState>()
     const autoSyncDebounceMs = Math.max(
       250,
@@ -359,14 +329,6 @@ export default {
       const created: SessionSyncState = {}
       syncStates.set(key, created)
       return created
-    }
-
-    function lastExternalId(messages: any[]): string {
-      for (let i = messages.length - 1; i >= 0; i -= 1) {
-        const id = messages[i]?.metadata?.external_id
-        if (typeof id === "string" && id) return id
-      }
-      return ""
     }
 
     function threadMetadata(sessionID: string, reason: SyncReason): Record<string, unknown> {
@@ -393,7 +355,7 @@ export default {
     }
 
     async function syncSessionThread(
-      ctx: { sessionID?: string; directory?: string },
+      session: { sessionID?: string; directory?: string },
       options: {
         reason: SyncReason
         summary?: string
@@ -402,31 +364,28 @@ export default {
         timeoutMs?: number
       },
     ): Promise<Record<string, unknown>> {
-      if (!ctx.sessionID) {
+      if (!session.sessionID) {
         return { error: "No session ID available. Use nowledge_mem_save_handoff instead." }
       }
 
       const timeoutMs = options.timeoutMs ?? 30_000
-      const sdkMessages = await fetchSessionMessages({
-        ...ctx,
-        directory: ctx.directory ?? directory,
-      })
+      const sdkMessages = await fetchSessionMessages(session.sessionID)
 
       if (!sdkMessages || sdkMessages.length === 0) {
-        return { skipped: true, reason: "no_messages", session_id: ctx.sessionID }
+        return { skipped: true, reason: "no_messages", session_id: session.sessionID }
       }
 
       const threadMessages = toThreadMessages(sdkMessages)
       if (threadMessages.length === 0) {
-        return { skipped: true, reason: "no_extractable_messages", session_id: ctx.sessionID }
+        return { skipped: true, reason: "no_extractable_messages", session_id: session.sessionID }
       }
       const hasUser = threadMessages.some((message) => message.role === "user")
       const hasAssistant = threadMessages.some((message) => message.role === "assistant")
       if (!hasUser || !hasAssistant) {
-        return { skipped: true, reason: "incomplete_turn", session_id: ctx.sessionID }
+        return { skipped: true, reason: "incomplete_turn", session_id: session.sessionID }
       }
 
-      const state = syncStateFor(ctx.sessionID, options.spaceId || ambientSpaceId)
+      const state = syncStateFor(session.sessionID, options.spaceId || ambientSpaceId)
       const delta = selectAcknowledgedDelta(
         threadMessages,
         options.force ? undefined : state.acknowledged,
@@ -434,17 +393,17 @@ export default {
         stableMessageFingerprint,
       )
       if (delta.messages.length === 0) {
-        return { skipped: true, reason: "already_synced", session_id: ctx.sessionID }
+        return { skipped: true, reason: "already_synced", session_id: session.sessionID }
       }
 
-      const threadId = opencodeThreadId(ctx.sessionID)
+      const threadId = opencodeThreadId(session.sessionID)
       const title =
         options.summary ||
         threadMessages.find((message) => message.role === "user")?.content?.slice(0, 120) ||
         threadMessages[0]?.content?.slice(0, 120) ||
         "OpenCode Session"
-      const metadata = threadMetadata(ctx.sessionID, options.reason)
-      const projectPath = ctx.directory ?? directory
+      const metadata = threadMetadata(session.sessionID, options.reason)
+      const projectPath = session.directory ?? directory
 
       const createBody = {
         thread_id: threadId,
@@ -471,7 +430,7 @@ export default {
           {
             messages: delta.messages,
             deduplicate: true,
-            idempotency_key: `opencode:live:${ctx.sessionID}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
+            idempotency_key: `opencode:live:${session.sessionID}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
             ...(state.acknowledged && !delta.reset
               ? { expected_message_count: state.acknowledged.remoteCount }
               : {}),
@@ -489,7 +448,7 @@ export default {
           {
             messages: threadMessages,
             deduplicate: true,
-            idempotency_key: `opencode:reconcile:${ctx.sessionID}:${delta.next.prefixFingerprint}`,
+            idempotency_key: `opencode:reconcile:${session.sessionID}:${delta.next.prefixFingerprint}`,
             ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
           },
           timeoutMs,
@@ -514,7 +473,7 @@ export default {
         return {
           error: `Thread save failed (${res.status}): ${JSON.stringify(res.data)}`,
           thread_id: threadId,
-          session_id: ctx.sessionID,
+          session_id: session.sessionID,
         }
       }
       const remoteCount = action === "created"
@@ -524,14 +483,14 @@ export default {
         return {
           error: "Thread save did not include an explicit persistence acknowledgement; cursor was preserved",
           thread_id: threadId,
-          session_id: ctx.sessionID,
+          session_id: session.sessionID,
         }
       }
       if (checkpointed && !isCheckpointedAppendAck(res.data)) {
         return {
           error: "Thread append was not acknowledged as checkpointed; cursor was preserved",
           thread_id: threadId,
-          session_id: ctx.sessionID,
+          session_id: session.sessionID,
         }
       }
 
@@ -586,91 +545,99 @@ export default {
       await state.inFlight
     }
 
-    function sessionIdFromEvent(event: any): string | undefined {
-      const props = event?.properties ?? {}
-      const sessionID = props.sessionID ?? props.sessionId ?? props.session?.id
+    function sessionIdFromEvent(event: V2EventLike): string | undefined {
+      const data = event?.data ?? {}
+      const sessionID = data.sessionID ?? data.sessionId ?? data.session?.id
       return typeof sessionID === "string" && sessionID ? sessionID : undefined
     }
 
-    return {
-      dispose: async () => {
-        for (const state of syncStates.values()) {
-          if (state.timer) clearTimeout(state.timer)
-        }
-        syncStates.clear()
-      },
+    // --- v2 tool registration (replaces the v1 returned tool map) ---
 
-      tool: {
-        nowledge_mem_context_bundle: tool({
-          description:
-            "Read Nowledge Mem's startup Context Bundle: owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Call this near session start when behavior, identity, or scope matters.",
-          args: {
-            ...spaceToolArgs(),
+    await ctx.tool.transform((editor) => {
+      editor.add({
+        name: "nowledge_mem_context_bundle",
+        description:
+          "Read Nowledge Mem's startup Context Bundle: owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Call this near session start when behavior, identity, or scope matters.",
+        input: {
+          type: "object",
+          properties: {
+            ...spaceToolProperties(),
           },
-          async execute(args, _ctx) {
-            const bundle = await nmem(withExplicitSpaceArg(["context", "--source-app", "opencode"], args))
-            if (isNmemErrorPayload(bundle)) {
-              return await nmem(withExplicitSpaceArg(["wm", "read"], args))
-            }
-            return bundle
-          },
-        }),
+          additionalProperties: false,
+        },
+        async execute(rawInput) {
+          const args = rawInput as SpaceToolArgs
+          const bundle = await nmem(withExplicitSpaceArg(["context", "--source-app", "opencode"], args))
+          if (isNmemErrorPayload(bundle)) {
+            return { content: await nmem(withExplicitSpaceArg(["wm", "read"], args)) }
+          }
+          return { content: bundle }
+        },
+      })
 
-        nowledge_mem_working_memory: tool({
-          description:
-            "Read today's lightweight Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Use nowledge_mem_context_bundle for full startup identity/scope/rules context.",
-          args: {
-            ...spaceToolArgs(),
+      editor.add({
+        name: "nowledge_mem_working_memory",
+        description:
+          "Read today's lightweight Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Use nowledge_mem_context_bundle for full startup identity/scope/rules context.",
+        input: {
+          type: "object",
+          properties: {
+            ...spaceToolProperties(),
           },
-          async execute(args, _ctx) {
-            return await nmem(withExplicitSpaceArg(["wm", "read"], args))
-          },
-        }),
+          additionalProperties: false,
+        },
+        async execute(rawInput) {
+          const args = rawInput as SpaceToolArgs
+          return { content: await nmem(withExplicitSpaceArg(["wm", "read"], args)) }
+        },
+      })
 
-        nowledge_mem_search: tool({
-          description:
-            "Search the user's knowledge graph for past decisions, procedures, learnings, and context. Returns results from memories saved across all tools (Claude Code, Cursor, Gemini, ChatGPT, etc.). Search proactively when work connects to prior context.",
-          args: {
-            query: tool.schema
-              .string()
-              .describe("Natural language search query"),
-            limit: tool.schema
-              .number()
-              .optional()
-              .describe("Max results to return (default 5, max 20)"),
-            label: tool.schema
-              .string()
-              .optional()
-              .describe("Filter by label name"),
-            mode: tool.schema
-              .enum(["default", "deep"])
-              .optional()
-              .describe(
+      editor.add({
+        name: "nowledge_mem_search",
+        description:
+          "Search the user's knowledge graph for past decisions, procedures, learnings, and context. Returns results from memories saved across all tools (Claude Code, Cursor, Gemini, ChatGPT, etc.). Search proactively when work connects to prior context.",
+        input: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Natural language search query" },
+            limit: { type: "number", description: "Max results to return (default 5, max 20)" },
+            label: { type: "string", description: "Filter by label name" },
+            mode: {
+              type: "string",
+              enum: ["default", "deep"],
+              description:
                 "Search mode: 'default' for fast hybrid, 'deep' for broader conceptual matching",
-              ),
-            ...spaceToolArgs(),
+            },
+            ...spaceToolProperties(),
           },
-          async execute(args, _ctx) {
-            const cmd = ["m", "search", args.query]
-            if (args.limit) cmd.push("-n", String(Math.min(20, Math.max(1, args.limit))))
-            if (args.label) cmd.push("-l", args.label)
-            if (args.mode === "deep") cmd.push("--mode", "deep")
-            return await nmem(withExplicitSpaceArg(cmd, args))
-          },
-        }),
+          required: ["query"],
+          additionalProperties: false,
+        },
+        async execute(rawInput) {
+          const args = rawInput as SearchArgs
+          const cmd = ["m", "search", args.query]
+          if (args.limit) cmd.push("-n", String(Math.min(20, Math.max(1, args.limit))))
+          if (args.label) cmd.push("-l", args.label)
+          if (args.mode === "deep") cmd.push("--mode", "deep")
+          return { content: await nmem(withExplicitSpaceArg(cmd, args)) }
+        },
+      })
 
-        nowledge_mem_save: tool({
-          description:
-            "Save a decision, insight, procedure, or preference to Nowledge Mem so any future session in any tool can find it. Search first to check if a related memory already exists; if so, use nowledge_mem_update instead.",
-          args: {
-            content: tool.schema
-              .string()
-              .describe("The knowledge to save. Be specific: what was decided and why."),
-            title: tool.schema
-              .string()
-              .describe("Short descriptive title for this memory"),
-            unit_type: tool.schema
-              .enum([
+      editor.add({
+        name: "nowledge_mem_save",
+        description:
+          "Save a decision, insight, procedure, or preference to Nowledge Mem so any future session in any tool can find it. Search first to check if a related memory already exists; if so, use nowledge_mem_update instead.",
+        input: {
+          type: "object",
+          properties: {
+            content: {
+              type: "string",
+              description: "The knowledge to save. Be specific: what was decided and why.",
+            },
+            title: { type: "string", description: "Short descriptive title for this memory" },
+            unit_type: {
+              type: "string",
+              enum: [
                 "fact",
                 "preference",
                 "decision",
@@ -679,176 +646,218 @@ export default {
                 "learning",
                 "context",
                 "event",
-              ])
-              .optional()
-              .describe("Type of knowledge (default: 'decision')"),
-            labels: tool.schema
-              .string()
-              .optional()
-              .describe("Comma-separated labels for categorization"),
-            importance: tool.schema
-              .number()
-              .optional()
-              .describe(
+              ],
+              description: "Type of knowledge (default: 'decision')",
+            },
+            labels: { type: "string", description: "Comma-separated labels for categorization" },
+            importance: {
+              type: "number",
+              description:
                 "0.0-1.0 importance score. 0.8-1.0: major decisions. 0.5-0.7: useful patterns. 0.3-0.4: minor notes.",
-              ),
-            ...spaceToolArgs(),
+            },
+            ...spaceToolProperties(),
           },
-          async execute(args, _ctx) {
-            const cmd = ["m", "add", args.content, "-t", args.title, "--source", "opencode"]
-            if (args.unit_type) cmd.push("--unit-type", args.unit_type)
-            if (args.labels) {
-              for (const label of args.labels.split(",").map((l: string) => l.trim())) {
-                if (label) cmd.push("-l", label)
-              }
+          required: ["content", "title"],
+          additionalProperties: false,
+        },
+        async execute(rawInput) {
+          const args = rawInput as SaveArgs
+          const cmd = ["m", "add", args.content, "-t", args.title, "--source", "opencode"]
+          if (args.unit_type) cmd.push("--unit-type", args.unit_type)
+          if (args.labels) {
+            for (const label of args.labels.split(",").map((l: string) => l.trim())) {
+              if (label) cmd.push("-l", label)
             }
-            if (args.importance != null) cmd.push("-i", String(args.importance))
-            return await nmem(withExplicitSpaceArg(cmd, args))
-          },
-        }),
+          }
+          if (args.importance != null) cmd.push("-i", String(args.importance))
+          return { content: await nmem(withExplicitSpaceArg(cmd, args)) }
+        },
+      })
 
-        nowledge_mem_update: tool({
-          description:
-            "Update an existing memory with new or refined information. Use this instead of creating a duplicate when the new information extends or corrects an existing memory.",
-          args: {
-            memory_id: tool.schema
-              .string()
-              .describe("ID of the memory to update"),
-            content: tool.schema
-              .string()
-              .optional()
-              .describe("Updated content"),
-            title: tool.schema
-              .string()
-              .optional()
-              .describe("Updated title"),
-            importance: tool.schema
-              .number()
-              .optional()
-              .describe("Updated importance score"),
-            ...spaceToolArgs(),
+      editor.add({
+        name: "nowledge_mem_update",
+        description:
+          "Update an existing memory with new or refined information. Use this instead of creating a duplicate when the new information extends or corrects an existing memory.",
+        input: {
+          type: "object",
+          properties: {
+            memory_id: { type: "string", description: "ID of the memory to update" },
+            content: { type: "string", description: "Updated content" },
+            title: { type: "string", description: "Updated title" },
+            importance: { type: "number", description: "Updated importance score" },
+            ...spaceToolProperties(),
           },
-          async execute(args, _ctx) {
-            const cmd = ["m", "update", args.memory_id]
-            if (args.content) cmd.push("-c", args.content)
-            if (args.title) cmd.push("-t", args.title)
-            if (args.importance != null) cmd.push("-i", String(args.importance))
-            return await nmem(withExplicitSpaceArg(cmd, args))
-          },
-        }),
+          required: ["memory_id"],
+          additionalProperties: false,
+        },
+        async execute(rawInput) {
+          const args = rawInput as UpdateArgs
+          const cmd = ["m", "update", args.memory_id]
+          if (args.content) cmd.push("-c", args.content)
+          if (args.title) cmd.push("-t", args.title)
+          if (args.importance != null) cmd.push("-i", String(args.importance))
+          return { content: await nmem(withExplicitSpaceArg(cmd, args)) }
+        },
+      })
 
-        nowledge_mem_thread_search: tool({
-          description:
-            "Search past conversations from any tool (Claude Code, ChatGPT, Cursor, etc.). Use when the user asks about a prior discussion or exact conversation history.",
-          args: {
-            query: tool.schema
-              .string()
-              .describe("Search query for past conversations"),
-            limit: tool.schema
-              .number()
-              .optional()
-              .describe("Max results (default 5)"),
-            ...spaceToolArgs(),
+      editor.add({
+        name: "nowledge_mem_thread_search",
+        description:
+          "Search past conversations from any tool (Claude Code, ChatGPT, Cursor, etc.). Use when the user asks about a prior discussion or exact conversation history.",
+        input: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search query for past conversations" },
+            limit: { type: "number", description: "Max results (default 5)" },
+            ...spaceToolProperties(),
           },
-          async execute(args, _ctx) {
-            const cmd = ["t", "search", args.query]
-            if (args.limit) cmd.push("--limit", String(Math.min(20, Math.max(1, args.limit))))
-            return await nmem(withExplicitSpaceArg(cmd, args))
-          },
-        }),
+          required: ["query"],
+          additionalProperties: false,
+        },
+        async execute(rawInput) {
+          const args = rawInput as ThreadSearchArgs
+          const cmd = ["t", "search", args.query]
+          if (args.limit) cmd.push("--limit", String(Math.min(20, Math.max(1, args.limit))))
+          return { content: await nmem(withExplicitSpaceArg(cmd, args)) }
+        },
+      })
 
-        nowledge_mem_save_thread: tool({
-          description:
-            "Save the current OpenCode session as a full conversation thread in Nowledge Mem. Extracts the complete message history so any tool can find and read this conversation later. Idempotent: safe to call multiple times. Use at natural stopping points or when the user asks to save the session.",
-          args: {
-            summary: tool.schema
-              .string()
-              .optional()
-              .describe("Brief description of what was discussed (used as thread title)"),
-            ...spaceToolArgs(),
+      editor.add({
+        name: "nowledge_mem_save_thread",
+        description:
+          "Save the current OpenCode session as a full conversation thread in Nowledge Mem. Extracts the complete message history so any tool can find and read this conversation later. Idempotent: safe to call multiple times. Use at natural stopping points or when the user asks to save the session.",
+        input: {
+          type: "object",
+          properties: {
+            summary: {
+              type: "string",
+              description: "Brief description of what was discussed (used as thread title)",
+            },
+            ...spaceToolProperties(),
           },
-          async execute(args, ctx) {
-            try {
-              return JSON.stringify(await syncSessionThread(ctx, {
+          additionalProperties: false,
+        },
+        async execute(rawInput, toolContext) {
+          const args = rawInput as SaveThreadArgs
+          try {
+            return {
+              content: JSON.stringify(await syncSessionThread({
+                sessionID: String(toolContext.sessionID),
+                directory,
+              }, {
                 reason: "manual_tool",
                 summary: args.summary,
                 spaceId: explicitSpaceForHttp(args),
                 force: true,
                 timeoutMs: 30_000,
-              }))
-            } catch (err: any) {
-              return JSON.stringify({
-                error: `Session capture failed: ${err.message}. Use nowledge_mem_save_handoff for a curated summary instead.`,
-              })
+              })),
             }
-          },
-        }),
-
-        nowledge_mem_save_handoff: tool({
-          description:
-            "Save a curated handoff summary of the current session. Creates a structured thread that any future session in any tool can pick up from. Lighter than save_thread: use this for a quick summary when you do not need the full transcript.",
-          args: {
-            topic: tool.schema
-              .string()
-              .describe("Brief topic or title for this session"),
-            summary: tool.schema
-              .string()
-              .describe(
-                "Structured handoff: Goal, Decisions made, Key files touched, Risks/open questions, Suggested next steps",
-              ),
-            ...spaceToolArgs(),
-          },
-          async execute(args, _ctx) {
-            const title = `Session Handoff - ${args.topic}`
-            return await nmem(withExplicitSpaceArg(["t", "create", "-t", title, "-c", args.summary, "-s", "opencode"], args))
-          },
-        }),
-
-        nowledge_mem_status: tool({
-          description:
-            "Check Nowledge Mem server connectivity and configuration. Use when memory tools fail or the user asks about setup.",
-          args: {},
-          async execute(_args, _ctx) {
-            return await nmem(["status"])
-          },
-        }),
-      },
-
-      "experimental.chat.system.transform": async (_input, output) => {
-        output.system.push(BEHAVIORAL_GUIDANCE)
-      },
-
-      event: async ({ event }) => {
-        const sessionID = sessionIdFromEvent(event)
-        if (!sessionID) return
-        if (event.type === "session.status") {
-          const statusType = event.properties?.status?.type
-          if (statusType === "idle") {
-            scheduleAutoThreadSync(sessionID, "session_status_idle")
+          } catch (err: any) {
+            return {
+              content: JSON.stringify({
+                error: `Session capture failed: ${err.message}. Use nowledge_mem_save_handoff for a curated summary instead.`,
+              }),
+            }
           }
-          return
-        }
-        if (event.type === "session.idle") {
-          scheduleAutoThreadSync(sessionID, "session_idle")
-        }
-      },
+        },
+      })
 
-      "experimental.session.compacting": async (input, output) => {
-        if (input.sessionID) {
-          await syncSessionThread(
-            { sessionID: input.sessionID, directory },
-            { reason: "session_compacting", force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS },
-          ).catch((err: any) => {
-            console.warn("[nowledge-mem] pre-compaction OpenCode thread sync failed:", err?.message ?? err)
-          })
+      editor.add({
+        name: "nowledge_mem_save_handoff",
+        description:
+          "Save a curated handoff summary of the current session. Creates a structured thread that any future session in any tool can pick up from. Lighter than save_thread: use this for a quick summary when you do not need the full transcript.",
+        input: {
+          type: "object",
+          properties: {
+            topic: { type: "string", description: "Brief topic or title for this session" },
+            summary: {
+              type: "string",
+              description:
+                "Structured handoff: Goal, Decisions made, Key files touched, Risks/open questions, Suggested next steps",
+            },
+            ...spaceToolProperties(),
+          },
+          required: ["topic", "summary"],
+          additionalProperties: false,
+        },
+        async execute(rawInput) {
+          const args = rawInput as HandoffArgs
+          const title = `Session Handoff - ${args.topic}`
+          return { content: await nmem(withExplicitSpaceArg(["t", "create", "-t", title, "-c", args.summary, "-s", "opencode"], args)) }
+        },
+      })
+
+      editor.add({
+        name: "nowledge_mem_status",
+        description:
+          "Check Nowledge Mem server connectivity and configuration. Use when memory tools fail or the user asks about setup.",
+        input: {
+          type: "object",
+          properties: {},
+          additionalProperties: false,
+        },
+        async execute() {
+          return { content: await nmem(["status"]) }
+        },
+      })
+    })
+
+    // --- v2 session hooks (replace the v1 returned hook map) ---
+
+    await ctx.session.hook("context", (event) => {
+      event.system.push({ type: "text", text: BEHAVIORAL_GUIDANCE })
+    })
+
+    await ctx.session.hook("compaction", async (event) => {
+      const sessionID = String(event.sessionID ?? "")
+      if (sessionID) {
+        await syncSessionThread(
+          { sessionID, directory },
+          { reason: "session_compacting", force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS },
+        ).catch((err: any) => {
+          console.warn("[nowledge-mem] pre-compaction OpenCode thread sync failed:", err?.message ?? err)
+        })
+      }
+      const reminder = [
+        "IMPORTANT: You have Nowledge Mem tools (nowledge_mem_*) for cross-tool knowledge.",
+        "After compaction, call nowledge_mem_context_bundle when identity, scope, or rules matter; use nowledge_mem_working_memory as the lightweight fallback.",
+        "Continue searching and saving proactively.",
+      ].join("\n")
+      event.system.push({ type: "text", text: reminder })
+    })
+
+    // --- v2 event subscription (replaces the v1 returned event hook) ---
+
+    const controller = new AbortController()
+    void (async () => {
+      try {
+        for await (const rawEvent of ctx.event.subscribe({ signal: controller.signal })) {
+          const event = rawEvent as V2EventLike
+          const sessionID = sessionIdFromEvent(event)
+          if (!sessionID) continue
+          if (event.type === "session.status") {
+            if (event.data?.status?.type === "idle") {
+              scheduleAutoThreadSync(sessionID, "session_status_idle")
+            }
+            continue
+          }
+          if (event.type === "session.idle") {
+            scheduleAutoThreadSync(sessionID, "session_idle")
+          }
         }
-        const reminder = [
-          "IMPORTANT: You have Nowledge Mem tools (nowledge_mem_*) for cross-tool knowledge.",
-          "After compaction, call nowledge_mem_context_bundle when identity, scope, or rules matter; use nowledge_mem_working_memory as the lightweight fallback.",
-          "Continue searching and saving proactively.",
-        ].join("\n")
-        output.context.push(reminder)
-      },
+      } catch (err: any) {
+        if (!controller.signal.aborted) {
+          console.warn("[nowledge-mem] OpenCode event subscription failed:", err?.message ?? err)
+        }
+      }
+    })()
+
+    return () => {
+      controller.abort()
+      for (const state of syncStates.values()) {
+        if (state.timer) clearTimeout(state.timer)
+      }
+      syncStates.clear()
     }
   },
-} satisfies PluginModule
+})

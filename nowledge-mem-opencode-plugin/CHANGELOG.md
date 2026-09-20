@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+
+- **BREAKING:** Ported the plugin to the OpenCode v2 plugin API. The
+  entrypoint is now `Plugin.define({ id, setup(ctx) })`; tools register through
+  `ctx.tool.transform`, the system-prompt guidance and pre-compaction flush
+  register on `ctx.session.hook`, and idle capture subscribes to
+  `ctx.event.subscribe`. Session messages are read from `ctx.session.context`.
+  This release requires OpenCode 2.x and `@opencode/plugin` 2.x; OpenCode 1.x
+  users should pin `opencode-nowledge-mem@0.3.10`, the last v1-compatible
+  release.
+
 ### Fixed
 
 - Live capture now preserves OpenCode's mixed-case provider session ID, so it
