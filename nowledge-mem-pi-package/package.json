@@ -6,7 +6,7 @@
   "author": "Nowledge Labs",
   "license": "MIT",
   "bin": {
-    "nowledge-mem-pi-sync": "./scripts/sync-history.mjs"
+    "nowledge-mem-pi-sync": "scripts/sync-history.mjs"
   },
   "pi": {
     "extensions": ["./extensions/nowledge-mem.ts"],
