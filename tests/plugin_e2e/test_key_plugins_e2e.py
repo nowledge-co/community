@@ -511,7 +511,7 @@ def test_key_plugin_static_contracts_are_declared():
         if line.startswith("version:")
     )
     assert "name: nowledge-mem" in hermes_manifest
-    assert "version: 0.5.23" in hermes_manifest
+    assert "version: 0.5.24" in hermes_manifest
     assert registry_by_id["hermes"]["version"] == hermes_version
     for hook in (
         "prefetch",
