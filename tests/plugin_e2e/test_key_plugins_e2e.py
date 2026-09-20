@@ -741,7 +741,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert pi_pkg["version"] == "0.8.8"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
-    assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "./scripts/sync-history.mjs"
+    assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "scripts/sync-history.mjs"
     assert "NMEM_PLUGIN_SOURCE_APP" in pi_extension
     assert "NMEM_PLUGIN_HOST_LABEL" in pi_extension
     assert 'pi.on("agent_end"' in pi_extension
@@ -1199,6 +1199,18 @@ def test_kimi_code_sync_hook_invokes_nmem_for_session_id(tmp_path: Path):
     ]
     log_text = (kimi_home / "logs" / "nowledge-mem-hook.log").read_text(encoding="utf-8")
     assert "queued Stop kimi-session-123" in log_text
+
+
+def test_pi_npm_bin_target_is_publishable():
+    pi_pkg = _read_json(PI_PLUGIN / "package.json")
+    bin_target = pi_pkg["bin"]["nowledge-mem-pi-sync"]
+    bin_script = PI_PLUGIN / bin_target
+
+    # npm 11 strips bin targets whose relative path starts with "./" during
+    # publish normalization, even when the script itself is otherwise valid.
+    assert bin_target == "scripts/sync-history.mjs"
+    assert bin_script.stat().st_mode & 0o111
+    assert bin_script.read_text(encoding="utf-8").startswith("#!/usr/bin/env node\n")
 
 
 def test_kimi_work_installer_writes_managed_plugin_record(tmp_path: Path):
