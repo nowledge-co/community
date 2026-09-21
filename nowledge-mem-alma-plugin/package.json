@@ -17,7 +17,7 @@
 	"main": "main.js",
 	"scripts": {
 		"test": "node --test --test-timeout=10000 tests/*.test.mjs",
-		"test:sync": "node --test --test-timeout=10000 tests/thread-sync.test.mjs tests/shutdown.test.mjs tests/host-recovery.test.mjs tests/first-turn-cleanup.test.mjs",
+		"test:sync": "node --test --test-timeout=10000 tests/thread-sync.test.mjs tests/shutdown.test.mjs tests/storage-faults.test.mjs tests/host-recovery.test.mjs tests/first-turn-cleanup.test.mjs",
 		"check": "node --check main.js && node --check sync-outbox.js && node --check sync-lifecycle.js && node --check session-delta.js",
 		"lint": "biome check .",
 		"format": "biome format --write ."
