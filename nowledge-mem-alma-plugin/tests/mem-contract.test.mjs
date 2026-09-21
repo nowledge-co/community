@@ -31,7 +31,7 @@ for (const target of targets) {
 		const route = `/threads/${threadId}/append`;
 		const unknown = await request(route, "POST", { messages: [messages[0]], expected_message_count: 0, idempotency_key: `${threadId}-unknown` });
 		assert.ok([400, 404].includes(unknown.status), `unknown thread status: ${unknown.status}`);
-		assert.equal(unknown.data.error_code, "thread_not_found");
+		assert.equal(unknown.data?.error_code, "thread_not_found", `unknown thread response: ${JSON.stringify(unknown.data)}`);
 		const created = await request("/threads", "POST", { thread_id: threadId, title: threadId, source: "alma", messages: [messages[0]] });
 		assert.ok([200, 201].includes(created.status));
 		assert.equal(created.data.thread.thread_id, threadId);

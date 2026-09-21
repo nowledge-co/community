@@ -35,7 +35,10 @@ export async function fixture(t) {
 		responseGate = undefined;
 		if (gate) await gate;
 		const reply = (status, data) => {
-			response.writeHead(status, { "content-type": "application/json" });
+			response.writeHead(status, {
+				"content-type": "application/json",
+				connection: "close",
+			});
 			response.end(JSON.stringify(data));
 		};
 		if (responseOverride) return reply(responseOverride.status, responseOverride.body);
