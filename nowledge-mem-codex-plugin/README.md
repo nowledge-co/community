@@ -11,7 +11,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 - **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, sources, and artifacts as one tree.
 - **See retrieved memories in context.** Memory search automatically follows with a focused graph of the exact results: inline through MCP Apps when supported, or in the standalone Graph Explorer as a fallback.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
-- **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary.
+- **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary. The Nowledge Mem Auto-Sync switch can pause lifecycle capture without disabling manual saves.
 - **Quick diagnostics.** One command to verify everything is connected.
 
 The full bootstrap is Context Bundle when available, with Working Memory as the lightweight briefing and compatibility fallback. On modern Codex, the best setup is:
@@ -20,6 +20,24 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 - bundled Nowledge Mem MCP for stronger retrieval and memory writes
 - Codex lifecycle hooks for startup context, bounded subagent bootstrap, per-prompt memory routing, and automatic transcript capture
 - project `AGENTS.md` for repo-specific follow-through
+
+## Continue a selected Mem Thread
+
+In Mem, open a Thread and choose **Continue in → Codex CLI**. Run the copied
+`nmem t resume` command in the project directory. It verifies the exact Thread,
+Space, and Mem connection, checks Codex's active hook trust, and starts a fresh
+native Codex session whose new messages append to that same Mem Thread.
+
+For **Codex GUI**, open a new task and paste the copied continuation prompt.
+The updated plugin's **synchronous UserPromptSubmit hook must be enabled and
+trusted**. The hook binds Codex's actual native session ID and injects verified
+history before the model starts. Review changed hooks through `/hooks`; merely
+installing or enabling a plugin does not trust its hooks.
+
+The handoff contains exact identifiers, never API keys or a transcript copy.
+Deleted, moved, inaccessible, or mismatched targets stop continuation. Ordinary
+native Resume still resumes the original Codex session. Historical imports
+resolve the same binding instead of creating another Mem Thread.
 
 ## Skills
 
@@ -155,6 +173,12 @@ With stock roles, the default policy therefore performs no full Context Bundle
 read: `explorer` is silent and the other built-in roles get routing only. Define
 a context-heavy custom role or explicitly include `worker` when that role should
 always receive the full snapshot.
+
+Run setup again after updating the plugin to refresh the installed Stop fallback.
+When Codex omits `PLUGIN_ROOT`, Stop uses this copy under `CODEX_HOME/hooks`
+(or `~/.codex/hooks`). A plugin-only install without either path cannot locate
+its capture runtime and reports a setup error. The other lifecycle hooks still
+require Codex to provide the plugin root.
 
 Restart Codex after setup. Codex treats **enabled** and **trusted** as separate hook states: review and trust the four Nowledge Mem hooks when Codex prompts you. This confirmation is deliberately user-owned; the installer never bypasses Codex's hook security boundary.
 
@@ -400,6 +424,7 @@ to see its full capabilities.
   standalone CLI with `pip install nmem-cli`. See [Getting Started](https://mem.nowledge.co/docs/installation).
 - **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
 - **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed with `codex plugin add` or from `/plugins`, and `~/.codex/config.toml` has `[features] plugins = true`, `hooks = true`, and `[plugins."nowledge-mem@nowledge-community"] enabled = true`. Older Codex builds may also need `plugin_hooks = true`; rerun setup instead of guessing. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
+- **Stop has no project context**: without an explicit transcript path, capture requires an absolute project directory other than a filesystem root. Missing or unresolved context quietly skips capture instead of queuing retries against `/` or a Windows root. Refresh the installed fallback with `scripts/install_hooks.py` after updating.
 - **Startup, subagent context, or Codex threads are not appearing automatically**: rerun `scripts/install_hooks.py` from the installed plugin folder, restart Codex, then review `/hooks`. The Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks must be both enabled and trusted. The setup script handles the removed-versus-legacy `plugin_hooks` gate automatically.
 - **Stop hook points to an older plugin cache path**: update the package, rerun `scripts/install_hooks.py`, then restart Codex. Already-running Codex sessions can keep the old plugin hook path in memory until restart; current packages prefer the stable host hook when it exists so future updates keep saving cleanly.
 - **`codex mcp list` shows `Not logged in`**: update `nmem` so it matches your Mem app/server, install the CLI config from the desktop app if you use local desktop Mem, then rerun `scripts/install_hooks.py`. You can also run `nmem config mcp show --host codex` and paste the generated TOML into `~/.codex/config.toml`. Do not use `codex mcp login nowledge-mem`; that command is for OAuth MCP servers, while Nowledge Mem's Codex path uses the URL and headers generated by `nmem`.
@@ -427,3 +452,7 @@ Graph viewing preserves the retrieval identity and Space restrictions. Exact
 Memory IDs do not enforce authorization. If the graph surface or browser
 session cannot be confirmed to enforce the same owner/member/Space scope,
 skip visualization and keep the retrieved evidence.
+
+The standalone fallback preserves API path prefixes in `base_url`. It requires
+trusted browser identity and scope evidence; CLI-only hosts skip automatic
+browser links and retain the successful retrieval when that evidence is absent.

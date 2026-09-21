@@ -4,7 +4,19 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
 
 ## Unreleased
 
-## [0.6.1] - 2026-09-14
+### Fixed
+
+- Updated `check-integration` to route Agent Plugins-compatible clients to the
+  Universal Agent Plugin fallback before dropping to direct MCP or generic
+  `npx skills`.
+- Documented the Antigravity 2.0 / Gemini-family global skills path change:
+  global skills should now land in `~/.gemini/config/skills`, not the older
+  `~/.gemini/skills` or `~/.gemini/antigravity/skills` locations. Thanks to
+  [@abn](https://github.com/abn) for the report and reference setup.
+- Clarified Hermes update verification so agents can detect stale local
+  provider files and rerun setup against the correct `HERMES_HOME`.
+
+## [0.6.1] - 2026-09-22
 
 ### Added
 
@@ -19,18 +31,6 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
   retrieval usable.
 - The npx graph skill is the canonical source for the self-contained Codex and
   Agent Plugins package copies, with package tests checking for drift.
-
-### Fixed
-
-- Updated `check-integration` to route Agent Plugins-compatible clients to the
-  Universal Agent Plugin fallback before dropping to direct MCP or generic
-  `npx skills`.
-- Documented the Antigravity 2.0 / Gemini-family global skills path change:
-  global skills should now land in `~/.gemini/config/skills`, not the older
-  `~/.gemini/skills` or `~/.gemini/antigravity/skills` locations. Thanks to
-  [@abn](https://github.com/abn) for the report and reference setup.
-- Clarified Hermes update verification so agents can detect stale local
-  provider files and rerun setup against the correct `HERMES_HOME`.
 
 ## [0.6.0] - 2026-03-23
 

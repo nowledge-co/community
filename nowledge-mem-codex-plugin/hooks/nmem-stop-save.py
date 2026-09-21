@@ -339,6 +339,18 @@ def _build_save_command(
     return _build_nmem_command(nmem, *args)
 
 
+def _has_capture_context(payload: dict[str, Any]) -> bool:
+    if _payload_value(payload, "transcript_path", "transcriptPath"):
+        return True
+    cwd = _payload_value(payload, "cwd")
+    if not cwd:
+        return False
+    # Do not resolve relative paths against the hook process's directory or
+    # enqueue a filesystem root as a substitute for an unknown project.
+    project = Path(os.path.normpath(os.path.expanduser(cwd)))
+    return project.is_absolute() and project != Path(project.anchor)
+
+
 def _build_enqueue_command(nmem: str, payload: dict[str, Any]) -> list[str]:
     args = ["--json", "t", "capture", "--from", "codex"]
     session_id = _payload_value(payload, "session_id", "sessionId")
@@ -379,14 +391,23 @@ def _run_enqueue(
     )
 
 
-def _enqueue_succeeded(proc: subprocess.CompletedProcess[str]) -> bool:
+def _enqueue_outcome(proc: subprocess.CompletedProcess[str]) -> str | None:
     if proc.returncode != 0:
-        return False
+        return None
     try:
         payload = json.loads(proc.stdout or "{}")
     except json.JSONDecodeError:
-        return False
-    return isinstance(payload, dict) and payload.get("status") == "enqueued"
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("status") == "enqueued":
+        return "enqueued"
+    if (
+        payload.get("status") == "skipped"
+        and payload.get("reason") == "automatic_capture_disabled"
+    ):
+        return "automatic_capture_disabled"
+    return None
 
 
 def _background_spawn_kwargs() -> dict[str, Any]:
@@ -693,14 +714,21 @@ def main() -> int:
     if not session_id:
         _log("skip: durable capture requires session identity")
         return 0
+    if not _has_capture_context(payload):
+        _log("skip: no transcript or resolved project context")
+        return 0
     try:
         enqueue_proc = _run_enqueue(nmem, payload)
     except (subprocess.TimeoutExpired, OSError) as exc:
         _log(f"enqueue: unavailable; capture skipped: {exc}")
         return 0
-    if _enqueue_succeeded(enqueue_proc):
+    enqueue_outcome = _enqueue_outcome(enqueue_proc)
+    if enqueue_outcome:
         _dispatch_skill_outcomes(payload)
-        _log("enqueue: durable capture accepted")
+        if enqueue_outcome == "enqueued":
+            _log("enqueue: durable capture accepted")
+        else:
+            _log("enqueue: automatic capture disabled by user policy")
         return 0
     detail = (enqueue_proc.stderr or enqueue_proc.stdout or "").strip()
     _log(

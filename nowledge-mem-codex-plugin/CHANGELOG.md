@@ -2,28 +2,57 @@
 
 ## [Unreleased]
 
-## [0.1.34] - 2026-09-05
-
-- Share the portable `explore-graph` contract with generic npx and Agent Plugins packages, with independent-install parity tests and explicit identity/Space-safe fallback.
+## [0.1.37] - 2026-09-22
 
 ### Added
 
-- Search-memory now teaches an explicit Agent router for bounded Normal,
-  conceptual/historical Deep, and one-hop Progressive graph retrieval.
-- Non-empty Memory results keep the default focused graph, while Progressive
-  expansion tracks seed, visited IDs, frontier, and hop bounds instead of
-  crawling the entire graph.
-- Codex integration metadata now advertises graph exploration and registers the
-  `explore-graph` skill.
+- Share the portable `explore-graph` skill with generic npx and Agent Plugins
+  packages through self-contained ordinary copies and independent-install
+  parity tests.
+- Route bounded Normal, conceptual/historical Deep, and one-hop Progressive
+  retrieval, tracking seed, visited IDs, frontier, and hop limits.
+- Follow non-empty Memory retrieval with a focused graph of the exact result
+  IDs and an observable retrieval trace; prefer the inline MCP App when available.
 
-## [0.1.33] - 2026-09-04
+### Changed
+
+- Preserve API path prefixes in standalone graph URLs and require matching
+  browser identity and Space evidence before browser or link fallback.
+- Advertise graph exploration in the Codex integration registry.
+
+## [0.1.36] - 2026-09-15
 
 ### Added
 
-- Memory retrieval now automatically follows with a focused graph of the exact
-  returned Memories and a compact, observable retrieval trace.
-- The `explore-graph` skill prefers an inline MCP App card and falls back to
-  the existing standalone Graph Explorer when the host cannot render Apps.
+- Continue an explicitly selected Mem Thread in a new Codex session. A synchronous, trusted prompt hook verifies its exact locator and injects bounded context before the agent starts.
+- Capture new native message occurrences into the same Thread, retaining per-session provenance and rejecting changed, deleted, or inaccessible targets.
+
+## [0.1.35] - 2026-09-15
+
+### Fixed
+
+- The Stop hook now treats an explicit Auto-Sync policy skip as a successful
+  no-op, so disabling automatic session capture does not fall back to a legacy
+  full-session save. Manual thread saves remain available.
+
+## [0.1.34] - 2026-09-10
+
+### Fixed
+
+- Stop hooks quietly skip capture when no transcript path is supplied and the
+  project directory is missing, relative, or a filesystem root. Valid project
+  capture and explicit transcript capture keep using the durable queue.
+
+## [0.1.33] - 2026-09-10
+
+### Fixed
+
+- Stop capture can use the installed host hook when Codex does not provide
+  `PLUGIN_ROOT`. Run `scripts/install_hooks.py` after updating to refresh this
+  fallback under `CODEX_HOME` (or `~/.codex`).
+- On macOS and Linux, the Stop hook chooses an available Python interpreter
+  before running capture, so a runtime failure is reported once with its actual
+  exit status. Missing hook files now include setup instructions.
 
 ## [0.1.32] - 2026-08-20
 

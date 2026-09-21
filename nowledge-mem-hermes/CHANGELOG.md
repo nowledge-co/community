@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.24] - 2026-09-18
+
+### Fixed
+
+- Hermes transcript sync now retains unacknowledged session-owned messages after import or append failures and retries them before later deltas. This prevents branch sessions from permanently dropping an earlier turn when a later completed turn or session-end flush succeeds.
+- Retry bookkeeping remains per session and preserves delta-only parent-prefix exclusion, so branch and resumed sessions recover missing turns without importing parent history.
+- Repeated message sequences no longer truncate retry snapshots. Branch recovery uses the observed parent boundary when available; ambiguous content-only alignment retains pending messages without advancing acknowledgement until it can be resolved.
+- The integration registry and release-contract tests now track the provider version together.
+
 ## [0.5.23] - 2026-07-12
 
 ### Added

@@ -247,6 +247,8 @@ class NowledgeMemProvider(MemoryProvider):
         self._saved_message_counts: Dict[str, int] = {}
         self._delta_only_sessions: Set[str] = set()
         self._written_message_signatures: Dict[str, List[str]] = {}
+        self._pending_message_batches: Dict[str, List[Dict[str, Any]]] = {}
+        self._delta_parent_signatures: Dict[str, List[str]] = {}
         self._reported_skill_outcomes: Set[tuple[str, str]] = set()
         self._agent_identity = ""
 
@@ -406,6 +408,20 @@ class NowledgeMemProvider(MemoryProvider):
                 {"role": "assistant", "content": assistant_content},
             ]
         )
+        if (
+            messages
+            and cleaned_messages
+            and active_session_id in self._delta_only_sessions
+            and not self._get_saved_message_count(active_session_id)
+            and not self._pending_message_batches.get(active_session_id)
+            and active_session_id not in self._delta_parent_signatures
+        ):
+            history = self._clean_session_messages(messages)
+            signatures = [self._message_signature(message) for message in history]
+            turn = [self._message_signature(message) for message in cleaned_messages]
+            if signatures[-len(turn) :] == turn:
+                # Only the first observed turn establishes the branch boundary.
+                self._delta_parent_signatures[active_session_id] = signatures[: -len(turn)]
         self._write_thread_messages(cleaned_messages, title_messages=cleaned_messages)
         if messages:
             self._report_skill_outcomes(messages)
@@ -431,6 +447,8 @@ class NowledgeMemProvider(MemoryProvider):
             count = 0
             self._delta_only_sessions.discard(session_id)
             self._written_message_signatures.pop(session_id, None)
+            self._pending_message_batches.pop(session_id, None)
+            self._delta_parent_signatures.pop(session_id, None)
         elif session_id in self._saved_message_counts:
             count = self._get_saved_message_count(session_id)
         elif session_id == previous_session_id:
@@ -502,7 +520,7 @@ class NowledgeMemProvider(MemoryProvider):
             delta = self._unsynced_messages(session_id, cleaned_messages)
             if not delta:
                 return
-            self._write_thread_messages(delta, title_messages=title_messages or cleaned_messages)
+            self._write_thread_messages(delta, title_messages=delta)
             return
 
         saved_count = self._get_saved_message_count(session_id)
@@ -524,9 +542,29 @@ class NowledgeMemProvider(MemoryProvider):
         session_id: str,
         messages: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
+        pending = list(self._pending_message_batches.get(session_id) or [])
         written = list(self._written_message_signatures.get(session_id) or [])
+        parent = self._delta_parent_signatures.get(session_id)
+        if parent is not None:
+            prefix = [self._message_signature(message) for message in messages[: len(parent)]]
+            if prefix != parent:
+                # Compaction or a different snapshot cannot establish this boundary.
+                return []
+            messages = messages[len(parent) :]
+            if not written:
+                return messages
         if not written:
-            return []
+            if not pending:
+                return []
+            pending_start = self._find_message_sequence(messages, pending)
+            if pending_start < 0:
+                logger.warning(
+                    "Nowledge Mem retained pending messages for %s: "
+                    "transcript alignment is missing or ambiguous",
+                    session_id,
+                )
+                return []
+            return messages[pending_start:]
 
         signatures = [self._message_signature(message) for message in messages]
         search_from = 0
@@ -557,6 +595,82 @@ class NowledgeMemProvider(MemoryProvider):
         content = str(message.get("content") or "")
         return f"{role}\0{content}"
 
+    @staticmethod
+    def _find_message_sequence(
+        messages: List[Dict[str, Any]],
+        needle: List[Dict[str, Any]],
+    ) -> int:
+        if not needle or len(needle) > len(messages):
+            return -1
+        signatures = [NowledgeMemProvider._message_signature(message) for message in messages]
+        needle_signatures = [
+            NowledgeMemProvider._message_signature(message)
+            for message in needle
+        ]
+        match_start = -1
+        limit = len(signatures) - len(needle_signatures) + 1
+        for start in range(limit):
+            if signatures[start : start + len(needle_signatures)] == needle_signatures:
+                if match_start >= 0:
+                    # Content alone cannot distinguish parent text from branch text.
+                    return -1
+                match_start = start
+        return match_start
+
+    @staticmethod
+    def _copy_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        return [dict(message) for message in messages]
+
+    def _merge_message_sequences(
+        self,
+        first: List[Dict[str, Any]],
+        second: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        if not first:
+            return self._copy_messages(second)
+        if not second:
+            return self._copy_messages(first)
+
+        first_signatures = [self._message_signature(message) for message in first]
+        second_signatures = [self._message_signature(message) for message in second]
+
+        for start in range(len(second_signatures) - len(first_signatures) + 1):
+            if second_signatures[start : start + len(first_signatures)] == first_signatures:
+                # Both inputs are session-scoped. Keep the entire newer snapshot,
+                # including content before or between repeated pending sequences.
+                return self._copy_messages(second)
+
+        max_overlap = min(len(first_signatures), len(second_signatures))
+        for overlap in range(max_overlap, 0, -1):
+            if first_signatures[-overlap:] == second_signatures[:overlap]:
+                return [
+                    *self._copy_messages(first),
+                    *self._copy_messages(second[overlap:]),
+                ]
+
+        return [*self._copy_messages(first), *self._copy_messages(second)]
+
+    def _pending_and_messages(
+        self,
+        session_id: str,
+        messages: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        pending = self._pending_message_batches.get(session_id) or []
+        return self._merge_message_sequences(pending, messages)
+
+    def _remember_pending_messages(
+        self,
+        session_id: str,
+        messages: List[Dict[str, Any]],
+    ) -> None:
+        if not session_id or not messages:
+            return
+        pending = self._pending_message_batches.get(session_id) or []
+        self._pending_message_batches[session_id] = self._merge_message_sequences(
+            pending,
+            messages,
+        )
+
     def _write_thread_messages(
         self,
         messages: List[Dict[str, Any]],
@@ -569,23 +683,38 @@ class NowledgeMemProvider(MemoryProvider):
         if not session_id:
             return
 
+        had_pending_messages = bool(self._pending_message_batches.get(session_id))
+        messages_to_write = self._pending_and_messages(session_id, messages)
+        if not messages_to_write:
+            return
+
         saved_count = self._get_saved_message_count(session_id)
         if saved_count <= 0:
-            title = self._build_thread_title(title_messages or messages)
+            title_source = (
+                messages_to_write
+                if had_pending_messages
+                else title_messages or messages_to_write
+            )
+            title = self._build_thread_title(title_source)
             try:
                 result = self._client.import_thread(
                     session_id,
-                    messages,
+                    messages_to_write,
                     title=title or None,
                     source="hermes",
                 )
                 if not self._response_succeeded(result):
                     if self._thread_already_exists(result):
                         self._delta_only_sessions.add(session_id)
-                        self._append_existing_thread(session_id, messages)
-                        self._remember_written_messages(session_id, messages)
-                        self._set_saved_message_count(session_id, saved_count + len(messages))
+                        self._append_existing_thread(session_id, messages_to_write)
+                        self._remember_written_messages(session_id, messages_to_write)
+                        self._pending_message_batches.pop(session_id, None)
+                        self._set_saved_message_count(
+                            session_id,
+                            saved_count + len(messages_to_write),
+                        )
                         return
+                    self._remember_pending_messages(session_id, messages_to_write)
                     logger.warning(
                         "Nowledge Mem session import did not succeed for %s: %s",
                         session_id,
@@ -598,22 +727,32 @@ class NowledgeMemProvider(MemoryProvider):
                     session_id,
                     error,
                 )
+                self._remember_pending_messages(session_id, messages_to_write)
                 return
-            self._remember_written_messages(session_id, messages)
-            self._set_saved_message_count(session_id, saved_count + len(messages))
+            self._remember_written_messages(session_id, messages_to_write)
+            self._pending_message_batches.pop(session_id, None)
+            self._set_saved_message_count(
+                session_id,
+                saved_count + len(messages_to_write),
+            )
             return
 
         try:
-            self._append_existing_thread(session_id, messages)
+            self._append_existing_thread(session_id, messages_to_write)
         except Exception as error:
             logger.warning(
                 "Nowledge Mem session append failed for %s: %s",
                 session_id,
                 error,
             )
+            self._remember_pending_messages(session_id, messages_to_write)
             return
-        self._remember_written_messages(session_id, messages)
-        self._set_saved_message_count(session_id, saved_count + len(messages))
+        self._remember_written_messages(session_id, messages_to_write)
+        self._pending_message_batches.pop(session_id, None)
+        self._set_saved_message_count(
+            session_id,
+            saved_count + len(messages_to_write),
+        )
 
     def _append_existing_thread(self, session_id: str, messages: List[Dict[str, Any]]) -> None:
         assert self._client is not None
@@ -742,6 +881,8 @@ class NowledgeMemProvider(MemoryProvider):
         self._saved_message_counts.clear()
         self._delta_only_sessions.clear()
         self._written_message_signatures.clear()
+        self._pending_message_batches.clear()
+        self._delta_parent_signatures.clear()
         self._reported_skill_outcomes.clear()
 
     @staticmethod

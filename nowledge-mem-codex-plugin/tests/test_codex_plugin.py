@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -9,6 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
@@ -38,6 +40,20 @@ class MemoryGraphSkillTests(unittest.TestCase):
         self.assertIn("identity and Space checks", instructions)
         self.assertNotIn("nmem --json graph expand", instructions)
 
+    def assert_graph_package_is_standalone(self, source, canonical):
+        # copytree dereferences its source root even with symlinks=True.
+        # Check every component before copying the complete standalone package.
+        for relative in [".", "skills", "skills/explore-graph", "skills/explore-graph/SKILL.md"]:
+            self.assertFalse((source / relative).is_symlink(), str(source / relative))
+        with tempfile.TemporaryDirectory() as root:
+            installed = Path(root) / "package"
+            shutil.copytree(source, installed, symlinks=True)
+            skill = installed / "skills/explore-graph/SKILL.md"
+            self.assertTrue(skill.is_file())
+            self.assertFalse(skill.is_symlink())
+            self.assertFalse(skill.parent.is_symlink())
+            self.assertEqual(skill.read_bytes(), canonical)
+
     def test_graph_skill_is_identical_and_self_contained_in_each_package(self):
         repo_root = PLUGIN_ROOT.parent
         packages = [
@@ -45,22 +61,44 @@ class MemoryGraphSkillTests(unittest.TestCase):
             "nowledge-mem-agent-plugin",
             "nowledge-mem-codex-plugin",
         ]
-        relative_skill = Path("skills/explore-graph/SKILL.md")
-        canonical = (repo_root / packages[0] / relative_skill).read_bytes()
-
+        canonical = (repo_root / packages[0] / "skills/explore-graph/SKILL.md").read_bytes()
         for package in packages:
-            with self.subTest(package=package), tempfile.TemporaryDirectory() as root:
-                # Model an isolated package install, retaining links so an
-                # out-of-package symlink cannot pass by being dereferenced.
-                installed = Path(root) / package
-                shutil.copytree(
-                    repo_root / package / "skills", installed / "skills", symlinks=True
-                )
-                skill = installed / relative_skill
-                self.assertTrue(skill.is_file())
-                self.assertFalse(skill.is_symlink())
-                self.assertFalse(skill.parent.is_symlink())
-                self.assertEqual(skill.read_bytes(), canonical)
+            with self.subTest(package=package):
+                self.assert_graph_package_is_standalone(repo_root / package, canonical)
+
+    def test_isolated_install_rejects_symlinked_skills_root(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            shared = root / "shared"
+            (shared / "explore-graph").mkdir(parents=True)
+            (shared / "explore-graph/SKILL.md").write_text("graph skill")
+            package = root / "package"
+            package.mkdir()
+            try:
+                (package / "skills").symlink_to(shared, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"Directory symlinks unavailable: {error}")
+            with self.assertRaises(AssertionError):
+                self.assert_graph_package_is_standalone(package, b"graph skill")
+
+    def test_remote_graph_example_preserves_api_path_prefix(self):
+        skill = EXPLORE_GRAPH_SKILL_PATH.read_text(encoding="utf-8")
+        examples = re.findall(r"https://mem\.example\.com/remote-api/graph/vis\?[^\s`]+", skill)
+        self.assertEqual(len(examples), 1, "Provide one executable path-prefix example")
+        url = urlsplit(examples[0])
+        params = parse_qs(url.query)
+        self.assertEqual(url.path, "/remote-api/graph/vis")
+        self.assertEqual(params["base_url"], ["https://mem.example.com/remote-api"])
+        self.assertEqual(params["memory_ids"], ["id1,id2"])
+        self.assertEqual(params["standalone"], ["1"])
+        self.assertEqual(params["depth"], ["1"])
+        self.assertEqual(params["limit"], ["15"])
+
+    def test_cli_only_fallback_does_not_claim_browser_verification(self):
+        skill = EXPLORE_GRAPH_SKILL_PATH.read_text(encoding="utf-8")
+        self.assertIn("CLI-only hosts cannot verify a browser session", skill)
+        self.assertIn("no automatic browser or link fallback", skill)
+        self.assertIn("CLI status or HTTP 200", skill)
 
     def test_generic_search_packages_route_memory_results_to_graph(self):
         repo_root = PLUGIN_ROOT.parent
@@ -224,6 +262,124 @@ class HookTests(unittest.TestCase):
         legacy.assert_not_called()
         claim.assert_not_called()
 
+    def test_stop_skips_unresolved_capture_context(self):
+        for cwd in (
+            None, "", " ", "/", "//", "/tmp/..", ".", "relative-project",
+            "\\", "C:\\", "C:", r"\\server\share",
+        ):
+            with self.subTest(cwd=cwd):
+                payload = {"session_id": "contextless-session", "cwd": cwd}
+                output = io.StringIO()
+                accepted = mock.Mock(returncode=0, stdout='{"status":"enqueued"}', stderr="")
+                with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+                     mock.patch.object(self.module, "_run_enqueue", return_value=accepted) as enqueue, \
+                     mock.patch.object(self.module, "_run_save_with_retries") as legacy, \
+                     mock.patch.object(self.module, "_dispatch_skill_outcomes") as outcomes, \
+                     mock.patch.object(self.module.sys, "stdin", io.StringIO(json.dumps(payload))), \
+                     mock.patch.object(self.module.sys, "stdout", output):
+                    self.assertEqual(self.module._run_entrypoint(), 0)
+                enqueue.assert_not_called()
+                legacy.assert_not_called()
+                outcomes.assert_not_called()
+                self.assertEqual(json.loads(output.getvalue()), {"continue": True, "suppressOutput": True})
+
+    def test_stop_preserves_project_capture_without_transcript(self):
+        payload = {"session_id": "project-session", "cwd": str(self.temp_path)}
+        accepted = mock.Mock(returncode=0, stdout='{"status":"enqueued"}', stderr="")
+        with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+             mock.patch.object(self.module, "_run_enqueue", return_value=accepted) as enqueue, \
+             mock.patch.object(self.module, "_dispatch_skill_outcomes"), \
+             mock.patch.object(self.module.sys, "stdin", io.StringIO(json.dumps(payload))):
+            self.assertEqual(self.module.main(), 0)
+        enqueue.assert_called_once_with("nmem", payload)
+
+    def test_stop_process_does_not_launch_cli_without_context(self):
+        marker = self.temp_path / "cli-called"
+        shim = self.temp_path / ("nmem-probe.cmd" if os.name == "nt" else "nmem-probe")
+        shim.write_text(
+            '@echo off\necho called>>"%NMEM_CAPTURE_PROBE%"\nexit /b 2\n'
+            if os.name == "nt"
+            else '#!/bin/sh\nprintf called >> "$NMEM_CAPTURE_PROBE"\nexit 2\n',
+            encoding="utf-8",
+        )
+        shim.chmod(0o755)
+        env = dict(os.environ, NMEM_CLI_PATH=str(shim), NMEM_CAPTURE_PROBE=str(marker))
+
+        def invoke(cwd):
+            return subprocess.run(
+                [sys.executable, str(HOOK_MODULE_PATH), "--event", "stop"],
+                input=json.dumps({"session_id": "subprocess-session", "cwd": cwd}),
+                text=True, capture_output=True, env=env, timeout=10, check=True,
+            )
+
+        for cwd in (None, self.temp_path.anchor, "relative-project"):
+            with self.subTest(cwd=cwd):
+                result = invoke(cwd)
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(json.loads(result.stdout), {"continue": True, "suppressOutput": True})
+                self.assertFalse(marker.exists(), "contextless Stop must not launch nmem")
+
+        # Prove the harmless CLI can actually run on this host; absence of a
+        # marker above must not be caused by an unusable subprocess fixture.
+        invoke(str(self.temp_path))
+        self.assertIn("called", marker.read_text(encoding="utf-8"))
+
+    def test_stop_preserves_explicit_transcript_without_project_context(self):
+        for cwd in (None, "/"):
+            with self.subTest(cwd=cwd):
+                payload = {"data": {"input": {
+                    "sessionId": "transcript-session", "cwd": cwd,
+                    "transcriptPath": str(self.temp_path / "rollout.jsonl"),
+                }}}
+                accepted = mock.Mock(returncode=0, stdout='{"status":"enqueued"}', stderr="")
+                with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+                     mock.patch.object(self.module, "_run_enqueue", return_value=accepted) as enqueue, \
+                     mock.patch.object(self.module, "_dispatch_skill_outcomes"), \
+                     mock.patch.object(self.module.sys, "stdin", io.StringIO(json.dumps(payload))):
+                    self.assertEqual(self.module.main(), 0)
+                enqueue.assert_called_once_with("nmem", payload)
+
+    def test_stop_treats_disabled_automatic_capture_as_handled(self):
+        payload = {
+            "session_id": "019abc",
+            "cwd": "/tmp/project",
+            "transcript_path": "/tmp/codex/rollout.jsonl",
+        }
+        skipped = mock.Mock(
+            returncode=0,
+            stdout='{"status":"skipped","reason":"automatic_capture_disabled"}',
+            stderr="",
+        )
+        with mock.patch.object(self.module, "_nmem_command", return_value="nmem"), \
+             mock.patch.object(self.module, "_run_enqueue", return_value=skipped), \
+             mock.patch.object(self.module, "_dispatch_skill_outcomes") as outcomes, \
+             mock.patch.object(self.module, "_run_save_with_retries") as legacy, \
+             mock.patch.object(self.module, "_claim_capture_event") as claim, \
+             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: json.dumps(payload))):
+            self.assertEqual(self.module.main(), 0)
+
+        outcomes.assert_called_once_with(payload)
+        legacy.assert_not_called()
+        claim.assert_not_called()
+
+    def test_only_exact_disabled_policy_skip_is_a_successful_enqueue_outcome(self):
+        cases = (
+            (0, '{"status":"enqueued"}', "enqueued"),
+            (
+                0,
+                '{"status":"skipped","reason":"automatic_capture_disabled"}',
+                "automatic_capture_disabled",
+            ),
+            (0, '{"status":"skipped","reason":"duplicate"}', None),
+            (0, '{"status":"skipped"}', None),
+            (0, "not-json", None),
+            (2, '{"status":"enqueued"}', None),
+        )
+        for returncode, stdout, expected in cases:
+            with self.subTest(returncode=returncode, stdout=stdout):
+                proc = mock.Mock(returncode=returncode, stdout=stdout)
+                self.assertEqual(self.module._enqueue_outcome(proc), expected)
+
     def test_skill_outcome_dispatch_preserves_nested_hook_identity(self):
         payload = {
             "data": {
@@ -283,7 +439,7 @@ class HookTests(unittest.TestCase):
              mock.patch.object(
                  self.module.sys,
                  "stdin",
-                 mock.Mock(read=lambda: json.dumps({"session_id": "full-uuid"})),
+                 mock.Mock(read=lambda: json.dumps({"session_id": "full-uuid", "cwd": str(self.temp_path)})),
              ):
             self.assertEqual(self.module.main(), 0)
 
@@ -662,11 +818,11 @@ class PackagedHookConfigTests(unittest.TestCase):
 
         self.assertEqual(set(payload.keys()), {"hooks"})
 
-    def test_packaged_stop_hook_prefers_stable_installed_runtime(self):
+    def test_packaged_stop_hook_resolves_runtime_from_environment(self):
         payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
         hook = payload["hooks"]["Stop"][0]["hooks"][0]
 
-        self.assertIn("os.environ['PLUGIN_ROOT']", hook["command"])
+        self.assertIn("os.environ.get('PLUGIN_ROOT')", hook["command"])
         self.assertIn("nmem-stop-launch.py", hook["command"])
         self.assertIn('python3 -c "import os, runpy, sys', hook["command"])
         self.assertIn('python -c "import os, runpy, sys', hook["command"])
@@ -674,7 +830,7 @@ class PackagedHookConfigTests(unittest.TestCase):
         self.assertNotIn("%PLUGIN_ROOT%", hook["command"])
         self.assertNotIn("if [", hook["command"])
         self.assertNotIn("$HOME/.codex/hooks/nowledge-mem-stop-save.py", hook["command"])
-        self.assertIn("os.environ['PLUGIN_ROOT']", hook["commandWindows"])
+        self.assertIn("os.environ.get('PLUGIN_ROOT')", hook["commandWindows"])
         self.assertIn("nmem-stop-launch.py", hook["commandWindows"])
         self.assertNotIn("${PLUGIN_ROOT}", hook["commandWindows"])
         self.assertNotIn("%PLUGIN_ROOT%", hook["commandWindows"])
@@ -708,6 +864,132 @@ class PackagedHookConfigTests(unittest.TestCase):
             subagent_timeout,
             context_module.SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS,
         )
+
+
+class PackagedStopCommandTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        self.temp_path = Path(self.temp_dir.name)
+        self.codex_home = self.temp_path / "Codex Home"
+        self.host_hook = self.codex_home / "hooks" / "nowledge-mem-stop-save.py"
+        self.host_hook.parent.mkdir(parents=True)
+        self.env = os.environ.copy()
+        self.env.pop("PLUGIN_ROOT", None)
+        self.env["CODEX_HOME"] = str(self.codex_home)
+        self.bin_dir = self.temp_path / "bin"
+        self.bin_dir.mkdir()
+        if os.name != "nt":
+            (self.bin_dir / "python3").symlink_to(sys.executable)
+            self.env["PATH"] = str(self.bin_dir)
+        payload = json.loads(HOOKS_JSON_PATH.read_text(encoding="utf-8"))
+        hook = payload["hooks"]["Stop"][0]["hooks"][0]
+        self.command = hook["commandWindows" if os.name == "nt" else "command"]
+
+    def write_capture_hook(self, path, label):
+        path.write_text(
+            "import json, sys\n"
+            f"json.dump({{'runtime': {label!r}, 'argv': sys.argv[1:], "
+            "'input': json.load(sys.stdin)}, sys.stdout)\n",
+            encoding="utf-8",
+        )
+
+    def run_command(self, payload=None):
+        if payload is None:
+            payload = {"session_id": "synthetic-session"}
+        return subprocess.run(
+            self.command if os.name == "nt" else ["/bin/sh", "-c", self.command],
+            shell=os.name == "nt",
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            env=self.env,
+            cwd=self.temp_path,
+            timeout=10,
+            check=False,
+        )
+
+    def assert_capture(self, result, runtime):
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout),
+            {
+                "runtime": runtime,
+                "argv": ["--event", "stop"],
+                "input": {"session_id": "synthetic-session"},
+            },
+        )
+
+    def test_manifest_uses_installed_hook_without_plugin_root(self):
+        self.write_capture_hook(self.host_hook, "installed")
+        self.assert_capture(self.run_command(), "installed")
+
+    def test_manifest_uses_installed_hook_with_empty_plugin_root(self):
+        self.env["PLUGIN_ROOT"] = ""
+        self.write_capture_hook(self.host_hook, "installed")
+        self.assert_capture(self.run_command(), "installed")
+
+    def test_manifest_runs_installed_runtime_without_session_metadata(self):
+        for source, name in (
+            (HOOK_MODULE_PATH, self.host_hook.name),
+            (RUNTIME_MODULE_PATH, RUNTIME_MODULE_PATH.name),
+            (PLUGIN_ROOT / "hooks" / "skill_outcome.py", "skill_outcome.py"),
+        ):
+            shutil.copy2(source, self.host_hook.parent / name)
+        result = self.run_command({})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout), {"continue": True, "suppressOutput": True}
+        )
+
+    def test_manifest_keeps_packaged_runtime_when_root_is_available(self):
+        plugin_root = self.temp_path / "Plugin With Spaces"
+        hooks_dir = plugin_root / "hooks"
+        hooks_dir.mkdir(parents=True)
+        shutil.copy2(LAUNCH_MODULE_PATH, hooks_dir / LAUNCH_MODULE_PATH.name)
+        self.write_capture_hook(hooks_dir / "nmem-stop-save.py", "packaged")
+        self.write_capture_hook(self.host_hook, "installed")
+        self.env["PLUGIN_ROOT"] = str(plugin_root)
+        self.assert_capture(self.run_command(), "packaged")
+
+    @unittest.skipIf(os.name == "nt", "POSIX interpreter selection")
+    def test_missing_runtime_has_actionable_error_without_exit_127(self):
+        self.write_capture_hook(self.temp_path / "nmem-stop-launch.py", "untrusted-cwd")
+        result = self.run_command()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("PLUGIN_ROOT", result.stderr)
+        self.assertIn("install_hooks.py", result.stderr)
+        self.assertNotIn("KeyError", result.stderr)
+        self.assertNotIn("not found", result.stderr)
+
+    @unittest.skipIf(os.name == "nt", "POSIX interpreter selection")
+    def test_runtime_failure_is_not_retried_with_another_interpreter(self):
+        (self.bin_dir / "python").symlink_to(sys.executable)
+        plugin_root = self.temp_path / "Failing Plugin"
+        hooks_dir = plugin_root / "hooks"
+        hooks_dir.mkdir(parents=True)
+        self.env["PLUGIN_ROOT"] = str(plugin_root)
+        (hooks_dir / "nmem-stop-launch.py").write_text(
+            "import sys\nprint('runtime failed', file=sys.stderr)\nsys.exit(23)\n",
+            encoding="utf-8",
+        )
+        result = self.run_command()
+        self.assertEqual(result.returncode, 23, result.stderr)
+        self.assertEqual(result.stderr, "runtime failed\n")
+
+    @unittest.skipIf(os.name == "nt", "POSIX interpreter selection")
+    def test_manifest_uses_python_when_python3_is_absent(self):
+        (self.bin_dir / "python3").rename(self.bin_dir / "python")
+        self.write_capture_hook(self.host_hook, "installed")
+        self.assert_capture(self.run_command(), "installed")
+
+    @unittest.skipIf(os.name == "nt", "POSIX interpreter selection")
+    def test_missing_python_has_interpreter_diagnostic(self):
+        self.env["PATH"] = str(self.temp_path / "missing-bin")
+        result = self.run_command()
+        self.assertEqual(result.returncode, 127, result.stderr)
+        self.assertIn("Nowledge Mem Stop hook requires Python 3", result.stderr)
 
 
 class ContextHookTests(unittest.TestCase):

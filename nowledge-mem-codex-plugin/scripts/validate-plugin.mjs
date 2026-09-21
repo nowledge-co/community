@@ -194,8 +194,8 @@ if (hooks) {
     if (!commands.some((command) => command.includes("nmem-stop-launch.py"))) {
       fail("Stop hooks must run nmem-stop-launch.py");
     } else ok("Stop hook capture");
-    if (!commands.some((command) => command.includes("os.environ['PLUGIN_ROOT']"))) {
-      fail("Stop hook commands must read PLUGIN_ROOT from Python, not shell expansion");
+    if (!commands.some((command) => command.includes("os.environ.get('PLUGIN_ROOT')"))) {
+      fail("Stop hook commands must read optional PLUGIN_ROOT from Python, not shell expansion");
     } else ok("Stop hook launcher env lookup");
     if (commands.some((command) => command.includes("${PLUGIN_ROOT}"))) {
       fail("Stop hook commands must not rely on ${PLUGIN_ROOT} placeholder expansion");

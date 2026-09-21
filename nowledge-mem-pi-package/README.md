@@ -2,6 +2,23 @@
 
 Cross-tool memory for Pi. Your decisions, preferences, and procedures persist across sessions and across every AI tool you use.
 
+## Continue a selected Mem Thread
+
+Open a Thread in Mem, choose **Continue in → Pi**, and run the copied
+`nmem t resume` command in the project directory. Use an updated `nmem` CLI and
+the installed `nowledge-mem-pi` package. The launcher loads the verified extension
+explicitly and passes the exact Thread, Space, and Mem connection identifiers.
+
+Pi starts a fresh native session. Its input hook binds that session to the
+selected Mem Thread and injects verified history into the system prompt before
+the model starts. New messages, restarts, and history sync keep using the same
+Mem Thread. Each native session retains its own message IDs and sync cursor.
+If the target was deleted, moved, or is inaccessible, continuation stops rather
+than creating another Thread. A new Pi session without a handoff remains independent.
+
+The copied handoff contains no API key or conversation transcript. Native
+`pi --session` continues to resume a Pi session directly.
+
 ## What You Get
 
 Pi gains a native extension plus five skills:
@@ -42,18 +59,21 @@ pi install npm:nowledge-mem-pi
 
 **Manual install:**
 
-Copy the `skills/` directory and extension into your Pi config:
+Copy the `skills/` directory and complete extension into your Pi config.
+The App's **Continue in → Pi** launcher requires the package-manager install above.
 
 ```bash
 # Global skills
 cp -r skills/* ~/.pi/agent/skills/
-mkdir -p ~/.pi/agent/extensions
-cp extensions/nowledge-mem.ts ~/.pi/agent/extensions/
+mkdir -p ~/.pi/agent/extensions/nowledge-mem
+cp extensions/*.ts ~/.pi/agent/extensions/nowledge-mem/
+mv ~/.pi/agent/extensions/nowledge-mem/nowledge-mem.ts ~/.pi/agent/extensions/nowledge-mem/index.ts
 
 # Or project-local skills
 cp -r skills/* .pi/skills/
-mkdir -p .pi/extensions
-cp extensions/nowledge-mem.ts .pi/extensions/
+mkdir -p .pi/extensions/nowledge-mem
+cp extensions/*.ts .pi/extensions/nowledge-mem/
+mv .pi/extensions/nowledge-mem/nowledge-mem.ts .pi/extensions/nowledge-mem/index.ts
 ```
 
 ## Verify

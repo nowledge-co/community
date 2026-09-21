@@ -139,9 +139,12 @@ at a time, bounded to 5 hops and 20 neighbors per hop by default.
 
 The skill prefers an inline MCP App when the host exposes `explore_graph` and
 supports rendering it. Otherwise, it uses `nmem --json status` to construct a
-focused standalone graph URL. A suitable host browser can open a local graph;
-other hosts return a link. Remote links require the browser's existing
-authenticated session. API keys never appear in links.
+focused standalone graph URL, preserving the full API base (including path
+prefixes) in `base_url`. A host with verified browser identity and scope can
+open a local graph or return a link. Remote links require the browser's existing
+authenticated session. API keys never appear in links. CLI-only hosts have no
+automatic browser or link fallback because they cannot verify that session;
+they retain the successful search results and explain the limitation.
 
 Graph viewing requires the same owner/member permissions and space as retrieval;
 exact result IDs alone do not provide access control. For Space- or

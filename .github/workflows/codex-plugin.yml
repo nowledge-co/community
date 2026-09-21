@@ -1,4 +1,4 @@
-name: Codex plugin
+name: Codex and Pi plugins
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
       - "nowledge-mem-codex-plugin/**"
       - "nowledge-mem-npx-skills/**"
       - "nowledge-mem-agent-plugin/**"
+      - "nowledge-mem-pi-package/**"
       - "nowledge-mem-openai-plugin/**"
       - "tests/plugin_e2e/**"
   push:
@@ -19,6 +20,7 @@ on:
       - "nowledge-mem-codex-plugin/**"
       - "nowledge-mem-npx-skills/**"
       - "nowledge-mem-agent-plugin/**"
+      - "nowledge-mem-pi-package/**"
       - "nowledge-mem-openai-plugin/**"
       - "tests/plugin_e2e/**"
 
@@ -42,11 +44,13 @@ jobs:
           python-version: "3.11"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: "20"
+          node-version: "24"
       - name: Install test dependency
         run: python -m pip install pytest
       - name: Test hook runtime and installer
-        run: python -m unittest nowledge-mem-codex-plugin/tests/test_codex_plugin.py
+        run: python -m unittest discover -s nowledge-mem-codex-plugin/tests
+      - name: Test Pi continuation and capture
+        run: node --test nowledge-mem-pi-package/tests/*.test.mjs
       - name: Validate package contract
         run: node nowledge-mem-codex-plugin/scripts/validate-plugin.mjs
       - name: Test OpenAI Cloud plugin package

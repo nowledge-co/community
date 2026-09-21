@@ -52,7 +52,8 @@ This package gives compatible agents a baseline memory surface:
 It does not claim automatic full-thread capture. Portable Agent Plugins expose skills and MCP, but lifecycle hooks and transcript access remain client-specific in Agent Plugins 1.0. Use a dedicated Nowledge connector when you need host-level thread sync.
 
 Graph viewing prefers the host's inline MCP App support, then a standalone
-browser or link fallback using the configured Mem endpoint. Remote links need
+browser or link fallback using the configured Mem endpoint, with its complete
+API base preserved in `base_url`. Remote links need
 the browser's existing authenticated session; credentials never appear in URLs.
 Graph viewing requires the retrieval's owner/member permissions and active
 space; exact result IDs do not enforce access control. Space- or Team-restricted
@@ -60,6 +61,8 @@ searches require confirmed graph enforcement of the same restrictions. Browser
 links also require confirmation of the browser's identity and scope, which the
 CLI configuration does not establish. When those checks are unavailable, the
 agent skips the graph and continues with the successful search results.
+CLI-only hosts cannot verify browser sessions and do not automatically return
+graph links; they report this limitation instead.
 
 ## Dedicated Connectors Still Win
 
