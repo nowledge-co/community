@@ -146,7 +146,6 @@ export async function fixture(t) {
 		let changed;
 		const context = {
 			storagePath,
-			chat: { getMessages: async (threadId) => structuredClone(histories.get(threadId) ?? []) },
 			logger: {
 				info() {},
 				debug() {},

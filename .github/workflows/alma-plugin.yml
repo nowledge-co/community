@@ -10,9 +10,6 @@ on:
     paths:
       - 'nowledge-mem-alma-plugin/**'
       - '.github/workflows/alma-plugin.yml'
-  workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * 1"
 
 permissions:
   contents: read

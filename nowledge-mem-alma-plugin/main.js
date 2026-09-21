@@ -1641,9 +1641,9 @@ export async function activate(context) {
 				logger.info?.(`nowledge-mem: appending ${delta.messages.length} msgs to ${flushThreadId}`);
 				result = await flushClient.appendThread(flushThreadId, delta.messages, {
 					idempotencyKey,
-				expectedMessageCount,
-				signal,
-			});
+					expectedMessageCount,
+					signal,
+				});
 			} catch (appendErr) {
 				scope.check();
 				if (flushClient.isCheckpointConflictError(appendErr)) {
@@ -1667,9 +1667,7 @@ export async function activate(context) {
 
 			const acknowledged = {
 				...delta.next,
-				remoteCount: Number.isInteger(result.total_messages)
-					? result.total_messages
-					: delta.next.remoteCount,
+				remoteCount: result.total_messages,
 			};
 			outbox.save(threadId, { ...buf, acknowledged, savedCount: delta.next.count, attempt: null });
 			buf.acknowledged = acknowledged;
@@ -1941,7 +1939,6 @@ export async function activate(context) {
 			disposed = true;
 			captureController.abort(new Error("Stored-message capture disposed"));
 			await flushLifecycle(4_500);
-			syncScope.controller.abort(new Error("Thread sync disposed"));
 			for (const d of disposables) {
 				try { d.dispose(); } catch { /* best effort */ }
 			}

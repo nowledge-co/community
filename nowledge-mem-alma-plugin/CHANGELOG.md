@@ -9,7 +9,7 @@
 - Restore the 30-second manual thread-create timeout without changing automatic sync timeouts.
 
 - Apply one lifecycle deadline to in-flight and sequential automatic HTTP/title work without shortening normal sync timeouts.
-- Journal captured messages and frozen attempts in public plugin storage before sending; restore only matching destination lanes and prune fully acknowledged records. Abort, malformed ACKs, and failed journal writes do not advance the cursor.
+- Journal captured messages and frozen attempts in public plugin storage before sending; restore only matching destination lanes and clear acknowledged pending work while retaining canonical capture checkpoints. Abort, malformed ACKs, and failed journal writes do not advance the cursor.
 - Fence stale activations, validate restored records before registering hooks, and retain pending data when automatic capture is disabled.
 
 ### Documentation
