@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "_comment": "Canonical registry of all Nowledge Mem integrations. Single source of truth: other surfaces (website integrations.ts, check-integration skill, README tables, marketplace JSONs) should reference or be validated against this file. autonomy.bootstrap/recall/distill use: automatic | guided | manual. autonomy.threads uses: automatic-capture | explicit-save | handoff-only | import-only | none. connect.skillUrl is the universal install contract. Per-tool install.agentGuide prompts must point to that skill first; per-tool docs remain behavior and troubleshooting references.",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "connect": {
     "skillUrl": "https://mem.nowledge.co/SKILL.md",
     "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for the AI tool I am using.",
@@ -9,7 +9,7 @@
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
       "claude-code", "grok", "grok-bot", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
-      "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
+      "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "step-code", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
       "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct",
       "chatgpt-cloud", "claude-cloud"
@@ -1025,7 +1025,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.8",
+      "version": "0.8.9",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1070,6 +1070,58 @@
         "note": "The extension injects startup Context Bundle or Working Memory and handles automatic thread capture. Skills teach Pi when to search, save, and inspect prior threads through nmem."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "status"],
+      "slashCommands": []
+    },
+    {
+      "id": "step-code",
+      "name": "Step Code",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-step-code",
+      "transport": "plugin+cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": false,
+        "status": true
+      },
+      "threadSave": {
+        "method": "plugin-capture",
+        "historicalCommand": "nmem t sync --from step-code",
+        "note": "The native Step Code package injects Context Bundle or Working Memory before the first turn and captures the active JSONL branch at agent_settled, after automatic retries, compaction, and queued continuations. nmem t sync --from step-code backfills native ~/.stepcode/agent/sessions history with stable Step Code source identity."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "startup-context-injection",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the dedicated Step Code package rather than the Pi package",
+          "Keep nmem configured on the machine running Step Code",
+          "Restart Step Code after install or update",
+          "Run nmem t sync --from step-code --apply only when you want to import older Step Code sessions",
+          "Use save-thread only when you want an extra curated handoff summary"
+        ]
+      },
+      "install": {
+        "command": "step install npm:nowledge-mem-step-code",
+        "updateCommand": "step update npm:nowledge-mem-step-code",
+        "detectionHint": "Running inside Step Code; STEP_CLIENT=stepcode or ~/.stepcode/ exists",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Step Code. Verify with nmem status and the Context Bundle or Working Memory check, start a fresh Step Code session, and confirm a completed exchange appears in nmem t list --source step-code.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Step Code 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证连接，启动一个新的 Step Code 会话，并确认完成一轮对话后能在 nmem t list --source step-code 中看到对应 Thread。"
+        },
+        "docsUrl": "/docs/integrations/step-code"
+      },
+      "toolNaming": {
+        "convention": "cli-direct",
+        "note": "The extension handles startup context and automatic settled-turn capture. Skills teach Step Code when to search, save, inspect prior threads, and create an explicit handoff."
+      },
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"],
       "slashCommands": []
     },
     {

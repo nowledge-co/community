@@ -20,7 +20,7 @@ import {
 } from "./session-delta.ts";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.8";
+const DEFAULT_PLUGIN_VERSION = "0.8.9";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -51,6 +51,10 @@ function hostLabel(): string {
 
 function pluginVersion(): string {
 	return process.env.NMEM_PLUGIN_VERSION?.trim() || DEFAULT_PLUGIN_VERSION;
+}
+
+export function captureLifecycleEvent(): "agent_end" | "agent_settled" {
+	return process.env.NMEM_PLUGIN_CAPTURE_EVENT?.trim() === "agent_settled" ? "agent_settled" : "agent_end";
 }
 
 function startupGuidance(): string {
@@ -1012,8 +1016,11 @@ export default function nowledgeMemPi(pi: ExtensionAPI) {
 		return { systemPrompt: await appendMemoryContext(prompt, ctx) };
 	});
 
-	pi.on("agent_end", async (_event, ctx) => {
-		scheduleFlush(ctx, "agent_end");
+	const captureEvent = captureLifecycleEvent();
+	(pi as unknown as {
+		on: (event: string, handler: (_event: unknown, ctx: ExtensionContext) => Promise<void>) => void;
+	}).on(captureEvent, async (_event, ctx) => {
+		scheduleFlush(ctx, captureEvent);
 	});
 
 	pi.on("session_before_compact", async (_event, ctx) => {

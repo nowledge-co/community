@@ -11,8 +11,24 @@ import {
 	sessionSyncLaneKey,
 	threadCreateRemoteCount,
 } from "../extensions/session-delta.ts";
+import { captureLifecycleEvent } from "../extensions/nowledge-mem.ts";
 
 const id = (message) => message.id;
+
+test("keeps agent_end by default and allows settled hosts to opt in", () => {
+	const previous = process.env.NMEM_PLUGIN_CAPTURE_EVENT;
+	try {
+		delete process.env.NMEM_PLUGIN_CAPTURE_EVENT;
+		assert.equal(captureLifecycleEvent(), "agent_end");
+		process.env.NMEM_PLUGIN_CAPTURE_EVENT = "agent_settled";
+		assert.equal(captureLifecycleEvent(), "agent_settled");
+		process.env.NMEM_PLUGIN_CAPTURE_EVENT = "unknown";
+		assert.equal(captureLifecycleEvent(), "agent_end");
+	} finally {
+		if (previous === undefined) delete process.env.NMEM_PLUGIN_CAPTURE_EVENT;
+		else process.env.NMEM_PLUGIN_CAPTURE_EVENT = previous;
+	}
+});
 
 test("selects only the unacknowledged suffix", () => {
 	const messages = [{ id: "a" }, { id: "b" }, { id: "c" }];
