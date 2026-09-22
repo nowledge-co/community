@@ -16,6 +16,22 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
 - Clarified Hermes update verification so agents can detect stale local
   provider files and rerun setup against the correct `HERMES_HOME`.
 
+## [0.6.1] - 2026-09-22
+
+### Added
+
+- `explore-graph` as a portable skill for automatic focused graphs after
+  successful Memory retrieval, inline MCP Apps, standalone links, and bounded
+  progressive expansion.
+
+### Changed
+
+- Search now routes Normal, Deep, and Progressive retrieval while preserving
+  the configured identity and active space. Graph failures leave successful
+  retrieval usable.
+- The npx graph skill is the canonical source for the self-contained Codex and
+  Agent Plugins package copies, with package tests checking for drift.
+
 ## [0.6.0] - 2026-03-23
 
 ### Added

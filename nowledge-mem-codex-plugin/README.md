@@ -9,6 +9,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 - **Pick up where you left off.** A native SessionStart hook injects your Context Bundle automatically, with Working Memory as fallback, while SubagentStart selectively gives context-heavy roles a bounded context snapshot.
 - **Stronger retrieval on modern Codex.** The package bundles the local Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
 - **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, sources, and artifacts as one tree.
+- **See retrieved memories in context.** Memory search automatically follows with a focused graph of the exact results: inline through MCP Apps when supported, or in the standalone Graph Explorer as a fallback.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
 - **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary. The Nowledge Mem Auto-Sync switch can pause lifecycle capture without disabling manual saves.
 - **Quick diagnostics.** One command to verify everything is connected.
@@ -43,10 +44,17 @@ resolve the same binding instead of creating another Mem Thread.
 | Skill | When it runs | What it does |
 |-------|-------------|-------------|
 | `working-memory` | Session start, "what am I working on" | Loads Context Bundle when full identity/scope/rules matter; otherwise loads the daily briefing and prefers MCP when present |
-| `search-memory` | Prior work, past decisions | Searches memories and conversations, preferring MCP retrieval when present |
+| `search-memory` | Prior work, past decisions | Routes Normal, Deep, and Progressive retrieval, then graphs non-empty Memory results and reports the observable retrieval trace |
 | `save-thread` | Manual fallback, "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
+| `explore-graph` | Memory search result or explicit graph request | Renders the exact retrieved Memory subgraph inline when possible, with a focused standalone fallback |
 | `status` | "Is Mem working?", errors | Checks connectivity |
+
+The Agent retrieval policy is intentionally bounded: Normal is the default for
+simple recall, Deep is selected for conceptual or historical questions or when
+Normal evidence is insufficient, and Progressive starts from an exact Memory ID
+and expands one graph hop at a time. Non-empty retrieval automatically gets a
+focused graph; Progressive defaults to at most 5 hops and 20 neighbors per hop.
 
 ## Knowledge Tree for Agents
 
@@ -385,6 +393,7 @@ If you used `nowledge-mem-codex-prompts` before:
 | `search_memory` | `$nowledge-mem:search-memory` |
 | `save_session` | `$nowledge-mem:save-thread` |
 | `distill` | `$nowledge-mem:distill-memory` |
+| *(none)* | `$nowledge-mem:explore-graph` |
 | *(none)* | `$nowledge-mem:status` |
 
 ## Beyond the default tools
@@ -395,9 +404,12 @@ CLI directly (already installed alongside this plugin). We recommend it
 whenever you hit a gap in the per-turn tool set:
 
 ```bash
-nmem graph expand <memory-or-crystal-id> --depth 2
+nmem --json graph expand <memory-or-crystal-id> --depth 1 --limit 20
 nmem graph evolves <memory-id>
 ```
+
+Run the one-hop expansion repeatedly only when more evidence is needed or the
+user asks to continue; track visited IDs and stop at the progressive bounds.
 
 Run `nmem --help` (and `nmem graph --help`, `nmem <command> --help`, etc.)
 to see its full capabilities.
@@ -428,3 +440,19 @@ to see its full capabilities.
 - [Documentation](https://mem.nowledge.co/docs)
 - [Discord](https://nowled.ge/discord)
 - [GitHub](https://github.com/nowledge-co/community)
+
+### Shared graph skill source
+
+The canonical `explore-graph` skill lives in the generic npx skills package.
+This plugin carries an identical regular-file copy so sparse marketplace
+installs remain self-contained. Maintain the npx source and follow its README
+synchronization commands; the plugin tests enforce package parity.
+
+Graph viewing preserves the retrieval identity and Space restrictions. Exact
+Memory IDs do not enforce authorization. If the graph surface or browser
+session cannot be confirmed to enforce the same owner/member/Space scope,
+skip visualization and keep the retrieved evidence.
+
+The standalone fallback preserves API path prefixes in `base_url`. It requires
+trusted browser identity and scope evidence; CLI-only hosts skip automatic
+browser links and retain the successful retrieval when that evidence is absent.

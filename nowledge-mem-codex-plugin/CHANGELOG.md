@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.1.37] - 2026-09-22
+
+### Added
+
+- Share the portable `explore-graph` skill with generic npx and Agent Plugins
+  packages through self-contained ordinary copies and independent-install
+  parity tests.
+- Route bounded Normal, conceptual/historical Deep, and one-hop Progressive
+  retrieval, tracking seed, visited IDs, frontier, and hop limits.
+- Follow non-empty Memory retrieval with a focused graph of the exact result
+  IDs and an observable retrieval trace; prefer the inline MCP App when available.
+
+### Changed
+
+- Preserve API path prefixes in standalone graph URLs and require matching
+  browser identity and Space evidence before browser or link fallback.
+- Advertise graph exploration in the Codex integration registry.
+
 ## [0.1.36] - 2026-09-15
 
 ### Added

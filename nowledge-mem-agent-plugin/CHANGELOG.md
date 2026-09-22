@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.1] - 2026-09-22
+
+### Added
+
+- Portable `explore-graph` skill, aligned with the canonical npx skills source,
+  for focused Memory graphs and bounded progressive exploration.
+
+### Changed
+
+- Search routes Normal, Deep, and Progressive retrieval and automatically
+  graphs non-empty Memory results. Inline, browser, and link fallbacks retain
+  the configured identity and active space; graph failures preserve successful
+  search results.
+
 ## [0.1.0] - 2026-08-08
 
 ### Added

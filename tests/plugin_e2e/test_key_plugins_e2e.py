@@ -373,7 +373,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert set(agent_plugin_manifest) <= allowed_agent_plugin_manifest_keys
     assert agent_plugin_manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
     assert agent_plugin_manifest["name"] == "nowledge-mem"
-    assert agent_plugin_manifest["version"] == "0.1.0"
+    assert agent_plugin_manifest["version"] == "0.1.1"
     assert registry_by_id["agent-plugins"]["version"] == agent_plugin_manifest["version"]
     assert registry_by_id["agent-plugins"]["directory"] == AGENT_PLUGIN.name
     assert registry_by_id["agent-plugins"]["autonomy"]["threads"] == "handoff-only"
@@ -401,7 +401,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.36"
+    assert codex_manifest["version"] == "0.1.37"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -434,7 +434,9 @@ def test_key_plugin_static_contracts_are_declared():
         for hook in entry.get("hooks", [])
         if isinstance(hook, dict)
     ]
-    assert any("os.environ['PLUGIN_ROOT']" in command for command in codex_stop_commands)
+    assert any("os.environ.get('PLUGIN_ROOT')" in command for command in codex_stop_commands)
+    assert any("os.environ.get('CODEX_HOME')" in command for command in codex_stop_commands)
+    assert any("nowledge-mem-stop-save.py" in command for command in codex_stop_commands)
     assert any("nmem-stop-launch.py" in command for command in codex_stop_commands)
     assert any('python3 -c "import os, runpy, sys' in command for command in codex_stop_commands)
     assert any('python -c "import os, runpy, sys' in command for command in codex_stop_commands)
@@ -451,12 +453,15 @@ def test_key_plugin_static_contracts_are_declared():
     ]
     assert all("${PLUGIN_ROOT}" not in command for command in codex_windows_commands)
     assert all("%PLUGIN_ROOT%" not in command for command in codex_windows_commands)
-    assert any("os.environ['PLUGIN_ROOT']" in command for command in codex_windows_commands)
+    assert any("os.environ.get('PLUGIN_ROOT')" in command for command in codex_windows_commands)
+    assert any("os.environ.get('CODEX_HOME')" in command for command in codex_windows_commands)
+    assert any("nowledge-mem-stop-save.py" in command for command in codex_windows_commands)
     assert any('python -c "import os, runpy, sys' in command for command in codex_windows_commands)
     assert any('py -3 -c "import os, runpy, sys' in command for command in codex_windows_commands)
     assert any('python3 -c "import os, runpy, sys' in command for command in codex_windows_commands)
     assert (CODEX_PLUGIN / "scripts" / "install_hooks.py").exists()
     assert (CODEX_PLUGIN / "skills" / "working-memory" / "SKILL.md").exists()
+    assert (CODEX_PLUGIN / "skills" / "explore-graph" / "SKILL.md").exists()
     assert (CODEX_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
     assert "from nmem_runtime import" in codex_save_hook
     assert "CREATE_NO_WINDOW" in codex_runtime
@@ -774,7 +779,9 @@ def test_key_plugin_static_contracts_are_declared():
     assert 'pi.on("session_start"' in pi_extension
     assert 'pi.on("before_agent_start"' in pi_extension
     assert 'pi.on("session_compact"' in pi_extension
-    assert "await appendMemoryContext(event.systemPrompt, ctx)" in pi_extension
+    assert "const context = resumeStates.get(sessionId(ctx))?.reply?.context.context_text;" in pi_extension
+    assert "const prompt = context ? `${event.systemPrompt}\\n\\n${context}` : event.systemPrompt;" in pi_extension
+    assert "await appendMemoryContext(prompt, ctx)" in pi_extension
     assert "startupContextCacheKey" in pi_extension
     assert "evictStartupContext" in pi_extension
     assert "degradedReason" in pi_extension
@@ -782,7 +789,8 @@ def test_key_plugin_static_contracts_are_declared():
     assert "rejectWindowsCmdEnvExpansion" in pi_extension
     assert '["/d", "/s", "/c", line]' in pi_extension
     assert "windowsVerbatimArguments: true" in pi_extension
-    assert 'const line = `"${windowsCommandLine(["nmem.cmd", ...baseArgs])}"`' in pi_extension
+    assert 'process.env.NMEM_CLI_PATH || (process.platform === "win32" ? "nmem.cmd" : "nmem")' in pi_extension
+    assert 'const line = `"${windowsCommandLine([executable, ...baseArgs])}"`' in pi_extension
     assert "source_app=${source}" in pi_extension
     before_agent_start_block = pi_extension.split('pi.on("before_agent_start"', 1)[1].split('pi.on("agent_end"', 1)[0]
     assert "message:" not in before_agent_start_block
