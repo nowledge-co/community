@@ -1413,7 +1413,7 @@
       "name": "ZCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/zcode-plugin",
       "transport": "plugin+mcp+skills+commands+hooks",
