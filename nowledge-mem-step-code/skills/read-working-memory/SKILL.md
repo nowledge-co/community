@@ -62,5 +62,5 @@ If the response includes `exists: false`, mention there's no briefing yet and co
 
 ## Links
 
-- [Documentation](https://mem.nowledge.co/docs/integrations/pi)
+- [Documentation](https://mem.nowledge.co/docs/integrations/step-code)
 - [Troubleshooting](https://mem.nowledge.co/docs/troubleshooting)

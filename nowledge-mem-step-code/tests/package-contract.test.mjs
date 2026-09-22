@@ -22,6 +22,8 @@ test("pins Step source identity and waits for the settled lifecycle event", asyn
 test("ships all declared skill entry points", async () => {
 	for (const skill of ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status"]) {
 		const text = await readFile(new URL(`skills/${skill}/SKILL.md`, root), "utf8");
-		assert.match(text, /^---\n/);
+		assert.match(text, /^---\r?\n/);
+		assert.match(text, /https:\/\/mem\.nowledge\.co\/docs\/integrations\/step-code/);
+		assert.doesNotMatch(text, /\/docs\/integrations\/pi/);
 	}
 });
