@@ -1603,7 +1603,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "autonomy"
     ]["bestResultRequires"][0]
     zcode = by_id["zcode"]
-    assert zcode["version"] == "0.2.0"
+    assert zcode["version"] == "0.2.1"
     assert zcode["type"] == "plugin"
     assert zcode["directory"] is None
     assert zcode["externalRepo"] == "https://github.com/nowledge-co/zcode-plugin"
