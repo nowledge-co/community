@@ -9,13 +9,13 @@ This file is a practical continuation guide for future agent sessions working on
 - Runtime: plain ESM (`main.js`), no build step
 - Memory backend: direct HTTP to Nowledge Mem API (default `http://127.0.0.1:14242`). CLI (`nmem`) is only used for diagnostic in the status tool.
 
-## Current Status (as of v0.7.5)
+## Current Status (as of v0.7.6)
 
 - Plugin is installed/activated and registers 13 tools successfully in Alma logs.
 - Live thread sync works via three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
 - The plugin ships a native Alma Skill at `skills/nowledge-mem/SKILL.md`; it is supplementary guidance on top of tools/hooks.
 - Thread IDs are deterministic: `alma-{sha1(almaThreadId)[:12]}`. Survives plugin restarts, LRU eviction, and Alma relaunches. First flush tries append (thread may exist from prior session), falls back to create.
-- All message data from hook payloads, never `context.chat.getMessages()`.
+- Captured text comes only from canonical `context.chat.getMessages()` records; hooks coordinate rereads and recall, never supply fallback saved text.
 - Titles resolved at flush time via `context.chat.getThread()` with 4-strategy fallback.
 - Hook registration: `context.events ?? context.hooks` (canonical API first).
 - Thread buffer LRU eviction at 20 entries.
@@ -31,7 +31,8 @@ This file is a practical continuation guide for future agent sessions working on
 
 ## Files That Matter
 
-- `main.js`: all logic (tool registration, hooks, nmem client, validation/error mapping)
+- `main.js`: tool registration, hooks, nmem client, validation/error mapping
+- `session-delta.js`, `sync-lifecycle.js`, `sync-outbox.js`, `thread-sync-timeout.js`: sync planning, cancellation, persistence, and timeout policy
 - `manifest.json`: plugin metadata + contributed tools + settings schema
 - `README.md`: user-facing behavior, response contract examples
 - `skills/nowledge-mem/SKILL.md`: native Alma Skill policy for better tool-calling
@@ -58,8 +59,8 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 
 ## Hooks
 
-- `chat.message.willSend`: buffer user message (from `input.content`) + recall injection
-- `chat.message.didReceive`: buffer AI response (from `input.response.content`) + start 7s idle timer
+- `chat.message.willSend`: reread canonical stored records + recall injection
+- `chat.message.didReceive`: reread canonical stored records + start 7s idle timer
 - `thread.activated`: flush previous thread immediately on switch
 - Quit hooks (`app.willQuit`, `app.will-quit`, `app.beforeQuit`, `app.before-quit`): safety net flush
 
@@ -99,7 +100,7 @@ curl -s 'http://127.0.0.1:14242/memories/search?q=alma&limit=3'   # Test search 
 
 ```bash
 mkdir -p ~/.config/alma/plugins/nowledge-mem
-cp manifest.json main.js package.json README.md CHANGELOG.md alma-skill-nowledge-mem.md ~/.config/alma/plugins/nowledge-mem/
+cp manifest.json main.js session-delta.js sync-lifecycle.js sync-outbox.js thread-sync-timeout.js package.json README.md CHANGELOG.md alma-skill-nowledge-mem.md ~/.config/alma/plugins/nowledge-mem/
 cp -R skills ~/.config/alma/plugins/nowledge-mem/
 osascript -e 'tell application "Alma" to quit' || true
 node -e "const fs=require('fs');const p=process.env.HOME+'/Library/Application Support/alma/plugin-cache';if(fs.existsSync(p))for(const f of fs.readdirSync(p))if(f.endsWith('.mjs'))fs.unlinkSync(p+'/'+f)"
@@ -132,7 +133,7 @@ All three hooks used by live sync are confirmed working in Alma (verified v0.6.1
 - `chat.message.didReceive` — fires after AI response. Input: `{threadId, response: {content, usage?}, pricing?}`.
 - `thread.activated` — fires on thread switch. Input: `{threadId, title?}`.
 
-**Key pattern**: Get all data from hook payloads. Never use `context.chat.getMessages()` from within hooks — it returns empty in `willSend` timing for new threads. See `3pp/alma-plugins/plugins/token-counter/` for the canonical reference implementation.
+**Key pattern**: Read stored records with stable IDs and outer `createdAt` timestamps via `context.chat.getMessages()`. If a read returns no records, later activity and the idle reread retry capture. Never substitute hook input or transformed recall output for stored text. Persist the capture cutoff and IDs so restart and eviction cannot duplicate older messages.
 
 ## Known Limitations
 

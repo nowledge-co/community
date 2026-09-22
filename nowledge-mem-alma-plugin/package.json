@@ -1,6 +1,6 @@
 {
 	"name": "@nowledge/alma-nowledge-mem",
-	"version": "0.7.5",
+	"version": "0.7.6",
 	"type": "module",
 	"description": "Nowledge Mem plugin for Alma, local-first personal knowledge base",
 	"author": {
@@ -16,7 +16,9 @@
 	},
 	"main": "main.js",
 	"scripts": {
-		"test": "node --test tests/*.test.mjs",
+		"test": "node --test --test-timeout=10000 --test-concurrency=1 tests/*.test.mjs",
+		"test:sync": "node --test --test-timeout=10000 --test-concurrency=1 tests/thread-sync.test.mjs tests/shutdown.test.mjs tests/storage-faults.test.mjs tests/host-recovery.test.mjs tests/first-turn-cleanup.test.mjs",
+		"check": "node --check main.js && node --check sync-outbox.js && node --check sync-lifecycle.js && node --check session-delta.js",
 		"lint": "biome check .",
 		"format": "biome format --write ."
 	},
