@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.6
+
 ### Fixed
 
 - Freeze automatic flush messages and checkpoint planning before title lookup, so a destination switch cannot send subsequently captured messages to the old destination.

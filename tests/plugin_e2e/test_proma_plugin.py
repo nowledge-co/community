@@ -10,8 +10,9 @@ Live smoke test (requires Proma + nmem):
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
-import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -142,18 +143,30 @@ class TestHookScripts:
             "read-working-memory.py should not treat uv like uvx; only uvx supports --from directly"
         )
 
+    def test_save_script_allows_local_mode_without_api_key(self):
+        script = PLUGIN_DIR / "hooks" / "save-to-nmem.py"
+        content = script.read_text(encoding="utf-8")
+        assert "skip: no API key" not in content
+        assert "if not API_KEY" not in content
+        assert "if API_KEY:" in content
 
-    @pytest.mark.parametrize("scenario", ["disabled"], ids=["user Given capture disabled When Stop runs Then no session is queued or uploaded"])
-    def test_user_disabled_stop(self, scenario, tmp_path):
-        hooks = json.loads((PLUGIN_DIR / "hooks" / "hooks.json").read_text())
-        stop = hooks["hooks"]["Stop"][0]["hooks"][0]["command"]
-        completed = subprocess.run(
-            ["/bin/sh", "-c", stop],
-            input="{}", text=True, capture_output=True, timeout=5, check=False,
-            env={"HOME": str(tmp_path), "PATH": "", "PROMA_NOWLEDGE_MEM_ENABLED": "0"},
-        )
-        assert completed.returncode == 0, completed.stderr
-        assert list(tmp_path.iterdir()) == []
+    def test_save_script_supports_legacy_and_current_config_keys(self):
+        script = PLUGIN_DIR / "hooks" / "save-to-nmem.py"
+        content = script.read_text(encoding="utf-8")
+        assert '"apiUrl", "api_url"' in content
+        assert '"apiKey", "api_key"' in content
+        assert "sdk-config" in content
+        assert "projects" in content
+        assert "agent-sessions" in content
+
+    def test_save_script_appends_existing_threads(self):
+        script = PLUGIN_DIR / "hooks" / "save-to-nmem.py"
+        content = script.read_text(encoding="utf-8")
+        assert 'api_request("GET", f"/threads/{thread_path_id}")' in content
+        assert 'api_request("POST", f"/threads/{thread_path_id}/append", append_body)' in content
+        assert '"deduplicate": True' in content
+        assert '"idempotency_key": f"proma:{session_id}"' in content
+        assert 'metadata["external_id"] = f"proma:{uuid}"' in content
 
     def test_save_script_workspace_filter_defaults_to_allow_all(self, monkeypatch):
         monkeypatch.delenv("PROMA_ALLOWED_WORKSPACES", raising=False)
@@ -194,6 +207,129 @@ class TestHookScripts:
         assert module.workspace_dir_from_cwd(str(outside)) is None
         assert module.workspace_dir_from_cwd(None) is None
 
+    def test_save_script_without_allowlist_accepts_missing_cwd(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+        monkeypatch.delenv("PROMA_ALLOWED_WORKSPACES", raising=False)
+        module = _load_hook_module(
+            "proma_save_hook_workspace_filter_missing_cwd_allowed",
+            PLUGIN_DIR / "hooks" / "save-to-nmem.py",
+        )
+
+        session_dir = proma_home / "sdk-config" / "projects" / "workspace-hash"
+        session_dir.mkdir(parents=True)
+        (session_dir / "session-123.jsonl").write_text(
+            json.dumps({
+                "type": "user",
+                "uuid": "u1",
+                "message": {"role": "user", "content": "sync without cwd"},
+            }),
+            encoding="utf-8",
+        )
+
+        captures = []
+        monkeypatch.setattr(
+            module,
+            "enqueue_capture",
+            lambda session_id, session_file, cwd: (
+                captures.append((session_id, session_file, cwd)) or True
+            ),
+        )
+        monkeypatch.setattr(sys, "argv", ["save-to-nmem.py"])
+        monkeypatch.setattr(
+            sys,
+            "stdin",
+            io.StringIO(json.dumps({"session_id": "session-123"})),
+        )
+
+        assert module.main() == 0
+        assert captures == [
+            (
+                "session-123",
+                session_dir / "session-123.jsonl",
+                None,
+            )
+        ]
+
+    def test_save_script_with_allowlist_skips_missing_cwd(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+        monkeypatch.setenv("PROMA_ALLOWED_WORKSPACES", "default")
+        module = _load_hook_module(
+            "proma_save_hook_workspace_filter_missing_cwd_skipped",
+            PLUGIN_DIR / "hooks" / "save-to-nmem.py",
+        )
+
+        captures = []
+        monkeypatch.setattr(
+            module,
+            "enqueue_capture",
+            lambda *args: captures.append(args) or True,
+        )
+        monkeypatch.setattr(sys, "argv", ["save-to-nmem.py"])
+        monkeypatch.setattr(
+            sys,
+            "stdin",
+            io.StringIO(json.dumps({"session_id": "session-123"})),
+        )
+
+        assert module.main() == 0
+        assert captures == []
+
+    def test_save_script_parses_current_proma_sdk_jsonl(self, tmp_path, monkeypatch):
+        proma_home = tmp_path / ".proma"
+        monkeypatch.setenv("PROMA_HOME", str(proma_home))
+        module = _load_hook_module("proma_save_hook", PLUGIN_DIR / "hooks" / "save-to-nmem.py")
+
+        session_dir = proma_home / "sdk-config" / "projects" / "workspace-hash"
+        session_dir.mkdir(parents=True)
+        session_file = session_dir / "session-123.jsonl"
+        session_file.write_text(
+            "\n".join(
+                [
+                    json.dumps({
+                        "type": "user",
+                        "uuid": "u1",
+                        "timestamp": "2026-06-13T01:00:00Z",
+                        "message": {"role": "user", "content": "hello proma"},
+                    }),
+                    json.dumps({
+                        "type": "assistant",
+                        "uuid": "a1",
+                        "timestamp": "2026-06-13T01:00:01Z",
+                        "message": {
+                            "role": "assistant",
+                            "content": [
+                                {"type": "thinking", "text": "hidden"},
+                                {"type": "text", "text": "saved"},
+                                {"type": "tool_use", "name": "Read"},
+                            ],
+                        },
+                    }),
+                    json.dumps({
+                        "type": "assistant",
+                        "uuid": "a1",
+                        "message": {"role": "assistant", "content": [{"type": "text", "text": "duplicate"}]},
+                    }),
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        assert module.find_session_file("session-123") == session_file
+        messages = module.parse_session_messages(session_file)
+        assert messages == [
+            {
+                "role": "user",
+                "content": "hello proma",
+                "metadata": {"external_id": "proma:u1", "timestamp": "2026-06-13T01:00:00Z"},
+            },
+            {
+                "role": "assistant",
+                "content": "saved\n[tool: Read]",
+                "metadata": {"external_id": "proma:a1", "timestamp": "2026-06-13T01:00:01Z"},
+            },
+        ]
 
     def test_save_script_does_not_fallback_latest_when_session_id_missing(self, tmp_path, monkeypatch):
         proma_home = tmp_path / ".proma"

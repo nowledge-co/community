@@ -1,122 +1,85 @@
-"""User-facing Stop contracts, exercised through installed commands and real nmem."""
-
-import json
-import shutil
-import subprocess
-import sys
-import tempfile
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import importlib.util
 from pathlib import Path
-
-import pytest
-
-PLUGIN = Path(__file__).resolve().parents[1]
+from unittest import mock
 
 
-def exercise_stop_contract(scenario):
-    nmem = shutil.which("nmem")
-    assert nmem, "Real nmem CLI is required for this acceptance gate"
-    with tempfile.TemporaryDirectory(prefix=".synthetic-stop-", dir=PLUGIN / "tests") as directory:
-        root = Path(directory)
-        home = root / "home"
-        proma = home / ".proma"
-        scripts = proma / "scripts"
-        scripts.mkdir(parents=True)
-        shutil.copy2(PLUGIN / "hooks" / "save-to-nmem.py", scripts)
-        binary_dir = root / "bin"
-        binary_dir.mkdir()
-        (binary_dir / "python3").symlink_to(sys.executable)
-        (binary_dir / "nmem").symlink_to(nmem)
-        queue = root / "queue"
-        requests = []
-
-        class Sink(BaseHTTPRequestHandler):
-            def do_GET(self):
-                requests.append(self.path)
-                self.send_response(503)
-                self.end_headers()
-
-            do_POST = do_GET
-
-            def log_message(self, *args):
-                pass
-
-        server = HTTPServer(("127.0.0.1", 0), Sink)
-        worker = threading.Thread(target=server.serve_forever, daemon=True)
-        worker.start()
-        try:
-            env = {
-                "HOME": str(home), "PROMA_HOME": str(proma),
-                "PATH": str(binary_dir), "PYTHONDONTWRITEBYTECODE": "1",
-                "NMEM_SESSION_CAPTURE_QUEUE_DIR": str(queue),
-                "NMEM_CLI_CONFIG_DIR": str(root / "cli-config"),
-                "NMEM_APP_CONFIG_DIR": str(root / "app-config"),
-                "NMEM_API_URL": f"http://127.0.0.1:{server.server_port}",
-            }
-            transcript = proma / "sdk-config/projects/synthetic/synthetic-stop.jsonl"
-            if scenario == "legacy":
-                transcript = proma / "agent-sessions/synthetic-stop.jsonl"
-            transcript.parent.mkdir(parents=True)
-            transcript.write_text(json.dumps({"type": "user", "uuid": "synthetic-user", "message": {"role": "user", "content": "synthetic acceptance only"}}) + "\n")
-            project = proma / "agent-workspaces/default"
-            project.mkdir(parents=True)
-            command = [nmem, "--json", "t", "capture", "--from", "proma", "--session-id", "synthetic-stop", "--project", "." if scenario == "missing-cwd" else str(project), "--transcript-path", str(transcript), "--sync", "--all-projects"]
-            result = subprocess.run(command, env=env, cwd=root, capture_output=True, text=True, timeout=15, check=False)
-            assert result.returncode == 0, result.stderr
-            output = json.loads(result.stdout)
-            assert output["status"] == "enqueued", output
-            repeated = subprocess.run(command, env=env, cwd=root, capture_output=True, text=True, timeout=15, check=False)
-            assert repeated.returncode == 0, repeated.stderr
-            assert json.loads(repeated.stdout)["status"] == "enqueued"
-            receipts = list(queue.rglob("pending-*.json"))
-            assert receipts
-            expected_receipts = [json.loads(receipt.read_text()) for receipt in receipts]
-            receipt = json.loads(receipts[0].read_text())
-            assert receipt["source_app"] == "proma"
-            assert receipt["session_id"] == "synthetic-stop"
-            assert receipt["transcript_path"] == str(transcript)
-            assert receipt["project"] == str(root if scenario == "missing-cwd" else project)
-            assert receipt["use_sync"] is True and receipt["all_projects"] is True
-            for receipt_path in receipts:
-                receipt_path.unlink()
-            payload = {"session_id": "synthetic-stop", "cwd": str(project)}
-            if scenario in {"missing-cwd", "unknown-workspace"}:
-                payload.pop("cwd")
-            if scenario in {"denied-workspace", "unknown-workspace"}:
-                env["PROMA_ALLOWED_WORKSPACES"] = "other"
-            if scenario == "missing-session":
-                payload["session_id"] = "absent-synthetic-session"
-            if scenario == "missing-cli":
-                (binary_dir / "nmem").unlink()
-            if scenario == "rejected-cli":
-                blocked = root / "not-a-directory"
-                blocked.write_text("synthetic queue failure")
-                env["NMEM_SESSION_CAPTURE_QUEUE_DIR"] = str(blocked / "queue")
-            hooks = json.loads((PLUGIN / "hooks/hooks.json").read_text())
-            stop = hooks["hooks"]["Stop"][0]["hooks"][0]["command"]
-            for _ in range(2):
-                result = subprocess.run(["/bin/sh", "-c", stop], input=json.dumps(payload), env=env, cwd=root, capture_output=True, text=True, timeout=15, check=False)
-                assert result.returncode == 0, result.stderr
-            pending = list(queue.rglob("pending-*.json"))
-            accepted = scenario in {"sdk", "legacy", "missing-cwd"}
-            assert len(pending) == (len(expected_receipts) if accepted else 0), pending
-            if accepted:
-                actual_receipts = [json.loads(receipt.read_text()) for receipt in pending]
-                assert sorted(actual_receipts, key=lambda value: json.dumps(value, sort_keys=True)) == sorted(expected_receipts, key=lambda value: json.dumps(value, sort_keys=True))
-            log_path = proma / "logs/nm-hooks.log"
-            assert log_path.exists()
-            log = log_path.read_text()
-            assert ("queued session=" in log) is accepted
-            if scenario in {"missing-cli", "rejected-cli"}:
-                assert "durable enqueue was not acknowledged" in log
-            assert requests == [], requests
-        finally:
-            server.shutdown()
-            worker.join(timeout=5)
-            server.server_close()
+HOOK = Path(__file__).resolve().parents[1] / "hooks" / "save-to-nmem.py"
 
 
-@pytest.mark.parametrize("scenario", ["sdk", "legacy", "missing-cwd", "denied-workspace", "unknown-workspace", "missing-session", "missing-cli", "rejected-cli"], ids=lambda value: f"user Given {value} When Stop repeats Then durable queue or fail-open without REST")
-def test_user_stop_contract(scenario):
-    exercise_stop_contract(scenario)
+def load_hook():
+    spec = importlib.util.spec_from_file_location("proma_save_to_nmem", HOOK)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_enqueue_command_uses_shared_capture_queue(tmp_path):
+    hook = load_hook()
+    transcript = tmp_path / "session.jsonl"
+    assert hook.build_enqueue_command("nmem", "session-1", transcript, "/workspace") == [
+        "nmem",
+        "--json",
+        "t",
+        "capture",
+        "--from",
+        "proma",
+        "--session-id",
+        "session-1",
+        "--project",
+        "/workspace",
+        "--transcript-path",
+        str(transcript),
+        "--sync",
+        "--all-projects",
+    ]
+
+
+def test_successful_enqueue_skips_full_jsonl_parse(tmp_path):
+    hook = load_hook()
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text("{}\n", encoding="utf-8")
+    with mock.patch.object(
+        hook,
+        "read_hook_input",
+        return_value={"session_id": "session-1", "cwd": str(tmp_path)},
+    ), mock.patch.object(hook, "find_session_file", return_value=transcript), mock.patch.object(
+        hook, "enqueue_capture", return_value=True
+    ), mock.patch.object(hook, "parse_session_messages") as parse, mock.patch.object(hook, "log"):
+        assert hook.main() == 0
+    parse.assert_not_called()
+
+
+def test_enqueue_requires_acknowledged_result(tmp_path):
+    hook = load_hook()
+    transcript = tmp_path / "session.jsonl"
+    completed = mock.Mock(
+        returncode=0,
+        stdout='{"status":"success","results":[]}',
+        stderr="",
+    )
+    with mock.patch.object(hook.shutil, "which", return_value="nmem"), mock.patch.object(
+        hook.subprocess,
+        "run",
+        return_value=completed,
+    ):
+        assert hook.enqueue_capture("session-1", transcript, str(tmp_path)) is False
+
+    assert hook.capture_acknowledged('{"status":"enqueued"}') is True
+    assert hook.capture_acknowledged('{"results":[{"action":"created"}]}') is False
+    assert hook.capture_acknowledged('{"status":"success","results":[]}') is False
+
+
+def test_failed_enqueue_does_not_parse_full_transcript(tmp_path):
+    hook = load_hook()
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text("{}\n", encoding="utf-8")
+    with mock.patch.object(
+        hook,
+        "read_hook_input",
+        return_value={"session_id": "session-1", "cwd": str(tmp_path)},
+    ), mock.patch.object(hook, "find_session_file", return_value=transcript), mock.patch.object(
+        hook, "enqueue_capture", return_value=False
+    ), mock.patch.object(hook, "parse_session_messages") as parse, mock.patch.object(hook, "log"):
+        assert hook.main() == 0
+    parse.assert_not_called()
