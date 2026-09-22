@@ -31,6 +31,7 @@ GEMINI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-gemini-cli"
 PROMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-proma-plugin"
 CURSOR_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-cursor-plugin"
 PI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-pi-package"
+STEP_CODE_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-step-code"
 OMP_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-omp-plugin"
 KIMI_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-kimi-code-plugin"
 KIMI_WORK_CONNECTOR = COMMUNITY_ROOT / "nowledge-mem-kimi-work-connector"
@@ -743,13 +744,14 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.8"
+    assert pi_pkg["version"] == "0.8.9"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "scripts/sync-history.mjs"
     assert "NMEM_PLUGIN_SOURCE_APP" in pi_extension
     assert "NMEM_PLUGIN_HOST_LABEL" in pi_extension
-    assert 'pi.on("agent_end"' in pi_extension
+    assert 'captureLifecycleEvent(): "agent_end" | "agent_settled"' in pi_extension
+    assert ').on(captureEvent' in pi_extension
     assert 'pi.on("session_shutdown"' in pi_extension
     assert 'pi.on("session_before_switch"' in pi_extension
     assert 'pi.on("session_before_compact"' in pi_extension
@@ -792,8 +794,23 @@ def test_key_plugin_static_contracts_are_declared():
     assert 'process.env.NMEM_CLI_PATH || (process.platform === "win32" ? "nmem.cmd" : "nmem")' in pi_extension
     assert 'const line = `"${windowsCommandLine([executable, ...baseArgs])}"`' in pi_extension
     assert "source_app=${source}" in pi_extension
-    before_agent_start_block = pi_extension.split('pi.on("before_agent_start"', 1)[1].split('pi.on("agent_end"', 1)[0]
+    before_agent_start_block = pi_extension.split('pi.on("before_agent_start"', 1)[1].split(
+        "const captureEvent = captureLifecycleEvent()", 1
+    )[0]
     assert "message:" not in before_agent_start_block
+
+    step_pkg = _read_json(STEP_CODE_PLUGIN / "package.json")
+    step_extension = (STEP_CODE_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(
+        encoding="utf-8"
+    )
+    assert step_pkg["version"] == "0.1.0"
+    assert step_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.9"
+    assert step_pkg["pi"]["extensions"] == ["./extensions/nowledge-mem.ts"]
+    assert step_pkg["pi"]["skills"] == ["./skills"]
+    assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "step-code"' in step_extension
+    assert 'process.env.NMEM_PLUGIN_HOST_LABEL = "Step Code"' in step_extension
+    assert 'process.env.NMEM_PLUGIN_CAPTURE_EVENT = "agent_settled"' in step_extension
+    assert 'import("nowledge-mem-pi/extensions/nowledge-mem.ts")' in step_extension
 
     omp_pkg = _read_json(OMP_PLUGIN / "package.json")
     omp_extension = (OMP_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
@@ -1520,7 +1537,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["openclaw"]["version"] == "0.8.34"
     assert by_id["proma"]["version"] == "0.1.5"
     assert by_id["opencode"]["version"] == "0.4.0"
-    assert by_id["pi"]["version"] == "0.8.8"
+    assert by_id["pi"]["version"] == "0.8.9"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["grok-bot"]["version"] is None
@@ -1662,6 +1679,24 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
+    assert by_id["step-code"]["version"] == "0.1.0"
+    assert by_id["step-code"]["directory"] == "nowledge-mem-step-code"
+    assert by_id["step-code"]["transport"] == "plugin+cli"
+    assert by_id["step-code"]["capabilities"]["autoRecall"] is True
+    assert by_id["step-code"]["capabilities"]["autoCapture"] is True
+    assert by_id["step-code"]["threadSave"]["method"] == "plugin-capture"
+    assert by_id["step-code"]["threadSave"]["historicalCommand"] == (
+        "nmem t sync --from step-code"
+    )
+    assert by_id["step-code"]["autonomy"]["recall"] == "startup-context-injection"
+    assert by_id["step-code"]["autonomy"]["threads"] == "automatic-capture"
+    assert by_id["step-code"]["install"]["command"] == (
+        "step install npm:nowledge-mem-step-code"
+    )
+    assert by_id["step-code"]["install"]["updateCommand"] == (
+        "step update npm:nowledge-mem-step-code"
+    )
+    assert "save-thread" in by_id["step-code"]["skills"]
     assert by_id["omp"]["version"] == "0.1.1"
     assert by_id["omp"]["directory"] == "nowledge-mem-omp-plugin"
     assert by_id["omp"]["transport"] == "plugin+cli"
@@ -2288,7 +2323,7 @@ def test_pi_thread_sync_timeout_contract():
     readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pi_pkg["version"] == "0.8.8"
+    assert pi_pkg["version"] == "0.8.9"
     assert pi_registry["version"] == pi_pkg["version"]
     assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in extension
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension

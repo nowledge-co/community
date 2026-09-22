@@ -9,6 +9,7 @@ on:
       - "nowledge-mem-npx-skills/**"
       - "nowledge-mem-agent-plugin/**"
       - "nowledge-mem-pi-package/**"
+      - "nowledge-mem-step-code/**"
       - "nowledge-mem-openai-plugin/**"
       - "tests/plugin_e2e/**"
   push:
@@ -21,6 +22,7 @@ on:
       - "nowledge-mem-npx-skills/**"
       - "nowledge-mem-agent-plugin/**"
       - "nowledge-mem-pi-package/**"
+      - "nowledge-mem-step-code/**"
       - "nowledge-mem-openai-plugin/**"
       - "tests/plugin_e2e/**"
 
@@ -51,6 +53,8 @@ jobs:
         run: python -m unittest discover -s nowledge-mem-codex-plugin/tests
       - name: Test Pi continuation and capture
         run: node --test nowledge-mem-pi-package/tests/*.test.mjs
+      - name: Test Step Code package contract
+        run: node --test nowledge-mem-step-code/tests/*.test.mjs
       - name: Validate package contract
         run: node nowledge-mem-codex-plugin/scripts/validate-plugin.mjs
       - name: Test OpenAI Cloud plugin package
