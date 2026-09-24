@@ -25,15 +25,15 @@ opencode --version # OpenCode is available
 
 ## Setup
 
-Add the plugin to your OpenCode config:
+Check `opencode --version` first. Use the global command for your installed major.
+For OpenCode 2.x:
 
-```json title="opencode.json"
-{
-  "plugins": ["opencode-nowledge-mem"]
-}
+```bash
+opencode plugin add opencode-nowledge-mem
 ```
 
-Or install globally:
+OpenCode 2 manages global package plugins by default. For manual setup, merge
+this entry into your global config, preserving other settings and plugins:
 
 ```json title="~/.config/opencode/opencode.json"
 {
@@ -46,9 +46,17 @@ Restart OpenCode to load the plugin.
 ### OpenCode 1.x
 
 Version `0.4.0` and newer require OpenCode 2.x. On OpenCode 1.x, pin the last
-v1-compatible release with the v1 `plugin` key:
+v1-compatible release and install it globally:
 
-```json title="opencode.json"
+```bash
+opencode plugin opencode-nowledge-mem@0.3.10 --global
+```
+
+On OpenCode 1.x, the package follows `plugin` directly; there is no `add`
+subcommand. Keep the version pin so an update cannot install the incompatible
+0.4.x implementation. The equivalent global config uses the v1 `plugin` key:
+
+```json title="~/.config/opencode/opencode.json"
 {
   "plugin": ["opencode-nowledge-mem@0.3.10"]
 }
@@ -64,9 +72,21 @@ OpenCode should call `nowledge_mem_context_bundle` when full startup context mat
 
 ## Update
 
-The plugin follows OpenCode's standard plugin update mechanism. To pin a specific version:
+OpenCode 2.x updates the global package with:
 
-```json
+```bash
+opencode plugin update opencode-nowledge-mem
+```
+
+OpenCode 1.x reinstalls its compatible release with:
+
+```bash
+opencode plugin opencode-nowledge-mem@0.3.10 --global --force
+```
+
+To pin an OpenCode 2 release, merge this entry into the global config:
+
+```json title="~/.config/opencode/opencode.json"
 {
   "plugins": ["opencode-nowledge-mem@0.4.0"]
 }

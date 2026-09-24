@@ -1324,7 +1324,7 @@
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Use OpenCode 2.x; plugin 0.4.0+ targets the v2 plugin API (OpenCode 1.x users pin opencode-nowledge-mem@0.3.10)",
-          "Install the native OpenCode plugin",
+          "Install the native OpenCode plugin globally using the command for your OpenCode major",
           "Restart OpenCode so the plugin registers its event subscription and session hooks",
           "Keep nmem available for memory operations, provenance-stamped saves, and handoff flows",
           "Run nmem t sync --from opencode --all-projects --apply only when you want to import older OpenCode sessions",
@@ -1334,9 +1334,10 @@
       "install": {
         "command": "opencode plugin add opencode-nowledge-mem",
         "updateCommand": "opencode plugin update opencode-nowledge-mem",
-        "detectionHint": "Running as OpenCode agent; ~/.config/opencode/ or .opencode/ exists",
+        "configRequired": "Check opencode --version before installing globally. OpenCode 1.x: opencode plugin opencode-nowledge-mem@0.3.10 --global; reinstall with the same pin and --force. OpenCode 2.x: the install/update commands above manage global packages by default. Never install plugin 0.4.0+ on OpenCode 1.x.",
+        "detectionHint": "Running as OpenCode agent; check opencode --version before choosing the global installation command",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for OpenCode. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "prompt": "Read https://mem.nowledge.co/SKILL.md, check opencode --version, and follow the matching instructions to install or update Nowledge Mem globally for OpenCode. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
           "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 OpenCode 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/opencode"
