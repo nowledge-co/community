@@ -1,0 +1,9 @@
+{
+  "nowledge-mem": {
+    "type": "http",
+    "url": "http://127.0.0.1:14242/mcp",
+    "headers": {
+      "APP": "DimAgent"
+    }
+  }
+}

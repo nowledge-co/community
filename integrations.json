@@ -9,7 +9,7 @@
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
       "claude-code", "grok", "grok-bot", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
-      "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "step-code", "opencode", "craft-agent", "workbuddy", "codebuddy",
+      "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "step-code", "opencode", "craft-agent", "workbuddy", "codebuddy", "dimagent",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
       "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct",
       "chatgpt-cloud", "claude-cloud"
@@ -511,6 +511,58 @@
         "note": "SessionStart injects the Nowledge Context Bundle. SubagentStart uses an exact Codex role allowlist: selected context-heavy roles receive a bounded snapshot, explorer is a no-op by default, and other roles receive targeted retrieval guidance without a context read. UserPromptSubmit keeps cross-tool/exact-history work routed to Nowledge even when Codex local Memory is enabled. The search-memory skill routes bounded Normal, Deep, and one-hop Progressive graph retrieval, and non-empty Memory results get a focused graph through the inline MCP App or standalone fallback. Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and skips Raft-managed execution traces by structured session originator without affecting normal Codex sessions on the same computer. The save-thread skill remains the explicit fallback."
       },
       "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "explore-graph", "status"],
+      "slashCommands": []
+    },
+    {
+      "id": "dimagent",
+      "name": "DimAgent",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-dimagent-plugin",
+      "transport": "mcp+hook",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "hook+cli-native",
+        "runtime": "dimagent",
+        "command": "nmem t capture --from dimagent --session-id <id>",
+        "note": "PreCompact, Stop, and SubagentStop request durable capture only after nmem accepts the enqueue. SubagentStop uses the child agent_id; filesystem watcher capture stays disabled by default."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the DimAgent package through its Codex-compatible plugin flow and restart DimAgent",
+          "Trust the PreCompact, Stop, and SubagentStop hooks if DimAgent requests trust",
+          "Keep nmem installed and configured with a Mem version that supports source=dimagent",
+          "Treat a hook invocation as successful only when nmem returns status=enqueued",
+          "Keep filesystem watcher capture disabled unless it is explicitly enabled"
+        ]
+      },
+      "install": {
+        "configRequired": "Install nowledge-mem-dimagent-plugin through DimAgent's Codex-compatible plugin flow, restart DimAgent, and trust the lifecycle hooks when prompted. This package does not claim an unverified DimAgent marketplace command.",
+        "detectionHint": "Running inside DimAgent or a DimAgent Codex-compatible plugin host",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to connect Nowledge Mem in DimAgent. Verify nmem status, then complete a short session and confirm nmem t list --source dimagent after a durable capture acknowledgement.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明在 DimAgent 中连接 Nowledge Mem。验证 nmem status，然后完成一次短会话，并在 durable capture 确认后用 nmem t list --source dimagent 检查。"
+        },
+        "docsUrl": "/docs/integrations/dimagent"
+      },
+      "toolNaming": {
+        "convention": "codex-compatible-plugin+mcp+cli",
+        "note": "The package reuses shared Nowledge Mem skills and local MCP defaults. Hooks never export transcript content or create threads directly; nmem owns source-specific parsing and durable queueing."
+      },
+      "skills": ["working-memory", "search-memory", "distill-memory", "explore-graph", "status"],
       "slashCommands": []
     },
     {
