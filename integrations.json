@@ -553,8 +553,8 @@
         "configRequired": "Install nowledge-mem-dimagent-plugin through DimAgent's Codex-compatible plugin flow, restart DimAgent, and trust the lifecycle hooks when prompted. This package does not claim an unverified DimAgent marketplace command.",
         "detectionHint": "Running inside DimAgent or a DimAgent Codex-compatible plugin host",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to connect Nowledge Mem in DimAgent. Verify nmem status, then complete a short session and confirm nmem t list --source dimagent after a durable capture acknowledgement.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明在 DimAgent 中连接 Nowledge Mem。验证 nmem status，然后完成一次短会话，并在 durable capture 确认后用 nmem t list --source dimagent 检查。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to connect Nowledge Mem in DimAgent. Verify with nmem status and the Context Bundle or Working Memory check, then complete a short session and confirm nmem t list --source dimagent after a durable capture acknowledgement.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明在 DimAgent 中连接 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后完成一次短会话，并在 durable capture 确认后用 nmem t list --source dimagent 检查。"
         },
         "docsUrl": "/docs/integrations/dimagent"
       },

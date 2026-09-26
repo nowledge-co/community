@@ -132,6 +132,9 @@ class DimAgentCaptureTests(unittest.TestCase):
         self.assertTrue(integration["capabilities"]["autoCapture"])
         self.assertEqual(integration["autonomy"]["threads"], "automatic-capture")
         self.assertIn("dimagent", registry["connect"]["appliesTo"])
+        guide = integration["install"]["agentGuide"]
+        self.assertIn("Context Bundle or Working Memory check", guide["prompt"])
+        self.assertIn("Context Bundle 或 Working Memory 检查", guide["promptZh"])
 
         marketplace = json.loads(
             (community_root / ".agents" / "plugins" / "marketplace.json").read_text()
