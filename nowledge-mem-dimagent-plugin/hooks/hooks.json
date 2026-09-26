@@ -1,0 +1,46 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\"",
+            "timeout": 10,
+            "statusMessage": "Queueing DimAgent session capture..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\"",
+            "timeout": 10,
+            "statusMessage": "Queueing DimAgent session capture..."
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\"",
+            "commandWindows": "py -3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || python -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\" || python3 -c \"import os, runpy; runpy.run_path(os.path.join(os.environ['CLAUDE_PLUGIN_ROOT'], 'hooks', 'nmem-capture.py'), run_name='__main__')\"",
+            "timeout": 10,
+            "statusMessage": "Queueing DimAgent session capture..."
+          }
+        ]
+      }
+    ]
+  }
+}
