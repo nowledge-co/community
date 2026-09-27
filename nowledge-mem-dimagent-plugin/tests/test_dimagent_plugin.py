@@ -336,6 +336,7 @@ class DimAgentLauncherTests(unittest.TestCase):
         *,
         shadow_modules=False,
         shadow_interpreter=False,
+        no_interpreter=False,
         discover_cli=False,
         relative_path=False,
     ):
@@ -433,6 +434,8 @@ class DimAgentLauncherTests(unittest.TestCase):
                 env["PATH"] = os.pathsep.join(entries)
             if shadow_interpreter:
                 env["PATH"] = os.pathsep.join([".", env.get("PATH", os.defpath)])
+            if no_interpreter:
+                env["PATH"] = "."
             payload = {
                 "hook_event_name": event,
                 "session_id": "parent-session",
@@ -455,6 +458,20 @@ class DimAgentLauncherTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertEqual(completed.stdout, "")
             self.assertEqual(completed.stderr, "")
+            if no_interpreter:
+                self.assertFalse(
+                    record.exists(), "Missing interpreter must not call CLI"
+                )
+                diagnostic = (
+                    Path(env["DIMCODE_HOME"])
+                    / "logs"
+                    / "nowledge-mem-capture-bootstrap.log"
+                )
+                self.assertTrue(
+                    diagnostic.is_file(), "Missing interpreter must be diagnosed"
+                )
+                self.assertLess(diagnostic.stat().st_size, 1024)
+                return diagnostic.read_text(encoding="utf-8")
             self.assertTrue(record.is_file(), "The real launcher must invoke nmem")
             calls = [
                 json.loads(line)
@@ -499,6 +516,17 @@ class DimAgentLauncherTests(unittest.TestCase):
         for event in ("Stop", "PreCompact", "SubagentStop"):
             with self.subTest(event=event):
                 self.assertEqual(self.run_hook(event, shadow_interpreter=True), "")
+
+    def test_missing_trusted_interpreter_is_diagnosed_without_project_fallback(self):
+        for event in ("Stop", "PreCompact", "SubagentStop"):
+            with self.subTest(event=event):
+                diagnostic = self.run_hook(
+                    event, shadow_interpreter=True, no_interpreter=True
+                )
+                self.assertEqual(
+                    diagnostic,
+                    "capture skipped: trusted Python launcher unavailable or failed\n",
+                )
 
     def test_registered_launcher_does_not_implicitly_discover_project_cli(self):
         self.assertEqual(self.run_hook("Stop", discover_cli=True), "")

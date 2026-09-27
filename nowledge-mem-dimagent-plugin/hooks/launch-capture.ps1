@@ -22,4 +22,19 @@ foreach ($interpreter in @('py.exe', 'python.exe', 'python3.exe')) {
         }
     }
 }
+try {
+    $bootstrapRoot = $env:DIMCODE_HOME
+    if ([string]::IsNullOrWhiteSpace($bootstrapRoot)) {
+        $bootstrapRoot = [System.IO.Path]::Combine(
+            [Environment]::GetFolderPath('UserProfile'), '.dim')
+    }
+    $logDirectory = [System.IO.Path]::Combine($bootstrapRoot, 'logs')
+    [void][System.IO.Directory]::CreateDirectory($logDirectory)
+    # A fixed overwrite stays bounded even when Python never starts.
+    [System.IO.File]::WriteAllText(
+        [System.IO.Path]::Combine($logDirectory, 'nowledge-mem-capture-bootstrap.log'),
+        "capture skipped: trusted Python launcher unavailable or failed`n")
+} catch {
+    # Diagnostic failures must not block the host.
+}
 exit 0

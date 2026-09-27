@@ -44,6 +44,10 @@ still needs to parse and upload the session. If capture is unavailable, inspect
 `~/.dim/logs/nowledge-mem-capture.log` when `DIMCODE_HOME` is unset. Diagnostics
 contain neither transcript content nor credentials.
 
+If no trusted Python interpreter can start, the native launcher writes a fixed
+failure message to `nowledge-mem-capture-bootstrap.log` in that same log
+directory. This separate file is overwritten, not appended, to remain bounded.
+
 Packaged launchers select Python from absolute `PATH` directories before
 executing it: `/bin/sh` on POSIX and the system Windows PowerShell on Windows.
 Hook Python runs in isolated mode so project modules and `PYTHONPATH` cannot
