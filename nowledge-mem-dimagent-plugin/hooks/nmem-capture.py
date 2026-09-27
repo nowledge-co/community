@@ -10,6 +10,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# The manifest uses runpy from the host's cwd, not direct script execution.
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+
 from nmem_runtime import build_nmem_command, find_nmem_command, windows_no_window_kwargs
 
 _LOG_LIMIT_BYTES = 64 * 1024
@@ -47,7 +52,9 @@ def _read_payload(stream: Any = sys.stdin) -> dict[str, Any]:
 
 
 def _capture_id(payload: dict[str, Any]) -> str | None:
-    key = "agent_id" if payload.get("hook_event_name") == "SubagentStop" else "session_id"
+    key = (
+        "agent_id" if payload.get("hook_event_name") == "SubagentStop" else "session_id"
+    )
     value = payload.get(key)
     return value.strip() if isinstance(value, str) and value.strip() else None
 
