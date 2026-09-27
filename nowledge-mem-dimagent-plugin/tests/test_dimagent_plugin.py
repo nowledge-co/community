@@ -115,7 +115,7 @@ class DimAgentCaptureTests(unittest.TestCase):
                     {"hook_event_name": "Stop", "session_id": "session-1"}
                 )
                 self.assertEqual(run.call_args.kwargs["timeout"], 8)
-        log = (Path(self.temp_dir.name) / "capture.log").read_text()
+        log = (Path(self.temp_dir.name) / "capture.log").read_text(encoding="utf-8")
         self.assertIn("invocation failed", log)
         self.assertNotIn("synthetic-secret", log)
 
@@ -142,7 +142,7 @@ class DimAgentCaptureTests(unittest.TestCase):
                 self.module._capture(
                     {"hook_event_name": "Stop", "session_id": "session-1"}
                 )
-        log = (Path(self.temp_dir.name) / "capture.log").read_text()
+        log = (Path(self.temp_dir.name) / "capture.log").read_text(encoding="utf-8")
         self.assertEqual(log.count("did not acknowledge"), 4)
         self.assertNotIn("synthetic-secret", log)
 
@@ -157,7 +157,7 @@ class DimAgentCaptureTests(unittest.TestCase):
 
         self.assertIn(
             "did not acknowledge",
-            (Path(self.temp_dir.name) / "capture.log").read_text(),
+            (Path(self.temp_dir.name) / "capture.log").read_text(encoding="utf-8"),
         )
 
     def test_missing_cli_is_fail_open(self):
@@ -166,7 +166,8 @@ class DimAgentCaptureTests(unittest.TestCase):
             self.module._capture({"hook_event_name": "Stop", "session_id": "session-1"})
 
         self.assertIn(
-            "was not found", (Path(self.temp_dir.name) / "capture.log").read_text()
+            "was not found",
+            (Path(self.temp_dir.name) / "capture.log").read_text(encoding="utf-8"),
         )
 
     def test_explicit_cli_path_works_with_a_restricted_path(self):
@@ -210,7 +211,9 @@ class DimAgentCaptureTests(unittest.TestCase):
         self.assertEqual(self.module._read_payload(io.StringIO("not json")), {})
 
     def test_hooks_declare_the_required_events_and_platform_launchers(self):
-        hooks = json.loads((PLUGIN_ROOT / "hooks" / "hooks.json").read_text())
+        hooks = json.loads(
+            (PLUGIN_ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8")
+        )
         self.assertEqual(set(hooks["hooks"]), {"PreCompact", "Stop", "SubagentStop"})
         for event in hooks["hooks"].values():
             hook = event[0]["hooks"][0]
@@ -220,7 +223,7 @@ class DimAgentCaptureTests(unittest.TestCase):
 
     def test_manifest_is_dimagent_specific_and_codex_compatible(self):
         manifest = json.loads(
-            (PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text()
+            (PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
         self.assertEqual(manifest["name"], "nowledge-mem-dimagent")
         self.assertEqual(manifest["hooks"], "./hooks/hooks.json")
@@ -228,7 +231,9 @@ class DimAgentCaptureTests(unittest.TestCase):
 
     def test_registry_and_marketplace_advertise_the_package(self):
         community_root = PLUGIN_ROOT.parent
-        registry = json.loads((community_root / "integrations.json").read_text())
+        registry = json.loads(
+            (community_root / "integrations.json").read_text(encoding="utf-8")
+        )
         integration = next(
             entry for entry in registry["integrations"] if entry["id"] == "dimagent"
         )
@@ -242,7 +247,9 @@ class DimAgentCaptureTests(unittest.TestCase):
         self.assertIn("Context Bundle 或 Working Memory 检查", guide["promptZh"])
 
         marketplace = json.loads(
-            (community_root / ".agents" / "plugins" / "marketplace.json").read_text()
+            (community_root / ".agents" / "plugins" / "marketplace.json").read_text(
+                encoding="utf-8"
+            )
         )
         package = next(
             entry
@@ -254,7 +261,9 @@ class DimAgentCaptureTests(unittest.TestCase):
 
 class DimAgentLauncherTests(unittest.TestCase):
     def run_hook(self, event, acknowledgement='{"status":"enqueued"}'):
-        hooks = json.loads((PLUGIN_ROOT / "hooks" / "hooks.json").read_text())
+        hooks = json.loads(
+            (PLUGIN_ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8")
+        )
         field = "commandWindows" if os.name == "nt" else "command"
         command = hooks["hooks"][event][0]["hooks"][0][field]
         with tempfile.TemporaryDirectory() as directory:
@@ -321,7 +330,10 @@ class DimAgentLauncherTests(unittest.TestCase):
             self.assertEqual(completed.stdout, "")
             self.assertEqual(completed.stderr, "")
             self.assertTrue(record.is_file(), "The real launcher must invoke nmem")
-            calls = [json.loads(line) for line in record.read_text().splitlines()]
+            calls = [
+                json.loads(line)
+                for line in record.read_text(encoding="utf-8").splitlines()
+            ]
             selected = "child-session" if event == "SubagentStop" else "parent-session"
             self.assertEqual(
                 calls,
@@ -338,7 +350,7 @@ class DimAgentLauncherTests(unittest.TestCase):
                 ],
             )
             log = root / "dimagent" / "logs" / "nowledge-mem-capture.log"
-            diagnostic = log.read_text() if log.is_file() else ""
+            diagnostic = log.read_text(encoding="utf-8") if log.is_file() else ""
             self.assertNotIn("synthetic-key-must-not-appear", diagnostic)
             self.assertNotIn("synthetic-transcript-must-not-appear", diagnostic)
             return diagnostic
