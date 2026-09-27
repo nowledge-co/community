@@ -5,3 +5,4 @@
 - Add the initial DimAgent durable-capture plugin.
 - Resolve the hook runtime from the installed plugin directory under runpy.
 - Exercise registered launchers and capture failures in three-platform CI.
+- Isolate hook imports and automatic CLI lookup from the project directory.

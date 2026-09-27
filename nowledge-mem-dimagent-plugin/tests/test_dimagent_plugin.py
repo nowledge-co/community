@@ -146,6 +146,23 @@ class DimAgentCaptureTests(unittest.TestCase):
         self.assertEqual(log.count("did not acknowledge"), 4)
         self.assertNotIn("synthetic-secret", log)
 
+    @unittest.skipIf(os.name == "nt", "Windows invokes batch launchers directly")
+    def test_missing_trusted_command_launcher_is_fail_open(self):
+        with (
+            mock.patch.object(
+                self.module, "find_nmem_command", return_value="/opt/nmem/nmem.cmd"
+            ),
+            mock.patch.object(
+                sys.modules["nmem_runtime"], "_windows_cmd_command", return_value=None
+            ),
+            mock.patch.object(self.module.subprocess, "run") as run,
+        ):
+            self.module._capture({"hook_event_name": "Stop", "session_id": "session-1"})
+            run.assert_not_called()
+        log = (Path(self.temp_dir.name) / "capture.log").read_text(encoding="utf-8")
+        self.assertIn("invocation failed", log)
+        self.assertNotIn("synthetic-secret", log)
+
     def test_bad_acknowledgement_is_fail_open_and_logged(self):
         completed = subprocess.CompletedProcess([], 0, '{"status":"saved"}', "")
         with (
@@ -198,6 +215,56 @@ class DimAgentCaptureTests(unittest.TestCase):
 
         self.assertEqual(run.call_args.kwargs["creationflags"], 42)
 
+    @unittest.skipUnless(os.name == "nt", "Requires Windows PATHEXT resolution")
+    def test_absolute_cli_override_resolves_extension_before_path_fallback(self):
+        root = Path(self.temp_dir.name)
+        preferred = root / "preferred"
+        fallback = root / "fallback"
+        preferred.mkdir()
+        fallback.mkdir()
+        (preferred / "nmem.exe").touch()
+        (fallback / "nmem.cmd").touch()
+        with mock.patch.dict(
+            os.environ,
+            {
+                "NMEM_CLI_PATH": str(preferred / "nmem"),
+                "PATH": str(fallback),
+                "PATHEXT": ".CMD;.EXE",
+            },
+        ):
+            self.assertEqual(
+                Path(self.module.find_nmem_command()), preferred / "nmem.exe"
+            )
+
+    @unittest.skipUnless(os.name == "nt", "Requires Windows PATHEXT resolution")
+    def test_empty_pathext_uses_default_extensions(self):
+        root = Path(self.temp_dir.name)
+        executable = root / "nmem.exe"
+        executable.touch()
+        with mock.patch.dict(
+            os.environ,
+            {"NMEM_CLI_PATH": "", "PATH": str(root), "PATHEXT": ""},
+        ):
+            self.assertEqual(Path(self.module.find_nmem_command()), executable)
+
+    @unittest.skipUnless(os.name == "nt", "Requires Windows PATHEXT resolution")
+    def test_custom_pathext_order_selects_the_first_extension(self):
+        root = Path(self.temp_dir.name)
+        (root / "nmem.exe").touch()
+        (root / "nmem.cmd").touch()
+        for extensions, expected in (
+            (".CMD;.EXE", "nmem.cmd"),
+            (".EXE;.CMD", "nmem.exe"),
+        ):
+            with (
+                self.subTest(extensions=extensions),
+                mock.patch.dict(
+                    os.environ,
+                    {"NMEM_CLI_PATH": "", "PATH": str(root), "PATHEXT": extensions},
+                ),
+            ):
+                self.assertEqual(Path(self.module.find_nmem_command()), root / expected)
+
     def test_diagnostics_are_bounded(self):
         for _ in range(1024):
             self.module._log("x" * 128)
@@ -219,7 +286,9 @@ class DimAgentCaptureTests(unittest.TestCase):
             hook = event[0]["hooks"][0]
             self.assertIn("CLAUDE_PLUGIN_ROOT", hook["command"])
             self.assertIn("commandWindows", hook)
-            self.assertIn("nmem-capture.py", hook["commandWindows"])
+            self.assertIn("launch-capture.sh", hook["command"])
+            self.assertIn("launch-capture.ps1", hook["commandWindows"])
+            self.assertIn("%SystemRoot%", hook["commandWindows"])
 
     def test_manifest_is_dimagent_specific_and_codex_compatible(self):
         manifest = json.loads(
@@ -260,7 +329,16 @@ class DimAgentCaptureTests(unittest.TestCase):
 
 
 class DimAgentLauncherTests(unittest.TestCase):
-    def run_hook(self, event, acknowledgement='{"status":"enqueued"}'):
+    def run_hook(
+        self,
+        event,
+        acknowledgement='{"status":"enqueued"}',
+        *,
+        shadow_modules=False,
+        shadow_interpreter=False,
+        discover_cli=False,
+        relative_path=False,
+    ):
         hooks = json.loads(
             (PLUGIN_ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8")
         )
@@ -276,6 +354,32 @@ class DimAgentLauncherTests(unittest.TestCase):
             )
             cwd = root / "unrelated project"
             cwd.mkdir()
+            shadow_marker = root / "project-code-executed"
+            if shadow_interpreter:
+                names = (
+                    ("py.cmd", "python.cmd", "python3.cmd")
+                    if os.name == "nt"
+                    else ("python3", "python")
+                )
+                for name in names:
+                    shadow = cwd / name
+                    if os.name == "nt":
+                        shadow.write_text(
+                            f'@echo off\necho unexpected > "{shadow_marker}"\nexit /b 1\n',
+                            encoding="utf-8",
+                        )
+                    else:
+                        shadow.write_text(
+                            f"#!/bin/sh\nprintf unexpected > {shlex.quote(str(shadow_marker))}\nexit 1\n",
+                            encoding="utf-8",
+                        )
+                        shadow.chmod(0o755)
+            if shadow_modules:
+                (cwd / "json.py").write_text(
+                    f"open({str(shadow_marker)!r}, 'w').write('unexpected')\n"
+                    "raise RuntimeError('Project module must not execute')\n",
+                    encoding="utf-8",
+                )
             record = root / "calls.jsonl"
             fake = root / "fake_nmem.py"
             fake.write_text(
@@ -296,6 +400,19 @@ class DimAgentLauncherTests(unittest.TestCase):
                     encoding="utf-8",
                 )
                 launcher.chmod(0o755)
+            if discover_cli:
+                shadow_cli = cwd / launcher.name
+                if os.name == "nt":
+                    shadow_cli.write_text(
+                        f'@echo off\necho unexpected > "{shadow_marker}"\nexit /b 1\n',
+                        encoding="utf-8",
+                    )
+                else:
+                    shadow_cli.write_text(
+                        f"#!/bin/sh\nprintf unexpected > {shlex.quote(str(shadow_marker))}\nexit 1\n",
+                        encoding="utf-8",
+                    )
+                    shadow_cli.chmod(0o755)
             env = os.environ.copy()
             env.pop("PYTHONPATH", None)
             env.update(
@@ -308,6 +425,14 @@ class DimAgentLauncherTests(unittest.TestCase):
                     "NMEM_API_KEY": "synthetic-key-must-not-appear",
                 }
             )
+            if discover_cli:
+                env.pop("NMEM_CLI_PATH", None)
+                entries = [str(root), env.get("PATH", os.defpath)]
+                if relative_path:
+                    entries.insert(0, ".")
+                env["PATH"] = os.pathsep.join(entries)
+            if shadow_interpreter:
+                env["PATH"] = os.pathsep.join([".", env.get("PATH", os.defpath)])
             payload = {
                 "hook_event_name": event,
                 "session_id": "parent-session",
@@ -326,6 +451,7 @@ class DimAgentLauncherTests(unittest.TestCase):
                 timeout=20,
                 check=False,
             )
+            self.assertFalse(shadow_marker.exists(), "Project code must not execute")
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertEqual(completed.stdout, "")
             self.assertEqual(completed.stderr, "")
@@ -363,6 +489,24 @@ class DimAgentLauncherTests(unittest.TestCase):
     def test_registered_launcher_rejects_negative_ack_without_blocking_host(self):
         diagnostic = self.run_hook("Stop", '{"status":"saved"}')
         self.assertIn("did not acknowledge", diagnostic)
+
+    def test_registered_launcher_ignores_project_python_modules(self):
+        for event in ("Stop", "PreCompact", "SubagentStop"):
+            with self.subTest(event=event):
+                self.assertEqual(self.run_hook(event, shadow_modules=True), "")
+
+    def test_registered_launchers_ignore_project_interpreters(self):
+        for event in ("Stop", "PreCompact", "SubagentStop"):
+            with self.subTest(event=event):
+                self.assertEqual(self.run_hook(event, shadow_interpreter=True), "")
+
+    def test_registered_launcher_does_not_implicitly_discover_project_cli(self):
+        self.assertEqual(self.run_hook("Stop", discover_cli=True), "")
+
+    def test_registered_launcher_ignores_relative_path_cli(self):
+        self.assertEqual(
+            self.run_hook("Stop", discover_cli=True, relative_path=True), ""
+        )
 
 
 if __name__ == "__main__":

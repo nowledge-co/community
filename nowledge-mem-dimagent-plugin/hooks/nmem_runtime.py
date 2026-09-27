@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -21,6 +20,8 @@ def _usable_command(candidate: str | Path | None) -> str | None:
     if not value:
         return None
     path = Path(value)
+    if not path.is_absolute():
+        return None
     try:
         if not path.is_file():
             return None
@@ -31,8 +32,45 @@ def _usable_command(candidate: str | Path | None) -> str | None:
     return str(path) if os.access(path, os.X_OK) else None
 
 
+def _path_command(command: str) -> str | None:
+    command = os.path.expandvars(os.path.expanduser(command.strip()))
+    path = Path(command)
+    if not command or (not path.is_absolute() and path.name != command):
+        return None
+
+    names = [command]
+    if os.name == "nt":
+        extensions = (os.environ.get("PATHEXT") or ".COM;.EXE;.BAT;.CMD").split(
+            os.pathsep
+        )
+        extensions = [extension for extension in extensions if extension]
+        if not any(
+            command.lower().endswith(extension.lower()) for extension in extensions
+        ):
+            names = [command + extension for extension in extensions]
+
+    if path.is_absolute():
+        for name in [command, *names]:
+            resolved = _usable_command(name)
+            if resolved:
+                return resolved
+        return None
+
+    # Python 3.11 shutil.which implicitly prepends cwd on Windows. Resolve
+    # only explicit absolute PATH entries, never project-local executables.
+    for directory in os.get_exec_path():
+        root = Path(directory)
+        if not root.is_absolute():
+            continue
+        for name in names:
+            resolved = _usable_command(root / name)
+            if resolved:
+                return resolved
+    return None
+
+
 def _windows_cmd_command() -> str | None:
-    discovered = shutil.which("cmd.exe")
+    discovered = _path_command("cmd.exe")
     if discovered:
         return discovered
     if _is_wsl():
@@ -123,12 +161,12 @@ def windows_no_window_kwargs() -> dict[str, int]:
 def find_nmem_command() -> str | None:
     configured = os.environ.get("NMEM_CLI_PATH", "").strip()
     if configured:
-        resolved = shutil.which(configured) or _usable_command(configured)
+        resolved = _path_command(configured)
         if resolved:
             return resolved
 
     for name in ("nmem", "nmem.cmd", "nmem.exe"):
-        resolved = shutil.which(name)
+        resolved = _path_command(name)
         if resolved:
             return resolved
 
@@ -147,17 +185,12 @@ def find_nmem_command() -> str | None:
 def cmd_exe_path(path: str) -> str:
     normalized = path.replace("\\", "/")
     parts = normalized.split("/")
-    if (
-        len(parts) > 3
-        and parts[0] == ""
-        and parts[1] == "mnt"
-        and len(parts[2]) == 1
-    ):
+    if len(parts) > 3 and parts[0] == "" and parts[1] == "mnt" and len(parts[2]) == 1:
         return f"{parts[2].upper()}:\\" + "\\".join(parts[3:])
     if len(path) >= 3 and path[1] == ":" and path[2] in ("\\", "/"):
         return path.replace("/", "\\")
     if normalized.startswith("/"):
-        wslpath = shutil.which("wslpath")
+        wslpath = _path_command("wslpath")
         if wslpath:
             try:
                 proc = subprocess.run(
@@ -178,13 +211,16 @@ def cmd_exe_path(path: str) -> str:
         distro = os.environ.get("WSL_DISTRO_NAME")
         if distro:
             return "\\\\wsl.localhost\\" + distro + normalized.replace("/", "\\")
-    return "nmem.cmd" if Path(path).name.lower() == "nmem.cmd" else path
+    return path
 
 
 def build_nmem_command(nmem: str, *args: str) -> list[str]:
     if nmem.lower().endswith((".cmd", ".bat")):
         if os.name == "nt":
             return [nmem, *args]
+        cmd = _windows_cmd_command()
+        if not cmd:
+            raise FileNotFoundError("No trusted Windows command launcher was found")
         command = subprocess.list2cmdline([cmd_exe_path(nmem), *args])
-        return [_windows_cmd_command() or "cmd.exe", "/d", "/s", "/c", command]
+        return [cmd, "/d", "/s", "/c", command]
     return [nmem, *args]

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# The manifest uses runpy from the host's cwd, not direct script execution.
+# Isolated Python omits the installed script directory from its import path.
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
@@ -78,17 +78,17 @@ def _capture(payload: dict[str, Any]) -> None:
         _log("capture skipped: nmem command was not found")
         return
 
-    command = build_nmem_command(
-        nmem,
-        "--json",
-        "t",
-        "capture",
-        "--from",
-        "dimagent",
-        "--session-id",
-        session_id,
-    )
     try:
+        command = build_nmem_command(
+            nmem,
+            "--json",
+            "t",
+            "capture",
+            "--from",
+            "dimagent",
+            "--session-id",
+            session_id,
+        )
         completed = subprocess.run(
             command,
             check=False,

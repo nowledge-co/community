@@ -18,10 +18,10 @@ or creates threads itself. Missing CLI, malformed hook input, timeouts, and
 failed acknowledgements are recorded in a bounded local diagnostic log and do
 not block DimAgent.
 
-`SubagentStop` uses `agent_id`; the other events use `session_id`. The native
-DimAgent importer and `nmem t capture --from dimagent` are supplied by Mem PR
-https://github.com/nowledge-co/mem/pull/5224. Install this package only with a
-Mem version that includes that importer.
+`SubagentStop` uses `agent_id`; the other events use `session_id`. Install
+this package only with a Mem version that includes the native DimAgent importer
+and `nmem t capture --from dimagent`. A containing release and supported-host
+verification are still required before this integration is release-ready.
 
 ## Install and verify
 
@@ -44,6 +44,15 @@ still needs to parse and upload the session. If capture is unavailable, inspect
 `~/.dim/logs/nowledge-mem-capture.log` when `DIMCODE_HOME` is unset. Diagnostics
 contain neither transcript content nor credentials.
 
+Packaged launchers select Python from absolute `PATH` directories before
+executing it: `/bin/sh` on POSIX and the system Windows PowerShell on Windows.
+Hook Python runs in isolated mode so project modules and `PYTHONPATH` cannot
+override its standard-library imports. Automatic CLI discovery uses only
+absolute `PATH` directories and known installation locations, never implicit
+working-directory or relative `PATH` entries. For a custom installation, set
+`NMEM_CLI_PATH` to the executable's absolute path. Missing trusted launchers
+remain a logged capture failure, not a fallback to project-local commands.
+
 Automatic capture is default-on through the lifecycle hooks. Filesystem watcher
 capture remains disabled by default; enable it separately only when explicitly
 needed.
@@ -64,5 +73,7 @@ The dedicated CI lane runs on Ubuntu, macOS and Windows. Tests execute the
 registered platform launcher from an unrelated working directory, including
 a plugin path with spaces, against a synthetic CLI. They verify all three
 event IDs, exactly one content-free enqueue request, acknowledgement failure
-and bounded diagnostics. This proves the packaged launch contract, not that
-a real DimAgent host loaded the plugin or that Mem persisted the capture.
+and bounded diagnostics. Project-interpreter, module and CLI sentinels guard
+against accidental execution from the host's working directory. This proves
+the packaged launch contract, not that a real DimAgent host loaded the plugin
+or that Mem persisted the capture.
