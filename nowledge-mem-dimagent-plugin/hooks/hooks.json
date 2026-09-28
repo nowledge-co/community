@@ -1,0 +1,46 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"$CLAUDE_PLUGIN_ROOT/hooks/launch-capture.sh\"",
+            "commandWindows": "\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%CLAUDE_PLUGIN_ROOT%\\hooks\\launch-capture.ps1\"",
+            "timeout": 10,
+            "statusMessage": "Queueing DimAgent session capture..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"$CLAUDE_PLUGIN_ROOT/hooks/launch-capture.sh\"",
+            "commandWindows": "\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%CLAUDE_PLUGIN_ROOT%\\hooks\\launch-capture.ps1\"",
+            "timeout": 10,
+            "statusMessage": "Queueing DimAgent session capture..."
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"$CLAUDE_PLUGIN_ROOT/hooks/launch-capture.sh\"",
+            "commandWindows": "\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%CLAUDE_PLUGIN_ROOT%\\hooks\\launch-capture.ps1\"",
+            "timeout": 10,
+            "statusMessage": "Queueing DimAgent session capture..."
+          }
+        ]
+      }
+    ]
+  }
+}

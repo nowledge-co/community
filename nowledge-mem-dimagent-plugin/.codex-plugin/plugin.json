@@ -1,0 +1,8 @@
+{
+  "name": "nowledge-mem-dimagent",
+  "version": "0.1.0",
+  "description": "Durable Nowledge Mem capture for DimAgent lifecycle events.",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json"
+}
