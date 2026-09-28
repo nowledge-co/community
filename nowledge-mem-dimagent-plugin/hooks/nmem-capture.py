@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -19,6 +20,7 @@ from nmem_runtime import build_nmem_command, find_nmem_command, windows_no_windo
 
 _LOG_LIMIT_BYTES = 64 * 1024
 _CAPTURE_TIMEOUT_SECONDS = 8
+_CAPTURE_ID_RE = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 
 
 def _log_path() -> Path:
@@ -56,7 +58,10 @@ def _capture_id(payload: dict[str, Any]) -> str | None:
         "agent_id" if payload.get("hook_event_name") == "SubagentStop" else "session_id"
     )
     value = payload.get(key)
-    return value.strip() if isinstance(value, str) and value.strip() else None
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value if _CAPTURE_ID_RE.fullmatch(value) else None
 
 
 def _acknowledged(stdout: str) -> bool:

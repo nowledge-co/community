@@ -97,6 +97,25 @@ class DimAgentCaptureTests(unittest.TestCase):
                 )
                 resolve.assert_not_called()
 
+    def test_untrusted_or_oversized_session_id_never_reaches_cli(self):
+        invalid_ids = (
+            "session&echo injected",
+            "session|more",
+            "%PATH%",
+            "session with spaces",
+            "session/child",
+            "s" * 257,
+        )
+        for session_id in invalid_ids:
+            with (
+                self.subTest(session_id=session_id),
+                mock.patch.object(self.module, "find_nmem_command") as resolve,
+            ):
+                self.module._capture(
+                    {"hook_event_name": "Stop", "session_id": session_id}
+                )
+                resolve.assert_not_called()
+
     def test_capture_failure_is_bounded_content_free_and_fail_open(self):
         for failure in (
             OSError("synthetic-secret"),
@@ -311,9 +330,29 @@ class DimAgentCaptureTests(unittest.TestCase):
         self.assertTrue(integration["capabilities"]["autoCapture"])
         self.assertEqual(integration["autonomy"]["threads"], "automatic-capture")
         self.assertIn("dimagent", registry["connect"]["appliesTo"])
+        self.assertEqual(registry["version"], "1.2.5")
+        self.assertEqual(
+            integration["install"]["docsUrl"],
+            "https://github.com/nowledge-co/community/tree/main/"
+            "nowledge-mem-dimagent-plugin#readme",
+        )
         guide = integration["install"]["agentGuide"]
         self.assertIn("Context Bundle or Working Memory check", guide["prompt"])
         self.assertIn("Context Bundle 或 Working Memory 检查", guide["promptZh"])
+
+        readme = (community_root / "README.md").read_text(encoding="utf-8")
+        self.assertIn("[DimAgent Plugin](nowledge-mem-dimagent-plugin)", readme)
+        integration_skill = (
+            community_root
+            / "nowledge-mem-npx-skills"
+            / "skills"
+            / "check-integration"
+            / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("| **DimAgent** |", integration_skill)
+        self.assertIn(
+            "No verified host-specific marketplace command", integration_skill
+        )
 
         marketplace = json.loads(
             (community_root / ".agents" / "plugins" / "marketplace.json").read_text(
