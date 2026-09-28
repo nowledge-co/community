@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"from pathlib import Path; import os, runpy, sys; g = os.environ.get; proj = Path(g('OPENHANDS_PROJECT_DIR', '.')); cand = [g('OPENHANDS_PLUGIN_ROOT'), proj / '.openhands/plugins/nowledge-mem', proj / '.agents/plugins/nowledge-mem', proj / '.plugins/nowledge-mem', Path(g('OH_PERSISTENCE_DIR', Path.home() / '.openhands')) / 'plugins/installed/nowledge-mem', Path.home() / '.agents/plugins/nowledge-mem', Path.home() / '.openhands/plugins/nowledge-mem', Path('.')]; p = next((Path(c) / 'hooks/nmem-context.py' for c in cand if c and (Path(c) / 'hooks/nmem-context.py').is_file()), None); sys.exit(0) if not p else runpy.run_path(str(p), run_name='__main__')\" 2>/dev/null || echo '{}'",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "file_editor|edit|write|write_to_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"from pathlib import Path; import os, runpy, sys; g = os.environ.get; proj = Path(g('OPENHANDS_PROJECT_DIR', '.')); cand = [g('OPENHANDS_PLUGIN_ROOT'), proj / '.openhands/plugins/nowledge-mem', proj / '.agents/plugins/nowledge-mem', proj / '.plugins/nowledge-mem', Path(g('OH_PERSISTENCE_DIR', Path.home() / '.openhands')) / 'plugins/installed/nowledge-mem', Path.home() / '.agents/plugins/nowledge-mem', Path.home() / '.openhands/plugins/nowledge-mem', Path('.')]; p = next((Path(c) / 'hooks/nmem-post-tool.py' for c in cand if c and (Path(c) / 'hooks/nmem-post-tool.py').is_file()), None); sys.exit(0) if not p else runpy.run_path(str(p), run_name='__main__')\" 2>/dev/null || echo '{}'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"from pathlib import Path; import os, runpy, sys; g = os.environ.get; proj = Path(g('OPENHANDS_PROJECT_DIR', '.')); cand = [g('OPENHANDS_PLUGIN_ROOT'), proj / '.openhands/plugins/nowledge-mem', proj / '.agents/plugins/nowledge-mem', proj / '.plugins/nowledge-mem', Path(g('OH_PERSISTENCE_DIR', Path.home() / '.openhands')) / 'plugins/installed/nowledge-mem', Path.home() / '.agents/plugins/nowledge-mem', Path.home() / '.openhands/plugins/nowledge-mem', Path('.')]; p = next((Path(c) / 'hooks/nmem-stop.py' for c in cand if c and (Path(c) / 'hooks/nmem-stop.py').is_file()), None); sys.exit(0) if not p else runpy.run_path(str(p), run_name='__main__')\" 2>/dev/null || echo '{\"decision\": \"approve\"}'",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

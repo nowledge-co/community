@@ -11,7 +11,7 @@
       "claude-code", "grok", "grok-bot", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "opencode", "craft-agent", "workbuddy", "codebuddy",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
-      "raft", "lody", "multica", "cumora", "paseo", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct",
+      "raft", "lody", "multica", "cumora", "paseo", "openhands", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct",
       "chatgpt-cloud", "claude-cloud"
     ],
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
@@ -759,6 +759,77 @@
         "note": "Keep source_app as the launched AI tool (codex, claude-code, opencode, pi, etc.). Use NMEM_AGENT_ID only for durable Paseo agent roles; do not label all child sessions as paseo. Paseo sync is an import/backfill path; live capture belongs to the child connector."
       },
       "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "openhands",
+      "name": "OpenHands",
+      "category": "orchestrator",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-openhands-plugin",
+      "transport": "plugin+mcp+cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "hook-capture",
+        "runtime": "openhands",
+        "command": "nmem t save --from openhands --session-id <conversation-id>",
+        "historicalCommand": "nmem t sync --from openhands --apply",
+        "note": "OpenHands runs lifecycle hooks (UserPromptSubmit, PostToolUse, Stop). The Stop hook captures session state and syncs to Nowledge Mem. In multi-agent workflows, NMEM_AGENT_ID scopes worker identity, NMEM_SPACE scopes memory space, and NMEM_DISABLE_AUTO_CAPTURE=1 suppresses duplicate child ACP worker thread capture."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "automatic",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Install the Nowledge Mem plugin via OpenHands SDK Plugin.load() or copy to .plugins/nowledge-mem",
+          "Set NMEM_AGENT_ID=<agent-slug> on specialist worker nodes (e.g. planner, coder, reviewer) to maintain worker identity",
+          "Set NMEM_SPACE to isolate runs into named knowledge spaces",
+          "Keep Nowledge Mem running locally or set NMEM_API_URL and NMEM_API_KEY for remote instances"
+        ]
+      },
+      "install": {
+        "command": "Load via OpenHands SDK Plugin.load('path/to/nowledge-mem-openhands-plugin') or copy to .plugins/nowledge-mem",
+        "detectionHint": "Running inside OpenHands or OpenHands SDK; .openhands/ exists, or OPENHANDS_TOOL_NAME is set",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the OpenHands path. Load the nowledge-mem-openhands-plugin via OpenHands SDK Plugin.load() or copy to .plugins/nowledge-mem. Configure NMEM_AGENT_ID for specialist canvas nodes and NMEM_SPACE for space routing. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 OpenHands 路径配置。通过 OpenHands SDK Plugin.load() 或复制到 .plugins/nowledge-mem 加载 nowledge-mem-openhands-plugin。为画布专家节点配置 NMEM_AGENT_ID，为空间路由配置 NMEM_SPACE。用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后总结改动。"
+        },
+        "docsUrl": "/docs/integrations/openhands"
+      },
+      "toolNaming": {
+        "convention": "mcp",
+        "prefix": "",
+        "tools": [
+          "read_context_bundle",
+          "read_working_memory",
+          "memory_search",
+          "thread_search",
+          "memory_add",
+          "memory_update",
+          "explore_graph",
+          "graph_stats"
+        ],
+        "note": "OpenHands loads Nowledge Mem MCP tools directly via .mcp.json. Lifecycle hooks provide automatic Context Bundle injection on prompt submission and thread capture on stop."
+      },
+      "skills": [
+        "read-working-memory",
+        "search-memory",
+        "distill-memory",
+        "save-handoff",
+        "save-thread",
+        "status",
+        "check-integration"
+      ],
       "slashCommands": []
     },
     {
