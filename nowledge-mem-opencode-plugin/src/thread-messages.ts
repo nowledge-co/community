@@ -68,9 +68,20 @@ export type SessionMessage = {
 /** Code points kept per captured tool field, so no call stores unbounded text. */
 const TOOL_DETAIL_LIMIT = 500
 
+/** Mem already holds what its own tools read and write; the Thread only notes that they ran. */
+const MEM_TOOL_PREFIX = "nowledge_mem_"
+
+/** Walks code points only up to the limit, so large tool output stays cheap. */
 function clip(text: string): string {
-  const chars = Array.from(text)
-  return chars.length > TOOL_DETAIL_LIMIT ? `${chars.slice(0, TOOL_DETAIL_LIMIT).join("")}...` : text
+  if (text.length <= TOOL_DETAIL_LIMIT) return text
+  let kept = 0
+  let end = 0
+  for (const char of text) {
+    if (kept === TOOL_DETAIL_LIMIT) return `${text.slice(0, end)}...`
+    kept += 1
+    end += char.length
+  }
+  return text
 }
 
 /**
@@ -96,17 +107,19 @@ function toolActivity(part: SessionToolPart): ToolActivity {
   if (!state) return activity
 
   if (state.status) activity.status = state.status
-  const input = toolInput(state.input)
-  if (input) activity.input = clip(input)
-  // Keep leading indentation (e.g. `git status --short` columns); drop only
-  // surrounding blank lines.
-  const output = (state.content ?? [])
-    .filter((item) => item.type === "text" && typeof item.text === "string")
-    .map((item) => item.text)
-    .join("\n")
-    .replace(/^(?:[ \t]*\r?\n)+/, "")
-    .trimEnd()
-  if (output) activity.output = fenced(clip(output))
+  if (!activity.name.startsWith(MEM_TOOL_PREFIX)) {
+    const input = toolInput(state.input)
+    if (input) activity.input = clip(input)
+    // Keep leading indentation (e.g. `git status --short` columns); drop only
+    // surrounding blank lines.
+    const output = (state.content ?? [])
+      .filter((item) => item.type === "text" && typeof item.text === "string")
+      .map((item) => item.text)
+      .join("\n")
+      .replace(/^(?:[ \t]*\r?\n)+/, "")
+      .trimEnd()
+    if (output) activity.output = fenced(clip(output))
+  }
   if (state.status === "error") {
     activity.success = false
     const message = state.error?.message?.trim()

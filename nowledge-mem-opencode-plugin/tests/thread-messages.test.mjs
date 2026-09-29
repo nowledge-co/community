@@ -224,6 +224,32 @@ test("a tool call without usable payload records only what the host sent", () =>
   )
 })
 
+test("the plugin's own Mem tools record only that they ran", () => {
+  assert.deepEqual(
+    activitiesOf(
+      {
+        type: "tool",
+        id: "call_m",
+        name: "nowledge_mem_search",
+        state: {
+          status: "completed",
+          input: { query: "cache decision", space: "Personal" },
+          content: [{ type: "text", text: "Memory: we chose TTL 60s" }],
+        },
+      },
+      {
+        type: "tool",
+        name: "nowledge_mem_save",
+        state: { status: "error", input: { content: "private note" }, error: { type: "tool", message: "nmem CLI not found" } },
+      },
+    ),
+    [
+      { id: "call_m", name: "nowledge_mem_search", status: "completed" },
+      { name: "nowledge_mem_save", status: "error", success: false, error: "nmem CLI not found" },
+    ],
+  )
+})
+
 test("tool state that changes after capture does not force a full replay", () => {
   const externalId = (message) => message.metadata.external_id
   const turn = (bash) => toThreadMessages([userMessage, { type: "assistant", id: "msg_turn", content: [{ type: "text", text: "Running it." }, bash] }])

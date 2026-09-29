@@ -168,9 +168,17 @@ function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprin
 
 // src/thread-messages.ts
 var TOOL_DETAIL_LIMIT = 500;
+var MEM_TOOL_PREFIX = "nowledge_mem_";
 function clip(text) {
-  const chars = Array.from(text);
-  return chars.length > TOOL_DETAIL_LIMIT ? `${chars.slice(0, TOOL_DETAIL_LIMIT).join("")}...` : text;
+  if (text.length <= TOOL_DETAIL_LIMIT) return text;
+  let kept = 0;
+  let end = 0;
+  for (const char of text) {
+    if (kept === TOOL_DETAIL_LIMIT) return `${text.slice(0, end)}...`;
+    kept += 1;
+    end += char.length;
+  }
+  return text;
 }
 function fenced(text) {
   const longestRun = Math.max(0, ...Array.from(text.matchAll(/`+/g), (match) => match[0].length));
@@ -190,10 +198,12 @@ function toolActivity(part) {
   const state = part.state;
   if (!state) return activity;
   if (state.status) activity.status = state.status;
-  const input = toolInput(state.input);
-  if (input) activity.input = clip(input);
-  const output = (state.content ?? []).filter((item) => item.type === "text" && typeof item.text === "string").map((item) => item.text).join("\n").replace(/^(?:[ \t]*\r?\n)+/, "").trimEnd();
-  if (output) activity.output = fenced(clip(output));
+  if (!activity.name.startsWith(MEM_TOOL_PREFIX)) {
+    const input = toolInput(state.input);
+    if (input) activity.input = clip(input);
+    const output = (state.content ?? []).filter((item) => item.type === "text" && typeof item.text === "string").map((item) => item.text).join("\n").replace(/^(?:[ \t]*\r?\n)+/, "").trimEnd();
+    if (output) activity.output = fenced(clip(output));
+  }
   if (state.status === "error") {
     activity.success = false;
     const message = state.error?.message?.trim();
