@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed
+
+- Captured tool calls now keep their details. Live capture wrote only
+  `[Tool: <name>]`, so expanding the tool row in a Mem Thread showed nothing.
+  It now records the same bounded summary as `nmem t sync --from opencode`:
+  the bash command (first 200 characters) and output (first 500), the file,
+  pattern, URL, or task of other built-in tools, a non-zero exit code, and the
+  first 200 characters of an error.
+
+## [0.4.0] - 2026-09-20
+
 ### Changed
 
 - **BREAKING:** Ported the plugin to the OpenCode v2 plugin API. The

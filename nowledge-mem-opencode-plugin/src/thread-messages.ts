@@ -23,7 +23,18 @@ export type ThreadMessage = {
 
 type SessionTextPart = { type: "text"; text?: string }
 type SessionReasoningPart = { type: "reasoning"; text?: string }
-type SessionToolPart = { type: "tool"; name?: string; state?: { status?: string } }
+type SessionToolPart = {
+  type: "tool"
+  name?: string
+  state?: {
+    status?: string
+    /** An object once parsed; the partial argument string while streaming. */
+    input?: unknown
+    content?: Array<{ type?: string; text?: string }>
+    metadata?: Record<string, unknown>
+    error?: { message?: string }
+  }
+}
 type SessionAssistantContent = SessionTextPart | SessionReasoningPart | SessionToolPart
 
 /**
@@ -40,6 +51,95 @@ export type SessionMessage = {
   agent?: string
   model?: { id?: string }
   content?: SessionAssistantContent[]
+}
+
+/** Counts code points, as the Rust importer's `chars().take(n)` does. */
+function clip(text: string, limit: number): string {
+  const chars = Array.from(text)
+  return chars.length > limit ? `${chars.slice(0, limit).join("")}...` : text
+}
+
+function stringField(fields: Record<string, unknown>, key: string): string {
+  const value = fields[key]
+  return typeof value === "string" ? value : ""
+}
+
+function summarizeToolInput(name: string, input: unknown): string {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return ""
+  const fields = input as Record<string, unknown>
+  switch (name) {
+    case "bash": {
+      const command = stringField(fields, "command")
+      return command ? `$ ${clip(command, 200)}` : stringField(fields, "description")
+    }
+    case "read": {
+      const filePath = stringField(fields, "filePath")
+      return filePath ? `File: ${filePath}` : ""
+    }
+    case "glob": {
+      const pattern = stringField(fields, "pattern")
+      return pattern ? `Pattern: ${pattern}` : ""
+    }
+    case "grep": {
+      const pattern = stringField(fields, "pattern")
+      if (!pattern) return ""
+      const path = stringField(fields, "path")
+      return path ? `Pattern: ${pattern} in ${path}` : `Pattern: ${pattern}`
+    }
+    case "webfetch": {
+      const url = stringField(fields, "url")
+      return url ? `URL: ${url}` : ""
+    }
+    case "task": {
+      const description = stringField(fields, "description")
+      return description ? `Task: ${description}` : ""
+    }
+    default:
+      return ""
+  }
+}
+
+function toolAnnotations(name: string, metadata: Record<string, unknown> | undefined): string {
+  if (!metadata) return ""
+  const notes: string[] = []
+  if (name === "bash" && metadata.exit != null && metadata.exit !== 0) notes.push(`exit=${metadata.exit}`)
+  if (name === "grep") {
+    if (metadata.matches != null) notes.push(`${metadata.matches} matches`)
+    if (metadata.truncated === true) notes.push("truncated")
+  }
+  if (name === "glob" && metadata.count != null) notes.push(`${metadata.count} files`)
+  return notes.length ? `(${notes.join(", ")})` : ""
+}
+
+/**
+ * Mirrors `format_opencode_tool_part` in nmem-sessions, with the same bounds,
+ * so live capture and `nmem t sync --from opencode` write the same tool lines.
+ * v2 has no `title`/`output`: output comes from the result's text content.
+ */
+function formatToolPart(part: SessionToolPart): string {
+  const name = part.name ?? "unknown"
+  const state = part.state
+  let line = `[Tool: ${name}${state?.status === "error" ? " (failed)" : ""}]`
+  if (!state) return line
+
+  const summary = summarizeToolInput(name, state.input)
+  if (summary) line += ` ${summary}`
+  const annotations = toolAnnotations(name, state.metadata)
+  if (annotations) line += ` ${annotations}`
+
+  if (state.status === "error") {
+    const message = state.error?.message ?? ""
+    return message ? `${line} — Error: ${Array.from(message).slice(0, 200).join("")}` : line
+  }
+  if (name === "bash" && state.status === "completed") {
+    const output = (state.content ?? [])
+      .filter((item) => item.type === "text" && typeof item.text === "string")
+      .map((item) => item.text)
+      .join("\n")
+      .trim()
+    if (output) return `${line}\n${clip(output, 500)}`
+  }
+  return line
 }
 
 export function extractMessageContent(message: SessionMessage): string {
@@ -61,12 +161,9 @@ export function extractMessageContent(message: SessionMessage): string {
       case "reasoning":
         if (part.text) segments.push(`<thinking>\n${part.text}\n</thinking>`)
         break
-      case "tool": {
-        const name = part.name ?? "unknown"
-        const status = part.state?.status === "error" ? " (failed)" : ""
-        segments.push(`[Tool: ${name}${status}]`)
+      case "tool":
+        segments.push(formatToolPart(part))
         break
-      }
     }
   }
   return segments.join("\n") || "(empty message)"

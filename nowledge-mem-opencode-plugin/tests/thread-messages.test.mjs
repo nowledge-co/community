@@ -97,3 +97,98 @@ test("extractMessageContent handles each assistant content part", () => {
     "answer\n<thinking>\nwhy\n</thinking>\n[Tool: bash]",
   )
 })
+
+const toolLine = (part) => extractMessageContent({ type: "assistant", content: [part] })
+
+test("a completed bash call keeps its command and output", () => {
+  assert.equal(
+    toolLine({
+      type: "tool",
+      name: "bash",
+      state: {
+        status: "completed",
+        input: { command: "git status --short", description: "Show status" },
+        content: [
+          { type: "text", text: " M src/index.ts" },
+          { type: "file", uri: "file:///tmp/out.txt", mime: "text/plain" },
+          { type: "text", text: "?? notes.md" },
+        ],
+        metadata: { exit: 0 },
+      },
+    }),
+    "[Tool: bash] $ git status --short\nM src/index.ts\n?? notes.md",
+  )
+})
+
+test("a bash call reports a non-zero exit and bounds long command and output", () => {
+  const command = "c".repeat(201)
+  const output = "o".repeat(501)
+  assert.equal(
+    toolLine({
+      type: "tool",
+      name: "bash",
+      state: {
+        status: "completed",
+        input: { command },
+        content: [{ type: "text", text: output }],
+        metadata: { exit: 2 },
+      },
+    }),
+    `[Tool: bash] $ ${"c".repeat(200)}... (exit=2)\n${"o".repeat(500)}...`,
+  )
+})
+
+test("a failed call keeps the failure marker and adds its input and error", () => {
+  assert.equal(
+    toolLine({
+      type: "tool",
+      name: "grep",
+      state: {
+        status: "error",
+        input: { pattern: "cacheTtl", path: "src" },
+        error: { type: "tool", message: "e".repeat(201) },
+      },
+    }),
+    `[Tool: grep (failed)] Pattern: cacheTtl in src — Error: ${"e".repeat(200)}`,
+  )
+})
+
+test("other tools summarize their input without attaching output", () => {
+  assert.equal(
+    toolLine({
+      type: "tool",
+      name: "read",
+      state: {
+        status: "completed",
+        input: { filePath: "src/index.ts" },
+        content: [{ type: "text", text: "file body" }],
+      },
+    }),
+    "[Tool: read] File: src/index.ts",
+  )
+  assert.equal(
+    toolLine({
+      type: "tool",
+      name: "glob",
+      state: {
+        status: "completed",
+        input: { pattern: "**/*.ts" },
+        content: [{ type: "text", text: "a.ts" }],
+        metadata: { count: 3 },
+      },
+    }),
+    "[Tool: glob] Pattern: **/*.ts (3 files)",
+  )
+})
+
+test("a tool call without usable payload stays a bare marker", () => {
+  assert.equal(toolLine({ type: "tool", name: "bash" }), "[Tool: bash]")
+  assert.equal(
+    toolLine({ type: "tool", name: "bash", state: { status: "completed", input: {}, content: [{ type: "text", text: "  " }] } }),
+    "[Tool: bash]",
+  )
+  assert.equal(
+    toolLine({ type: "tool", name: "bash", state: { status: "streaming", input: "{\"command\":\"git" } }),
+    "[Tool: bash]",
+  )
+})
