@@ -27,7 +27,7 @@ if (JSON.stringify(Object.keys(hooks).sort()) !== JSON.stringify(expectedHookEve
 }
 for (const event of ["Stop", "PostCompaction", "SessionEnd"]) {
   const command = hooks[event]?.[0]?.hooks?.[0]?.command || "";
-  if (command !== "nmem --json t sync --from devin --hook-stdin --apply") {
+  if (command !== 'command -v nmem >/dev/null 2>&1 || nmem() { nmem.cmd "$@"; }; nmem --json t sync --from devin --hook-stdin --apply') {
     errors.push(`${event} must use exact Devin hook session capture`);
   }
   const timeout = hooks[event]?.[0]?.hooks?.[0]?.timeout;

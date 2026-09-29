@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cross-tool memory, native lifecycle capture, and enterprise conversation sync for Devin",
   "author": {
     "name": "Nowledge Labs",

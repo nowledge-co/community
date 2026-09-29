@@ -12,21 +12,23 @@ devin plugins install nowledge-co/community#nowledge-mem-devin-plugin
 
 The package adds Nowledge Mem skills, a local MCP connection, behavioral
 guidance, and lifecycle capture after turns, compaction, and local session end.
-Lifecycle sync answers every hook with an empty response, so hook output never
-becomes conversation content; failures remain visible through Devin's hook
-diagnostics.
+Lifecycle sync is silent on success, so hook output never becomes conversation
+content; failures remain visible through Devin's hook diagnostics.
 
-If you added `nmem ... t sync --from devin` hooks to Devin's own settings before
-installing the plugin (for example in `%APPDATA%\devin\config.json` or
-`~/.config/devin/config.json`), remove those entries. The plugin registers the
-same `Stop`, `PostCompaction`, and `SessionEnd` hooks, and keeping both runs
-every sync twice.
+On Windows, Devin runs hooks in a POSIX shell, which cannot find the Desktop's
+`nmem.cmd` by the bare name `nmem`. The hooks fall back to `nmem.cmd`, so they
+work with the command the Desktop installs. If a hook fails with
+`nmem: command not found` (exit 127), update the plugin with
+`devin plugins update nowledge-mem`.
 
-On Windows, Devin runs hooks in a POSIX shell, which cannot run `nmem.cmd` by
-its bare name. Current Nowledge Mem Desktop releases install an `nmem` command
-for such shells beside `nmem.cmd`. If a hook fails with `nmem: command not
-found` (exit 127), update Nowledge Mem and start it once so it refreshes the
-command.
+If you added `nmem` or `nmem.cmd` sync hooks to Devin's own settings by hand
+(for example in `%APPDATA%\devin\config.json` or
+`~/.config/devin/config.json`), keep them until the plugin's hooks show up in
+Devin's `/hooks` list and a session appears in `nmem t list --source devin`.
+Then back up that file and remove the manual entries, including any that end in
+`echo {}`: the plugin registers the same `Stop`, `PostCompaction`, and
+`SessionEnd` hooks, and keeping both runs every sync twice. If those entries
+passed `--space` or `--agent-id`, set `NMEM_SPACE` or `NMEM_AGENT_ID` instead.
 
 ## Verify
 
