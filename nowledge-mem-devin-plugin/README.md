@@ -12,8 +12,21 @@ devin plugins install nowledge-co/community#nowledge-mem-devin-plugin
 
 The package adds Nowledge Mem skills, a local MCP connection, behavioral
 guidance, and lifecycle capture after turns, compaction, and local session end.
-Lifecycle sync is silent on success, so hook output never becomes conversation
-content; failures remain visible through Devin's hook diagnostics.
+Lifecycle sync answers every hook with an empty response, so hook output never
+becomes conversation content; failures remain visible through Devin's hook
+diagnostics.
+
+If you added `nmem ... t sync --from devin` hooks to Devin's own settings before
+installing the plugin (for example in `%APPDATA%\devin\config.json` or
+`~/.config/devin/config.json`), remove those entries. The plugin registers the
+same `Stop`, `PostCompaction`, and `SessionEnd` hooks, and keeping both runs
+every sync twice.
+
+On Windows, Devin runs hooks in a POSIX shell, which cannot run `nmem.cmd` by
+its bare name. Current Nowledge Mem Desktop releases install an `nmem` command
+for such shells beside `nmem.cmd`. If a hook fails with `nmem: command not
+found` (exit 127), update Nowledge Mem and start it once so it refreshes the
+command.
 
 ## Verify
 
