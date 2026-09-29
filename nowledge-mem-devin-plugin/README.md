@@ -28,11 +28,12 @@ If you added `nmem` or `nmem.cmd` sync hooks to Devin's own settings by hand
 `~/.config/devin/config.json`), the plugin now registers the same `Stop`,
 `PostCompaction`, and `SessionEnd` hooks, and keeping both runs every sync
 twice. With plugin 0.1.1 or later installed, back up that file, remove the
-manual entries (including any that end in `echo {}`), run one Devin turn, and
-check that `nmem t list --source devin` shows it. If it does not, restore the
-backup. If those entries passed `--space`, `--space-id`, or `--agent-id`, set
-`NMEM_SPACE` to that Space's ID (see `nmem spaces list`) and `NMEM_AGENT_ID` to
-that identity in the environment Devin starts with, then restart Devin.
+manual entries (including any that end in `echo {}`), start a new Devin
+session, run one turn, and check that the new session appears in
+`nmem t list --source devin`. If it does not, restore the backup. If those
+entries passed `--space`, `--space-id`, or `--agent-id`, set `NMEM_SPACE` to
+that Space's ID (see `nmem spaces list`) and `NMEM_AGENT_ID` to that identity
+in the environment Devin starts with, then restart Devin.
 
 ## Verify
 
