@@ -19,16 +19,20 @@ On Windows, Devin runs hooks in a POSIX shell, which cannot find the Desktop's
 `nmem.cmd` by the bare name `nmem`. The hooks fall back to `nmem.cmd`, so they
 work with the command the Desktop installs. If a hook fails with
 `nmem: command not found` (exit 127), update the plugin with
-`devin plugins update nowledge-mem`.
+`devin plugins update nowledge-mem`. If it fails with
+`nmem.cmd: command not found`, no Nowledge Mem CLI is on Devin's PATH: install
+or open Nowledge Mem, then restart Devin so it picks up the new PATH.
 
 If you added `nmem` or `nmem.cmd` sync hooks to Devin's own settings by hand
 (for example in `%APPDATA%\devin\config.json` or
-`~/.config/devin/config.json`), keep them until the plugin's hooks show up in
-Devin's `/hooks` list and a session appears in `nmem t list --source devin`.
-Then back up that file and remove the manual entries, including any that end in
-`echo {}`: the plugin registers the same `Stop`, `PostCompaction`, and
-`SessionEnd` hooks, and keeping both runs every sync twice. If those entries
-passed `--space` or `--agent-id`, set `NMEM_SPACE` or `NMEM_AGENT_ID` instead.
+`~/.config/devin/config.json`), the plugin now registers the same `Stop`,
+`PostCompaction`, and `SessionEnd` hooks, and keeping both runs every sync
+twice. With plugin 0.1.1 or later installed, back up that file, remove the
+manual entries (including any that end in `echo {}`), run one Devin turn, and
+check that `nmem t list --source devin` shows it. If it does not, restore the
+backup. If those entries passed `--space`, `--space-id`, or `--agent-id`, set
+`NMEM_SPACE` to that Space's ID (see `nmem spaces list`) and `NMEM_AGENT_ID` to
+that identity in the environment Devin starts with, then restart Devin.
 
 ## Verify
 
@@ -42,6 +46,9 @@ Run a short Devin session, then confirm it appears:
 ```bash
 nmem t list --source devin
 ```
+
+On Windows, run these in PowerShell or Command Prompt, or type `nmem.cmd` in
+Git Bash.
 
 ## Remote Mem
 

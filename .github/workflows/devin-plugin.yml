@@ -29,3 +29,6 @@ jobs:
           node-version: 22
       - name: Validate native Devin plugin contract
         run: node nowledge-mem-devin-plugin/scripts/validate-plugin.mjs
+      - name: Run the pinned hook command against a stub CLI
+        shell: bash
+        run: bash nowledge-mem-devin-plugin/scripts/smoke-hook-command.sh
