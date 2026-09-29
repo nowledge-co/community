@@ -28,8 +28,6 @@ Choose the smallest honest integration:
    host-specific event mapping, privacy, process launch, and response handling;
    it must not implement another capture scheduler or persistence queue.
 
-The core protocol is specified in the Mem repository's
-[`PLUGIN_HOOK_PROTOCOL.md`](https://github.com/nowledge-co/mem/blob/main/docs/design/PLUGIN_HOOK_PROTOCOL.md).
 `nmem hook capture` is still release-gated. Do not require it from a published
 plugin until the CLI version containing it is available to users and the
 plugin declares that minimum version or retains an older-CLI fallback.
@@ -68,13 +66,41 @@ observation to `nmem hook capture` on stdin. Use normalized v1 input when a
 small adapter already extracts host fields; use `--input-format host-json` plus
 RFC 6901 pointers when the host can launch a command with its JSON event on
 stdin. Never pass transcript bodies, credentials, or an entire vendor event in
-the normalized observation. Example host-json command arguments:
+the normalized observation. A normalized observation is one JSON object of at
+most 16 KiB:
+
+```json
+{
+  "version": 1,
+  "event": "session_end",
+  "source_app": "registered-source",
+  "session_id": "stable-host-session-id",
+  "project": "/absolute/project/path",
+  "transcript_path": "/absolute/transcript/path",
+  "strategy": "current"
+}
+```
+
+`source_app` and `session_id` are required. `source_app` must have a registered
+session parser; `event` is one of `stop`, `turn_end`, `pre_compact`,
+`session_end`, `session_switch`, `subagent_end`, or `interrupt`. `project`
+defaults to the hook process's working directory. `strategy` is `current`
+(default) or `sync`; `all_projects: true` requires `sync`. Optional routing
+fields are `space` or `space_id` (mutually exclusive), `agent_id`, and
+`host_agent_id`. Do not put message bodies or vendor-private fields in this
+object. Example host-json command arguments:
 
 ```text
 nmem hook capture --input-format host-json --from <registered-source> \
   --event session_end --session-id-pointer /session/id \
   --transcript-path-pointer /session/transcript_path
 ```
+
+Host-json input may be at most 256 KiB; the CLI extracts only the configured
+string fields and discards the rest. The session ID pointer must resolve to a
+non-empty string. Supply `--project-pointer` when the payload contains the
+project directory, and `--strategy sync --all-projects` only when that matches
+the host's session model. Missing required pointers are rejected.
 
 Replace every placeholder with values verified against the host payload and
 the registered parser. Pass explicit `--space`/`--space-id` and `--agent-id`
