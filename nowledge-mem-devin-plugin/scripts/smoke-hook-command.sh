@@ -17,7 +17,7 @@ case "$(uname -s)" in
     printf '@echo off\r\nif not "%%*"=="%s" exit /b 8\r\nfindstr /c:"session_id" >nul || exit /b 9\r\necho {}\r\nexit /b 3\r\n' "$args" >"$stub/nmem.cmd"
     ;;
   *)
-    printf '#!/bin/sh\n[ "$*" = "%s" ] || exit 8\ngrep -q session_id || exit 9\necho "{}"\nexit 3\n' "$args" >"$stub/nmem"
+    printf '#!/bin/sh\n[ "$#" -eq 7 ] && [ "$*" = "%s" ] || exit 8\ngrep -q session_id || exit 9\necho "{}"\nexit 3\n' "$args" >"$stub/nmem"
     chmod +x "$stub/nmem"
     ;;
 esac
