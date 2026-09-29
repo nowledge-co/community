@@ -9,11 +9,11 @@
   assistant message now also records its tool calls as `tool_activities`
   metadata, which the Thread view shows as Input, Output, and Error. Input,
   output, and error each keep their first 500 characters, without redaction.
-  The plugin's own `nowledge_mem_*` tools record only that they ran, because
-  Mem already holds their data. `NMEM_OPENCODE_AUTO_SYNC=false` stops idle
-  capture, but the pre-compaction flush still saves the session. Messages that
-  were already captured, including any captured while a tool was still
-  running, are not rewritten.
+  The plugin's own `nowledge_mem_*` tools keep only their status and any
+  error, because Mem already holds their data. `NMEM_OPENCODE_AUTO_SYNC=false`
+  stops idle capture, but the pre-compaction flush still saves the session.
+  Messages that were already captured, including any captured while a tool was
+  still running, are not rewritten.
 
 ## [0.4.0] - 2026-09-20
 

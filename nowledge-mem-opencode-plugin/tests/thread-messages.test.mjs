@@ -185,14 +185,20 @@ test("a failed call records its error and stays marked failed", () => {
 
 test("each captured field keeps at most 500 code points", () => {
   const exact = "o".repeat(500)
+  // 500 code points but 501 UTF-16 units: the length shortcut does not apply.
+  const astralExact = `${"a".repeat(499)}😀`
   const straddling = `${"e".repeat(499)}😀b`
-  const [kept, cut] = activitiesOf(
+  const [kept, keptAstral, cut] = activitiesOf(
     { type: "tool", name: "bash", state: { status: "error", input: exact, content: [{ type: "text", text: exact }], error: { message: exact } } },
+    { type: "tool", name: "bash", state: { status: "error", input: astralExact, content: [{ type: "text", text: astralExact }], error: { message: astralExact } } },
     { type: "tool", name: "bash", state: { status: "error", input: straddling, content: [{ type: "text", text: straddling }], error: { message: straddling } } },
   )
   assert.equal(kept.input, exact)
   assert.equal(kept.output, `\`\`\`\n${exact}\n\`\`\``)
   assert.equal(kept.error, exact)
+  assert.equal(keptAstral.input, astralExact)
+  assert.equal(keptAstral.output, `\`\`\`\n${astralExact}\n\`\`\``)
+  assert.equal(keptAstral.error, astralExact)
   const clipped = `${"e".repeat(499)}😀...`
   assert.equal(cut.input, clipped)
   assert.equal(cut.output, `\`\`\`\n${clipped}\n\`\`\``)
@@ -224,7 +230,7 @@ test("a tool call without usable payload records only what the host sent", () =>
   )
 })
 
-test("the plugin's own Mem tools record only that they ran", () => {
+test("the plugin's own Mem tools keep only their status and any error", () => {
   assert.deepEqual(
     activitiesOf(
       {

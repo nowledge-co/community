@@ -68,7 +68,7 @@ export type SessionMessage = {
 /** Code points kept per captured tool field, so no call stores unbounded text. */
 const TOOL_DETAIL_LIMIT = 500
 
-/** Mem already holds what its own tools read and write; the Thread only notes that they ran. */
+/** Mem already holds what its own tools read and write; the Thread keeps only their status and any error. */
 const MEM_TOOL_PREFIX = "nowledge_mem_"
 
 /** Walks code points only up to the limit, so large tool output stays cheap. */
