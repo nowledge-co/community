@@ -167,78 +167,45 @@ function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprin
 }
 
 // src/thread-messages.ts
-function clip(text, limit) {
+var TOOL_DETAIL_LIMIT = 500;
+function clip(text) {
   const chars = Array.from(text);
-  return chars.length > limit ? `${chars.slice(0, limit).join("")}...` : text;
+  return chars.length > TOOL_DETAIL_LIMIT ? `${chars.slice(0, TOOL_DETAIL_LIMIT).join("")}...` : text;
 }
-function stringField(fields, key) {
-  const value = fields[key];
-  return typeof value === "string" ? value : "";
+function fenced(text) {
+  const longestRun = Math.max(0, ...Array.from(text.matchAll(/`+/g), (match) => match[0].length));
+  const fence = "`".repeat(Math.max(3, longestRun + 1));
+  return `${fence}
+${text}
+${fence}`;
 }
-function summarizeToolInput(name, input) {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return "";
-  const fields = input;
-  switch (name) {
-    case "bash": {
-      const command = stringField(fields, "command");
-      return command ? `$ ${clip(command, 200)}` : stringField(fields, "description");
-    }
-    case "read": {
-      const filePath = stringField(fields, "filePath");
-      return filePath ? `File: ${filePath}` : "";
-    }
-    case "glob": {
-      const pattern = stringField(fields, "pattern");
-      return pattern ? `Pattern: ${pattern}` : "";
-    }
-    case "grep": {
-      const pattern = stringField(fields, "pattern");
-      if (!pattern) return "";
-      const path = stringField(fields, "path");
-      return path ? `Pattern: ${pattern} in ${path}` : `Pattern: ${pattern}`;
-    }
-    case "webfetch": {
-      const url = stringField(fields, "url");
-      return url ? `URL: ${url}` : "";
-    }
-    case "task": {
-      const description = stringField(fields, "description");
-      return description ? `Task: ${description}` : "";
-    }
-    default:
-      return "";
-  }
+function toolInput(input) {
+  if (typeof input === "string") return input.trim();
+  if (!input || typeof input !== "object" || Object.keys(input).length === 0) return "";
+  return JSON.stringify(input, null, 2);
 }
-function toolAnnotations(name, metadata) {
-  if (!metadata) return "";
-  const notes = [];
-  if (name === "bash" && metadata.exit != null && metadata.exit !== 0) notes.push(`exit=${metadata.exit}`);
-  if (name === "grep") {
-    if (metadata.matches != null) notes.push(`${metadata.matches} matches`);
-    if (metadata.truncated === true) notes.push("truncated");
-  }
-  if (name === "glob" && metadata.count != null) notes.push(`${metadata.count} files`);
-  return notes.length ? `(${notes.join(", ")})` : "";
-}
-function formatToolPart(part) {
-  const name = part.name ?? "unknown";
+function toolActivity(part) {
+  const activity = { name: part.name ?? "unknown" };
+  if (part.id) activity.id = part.id;
   const state = part.state;
-  let line = `[Tool: ${name}${state?.status === "error" ? " (failed)" : ""}]`;
-  if (!state) return line;
-  const summary = summarizeToolInput(name, state.input);
-  if (summary) line += ` ${summary}`;
-  const annotations = toolAnnotations(name, state.metadata);
-  if (annotations) line += ` ${annotations}`;
+  if (!state) return activity;
+  if (state.status) activity.status = state.status;
+  const input = toolInput(state.input);
+  if (input) activity.input = clip(input);
+  const output = (state.content ?? []).filter((item) => item.type === "text" && typeof item.text === "string").map((item) => item.text).join("\n").replace(/^(?:[ \t]*\r?\n)+/, "").trimEnd();
+  if (output) activity.output = fenced(clip(output));
   if (state.status === "error") {
-    const message = state.error?.message ?? "";
-    return message ? `${line} \u2014 Error: ${Array.from(message).slice(0, 200).join("")}` : line;
+    activity.success = false;
+    const message = state.error?.message?.trim();
+    if (message) activity.error = clip(message);
   }
-  if (name === "bash" && state.status === "completed") {
-    const output = (state.content ?? []).filter((item) => item.type === "text" && typeof item.text === "string").map((item) => item.text).join("\n").trim();
-    if (output) return `${line}
-${clip(output, 500)}`;
-  }
-  return line;
+  return activity;
+}
+function threadMessageFingerprint(message) {
+  return stableMessageFingerprint({
+    ...message,
+    metadata: { ...message.metadata, tool_activities: void 0 }
+  });
 }
 function extractMessageContent(message) {
   if (message.type === "user") {
@@ -260,9 +227,12 @@ function extractMessageContent(message) {
 ${part.text}
 </thinking>`);
         break;
-      case "tool":
-        segments.push(formatToolPart(part));
+      case "tool": {
+        const name = part.name ?? "unknown";
+        const status = part.state?.status === "error" ? " (failed)" : "";
+        segments.push(`[Tool: ${name}${status}]`);
         break;
+      }
     }
   }
   return segments.join("\n") || "(empty message)";
@@ -282,6 +252,8 @@ function toThreadMessages(sdkMessages) {
     if (message.type === "assistant") {
       if (message.agent) metadata.agent = message.agent;
       if (message.model?.id) metadata.model = message.model.id;
+      const tools = (message.content ?? []).filter((part) => part.type === "tool");
+      if (tools.length) metadata.tool_activities = tools.map(toolActivity);
     }
     threadMessages.push({
       content: extractMessageContent(message),
@@ -547,7 +519,7 @@ var index_default = Plugin.define({
         threadMessages,
         options.force ? void 0 : state.acknowledged,
         (message) => String(message?.metadata?.external_id ?? ""),
-        stableMessageFingerprint
+        threadMessageFingerprint
       );
       if (delta.messages.length === 0) {
         return { skipped: true, reason: "already_synced", session_id: session.sessionID };

@@ -4,12 +4,13 @@
 
 ### Fixed
 
-- Captured tool calls now keep their details. Live capture wrote only
-  `[Tool: <name>]`, so expanding the tool row in a Mem Thread showed nothing.
-  It now records the same bounded summary as `nmem t sync --from opencode`:
-  the bash command (first 200 characters) and output (first 500), the file,
-  pattern, URL, or task of other built-in tools, a non-zero exit code, and the
-  first 200 characters of an error.
+- Tool calls in captured Threads now show their details. Live capture wrote
+  only `[Tool: <name>]`, so expanding a tool row in Mem showed nothing. Each
+  assistant message now also records its tool calls as `tool_activities`
+  metadata, which the Thread view shows as Input, Output, and Error. Each field
+  keeps its first 500 characters, stored as-is without redaction; set
+  `NMEM_OPENCODE_AUTO_SYNC=false` to turn off automatic capture. Messages
+  captured before this release are not rewritten.
 
 ## [0.4.0] - 2026-09-20
 

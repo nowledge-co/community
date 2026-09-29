@@ -14,10 +14,9 @@ import {
   opencodeThreadId,
   selectAcknowledgedDelta,
   sessionSyncLaneKey,
-  stableMessageFingerprint,
   type AcknowledgedCursor,
 } from "./session-delta.ts"
-import { toThreadMessages } from "./thread-messages.ts"
+import { threadMessageFingerprint, toThreadMessages } from "./thread-messages.ts"
 import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout.ts"
 
 const THREAD_SYNC_TIMEOUT_MS = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)
@@ -396,7 +395,7 @@ export default Plugin.define({
         threadMessages,
         options.force ? undefined : state.acknowledged,
         (message) => String(message?.metadata?.external_id ?? ""),
-        stableMessageFingerprint,
+        threadMessageFingerprint,
       )
       if (delta.messages.length === 0) {
         return { skipped: true, reason: "already_synced", session_id: session.sessionID }
