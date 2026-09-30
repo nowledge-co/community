@@ -4,6 +4,36 @@
 
 ---
 
+## Start with the host contract
+
+Before creating a package, record what the host actually provides: install
+surface, MCP support, local command execution, lifecycle events, exact session
+ID, transcript path or structured messages, transcript flush timing, delegated
+agent identity, and a user-owned configuration override. Verify these against
+the host's current API and a real session. A skill or MCP connection alone does
+not grant transcript access.
+
+Choose the smallest honest integration:
+
+1. Use a dedicated host plugin when native hooks, transcript access, or a
+   marketplace install are available. Use the portable Agent Plugins package
+   only when the host has no better dedicated connector.
+2. Add MCP for Memory search and writes when the host supports a user-owned
+   endpoint configuration. Keep transcript capture on the client machine.
+3. For file-backed sessions, register a transcript parser before claiming
+   automatic Thread capture. For SDK message streams, use the existing
+   acknowledged incremental import path. With neither source, offer a handoff
+   skill instead of a simulated full Thread.
+4. Prefer the shared CLI capture queue for lifecycle events. The plugin owns
+   host-specific event mapping, privacy, process launch, and response handling;
+   it must not implement another capture scheduler or persistence queue.
+
+`nmem hook capture` is still release-gated. Do not require it from a published
+plugin until the CLI version containing it is available to users and the
+plugin declares that minimum version or retains an older-CLI fallback.
+
+---
+
 ## Transport
 
 Use `nmem` CLI as the universal fallback and the real transcript-import path. When a host can load package-bundled MCP servers and has a verified user/workspace override path, ship MCP as the direct retrieval/write layer too.
@@ -28,6 +58,75 @@ Use `nmem` CLI as the universal fallback and the real transcript-import path. Wh
 **Transcript boundary:**
 - Real transcript save runs beside the host session files. Use `nmem t save --from <runtime>` or a host SDK capture path on the client machine, then upload through API create/append.
 - Do not expose transcript capture as an MCP tool. MCP may search/read saved threads, but local transcript discovery belongs to `nmem` or the host-native capture path.
+
+### File-backed lifecycle capture
+
+After the CLI release gate above, a host command hook can pass one bounded JSON
+observation to `nmem hook capture` on stdin. Use normalized v1 input when a
+small adapter already extracts host fields; use `--input-format host-json` plus
+RFC 6901 pointers when the host can launch a command with its JSON event on
+stdin. Never pass transcript bodies, credentials, or an entire vendor event in
+the normalized observation. A normalized observation is one JSON object of at
+most 16 KiB:
+
+```json
+{
+  "version": 1,
+  "event": "session_end",
+  "source_app": "registered-source",
+  "session_id": "stable-host-session-id",
+  "project": "/absolute/project/path",
+  "transcript_path": "/absolute/transcript/path",
+  "strategy": "current"
+}
+```
+
+`source_app` and `session_id` are required. `source_app` must have a registered
+session parser; `event` is one of `stop`, `turn_end`, `pre_compact`,
+`session_end`, `session_switch`, `subagent_end`, or `interrupt`. `project`
+defaults to the hook process's working directory. `strategy` is `current`
+(default) or `sync`; `all_projects: true` requires `sync`. Optional routing
+fields are `space` or `space_id` (mutually exclusive), `agent_id`, and
+`host_agent_id`. Do not put message bodies or vendor-private fields in this
+object. Example host-json command arguments:
+
+```text
+nmem hook capture --input-format host-json --from <registered-source> \
+  --event session_end --session-id-pointer /session/id \
+  --transcript-path-pointer /session/transcript_path
+```
+
+Host-json input may be at most 256 KiB; the CLI extracts only the configured
+string fields and discards the rest. The session ID pointer must resolve to a
+non-empty string. Supply `--project-pointer` when the payload contains the
+project directory, and `--strategy sync --all-projects` only when that matches
+the host's session model. Missing required pointers are rejected.
+
+Replace every placeholder with values verified against the host payload and
+the registered parser. Pass explicit `--space`/`--space-id` and `--agent-id`
+only when the host has a trustworthy mapping; never derive them from a git
+directory name. Map subagent events to their own session identity or suppress
+them according to the host's real transcript model. Trigger after the
+transcript is flushed, and at pre-compaction when the host offers that event.
+
+The command's stdout is a Mem acknowledgement, **not** a host hook response.
+Parse one JSON object and distinguish `enqueued` (durable local queue
+acceptance, not completed upload), `skipped` (capture disabled), and `rejected`
+(nonzero exit with a reason). Recognized `hook capture` argument errors also
+return `rejected`; `--help`/`--version`, missing binaries, and malformed
+top-level invocations are not acknowledgements. Treat absent, malformed, or
+unknown output as failure. Log enough to diagnose it without logging the
+transcript or credentials; fail open for the host turn only when the host's
+hook contract requires that behavior. Do not silently fall back to a full
+synchronous import.
+
+Before publishing, exercise the real host with both normalized and host-json
+observations where applicable: equivalent queue routing, one acknowledgement,
+invalid flag and missing-pointer rejection, disabled capture without a queue
+write, delayed transcript flush, CLI absent/older than the minimum, API outage,
+and Windows/macOS/Linux launch paths the host supports. Verify the resulting
+Thread in Mem, not just the hook process exit status. Keep a compatible
+`nmem t capture` path until the minimum CLI is actually shipped.
 
 ## Space-aware execution
 
@@ -236,9 +335,14 @@ Rules for adding live coverage:
 
 Before adding thread save to a new integration:
 
-1. **Does `nmem t save --from <runtime>` already have a parser?** If yes → delegate to CLI (Tier 1)
-2. **Can the plugin capture the session via lifecycle hooks?** If yes → implement plugin-level capture (Tier 2)
-3. **Neither?** → Use `save-handoff` and be honest about it (Tier 3)
+1. **Is there a registered file-backed parser and stable session identity?**
+   Use the CLI's lifecycle capture queue when the host has a flushed transcript
+   and a hook; retain `nmem t capture` compatibility until the new CLI ships.
+   Use `nmem t save --from <runtime>` for an explicit manual save.
+2. **Does the SDK expose structured messages with stable IDs instead?** Use
+   the existing acknowledged incremental import adapter, not a fabricated
+   transcript or the file-backed hook protocol.
+3. **Neither?** Use `save-handoff` and describe it honestly.
 
 **Never fake `save-thread`** in a runtime that doesn't support real transcript import.
 
