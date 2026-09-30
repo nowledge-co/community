@@ -7,9 +7,13 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
+
+sys.path.insert(0, str((Path(__file__).resolve().parents[2] / "nowledge-mem-openhands-plugin" / "hooks").resolve()))
+import nmem_shared
 
 COMMUNITY_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_DIR = COMMUNITY_ROOT / "nowledge-mem-openhands-plugin"
@@ -474,3 +478,165 @@ class TestReviewerFindingsDetection:
         readme = (PLUGIN_DIR / "README.md").read_text(encoding="utf-8")
         assert ".openhands/plugins/nowledge-mem" in readme
         assert "All standard Nowledge Mem child connectors" not in readme
+
+    def test_session_first_prompt_injection(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Verify that Turn 1 injects the full Context Bundle and Turn 2 only emits lightweight guidance."""
+        session_id = f"test-sess-{int(time.time())}"
+        fake_home = tmp_path / "home"
+        fake_home.mkdir(parents=True)
+        # Create a mock legacy working memory file so hermetic runs without a live daemon succeed
+        mock_mem = fake_home / "ai-now" / "memory.md"
+        mock_mem.parent.mkdir(parents=True, exist_ok=True)
+        mock_mem.write_text("# Hermetic Test Briefing\nMock working memory", encoding="utf-8")
+
+        env = os.environ.copy()
+        env["HOME"] = str(fake_home)
+        env["OPENHANDS_SESSION_ID"] = session_id
+        # Ensure offline backend routing falls back to local memory file
+        env["NMEM_API_URL"] = "http://127.0.0.1:9999"
+
+        context_script = PLUGIN_DIR / "hooks" / "nmem-context.py"
+
+        # Turn 1
+        proc1 = subprocess.run(
+            [sys.executable, str(context_script)],
+            input=json.dumps({"session_id": session_id}),
+            capture_output=True,
+            text=True,
+            timeout=5.0,
+            env=env,
+        )
+        assert proc1.returncode == 0
+        out1 = json.loads(proc1.stdout)
+        ctx1 = out1.get("additionalContext", "")
+        assert "<nowledge_working_memory>" in ctx1
+        assert "Mock working memory" in ctx1
+
+        # Turn 2 with same session_id
+        proc2 = subprocess.run(
+            [sys.executable, str(context_script)],
+            input=json.dumps({"session_id": session_id}),
+            capture_output=True,
+            text=True,
+            timeout=5.0,
+            env=env,
+        )
+        assert proc2.returncode == 0
+        out2 = json.loads(proc2.stdout)
+        ctx2 = out2.get("additionalContext", "")
+        assert "<nowledge_working_memory>" not in ctx2
+        assert "OpenHands local session history and Nowledge Mem are complementary." in ctx2
+
+    def test_read_startup_context_passes_space_id_query_param(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Verify that read_startup_context includes space_id in the GET query string."""
+        requested_endpoints: list[str] = []
+
+        def mock_http_request(endpoint: str, **kwargs):
+            requested_endpoints.append(endpoint)
+            return {"content": "Sample content"}
+
+        monkeypatch.setattr(nmem_shared, "resolve_space", lambda cwd=None: "alpha-space")
+        monkeypatch.setattr(nmem_shared, "http_request", mock_http_request)
+
+        bundle = nmem_shared.read_startup_context()
+        assert bundle is not None
+        bundle_endpoint = requested_endpoints[0]
+        assert "space_id=alpha-space" in bundle_endpoint
+        assert "space=alpha-space" in bundle_endpoint
+
+    def test_local_config_layer_pairing_isolation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Verify that a workspace config apiUrl does not inherit a plugin-root apiKey."""
+        monkeypatch.delenv("NMEM_API_URL", raising=False)
+        monkeypatch.delenv("NMEM_API_KEY", raising=False)
+        monkeypatch.setenv("NMEM_IGNORE_HOST_CONFIG", "1")
+
+        plugin_cfg = PLUGIN_DIR / ".config.json"
+        original_plugin_cfg = plugin_cfg.read_text(encoding="utf-8") if plugin_cfg.exists() else None
+        try:
+            plugin_cfg.write_text(json.dumps({"apiUrl": "http://127.0.0.1:14242", "apiKey": "plugin-secret-key"}), encoding="utf-8")
+
+            # Workspace has different URL and no apiKey
+            workspace_dir = tmp_path / "workspace"
+            workspace_dir.mkdir()
+            (workspace_dir / ".config.json").write_text(json.dumps({"apiUrl": "http://remote-workspace.example:8080"}), encoding="utf-8")
+
+            url, key = nmem_shared.get_effective_config(cwd=workspace_dir)
+            assert url == "http://remote-workspace.example:8080"
+            assert key is None, "Workspace URL must not borrow API key from plugin-root config"
+        finally:
+            if original_plugin_cfg is not None:
+                plugin_cfg.write_text(original_plugin_cfg, encoding="utf-8")
+            else:
+                plugin_cfg.unlink(missing_ok=True)
+
+    def test_unsynced_queue_partitioned_by_endpoint(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Verify offline queue flush only replays sessions matching the active endpoint URL."""
+        fake_home = tmp_path / "home"
+        fake_home.mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(fake_home))
+        monkeypatch.setattr(nmem_shared, "is_backend_unreachable", lambda: False)
+
+        replayed_payloads: list[dict] = []
+
+        def mock_http_post(endpoint: str, method: str = "GET", body: dict | None = None, **kwargs):
+            if endpoint == "/threads/import" and method == "POST":
+                replayed_payloads.append(body or {})
+                return {"success": True}
+            return None
+
+        monkeypatch.setattr(nmem_shared, "http_request", mock_http_post)
+
+        # Queue a session destined for endpoint A
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://endpoint-a.example", "key-a"))
+        nmem_shared.save_unsynced_session("sess-a", {"thread_id": "thread-a", "messages": []})
+
+        # Queue a session destined for endpoint B
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://endpoint-b.example", "key-b"))
+        nmem_shared.save_unsynced_session("sess-b", {"thread_id": "thread-b", "messages": []})
+
+        # Now flush with active endpoint A
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://endpoint-a.example", "key-a"))
+        flushed = nmem_shared.flush_unsynced_sessions()
+        assert flushed == 1
+        assert len(replayed_payloads) == 1
+        assert replayed_payloads[0]["thread_id"] == "thread-a"
+
+        # Check queue still retains sess-b
+        queue_path = nmem_shared.get_unsynced_queue_path()
+        remaining = json.loads(queue_path.read_text(encoding="utf-8"))
+        assert "sess-b" in remaining
+        assert "sess-a" not in remaining
+
+    def test_cli_fallback_validates_json_and_failed_count(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Verify CLI fallback inspects JSON response and falls back to queue on failed_count."""
+        monkeypatch.setattr(nmem_shared, "is_backend_unreachable", lambda: True)
+
+        saved_queue: list[tuple] = []
+        monkeypatch.setattr(nmem_shared, "save_unsynced_session", lambda sid, payload, cwd=None: saved_queue.append((sid, payload)))
+
+        class FakeProc:
+            returncode = 0
+            stdout = json.dumps({"success": False, "failed_count": 1, "error": "Import failed"})
+
+        monkeypatch.setattr(nmem_shared, "run_nmem_command", lambda cmd, **kwargs: FakeProc())
+
+        result = nmem_shared.sync_openhands_thread(
+            "test-conv",
+            hook_input={"message": "hi"},
+        )
+        assert result is None, "Should not return success when CLI reported failed_count"
+        assert len(saved_queue) == 1, "Should buffer to unsynced queue when CLI import failed"
+
+    def test_find_conversation_dir_supports_persistence_dir_and_hex(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Verify find_conversation_dir finds non-dashed hex UUIDs inside custom persistence dirs."""
+        custom_persistence = tmp_path / "custom_oh_persistence"
+        conv_hex_id = "c86e34e703c84fddbae1498c08f5f9dd"
+        conv_dashed_id = "c86e34e7-03c8-4fdd-bae1-498c08f5f9dd"
+        events_dir = custom_persistence / conv_hex_id / "events"
+        events_dir.mkdir(parents=True)
+
+        monkeypatch.setenv("OPENHANDS_PERSISTENCE_DIR", str(custom_persistence))
+
+        found = nmem_shared.find_conversation_dir(conv_dashed_id)
+        assert found is not None
+        assert found == (custom_persistence / conv_hex_id).resolve()

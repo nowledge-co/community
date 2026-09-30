@@ -55,28 +55,29 @@ def reset_backend_unreachable() -> None:
 
 
 def get_local_config(cwd: str | Path | None = None) -> dict[str, Any]:
-    """Read local .config.json from plugin root or workspace root if present."""
-    config: dict[str, Any] = {}
+    """Read local .config.json from workspace root (preferred) or plugin root if present."""
     plugin_root = Path(__file__).resolve().parent.parent
     target_dir = Path(cwd).resolve() if cwd else Path.cwd().resolve()
 
-    for cfg_path in (plugin_root / ".config.json", target_dir / ".config.json"):
+    # Workspace config takes precedence over plugin-root config
+    for cfg_path in (target_dir / ".config.json", plugin_root / ".config.json"):
         if cfg_path.is_file():
             try:
                 data = json.loads(cfg_path.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
-                    config.update(data)
+                    return data
             except Exception:
                 pass
-    return config
+    return {}
 
 
 def get_effective_config(cwd: str | Path | None = None) -> tuple[str, str | None]:
     """Resolve effective API URL and API key following the hierarchy:
     1. NMEM_API_URL / NMEM_API_KEY environment variables
-    2. Local workspace .config.json at workspace root or plugin root
-    3. Global ~/.nowledge-mem/config.json (unless NMEM_IGNORE_HOST_CONFIG is set)
-    4. Fallback default http://127.0.0.1:14242
+    2. Local workspace .config.json at workspace root
+    3. Plugin-root .config.json
+    4. Global ~/.nowledge-mem/config.json (unless NMEM_IGNORE_HOST_CONFIG is set)
+    5. Fallback default http://127.0.0.1:14242
     """
     env_url = os.environ.get("NMEM_API_URL", "").strip()
     env_key = os.environ.get("NMEM_API_KEY", "").strip() or None
@@ -85,18 +86,33 @@ def get_effective_config(cwd: str | Path | None = None) -> tuple[str, str | None
     api_url = env_url
     api_key = env_key
 
-    # Check local workspace .config.json
-    if not api_url or not api_key:
-        local_cfg = get_local_config(cwd)
-        local_url = str(local_cfg.get("apiUrl") or local_cfg.get("api_url") or "").strip().rstrip("/")
-        local_key = str(local_cfg.get("apiKey") or local_cfg.get("api_key") or "").strip() or None
-        if not api_url and local_url:
-            api_url = local_url
-            if local_key:
-                api_key = local_key
-        elif api_url and not api_key and local_key:
-            if api_url == local_url:
-                api_key = local_key
+    plugin_root = Path(__file__).resolve().parent.parent
+    target_dir = Path(cwd).resolve() if cwd else Path.cwd().resolve()
+
+    # Evaluate local config layers individually with strict URL/key pairing
+    local_layers: list[Path] = []
+    if (target_dir / ".config.json").is_file():
+        local_layers.append(target_dir / ".config.json")
+    if (plugin_root / ".config.json").is_file() and (plugin_root / ".config.json") not in local_layers:
+        local_layers.append(plugin_root / ".config.json")
+
+    for layer_path in local_layers:
+        if api_url and api_key:
+            break
+        try:
+            layer_data = json.loads(layer_path.read_text(encoding="utf-8"))
+            if isinstance(layer_data, dict):
+                l_url = str(layer_data.get("apiUrl") or layer_data.get("api_url") or "").strip().rstrip("/")
+                l_key = str(layer_data.get("apiKey") or layer_data.get("api_key") or "").strip() or None
+                if not api_url and l_url:
+                    api_url = l_url
+                    if l_key:
+                        api_key = l_key
+                elif api_url and not api_key and l_key:
+                    if api_url == l_url:
+                        api_key = l_key
+        except Exception:
+            pass
 
     # Check ~/.nowledge-mem/config.json
     if not ignore_host and (not api_url or not api_key):
@@ -385,6 +401,7 @@ def read_startup_context(cwd: str | Path | None = None) -> dict[str, str] | None
     # 1. Try direct HTTP Context Bundle
     query_params: dict[str, str] = {"source_app": "openhands"}
     if space:
+        query_params["space_id"] = space
         query_params["space"] = space
     if agent_id:
         query_params["agent_id"] = agent_id
@@ -406,7 +423,7 @@ def read_startup_context(cwd: str | Path | None = None) -> dict[str, str] | None
             return bundle
 
     # 2. Try direct HTTP Working Memory
-    wm_params = {"space": space} if space else {}
+    wm_params = {"space_id": space, "space": space} if space else {}
     wm_qs = f"?{urllib.parse.urlencode(wm_params)}" if wm_params else ""
     for wm_endpoint in (f"/agent/working-memory{wm_qs}", f"/working-memory{wm_qs}"):
         res_wm = http_request(wm_endpoint, method="GET", timeout=1.5, cwd=cwd)
@@ -521,9 +538,17 @@ def find_conversation_dir(session_id: str, working_dir: str | Path | None = None
 
     candidates: list[Path] = []
 
-    env_path = os.environ.get("OPENHANDS_CONVERSATIONS_PATH", "").strip()
-    if env_path:
-        candidates.extend([Path(env_path) / raw_id, Path(env_path) / id_no_dashes, Path(env_path)])
+    for env_k in ("OPENHANDS_CONVERSATIONS_PATH", "OPENHANDS_PERSISTENCE_DIR", "OH_PERSISTENCE_DIR"):
+        env_path = os.environ.get(env_k, "").strip()
+        if env_path:
+            ep = Path(env_path).resolve()
+            candidates.extend([
+                ep / raw_id,
+                ep / id_no_dashes,
+                ep / "conversations" / raw_id,
+                ep / "conversations" / id_no_dashes,
+                ep,
+            ])
 
     if working_dir:
         cwd_p = Path(working_dir).resolve()
@@ -532,6 +557,8 @@ def find_conversation_dir(session_id: str, working_dir: str | Path | None = None
             cwd_p / "workspace" / "conversations" / id_no_dashes,
             cwd_p / ".openhands" / "conversations" / raw_id,
             cwd_p / ".openhands" / "conversations" / id_no_dashes,
+            cwd_p / ".openhands" / raw_id,
+            cwd_p / ".openhands" / id_no_dashes,
         ])
 
     home = Path.home()
@@ -695,8 +722,9 @@ def sync_openhands_thread(
         if isinstance(res, dict) and res.get("success") is True and not res.get("failed_count"):
             return res
 
-    # 3. Try CLI fallback with `nmem t import`
+    # 3. Try CLI fallback with `nmem --json t import`
     cli_cmd = [
+        "--json",
         "t", "import",
         "--id", thread_id,
         "--title", title,
@@ -711,12 +739,14 @@ def sync_openhands_thread(
     proc = run_nmem_command(cli_cmd, timeout=4.0, cwd=working_dir)
     if proc and proc.returncode == 0:
         try:
-            return json.loads(proc.stdout)
+            cli_res = json.loads(proc.stdout)
+            if isinstance(cli_res, dict) and cli_res.get("success") is True and not cli_res.get("failed_count"):
+                return cli_res
         except Exception:
-            return {"success": True, "thread_id": thread_id}
+            pass
 
     # 4. Offline or unreachable -> buffer in unsynced queue
-    save_unsynced_session(clean_id, payload)
+    save_unsynced_session(clean_id, payload, cwd=working_dir)
     return None
 
 
@@ -781,8 +811,10 @@ def get_unsynced_queue_path() -> Path:
     return queue_dir / "unsynced.json"
 
 
-def save_unsynced_session(session_id: str, payload: dict[str, Any]) -> bool:
+def save_unsynced_session(session_id: str, payload: dict[str, Any], cwd: str | Path | None = None) -> bool:
     queue_path = get_unsynced_queue_path()
+    eff_url, _ = get_effective_config(cwd)
+    endpoint_url = eff_url.rstrip("/")
     try:
         with FileLock(queue_path, timeout=2.0):
             data = {}
@@ -795,6 +827,7 @@ def save_unsynced_session(session_id: str, payload: dict[str, Any]) -> bool:
                 data = {}
             data[session_id] = {
                 "payload": payload,
+                "endpoint_url": endpoint_url,
                 "timestamp": time.time(),
             }
             queue_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -806,7 +839,9 @@ def save_unsynced_session(session_id: str, payload: dict[str, Any]) -> bool:
 
 
 def flush_unsynced_sessions(cwd: str | Path | None = None) -> int:
-    """Synchronously drain unsynced sessions buffer by retrying direct HTTP imports."""
+    """Synchronously drain unsynced sessions buffer by retrying direct HTTP imports.
+    Strictly partitions replay by destination endpoint_url to prevent cross-endpoint transcript leak.
+    """
     if is_backend_unreachable():
         return 0
 
@@ -815,6 +850,9 @@ def flush_unsynced_sessions(cwd: str | Path | None = None) -> int:
         return 0
 
     flushed = 0
+    eff_url, _ = get_effective_config(cwd)
+    current_endpoint = eff_url.rstrip("/")
+
     try:
         with FileLock(queue_path, timeout=2.0):
             if not queue_path.exists():
@@ -828,6 +866,12 @@ def flush_unsynced_sessions(cwd: str | Path | None = None) -> int:
 
             remaining: dict[str, Any] = {}
             for conv_id, item in data.items():
+                dest = item.get("endpoint_url")
+                # If destination is specified, only replay when it matches current endpoint
+                if dest and dest.rstrip("/") != current_endpoint:
+                    remaining[conv_id] = item
+                    continue
+
                 payload = item.get("payload", {})
                 res = http_request("/threads/import", method="POST", body=payload, timeout=3.0, cwd=cwd)
                 if isinstance(res, dict) and res.get("success") is True and not res.get("failed_count"):

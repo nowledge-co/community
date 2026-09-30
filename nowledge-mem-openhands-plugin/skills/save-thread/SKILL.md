@@ -43,5 +43,5 @@ OpenHands persists conversation events to disk (`events/event-*.json`). The Nowl
 3. **Multi-Agent Canvas Provenance**:
    When running multiple agents on a canvas, configure `NMEM_AGENT_ID` and `NMEM_SPACE` so thread captures preserve individual node provenance across the shared graph.
 
-4. **Child ACP Agent Deduplication**:
-   When OpenHands orchestrates child ACP workers (like Claude Code or Codex), suppress duplicate child threads by running child agents with `NMEM_DISABLE_AUTO_CAPTURE=1`. This keeps the child's MCP tool access active while ensuring only OpenHands captures the canonical thread.
+4. **Multi-Agent Orchestrator Capture Control**:
+   When orchestrating multi-agent workflows or child processes, you can control thread capture boundaries. If child tasks or workers capture their own threads, set `NMEM_DISABLE_AUTO_CAPTURE=1` in OpenHands to prevent duplicate session captures while keeping MCP memory tools active.

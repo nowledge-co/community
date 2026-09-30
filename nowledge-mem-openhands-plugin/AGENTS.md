@@ -27,11 +27,11 @@ This plugin provides persistent, cross-agent memory for OpenHands and OpenHands 
 - `PostToolUse`: Monitors file changes and workspace updates.
 - `Stop`: Gracefully records conversation session upon task completion.
 
-## Multi-Agent & ACP Child Deduplication
+## Multi-Agent & Orchestrator Capture Control
 
-When OpenHands coordinates child ACP agents (e.g. Claude Code or Codex):
-- **Host-Authoritative Mode (Default)**: Set `NMEM_DISABLE_AUTO_CAPTURE=1` in the child agent's environment. The child still has access to MCP memory retrieval and additions, but suppresses saving its own thread. OpenHands saves the canonical multi-agent thread.
-- **Child-Authoritative Mode**: If raw tool-level execution traces from the child agent are desired, set `NMEM_DISABLE_AUTO_CAPTURE=1` in OpenHands.
+When OpenHands coordinates multi-agent workflows or child workers:
+- **Child-Authoritative Mode**: If child worker processes capture their own threads or if raw execution traces should be captured externally, set `NMEM_DISABLE_AUTO_CAPTURE=1` in OpenHands to suppress top-level session capture on Stop.
+- **Host-Authoritative Mode (Default)**: OpenHands captures the canonical thread on session completion. For child tools/processes, configure orchestrator boundaries or connector-specific capture options as supported by each runtime.
 - **Node Provenance**: Always pass `NMEM_AGENT_ID=<role>` (e.g. `planner`, `coder`, `reviewer`) to distinguish node identity.
 - **Space Isolation**: Pass `NMEM_SPACE=<space-slug>` for project-level isolation.
 

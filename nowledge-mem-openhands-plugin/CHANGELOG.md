@@ -26,6 +26,13 @@ All notable changes to the `nowledge-mem-openhands-plugin` are documented in thi
 - Rules and documentation in `README.md`, `AGENTS.md`, and `rules/nowledge-mem.md`.
 
 ### Fixed
+- Session-first prompt context injection in `hooks/nmem-context.py` to prevent redundant context bundle injection across conversational turns.
+- Strict cross-layer credential pairing in `get_effective_config` preventing workspace endpoints from borrowing plugin-root API keys.
+- Send `space_id` parameter to `/context/bundle` endpoint to ensure requested memory space is honored by the backend.
+- Partition offline session queue (`unsynced.json`) by target endpoint URL to prevent cross-endpoint transcript replays.
+- Added `--json` flag and verified response success flags in CLI thread import fallback.
+- Enhanced OpenHands conversation event discovery across custom persistence directories and non-dashed UUIDs.
+- Updated SDK setup guide with remote MCP auth headers, explicit persistence directory configuration, and `OPENHANDS_PLUGIN_ROOT` path binding.
 - Enforce cross-host credential isolation in `get_effective_config` so global API keys are never paired with mismatched workspace URLs.
 - Robust candidate path resolution in `hooks/hooks.json` across `OPENHANDS_PLUGIN_ROOT`, project plugin directories (`.openhands/plugins`, `.agents/plugins`, `.plugins`), user installed directories, and local execution paths.
 - Thread import payload metadata routing (`space_id` and `agent_id`) to ensure correct space assignment during HTTP imports.

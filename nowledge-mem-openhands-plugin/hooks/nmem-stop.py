@@ -34,7 +34,7 @@ def main() -> None:
             or os.getcwd()
         )
 
-        space = nmem_shared.resolve_space()
+        space = nmem_shared.resolve_space(working_dir)
         agent_id = nmem_shared.resolve_agent_id()
 
         # Synchronize OpenHands conversation session into Nowledge Mem
