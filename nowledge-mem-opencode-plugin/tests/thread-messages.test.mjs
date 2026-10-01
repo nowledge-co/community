@@ -1,7 +1,8 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { extractMessageContent, toThreadMessages } from "../src/thread-messages.ts"
+import { selectAcknowledgedDelta } from "../src/session-delta.ts"
+import { extractMessageContent, threadMessageFingerprint, toThreadMessages } from "../src/thread-messages.ts"
 
 const userMessage = {
   type: "user",
@@ -46,6 +47,10 @@ test("maps v2 user and assistant messages to Nowledge Mem thread messages", () =
         source_app: "opencode",
         agent: "build",
         model: "gpt-5",
+        tool_activities: [
+          { name: "nowledge_mem_search", status: "completed" },
+          { name: "grep", status: "error", success: false },
+        ],
       },
     },
   ])
@@ -96,4 +101,184 @@ test("extractMessageContent handles each assistant content part", () => {
     }),
     "answer\n<thinking>\nwhy\n</thinking>\n[Tool: bash]",
   )
+})
+
+const activitiesOf = (...content) =>
+  toThreadMessages([{ type: "assistant", id: "msg_tools", content }], true)[0].metadata.tool_activities
+
+test("default capture stores only tool status, even for bash and differently named MCP tools", () => {
+  const [message] = toThreadMessages([{ type: "assistant", id: "msg_safe", content: [
+    { type: "tool", name: "bash", state: { status: "completed", input: { command: "export TOKEN=secret" }, content: [{ type: "text", text: "secret" }] } },
+    { type: "tool", name: "custom_mcp_search", state: { status: "error", input: { token: "secret" }, error: { message: "secret" } } },
+  ] }])
+  assert.deepEqual(message.metadata.tool_activities, [
+    { name: "bash", status: "completed" },
+    { name: "custom_mcp_search", status: "error", success: false },
+  ])
+  assert.ok(!JSON.stringify(message).includes("secret"))
+})
+
+test("a tool call keeps its input and output as tool activity beside a bare marker", () => {
+  const [message] = toThreadMessages([
+    {
+      type: "assistant",
+      id: "msg_bash",
+      content: [
+        { type: "text", text: "Checking the tree." },
+        {
+          type: "tool",
+          id: "call_1",
+          name: "bash",
+          state: {
+            status: "completed",
+            input: { command: "git status --short", description: "Show status" },
+            content: [
+              { type: "text", text: "\n M src/index.ts" },
+              { type: "file", uri: "file:///tmp/out.txt", mime: "text/plain" },
+              { type: "text", text: "?? notes.md\n" },
+            ],
+            metadata: { exit: 0 },
+          },
+        },
+      ],
+    },
+  ], true)
+  assert.equal(message.content, "Checking the tree.\n[Tool: bash]")
+  assert.deepEqual(message.metadata.tool_activities, [
+    {
+      id: "call_1",
+      name: "bash",
+      status: "completed",
+      input: '{\n  "command": "git status --short",\n  "description": "Show status"\n}',
+      output: "```\n M src/index.ts\n?? notes.md\n```",
+    },
+  ])
+})
+
+test("a failed call records its error and stays marked failed", () => {
+  const [message] = toThreadMessages([
+    {
+      type: "assistant",
+      id: "msg_grep",
+      content: [
+        {
+          type: "tool",
+          id: "call_2",
+          name: "grep",
+          state: {
+            status: "error",
+            input: { pattern: "cacheTtl", path: "src" },
+            error: { type: "tool", message: " rg: src: No such file or directory " },
+          },
+        },
+        { type: "tool", id: "call_3", name: "read", state: { status: "completed", input: { filePath: "a.ts" }, content: [{ type: "text", text: "export {}" }] } },
+      ],
+    },
+  ], true)
+  assert.equal(message.content, "[Tool: grep (failed)]\n[Tool: read]")
+  assert.deepEqual(message.metadata.tool_activities, [
+    {
+      id: "call_2",
+      name: "grep",
+      status: "error",
+      input: '{\n  "pattern": "cacheTtl",\n  "path": "src"\n}',
+      success: false,
+      error: "rg: src: No such file or directory",
+    },
+    {
+      id: "call_3",
+      name: "read",
+      status: "completed",
+      input: '{\n  "filePath": "a.ts"\n}',
+      output: "```\nexport {}\n```",
+    },
+  ])
+})
+
+test("each captured field keeps at most 500 code points", () => {
+  const exact = "o".repeat(500)
+  // 500 code points but 501 UTF-16 units: the length shortcut does not apply.
+  const astralExact = `${"a".repeat(499)}😀`
+  const straddling = `${"e".repeat(499)}😀b`
+  const [kept, keptAstral, cut] = activitiesOf(
+    { type: "tool", name: "bash", state: { status: "error", input: exact, content: [{ type: "text", text: exact }], error: { message: exact } } },
+    { type: "tool", name: "bash", state: { status: "error", input: astralExact, content: [{ type: "text", text: astralExact }], error: { message: astralExact } } },
+    { type: "tool", name: "bash", state: { status: "error", input: straddling, content: [{ type: "text", text: straddling }], error: { message: straddling } } },
+  )
+  assert.equal(kept.input, exact)
+  assert.equal(kept.output, `\`\`\`\n${exact}\n\`\`\``)
+  assert.equal(kept.error, exact)
+  assert.equal(keptAstral.input, astralExact)
+  assert.equal(keptAstral.output, `\`\`\`\n${astralExact}\n\`\`\``)
+  assert.equal(keptAstral.error, astralExact)
+  const clipped = `${"e".repeat(499)}😀...`
+  assert.equal(cut.input, clipped)
+  assert.equal(cut.output, `\`\`\`\n${clipped}\n\`\`\``)
+  assert.equal(cut.error, clipped)
+})
+
+test("output stays one literal block whatever Markdown or markers it contains", () => {
+  const output = "[main 1a2b3c4] fix cache\n\n# not a heading\n```js\n<img src=x onerror=alert(1)>\n```"
+  const [activity] = activitiesOf({ type: "tool", name: "bash", state: { status: "completed", input: {}, content: [{ type: "text", text: output }] } })
+  assert.equal(activity.output, `\`\`\`\`\n${output}\n\`\`\`\``)
+})
+
+test("a tool call without usable payload records only what the host sent", () => {
+  assert.deepEqual(
+    activitiesOf(
+      { type: "tool", name: "bash" },
+      { type: "tool", id: "call_s", name: "bash", state: { status: "streaming", input: '{"command":"git' } },
+      { type: "tool", name: "edit", state: { status: "completed", input: {}, content: [{ type: "text", text: " \n\t" }] } },
+    ),
+    [
+      { name: "bash" },
+      { id: "call_s", name: "bash", status: "streaming", input: '{"command":"git' },
+      { name: "edit", status: "completed" },
+    ],
+  )
+  assert.equal(
+    toThreadMessages([{ type: "assistant", id: "msg_text", content: [{ type: "text", text: "no tools" }] }], true)[0].metadata.tool_activities,
+    undefined,
+  )
+})
+
+test("the plugin's own Mem tools keep only their status and any error", () => {
+  assert.deepEqual(
+    activitiesOf(
+      {
+        type: "tool",
+        id: "call_m",
+        name: "nowledge_mem_search",
+        state: {
+          status: "completed",
+          input: { query: "cache decision", space: "Personal" },
+          content: [{ type: "text", text: "Memory: we chose TTL 60s" }],
+        },
+      },
+      {
+        type: "tool",
+        name: "nowledge_mem_save",
+        state: { status: "error", input: { content: "private note" }, error: { type: "tool", message: "nmem CLI not found" } },
+      },
+    ),
+    [
+      { id: "call_m", name: "nowledge_mem_search", status: "completed" },
+      { name: "nowledge_mem_save", status: "error", success: false },
+    ],
+  )
+})
+
+test("tool state that changes after capture does not force a full replay", () => {
+  const externalId = (message) => message.metadata.external_id
+  const turn = (bash) => toThreadMessages([userMessage, { type: "assistant", id: "msg_turn", content: [{ type: "text", text: "Running it." }, bash] }])
+  const running = turn({ type: "tool", id: "call_r", name: "bash", state: { status: "running", input: { command: "make" }, metadata: {} } })
+  const completed = turn({ type: "tool", id: "call_r", name: "bash", state: { status: "completed", input: { command: "make" }, content: [{ type: "text", text: "ok" }] } })
+
+  const first = selectAcknowledgedDelta(running, undefined, externalId, threadMessageFingerprint)
+  const next = selectAcknowledgedDelta(completed, first.next, externalId, threadMessageFingerprint)
+  assert.equal(next.reset, false)
+  assert.deepEqual(next.messages, [])
+
+  const edited = toThreadMessages([userMessage, { type: "assistant", id: "msg_turn", content: [{ type: "text", text: "Ran it." }] }])
+  assert.equal(selectAcknowledgedDelta(edited, first.next, externalId, threadMessageFingerprint).reset, true)
 })
