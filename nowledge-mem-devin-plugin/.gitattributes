@@ -1,0 +1,2 @@
+# Shell scripts run in bash on every CI platform, including a Windows checkout.
+*.sh text eol=lf

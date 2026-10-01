@@ -5,7 +5,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "nmem --json t sync --from devin --hook-stdin --apply",
+          "command": "command -v nmem >/dev/null 2>&1 || nmem() { nmem.cmd \"$@\"; }; nmem --json t sync --from devin --hook-stdin --apply",
           "timeout": 30
         }
       ]
@@ -17,7 +17,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "nmem --json t sync --from devin --hook-stdin --apply",
+          "command": "command -v nmem >/dev/null 2>&1 || nmem() { nmem.cmd \"$@\"; }; nmem --json t sync --from devin --hook-stdin --apply",
           "timeout": 30
         }
       ]
@@ -29,7 +29,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "nmem --json t sync --from devin --hook-stdin --apply",
+          "command": "command -v nmem >/dev/null 2>&1 || nmem() { nmem.cmd \"$@\"; }; nmem --json t sync --from devin --hook-stdin --apply",
           "timeout": 30
         }
       ]
