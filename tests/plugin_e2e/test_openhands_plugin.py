@@ -373,11 +373,16 @@ class TestOpenHandsTranscriptSync:
         code = (
             "from pathlib import Path\n"
             "from openhands.sdk.plugin import Plugin, install_plugin\n"
+            "from pydantic import SecretStr\n"
             f"plugin = Plugin.load({str(PLUGIN_DIR)!r})\n"
             "assert plugin.name == 'nowledge-mem'\n"
             "assert len(plugin.skills) >= 6\n"
             "assert plugin.hooks is not None\n"
             "assert plugin.mcp_config is not None\n"
+            "server = plugin.mcp_config['nowledge-mem']\n"
+            "remote = server.model_copy(update={'url': 'https://example.org/mcp', 'headers': {**(server.headers or {}), 'Authorization': SecretStr('Bearer fixture')}})\n"
+            "assert remote.url == 'https://example.org/mcp'\n"
+            "assert remote.headers['Authorization'].get_secret_value() == 'Bearer fixture'\n"
             f"installed = install_plugin({str(PLUGIN_DIR)!r}, installed_dir=Path({str(tmp_path)!r}), force=True)\n"
             "assert installed.name == 'nowledge-mem'\n"
         )

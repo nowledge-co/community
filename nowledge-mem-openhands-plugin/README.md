@@ -61,17 +61,29 @@ Load the plugin via the OpenHands SDK `Plugin` loader:
 
 ```python
 from pathlib import Path
+import os
 from openhands.sdk import Agent, AgentContext, Conversation
 from openhands.sdk.plugin import Plugin
+from pydantic import SecretStr
 
 # Load Nowledge Mem plugin
 plugin = Plugin.load("path/to/nowledge-mem-openhands-plugin")
+mcp_config = plugin.mcp_config or {}
+if api_key := os.environ.get("NMEM_API_KEY"):
+    api_url = os.environ.get("NMEM_API_URL")
+    if not api_url:
+        raise ValueError("NMEM_API_URL is required with NMEM_API_KEY")
+    server = mcp_config["nowledge-mem"]
+    mcp_config["nowledge-mem"] = server.model_copy(update={
+        "url": f"{api_url.rstrip('/')}/mcp",
+        "headers": {**(server.headers or {}), "Authorization": SecretStr(f"Bearer {api_key}")},
+    })
 
 # Attach skills and MCP config to the Agent
 agent = Agent(
     llm=llm,
     tools=tools,
-    mcp_config=plugin.mcp_config or {},
+    mcp_config=mcp_config,
     agent_context=AgentContext(skills=plugin.skills),
 )
 
@@ -145,7 +157,7 @@ Configured in `.mcp.json` and `mcp.json`:
 }
 ```
 
-The header declares exact-Space routing for Cloud Team. For a remote endpoint, configure the URL and key as a pair and ensure OpenHands sends `Authorization: Bearer <key>`; the hook-generated `.openhands/mcp.json` includes that header. The checked-in template never contains a credential. Keep the `/mcp` URL without a trailing slash.
+The header declares exact-Space routing for Cloud Team. For a remote endpoint, configure the URL and key as a pair and ensure OpenHands sends `Authorization: Bearer <key>`; the SDK example above and hook-generated `.openhands/mcp.json` include it. The checked-in template never contains a credential. Keep the `/mcp` URL without a trailing slash.
 
 ---
 
