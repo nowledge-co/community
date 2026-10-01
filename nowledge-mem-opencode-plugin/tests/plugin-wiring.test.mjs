@@ -95,6 +95,17 @@ test("registers context guidance and keeps compaction focused on flushing", asyn
   assert.deepEqual(compactionEvent.system, [])
 })
 
+test("disabling automatic sync also disables pre-compaction capture", async () => {
+  let reads = 0
+  await withEnv({ NMEM_OPENCODE_AUTO_SYNC: "false" }, async () => {
+    const { ctx, hooks } = createFakeContext({ sessionContext: async () => { reads += 1; return [] } })
+    const cleanup = await plugin.setup(ctx)
+    await hooks.get("compaction")({ sessionID: "session-1", system: [] })
+    await cleanup()
+  })
+  assert.equal(reads, 0)
+})
+
 test("schedules capture only for idle events on the v2 event stream", async () => {
   const observed = []
   const events = [
@@ -193,7 +204,7 @@ test("a tool finishing after capture does not re-send the session", async () => 
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
 
   try {
-    await withEnv({ NMEM_API_URL: `http://127.0.0.1:${server.address().port}` }, async () => {
+    await withEnv({ NMEM_API_URL: `http://127.0.0.1:${server.address().port}`, NMEM_OPENCODE_CAPTURE_TOOL_DETAILS: "true" }, async () => {
       let bashState = { status: "running", input: { command: "make" }, metadata: {} }
       const { ctx, hooks } = createFakeContext({
         sessionContext: async () => [
@@ -218,6 +229,7 @@ test("a tool finishing after capture does not re-send the session", async () => 
 
     assert.deepEqual(requests.map((request) => request.url), ["/threads"])
     assert.equal(requests[0].body.messages[1].metadata.tool_activities[0].status, "running")
+    assert.match(requests[0].body.messages[1].metadata.tool_activities[0].input, /make/)
   } finally {
     await new Promise((resolve) => server.close(resolve))
   }

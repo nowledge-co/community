@@ -319,6 +319,9 @@ export default Plugin.define({
     const autoSyncEnabled = !["0", "false", "off", "no"].includes(
       (process.env.NMEM_OPENCODE_AUTO_SYNC ?? "1").trim().toLowerCase(),
     )
+    const captureToolDetails = ["1", "true", "on", "yes"].includes(
+      (process.env.NMEM_OPENCODE_CAPTURE_TOOL_DETAILS ?? "0").trim().toLowerCase(),
+    )
 
     function syncStateFor(sessionID: string, spaceId = ambientSpaceId): SessionSyncState {
       const key = sessionSyncLaneKey(
@@ -380,7 +383,7 @@ export default Plugin.define({
         return { skipped: true, reason: "no_messages", session_id: session.sessionID }
       }
 
-      const threadMessages = toThreadMessages(sdkMessages)
+      const threadMessages = toThreadMessages(sdkMessages, captureToolDetails)
       if (threadMessages.length === 0) {
         return { skipped: true, reason: "no_extractable_messages", session_id: session.sessionID }
       }
@@ -829,7 +832,7 @@ export default Plugin.define({
 
     await ctx.session.hook("compaction", async (event) => {
       const sessionID = String(event.sessionID ?? "")
-      if (sessionID) {
+      if (sessionID && autoSyncEnabled) {
         await syncSessionThread(
           { sessionID, directory },
           { reason: "session_compacting", force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS },

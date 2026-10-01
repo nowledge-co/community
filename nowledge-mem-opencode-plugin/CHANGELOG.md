@@ -4,16 +4,14 @@
 
 ### Fixed
 
-- Tool calls in captured Threads now show their details. Live capture wrote
-  only `[Tool: <name>]`, so expanding a tool row in Mem showed nothing. Each
-  assistant message now also records its tool calls as `tool_activities`
-  metadata, which the Thread view shows as Input, Output, and Error. Input,
-  output, and error each keep their first 500 characters, without redaction.
-  The plugin's own `nowledge_mem_*` tools keep only their status and any
-  error, because Mem already holds their data. `NMEM_OPENCODE_AUTO_SYNC=false`
-  stops idle capture, but the pre-compaction flush still saves the session.
-  Messages that were already captured, including any captured while a tool was
-  still running, are not rewritten.
+- Tool calls in captured Threads now carry structured `tool_activities`
+  metadata. By default this retains only tool name and status. Explicitly set
+  `NMEM_OPENCODE_CAPTURE_TOOL_DETAILS=true` before first capture to include
+  up to 500 characters each of input, output, and error, without redaction;
+  `nowledge_mem_*` payloads remain excluded. Already-captured messages are not
+  rewritten, including calls that were still running when captured.
+- `NMEM_OPENCODE_AUTO_SYNC=false` now disables both idle and pre-compaction
+  capture; manual `nowledge_mem_save_thread` remains available.
 
 ## [0.4.0] - 2026-09-20
 

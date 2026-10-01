@@ -192,13 +192,13 @@ function toolInput(input) {
   if (!input || typeof input !== "object" || Object.keys(input).length === 0) return "";
   return JSON.stringify(input, null, 2);
 }
-function toolActivity(part) {
+function toolActivity(part, includeToolDetails) {
   const activity = { name: part.name ?? "unknown" };
   if (part.id) activity.id = part.id;
   const state = part.state;
   if (!state) return activity;
   if (state.status) activity.status = state.status;
-  if (!activity.name.startsWith(MEM_TOOL_PREFIX)) {
+  if (includeToolDetails && !activity.name.startsWith(MEM_TOOL_PREFIX)) {
     const input = toolInput(state.input);
     if (input) activity.input = clip(input);
     const output = (state.content ?? []).filter((item) => item.type === "text" && typeof item.text === "string").map((item) => item.text).join("\n").replace(/^(?:[ \t]*\r?\n)+/, "").trimEnd();
@@ -207,7 +207,7 @@ function toolActivity(part) {
   if (state.status === "error") {
     activity.success = false;
     const message = state.error?.message?.trim();
-    if (message) activity.error = clip(message);
+    if (includeToolDetails && message && !activity.name.startsWith(MEM_TOOL_PREFIX)) activity.error = clip(message);
   }
   return activity;
 }
@@ -247,7 +247,7 @@ ${part.text}
   }
   return segments.join("\n") || "(empty message)";
 }
-function toThreadMessages(sdkMessages) {
+function toThreadMessages(sdkMessages, includeToolDetails = false) {
   if (!Array.isArray(sdkMessages)) return [];
   const threadMessages = [];
   for (const raw of sdkMessages) {
@@ -263,7 +263,7 @@ function toThreadMessages(sdkMessages) {
       if (message.agent) metadata.agent = message.agent;
       if (message.model?.id) metadata.model = message.model.id;
       const tools = (message.content ?? []).filter((part) => part.type === "tool");
-      if (tools.length) metadata.tool_activities = tools.map(toolActivity);
+      if (tools.length) metadata.tool_activities = tools.map((part) => toolActivity(part, includeToolDetails));
     }
     threadMessages.push({
       content: extractMessageContent(message),
@@ -474,6 +474,9 @@ var index_default = Plugin.define({
     const autoSyncEnabled = !["0", "false", "off", "no"].includes(
       (process.env.NMEM_OPENCODE_AUTO_SYNC ?? "1").trim().toLowerCase()
     );
+    const captureToolDetails = ["1", "true", "on", "yes"].includes(
+      (process.env.NMEM_OPENCODE_CAPTURE_TOOL_DETAILS ?? "0").trim().toLowerCase()
+    );
     function syncStateFor(sessionID, spaceId = ambientSpaceId) {
       const key = sessionSyncLaneKey(
         sessionID,
@@ -515,7 +518,7 @@ var index_default = Plugin.define({
       if (!sdkMessages || sdkMessages.length === 0) {
         return { skipped: true, reason: "no_messages", session_id: session.sessionID };
       }
-      const threadMessages = toThreadMessages(sdkMessages);
+      const threadMessages = toThreadMessages(sdkMessages, captureToolDetails);
       if (threadMessages.length === 0) {
         return { skipped: true, reason: "no_extractable_messages", session_id: session.sessionID };
       }
@@ -904,7 +907,7 @@ var index_default = Plugin.define({
     });
     await ctx.session.hook("compaction", async (event) => {
       const sessionID = String(event.sessionID ?? "");
-      if (sessionID) {
+      if (sessionID && autoSyncEnabled) {
         await syncSessionThread(
           { sessionID, directory },
           { reason: "session_compacting", force: false, timeoutMs: THREAD_SYNC_TIMEOUT_MS }

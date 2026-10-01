@@ -104,7 +104,19 @@ test("extractMessageContent handles each assistant content part", () => {
 })
 
 const activitiesOf = (...content) =>
-  toThreadMessages([{ type: "assistant", id: "msg_tools", content }])[0].metadata.tool_activities
+  toThreadMessages([{ type: "assistant", id: "msg_tools", content }], true)[0].metadata.tool_activities
+
+test("default capture stores only tool status, even for bash and differently named MCP tools", () => {
+  const [message] = toThreadMessages([{ type: "assistant", id: "msg_safe", content: [
+    { type: "tool", name: "bash", state: { status: "completed", input: { command: "export TOKEN=secret" }, content: [{ type: "text", text: "secret" }] } },
+    { type: "tool", name: "custom_mcp_search", state: { status: "error", input: { token: "secret" }, error: { message: "secret" } } },
+  ] }])
+  assert.deepEqual(message.metadata.tool_activities, [
+    { name: "bash", status: "completed" },
+    { name: "custom_mcp_search", status: "error", success: false },
+  ])
+  assert.ok(!JSON.stringify(message).includes("secret"))
+})
 
 test("a tool call keeps its input and output as tool activity beside a bare marker", () => {
   const [message] = toThreadMessages([
@@ -130,7 +142,7 @@ test("a tool call keeps its input and output as tool activity beside a bare mark
         },
       ],
     },
-  ])
+  ], true)
   assert.equal(message.content, "Checking the tree.\n[Tool: bash]")
   assert.deepEqual(message.metadata.tool_activities, [
     {
@@ -162,7 +174,7 @@ test("a failed call records its error and stays marked failed", () => {
         { type: "tool", id: "call_3", name: "read", state: { status: "completed", input: { filePath: "a.ts" }, content: [{ type: "text", text: "export {}" }] } },
       ],
     },
-  ])
+  ], true)
   assert.equal(message.content, "[Tool: grep (failed)]\n[Tool: read]")
   assert.deepEqual(message.metadata.tool_activities, [
     {
@@ -225,7 +237,7 @@ test("a tool call without usable payload records only what the host sent", () =>
     ],
   )
   assert.equal(
-    toThreadMessages([{ type: "assistant", id: "msg_text", content: [{ type: "text", text: "no tools" }] }])[0].metadata.tool_activities,
+    toThreadMessages([{ type: "assistant", id: "msg_text", content: [{ type: "text", text: "no tools" }] }], true)[0].metadata.tool_activities,
     undefined,
   )
 })
@@ -251,7 +263,7 @@ test("the plugin's own Mem tools keep only their status and any error", () => {
     ),
     [
       { id: "call_m", name: "nowledge_mem_search", status: "completed" },
-      { name: "nowledge_mem_save", status: "error", success: false, error: "nmem CLI not found" },
+      { name: "nowledge_mem_save", status: "error", success: false },
     ],
   )
 })

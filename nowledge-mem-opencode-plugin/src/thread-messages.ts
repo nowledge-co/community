@@ -100,14 +100,14 @@ function toolInput(input: unknown): string {
   return JSON.stringify(input, null, 2)
 }
 
-function toolActivity(part: SessionToolPart): ToolActivity {
+function toolActivity(part: SessionToolPart, includeToolDetails: boolean): ToolActivity {
   const activity: ToolActivity = { name: part.name ?? "unknown" }
   if (part.id) activity.id = part.id
   const state = part.state
   if (!state) return activity
 
   if (state.status) activity.status = state.status
-  if (!activity.name.startsWith(MEM_TOOL_PREFIX)) {
+  if (includeToolDetails && !activity.name.startsWith(MEM_TOOL_PREFIX)) {
     const input = toolInput(state.input)
     if (input) activity.input = clip(input)
     // Keep leading indentation (e.g. `git status --short` columns); drop only
@@ -123,7 +123,7 @@ function toolActivity(part: SessionToolPart): ToolActivity {
   if (state.status === "error") {
     activity.success = false
     const message = state.error?.message?.trim()
-    if (message) activity.error = clip(message)
+    if (includeToolDetails && message && !activity.name.startsWith(MEM_TOOL_PREFIX)) activity.error = clip(message)
   }
   return activity
 }
@@ -171,7 +171,7 @@ export function extractMessageContent(message: SessionMessage): string {
   return segments.join("\n") || "(empty message)"
 }
 
-export function toThreadMessages(sdkMessages: unknown): ThreadMessage[] {
+export function toThreadMessages(sdkMessages: unknown, includeToolDetails = false): ThreadMessage[] {
   if (!Array.isArray(sdkMessages)) return []
 
   const threadMessages: ThreadMessage[] = []
@@ -190,7 +190,7 @@ export function toThreadMessages(sdkMessages: unknown): ThreadMessage[] {
       if (message.model?.id) metadata.model = message.model.id
       // One entry per `[Tool: ...]` marker, in order: the Thread view pairs them.
       const tools = (message.content ?? []).filter((part): part is SessionToolPart => part.type === "tool")
-      if (tools.length) metadata.tool_activities = tools.map(toolActivity)
+      if (tools.length) metadata.tool_activities = tools.map((part) => toolActivity(part, includeToolDetails))
     }
 
     threadMessages.push({

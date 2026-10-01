@@ -116,6 +116,8 @@ Nowledge Mem captures OpenCode sessions in four complementary ways:
 
 2. **Pre-compaction flush.** Before OpenCode compacts a long session, the plugin saves the current transcript through the same thread path. The normal context hook restores the Nowledge Mem guidance on the next agent-loop request.
 
+Set `NMEM_OPENCODE_AUTO_SYNC=false` to disable both idle and pre-compaction capture; manual `nowledge_mem_save_thread` remains available. Tool calls in captured Threads show their name and status by default, without copying their arguments, output, or error text. If you explicitly want those details, set `NMEM_OPENCODE_CAPTURE_TOOL_DETAILS=true` **before** the session is first captured and restart OpenCode. This opt-in can upload command arguments, file contents, secrets, and third-party MCP results to the selected Mem destination; each field is capped at 500 characters, but the cap is not redaction. Mem's own `nowledge_mem_*` tool payloads remain excluded. Already-saved messages are not rewritten when you change this setting.
+
 3. **Manual full session capture.** `nowledge_mem_save_thread` uses the same capture path on demand. It is idempotent (safe to call multiple times) and handles large sessions via HTTP, not shell arguments.
 
 4. **Plugin proactive knowledge save.** `nowledge_mem_save` captures individual decisions and insights as they happen, stamped with `source=opencode`. `nowledge_mem_save_handoff` creates a curated summary at wrap-up.
