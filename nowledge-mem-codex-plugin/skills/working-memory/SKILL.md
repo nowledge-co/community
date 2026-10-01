@@ -27,6 +27,11 @@ If the runtime already knows the current project or agent lane, add `--space "<s
 
 ## Optional local mailbox activity
 
+When `NMEM_CLI_PATH` is configured, invoke its quoted value
+(`"$NMEM_CLI_PATH"`) for every CLI call, including ordinary commands. The `nmem`
+examples mean that same configured executable, not another binary from PATH.
+Login shells can reset PATH; do not substitute a different CLI after a refusal.
+
 Only use a named mailbox context explicitly approved for this independent host.
 Do not inherit a parent's context in a child, infer an identity from a native
 session ID, or enroll/recover/switch automatically. A startup observation is not

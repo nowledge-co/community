@@ -51,6 +51,9 @@ feature. It does not imply Cloud support, idle wakeup or automatic execution.
 Approve a logical identity and named context once using the compatible CLI's
 explicit setup flow. Launch each independently configured Codex agent with
 `NMEM_AGENT_CONTEXT=<approved-name>`; use `NMEM_CLI_PATH` to pin a tested CLI.
+When this override is set, models must invoke `"$NMEM_CLI_PATH"` for ordinary
+and mailbox commands too, not just let hooks use it. Login shells can reset
+PATH and otherwise choose an older, incompatible CLI.
 Keep each host's CLI config directory and endpoint isolated. Do not copy a
 parent's context into a child. The SubagentStart hook does not inject mailbox
 admission; independent SessionStart events require separately approved config.

@@ -30,7 +30,11 @@ SUBAGENT_CONTEXT_ATTEMPT_TIMEOUT_SECONDS = 3.0
 SUBAGENT_CONTEXT_MAX_BYTES = 4 * 1024
 RESUME_PREFIX = "NMEM_THREAD_RESUME_V1:"
 MAILBOX_TIMEOUT_SECONDS = 3.0
-MAILBOX_GUIDANCE = """At start/resume, handoff and pre-completion boundaries,
+MAILBOX_GUIDANCE = """Executable selection: if NMEM_CLI_PATH is configured, use
+its quoted value (`"$NMEM_CLI_PATH"`) as the executable for every CLI call,
+including ordinary commands. The `nmem` examples below mean that same executable.
+Do not silently select another nmem from PATH: login shells can reset PATH.
+At start/resume, handoff and pre-completion boundaries,
 check this approved context with `nmem --json --agent-context <name> mailbox status`.
 Use the same explicit context for ordinary CLI commands; preserve their stdout,
 exit status and stderr. A pending-mail notice on stderr is only a hint, not
