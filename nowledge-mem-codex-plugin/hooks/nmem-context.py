@@ -158,11 +158,11 @@ def _mailbox_observation() -> dict[str, Any] | None:
                 ):
                     configured_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
                     configured_space = os.environ.get("NMEM_SPACE", "").strip()
-                    legacy_space = os.environ.get("NMEM_SPACE_ID", "").strip()
+                    legacy_space = os.environ.get("NMEM_SPACE_ID")
                     if (
                         configured_agent and configured_agent != agent
                         or configured_space and configured_space != space
-                        or legacy_space and legacy_space != space
+                        or legacy_space is not None and legacy_space != space
                         or os.environ.get("NMEM_HOST_AGENT_ID", "").strip()
                     ):
                         observation.update(state="invalidated", reason="ambient_selector_not_verified")
@@ -243,9 +243,10 @@ def _load_startup_context(
         if not configured_home.strip():
             return ""
         fallback = Path(configured_home).expanduser() / "memory.md"
-    elif any(os.environ.get(key) for key in ("NMEM_APP_DATA", "NMEM_APP_CONFIG_DIR", "NMEM_CLI_CONFIG_DIR")) or any(
-        os.environ.get(key, "default").strip().lower() != "default"
-        for key in ("NMEM_SPACE", "NMEM_SPACE_ID")
+    elif (
+        any(os.environ.get(key) for key in ("NMEM_APP_DATA", "NMEM_APP_CONFIG_DIR", "NMEM_CLI_CONFIG_DIR"))
+        or os.environ.get("NMEM_SPACE", "default").strip().lower() != "default"
+        or os.environ.get("NMEM_SPACE_ID", "default") != "default"
     ):
         # An isolated or non-default lane cannot consult the user's legacy Default file.
         return ""

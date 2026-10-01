@@ -118,7 +118,7 @@ class MailboxContextTests(unittest.TestCase):
                 self.assertNotIn("pre-completion", context)
 
     def test_ambient_conflicts_never_publish_selected_identity(self):
-        for key, value in (("NMEM_AGENT_ID", "other"), ("NMEM_SPACE", "other"), ("NMEM_SPACE_ID", "other"), ("NMEM_HOST_AGENT_ID", "alias")):
+        for key, value in (("NMEM_AGENT_ID", "other"), ("NMEM_SPACE", "other"), ("NMEM_SPACE_ID", "other"), ("NMEM_SPACE_ID", "DEFAULT"), ("NMEM_SPACE_ID", "default "), ("NMEM_SPACE_ID", ""), ("NMEM_HOST_AGENT_ID", "alias")):
             with self.subTest(key=key), mock.patch.dict(os.environ, {"NMEM_AGENT_CONTEXT": "reviewer", key: value}):
                 result = subprocess.CompletedProcess([], 0, json.dumps(self.status()), "")
                 context, _ = self.invoke(result=result)
@@ -144,7 +144,7 @@ class MailboxContextTests(unittest.TestCase):
             self.assertEqual(HOOK._mailbox_observation()["state"], "unverified")
 
     def test_isolated_or_nondefault_fallback_never_consults_home(self):
-        for key, value in (("NMEM_AI_NOW_HOME", ""), ("NMEM_APP_DATA", "/isolated"), ("NMEM_CLI_CONFIG_DIR", "/isolated"), ("NMEM_SPACE", "other"), ("NMEM_SPACE_ID", "other")):
+        for key, value in (("NMEM_AI_NOW_HOME", ""), ("NMEM_APP_DATA", "/isolated"), ("NMEM_CLI_CONFIG_DIR", "/isolated"), ("NMEM_SPACE", "other"), ("NMEM_SPACE_ID", "other"), ("NMEM_SPACE_ID", "DEFAULT"), ("NMEM_SPACE_ID", "default "), ("NMEM_SPACE_ID", "")):
             with self.subTest(key=key), mock.patch.dict(os.environ, {key: value}), \
                  mock.patch.object(HOOK, "_nmem_command", return_value=None), \
                  mock.patch.object(HOOK.Path, "home", side_effect=AssertionError("live home consulted")):
