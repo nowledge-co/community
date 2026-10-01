@@ -1,0 +1,36 @@
+name: OpenCode plugin
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/opencode-plugin.yml"
+      - "nowledge-mem-opencode-plugin/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/opencode-plugin.yml"
+      - "nowledge-mem-opencode-plugin/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install package dependencies
+        working-directory: nowledge-mem-opencode-plugin
+        run: npm install --ignore-scripts --no-package-lock
+      - name: Run tests
+        working-directory: nowledge-mem-opencode-plugin
+        run: npm test
+      - name: Verify published bundle
+        working-directory: nowledge-mem-opencode-plugin
+        run: npm run check && git diff --exit-code -- dist/index.js
