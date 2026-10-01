@@ -41,6 +41,52 @@ resolve the same binding instead of creating another Mem Thread.
 
 ## Skills
 
+### Experimental local mailbox contexts
+
+This optional path requires a CLI exposing `agents context` and `mailbox`, plus
+a compatible, explicitly enabled local backend. Older versions remain usable
+for ordinary memory work; an unsupported mailbox check does not enable this
+feature. It does not imply Cloud support, idle wakeup or automatic execution.
+
+Approve a logical identity and named context once using the compatible CLI's
+explicit setup flow. Launch each independently configured Codex agent with
+`NMEM_AGENT_CONTEXT=<approved-name>`; use `NMEM_CLI_PATH` to pin a tested CLI.
+Keep each host's CLI config directory and endpoint isolated. Do not copy a
+parent's context into a child. The SubagentStart hook does not inject mailbox
+admission; independent SessionStart events require separately approved config.
+
+The SessionStart/resume hook makes one bounded read-only live status check. Only
+`usable` plus `live` installs mailbox instructions and reads Working Memory
+using that exact Space ID. This opt-in path does not automatically load Context
+Bundle because the current CLI may ensure an agent profile during that call.
+Non-live or conflicting
+configuration emits a small diagnostic instead, without changing identities or
+loading a default identity as a substitute. If `NMEM_AGENT_ID`, `NMEM_SPACE` or
+the legacy `NMEM_SPACE_ID`
+is also set, it must match the validated canonical selector; aliases or Space
+names not verified by this check require explicit configuration reconciliation.
+No hook selects, recovers, enrolls, claims, acknowledges or sends mail.
+
+At natural start/resume, handoff and pre-completion boundaries, the model checks
+the approved context. Ordinary `nmem --agent-context <name> ...` calls preserve
+stderr notices; do not redirect or hide stderr from the model. `mailbox status`
+accepts this selector, but typed `mailbox command --request-file` operations
+must include the current full selection and do not accept `--agent-context`.
+Get the selection with `nmem --json agents context show --name <name>`; sending
+uses a Send operation in the typed command file, not a separate send subcommand.
+Preserve request IDs for same-intent retries. A hint or delivery acceptance is
+not completed review; references need the recipient's own live authority.
+
+`NMEM_AI_NOW_HOME` controls the legacy Working Memory file fallback. An explicit
+empty override, isolated config/data override or non-default Space never falls
+back to the user's default home file. A validated mailbox startup uses scoped
+CLI reads only, not this Default-space file.
+
+Hook/unit tests are not installed-host evidence. Actual Codex notice visibility,
+request/reply continuation after restart and a separate genuine MCP-only host
+remain unverified until versioned, sanitized model transcripts and receipts
+exist. Normal hook setup and trust decisions remain unchanged.
+
 | Skill | When it runs | What it does |
 |-------|-------------|-------------|
 | `working-memory` | Session start, "what am I working on" | Loads Context Bundle when full identity/scope/rules matter; otherwise loads the daily briefing and prefers MCP when present |
