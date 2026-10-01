@@ -1,0 +1,24 @@
+{
+  "name": "nowledge-mem",
+  "version": "0.1.0",
+  "description": "Cross-agent persistent memory, startup context, memory rules, and agent skills for OpenHands and multi-agent orchestrations.",
+  "author": {
+    "name": "Nowledge Co",
+    "email": "hello@nowledge.co",
+    "url": "https://mem.nowledge.co"
+  },
+  "homepage": "https://mem.nowledge.co/docs/integrations/openhands",
+  "repository": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-openhands-plugin",
+  "license": "MIT",
+  "keywords": [
+    "openhands",
+    "openhands-canvas",
+    "agent-canvas",
+    "nowledge-mem",
+    "memory",
+    "knowledge-base",
+    "multi-agent",
+    "agent-skills",
+    "mcp"
+  ]
+}
