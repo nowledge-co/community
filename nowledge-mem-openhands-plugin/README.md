@@ -104,7 +104,7 @@ rm -rf /tmp/community
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `NMEM_API_URL` | Nowledge Mem REST API endpoint | `http://127.0.0.1:14242` |
-| `NMEM_API_KEY` | API key for remote or authenticated Mem instances | (empty) |
+| `NMEM_API_KEY` | API key for remote or authenticated Mem instances; set together with `NMEM_API_URL` | (empty) |
 | `NMEM_SPACE` | Active memory space for this canvas or agent | `default` |
 | `NMEM_AGENT_ID` | Agent role identifier (`planner`, `coder`, `reviewer`) | (empty / derived) |
 | `NMEM_DISABLE_PROMPT_INJECT` | Set to `1` to disable prompt context injection | `0` |
@@ -118,7 +118,7 @@ Defined in `hooks/hooks.json`:
 
 1. **`UserPromptSubmit`**:
    - Executes `hooks/nmem-context.py`.
-   - Fetches the active Context Bundle (or Working Memory) via local REST API (`<30ms`).
+   - Fetches the active Context Bundle (or Working Memory) via bounded REST requests.
    - Injects structured context (`additionalContext`) into the agent's turn.
 2. **`PostToolUse`**:
    - Executes `hooks/nmem-post-tool.py`.
@@ -138,13 +138,14 @@ Configured in `.mcp.json` and `mcp.json`:
   "mcpServers": {
     "nowledge-mem": {
       "type": "http",
-      "url": "http://127.0.0.1:14242/mcp"
+      "url": "${NMEM_API_URL:-http://127.0.0.1:14242}/mcp",
+      "headers": {"X-Nmem-Space-Protocol": "exact-v1"}
     }
   }
 }
 ```
 
-> **Note**: Active connector artifacts strictly use `http://127.0.0.1:14242/mcp` without a trailing slash.
+The header declares exact-Space routing for Cloud Team. For a remote endpoint, configure the URL and key as a pair and ensure OpenHands sends `Authorization: Bearer <key>`; the hook-generated `.openhands/mcp.json` includes that header. The checked-in template never contains a credential. Keep the `/mcp` URL without a trailing slash.
 
 ---
 
@@ -175,7 +176,7 @@ flowchart TD
     end
 
     subgraph PluginRuntime["Nowledge Mem Plugin Runtime (hooks/)"]
-        HookContext -->|REST <30ms| GetContext["Read Context Bundle / WM"]
+        HookContext -->|REST| GetContext["Read Context Bundle / WM"]
         HookStop --> Parser["Tier-2 Event Parser\n(parse_openhands_events)"]
         EventDisk -.->|Read JSONL/JSON| Parser
         Parser --> Cleaner["Noise Filter & Turn Deduplication"]
@@ -183,7 +184,7 @@ flowchart TD
     end
 
     subgraph SyncTiers["3-Tier Synchronization"]
-        SyncStrategy -->|Tier 1: REST <30ms| FastREST["POST /threads/import"]
+        SyncStrategy -->|Tier 1: REST| FastREST["POST /threads/import"]
         SyncStrategy -->|Tier 2: CLI Fallback| CLIImport["nmem t import"]
         SyncStrategy -->|Tier 3: Offline Buffer| FileLockQueue[("~/.nowledge-mem/plugins/\nopenhands/unsynced.json")]
         FileLockQueue -.->|Async Drain on Next Stop| FastREST
@@ -198,7 +199,7 @@ flowchart TD
 
 ### 1. Startup Context Injection (`UserPromptSubmit`)
 - When a user submits a prompt, `hooks/nmem-context.py` runs before the agent begins planning.
-- Directly queries Nowledge Mem's REST endpoint (`GET /context/bundle` or fallback `GET /working-memory`) with low latency (<30ms).
+- Directly queries Nowledge Mem's REST endpoint (`GET /context/bundle` or fallback `GET /working-memory`) with bounded timeouts; latency depends on the backend and network.
 - Formats persistent knowledge into an `additionalContext` payload, giving the agent immediate situational awareness of prior decisions, preferences, and workspace conventions.
 
 ### 2. Native Tier-2 Event Parsing
@@ -212,7 +213,7 @@ flowchart TD
 ### 3. Three-Tier Transport & Resilience
 - **Tier 1 (Fast REST)**: Imports the thread directly via `POST /threads/import` with Bearer auth support for instant persistence.
 - **Tier 2 (CLI Fallback)**: If REST is unreachable or returns a non-2xx status, falls back to `nmem t import --id "openhands-<id>" --messages '<json>' --source openhands`.
-- **Tier 3 (Offline Buffer)**: If Nowledge Mem is temporarily offline, the session is queued in an atomic, file-locked outbox (`~/.nowledge-mem/plugins/openhands/unsynced.json`). Queued sessions are automatically drained and replayed in the background on the next session stop.
+- **Tier 3 (Offline Buffer)**: If Nowledge Mem is temporarily offline, the plugin queues only the path to persisted OpenHands events, session and Space metadata, and an opaque destination identity in an atomic, private outbox (`~/.nowledge-mem/plugins/openhands/unsynced.json`). It does not copy transcript bodies or API keys there. The next session stop retries up to three entries for the *same URL and key*. If OpenHands has not persisted events, a hook-only message cannot be queued; the hook reports this on stderr. Pre-existing queue entries without a destination identity are retained but never auto-replayed; recover them manually against the intended destination.
 
 ---
 

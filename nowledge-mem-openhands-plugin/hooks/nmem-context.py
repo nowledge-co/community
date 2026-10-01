@@ -54,6 +54,14 @@ def _mark_session_injected(session_id: str) -> None:
 
 def main() -> None:
     try:
+        hook_input = nmem_shared.read_hook_input()
+
+        # An explicitly disabled prompt hook must not touch the host's skill
+        # links, MCP files, or network configuration.
+        if os.environ.get("NMEM_DISABLE_PROMPT_INJECT", "").strip().lower() in ("1", "true", "yes"):
+            nmem_shared.emit({})
+            sys.exit(0)
+
         # 1. Asynchronously sync host skills, retry offline queue, and sync MCP configuration
         try:
             nmem_shared.sync_host_skills_async()
@@ -61,13 +69,6 @@ def main() -> None:
             nmem_shared.sync_mcp_config_file()
         except Exception:
             pass
-
-        hook_input = nmem_shared.read_hook_input()
-
-        # Check if context injection is explicitly disabled
-        if os.environ.get("NMEM_DISABLE_PROMPT_INJECT", "").strip().lower() in ("1", "true", "yes"):
-            nmem_shared.emit({})
-            sys.exit(0)
 
         session_id = (
             hook_input.get("session_id")

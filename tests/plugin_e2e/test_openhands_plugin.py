@@ -5,8 +5,10 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import stat
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -17,6 +19,21 @@ import nmem_shared
 
 COMMUNITY_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_DIR = COMMUNITY_ROOT / "nowledge-mem-openhands-plugin"
+
+
+def native_conversation(tmp_path: Path, name: str, text: str = "fixture prompt") -> Path:
+    conversation = tmp_path / name
+    events = conversation / "events"
+    events.mkdir(parents=True)
+    (events / "event-001.json").write_text(json.dumps({
+        "kind": "MessageEvent", "source": "user",
+        "llm_message": {"role": "user", "content": text},
+    }), encoding="utf-8")
+    (events / "event-002.json").write_text(json.dumps({
+        "kind": "MessageEvent", "source": "agent",
+        "llm_message": {"role": "assistant", "content": "fixture answer"},
+    }), encoding="utf-8")
+    return conversation
 
 
 class TestOpenHandsPluginManifest:
@@ -55,6 +72,7 @@ class TestOpenHandsMcpConfig:
             assert server["type"] == "http"
             assert server["url"] == "${NMEM_API_URL:-http://127.0.0.1:14242}/mcp"
             assert not server["url"].endswith("/")
+            assert server["headers"]["X-Nmem-Space-Protocol"] == "exact-v1"
 
 
 class TestOpenHandsHooksConfig:
@@ -159,16 +177,34 @@ class TestOpenHandsHookScriptsExecution:
         assert module.resolve_space() == "canvas-space-1"
 
     def test_hook_context_script_execution(self) -> None:
+        env = {**os.environ, "NMEM_DISABLE_PROMPT_INJECT": "1", "NMEM_IGNORE_HOST_CONFIG": "1"}
         proc = subprocess.run(
             [sys.executable, str(PLUGIN_DIR / "hooks" / "nmem-context.py")],
             input="",
             capture_output=True,
             text=True,
             timeout=5.0,
+            env=env,
         )
         assert proc.returncode == 0
         data = json.loads(proc.stdout)
         assert isinstance(data, dict)
+
+    def test_disabled_context_hook_does_not_sync_host_state(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        spec = importlib.util.spec_from_file_location("nmem_context_test", PLUGIN_DIR / "hooks" / "nmem-context.py")
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        calls: list[str] = []
+        monkeypatch.setenv("NMEM_DISABLE_PROMPT_INJECT", "1")
+        monkeypatch.setattr(module.nmem_shared, "sync_host_skills_async", lambda: calls.append("skills"))
+        monkeypatch.setattr(module.nmem_shared, "retry_unsynced_sessions_async", lambda: calls.append("retry"))
+        monkeypatch.setattr(module.nmem_shared, "sync_mcp_config_file", lambda: calls.append("mcp"))
+        monkeypatch.setattr(module.nmem_shared, "emit", lambda payload: calls.append("emit"))
+        with pytest.raises(SystemExit) as exited:
+            module.main()
+        assert exited.value.code == 0
+        assert calls == ["emit"]
 
     def test_hook_post_tool_script_execution(self) -> None:
         proc = subprocess.run(
@@ -239,6 +275,7 @@ class TestOpenHandsRemoteAndResilience:
         assert server["headers"]["X-MEM-API-Key"] == "test-token-12345"
         assert server["headers"]["X-NMEM-API-Key"] == "test-token-12345"
         assert server["headers"]["APP"] == "OpenHands"
+        assert server["headers"]["X-Nmem-Space-Protocol"] == "exact-v1"
 
     def test_unsynced_session_queue(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         sys.path.insert(0, str(PLUGIN_DIR / "hooks"))
@@ -246,13 +283,19 @@ class TestOpenHandsRemoteAndResilience:
 
         queue_file = tmp_path / "unsynced.json"
         monkeypatch.setattr(nmem_shared, "get_unsynced_queue_path", lambda: queue_file)
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://fixture.example", "fixture-key"))
 
-        saved = nmem_shared.save_unsynced_session("conv-test-999", {"session": "data"})
+        source = native_conversation(tmp_path, "conv-test-999")
+        saved = nmem_shared.save_unsynced_session("conv-test-999", source)
         assert saved is True
         assert queue_file.exists()
 
         data = json.loads(queue_file.read_text(encoding="utf-8"))
-        assert "conv-test-999" in data
+        assert len(data) == 1
+        item = next(iter(data.values()))
+        assert item["conversation_dir"] == str(source.resolve())
+        assert "payload" not in item
+        assert "fixture prompt" not in queue_file.read_text(encoding="utf-8")
 
 
 class TestOpenHandsTranscriptSync:
@@ -305,25 +348,27 @@ class TestOpenHandsTranscriptSync:
 
         queue_file = tmp_path / "unsynced.json"
         monkeypatch.setattr(nmem_shared, "get_unsynced_queue_path", lambda: queue_file)
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://fixture.example", "fixture-key"))
         monkeypatch.setattr(nmem_shared, "is_backend_unreachable", lambda: True)
         monkeypatch.setattr(nmem_shared, "run_nmem_command", lambda *args, **kwargs: None)
 
         conv_id = "buffered-session-123"
+        source = native_conversation(tmp_path, conv_id, "Buffered offline prompt")
+        monkeypatch.setattr(nmem_shared, "find_conversation_dir", lambda *args, **kwargs: source)
         result = nmem_shared.sync_openhands_thread(
             conv_id,
-            hook_input={"message": "Buffered offline prompt"}
         )
         assert result is None
         assert queue_file.exists()
 
         data = json.loads(queue_file.read_text(encoding="utf-8"))
-        assert conv_id in data
-        assert data[conv_id]["payload"]["messages"][0]["content"] == "Buffered offline prompt"
+        assert len(data) == 1
+        assert next(iter(data.values()))["conversation_dir"] == str(source.resolve())
+        assert "Buffered offline prompt" not in queue_file.read_text(encoding="utf-8")
 
     def test_openhands_sdk_load_plugin(self, tmp_path: Path) -> None:
-        agent_python = Path("/home/abn/.local/share/uv/tools/openhands-agent-server/bin/python")
-        if not agent_python.exists():
-            pytest.skip("OpenHands SDK python environment not found")
+        if importlib.util.find_spec("openhands") is None:
+            pytest.skip("OpenHands SDK is not installed in the test environment")
 
         code = (
             "from pathlib import Path\n"
@@ -336,7 +381,7 @@ class TestOpenHandsTranscriptSync:
             f"installed = install_plugin({str(PLUGIN_DIR)!r}, installed_dir=Path({str(tmp_path)!r}), force=True)\n"
             "assert installed.name == 'nowledge-mem'\n"
         )
-        res = subprocess.run([str(agent_python), "-c", code], capture_output=True, text=True)
+        res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
         assert res.returncode == 0, f"OpenHands SDK Plugin load failed: {res.stderr}"
 
 
@@ -397,8 +442,9 @@ class TestReviewerFindingsDetection:
         monkeypatch.setattr(nmem_shared, "get_unsynced_queue_path", lambda: queue_file)
         monkeypatch.setattr(nmem_shared, "is_backend_unreachable", lambda: False)
 
-        queue_data = {"failed-session-1": {"payload": {"thread_id": "failed-1"}}}
-        queue_file.write_text(json.dumps(queue_data), encoding="utf-8")
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://fixture.example", "fixture-key"))
+        source = native_conversation(tmp_path, "failed-session-1")
+        assert nmem_shared.save_unsynced_session("failed-session-1", source)
 
         # Backend responds with 200 OK but success: false
         monkeypatch.setattr(nmem_shared, "http_request", lambda *args, **kwargs: {"success": False, "failed_count": 1})
@@ -407,7 +453,8 @@ class TestReviewerFindingsDetection:
         assert flushed == 0
         assert queue_file.exists(), "Failed session was discarded from queue!"
         saved = json.loads(queue_file.read_text(encoding="utf-8"))
-        assert "failed-session-1" in saved
+        assert len(saved) == 1
+        assert next(iter(saved.values()))["session_id"] == "failed-session-1"
 
     def test_file_lock_raises_timeout_error(self, tmp_path: Path) -> None:
         sys.path.insert(0, str(PLUGIN_DIR / "hooks"))
@@ -569,6 +616,101 @@ class TestReviewerFindingsDetection:
             else:
                 plugin_cfg.unlink(missing_ok=True)
 
+    def test_key_only_environment_does_not_pair_with_workspace_url(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        workspace_dir = tmp_path / "workspace"
+        workspace_dir.mkdir()
+        (workspace_dir / ".config.json").write_text(json.dumps({"apiUrl": "https://workspace.example"}), encoding="utf-8")
+        monkeypatch.delenv("NMEM_API_URL", raising=False)
+        monkeypatch.setenv("NMEM_API_KEY", "unpaired-env-key")
+        monkeypatch.setenv("NMEM_IGNORE_HOST_CONFIG", "1")
+        assert nmem_shared.get_effective_config(workspace_dir) == ("https://workspace.example", None)
+
+    def test_unsynced_queue_keeps_same_session_for_two_destinations(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        queue_file = tmp_path / "unsynced.json"
+        monkeypatch.setattr(nmem_shared, "get_unsynced_queue_path", lambda: queue_file)
+        monkeypatch.setattr(nmem_shared, "is_backend_unreachable", lambda: False)
+        target = [("https://endpoint-a.example", "key-a")]
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: target[0])
+        source_a = native_conversation(tmp_path, "source-a", "source-a prompt")
+        source_b = native_conversation(tmp_path, "source-b", "source-b prompt")
+        assert nmem_shared.save_unsynced_session("same-session", source_a)
+        target[0] = ("https://endpoint-b.example", "key-b")
+        assert nmem_shared.save_unsynced_session("same-session", source_b)
+        queued = json.loads(queue_file.read_text(encoding="utf-8"))
+        assert len(queued) == 2
+        assert {item["conversation_dir"] for item in queued.values()} == {str(source_a.resolve()), str(source_b.resolve())}
+
+    def test_unsynced_queue_does_not_replay_with_another_key(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        queue_file = tmp_path / "unsynced.json"
+        monkeypatch.setattr(nmem_shared, "get_unsynced_queue_path", lambda: queue_file)
+        monkeypatch.setattr(nmem_shared, "is_backend_unreachable", lambda: False)
+        target = [("https://same-endpoint.example", "key-a")]
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: target[0])
+        source = native_conversation(tmp_path, "same-session")
+        assert nmem_shared.save_unsynced_session("same-session", source)
+        replayed: list[dict] = []
+        monkeypatch.setattr(nmem_shared, "http_request", lambda *args, **kwargs: replayed.append(kwargs["body"]) or {"success": True})
+        target[0] = ("https://same-endpoint.example", "key-b")
+        assert nmem_shared.flush_unsynced_sessions() == 0
+        assert replayed == []
+        assert queue_file.exists()
+
+    def test_queue_write_is_private_and_corrupt_queue_is_not_overwritten(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        queue_file = tmp_path / "unsynced.json"
+        source = native_conversation(tmp_path, "session")
+        monkeypatch.setattr(nmem_shared, "get_unsynced_queue_path", lambda: queue_file)
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://fixture.example", "private-fixture-key"))
+        assert nmem_shared.save_unsynced_session("session", source)
+        raw = queue_file.read_text(encoding="utf-8")
+        assert "private-fixture-key" not in raw
+        assert "fixture prompt" not in raw
+        if os.name != "nt":
+            assert stat.S_IMODE(queue_file.stat().st_mode) == 0o600
+        queue_file.write_text("{corrupt", encoding="utf-8")
+        assert nmem_shared.save_unsynced_session("session", source) is False
+        assert queue_file.read_text(encoding="utf-8") == "{corrupt"
+
+    def test_queue_writer_does_not_wait_for_replay_and_newer_observation_survives(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        queue_file = tmp_path / "unsynced.json"
+        old_source = native_conversation(tmp_path, "old-source", "old prompt")
+        new_source = native_conversation(tmp_path, "new-source", "new prompt")
+        monkeypatch.setattr(nmem_shared, "get_unsynced_queue_path", lambda: queue_file)
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://fixture.example", "fixture-key"))
+        monkeypatch.setattr(nmem_shared, "is_backend_unreachable", lambda: False)
+        assert nmem_shared.save_unsynced_session("same-session", old_source)
+        entered = threading.Event()
+        release = threading.Event()
+
+        def slow_http(*args, **kwargs):
+            entered.set()
+            assert release.wait(3)
+            return {"success": True}
+
+        monkeypatch.setattr(nmem_shared, "http_request", slow_http)
+        result: list[int] = []
+        worker = threading.Thread(target=lambda: result.append(nmem_shared.flush_unsynced_sessions()))
+        worker.start()
+        try:
+            assert entered.wait(3)
+            assert nmem_shared.save_unsynced_session("same-session", new_source)
+        finally:
+            release.set()
+            worker.join(5)
+        assert not worker.is_alive()
+        assert result == [0]
+        queued = json.loads(queue_file.read_text(encoding="utf-8"))
+        assert next(iter(queued.values()))["conversation_dir"] == str(new_source.resolve())
+
+    def test_unbound_legacy_queue_item_is_never_replayed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        queue_file = tmp_path / "unsynced.json"
+        queue_file.write_text(json.dumps({"legacy": {"payload": {"messages": [{"content": "legacy body"}]}}}), encoding="utf-8")
+        monkeypatch.setattr(nmem_shared, "get_unsynced_queue_path", lambda: queue_file)
+        monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://fixture.example", "fixture-key"))
+        monkeypatch.setattr(nmem_shared, "is_backend_unreachable", lambda: False)
+        monkeypatch.setattr(nmem_shared, "http_request", lambda *args, **kwargs: pytest.fail("unbound legacy item replayed"))
+        assert nmem_shared.flush_unsynced_sessions() == 0
+        assert "legacy body" in queue_file.read_text(encoding="utf-8")
+
     def test_unsynced_queue_partitioned_by_endpoint(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Verify offline queue flush only replays sessions matching the active endpoint URL."""
         fake_home = tmp_path / "home"
@@ -588,31 +730,35 @@ class TestReviewerFindingsDetection:
 
         # Queue a session destined for endpoint A
         monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://endpoint-a.example", "key-a"))
-        nmem_shared.save_unsynced_session("sess-a", {"thread_id": "thread-a", "messages": []})
+        source_a = native_conversation(tmp_path, "sess-a", "prompt-a")
+        source_b = native_conversation(tmp_path, "sess-b", "prompt-b")
+        nmem_shared.save_unsynced_session("sess-a", source_a)
 
         # Queue a session destined for endpoint B
         monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://endpoint-b.example", "key-b"))
-        nmem_shared.save_unsynced_session("sess-b", {"thread_id": "thread-b", "messages": []})
+        nmem_shared.save_unsynced_session("sess-b", source_b)
 
         # Now flush with active endpoint A
         monkeypatch.setattr(nmem_shared, "get_effective_config", lambda cwd=None: ("https://endpoint-a.example", "key-a"))
         flushed = nmem_shared.flush_unsynced_sessions()
         assert flushed == 1
         assert len(replayed_payloads) == 1
-        assert replayed_payloads[0]["thread_id"] == "thread-a"
+        assert replayed_payloads[0]["thread_id"] == "openhands-sess-a"
 
         # Check queue still retains sess-b
         queue_path = nmem_shared.get_unsynced_queue_path()
         remaining = json.loads(queue_path.read_text(encoding="utf-8"))
-        assert "sess-b" in remaining
-        assert "sess-a" not in remaining
+        assert len(remaining) == 1
+        assert next(iter(remaining.values()))["session_id"] == "sess-b"
 
-    def test_cli_fallback_validates_json_and_failed_count(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_cli_fallback_validates_json_and_failed_count(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Verify CLI fallback inspects JSON response and falls back to queue on failed_count."""
         monkeypatch.setattr(nmem_shared, "is_backend_unreachable", lambda: True)
 
         saved_queue: list[tuple] = []
-        monkeypatch.setattr(nmem_shared, "save_unsynced_session", lambda sid, payload, cwd=None: saved_queue.append((sid, payload)))
+        source = native_conversation(tmp_path, "test-conv")
+        monkeypatch.setattr(nmem_shared, "find_conversation_dir", lambda *args, **kwargs: source)
+        monkeypatch.setattr(nmem_shared, "save_unsynced_session", lambda *args, **kwargs: saved_queue.append(args) or True)
 
         class FakeProc:
             returncode = 0

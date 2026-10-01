@@ -84,7 +84,9 @@ def get_effective_config(cwd: str | Path | None = None) -> tuple[str, str | None
     ignore_host = os.environ.get("NMEM_IGNORE_HOST_CONFIG", "").strip().lower() in ("1", "true", "yes")
 
     api_url = env_url
-    api_key = env_key
+    # A key-only environment override has no trustworthy destination. Never
+    # pair it with a URL chosen from a lower-precedence configuration layer.
+    api_key = env_key if env_url else None
 
     plugin_root = Path(__file__).resolve().parent.parent
     target_dir = Path(cwd).resolve() if cwd else Path.cwd().resolve()
@@ -154,12 +156,13 @@ def http_request(
     body: dict[str, Any] | None = None,
     timeout: float = 2.0,
     cwd: str | Path | None = None,
+    config: tuple[str, str | None] | None = None,
 ) -> dict[str, Any] | list[Any] | None:
-    """Execute direct REST HTTP request to Nowledge Mem backend (<30ms)."""
+    """Execute a bounded direct REST HTTP request to Nowledge Mem."""
     if is_backend_unreachable():
         return None
 
-    api_url, api_key = get_effective_config(cwd)
+    api_url, api_key = config if config is not None else get_effective_config(cwd)
     url = f"{api_url}{endpoint}"
 
     headers = {
@@ -182,19 +185,9 @@ def http_request(
                 return {}
             return json.loads(raw)
     except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
-            # Reload config and retry once
-            api_url, api_key = get_effective_config(cwd)
-            headers.update(_make_auth_headers(api_key))
-            req_retry = urllib.request.Request(f"{api_url}{endpoint}", data=data, headers=headers, method=method)
-            try:
-                with urllib.request.urlopen(req_retry, timeout=timeout) as retry_resp:
-                    reset_backend_unreachable()
-                    raw = retry_resp.read().decode("utf-8")
-                    return json.loads(raw) if raw.strip() else {}
-            except Exception:
-                mark_backend_unreachable()
-        elif e.code >= 500:
+        # A 401/403 is not a connectivity failure. In particular, never retry
+        # a transcript POST at a newly resolved URL after a config change.
+        if e.code >= 500:
             mark_backend_unreachable()
         return None
     except (urllib.error.URLError, TimeoutError, ConnectionError, OSError):
@@ -480,10 +473,11 @@ def build_mcp_config(cwd: str | Path | None = None) -> dict[str, Any]:
     clean_url = api_url.rstrip("/")
     server_url = f"{clean_url}/mcp"
     headers = _make_auth_headers(api_key)
+    # The MCP header is the sole exact-Space declaration. Cloud Team requires
+    # it; older App endpoints can ignore this additive request header.
+    headers["X-Nmem-Space-Protocol"] = "exact-v1"
 
-    target_server: dict[str, Any] = {"type": "http", "url": server_url}
-    if api_key or not (clean_url.startswith("http://127.0.0.1") or clean_url.startswith("http://localhost")):
-        target_server["headers"] = headers
+    target_server: dict[str, Any] = {"type": "http", "url": server_url, "headers": headers}
 
     return {"mcpServers": {"nowledge-mem": target_server}}
 
@@ -584,7 +578,7 @@ def find_conversation_dir(session_id: str, working_dir: str | Path | None = None
 
 def parse_openhands_events(conv_dir: str | Path) -> tuple[str | None, list[dict[str, str]]]:
     """Parse OpenHands conversation event JSON files into clean (title, messages) tuples.
-    
+
     Extracts MessageEvent, ActionEvent (conversational responses / finish actions),
     and ObservationEvent (finish observations), while omitting internal raw execution details.
     """
@@ -655,6 +649,31 @@ def parse_openhands_events(conv_dir: str | Path) -> tuple[str | None, list[dict[
     return title, messages
 
 
+def _thread_payload(
+    session_id: str,
+    title: str | None,
+    messages: list[dict[str, str]],
+    space: str | None,
+    agent_id: str | None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "thread_id": f"openhands-{session_id}",
+        "title": title or f"OpenHands Session {session_id[:8]}",
+        "messages": messages,
+        "source": "openhands",
+    }
+    metadata: dict[str, Any] = {}
+    if space:
+        payload["space"] = space
+        metadata["space_id"] = space
+    if agent_id:
+        payload["agent_id"] = agent_id
+        metadata["agent_id"] = agent_id
+    if metadata:
+        payload["metadata"] = metadata
+    return payload
+
+
 def sync_openhands_thread(
     session_id: str,
     working_dir: str | Path | None = None,
@@ -663,12 +682,12 @@ def sync_openhands_thread(
     hook_input: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Sync OpenHands conversation session into Nowledge Mem thread via REST API or CLI.
-    
+
     Follows the 3-tier architecture:
     1. Parse native OpenHands events from disk.
-    2. POST /threads/import to Nowledge Mem REST API (<30ms).
+    2. POST /threads/import to Nowledge Mem REST API.
     3. CLI fallback via `nmem t import`.
-    4. Offline fallback buffered into FileLocked unsynced queue.
+    4. Offline fallback stores a pointer to persisted native events.
     """
     if not session_id:
         return None
@@ -697,24 +716,8 @@ def sync_openhands_thread(
     if not messages:
         return None
 
-    if not title:
-        title = f"OpenHands Session {clean_id[:8]}"
-
-    payload: dict[str, Any] = {
-        "thread_id": thread_id,
-        "title": title,
-        "messages": messages,
-        "source": "openhands",
-    }
-    metadata: dict[str, Any] = {}
-    if space:
-        payload["space"] = space
-        metadata["space_id"] = space
-    if agent_id:
-        payload["agent_id"] = agent_id
-        metadata["agent_id"] = agent_id
-    if metadata:
-        payload["metadata"] = metadata
+    payload = _thread_payload(clean_id, title, messages, space, agent_id)
+    title = payload["title"]
 
     # 2. Try fast direct HTTP REST import
     if not is_backend_unreachable():
@@ -745,8 +748,12 @@ def sync_openhands_thread(
         except Exception:
             pass
 
-    # 4. Offline or unreachable -> buffer in unsynced queue
-    save_unsynced_session(clean_id, payload, cwd=working_dir)
+    # 4. Keep only a pointer to the host-owned transcript on disk. A hook-only
+    # fallback message has no durable source and must not be copied into a queue.
+    if conv_dir and not save_unsynced_session(clean_id, conv_dir, space, agent_id, cwd=working_dir):
+        sys.stderr.write("Nowledge Mem OpenHands capture could not queue the persisted session.\n")
+    elif not conv_dir:
+        sys.stderr.write("Nowledge Mem OpenHands capture has no persisted events to retry.\n")
     return None
 
 
@@ -807,41 +814,87 @@ def _is_pid_alive(pid: int) -> bool:
 
 def get_unsynced_queue_path() -> Path:
     queue_dir = Path("~/.nowledge-mem/plugins/openhands").expanduser()
-    queue_dir.mkdir(parents=True, exist_ok=True)
+    queue_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     return queue_dir / "unsynced.json"
 
 
-def save_unsynced_session(session_id: str, payload: dict[str, Any], cwd: str | Path | None = None) -> bool:
+def _queue_destination_id(api_url: str, api_key: str | None) -> str:
+    """Opaque routing identity; never persist the credential in the queue."""
+    return hashlib.sha256(f"{api_url.rstrip('/')}\0{api_key or ''}".encode("utf-8")).hexdigest()
+
+
+def _queue_item_key(session_id: str, destination_id: str, space: str | None, agent_id: str | None) -> str:
+    return hashlib.sha256(
+        f"{session_id}\0{destination_id}\0{space or ''}\0{agent_id or ''}".encode("utf-8")
+    ).hexdigest()
+
+
+def _read_queue(queue_path: Path) -> dict[str, Any]:
+    if not queue_path.exists():
+        return {}
+    data = json.loads(queue_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("OpenHands queue must be a JSON object")
+    return data
+
+
+def _write_queue(queue_path: Path, data: dict[str, Any]) -> None:
+    """Replace the private outbox atomically; never expose partial JSON."""
+    temp_path = queue_path.with_name(f".{queue_path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        fd = os.open(temp_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(data, stream, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_path, queue_path)
+        if os.name != "nt":
+            try:
+                dir_fd = os.open(queue_path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except OSError:
+                pass
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def save_unsynced_session(
+    session_id: str,
+    conversation_dir: str | Path,
+    space: str | None = None,
+    agent_id: str | None = None,
+    cwd: str | Path | None = None,
+) -> bool:
+    source = Path(conversation_dir).resolve()
+    if not (source / "events").is_dir():
+        return False
     queue_path = get_unsynced_queue_path()
-    eff_url, _ = get_effective_config(cwd)
-    endpoint_url = eff_url.rstrip("/")
+    eff_url, eff_key = get_effective_config(cwd)
+    destination_id = _queue_destination_id(eff_url, eff_key)
+    item_key = _queue_item_key(session_id, destination_id, space, agent_id)
     try:
         with FileLock(queue_path, timeout=2.0):
-            data = {}
-            if queue_path.exists():
-                try:
-                    data = json.loads(queue_path.read_text(encoding="utf-8"))
-                except Exception:
-                    data = {}
-            if not isinstance(data, dict):
-                data = {}
-            data[session_id] = {
-                "payload": payload,
-                "endpoint_url": endpoint_url,
+            data = _read_queue(queue_path)
+            data[item_key] = {
+                "session_id": session_id,
+                "conversation_dir": str(source),
+                "space": space or "",
+                "agent_id": agent_id or "",
+                "destination_id": destination_id,
                 "timestamp": time.time(),
             }
-            queue_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            _write_queue(queue_path, data)
             return True
-    except TimeoutError:
-        return False
-    except Exception:
+    except (OSError, TimeoutError, ValueError, TypeError):
         return False
 
 
 def flush_unsynced_sessions(cwd: str | Path | None = None) -> int:
-    """Synchronously drain unsynced sessions buffer by retrying direct HTTP imports.
-    Strictly partitions replay by destination endpoint_url to prevent cross-endpoint transcript leak.
-    """
+    """Retry bounded native transcripts without blocking queue writers on HTTP."""
     if is_backend_unreachable():
         return 0
 
@@ -850,43 +903,47 @@ def flush_unsynced_sessions(cwd: str | Path | None = None) -> int:
         return 0
 
     flushed = 0
-    eff_url, _ = get_effective_config(cwd)
-    current_endpoint = eff_url.rstrip("/")
+    eff_url, eff_key = get_effective_config(cwd)
+    current_destination_id = _queue_destination_id(eff_url, eff_key)
 
     try:
-        with FileLock(queue_path, timeout=2.0):
-            if not queue_path.exists():
-                return 0
-            try:
-                data = json.loads(queue_path.read_text(encoding="utf-8"))
-            except Exception:
-                return 0
-            if not isinstance(data, dict) or not data:
-                return 0
-
-            remaining: dict[str, Any] = {}
-            for conv_id, item in data.items():
-                dest = item.get("endpoint_url")
-                # If destination is specified, only replay when it matches current endpoint
-                if dest and dest.rstrip("/") != current_endpoint:
-                    remaining[conv_id] = item
+        # A separate lock serializes flushers. The short-lived queue lock is
+        # never held while parsing files or waiting for the network.
+        with FileLock(queue_path.with_suffix(".flush"), timeout=0.1):
+            with FileLock(queue_path, timeout=2.0):
+                data = _read_queue(queue_path)
+            candidates = [
+                (item_key, item)
+                for item_key, item in data.items()
+                if isinstance(item, dict)
+                and item.get("destination_id") == current_destination_id
+                and isinstance(item.get("conversation_dir"), str)
+                and isinstance(item.get("session_id"), str)
+            ][:3]
+            for item_key, item in candidates:
+                title, messages = parse_openhands_events(item["conversation_dir"])
+                if not messages:
                     continue
-
-                payload = item.get("payload", {})
-                res = http_request("/threads/import", method="POST", body=payload, timeout=3.0, cwd=cwd)
-                if isinstance(res, dict) and res.get("success") is True and not res.get("failed_count"):
+                payload = _thread_payload(
+                    item["session_id"], title, messages, item.get("space"), item.get("agent_id")
+                )
+                res = http_request(
+                    "/threads/import", method="POST", body=payload, timeout=3.0,
+                    cwd=cwd, config=(eff_url, eff_key),
+                )
+                if not (isinstance(res, dict) and res.get("success") is True and not res.get("failed_count")):
+                    continue
+                with FileLock(queue_path, timeout=2.0):
+                    current = _read_queue(queue_path)
+                    if current.get(item_key) != item:
+                        continue  # A newer observation must not be acknowledged away.
+                    del current[item_key]
+                    if current:
+                        _write_queue(queue_path, current)
+                    else:
+                        queue_path.unlink(missing_ok=True)
                     flushed += 1
-                else:
-                    remaining[conv_id] = item
-
-            try:
-                if remaining:
-                    queue_path.write_text(json.dumps(remaining, indent=2) + "\n", encoding="utf-8")
-                else:
-                    queue_path.unlink(missing_ok=True)
-            except Exception:
-                pass
-    except TimeoutError:
+    except (OSError, TimeoutError, ValueError, TypeError):
         return 0
     return flushed
 

@@ -14,8 +14,7 @@ import nmem_shared
 
 def main() -> None:
     try:
-        hook_input = nmem_shared.read_hook_input()
-        tool_name = os.environ.get("OPENHANDS_TOOL_NAME", "") or hook_input.get("tool_name", "")
+        nmem_shared.read_hook_input()
 
         # Always emit valid empty response for OpenHands
         nmem_shared.emit({})

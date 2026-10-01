@@ -12,7 +12,7 @@ All notable changes to the `nowledge-mem-openhands-plugin` are documented in thi
   - `PostToolUse`: File tracking and artifact monitoring.
   - `Stop`: Conversation session synchronization and graceful completion capture.
 - Bundled Python hook runtime (`hooks/nmem_shared.py`, `hooks/nmem-context.py`, `hooks/nmem-post-tool.py`, `hooks/nmem-stop.py`).
-- Fast native HTTP REST transport (<30ms) with seamless fallback to `nmem` CLI.
+- Bounded native HTTP REST transport with fallback to `nmem` CLI.
 - Standard OpenHands MCP configuration (`.mcp.json` and `mcp.json`).
 - Seven canonical Nowledge Mem agent skills:
   - `read-working-memory`
@@ -29,7 +29,9 @@ All notable changes to the `nowledge-mem-openhands-plugin` are documented in thi
 - Session-first prompt context injection in `hooks/nmem-context.py` to prevent redundant context bundle injection across conversational turns.
 - Strict cross-layer credential pairing in `get_effective_config` preventing workspace endpoints from borrowing plugin-root API keys.
 - Send `space_id` parameter to `/context/bundle` endpoint to ensure requested memory space is honored by the backend.
-- Partition offline session queue (`unsynced.json`) by target endpoint URL to prevent cross-endpoint transcript replays.
+- Bind offline session replay to the exact target URL and credential identity, preventing cross-destination transcript replays without persisting API keys.
+- Keep only native event paths and routing metadata in a private, atomic outbox; replay outside the queue writer lock and preserve newer observations.
+- Declare `X-Nmem-Space-Protocol: exact-v1` in static and generated MCP configurations.
 - Added `--json` flag and verified response success flags in CLI thread import fallback.
 - Enhanced OpenHands conversation event discovery across custom persistence directories and non-dashed UUIDs.
 - Updated SDK setup guide with remote MCP auth headers, explicit persistence directory configuration, and `OPENHANDS_PLUGIN_ROOT` path binding.

@@ -38,5 +38,4 @@ When OpenHands coordinates multi-agent workflows or child workers:
 ## Architecture & Tiered Resilience
 
 - **Event Ingestion**: `hooks/nmem_shared.py` reads discrete OpenHands event logs (`events/event-*.json`), strips execution churn, deduplicates turns, and normalizes into chat messages.
-- **3-Tier Sync**: Fast REST (`POST /threads/import`) -> CLI fallback (`nmem t import`) -> File-locked offline queue (`unsynced.json`) with auto-drain on subsequent runs.
-
+- **3-Tier Sync**: REST (`POST /threads/import`) -> CLI fallback (`nmem t import`) -> private, path-only offline queue (`unsynced.json`) with bounded auto-drain on subsequent runs.
