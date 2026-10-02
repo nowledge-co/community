@@ -457,7 +457,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.37",
+      "version": "0.1.38",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -490,7 +490,7 @@
           "Restart Codex and trust the new or changed Nowledge Mem hooks when prompted; enabled and trusted are separate Codex security states",
           "If Codex local Memory is also enabled, turn off Allow memory generation from tool-assisted tasks so MCP and web results do not get copied into Codex's separate local memory store",
           "Use the bundled local MCP server, or use nmem config mcp show --host codex to override mcp_servers.nowledge-mem for remote Mem or authenticated localhost",
-          "Optional local mailbox guidance requires explicit NMEM_AGENT_CONTEXT, a compatible CLI/backend and an independently approved context; when NMEM_CLI_PATH is set, both hooks and model-issued CLI calls must use that executable rather than another nmem from PATH; it never enrolls identities, settles mail or controls hosts automatically",
+          "Optional local mailbox guidance requires explicit NMEM_AGENT_CONTEXT, a compatible CLI/backend and an independently approved context; when NMEM_CLI_PATH is set, both hooks and model-issued CLI calls must use that executable rather than another nmem from PATH; NMEM_AGENT_PROFILE_MAINTENANCE=1 separately opts an existing live profile into one bounded revision-fenced Stop review and never creates an identity, edits Rules, settles mail or controls hosts automatically",
           "Keep nmem available on this machine",
           "Run nmem t sync --from codex --all-projects --apply only when you want to import older Codex sessions",
           "Merge the package AGENTS.md into the project for stronger follow-through"
@@ -509,7 +509,7 @@
       },
       "toolNaming": {
         "convention": "hybrid-cli+mcp",
-        "note": "SessionStart injects the Nowledge Context Bundle. SubagentStart uses an exact Codex role allowlist: selected context-heavy roles receive a bounded snapshot, explorer is a no-op by default, and other roles receive targeted retrieval guidance without a context read. UserPromptSubmit keeps cross-tool/exact-history work routed to Nowledge even when Codex local Memory is enabled. The search-memory skill routes bounded Normal, Deep, and one-hop Progressive graph retrieval, and non-empty Memory results get a focused graph through the inline MCP App or standalone fallback. Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and skips Raft-managed execution traces by structured session originator without affecting normal Codex sessions on the same computer. The save-thread skill remains the explicit fallback."
+        "note": "SessionStart injects the Nowledge Context Bundle. SubagentStart uses an exact Codex role allowlist: selected context-heavy roles receive a bounded snapshot, explorer is a no-op by default, and other roles receive targeted retrieval guidance without a context read. UserPromptSubmit keeps cross-tool/exact-history work routed to Nowledge even when Codex local Memory is enabled. The search-memory skill routes bounded Normal, Deep, and one-hop Progressive graph retrieval, and non-empty Memory results get a focused graph through the inline MCP App or standalone fallback. Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and skips Raft-managed execution traces by structured session originator without affecting normal Codex sessions on the same computer. Explicit existing-profile maintenance adds a separate bounded, duplicate-guarded apply-or-no-change continuation and exits normally on recursive Stop. The save-thread skill remains the explicit fallback."
       },
       "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "explore-graph", "status"],
       "slashCommands": []
