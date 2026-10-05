@@ -490,6 +490,7 @@
           "Restart Codex and trust the new or changed Nowledge Mem hooks when prompted; enabled and trusted are separate Codex security states",
           "If Codex local Memory is also enabled, turn off Allow memory generation from tool-assisted tasks so MCP and web results do not get copied into Codex's separate local memory store",
           "Use the bundled local MCP server, or use nmem config mcp show --host codex to override mcp_servers.nowledge-mem for remote Mem or authenticated localhost",
+          "Optional local mailbox guidance requires explicit NMEM_AGENT_CONTEXT, a compatible CLI/backend and an independently approved context; when NMEM_CLI_PATH is set, both hooks and model-issued CLI calls must use that executable rather than another nmem from PATH; it never enrolls identities, settles mail or controls hosts automatically",
           "Keep nmem available on this machine",
           "Run nmem t sync --from codex --all-projects --apply only when you want to import older Codex sessions",
           "Merge the package AGENTS.md into the project for stronger follow-through"
