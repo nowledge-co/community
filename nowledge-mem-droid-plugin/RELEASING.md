@@ -32,8 +32,8 @@ This validator checks:
 
 These still require a real Droid validation pass:
 
-- add the local checkout as a marketplace with `droid plugin marketplace add .`
-- install `nowledge-mem@nowledge-community`
+- add the local checkout as a marketplace with `droid plugin marketplace add "$(pwd)"` (Droid rejects `.` with "Invalid marketplace name derived from input")
+- install `nowledge-mem@community` (Droid names a marketplace after its source, not after the `nowledge-community` display name in `.factory-plugin/marketplace.json`)
 - confirm hooks load without manifest or schema errors
 - confirm slash commands are discovered
 - confirm Context Bundle loads at session start, or Working Memory loads as the fallback on older `nmem`
@@ -45,15 +45,15 @@ These still require a real Droid validation pass:
 
 ```bash
 cd community
-droid plugin marketplace add .
-droid plugin install nowledge-mem@nowledge-community
+droid plugin marketplace add "$(pwd)"
+droid plugin install nowledge-mem@community
 ```
 
 For a public repository-backed marketplace:
 
 ```bash
 droid plugin marketplace add https://github.com/nowledge-co/community
-droid plugin install nowledge-mem@nowledge-community
+droid plugin install nowledge-mem@community
 ```
 
 ## Release Checklist
