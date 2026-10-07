@@ -179,6 +179,7 @@ class StopMaintenanceTests(unittest.TestCase):
             self.profile(instructions="private"),
             self.profile(agent_id="other"),
             self.profile(revision="r1"),
+            self.profile(description="x" * 4097),
             self.profile(responsibilities="Review"),
             self.profile(skills=[{"id": "skill-review", "name": "Storage review", "secret": "x"}]),
         ]
@@ -230,7 +231,16 @@ class StopMaintenanceTests(unittest.TestCase):
                 status = self.status()
                 status["selection"]["scope"]["space_id"] = space
                 response, _ = self.invoke(status=status)
-                self.assertEqual(response["decision"], "block")
+                self.assertEqual(response.get("decision"), "block")
+
+    def test_invalid_space_identity_never_prepares(self):
+        for space in (None, 3, "bad\0id", "\ud800"):
+            with self.subTest(space=repr(space)):
+                status = self.status()
+                status["selection"]["scope"]["space_id"] = space
+                response, run = self.invoke(status=status)
+                self.assertEqual(response, self.module.NORMAL_STOP_RESPONSE)
+                self.assertEqual(run.call_count, 1)
 
     def test_same_stop_after_concurrent_profile_edit_has_one_continuation(self):
         before = self.profile()
@@ -255,9 +265,8 @@ class StopMaintenanceTests(unittest.TestCase):
     def test_duplicate_hook_sources_claim_only_one_continuation(self):
         with tempfile.TemporaryDirectory() as directory, \
              mock.patch.dict(os.environ, {"CODEX_HOME": directory}, clear=False):
-            operation = self.module._operation_id(self.event(), "reviewer", self.profile())
-            self.assertTrue(self.module._claim_continuation(operation))
-            self.assertFalse(self.module._claim_continuation(operation))
+            self.assertTrue(self.module._claim_continuation("turn-7"))
+            self.assertFalse(self.module._claim_continuation("turn-7"))
 
 
 class StopEntrypointTests(unittest.TestCase):

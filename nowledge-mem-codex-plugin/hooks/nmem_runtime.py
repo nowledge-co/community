@@ -123,9 +123,9 @@ def windows_no_window_kwargs() -> dict[str, int]:
 def find_nmem_command() -> str | None:
     configured = os.environ.get("NMEM_CLI_PATH", "").strip()
     if configured:
-        resolved = shutil.which(configured) or _usable_command(configured)
-        if resolved:
-            return resolved
+        # A configured executable pins the destination; another installation
+        # can have a different config and the same named Agent context.
+        return shutil.which(configured) or _usable_command(configured)
 
     for name in ("nmem", "nmem.cmd", "nmem.exe"):
         resolved = shutil.which(name)
@@ -142,6 +142,17 @@ def find_nmem_command() -> str | None:
         if resolved:
             return resolved
     return None
+
+
+def is_exact_space_id(value: object) -> bool:
+    """Preserve opaque UTF-8 Space IDs, including empty and whitespace IDs."""
+    if not isinstance(value, str) or "\0" in value:
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeError:
+        return False
+    return True
 
 
 def cmd_exe_path(path: str) -> str:

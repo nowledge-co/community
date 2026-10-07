@@ -97,6 +97,8 @@ class MailboxContextTests(unittest.TestCase):
             {"state": {}},
             {"selection": []},
             {"selection": {"scope": [], "address": {}}},
+            {"selection": {"scope": {"space_id": "bad\0id"}, "address": {"agent_id": "b"}}},
+            {"selection": {"scope": {"space_id": "\ud800"}, "address": {"agent_id": "b"}}},
             {"http_status": 409, "error_code": "mailbox_attachment_stale"},
         ):
             with self.subTest(changes=changes):

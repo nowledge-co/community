@@ -21,6 +21,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 from nmem_runtime import build_nmem_command as _build_nmem_command
 from nmem_runtime import find_nmem_command as _find_nmem_command
+from nmem_runtime import is_exact_space_id as _is_exact_space_id
 from nmem_runtime import windows_no_window_kwargs as _windows_no_window_kwargs
 
 
@@ -124,7 +125,7 @@ def _live_selection(nmem: str, context: str) -> tuple[str, str] | None:
     space_id = scope.get("space_id")
     if not isinstance(agent_id, str) or TOKEN_RE.fullmatch(agent_id) is None:
         return None
-    if not isinstance(space_id, str) or TOKEN_RE.fullmatch(space_id) is None:
+    if not _is_exact_space_id(space_id):
         return None
 
     configured_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
@@ -219,7 +220,7 @@ def _continuation_lock_root() -> Path:
     return root / "log" / "nowledge-mem-stop-hook-locks" / "profile-maintenance"
 
 
-def _claim_continuation(operation_id: str) -> bool:
+def _claim_continuation(turn_id: str) -> bool:
     """Let plugin and installed fallback hooks request at most one continuation."""
     root = _continuation_lock_root()
     try:
@@ -231,7 +232,9 @@ def _claim_continuation(operation_id: str) -> bool:
                     candidate.unlink()
             except OSError:
                 continue
-        key = hashlib.sha256(operation_id.encode("ascii")).hexdigest()
+        # The original Codex turn is stable across hook sources and concurrent
+        # profile/context changes; the mutation operation ID is not.
+        key = hashlib.sha256(turn_id.encode("utf-8")).hexdigest()
         fd = os.open(root / f"{key}.lock", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except (FileExistsError, OSError):
         return False
@@ -315,7 +318,7 @@ def build_stop_response(event: dict[str, Any]) -> dict[str, Any]:
         )
         if reason is None:
             return NORMAL_STOP_RESPONSE.copy()
-        if not _claim_continuation(operation_id):
+        if not _claim_continuation(turn_id):
             return NORMAL_STOP_RESPONSE.copy()
         return {"decision": "block", "reason": reason}
     except Exception:

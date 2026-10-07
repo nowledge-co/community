@@ -14,6 +14,14 @@
   recursive, duplicate, unsupported, malformed, timed-out, conflicting, and
   failed paths end normally without claiming a profile save.
 
+### Fixed
+
+- Keep continuation admission stable across concurrent profile edits during
+  the same Stop while retaining revision-fenced mutation operation IDs.
+- Refuse an unavailable explicit CLI path instead of selecting another install.
+- Preserve exact Space IDs, including empty, whitespace, and Unicode IDs, in
+  live named-context admission at startup and Stop.
+
 ## [0.1.38] - 2026-10-01
 
 ### Tests
