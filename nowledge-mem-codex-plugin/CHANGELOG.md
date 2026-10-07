@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.1.40] - 2026-10-07
+
+### Fixed
+
+- Support maintenance version 2 at Stop, preserving its complete lifecycle-bound
+  revision in the deferred action. Legacy and unknown maintenance protocols
+  skip the optional continuation and allow normal shutdown.
+- Keep one continuation per original Stop even when a context is reselected,
+  and end a conflicting maintenance attempt without preparing a new revision.
+
 ## [0.1.39] - 2026-10-07
 
 ### Added
