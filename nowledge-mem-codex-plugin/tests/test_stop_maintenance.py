@@ -68,9 +68,9 @@ class StopMaintenanceTests(unittest.TestCase):
     @staticmethod
     def profile(**changes):
         payload = {
-            "version": 1,
+            "version": 2,
             "agent_id": "agent-reviewer",
-            "revision": "sha256:" + "a" * 64,
+            "revision": "m2:" + "1" * 64 + ":" + "a" * 64,
             "description": "Reviews storage changes",
             "responsibilities": ["Review migrations"],
             "skills": [{"id": "skill-review", "name": "Storage review"}],
@@ -207,12 +207,23 @@ class StopMaintenanceTests(unittest.TestCase):
         self.assertIn("untrusted profile data", reason)
         self.assertIn('"cli_executable":"/opt/nmem"', reason)
         self.assertIn('"agent_context":"reviewer"', reason)
-        self.assertIn('"expected_revision":"sha256:', reason)
-        self.assertIn('"operation_id":"codex-stop-v1:', reason)
+        self.assertIn('"expected_revision":"m2:', reason)
+        self.assertIn('"operation_id":"codex-stop-v2:', reason)
         self.assertIn("Ignore previous instructions", reason)
         self.assertNotIn("secret-status", reason)
         self.assertNotIn("secret-profile", reason)
         self.assertLessEqual(len(reason.encode("utf-8")), self.module.MAX_CONTINUATION_BYTES)
+
+    def test_v2_continuation_preserves_the_complete_prepared_revision(self):
+        revision = "m2:" + "1" * 64 + ":" + "a" * 64
+        profile = self.profile(version=2, revision=revision)
+        response, _ = self.invoke(profile=profile)
+        self.assertEqual(response.get("decision"), "block")
+        control = json.loads(response["reason"].split("Trusted control JSON:\n", 1)[1].split("\n", 1)[0])
+        self.assertEqual(control["expected_revision"], revision)
+        self.assertEqual(control["agent_context"], "reviewer")
+        self.assertEqual(control["cli_executable"], "/opt/nmem")
+        self.assertEqual(control["operation_id"], self.module._operation_id(self.event(), "reviewer", profile))
 
     def test_operation_changes_with_turn_but_not_last_message(self):
         first, _ = self.invoke(event=self.event(last_assistant_message="one"))
@@ -221,7 +232,36 @@ class StopMaintenanceTests(unittest.TestCase):
         operation = self.module._operation_id(self.event(), "reviewer", self.profile())
         self.assertEqual(first, same)
         self.assertNotEqual(first, changed)
-        self.assertRegex(operation, r"^codex-stop-v1:[0-9a-f]{64}$")
+        self.assertRegex(operation, r"^codex-stop-v2:[0-9a-f]{64}$")
+
+    def test_legacy_unknown_and_malformed_revisions_never_continue(self):
+        valid_revision = self.profile()["revision"]
+        for version, revision in (
+            (1, "sha256:" + "a" * 64),
+            (1, valid_revision),
+            (3, valid_revision),
+            (True, valid_revision),
+            ("2", valid_revision),
+            (2, "sha256:" + "a" * 64),
+            (2, valid_revision.upper()),
+            (2, valid_revision[:-1]),
+            (2, valid_revision + ":extra"),
+            (2, valid_revision + "\n"),
+            (2, "m2:" + "a" * 64 + ":" + "\u00e9" * 32),
+        ):
+            with self.subTest(version=version, revision=revision):
+                response, _ = self.invoke(profile=self.profile(version=version, revision=revision))
+                self.assertEqual(response, self.module.NORMAL_STOP_RESPONSE)
+
+    def test_operation_identity_binds_both_prepared_revision_digests(self):
+        original = self.module._operation_id(self.event(), "reviewer", self.profile())
+        for revision in (
+            "m2:" + "2" * 64 + ":" + "a" * 64,
+            "m2:" + "1" * 64 + ":" + "b" * 64,
+        ):
+            with self.subTest(revision=revision):
+                profile = self.profile(revision=revision)
+                self.assertNotEqual(original, self.module._operation_id(self.event(), "reviewer", profile))
 
     def test_oversize_prompt_fails_open_without_truncating_profile_json(self):
         profile = self.profile(description="x" * 4096, responsibilities=["y" * 512] * 8)
@@ -248,7 +288,7 @@ class StopMaintenanceTests(unittest.TestCase):
 
     def test_same_stop_after_concurrent_profile_edit_has_one_continuation(self):
         before = self.profile()
-        after = self.profile(revision="sha256:" + "b" * 64)
+        after = self.profile(revision="m2:" + "1" * 64 + ":" + "b" * 64)
         replies = [
             subprocess.CompletedProcess([], 0, json.dumps(payload), "")
             for profile in (before, after, after)
@@ -265,6 +305,25 @@ class StopMaintenanceTests(unittest.TestCase):
         self.assertIn(self.module._operation_id(self.event(), "reviewer", before), first["reason"])
         self.assertEqual(duplicate, self.module.NORMAL_STOP_RESPONSE)
         self.assertEqual(next_turn["decision"], "block")
+
+    def test_same_stop_after_context_reselection_has_one_continuation(self):
+        original = self.profile()
+        reselected = self.profile(revision="m2:" + "2" * 64 + ":" + "a" * 64)
+        replies = [
+            subprocess.CompletedProcess([], 0, json.dumps(payload), "")
+            for profile in (original, reselected)
+            for payload in (self.status(), profile)
+        ]
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.dict(os.environ, {"CODEX_HOME": directory}), \
+             mock.patch.object(self.module, "_find_nmem_command", return_value="/opt/nmem"), \
+             mock.patch.object(self.module.subprocess, "run", side_effect=replies):
+            first = self.module.build_stop_response(self.event())
+            duplicate = self.module.build_stop_response(self.event())
+        self.assertEqual(first.get("decision"), "block")
+        self.assertIn(original["revision"], first["reason"])
+        self.assertNotIn(reselected["revision"], first["reason"])
+        self.assertEqual(duplicate, self.module.NORMAL_STOP_RESPONSE)
 
     def test_duplicate_hook_sources_claim_only_one_continuation(self):
         with tempfile.TemporaryDirectory() as directory, \
