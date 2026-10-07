@@ -1287,6 +1287,15 @@ class RuntimeHelperTests(unittest.TestCase):
         ), mock.patch.object(self.module.shutil, "which", return_value=None):
             self.assertEqual(self.module.find_nmem_command(), str(nmem))
 
+    def test_missing_explicit_cli_never_uses_another_installation(self):
+        configured = str(self.temp_path / "missing-nmem")
+        with mock.patch.dict(self.module.os.environ, {"NMEM_CLI_PATH": configured}), \
+             mock.patch.object(self.module.shutil, "which", side_effect=lambda name: None if name == configured else "/other/nmem") as which, \
+             mock.patch.object(self.module, "_known_nmem_candidates") as candidates:
+            self.assertIsNone(self.module.find_nmem_command())
+        which.assert_called_once_with(configured)
+        candidates.assert_not_called()
+
     def test_desktop_wrapper_is_found_when_shell_path_is_empty(self):
         nmem = (
             self.temp_path

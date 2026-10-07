@@ -72,6 +72,20 @@ class MailboxContextTests(unittest.TestCase):
             allow_file_fallback=False,
         )
 
+    def test_live_space_identity_is_forwarded_without_normalization(self):
+        os.environ["NMEM_AGENT_CONTEXT"] = "reviewer"
+        for space in ("", " ", "Research Space", "\u7814\u53d1", "tag/one", "%2F", "\n", "e\u0301"):
+            with self.subTest(space=space), mock.patch.dict(os.environ, {"NMEM_SPACE_ID": space}):
+                status = self.status()
+                status["selection"]["scope"]["space_id"] = space
+                result = subprocess.CompletedProcess([], 0, json.dumps(status), "")
+                context, _ = self.invoke(result=result)
+                self.assertIn("pre-completion", context)
+                self.load.assert_called_once_with(
+                    context_args=[], working_memory_args=["wm", "read", "--space-id", space],
+                    allow_file_fallback=False,
+                )
+
     def test_nonlive_and_conflicting_status_never_install_operations(self):
         os.environ["NMEM_AGENT_CONTEXT"] = "reviewer"
         for changes in (

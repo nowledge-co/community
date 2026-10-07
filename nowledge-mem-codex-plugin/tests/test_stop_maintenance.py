@@ -163,7 +163,7 @@ class StopMaintenanceTests(unittest.TestCase):
         bad_results = [
             subprocess.CompletedProcess([], 1, "{}", "private failure"),
             subprocess.CompletedProcess([], 0, "not-json", "private failure"),
-            subprocess.CompletedProcess([], 0, "x" * (64 * 1024 + 1), "private failure"),
+            subprocess.CompletedProcess([], 0, json.dumps(self.status(padding="x" * (64 * 1024))), "private failure"),
         ]
         for bad in bad_results:
             with self.subTest(returncode=bad.returncode, length=len(bad.stdout)), \
@@ -219,8 +219,38 @@ class StopMaintenanceTests(unittest.TestCase):
         self.assertRegex(operation, r"^codex-stop-v1:[0-9a-f]{64}$")
 
     def test_oversize_prompt_fails_open_without_truncating_profile_json(self):
-        response, _ = self.invoke(profile=self.profile(description="x" * self.module.MAX_CONTINUATION_BYTES))
+        profile = self.profile(description="x" * 4096, responsibilities=["y" * 512] * 8)
+        self.assertIsNotNone(self.module._profile_projection(profile, "agent-reviewer"))
+        response, _ = self.invoke(profile=profile)
         self.assertEqual(response, self.module.NORMAL_STOP_RESPONSE)
+
+    def test_live_space_identity_preserves_exact_bytes(self):
+        for space in ("", " ", "Research Space", "\u7814\u53d1", "tag/one", "%2F", "\n", "e\u0301"):
+            with self.subTest(space=space), mock.patch.dict(os.environ, {"NMEM_SPACE_ID": space}):
+                status = self.status()
+                status["selection"]["scope"]["space_id"] = space
+                response, _ = self.invoke(status=status)
+                self.assertEqual(response["decision"], "block")
+
+    def test_same_stop_after_concurrent_profile_edit_has_one_continuation(self):
+        before = self.profile()
+        after = self.profile(revision="sha256:" + "b" * 64)
+        replies = [
+            subprocess.CompletedProcess([], 0, json.dumps(payload), "")
+            for profile in (before, after, after)
+            for payload in (self.status(), profile)
+        ]
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.dict(os.environ, {"CODEX_HOME": directory}), \
+             mock.patch.object(self.module, "_find_nmem_command", return_value="/opt/nmem"), \
+             mock.patch.object(self.module.subprocess, "run", side_effect=replies):
+            first = self.module.build_stop_response(self.event())
+            duplicate = self.module.build_stop_response(self.event())
+            next_turn = self.module.build_stop_response(self.event(turn_id="turn-8"))
+        self.assertEqual(first["decision"], "block")
+        self.assertIn(self.module._operation_id(self.event(), "reviewer", before), first["reason"])
+        self.assertEqual(duplicate, self.module.NORMAL_STOP_RESPONSE)
+        self.assertEqual(next_turn["decision"], "block")
 
     def test_duplicate_hook_sources_claim_only_one_continuation(self):
         with tempfile.TemporaryDirectory() as directory, \
@@ -257,7 +287,7 @@ class StopEntrypointTests(unittest.TestCase):
         build.assert_called_once_with(event)
 
     def test_oversize_hook_input_is_not_forwarded_to_maintenance(self):
-        raw = "x" * (self.module.MAX_HOOK_INPUT_BYTES + 1)
+        raw = json.dumps({"padding": "x" * self.module.MAX_HOOK_INPUT_BYTES})
         with mock.patch.object(self.module.sys, "stdin", io.StringIO(raw)):
             self.assertEqual(self.module._read_hook_input(), {})
         self.assertEqual(self.module._LAST_HOOK_PAYLOAD, {})
