@@ -30,28 +30,37 @@ node scripts/validate-plugin.mjs
 npm pack --dry-run
 ```
 
-`npm pack` is not enough on its own. ClawHub publishes the plugin from the
-working tree and honors `.clawhubignore`, not npm's `files` whitelist. Keep the
-two release surfaces aligned so test and build-only files do not leak into the
-published code plugin.
+Use a ClawHub CLI that supports `package publish`. Check its help before
+publishing; older CLIs may only support skill publication. The code plugin is
+`@nowledge/openclaw-nowledge-mem`. The separate `nowledge-mem` skill listing
+does not install the plugin runtime.
 
-The installed ClawHub CLI 0.8.0 has no publish dry-run. Validate the package
-locally, then run the publish command only after the OpenClaw install smoke
-passes. The publisher is taken from the authenticated `clawhub` account.
+Preview the code-plugin package and its file list without uploading:
 
 ```bash
-clawhub --workdir "$PWD" publish . \
-  --slug nowledge-mem \
+clawhub package publish --help
+clawhub package publish . \
+  --family code-plugin \
+  --name @nowledge/openclaw-nowledge-mem \
+  --owner nowledge \
   --version 0.8.34 \
   --tags latest \
-  --changelog "OpenClaw 2.0 Incognito-safe automatic capture and package-version diagnostics"
+  --source-repo nowledge-co/community \
+  --source-commit "$(git rev-parse HEAD)" \
+  --source-path nowledge-mem-openclaw-plugin \
+  --dry-run
 ```
+
+Confirm that the preview excludes tests and build-only files. Run the publish
+command only after the OpenClaw install smoke passes. See the
+[ClawHub CLI command definitions](https://github.com/openclaw/clawhub/blob/main/packages/clawhub/src/cli.ts)
+for the package and skill publication interfaces.
 
 ## Manual Readiness Checks
 
 These still need a real OpenClaw install smoke test:
 
-- install from ClawHub with `openclaw plugins install clawhub:nowledge-mem`
+- install from ClawHub with `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem`
 - install from the local folder with `openclaw plugins install --link .`
 - confirm the plugin loads without manifest or config-schema errors
 - confirm the memory slot switches to `openclaw-nowledge-mem`
@@ -71,28 +80,34 @@ The package name is scoped as `@nowledge/openclaw-nowledge-mem`, and ClawHub
 enforces that the scoped package owner exists and matches:
 
 ```bash
-clawhub inspect nowledge-mem
-```
-
-If the owner is not `nowledge`, transfer it before publishing another version:
-
-```bash
+clawhub package inspect @nowledge/openclaw-nowledge-mem
 clawhub whoami
 ```
+
+Confirm that the listing has family `code-plugin` and owner `nowledge`, and that
+the authenticated account can publish under that owner. Resolve any ownership
+or trusted-publisher gate before publishing.
 
 Publish after the readiness checks:
 
 ```bash
-clawhub --workdir /path/to/community/nowledge-mem-openclaw-plugin publish . \
-  --slug nowledge-mem \
+clawhub package publish . \
+  --family code-plugin \
+  --name @nowledge/openclaw-nowledge-mem \
+  --owner nowledge \
   --version 0.8.34 \
   --tags latest \
+  --source-repo nowledge-co/community \
+  --source-commit "$(git rev-parse HEAD)" \
+  --source-path nowledge-mem-openclaw-plugin \
+  --wait \
   --changelog "OpenClaw 2.0 Incognito-safe automatic capture and package-version diagnostics"
 ```
 
 If your globally installed `clawhub` CLI is older or does not support the
-`publish` options above, update the CLI before publishing. Do not use the old
-`package publish` syntax; it is not accepted by ClawHub CLI 0.8.0.
+`package publish` options above, update it through the development machine's
+tool manager before publishing. After publication, inspect the scoped package
+again and confirm the intended version is available as a `code-plugin`.
 
 ```bash
 clawhub --help
@@ -109,17 +124,17 @@ npm publish --access public
 
 - bump `version` in `package.json` and `openclaw.plugin.json`
 - update `CHANGELOG.md`
-- keep `package.json` `openclaw.install.npmSpec`, `openclaw.compat`, and `openclaw.build` aligned with the tested OpenClaw baseline
+- keep `package.json` `openclaw.install.clawhubSpec`, `openclaw.install.npmSpec`, `openclaw.compat`, and `openclaw.build` aligned with the tested OpenClaw baseline
 - keep the package, manifest, integration registry, and runtime Context Engine version aligned
 - keep `openclaw.install.minHostVersion` omitted for this plugin; `scripts/validate-plugin.mjs` enforces this and is the source of truth if the policy ever changes
-- keep `.clawhubignore` aligned with the npm package surface so ClawHub releases do not ship tests or build-only files
+- inspect the package dry-run file list so ClawHub releases do not ship tests or build-only files
 - run `node scripts/validate-plugin.mjs`
 - run `npm pack --dry-run`
 - run `clawhub whoami` and confirm the intended publisher is logged in
-- run `clawhub inspect nowledge-mem` when an existing listing is expected
-- run `clawhub --workdir "$PWD" publish . --slug nowledge-mem --version 0.8.34 --tags latest`
+- run `clawhub package inspect @nowledge/openclaw-nowledge-mem` and confirm family `code-plugin`
+- run the `clawhub package publish . --family code-plugin --name @nowledge/openclaw-nowledge-mem --owner nowledge --dry-run` preview above
 - manually test install in OpenClaw
-- publish to ClawHub
+- publish the scoped code plugin to ClawHub and read back its family, owner, and version
 - optionally publish to npm after the ClawHub release is confirmed
 
 ## Recommended Listing Values
