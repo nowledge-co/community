@@ -969,8 +969,8 @@
         ]
       },
       "install": {
-        "command": "droid plugin marketplace add https://github.com/nowledge-co/community && droid plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "droid plugin marketplace update nowledge-community && droid plugin update nowledge-mem@nowledge-community",
+        "command": "droid plugin marketplace add https://github.com/nowledge-co/community && droid plugin install nowledge-mem@community",
+        "updateCommand": "droid plugin marketplace update community && droid plugin update nowledge-mem@community",
         "detectionHint": "Running inside Droid (Factory)",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Droid. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
