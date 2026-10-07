@@ -4,14 +4,17 @@
 
 ### Fixed
 
+- Automatic Thread capture now handles OpenCode 2.x's
+  `session.execution.succeeded` event. Legacy idle events remain supported,
+  and repeated completion events do not resend acknowledged messages.
 - Tool calls in captured Threads now carry structured `tool_activities`
   metadata. By default this retains only tool name and status. Explicitly set
   `NMEM_OPENCODE_CAPTURE_TOOL_DETAILS=true` before first capture to include
   up to 500 characters each of input, output, and error, without redaction;
   `nowledge_mem_*` payloads remain excluded. Already-captured messages are not
   rewritten, including calls that were still running when captured.
-- `NMEM_OPENCODE_AUTO_SYNC=false` now disables both idle and pre-compaction
-  capture; manual `nowledge_mem_save_thread` remains available.
+- `NMEM_OPENCODE_AUTO_SYNC=false` now disables completion, idle, and
+  pre-compaction capture; manual `nowledge_mem_save_thread` remains available.
 
 ## [0.4.0] - 2026-09-20
 

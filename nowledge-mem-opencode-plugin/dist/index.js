@@ -924,6 +924,10 @@ var index_default = Plugin.define({
           const sessionID = sessionIdFromEvent(event);
           if (!sessionID) continue;
           const sessionDirectory = directoryFromEvent(event);
+          if (event.type === "session.execution.succeeded") {
+            scheduleAutoThreadSync(sessionID, "session_execution_succeeded", sessionDirectory);
+            continue;
+          }
           if (event.type === "session.status") {
             if (event.data?.status?.type === "idle") {
               scheduleAutoThreadSync(sessionID, "session_status_idle", sessionDirectory);

@@ -1438,7 +1438,7 @@
       "threadSave": {
         "method": "sdk-extract+event-idle",
         "historicalCommand": "nmem t sync --from opencode --all-projects",
-        "note": "Plugin subscribes to OpenCode session idle events and pre-compaction, reads session messages through ctx.session.context, and posts to Nowledge Mem thread API over HTTP; save_thread remains an explicit idempotent fallback"
+        "note": "Plugin subscribes to OpenCode session.execution.succeeded, legacy idle events, and pre-compaction, reads session messages through ctx.session.context, and posts to Nowledge Mem thread API over HTTP; save_thread remains an explicit idempotent fallback"
       },
       "autonomy": {
         "bootstrap": "guided",

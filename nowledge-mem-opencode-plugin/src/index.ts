@@ -92,7 +92,7 @@ type HandoffArgs = SpaceToolArgs & {
   summary: string
 }
 
-type SyncReason = "manual_tool" | "session_status_idle" | "session_idle" | "session_compacting"
+type SyncReason = "manual_tool" | "session_execution_succeeded" | "session_status_idle" | "session_idle" | "session_compacting"
 type SessionSyncState = {
   timer?: ReturnType<typeof setTimeout>
   inFlight?: Promise<void>
@@ -852,6 +852,10 @@ export default Plugin.define({
           const sessionID = sessionIdFromEvent(event)
           if (!sessionID) continue
           const sessionDirectory = directoryFromEvent(event)
+          if (event.type === "session.execution.succeeded") {
+            scheduleAutoThreadSync(sessionID, "session_execution_succeeded", sessionDirectory)
+            continue
+          }
           if (event.type === "session.status") {
             if (event.data?.status?.type === "idle") {
               scheduleAutoThreadSync(sessionID, "session_status_idle", sessionDirectory)
