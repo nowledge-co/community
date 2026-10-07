@@ -112,7 +112,7 @@ Tools that read, write, or save scoped knowledge accept optional `space` and `sp
 
 Nowledge Mem captures OpenCode sessions in four complementary ways:
 
-1. **Plugin automatic live capture.** When OpenCode reports `session.status=idle` (or the older `session.idle` event), the plugin waits briefly for messages to flush, reads the current session through OpenCode's SDK, and creates or appends the matching `opencode-<sessionID>` thread in Nowledge Mem. This works in local and remote mode because the plugin runs where OpenCode owns the session.
+1. **Plugin automatic live capture.** When OpenCode reports `session.execution.succeeded` (or a legacy `session.status=idle` / `session.idle` event), the plugin waits briefly for messages to flush, reads the current session through OpenCode's SDK, and creates or appends the matching `opencode-<sessionID>` thread in Nowledge Mem. This works in local and remote mode because the plugin runs where OpenCode owns the session.
 
 2. **Pre-compaction flush.** Before OpenCode compacts a long session, the plugin saves the current transcript through the same thread path. The normal context hook restores the Nowledge Mem guidance on the next agent-loop request.
 
@@ -145,7 +145,7 @@ Use `-p /path/to/project` instead of `--all-projects` when you only want one pro
 The plugin uses three OpenCode v2 extension points:
 
 - **System prompt injection** (`session.hook("context")`): teaches the agent when to read Context Bundle, use Working Memory fallback, search proactively, and save autonomously. Active on every agent-loop request.
-- **Session event capture** (`event.subscribe()`): listens for `session.status=idle` and legacy `session.idle` on the v2 event stream, debounces briefly, then saves the current session as a Mem thread with stable dedupe metadata.
+- **Session event capture** (`event.subscribe()`): listens for `session.execution.succeeded`, legacy `session.status=idle`, and `session.idle` on the v2 event stream, debounces briefly, then saves the current session as a Mem thread with stable dedupe metadata.
 - **Compaction resilience** (`session.hook("compaction")`): flushes the current transcript before compaction. The `context` hook restores Nowledge Mem guidance on the next agent-loop request, instead of adding instructions to the compaction model call.
 
 For project-specific behavioral guidance, add to your `AGENTS.md` or OpenCode instructions. The included `AGENTS.md` in this package serves as a reference.

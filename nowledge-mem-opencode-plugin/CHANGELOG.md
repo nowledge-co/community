@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Automatic Thread capture now handles OpenCode 2.x's
+  `session.execution.succeeded` event. Legacy idle events remain supported,
+  and repeated completion events do not resend acknowledged messages.
 - Tool calls in captured Threads now carry structured `tool_activities`
   metadata. By default this retains only tool name and status. Explicitly set
   `NMEM_OPENCODE_CAPTURE_TOOL_DETAILS=true` before first capture to include
