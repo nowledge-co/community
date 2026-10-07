@@ -24,17 +24,28 @@ Droid does not yet have a Nowledge transcript importer wired into `nmem t save -
 droid plugin marketplace add https://github.com/nowledge-co/community
 
 # Install the plugin
-droid plugin install nowledge-mem@nowledge-community
+droid plugin install nowledge-mem@community
 ```
+
+Droid derives the marketplace name from the source, so the repository
+`nowledge-co/community` registers as `community`; the plugin id is
+`nowledge-mem@community`. `nowledge-community` is the marketplace's display
+name in `.factory-plugin/marketplace.json` and the name other hosts (Claude
+Code, Codex, Copilot CLI) use — Droid does not read it.
 
 For local development from a checkout:
 
 ```bash
 git clone https://github.com/nowledge-co/community.git
 cd community
-droid plugin marketplace add .
-droid plugin install nowledge-mem@nowledge-community
+droid plugin marketplace add "$(pwd)"
+droid plugin install nowledge-mem@community
 ```
+
+A local marketplace registers under the directory's basename, so cloning into
+`community/` keeps the same plugin id. Pass an absolute path: `droid plugin
+marketplace add .` is rejected with "Invalid marketplace name derived from
+input".
 
 ## Requirements
 
@@ -147,8 +158,8 @@ nmem status
 ## Update
 
 ```bash
-droid plugin marketplace update nowledge-community
-droid plugin update nowledge-mem@nowledge-community
+droid plugin marketplace update community
+droid plugin update nowledge-mem@community
 ```
 
 ## Customize without editing the plugin
