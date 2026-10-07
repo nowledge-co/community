@@ -168,8 +168,12 @@ class StopMaintenanceTests(unittest.TestCase):
         for bad in bad_results:
             with self.subTest(returncode=bad.returncode, length=len(bad.stdout)), \
                  mock.patch.object(self.module, "_find_nmem_command", return_value="/opt/nmem"), \
-                 mock.patch.object(self.module.subprocess, "run", return_value=bad):
+                 mock.patch.object(self.module.subprocess, "run", side_effect=[
+                     bad, subprocess.CompletedProcess([], 0, json.dumps(self.profile()), ""),
+                 ]) as run, \
+                 mock.patch.object(self.module, "_claim_continuation", return_value=True):
                 self.assertEqual(self.module.build_stop_response(self.event()), self.module.NORMAL_STOP_RESPONSE)
+                self.assertEqual(run.call_count, 1)
         with mock.patch.object(self.module, "_find_nmem_command", return_value="/opt/nmem"), \
              mock.patch.object(self.module.subprocess, "run", side_effect=subprocess.TimeoutExpired("nmem", 3)):
             self.assertEqual(self.module.build_stop_response(self.event()), self.module.NORMAL_STOP_RESPONSE)
