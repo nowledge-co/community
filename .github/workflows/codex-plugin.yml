@@ -13,6 +13,17 @@ on:
       - "nowledge-mem-openai-plugin/**"
       - "tests/plugin_e2e/**"
       - "tests/guidance/**"
+      - "nowledge-mem-alma-plugin/**"
+      - "nowledge-mem-claude-code-plugin/**"
+      - "nowledge-mem-codex-prompts/**"
+      - "nowledge-mem-copilot-cli-plugin/**"
+      - "nowledge-mem-cursor-plugin/**"
+      - "nowledge-mem-devin-plugin/**"
+      - "nowledge-mem-dimagent-plugin/**"
+      - "nowledge-mem-droid-plugin/**"
+      - "nowledge-mem-omp-plugin/**"
+      - "nowledge-mem-openclaw-plugin/**"
+      - "shared/**"
   push:
     branches:
       - main
@@ -27,6 +38,17 @@ on:
       - "nowledge-mem-openai-plugin/**"
       - "tests/plugin_e2e/**"
       - "tests/guidance/**"
+      - "nowledge-mem-alma-plugin/**"
+      - "nowledge-mem-claude-code-plugin/**"
+      - "nowledge-mem-codex-prompts/**"
+      - "nowledge-mem-copilot-cli-plugin/**"
+      - "nowledge-mem-cursor-plugin/**"
+      - "nowledge-mem-devin-plugin/**"
+      - "nowledge-mem-dimagent-plugin/**"
+      - "nowledge-mem-droid-plugin/**"
+      - "nowledge-mem-omp-plugin/**"
+      - "nowledge-mem-openclaw-plugin/**"
+      - "shared/**"
 
 permissions:
   contents: read
