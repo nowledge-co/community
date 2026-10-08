@@ -1,5 +1,8 @@
 # Releasing OpenCode
 
+The complete npm/PyPI/ClawHub workflow and authorization matrix is in
+[`docs/PLUGIN_PUBLISHING.md`](../docs/PLUGIN_PUBLISHING.md).
+
 Keep package.json, package-lock.json, integrations.json, the changelog and active
 installation pins aligned in a release PR. OpenCode 1.x still uses 0.3.10;
 0.4.x is the OpenCode 2.x line.

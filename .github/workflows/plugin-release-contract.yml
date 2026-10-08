@@ -1,0 +1,69 @@
+name: Plugin release contracts
+on:
+  pull_request:
+    paths:
+      - scripts/*plugin_release*
+      - scripts/plugin-release.py
+      - scripts/clawhub-receipt.mjs
+      - .github/workflows/publish-*.yml
+      - .github/workflows/plugin-release-contract.yml
+      - docs/PLUGIN_PUBLISHING.md
+      - integrations.json
+      - nowledge-mem-*/package.json
+      - nowledge-mem-*/pyproject.toml
+      - nowledge-mem-*/CHANGELOG.md
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s scripts -p 'test_plugin_release.py' -v
+  npm-pack:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - nowledge-mem-openclaw-plugin
+          - nowledge-mem-pi-package
+          - nowledge-mem-omp-plugin
+          - nowledge-mem-step-code
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Test and pack
+        working-directory: ${{ matrix.directory }}
+        run: |
+          if [ -f package-lock.json ]; then npm ci --ignore-scripts; fi
+          if [ -d tests ]; then node --test tests/*.test.mjs; fi
+          if [ -f scripts/validate-plugin.mjs ]; then node scripts/validate-plugin.mjs; fi
+          npm pack --dry-run
+  pypi-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: [nowledge-mem-bub-plugin, nowledge-mem-langgraph]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build twine
+      - name: Build and check wheel and sdist
+        run: |
+          python -m build "${{ matrix.directory }}" --outdir dist
+          python -m twine check dist/*

@@ -1,0 +1,89 @@
+name: Publish OpenClaw to ClawHub
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact stable OpenClaw version merged into main
+        required: true
+        type: string
+      commit:
+        description: Full reviewed main commit SHA
+        required: true
+        type: string
+      changelog:
+        description: Public release notes (ClawHub publishing accepts its license terms)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: publish-clawhub-openclaw
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'nowledge-co/community' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: clawhub
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_COMMIT: ${{ inputs.commit }}
+      RELEASE_CHANGELOG: ${{ inputs.changelog }}
+    steps:
+      - name: Validate exact commit
+        run: '[[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require merged main ancestry
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate release metadata
+        run: python scripts/plugin-release.py check openclaw "$RELEASE_VERSION"
+      - name: Validate and test OpenClaw
+        working-directory: nowledge-mem-openclaw-plugin
+        run: |
+          npm ci --ignore-scripts
+          node scripts/validate-plugin.mjs
+          npm test
+      - name: Install pinned ClawHub CLI
+        run: npm install --global clawhub@0.8.0
+      - name: Record exact ClawHub publish surface
+        run: node scripts/clawhub-receipt.mjs "$(npm root -g)"
+      - name: Inspect existing listing
+        run: clawhub inspect nowledge-mem --versions --limit 200 --json > clawhub-before.json
+      - name: Prevent duplicate publication
+        run: |
+          python -c 'import json, os; d=json.load(open("clawhub-before.json")); assert all(v["version"] != os.environ["RELEASE_VERSION"] for v in d["versions"]), "Version already published"'
+          python -c 'import json, os; d=json.load(open("clawhub-before.json")); assert tuple(map(int, os.environ["RELEASE_VERSION"].split("."))) > tuple(map(int, d["skill"]["tags"]["latest"].split("."))), "Release must advance latest"'
+      - name: Authenticate and publish
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          test -n "$CLAWHUB_TOKEN"
+          clawhub login --token "$CLAWHUB_TOKEN" --no-browser
+          clawhub --workdir "$PWD/nowledge-mem-openclaw-plugin" publish . \
+            --slug nowledge-mem --version "$RELEASE_VERSION" --tags latest \
+            --changelog "$RELEASE_CHANGELOG"
+      - name: Verify exact version and file hashes
+        run: |
+          clawhub inspect nowledge-mem --version "$RELEASE_VERSION" --files --json > clawhub-after.json
+          python scripts/plugin-release.py verify-clawhub "$RELEASE_VERSION" clawhub-pack.json clawhub-after.json
+      - name: Clear ephemeral credentials
+        if: always()
+        run: clawhub logout
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clawhub-release-receipt
+          path: |
+            clawhub-pack.json
+            clawhub-before.json
+            clawhub-after.json

@@ -1,0 +1,91 @@
+name: Publish npm plugins
+on:
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: Package to publish
+        required: true
+        type: choice
+        options: [openclaw, pi, omp, step-code]
+      version:
+        description: Exact stable version merged into main
+        required: true
+        type: string
+      commit:
+        description: Full reviewed main commit SHA
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: publish-npm-${{ inputs.plugin }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'nowledge-co/community' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_PLUGIN: ${{ inputs.plugin }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_COMMIT: ${{ inputs.commit }}
+    steps:
+      - name: Validate exact commit
+        run: '[[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require merged main ancestry
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install --global npm@11.6.2
+      - name: Validate metadata and immutable version
+        run: python scripts/plugin-release.py preflight "$RELEASE_PLUGIN" "$RELEASE_VERSION"
+      - name: Select allowlisted package
+        run: |
+          case "$RELEASE_PLUGIN" in
+            openclaw) directory=nowledge-mem-openclaw-plugin ;;
+            pi) directory=nowledge-mem-pi-package ;;
+            omp) directory=nowledge-mem-omp-plugin ;;
+            step-code) directory=nowledge-mem-step-code ;;
+            *) exit 1 ;;
+          esac
+          echo "PACKAGE_DIR=$directory" >> "$GITHUB_ENV"
+      - name: Test package and install contracts
+        run: |
+          python -m pip install pytest
+          python -m pytest tests/plugin_e2e/test_key_plugins_e2e.py -q -k 'pi or key_plugin_credentials_stay_out_of_static_runtime_urls'
+          if [ -f "$PACKAGE_DIR/package-lock.json" ]; then
+            (cd "$PACKAGE_DIR" && npm ci --ignore-scripts)
+          fi
+          if [ -d "$PACKAGE_DIR/tests" ]; then
+            node --test "$PACKAGE_DIR"/tests/*.test.mjs
+          fi
+          if [ "$RELEASE_PLUGIN" = openclaw ]; then
+            node "$PACKAGE_DIR/scripts/validate-plugin.mjs"
+          fi
+      - name: Pack exact tested artifact
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: npm pack --json > pack.json
+      - name: Publish through npm OIDC
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: |
+          artifact=$(node -p "JSON.parse(require('fs').readFileSync('pack.json'))[0].filename")
+          npm publish "$artifact" --access public --tag latest --provenance
+      - name: Verify published integrity and latest
+        run: python scripts/plugin-release.py verify "$RELEASE_PLUGIN" "$RELEASE_VERSION" --artifact "$PACKAGE_DIR/pack.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-${{ inputs.plugin }}-receipt
+          path: ${{ env.PACKAGE_DIR }}/pack.json

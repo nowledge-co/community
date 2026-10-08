@@ -1,5 +1,9 @@
 # Releasing the OpenClaw Plugin
 
+For GitHub-driven npm and ClawHub publication, see
+[`docs/PLUGIN_PUBLISHING.md`](../docs/PLUGIN_PUBLISHING.md). Each channel needs
+its own authorization and verified release receipt.
+
 This package is a standalone OpenClaw code plugin inside the shared `community`
 repository. The publish target is **ClawHub** (and optionally npm), not a
 repository-level marketplace manifest.
@@ -75,9 +79,9 @@ These still need a real OpenClaw install smoke test:
 
 ## Publish
 
-Before publishing, confirm the package is owned by the `nowledge` publisher.
-The package name is scoped as `@nowledge/openclaw-nowledge-mem`, and ClawHub
-enforces that the scoped package owner exists and matches:
+Before publishing, confirm the authenticated account can publish the scoped
+ClawHub code-plugin package under owner `nowledge`. The separate
+`nowledge-mem` skill listing is not evidence that this plugin is published:
 
 ```bash
 clawhub package inspect @nowledge/openclaw-nowledge-mem

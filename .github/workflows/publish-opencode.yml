@@ -23,6 +23,7 @@ jobs:
   publish:
     if: github.repository == 'nowledge-co/community' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       id-token: write
@@ -40,6 +41,11 @@ jobs:
           persist-credentials: false
       - name: Require reviewed main ancestry
         run: git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prevent duplicate publication and latest downgrade
+        run: python scripts/plugin-release.py preflight opencode "$RELEASE_VERSION"
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
