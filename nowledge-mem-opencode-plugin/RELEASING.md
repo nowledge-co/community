@@ -21,7 +21,7 @@ git diff --exit-code -- dist/index.js
 npm pack --json > pack.json
 npm login
 npm whoami
-npm publish opencode-nowledge-mem-0.4.1.tgz --access public --tag latest
+npm publish opencode-nowledge-mem-0.4.2.tgz --access public --tag latest
 node scripts/release.mjs verify pack.json
 ```
 

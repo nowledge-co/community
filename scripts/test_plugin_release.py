@@ -32,6 +32,24 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             release.metadata("pi", "0.8.9; echo unsafe")
 
+    def test_npm_provenance_requires_matching_public_source(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / "nowledge-mem-opencode-plugin"
+            shutil.copytree(release.ROOT / package.name, package,
+                            ignore=shutil.ignore_patterns("node_modules", "*.tgz"))
+            shutil.copyfile(release.ROOT / "integrations.json", root / "integrations.json")
+            manifest_path = package / "package.json"
+            manifest = json.loads(manifest_path.read_text())
+            original = manifest["repository"]
+            for repository in ({}, {**original, "url": "https://github.com/other/repo.git"},
+                               {**original, "directory": "wrong-package"}):
+                manifest["repository"] = repository
+                manifest_path.write_text(json.dumps(manifest))
+                with self.assertRaises(AssertionError):
+                    release.metadata("opencode", manifest["version"], root)
+
     def test_existing_version_and_non404_fail(self):
         with patch.object(release, "remote", return_value={}):
             with self.assertRaises(RuntimeError):

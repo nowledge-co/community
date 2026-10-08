@@ -88,7 +88,7 @@ To pin an OpenCode 2 release, merge this entry into the global config:
 
 ```json title="~/.config/opencode/opencode.json"
 {
-  "plugins": ["opencode-nowledge-mem@0.4.1"]
+  "plugins": ["opencode-nowledge-mem@0.4.2"]
 }
 ```
 

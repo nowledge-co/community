@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.10] - 2026-10-08
+
+- Publish through GitHub OIDC trusted publishing with npm provenance and a verified artifact receipt; align runtime version diagnostics. Capture behavior is unchanged.
+
 ## [0.8.9] - 2026-09-22
 
 ### Added

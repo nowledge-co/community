@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.1] - 2026-10-08
+
+- Require Pi 0.8.10 or newer on the compatible 0.8.x line and align runtime version diagnostics.
+- Publish through GitHub OIDC trusted publishing with a verified npm artifact.
+
 ## [0.1.0] - 2026-09-22
 
 ### Added

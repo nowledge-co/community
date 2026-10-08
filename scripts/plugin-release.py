@@ -33,6 +33,14 @@ def metadata(plugin, version, root=ROOT):
         raise ValueError("Only stable X.Y.Z versions may advance latest")
     assert manifest["name"] == name, "Unexpected package identity"
     assert manifest["version"] == version, "Input version differs from package"
+    if channel == "npm":
+        repository = manifest.get("repository", {})
+        assert repository.get("type") == "git", "npm provenance requires a Git repository"
+        assert repository.get("url") in (
+            "https://github.com/nowledge-co/community.git",
+            "git+https://github.com/nowledge-co/community.git",
+        ), "npm provenance repository must match the publishing workflow"
+        assert repository.get("directory") == directory, "Wrong npm package source directory"
     registry = json.loads((root / "integrations.json").read_text())
     entry = next(item for item in registry["integrations"] if item["id"] == plugin)
     assert entry["version"] == version, "Registry version differs from package"

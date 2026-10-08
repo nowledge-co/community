@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nowledge-mem-langgraph"
-version = "0.1.0"
+version = "0.1.1"
 description = "Identity-aware Nowledge Mem connector for LangGraph and LangChain agents"
 readme = "README.md"
 requires-python = ">=3.10"
