@@ -60,7 +60,7 @@ Prefer Nowledge Mem MCP retrieval tools when they are available in this session:
 
 - `memory_search` for durable knowledge
 - `thread_search` for prior conversation lookup
-- `thread_fetch_messages` for progressive thread inspection
+- `thread_fetch_messages` for one targeted, bounded thread read
 
 Otherwise use:
 
@@ -171,3 +171,9 @@ nmem config mcp show --host codex
 
 Paste that into `~/.codex/config.toml`. Direct MCP clients do not read `~/.nowledge-mem/config.json` automatically.
 If `codex mcp list` shows `Not logged in`, update `nmem`, make sure the desktop app or `nmem config client ...` has written the right URL/API key, then rerun `scripts/install_hooks.py` or paste the generated block manually. Do not use `codex mcp login nowledge-mem`; that command is for OAuth MCP servers.
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.

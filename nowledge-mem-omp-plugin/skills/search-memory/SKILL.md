@@ -47,7 +47,7 @@ When the user asks about a prior session, discussion, or exact exchange:
 nmem --json t search "query" --limit 5
 ```
 
-### 3. Progressive thread inspection
+### 3. Bounded thread inspection
 
 If a thread looks relevant, load it incrementally:
 
@@ -100,3 +100,9 @@ Do not search for every message. Search when there is a reasonable expectation t
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/omp)
 - [Troubleshooting](https://mem.nowledge.co/docs/troubleshooting)
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.

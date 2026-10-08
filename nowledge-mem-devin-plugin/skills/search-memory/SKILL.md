@@ -29,7 +29,7 @@ description: Search your personal knowledge base when past insights would improv
 
 1. Start with `nmem --json m search` for durable knowledge.
 2. Use `nmem --json t search` when the user is really asking about a prior conversation or exact session history.
-3. If a result includes `source_thread`, inspect it progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
+3. If a result includes `source_thread`, inspect it once for the specific messages needed with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 4. Prefer the smallest retrieval surface that answers the question.
 
 For continuation-heavy engineering work, search near the start of the task. Do not wait for the user to literally ask for memory search.
@@ -39,3 +39,9 @@ If the host already knows the active project or agent lane, add `--space "<space
 ## Native Connector
 
 These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem connector — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.

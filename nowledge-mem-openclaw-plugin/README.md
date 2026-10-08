@@ -230,7 +230,7 @@ flowchart TD
 - Distilled memories carry `sourceThreadId`, linking them back to the source conversation
 - Cooldown (`digestMinInterval`, default 300s) prevents burst distillation
 
-### Progressive Retrieval (Memory -> Thread -> Messages)
+### Targeted Retrieval (Memory -> Thread -> Messages)
 
 Memories distilled from conversations carry a `sourceThreadId`. This creates a retrieval chain:
 
@@ -365,7 +365,7 @@ last_n_days: 7
 
 **nowledge_mem_thread_search** - Search past conversations by keyword. Returns matched threads with message snippets and relevance scores. Use when the user asks about a past discussion or wants to find a conversation from a specific time.
 
-**nowledge_mem_thread_fetch** - Fetch full messages from a conversation thread with pagination. Pass a `sourceThreadId` from memory results or a `threadId` from thread search. Supports `offset` and `limit` for progressive retrieval of long conversations.
+**nowledge_mem_thread_fetch** - Fetch full messages from a conversation thread with pagination. Pass a `sourceThreadId` from memory results or a `threadId` from thread search. Supports `offset` and `limit` for one targeted read of long conversations.
 
 ```
 threadId: "openclaw-db-arch-a1b2c3"
@@ -644,3 +644,9 @@ Run `nmem config client show` and confirm the effective URL and API key state. T
 ## License
 
 MIT
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
