@@ -120,6 +120,10 @@ async function main() {
     fail("package.json openclaw.install.npmSpec must match package.json name");
   }
 
+  if (openclaw.install.clawhubSpec !== `clawhub:${pkg.name}`) {
+    fail("package.json openclaw.install.clawhubSpec must reference the scoped code-plugin package, not a skill slug");
+  }
+
   // OpenClaw 2026.4.9's local security scanner uses a broad per-file heuristic:
   // any file containing readFile plus the word "post", "fetch", or
   // "http.request" is reported as possible exfiltration. Keep capture file
