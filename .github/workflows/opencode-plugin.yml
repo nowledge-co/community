@@ -5,12 +5,16 @@ on:
     paths:
       - ".github/workflows/opencode-plugin.yml"
       - "nowledge-mem-opencode-plugin/**"
+      - "integrations.json"
+      - ".github/workflows/publish-opencode.yml"
   push:
     branches:
       - main
     paths:
       - ".github/workflows/opencode-plugin.yml"
       - "nowledge-mem-opencode-plugin/**"
+      - "integrations.json"
+      - ".github/workflows/publish-opencode.yml"
 
 permissions:
   contents: read
@@ -27,10 +31,13 @@ jobs:
           node-version: "24"
       - name: Install package dependencies
         working-directory: nowledge-mem-opencode-plugin
-        run: npm install --ignore-scripts --no-package-lock
+        run: npm ci --ignore-scripts
       - name: Run tests
         working-directory: nowledge-mem-opencode-plugin
         run: npm test
       - name: Verify published bundle
         working-directory: nowledge-mem-opencode-plugin
         run: npm run check && git diff --exit-code -- dist/index.js
+      - name: Verify release metadata and artifact
+        working-directory: nowledge-mem-opencode-plugin
+        run: node scripts/release.mjs check && npm pack --dry-run

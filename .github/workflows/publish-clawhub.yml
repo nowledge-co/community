@@ -1,0 +1,96 @@
+name: Publish OpenClaw to ClawHub
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact stable OpenClaw version merged into main
+        required: true
+        type: string
+      commit:
+        description: Full reviewed main commit SHA
+        required: true
+        type: string
+      changelog:
+        description: Public release notes
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: publish-clawhub-openclaw
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'nowledge-co/community' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: clawhub
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_COMMIT: ${{ inputs.commit }}
+      RELEASE_CHANGELOG: ${{ inputs.changelog }}
+    steps:
+      - name: Validate exact commit
+        run: '[[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require merged main ancestry
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate release metadata
+        run: python scripts/plugin-release.py check openclaw "$RELEASE_VERSION"
+      - name: Validate and test OpenClaw
+        working-directory: nowledge-mem-openclaw-plugin
+        run: |
+          npm ci --ignore-scripts
+          node scripts/validate-plugin.mjs
+          npm test
+      - name: Install pinned code-plugin capable CLI
+        run: npm install --global clawhub@0.23.3
+      - name: Pack exact tested code-plugin
+        run: clawhub package pack nowledge-mem-openclaw-plugin --pack-destination "$PWD" --json > clawhub-pack.json
+      - name: Preview publication without registry writes
+        run: |
+          clawhub package publish "nowledge-openclaw-nowledge-mem-${RELEASE_VERSION}.tgz" \
+            --family code-plugin --name @nowledge/openclaw-nowledge-mem --owner nowledge \
+            --version "$RELEASE_VERSION" --source-repo nowledge-co/community \
+            --source-commit "$RELEASE_COMMIT" --source-ref "$RELEASE_COMMIT" \
+            --source-path nowledge-mem-openclaw-plugin --dry-run --json > clawhub-preview.json
+      - name: Inspect actual code-plugin listing
+        run: clawhub package inspect @nowledge/openclaw-nowledge-mem --versions --limit 100 --json > clawhub-before.json
+      - name: Prevent duplicate publication
+        run: |
+          python -c 'import json, os; d=json.load(open("clawhub-before.json")); assert d["package"]["family"] == "code-plugin"; assert d["owner"]["handle"] == "nowledge"; assert all(v["version"] != os.environ["RELEASE_VERSION"] for v in d["versions"]); assert tuple(map(int, os.environ["RELEASE_VERSION"].split("."))) > tuple(map(int, d["package"]["tags"]["latest"].split(".")))'
+      - name: Publish scoped code-plugin via GitHub OIDC
+        run: |
+          clawhub package publish "nowledge-openclaw-nowledge-mem-${RELEASE_VERSION}.tgz" \
+            --family code-plugin --name @nowledge/openclaw-nowledge-mem --owner nowledge \
+            --version "$RELEASE_VERSION" --tags latest --source-repo nowledge-co/community \
+            --source-commit "$RELEASE_COMMIT" --source-ref "$RELEASE_COMMIT" \
+            --source-path nowledge-mem-openclaw-plugin --changelog "$RELEASE_CHANGELOG" \
+            --wait --wait-timeout 600 --json > clawhub-published.json
+      - name: Verify exact artifact and reviewed source
+        run: |
+          clawhub package inspect @nowledge/openclaw-nowledge-mem --version "$RELEASE_VERSION" --json > clawhub-after.json
+          python scripts/plugin-release.py verify-clawhub "$RELEASE_VERSION" clawhub-pack.json clawhub-after.json "$RELEASE_COMMIT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clawhub-release-receipt
+          path: |
+            clawhub-pack.json
+            clawhub-preview.json
+            clawhub-before.json
+            clawhub-published.json
+            clawhub-after.json

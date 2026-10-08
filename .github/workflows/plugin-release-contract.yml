@@ -1,0 +1,81 @@
+name: Plugin release contracts
+on:
+  pull_request:
+    paths:
+      - scripts/*plugin_release*
+      - scripts/plugin-release.py
+      - .github/workflows/publish-*.yml
+      - .github/workflows/plugin-release-contract.yml
+      - docs/PLUGIN_PUBLISHING.md
+      - integrations.json
+      - nowledge-mem-*/package.json
+      - nowledge-mem-*/pyproject.toml
+      - nowledge-mem-*/CHANGELOG.md
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s scripts -p 'test_plugin_release.py' -v
+  npm-pack:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - nowledge-mem-openclaw-plugin
+          - nowledge-mem-pi-package
+          - nowledge-mem-omp-plugin
+          - nowledge-mem-step-code
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Test and pack
+        working-directory: ${{ matrix.directory }}
+        run: |
+          if [ -f package-lock.json ]; then npm ci --ignore-scripts; fi
+          if [ -d tests ]; then node --test tests/*.test.mjs; fi
+          if [ -f scripts/validate-plugin.mjs ]; then node scripts/validate-plugin.mjs; fi
+          npm pack --dry-run
+      - name: Preview real ClawHub code-plugin publication
+        if: matrix.directory == 'nowledge-mem-openclaw-plugin'
+        env:
+          PREVIEW_COMMIT: ${{ github.sha }}
+        run: |
+          npm install --global clawhub@0.23.3
+          clawhub package pack nowledge-mem-openclaw-plugin --pack-destination "$PWD" --json > clawhub-pack.json
+          version=$(node -p "require('./nowledge-mem-openclaw-plugin/package.json').version")
+          clawhub package publish "nowledge-openclaw-nowledge-mem-${version}.tgz" \
+            --family code-plugin --name @nowledge/openclaw-nowledge-mem --owner nowledge \
+            --version "$version" --source-repo nowledge-co/community \
+            --source-commit "$PREVIEW_COMMIT" --source-ref "$PREVIEW_COMMIT" \
+            --source-path nowledge-mem-openclaw-plugin --dry-run --json
+  pypi-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: [nowledge-mem-bub-plugin, nowledge-mem-langgraph]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build twine
+      - name: Build and check wheel and sdist
+        run: |
+          python -m build "${{ matrix.directory }}" --outdir dist
+          python -m twine check dist/*
