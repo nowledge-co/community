@@ -237,10 +237,10 @@ Memories distilled from conversations carry a `sourceThreadId`. This creates a r
 ```mermaid
 flowchart TD
     A["memory_search'PostgreSQL decision'"] --> B["Result includessourceThreadId"]
-    B --> C["nowledge_mem_thread_fetch(offset=0, limit=50)"]
-    C --> D["50 messageshasMore: true"]
-    D --> E["nowledge_mem_thread_fetch(offset=50, limit=50)"]
-    E --> F["Next page"]
+    B --> C["Choose one known target message range"]
+    C --> D["nowledge_mem_thread_fetch(offset=target, limit=8) once"]
+    D --> E["Answer from evidence or report the gap"]
+    E --> F["Refine search if specific evidence is still missing"]
 ```
 
 Direct conversation search also works:

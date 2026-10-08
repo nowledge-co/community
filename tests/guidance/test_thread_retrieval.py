@@ -16,6 +16,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
                 self.assertIn("report the evidence gap", text)
                 self.assertIn("refine the search", text)
                 self.assertNotIn("t show` loads the whole thread", text)
+                self.assertNotIn("nowledge_mem_thread_fetch(offset=50, limit=50)", text)
                 self.assertNotRegex(text, r"(?i)(?:increase|higher)[^\n]*offset|offset=50 for next page")
                 for line in text.splitlines():
                     if re.search(r"thread|conversation|t show", line, re.I) and not line.startswith("description:"):

@@ -2,10 +2,10 @@ export function createThreadFetchTool(client, logger) {
 	return {
 		name: "nowledge_mem_thread_fetch",
 		description:
-			"Fetch full messages from a conversation thread. Use to read the complete context " +
+			"Fetch a targeted range of messages from a conversation thread. Use to read context " +
 			"around a memory — pass the sourceThreadId from memory_search or memory_get results, " +
 			"or a threadId from nowledge_mem_thread_search. " +
-			"Supports pagination for long conversations: set offset to skip earlier messages. " +
+			"Use a known target offset to skip earlier messages once. " +
 			"Search first, then fetch at most one small targeted message range per question. Never loop over offsets to reconstruct a conversation or increase content limits. If the read is slow, incomplete or fails, stop, report the evidence gap and refine search.",
 		parameters: {
 			type: "object",
@@ -17,7 +17,7 @@ export function createThreadFetchTool(client, logger) {
 				},
 				offset: {
 					type: "number",
-					description: "Skip first N messages (for pagination, default 0)",
+					description: "Known target message offset (default 0); never walk successive pages",
 				},
 				limit: {
 					type: "number",
