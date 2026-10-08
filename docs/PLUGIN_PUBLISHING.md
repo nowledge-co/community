@@ -1,5 +1,7 @@
 # Publishing established plugin packages
 
+Maintainer agent entrypoint: [plugin-release skill](../.agents/skills/plugin-release/SKILL.md).
+
 Use the package version and a full reviewed SHA already merged into `main`.
 These workflows are deliberately manual: merging or editing an integration does
 not publish it. Select **main** when dispatching. Inputs are allowlisted; a
@@ -41,6 +43,11 @@ validation** with a deadline shown by npm; a real successful OIDC publish is
 needed. Do not republish an immutable version just to validate trust. If the
 window expires before an intentional release, recreate the connection when
 ready. See [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/).
+
+Every npm manifest must also declare the public `nowledge-co/community` Git
+repository and its package subdirectory. The release guard checks this before
+upload: provenance requires the repository to match the publishing workflow.
+See [npm provenance prerequisites](https://docs.npmjs.com/generating-provenance-statements/#prerequisites).
 
 ### PyPI
 
@@ -127,6 +134,6 @@ python3 -m unittest discover -s scripts -p 'test_plugin_release.py' -v
 actionlint .github/workflows/publish-*.yml .github/workflows/plugin-release-contract.yml
 ```
 
-This CI change does not bump Bub, LangGraph or other current versions, configure
-their registry permissions, or publish anything. In particular, LangGraph's
-unreleased code still requires a reviewed version bump before publication.
+Workflow setup and provider grants do not publish packages. After every release
+PR, record the exact merged SHA, registry receipts, and remaining host-smoke
+gates; do not treat a source merge as artifact delivery.

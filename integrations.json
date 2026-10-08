@@ -990,7 +990,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.34",
+      "version": "0.8.35",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1097,7 +1097,7 @@
       "name": "Bub",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.3",
+      "version": "0.7.4",
       "directory": "nowledge-mem-bub-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1148,7 +1148,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.9",
+      "version": "0.8.10",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1200,7 +1200,7 @@
       "name": "Step Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-step-code",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1423,7 +1423,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1754,7 +1754,7 @@
       "name": "OMP",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-omp-plugin",
       "transport": "plugin+cli",
       "capabilities": {
@@ -2024,7 +2024,7 @@
       "name": "LangGraph",
       "category": "framework",
       "type": "connector",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-langgraph",
       "externalRepo": "https://github.com/langchain-ai/langgraph",
       "transport": "python+mcp+rest",

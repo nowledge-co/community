@@ -9,7 +9,7 @@ test("declares the Step-loadable Pi compatibility manifest", async () => {
 	assert.equal(pkg.name, "nowledge-mem-step-code");
 	assert.deepEqual(pkg.pi.extensions, ["./extensions/nowledge-mem.ts"]);
 	assert.deepEqual(pkg.pi.skills, ["./skills"]);
-	assert.equal(pkg.dependencies["nowledge-mem-pi"], "^0.8.9");
+	assert.equal(pkg.dependencies["nowledge-mem-pi"], "^0.8.10");
 });
 
 test("pins Step source identity and waits for the settled lifecycle event", async () => {

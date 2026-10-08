@@ -480,8 +480,8 @@ def test_key_plugin_static_contracts_are_declared():
     openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
     openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
-    assert openclaw_manifest["version"] == "0.8.34"
-    assert openclaw_pkg["version"] == "0.8.34"
+    assert openclaw_manifest["version"] == "0.8.35"
+    assert openclaw_pkg["version"] == "0.8.35"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
     assert openclaw_manifest["contracts"]["tools"] == [
         "memory_search",
@@ -534,7 +534,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.4.1"
+    assert opencode_pkg["version"] == "0.4.2"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -744,7 +744,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.9"
+    assert pi_pkg["version"] == "0.8.10"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "scripts/sync-history.mjs"
@@ -803,8 +803,8 @@ def test_key_plugin_static_contracts_are_declared():
     step_extension = (STEP_CODE_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(
         encoding="utf-8"
     )
-    assert step_pkg["version"] == "0.1.0"
-    assert step_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.9"
+    assert step_pkg["version"] == "0.1.1"
+    assert step_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.10"
     assert step_pkg["pi"]["extensions"] == ["./extensions/nowledge-mem.ts"]
     assert step_pkg["pi"]["skills"] == ["./skills"]
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "step-code"' in step_extension
@@ -815,14 +815,14 @@ def test_key_plugin_static_contracts_are_declared():
     omp_pkg = _read_json(OMP_PLUGIN / "package.json")
     omp_extension = (OMP_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     omp_agent = (OMP_PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
-    assert omp_pkg["version"] == "0.1.1"
-    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.4"
+    assert omp_pkg["version"] == "0.1.2"
+    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.10"
     assert "./extensions/nowledge-mem.ts" in omp_pkg["omp"]["extensions"]
     assert "./skills" in omp_pkg["omp"]["skills"]
     assert "pi" not in omp_pkg
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "omp"' in omp_extension
     assert 'process.env.NMEM_PLUGIN_HOST_LABEL = "OMP"' in omp_extension
-    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.1"' in omp_extension
+    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.2"' in omp_extension
     assert 'import("nowledge-mem-pi/extensions/nowledge-mem.ts")' in omp_extension
     assert "nmem --json context --source-app omp" in omp_agent
     assert "source_app=omp" in omp_agent
@@ -1534,11 +1534,11 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
     assert by_id["droid"]["version"] == "0.1.1"
-    assert by_id["openclaw"]["version"] == "0.8.34"
+    assert by_id["openclaw"]["version"] == "0.8.35"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.4.1"
+    assert by_id["opencode"]["version"] == "0.4.2"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
-    assert by_id["pi"]["version"] == "0.8.9"
+    assert by_id["pi"]["version"] == "0.8.10"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["grok-bot"]["version"] is None
@@ -1676,11 +1676,11 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["alma"]["version"] == "0.7.6"
     assert by_id["alma"]["skills"] == ["nowledge-mem"]
     assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
-    assert by_id["bub"]["version"] == "0.7.3"
+    assert by_id["bub"]["version"] == "0.7.4"
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
-    assert by_id["step-code"]["version"] == "0.1.0"
+    assert by_id["step-code"]["version"] == "0.1.1"
     assert by_id["step-code"]["directory"] == "nowledge-mem-step-code"
     assert by_id["step-code"]["transport"] == "plugin+cli"
     assert by_id["step-code"]["capabilities"]["autoRecall"] is True
@@ -1698,7 +1698,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "step update npm:nowledge-mem-step-code"
     )
     assert "save-thread" in by_id["step-code"]["skills"]
-    assert by_id["omp"]["version"] == "0.1.1"
+    assert by_id["omp"]["version"] == "0.1.2"
     assert by_id["omp"]["directory"] == "nowledge-mem-omp-plugin"
     assert by_id["omp"]["transport"] == "plugin+cli"
     assert by_id["omp"]["capabilities"]["autoRecall"] is True
@@ -1876,7 +1876,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.4.1"
+    assert pkg["version"] == "0.4.2"
     assert opencode_registry["version"] == pkg["version"]
     assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source
@@ -2044,7 +2044,7 @@ def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
     bub_tools = (
         BUB_PLUGIN / "src" / "nowledge_mem_bub" / "tools.py"
     ).read_text(encoding="utf-8")
-    assert 'version = "0.7.3"' in bub_pyproject
+    assert 'version = "0.7.4"' in bub_pyproject
     assert "CREATE_NO_WINDOW" in bub_client
     assert "unit_type: str | None = Field(" in bub_tools
     assert "unit_type: str = Field(" not in bub_tools
@@ -2324,7 +2324,7 @@ def test_pi_thread_sync_timeout_contract():
     readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pi_pkg["version"] == "0.8.9"
+    assert pi_pkg["version"] == "0.8.10"
     assert pi_registry["version"] == pi_pkg["version"]
     assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in extension
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension

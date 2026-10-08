@@ -47,7 +47,7 @@ clawhub package publish . \
   --family code-plugin \
   --name @nowledge/openclaw-nowledge-mem \
   --owner nowledge \
-  --version 0.8.34 \
+  --version 0.8.35 \
   --tags latest \
   --source-repo nowledge-co/community \
   --source-commit "$(git rev-parse HEAD)" \
@@ -99,7 +99,7 @@ clawhub package publish . \
   --family code-plugin \
   --name @nowledge/openclaw-nowledge-mem \
   --owner nowledge \
-  --version 0.8.34 \
+  --version 0.8.35 \
   --tags latest \
   --source-repo nowledge-co/community \
   --source-commit "$(git rev-parse HEAD)" \
