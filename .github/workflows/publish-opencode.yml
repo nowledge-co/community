@@ -1,0 +1,70 @@
+name: Publish OpenCode to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package version already merged into main
+        required: true
+        type: string
+      commit:
+        description: Full reviewed commit SHA on main
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-opencode
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'nowledge-co/community' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_COMMIT: ${{ inputs.commit }}
+    steps:
+      - name: Validate exact commit input
+        shell: bash
+        run: '[[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require reviewed main ancestry
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install OIDC-capable npm
+        run: npm install --global npm@11.6.2
+      - name: Validate exact release metadata
+        working-directory: nowledge-mem-opencode-plugin
+        run: node scripts/release.mjs check
+      - name: Install locked dependencies
+        working-directory: nowledge-mem-opencode-plugin
+        run: npm ci --ignore-scripts
+      - name: Test and verify bundle
+        working-directory: nowledge-mem-opencode-plugin
+        run: npm test && npm run check && git diff --exit-code -- dist/index.js
+      - name: Pack the tested artifact
+        working-directory: nowledge-mem-opencode-plugin
+        run: npm pack --json > pack.json
+      - name: Publish with trusted publishing
+        working-directory: nowledge-mem-opencode-plugin
+        run: npm publish "opencode-nowledge-mem-${RELEASE_VERSION}.tgz" --access public --tag latest --provenance
+      - name: Verify registry artifact
+        working-directory: nowledge-mem-opencode-plugin
+        run: node scripts/release.mjs verify pack.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opencode-release-receipt
+          path: nowledge-mem-opencode-plugin/pack.json
