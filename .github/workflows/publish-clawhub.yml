@@ -75,7 +75,7 @@ jobs:
       - name: Publish scoped code-plugin via GitHub OIDC
         run: |
           clawhub package publish "nowledge-openclaw-nowledge-mem-${RELEASE_VERSION}.tgz" \
-            --family code-plugin --name @nowledge/openclaw-nowledge-mem --owner nowledge \
+            --family code-plugin --name @nowledge/openclaw-nowledge-mem \
             --version "$RELEASE_VERSION" --tags latest --source-repo nowledge-co/community \
             --source-commit "$RELEASE_COMMIT" --source-ref "$RELEASE_COMMIT" \
             --source-path nowledge-mem-openclaw-plugin --changelog "$RELEASE_CHANGELOG" \

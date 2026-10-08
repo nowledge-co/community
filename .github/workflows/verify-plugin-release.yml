@@ -1,0 +1,83 @@
+name: Verify retained plugin release
+on:
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: Published package whose retained receipt should be verified
+        required: true
+        type: choice
+        options: [opencode, openclaw, pi, omp, step-code, bub, langgraph]
+      version:
+        description: Exact published stable version
+        required: true
+        type: string
+      commit:
+        description: Full source SHA of the original publishing run
+        required: true
+        type: string
+      receipt_run:
+        description: Completed original publishing run ID (no upload is retried)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    if: github.repository == 'nowledge-co/community' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_PLUGIN: ${{ inputs.plugin }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_COMMIT: ${{ inputs.commit }}
+      RECEIPT_RUN: ${{ inputs.receipt_run }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Validate source and run inputs
+        run: |
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RECEIPT_RUN" =~ ^[0-9]+$ ]]
+      - uses: actions/checkout@v4
+        with:
+          path: verifier
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+          path: release-source
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require merged source
+        working-directory: release-source
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate retained receipt origin and download
+        run: |
+          case "$RELEASE_PLUGIN" in
+            opencode) artifact=opencode-release-receipt; workflow=publish-opencode.yml ;;
+            openclaw|pi|omp|step-code) artifact="npm-${RELEASE_PLUGIN}-receipt"; workflow=publish-npm-plugins.yml ;;
+            bub|langgraph) artifact=pypi-distributions; workflow=publish-pypi-plugins.yml ;;
+            *) exit 1 ;;
+          esac
+          expected_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow" --jq .id)
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RECEIPT_RUN" > run.json
+          EXPECTED_WORKFLOW_ID="$expected_id" python -c 'import json, os; d=json.load(open("run.json")); assert d["head_sha"] == os.environ["RELEASE_COMMIT"]; assert d["head_branch"] == "main"; assert d["event"] == "workflow_dispatch"; assert d["status"] == "completed"; assert str(d["workflow_id"]) == os.environ["EXPECTED_WORKFLOW_ID"]'
+          gh run download "$RECEIPT_RUN" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir receipt
+      - name: Verify without publication credentials
+        run: |
+          case "$RELEASE_PLUGIN" in
+            bub|langgraph) artifact=receipt ;;
+            *) artifact=receipt/pack.json ;;
+          esac
+          python verifier/scripts/plugin-release.py verify "$RELEASE_PLUGIN" "$RELEASE_VERSION" \
+            --root release-source --artifact "$artifact"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verified-${{ inputs.plugin }}-receipt
+          path: |
+            run.json
+            receipt/

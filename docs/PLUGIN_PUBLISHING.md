@@ -123,6 +123,29 @@ separately using the same reviewed version/SHA; success on one does not imply th
 other succeeded. Retry only the failed channel after checking its registry.
 Never bump a version merely to hide a failed job.
 
+Registry publication can succeed before public JSON endpoints expose the version.
+Verification polls only read endpoints (404 or a not-yet-current latest tag),
+with up to 61 reads and five seconds between attempts per lookup. Authentication,
+rate-limit/server failures and artifact mismatches are not retried. Preflight
+still treats only 404 as absence and never retries an upload.
+
+If an npm/PyPI upload succeeded but its verification failed, use read-only receipt
+recovery rather than rerunning publication:
+
+```sh
+gh workflow run verify-plugin-release.yml --repo nowledge-co/community --ref main \
+  -f plugin=pi -f version=<PUBLISHED_VERSION> -f commit=<ORIGINAL_RUN_SHA> \
+  -f receipt_run=<ORIGINAL_PUBLISH_RUN_ID>
+```
+
+This validates the original completed main-dispatch run, workflow identity,
+source SHA, package/version and retained hashes, without `id-token: write` or
+registry credentials. If no original artifact remains, do not substitute a local
+rebuild as proof of what was uploaded.
+
+ClawHub OIDC publication must omit `--owner`: the registry derives the owner from
+the Trusted Publisher. Preview and readback still require owner `nowledge`.
+
 PyPI receipts are the exact wheel/sdist artifacts retained by Actions; verification
 compares both filenames and SHA256 hashes with PyPI. npm retains `pack.json`
 and verifies its integrity against the published version and latest tag.

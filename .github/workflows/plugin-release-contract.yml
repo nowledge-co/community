@@ -5,6 +5,9 @@ on:
       - scripts/*plugin_release*
       - scripts/plugin-release.py
       - .github/workflows/publish-*.yml
+      - .github/workflows/verify-plugin-release.yml
+      - .agents/skills/plugin-release/**
+      - AGENTS.md
       - .github/workflows/plugin-release-contract.yml
       - docs/PLUGIN_PUBLISHING.md
       - integrations.json

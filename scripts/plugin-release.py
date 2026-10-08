@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import sys
+import time
 import tomllib
 import urllib.error
 import urllib.request
@@ -75,21 +76,37 @@ def advances(version, latest):
     assert tuple(map(int, version.split("."))) > tuple(map(int, latest.split("."))), "Release must advance latest, never downgrade it"
 
 
-def verify_npm(name, version, pack):
+def visible_remote(url, accept=None, attempts=61, delay=5):
+    """Wait for asynchronous registry visibility, never retry a publication."""
+    for attempt in range(attempts):
+        try:
+            data = remote(url)
+        except urllib.error.HTTPError as error:
+            if error.code != 404 or attempt == attempts - 1:
+                raise
+        else:
+            if accept is None or accept(data):
+                return data
+            if attempt == attempts - 1:
+                raise AssertionError("Registry did not expose the expected latest version")
+        time.sleep(delay)
+
+
+def verify_npm(name, version, pack, attempts=61):
     artifact = json.loads(Path(pack).read_text())[0]
     assert (artifact["name"], artifact["version"]) == (name, version)
-    assert remote(f"https://registry.npmjs.org/{name}/{version}")["dist"]["integrity"] == artifact["integrity"]
-    assert remote(f"https://registry.npmjs.org/{name}/latest")["version"] == version
+    assert visible_remote(f"https://registry.npmjs.org/{name}/{version}", attempts=attempts)["dist"]["integrity"] == artifact["integrity"]
+    visible_remote(f"https://registry.npmjs.org/{name}/latest", lambda data: data["version"] == version, attempts=attempts)
 
 
 def verify_pypi(name, version, directory):
     artifacts = list(Path(directory).glob("*.whl")) + list(Path(directory).glob("*.tar.gz"))
     assert len(artifacts) == 2, "Require exactly a wheel and sdist"
-    published = remote(f"https://pypi.org/pypi/{name}/{version}/json")
+    published = visible_remote(f"https://pypi.org/pypi/{name}/{version}/json")
     hashes = {item["filename"]: item["digests"]["sha256"] for item in published["urls"]}
     for artifact in artifacts:
         assert hashes[artifact.name] == hashlib.sha256(artifact.read_bytes()).hexdigest()
-    assert remote(f"https://pypi.org/pypi/{name}/json")["info"]["version"] == version
+    visible_remote(f"https://pypi.org/pypi/{name}/json", lambda data: data["info"]["version"] == version)
 
 
 def verify_clawhub(version, pack, receipt, commit):
@@ -122,8 +139,10 @@ def main():
     parser.add_argument("plugin", choices=PACKAGES)
     parser.add_argument("version")
     parser.add_argument("--artifact")
+    parser.add_argument("--root", type=Path, default=ROOT,
+                        help="Reviewed source checkout for metadata validation")
     args = parser.parse_args()
-    directory, name, channel = metadata(args.plugin, args.version)
+    directory, name, channel = metadata(args.plugin, args.version, root=args.root)
     if args.operation == "preflight":
         url = f"https://registry.npmjs.org/{name}/{args.version}" if channel == "npm" else f"https://pypi.org/pypi/{name}/{args.version}/json"
         absent(url)
