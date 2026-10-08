@@ -145,6 +145,14 @@ rebuild as proof of what was uploaded.
 
 ClawHub OIDC publication must omit `--owner`: the registry derives the owner from
 the Trusted Publisher. Preview and readback still require owner `nowledge`.
+It also requires `source-commit` to equal the authorized workflow run SHA.
+Use the OIDC source ref (`refs/heads/main`) for `--source-ref`; do not put the
+commit SHA in that field.
+Unlike npm/PyPI, an older reviewed main ancestor is insufficient: review current
+main and dispatch that exact SHA. The workflow rejects a main-advance race before
+upload. If npm already shipped before a publisher-only repair, retain its original
+receipt, record the distinct ClawHub source SHA, and check that package files are
+unchanged between the two SHAs. Never pretend the attestations share a commit.
 
 PyPI receipts are the exact wheel/sdist artifacts retained by Actions; verification
 compares both filenames and SHA256 hashes with PyPI. npm retains `pack.json`

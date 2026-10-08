@@ -51,7 +51,14 @@ re-establish the grant when ready rather than republishing an immutable version.
 Use the runbook's channel-specific dispatch commands. Capture the run ID and
 requested version/SHA; wait for terminal build, publish, and verify results.
 
-OpenClaw needs independent npm and ClawHub receipts for the same version/SHA.
+OpenClaw needs independent npm and ClawHub receipts for the same version and
+reviewed package source. Prefer the same SHA for both channels. ClawHub OIDC
+requires its source SHA to equal the workflow run SHA, not merely an older main
+ancestor, and its source ref to equal the OIDC ref (`refs/heads/main`), not the
+commit SHA. Review current main before dispatch; a main-advance race fails closed.
+If a publisher-only repair requires a newer SHA after npm already shipped,
+record both SHAs and verify the package payload is unchanged; do not re-upload
+npm or imply both channel attestations name the same commit.
 The ClawHub runtime is scoped `@nowledge/openclaw-nowledge-mem`, family
 `code-plugin`, owner `nowledge`. The `nowledge-mem` skill listing is not runtime
 acceptance. Use the workflow-pinned code-plugin-capable CLI, not the legacy

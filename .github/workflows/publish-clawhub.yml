@@ -7,7 +7,7 @@ on:
         required: true
         type: string
       commit:
-        description: Full reviewed main commit SHA
+        description: Full reviewed current main SHA (must match this workflow run SHA)
         required: true
         type: string
       changelog:
@@ -32,9 +32,17 @@ jobs:
       RELEASE_VERSION: ${{ inputs.version }}
       RELEASE_COMMIT: ${{ inputs.commit }}
       RELEASE_CHANGELOG: ${{ inputs.changelog }}
+      AUTHORIZED_SOURCE_COMMIT: ${{ github.sha }}
+      AUTHORIZED_SOURCE_REF: ${{ github.ref }}
     steps:
       - name: Validate exact commit
         run: '[[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]'
+      - name: Require the OIDC-authorized source before upload
+        run: |
+          if [ "$RELEASE_COMMIT" != "$AUTHORIZED_SOURCE_COMMIT" ]; then
+            echo 'ClawHub requires source commit to equal this workflow run SHA; review current main before dispatch.' >&2
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.commit }}
@@ -65,7 +73,7 @@ jobs:
           clawhub package publish "nowledge-openclaw-nowledge-mem-${RELEASE_VERSION}.tgz" \
             --family code-plugin --name @nowledge/openclaw-nowledge-mem --owner nowledge \
             --version "$RELEASE_VERSION" --source-repo nowledge-co/community \
-            --source-commit "$RELEASE_COMMIT" --source-ref "$RELEASE_COMMIT" \
+            --source-commit "$RELEASE_COMMIT" --source-ref "$AUTHORIZED_SOURCE_REF" \
             --source-path nowledge-mem-openclaw-plugin --dry-run --json > clawhub-preview.json
       - name: Inspect actual code-plugin listing
         run: clawhub package inspect @nowledge/openclaw-nowledge-mem --versions --limit 100 --json > clawhub-before.json
@@ -77,7 +85,7 @@ jobs:
           clawhub package publish "nowledge-openclaw-nowledge-mem-${RELEASE_VERSION}.tgz" \
             --family code-plugin --name @nowledge/openclaw-nowledge-mem \
             --version "$RELEASE_VERSION" --tags latest --source-repo nowledge-co/community \
-            --source-commit "$RELEASE_COMMIT" --source-ref "$RELEASE_COMMIT" \
+            --source-commit "$RELEASE_COMMIT" --source-ref "$AUTHORIZED_SOURCE_REF" \
             --source-path nowledge-mem-openclaw-plugin --changelog "$RELEASE_CHANGELOG" \
             --wait --wait-timeout 600 --json > clawhub-published.json
       - name: Verify exact artifact and reviewed source
