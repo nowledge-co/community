@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { isPluginSource } from './message-source.js'
 
 export function boundText(text, maxChars) {
   if (text.length <= maxChars) return text
@@ -17,7 +18,7 @@ export function sessionThreadTitle(
   for (const event of events) {
     if (event.type !== 'user/message') continue
     const message = event.data
-    if (message?.source?.kind === 'plugin') continue
+    if (isPluginSource(message?.source)) continue
     const content = boundText(renderMessage(message).trim(), maxMessageChars)
     const firstLine = content.split(/\r?\n/u).find(line => line.trim() !== '')?.trim()
     if (firstLine !== undefined) return boundText(firstLine, 80)

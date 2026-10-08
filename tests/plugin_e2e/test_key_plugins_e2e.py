@@ -1766,7 +1766,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "Array.isArray(session?.events)" in session_events
     assert "payload.title" in thread_import
     assert "expectedMessageCount === undefined" in thread_import
-    assert "message?.source?.kind === 'plugin'" in thread_import
+    assert "isPluginSource(message?.source)" in thread_import
 
     assert "export const inject = ['agents', 'sessions', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
@@ -1784,7 +1784,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "'--json', 'm', 'search', query" in source
     assert "NMEM_IMPORT_ORIGIN" in source
     assert "--source" in source and "deepseek-harness" in source
-    assert "message.source.kind === 'plugin' && message.source.plugin === capture.pluginName" in session_capture
+    assert "isPluginSource(message.source, capture.pluginName)" in session_capture
     assert "dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "dsh-plugin" in readme

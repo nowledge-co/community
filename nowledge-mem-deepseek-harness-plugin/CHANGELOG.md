@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Restores startup context, prompt recall, and turn-end capture on DSH
+  0.1.7-rc.1 and 0.2.1-alpha.1 through `shell.execute(...).result()`, while
+  retaining the legacy `shell.run()` path and host-authorized sandbox retry.
+- Emits the v4-compatible `plugin:nowledge-mem` source kind and recognizes
+  both legacy and migrated messages for context deduplication, recall queries,
+  transcript filtering, and thread titles.
+- Explicitly admits the tested DSH and Cordis preview versions in optional
+  peer ranges and adds regression coverage using the host's message, Session,
+  and v4 admission implementations.
+- Adds ESLint and GitHub Actions CI with Ubuntu/Windows compatibility tests
+  for DSH 0.1.7-rc.1 and 0.2.1-alpha.1, plus npm package validation.
+
 ## 0.1.5
 
 - Restores turn-end capture on DeepSeek Harness 0.1.2 and newer by reading one
