@@ -4,7 +4,6 @@ on:
     paths:
       - scripts/*plugin_release*
       - scripts/plugin-release.py
-      - scripts/clawhub-receipt.mjs
       - .github/workflows/publish-*.yml
       - .github/workflows/plugin-release-contract.yml
       - docs/PLUGIN_PUBLISHING.md
@@ -49,6 +48,19 @@ jobs:
           if [ -d tests ]; then node --test tests/*.test.mjs; fi
           if [ -f scripts/validate-plugin.mjs ]; then node scripts/validate-plugin.mjs; fi
           npm pack --dry-run
+      - name: Preview real ClawHub code-plugin publication
+        if: matrix.directory == 'nowledge-mem-openclaw-plugin'
+        env:
+          PREVIEW_COMMIT: ${{ github.sha }}
+        run: |
+          npm install --global clawhub@0.23.3
+          clawhub package pack nowledge-mem-openclaw-plugin --pack-destination "$PWD" --json > clawhub-pack.json
+          version=$(node -p "require('./nowledge-mem-openclaw-plugin/package.json').version")
+          clawhub package publish "nowledge-openclaw-nowledge-mem-${version}.tgz" \
+            --family code-plugin --name @nowledge/openclaw-nowledge-mem --owner nowledge \
+            --version "$version" --source-repo nowledge-co/community \
+            --source-commit "$PREVIEW_COMMIT" --source-ref "$PREVIEW_COMMIT" \
+            --source-path nowledge-mem-openclaw-plugin --dry-run --json
   pypi-build:
     runs-on: ubuntu-latest
     strategy:

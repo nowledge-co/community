@@ -16,7 +16,7 @@ Stable releases advance `latest`; prereleases need a separate release policy.
 | npm | nowledge-mem-step-code | publish-npm-plugins.yml | npm Trusted Publisher |
 | PyPI | nowledge-mem-bub | publish-pypi-plugins.yml | PyPI Trusted Publisher |
 | PyPI | nowledge-mem-langgraph | publish-pypi-plugins.yml | PyPI Trusted Publisher |
-| ClawHub | nowledge-mem | publish-clawhub.yml | clawhub environment + token |
+| ClawHub | @nowledge/openclaw-nowledge-mem (code-plugin) | publish-clawhub.yml | Trusted Publisher + clawhub environment |
 
 Pydantic AI, development benchmarks, Git/host-store integrations and the separate
 Gemini submodule are not implicitly added to these registry publishers. A package
@@ -58,25 +58,32 @@ See [PyPI Trusted Publishers](https://docs.pypi.org/trusted-publishers/using-a-p
 
 ### ClawHub
 
-Create GitHub environment `clawhub`, restrict it to `main`, and configure
-required reviewers according to the team's release ownership. Add environment
-secret `CLAWHUB_TOKEN` for an account authorized to publish the existing
-`nowledge-mem` listing. The observed listing owner is `wey-gu`; the npm
-`@nowledge` scope does **not** establish ClawHub ownership. Do not transfer the
-listing or assume a new publisher account has access.
+Create GitHub environment `clawhub`, restrict it to branch `main`, and
+configure reviewers according to release ownership. Configure the scoped
+code-plugin's Trusted Publisher from an authorized ClawHub account:
 
-ClawHub0.8.0 is pinned to the already-used publishing flow. That CLI has no
-publish dry-run and automatically accepts ClawHub's license terms when publishing.
-Dispatch only after the owner has reviewed those terms and the public changelog.
-The token is supplied only to the login/publish step and logged out afterward.
-The GitHub environment approval gate is separate from registry authentication.
+```sh
+clawhub package trusted-publisher set @nowledge/openclaw-nowledge-mem \
+  --repository nowledge-co/community --workflow-filename publish-clawhub.yml \
+  --environment clawhub
+clawhub package trusted-publisher get @nowledge/openclaw-nowledge-mem
+```
 
-ClawHub and npm have different file selection rules. The receipt helper uses the
-pinned CLI's own file selection code, including `.clawhubignore`, to hash the
-exact expected upload. Post-publish verification checks the full file set,
-SHA256 hashes, explicit version and latest tag. This is not GitHub provenance:
-ClawHub0.8.0 does not attach an OIDC attestation or reviewed source SHA to its
-upload. The workflow run and uploaded receipts carry the source-commit evidence.
+The workflow pins ClawHub0.23.3 and uses GitHub OIDC; no `CLAWHUB_TOKEN`
+secret or manual-override token is provided. Failed OIDC authentication therefore
+cannot fall back to a stored account credential on the fresh runner.
+
+The actual package is family `code-plugin`, name
+`@nowledge/openclaw-nowledge-mem`, owner `nowledge`. The separate
+`nowledge-mem` skill listing (owner `wey-gu`) is **not** the plugin runtime
+and must never be used as its publication or acceptance signal.
+
+The CLI packs one tested npm-format ClawPack, previews it with
+`package publish --dry-run`, then publishes that exact tarball with the
+reviewed repo/SHA/subpath and waits for definitive publication. Readback checks
+package identity, family, owner, version/latest, artifact SHA256/npm integrity,
+and server-recorded source repo/SHA/path. Do not claim provenance from a source
+link alone: inspect the returned verification tier separately.
 
 ## Release procedure
 

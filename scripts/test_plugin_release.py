@@ -72,16 +72,32 @@ class ReleaseTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     release.verify_pypi("pkg", "1.0.0", directory)
 
-    def test_clawhub_exact_file_set_hash_and_latest(self):
-        files = [{"path": "src/index.js", "sha256": "expected"}]
-        receipt = {"skill": {"slug": "nowledge-mem", "tags": {"latest": "0.8.34"}},
-                   "version": {"version": "0.8.34", "files": files}}
-        release.verify_clawhub("0.8.34", files, receipt)
+    def test_clawhub_code_plugin_artifact_source_and_latest(self):
+        import copy
+        pack = {"name": "@nowledge/openclaw-nowledge-mem", "version": "0.8.34",
+                "sha256": "expected", "npmIntegrity": "integrity"}
+        receipt = {"package": {"name": pack["name"], "family": "code-plugin", "tags": {"latest": "0.8.34"}},
+                   "owner": {"handle": "nowledge"},
+                   "version": {"version": "0.8.34",
+                               "artifact": {"kind": "npm-pack", "sha256": "expected", "npmIntegrity": "integrity"},
+                               "verification": {"sourceRepo": "nowledge-co/community", "sourceCommit": "a" * 40,
+                                                "sourcePath": "nowledge-mem-openclaw-plugin"}}}
+        release.verify_clawhub("0.8.34", pack, receipt, "a" * 40)
+        for location, key in (("package", "family"), ("owner", "handle"),
+                              ("artifact", "sha256"), ("verification", "sourceCommit")):
+            invalid = copy.deepcopy(receipt)
+            target = invalid[location] if location in invalid else invalid["version"][location]
+            target[key] = "wrong"
+            with self.assertRaises(AssertionError):
+                release.verify_clawhub("0.8.34", pack, invalid, "a" * 40)
+        receipt["package"]["tags"]["latest"] = "old"
         with self.assertRaises(AssertionError):
-            release.verify_clawhub("0.8.34", files + [{"path": "missing", "sha256": "x"}], receipt)
-        receipt["skill"]["tags"]["latest"] = "old"
-        with self.assertRaises(AssertionError):
-            release.verify_clawhub("0.8.34", files, receipt)
+            release.verify_clawhub("0.8.34", pack, receipt, "a" * 40)
+
+    def test_clawhub_skill_listing_cannot_verify_a_code_plugin(self):
+        skill = {"skill": {"slug": "nowledge-mem", "tags": {"latest": "0.8.34"}}}
+        with self.assertRaises(KeyError):
+            release.verify_clawhub("0.8.34", {}, skill, "a" * 40)
 
 
 if __name__ == "__main__":

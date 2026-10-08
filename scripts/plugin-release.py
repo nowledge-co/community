@@ -84,21 +84,30 @@ def verify_pypi(name, version, directory):
     assert remote(f"https://pypi.org/pypi/{name}/json")["info"]["version"] == version
 
 
-def verify_clawhub(version, files, receipt):
-    assert receipt["skill"]["slug"] == "nowledge-mem"
+def verify_clawhub(version, pack, receipt, commit):
+    assert receipt["package"]["name"] == "@nowledge/openclaw-nowledge-mem"
+    assert receipt["package"]["family"] == "code-plugin"
+    assert receipt["owner"]["handle"] == "nowledge"
     assert receipt["version"]["version"] == version
-    assert receipt["skill"]["tags"]["latest"] == version
-    expected = {item["path"]: item["sha256"] for item in files}
-    actual = {item["path"]: item["sha256"] for item in receipt["version"]["files"]}
-    assert expected == actual, "ClawHub file set or hashes differ from tested source"
+    assert receipt["package"]["tags"]["latest"] == version
+    assert pack["name"] == receipt["package"]["name"]
+    assert pack["version"] == version
+    artifact = receipt["version"]["artifact"]
+    assert artifact["kind"] == "npm-pack"
+    assert artifact["sha256"] == pack["sha256"]
+    assert artifact["npmIntegrity"] == pack["npmIntegrity"]
+    proof = receipt["version"]["verification"]
+    assert proof["sourceRepo"] == "nowledge-co/community"
+    assert proof["sourceCommit"] == commit
+    assert proof["sourcePath"] == "nowledge-mem-openclaw-plugin"
 
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "verify-clawhub":
-        _, _, version, pack, receipt = sys.argv
+        _, _, version, pack, receipt, commit = sys.argv
         metadata("openclaw", version)
-        verify_clawhub(version, json.loads(Path(pack).read_text()), json.loads(Path(receipt).read_text()))
-        print(f"Verified ClawHub nowledge-mem@{version}: exact file hashes and latest")
+        verify_clawhub(version, json.loads(Path(pack).read_text()), json.loads(Path(receipt).read_text()), commit)
+        print(f"Verified ClawHub code-plugin@{version}: exact artifact, source SHA and latest")
         return
     parser = argparse.ArgumentParser()
     parser.add_argument("operation", choices=["check", "preflight", "verify"])
