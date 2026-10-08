@@ -70,9 +70,29 @@ class ReleaseTests(unittest.TestCase):
                     release.verify_npm("pkg", "1.0.0", path)
             with patch.object(release, "remote", side_effect=[{"dist": {"integrity": "expected"}}, {"version": "0.9.0"}]):
                 with self.assertRaises(AssertionError):
-                    release.verify_npm("pkg", "1.0.0", path)
+                    release.verify_npm("pkg", "1.0.0", path, attempts=1)
             with patch.object(release, "remote", side_effect=[{"dist": {"integrity": "expected"}}, {"version": "1.0.0"}]):
                 release.verify_npm("pkg", "1.0.0", path)
+
+    def test_registry_visibility_waits_without_retrying_writes(self):
+        missing = urllib.error.HTTPError("url", 404, "", {}, None)
+        with patch.object(release, "remote", side_effect=[missing, {"version": "old"}, {"version": "new"}]) as read:
+            with patch.object(release.time, "sleep") as sleep:
+                result = release.visible_remote("url", lambda data: data["version"] == "new", attempts=3)
+                self.assertEqual(result["version"], "new")
+                self.assertEqual(read.call_count, 3)
+                self.assertEqual(sleep.call_count, 2)
+        with patch.object(release, "remote", side_effect=missing):
+            with patch.object(release.time, "sleep") as sleep:
+                with self.assertRaises(urllib.error.HTTPError):
+                    release.visible_remote("url", attempts=2)
+                self.assertEqual(sleep.call_count, 1)
+        for status in (401, 403, 429, 500):
+            with patch.object(release, "remote", side_effect=urllib.error.HTTPError("url", status, "", {}, None)):
+                with patch.object(release.time, "sleep") as sleep:
+                    with self.assertRaises(urllib.error.HTTPError):
+                        release.visible_remote("url")
+                    sleep.assert_not_called()
 
     def test_pypi_artifact_hashes(self):
         import hashlib

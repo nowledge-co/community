@@ -72,6 +72,13 @@ If present, verify its retained receipt instead of re-uploading. If absent, fix
 and review the cause, then retry only the failed channel with a reviewed SHA.
 Never switch to a personal token or silently publish another version.
 
+For npm/PyPI readback failures after a successful upload, use the runbook's
+`verify-plugin-release.yml` recovery workflow: it downloads the original run's
+receipt, checks its main/source/workflow identity, and verifies without publishing
+credentials. Do not rerun a combined npm publish job against an existing version.
+ClawHub Trusted Publishing derives the owner from the grant; the upload command
+must not pass an owner override. Keep the expected owner in preview/readback.
+
 Handoff per channel: package/version, artifact SHA, workflow run, receipt result,
 provenance, host-smoke result, and remaining blockers. Do not call a green build
 a shipped release or close acceptance work while publish/verification is pending.
