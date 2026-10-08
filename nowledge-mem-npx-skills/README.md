@@ -126,8 +126,8 @@ Found it! We solved this 2 weeks ago. The issue was token expiration...
 
 Search uses Normal mode for bounded recall, Deep for conceptual or weak-result
 questions, and Progressive when the user wants to follow relationships from an
-exact Memory ID. Non-empty Memory results automatically trigger a focused graph;
-thread-only and empty results do not. Install `explore-graph` alongside
+exact Memory ID. Graphs appear only on explicit request or when relationships help answer the question;
+a successful search alone is not a trigger, and thread-only or empty results are not graphed. Install `explore-graph` alongside
 `search-memory` when selecting skills individually to include its fallback and
 progressive exploration instructions.
 
@@ -244,7 +244,7 @@ nmem --json m search "React patterns"
 
 ### Memory Lifecycle
 
-The reusable skills follow the same core flow as the richer native connectors: read Working Memory, route recall across memories and threads, show a focused graph of retrieved memories, save a resumable handoff when asked, and distill durable knowledge.
+The reusable skills follow the same core flow as the richer native connectors: read Working Memory, route recall across memories and threads, show focused graphs on demand, save a resumable handoff when asked, and distill durable knowledge.
 
 For generic `npx skills` environments, treat `save-handoff` as the honest default. The deprecated `save-thread` compatibility skill stays published only so existing indexed installs do not break or mislead users.
 
@@ -288,7 +288,7 @@ Retrieval routing:
 - Use `nmem --json t search` when the user is asking about a prior discussion or exact conversation history.
 - If a memory result includes `source_thread`, inspect that conversation progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 - If the host does not know a lane, stay in the default space. Do not invent one in the prompt.
-- After non-empty Memory retrieval, use `explore-graph` to show the exact result IDs in the same scope; skip empty and thread-only results. If visualization fails, report the reason and retain the retrieved evidence.
+- On explicit request or when relationships help answer the question, use `explore-graph` to show the exact result IDs in the same scope; skip empty and thread-only results. If visualization fails, report the reason and retain the retrieved evidence.
 
 When preserving knowledge:
 - Use `nmem --json m add` for genuinely new durable knowledge.

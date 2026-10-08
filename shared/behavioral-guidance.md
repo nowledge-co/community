@@ -192,6 +192,15 @@ Search your knowledge base proactively when past insights would improve the resp
 
 ---
 
+### Graph views are on demand
+
+Answer ordinary recall with retrieved evidence. Show a graph only on explicit
+request or when relationships directly help answer the current question; a
+successful search alone is not a trigger. Preserve exact returned IDs and the
+retrieval identity/Space restrictions. Keep expansion bounded and best-effort.
+
+---
+
 ## 5. Autonomous Save
 
 **Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.**
@@ -203,6 +212,12 @@ Good candidates:
 - Durable preferences or constraints
 - Plans that future sessions will need to resume
 - Important context that would be lost when the session ends
+
+**Evidence and reuse:**
+- Retain sources and relevant scope, date/version and reuse conditions.
+- Separate observations, decisions and unverified assumptions; resumable plans remain plans.
+- Skip unchanged progress, repeated retries and duplicate task records. Update existing concepts when evidence changes.
+- A substantial task may produce no new durable memory; there is no save quota.
 
 **Quality bar:**
 - Importance 0.8–1.0: major decisions, architectural choices, critical learnings

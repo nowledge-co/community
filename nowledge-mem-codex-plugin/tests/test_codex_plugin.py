@@ -122,10 +122,12 @@ class MemoryGraphSkillTests(unittest.TestCase):
                     (repo_root / entry["directory"] / "skills/explore-graph/SKILL.md").is_file()
                 )
 
-    def test_search_automatically_graphs_the_exact_memory_results(self):
+    def test_search_graphs_exact_memory_results_only_when_useful(self):
         skill = SEARCH_MEMORY_SKILL_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("After every successful `memory_search`", skill)
+        self.assertIn("A successful search alone is not a trigger.", skill)
+        self.assertIn("when relationships directly help answer the current question.", skill)
+        self.assertNotIn("After every successful `memory_search`", skill)
         self.assertIn("all returned Memory IDs", skill)
         self.assertIn("`explore_graph`", skill)
         self.assertIn("depth=1", skill)
@@ -156,7 +158,9 @@ class MemoryGraphSkillTests(unittest.TestCase):
     def test_graph_prefers_inline_and_focuses_the_standalone_fallback(self):
         skill = EXPLORE_GRAPH_SKILL_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("automatically after a successful Nowledge Memory search", skill)
+        self.assertIn("A successful search alone is not a trigger.", skill)
+        self.assertIn("on an explicit graph request", skill)
+        self.assertNotIn("automatically after a successful Nowledge Memory search", skill)
         self.assertIn("Prefer the MCP `explore_graph` tool", skill)
         self.assertIn("memory_ids=<URL-encoded comma-separated IDs>", skill)
         self.assertIn("Only open the full overview", skill)

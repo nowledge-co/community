@@ -90,7 +90,7 @@ const exploreGraphSkill = readTextIfPresent(
 if (exploreGraphSkill) {
   for (const requiredText of [
     "name: explore-graph",
-    "automatically after a successful Nowledge Memory search",
+    "A successful search alone is not a trigger.",
     "Prefer the MCP `explore_graph` tool",
     "nmem --json status",
     "memory_ids=<URL-encoded comma-separated IDs>",
@@ -112,7 +112,8 @@ const searchMemorySkill = readTextIfPresent(
 );
 if (searchMemorySkill) {
   for (const requiredText of [
-    "After every successful `memory_search`",
+    "when relationships directly help answer the current question.",
+    "A successful search alone is not a trigger.",
     "all returned Memory IDs",
     "`explore_graph`",
     "Do not expose or invent hidden reasoning",
@@ -129,7 +130,7 @@ if (searchMemorySkill) {
       fail(`search-memory skill must include: ${requiredText}`);
     }
   }
-  ok("search-memory automatic focused graph contract");
+  ok("search-memory on-demand focused graph contract");
 }
 
 const manifest = parseJsonIfPresent(

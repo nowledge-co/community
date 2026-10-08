@@ -7,6 +7,16 @@ description: Capture breakthrough moments and valuable insights as searchable me
 
 Save proactively when the conversation produces a durable fact, preference, decision, plan, procedure, learning, event, or important context. Do not wait to be asked.
 
+## Evidence and reuse quality
+
+Retain the source issue, PR, thread, document or observed command/result for each
+non-obvious claim, plus its scope, date/version and reuse conditions when relevant.
+Separate observations, decisions and unverified assumptions. A resumable plan is
+a `plan`, not a completed fact; keep proposed, implemented and verified states clear.
+Skip unchanged progress, repeated retries and copies of an existing task record.
+Search first and update the same concept only when evidence or judgment changes.
+A substantial task can produce no new durable memory; there is no save quota.
+
 ## When to Save
 
 Good candidates include:
@@ -24,7 +34,7 @@ Skip routine fixes with no generalizable lesson, work in progress that will chan
 
 - Use `nmem --json m add` when the insight is genuinely new.
 - If an existing memory already captures the same decision, workflow, or preference and the new information refines it, use `nmem m update <id> ...` instead of creating a duplicate.
-- At the end of a substantial task, explicitly check whether one durable memory should be added or updated.
+- At the end of a substantial task, check whether a distinct durable insight should be added or updated.
 
 Prefer atomic, standalone memories with strong titles and clear meaning. Focus on what was learned or decided, not routine chatter.
 

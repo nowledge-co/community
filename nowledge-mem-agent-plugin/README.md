@@ -44,7 +44,7 @@ This package gives compatible agents a baseline memory surface:
 
 - Read Context Bundle / Working Memory at the start of work
 - Search memories and prior threads when context would help
-- Show a focused graph after non-empty Memory retrieval with [Explore Graph](skills/explore-graph/SKILL.md), or follow related memories one hop at a time
+- Show a focused graph on explicit request or when relationships help answer the question with [Explore Graph](skills/explore-graph/SKILL.md), or follow related memories one hop at a time
 - Distill durable decisions, procedures, and debugging breakthroughs
 - Check Nowledge Mem status
 - Save an honest resumable handoff when a full transcript importer is unavailable

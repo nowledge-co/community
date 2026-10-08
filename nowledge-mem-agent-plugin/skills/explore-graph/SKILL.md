@@ -1,14 +1,15 @@
 ---
 name: explore-graph
-description: Render a focused interactive graph for memories retrieved from Nowledge Mem, automatically after successful Memory retrieval or when the user explicitly asks to view, show, inspect, or explore their memory graph; support bounded progressive node expansion.
+description: Render a focused interactive graph for memories retrieved from Nowledge Mem, when the user explicitly requests a graph or relationships directly help answer the current question; support bounded progressive node expansion.
 ---
 
 # Explore the memory graph
 
 Use the exact Memory IDs returned by the current retrieval, in ranked order.
-Run this automatically after a successful Nowledge Memory search with at least
-one result, or on an explicit graph request. Do not graph empty results or
-thread-only retrieval.
+Show a graph only on an explicit graph request or when relationships directly
+help answer the current question. A successful search alone is not a trigger.
+For ordinary recall, answer with the retrieved evidence. Do not graph empty
+results or thread-only retrieval.
 
 Keep the retrieval's configured endpoint, owner/member permissions, agent
 identity, and active space. Never infer a space from the current folder or

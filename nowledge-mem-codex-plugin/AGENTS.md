@@ -73,6 +73,8 @@ If the runtime already has an ambient lane, add `--space "<space name>"` to Cont
 Use `--mode deep` when the first pass is weak or the need is conceptual.
 
 Follow `search-memory` for Normal, Deep, and Progressive retrieval routing.
+Show a graph only on explicit request or when relationships directly help answer
+the current question. A successful search alone is not a trigger.
 Before any graph rendering or expansion, follow `explore-graph` and its
 identity and Space checks. If the graph surface cannot preserve the retrieval
 scope, skip visualization and retain the retrieved evidence. Keep the graph
@@ -140,7 +142,7 @@ Unit types: `fact`, `preference`, `decision`, `plan`, `procedure`, `learning`, `
 
 One strong memory is better than three weak ones.
 
-At the end of substantial tasks, explicitly check whether one durable memory should be added or updated. Do not silently skip that review.
+At the end of substantial tasks, check for distinct durable insights. Preserve sources and reuse conditions, keep plans separate from verified facts, update existing concepts, and skip unchanged progress. No new durable insight means no save is needed.
 
 ## Save Thread
 

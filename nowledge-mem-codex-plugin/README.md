@@ -9,7 +9,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 - **Pick up where you left off.** A native SessionStart hook injects your Context Bundle automatically, with Working Memory as fallback, while SubagentStart selectively gives context-heavy roles a bounded context snapshot.
 - **Stronger retrieval on modern Codex.** The package bundles the local Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
 - **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, sources, and artifacts as one tree.
-- **See retrieved memories in context.** Memory search automatically follows with a focused graph of the exact results: inline through MCP Apps when supported, or in the standalone Graph Explorer as a fallback.
+- **See retrieved memories in context.** When requested or useful for explaining relationships, show a focused graph of the exact results: inline through MCP Apps when supported, or in the standalone Graph Explorer as a fallback.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
 - **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary. The Nowledge Mem Auto-Sync switch can pause lifecycle capture without disabling manual saves.
 - **Quick diagnostics.** One command to verify everything is connected.
@@ -93,17 +93,16 @@ exist. Normal hook setup and trust decisions remain unchanged.
 | Skill | When it runs | What it does |
 |-------|-------------|-------------|
 | `working-memory` | Session start, "what am I working on" | Loads Context Bundle when full identity/scope/rules matter; otherwise loads the daily briefing and prefers MCP when present |
-| `search-memory` | Prior work, past decisions | Routes Normal, Deep, and Progressive retrieval, then graphs non-empty Memory results and reports the observable retrieval trace |
+| `search-memory` | Prior work, past decisions | Routes Normal, Deep, and Progressive retrieval, shows graphs on demand and reports the observable retrieval trace |
 | `save-thread` | Manual fallback, "Save this session" | Imports the real Codex transcript |
 | `distill-memory` | Decisions, learnings emerge | Saves durable insights to memory, preferring MCP writes when present |
-| `explore-graph` | Memory search result or explicit graph request | Renders the exact retrieved Memory subgraph inline when possible, with a focused standalone fallback |
+| `explore-graph` | Explicit graph request or useful relationships | Renders the exact retrieved Memory subgraph inline when possible, with a focused standalone fallback |
 | `status` | "Is Mem working?", errors | Checks connectivity |
 
 The Agent retrieval policy is intentionally bounded: Normal is the default for
 simple recall, Deep is selected for conceptual or historical questions or when
 Normal evidence is insufficient, and Progressive starts from an exact Memory ID
-and expands one graph hop at a time. Non-empty retrieval automatically gets a
-focused graph; Progressive defaults to at most 5 hops and 20 neighbors per hop.
+and expands one graph hop at a time. Focused graphs appear on explicit request or when relationships help answer the question; Progressive defaults to at most 5 hops and 20 neighbors per hop.
 
 ## Knowledge Tree for Agents
 

@@ -5,6 +5,16 @@ description: Save key decisions, procedures, or learnings so the user never has 
 
 Capture what matters before the session ends. Save decisions, procedures, and learnings as durable memories that any connected AI tool can find later.
 
+## Evidence and reuse quality
+
+Retain the source issue, PR, thread, document or observed command/result for each
+non-obvious claim, plus its scope, date/version and reuse conditions when relevant.
+Separate observations, decisions and unverified assumptions. A resumable plan is
+a `plan`, not a completed fact; keep proposed, implemented and verified states clear.
+Skip unchanged progress, repeated retries and copies of an existing task record.
+Search first and update the same concept only when evidence or judgment changes.
+A substantial task can produce no new durable memory; there is no save quota.
+
 ## What to distill
 
 - **Decisions** with rationale ("we chose PostgreSQL because ACID is required")
@@ -41,7 +51,7 @@ Otherwise:
    nmem --json m add "content" -t "Title" --unit-type decision -l "label" -s codex -i 0.8
    ```
 
-At the end of a substantial task, explicitly check whether one durable memory should be added or updated. Do not skip that review just because the user did not ask.
+At the end of a substantial task, check whether a distinct durable insight should be added or updated. Do not skip that review just because the user did not ask.
 
 ## Unit types
 

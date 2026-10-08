@@ -71,8 +71,8 @@ result or the user's intent justifies it.
    lineage, or a trace. If no seed is supplied, run a bounded Normal/Deep
    search first and select only exact IDs from its ranked results.
 
-After a non-empty search, the default graph view is a focused graph of that
-result set. A graph view does not by itself mean "search the whole graph".
+When a graph is requested or relationships directly help answer the question,
+the default view is a focused graph of the non-empty result set. A graph view does not by itself mean "search the whole graph".
 Use progressive expansion only when more relational evidence is needed or the
 user asks to continue.
 
@@ -113,10 +113,10 @@ expansion; if the graph surface cannot enforce the retrieval scope, skip it.
 
 ## Show what was retrieved
 
-After every successful `memory_search` or equivalent CLI/KFS Memory search that
-returns at least one Memory,
-automatically visualize the result set. Preserve the server's ranked order and
-pass all returned Memory IDs; never infer or substitute IDs.
+Answer ordinary recall with retrieved evidence. Show a graph only on an explicit
+graph request or when relationships directly help answer the current question.
+A successful search alone is not a trigger. When a graph is useful, preserve the
+server's ranked order and pass all returned Memory IDs; never infer or substitute IDs.
 
 First apply the `explore-graph` skill's identity and Space checks. Exact seed
 IDs do not enforce authorization. For Space- or Team-restricted retrieval,

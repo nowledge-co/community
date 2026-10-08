@@ -1,6 +1,6 @@
 ---
 name: search-memory
-description: Search Nowledge Mem memories and prior threads for past decisions, procedures, and context with normal, deep, or progressive retrieval; automatically show a focused graph of successful Memory results.
+description: Search Nowledge Mem memories and prior threads for past decisions, procedures, and context with normal, deep, or progressive retrieval; show focused graphs on explicit request or when relationships directly help answer the question.
 ---
 
 # Search Memory
@@ -60,8 +60,9 @@ space from the current folder or switch owners or spaces to find more results.
 
 ## Show What Was Retrieved
 
-After every successful `memory_search` or equivalent CLI/KFS Memory search
-that returns at least one Memory, automatically show a focused graph. Preserve
+Answer ordinary recall with retrieved evidence. Show a graph only on an explicit
+graph request or when relationships directly help answer the current question.
+A successful search alone is not a trigger. When a graph is useful, preserve
 ranked order and all returned Memory IDs; never infer or substitute IDs.
 
 1. Prefer MCP `explore_graph` with the comma-separated IDs, `depth=1`, and
