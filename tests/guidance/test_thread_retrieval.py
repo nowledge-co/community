@@ -9,7 +9,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
     def test_thread_reads_have_a_budget_and_failure_exit(self):
         for name in PATHS:
             with self.subTest(path=name):
-                text = (ROOT / name).read_text()
+                text = (ROOT / name).read_text(encoding="utf-8")
                 self.assertIn("at most once per question", text)
                 self.assertIn("Never loop over offsets", text)
                 self.assertIn("Do not raise", text)
@@ -25,7 +25,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
     def test_agent_tool_descriptions_do_not_encourage_page_walks(self):
         for name in ["nowledge-mem-openclaw-plugin/src/tools/thread-fetch.js", "nowledge-mem-alma-plugin/main.js"]:
             with self.subTest(path=name):
-                text = (ROOT / name).read_text()
+                text = (ROOT / name).read_text(encoding="utf-8")
                 self.assertIn("at most one small targeted message range per question", text)
                 self.assertIn("Never loop over offsets", text)
                 self.assertIn("report the evidence gap and refine search", text)
@@ -33,7 +33,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
                 self.assertNotIn("offset to skip earlier messages for progressive retrieval", text)
 
     def test_graph_expansion_remains_distinct(self):
-        text = (ROOT / "nowledge-mem-codex-plugin/skills/search-memory/SKILL.md").read_text()
+        text = (ROOT / "nowledge-mem-codex-plugin/skills/search-memory/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("Progressive graph search", text)
         self.assertIn("maximum depth", text)
 
