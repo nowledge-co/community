@@ -27,7 +27,7 @@ If memory results include `source_thread` or thread search finds the likely conv
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-Increase `--offset` only when more messages are actually needed.
+Use a known target `--offset` once; do not advance through pages.
 
 ### Bounded thread reads
 

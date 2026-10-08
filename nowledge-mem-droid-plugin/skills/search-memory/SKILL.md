@@ -48,7 +48,7 @@ If a memory result includes `source_thread`, or thread search identifies the lik
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-Increase `--offset` only when more messages are actually needed.
+Use a known target `--offset` once; do not advance through pages.
 
 ## Response Contract
 

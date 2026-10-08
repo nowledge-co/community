@@ -1333,7 +1333,7 @@ export async function activate(context) {
 			"Fetch messages from a conversation thread. Use to read the full context around a memory — " +
 			"pass the sourceThreadId from nowledge_mem_search or nowledge_mem_show results, " +
 			"or a thread id from nowledge_mem_thread_search. " +
-			"Supports pagination: set offset to skip earlier messages for progressive retrieval.",
+			"Search first, then fetch at most one small targeted message range per question. Never loop over offsets to reconstruct a conversation or increase content limits. If the read is slow, incomplete or fails, stop, report the evidence gap and refine search. A known target offset is allowed for the single read.",
 		inputSchema: {
 			type: "object",
 			properties: {

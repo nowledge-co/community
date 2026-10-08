@@ -55,7 +55,7 @@ If a thread looks relevant, load it incrementally:
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-Increase `--offset` only when more messages are actually needed.
+Use a known target `--offset` once; do not advance through pages.
 
 For continuation-heavy engineering work, search near the start of the task rather than waiting for an explicit recall request.
 

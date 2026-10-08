@@ -373,7 +373,7 @@ offset: 0, limit: 50
 -> Thread: "Database architecture discussion" (128 messages)
   [user] We need to decide on the database for task events...
   [assistant] Based on the requirements, PostgreSQL with JSONB...
-  ... (126 more messages, use offset=50 for next page)
+  ... (126 messages not shown; refine search for the specific evidence needed)
 ```
 
 ## Operating Modes

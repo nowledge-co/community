@@ -6,7 +6,7 @@ export function createThreadFetchTool(client, logger) {
 			"around a memory — pass the sourceThreadId from memory_search or memory_get results, " +
 			"or a threadId from nowledge_mem_thread_search. " +
 			"Supports pagination for long conversations: set offset to skip earlier messages. " +
-			"Useful for progressive retrieval — fetch the first page, then request more if needed.",
+			"Search first, then fetch at most one small targeted message range per question. Never loop over offsets to reconstruct a conversation or increase content limits. If the read is slow, incomplete or fails, stop, report the evidence gap and refine search.",
 		parameters: {
 			type: "object",
 			properties: {
