@@ -35,7 +35,13 @@ export function resolveDangerFullAccessPolicy(ctx, session) {
 }
 
 async function runShell(ctx, request) {
-  return await ctx.shell.run(ctx.shell.resolve(request))
+  const spec = ctx.shell.resolve(request)
+  if (typeof ctx.shell.execute === 'function') {
+    const execution = await ctx.shell.execute(spec)
+    return await execution.result()
+  }
+  if (typeof ctx.shell.run === 'function') return await ctx.shell.run(spec)
+  throw new TypeError('unsupported DSH shell contract; expected shell.execute() or legacy shell.run()')
 }
 
 export async function runShellWithHostSandboxRetry(

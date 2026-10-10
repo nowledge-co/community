@@ -105,3 +105,26 @@ test('delta, conflict reconciliation, and compaction reuse one current snapshot'
   assert.equal(compacted.deltaFrom(2).reset, true)
   assert.equal(compacted.deltaFrom(2).payload.title, 'Original question')
 })
+
+test('skips own legacy and v4 injections while retaining other producer messages', () => {
+  const sources = [
+    { kind: 'plugin', plugin: 'nowledge-mem', form: 'snapshot' },
+    { kind: 'plugin', plugin: 'nowledge-mem', form: 'recall' },
+    { kind: 'plugin:nowledge-mem', form: 'snapshot' },
+    { kind: 'plugin:nowledge-mem', form: 'recall' },
+    { kind: 'plugin', plugin: 'other-plugin', form: 'snapshot' },
+    { kind: 'plugin:other-plugin', form: 'recall' },
+    { kind: 'user' },
+  ]
+  const injectedEvents = sources.map((source, seq) => ({
+    type: 'user/message',
+    seq,
+    time: 1_800_000_000_000 + seq,
+    data: message(`message-${seq}`, source.kind === 'user' ? 'Original question' : `Context ${seq}`, source),
+  }))
+  const result = capture(sessionWith(injectedEvents)).deltaFrom(-1)
+
+  assert.equal(result.payload.title, 'Original question')
+  assert.deepEqual(result.payload.messages.map(value => value.content), ['Context 4', 'Context 5', 'Original question'])
+  assert.equal(result.acknowledgedSeq, 6)
+})

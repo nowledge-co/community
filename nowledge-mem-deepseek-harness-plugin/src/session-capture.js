@@ -1,6 +1,7 @@
 import { selectUnacknowledgedEvents } from './session-delta.js'
 import { snapshotSessionEvents } from './session-events.js'
 import { boundText, sessionThreadTitle } from './thread-import.js'
+import { isPluginSource } from './message-source.js'
 
 function eventMessage(event) {
   switch (event.type) {
@@ -35,7 +36,7 @@ function buildThreadImportDelta(capture, acknowledgedSeq) {
     const role = importRole(event)
     const message = eventMessage(event)
     if (role === undefined || message === undefined) continue
-    if (message.source.kind === 'plugin' && message.source.plugin === capture.pluginName) continue
+    if (isPluginSource(message.source, capture.pluginName)) continue
     const content = boundText(capture.renderMessage(message).trim(), capture.maxMessageChars)
     if (content === '') continue
     const metadata = {

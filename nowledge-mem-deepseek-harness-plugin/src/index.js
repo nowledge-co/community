@@ -15,6 +15,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
 import { DEFAULT_PROMPT_RECALL_PATTERN, shouldRecallForPrompt } from './recall.js'
 import { hasContextBundle } from './context.js'
+import { isPluginSource } from './message-source.js'
 import { flushBeforeImport } from './session-flush.js'
 import {
   errorMessage,
@@ -178,7 +179,7 @@ function messageText(message) {
 
 function proposedPromptText(messages, maxChars) {
   const text = messages
-    .filter(message => !(message.source.kind === 'plugin' && message.source.plugin === name))
+    .filter(message => !isPluginSource(message.source, name))
     .map(messageText)
     .filter(part => part.trim() !== '')
     .join('\n\n')
@@ -244,8 +245,8 @@ function pluginContextMessage(form, sectionName, text) {
   return createUserMessage({
     content: [{ type: 'text', text }],
     source: form === 'snapshot'
-      ? { kind: 'plugin', plugin: name, form, sections: [{ name: sectionName, text }] }
-      : { kind: 'plugin', plugin: name, form },
+      ? { kind: `plugin:${name}`, form, sections: [{ name: sectionName, text }] }
+      : { kind: `plugin:${name}`, form },
   })
 }
 

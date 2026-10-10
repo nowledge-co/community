@@ -13,6 +13,16 @@ test('checks the model-visible session projection after compaction', () => {
   assert.equal(hasContextBundle({ deriveMessages: () => [] }), false)
 })
 
+test('recognizes a migrated v4 context snapshot without confusing other producers or recall', () => {
+  const session = source => ({ deriveMessages: () => [{ source }] })
+
+  assert.equal(hasContextBundle(session({ kind: 'plugin:nowledge-mem', form: 'snapshot' })), true)
+  assert.equal(hasContextBundle(session({ kind: 'plugin:nowledge-mem', form: 'recall' })), false)
+  assert.equal(hasContextBundle(session({ kind: 'plugin:other-plugin', form: 'snapshot' })), false)
+  assert.equal(hasContextBundle(session({ kind: 'runtime-context', form: 'snapshot' })), false)
+  assert.equal(hasContextBundle(session({ kind: 'plugin:custom-mem', form: 'snapshot' }), 'custom-mem'), true)
+})
+
 test('flushes DSH write-behind persistence before import and fails open', async () => {
   const calls = []
   const session = {}
