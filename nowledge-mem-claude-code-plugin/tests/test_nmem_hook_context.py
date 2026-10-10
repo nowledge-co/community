@@ -233,8 +233,32 @@ def test_configured_cli_path_is_authoritative_and_can_contain_spaces(
 
 
 def test_direct_windows_shim_does_not_require_cmd_exe(module):
-    assert module.command_args("/custom bin/nmem.cmd", ["--space", 'lane"2024']) == [
-        "/custom bin/nmem.cmd",
+    with (
+        mock.patch.object(module.sys, "platform", "win32"),
+        mock.patch.object(module.shutil, "which", return_value=None),
+    ):
+        assert module.command_args(
+            "/custom bin/nmem.cmd", ["--space", 'lane"2024']
+        ) == [
+            "/custom bin/nmem.cmd",
+            "--space",
+            'lane"2024',
+        ]
+
+
+def test_windows_shim_keeps_arguments_separate_through_git_bash(module):
+    with (
+        mock.patch.object(module.sys, "platform", "win32"),
+        mock.patch.object(module.shutil, "which", return_value="C:/Git/bin/sh.exe"),
+    ):
+        command = module.command_args(
+            "C:/custom bin/nmem.cmd", ["--space", 'lane"2024']
+        )
+    assert command == [
+        "C:/Git/bin/sh.exe",
+        "-c",
+        'exec "$0" "$@"',
+        "C:/custom bin/nmem.cmd",
         "--space",
         'lane"2024',
     ]
@@ -255,7 +279,7 @@ def test_wsl_windows_shim_uses_interop(module, monkeypatch):
 def test_packaged_hooks_produce_valid_json_in_an_installed_plugin(
     module, monkeypatch, tmp_path, event, index
 ):
-    hooks = json.loads(HOOKS_PATH.read_text())["hooks"]
+    hooks = json.loads(HOOKS_PATH.read_text(encoding="utf-8"))["hooks"]
     hook = hooks[event][index]["hooks"][0]
     cli = tmp_path / ("fake nmem.cmd" if os.name == "nt" else "fake nmem")
     if os.name == "nt":
@@ -296,9 +320,13 @@ def test_packaged_hooks_produce_valid_json_in_an_installed_plugin(
 
 def test_claude_remains_cli_first_and_versions_match_registry():
     repository = PLUGIN_ROOT.parent
-    registry = json.loads((repository / "integrations.json").read_text())
+    registry = json.loads(
+        (repository / "integrations.json").read_text(encoding="utf-8")
+    )
     by_id = {entry["id"]: entry for entry in registry["integrations"]}
-    manifest = json.loads((PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text())
+    manifest = json.loads(
+        (PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
     assert by_id["claude-code"]["transport"] == "cli"
     assert "mcpServers" not in manifest
     assert not (PLUGIN_ROOT / ".mcp.json").exists()

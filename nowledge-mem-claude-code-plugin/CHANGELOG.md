@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   silently reading the default Space or its legacy local file.
 - Honor NMEM_CLI_PATH and retain direct Windows shim invocation and Grok's
   passive-hook no-op behavior.
+- Preserve Git Bash argument handling for Windows command shims, use native
+  test CLI fixtures and PATH separators, and explicitly encode raw context
+  and registry reads as UTF-8 on Windows.
 - Emit one structured hook response after compaction, keeping the checkpoint
   inside model context rather than appending plaintext to JSON.
 

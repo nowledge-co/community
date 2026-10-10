@@ -88,8 +88,12 @@ def find_nmem() -> str | None:
 
 
 def command_args(nmem: str, args: list[str]) -> list[str]:
-    # Git Bash and native Windows can launch their .cmd shim directly. WSL
-    # needs Windows interop, using an argument list rather than shell text.
+    # Preserve Git Bash's direct shim invocation and argument handling. Python's
+    # native batch-file launch otherwise reparses embedded quotes through cmd.
+    if sys.platform == "win32" and nmem.lower().endswith(".cmd"):
+        if shell := shutil.which("sh"):
+            return [shell, "-c", 'exec "$0" "$@"', nmem.replace("\\", "/"), *args]
+    # WSL needs Windows interop, using an argument list rather than shell text.
     if nmem.lower().endswith(".cmd") and (
         os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP")
     ):
@@ -276,6 +280,8 @@ if __name__ == "__main__":
     parser.add_argument("--timeout", type=float, default=TOTAL_TIMEOUT_SECONDS)
     options = parser.parse_args()
     try:
+        # Raw subagent context is decoded as UTF-8 even on Windows pipes.
+        sys.stdout.reconfigure(encoding="utf-8")
         raise SystemExit(
             main(
                 event=options.event,
