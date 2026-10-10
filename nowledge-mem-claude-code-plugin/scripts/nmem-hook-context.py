@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -87,7 +88,18 @@ def find_nmem() -> str | None:
     return next((str(path) for path in candidates if shutil.which(str(path))), None)
 
 
-def command_args(nmem: str, args: list[str]) -> list[str]:
+def escape_cmd_meta(value: str) -> str:
+    return re.sub(r'([()%!^"<>&|;, *?])', r"^\1", value)
+
+
+def batch_argument(value: str) -> str:
+    value = re.sub(r'(\\*)"', lambda match: match[1] * 2 + '\\"', value)
+    value = re.sub(r"(\\+)$", lambda match: match[1] * 2, value)
+    # Batch shims parse arguments in cmd /c and again when forwarding %*.
+    return escape_cmd_meta(escape_cmd_meta(f'"{value}"'))
+
+
+def command_args(nmem: str, args: list[str]) -> list[str] | str:
     # WSL needs Windows interop, using an argument list rather than shell text.
     if nmem.lower().endswith(".cmd") and (
         os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP")
@@ -96,11 +108,12 @@ def command_args(nmem: str, args: list[str]) -> list[str]:
             nmem = nmem[5].upper() + ":\\" + nmem[7:].replace("/", "\\")
         command = subprocess.list2cmdline([nmem, *args])
         return ["cmd.exe", "/d", "/s", "/c", f'"{command}"']
-    # Preserve Git Bash's direct shim invocation and argument handling. Python's
-    # native batch-file launch otherwise reparses embedded quotes through cmd.
     if sys.platform == "win32" and nmem.lower().endswith(".cmd"):
-        if shell := shutil.which("sh"):
-            return [shell, "-c", 'exec "$0" "$@"', nmem.replace("\\", "/"), *args]
+        command = escape_cmd_meta(nmem.replace("/", "\\"))
+        command += " " + " ".join(batch_argument(arg) for arg in args)
+        shell = subprocess.list2cmdline([os.environ.get("COMSPEC", "cmd.exe")])
+        # A string avoids Python applying CRT quoting to cmd's command text.
+        return f'{shell} /d /v:off /s /c "{command}"'
     return [nmem, *args]
 
 

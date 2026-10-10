@@ -232,36 +232,18 @@ def test_configured_cli_path_is_authoritative_and_can_contain_spaces(
     assert module.find_nmem() is None
 
 
-def test_direct_windows_shim_does_not_require_cmd_exe(module):
+def test_native_windows_shim_uses_explicit_verbatim_batch_command(module, monkeypatch):
+    monkeypatch.setenv("COMSPEC", "C:\\Windows\\System32\\cmd.exe")
     with (
         mock.patch.object(module.sys, "platform", "win32"),
         mock.patch.object(module.shutil, "which", return_value=None),
     ):
-        assert module.command_args(
-            "/custom bin/nmem.cmd", ["--space", 'lane"2024']
-        ) == [
-            "/custom bin/nmem.cmd",
-            "--space",
-            'lane"2024',
-        ]
-
-
-def test_windows_shim_keeps_arguments_separate_through_git_bash(module):
-    with (
-        mock.patch.object(module.sys, "platform", "win32"),
-        mock.patch.object(module.shutil, "which", return_value="C:/Git/bin/sh.exe"),
-    ):
         command = module.command_args(
-            "C:/custom bin/nmem.cmd", ["--space", 'lane"2024']
+            "C:/custom bin/nmem.cmd", ["--space", "Research Lane"]
         )
-    assert command == [
-        "C:/Git/bin/sh.exe",
-        "-c",
-        'exec "$0" "$@"',
-        "C:/custom bin/nmem.cmd",
-        "--space",
-        'lane"2024',
-    ]
+    assert isinstance(command, str)
+    assert command.startswith("C:\\Windows\\System32\\cmd.exe /d /v:off /s /c ")
+    assert "C:\\custom^ bin\\nmem.cmd" in command
 
 
 def test_wsl_windows_shim_uses_interop(module, monkeypatch):

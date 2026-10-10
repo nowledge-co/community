@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "nmem-hook-read.sh"
 
 
@@ -271,7 +273,19 @@ def test_read_hook_falls_back_to_local_memory_file_without_nmem(tmp_path):
     assert result.stdout.strip() == "file briefing", result.stderr
 
 
-def test_read_hook_invokes_windows_nmem_cmd_directly(tmp_path):
+@pytest.mark.parametrize(
+    "space",
+    [
+        'project"2024',
+        "Research Lane",
+        "lane&echo unexpected",
+        "lane^caret",
+        "lane%PATH%",
+        "lane!PATH!",
+        "lane\\",
+    ],
+)
+def test_read_hook_preserves_windows_shim_arguments(tmp_path, space):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "cmd.log"
@@ -288,7 +302,7 @@ def test_read_hook_invokes_windows_nmem_cmd_directly(tmp_path):
         env={
             "PATH": _cli_path(bin_dir),
             "NMEM_CLI_PATH": str(bin_dir / "nmem.cmd"),
-            "NMEM_SPACE": 'project"2024',
+            "NMEM_SPACE": space,
         },
     )
 
@@ -301,6 +315,6 @@ def test_read_hook_invokes_windows_nmem_cmd_directly(tmp_path):
             "--source-app",
             "claude-code",
             "--space",
-            'project"2024',
+            space,
         ]
     ]

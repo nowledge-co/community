@@ -25,9 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Reject failed CLI commands even when they print JSON content.
 - Preserve explicit Space and identity boundaries during fallback instead of
   silently reading the default Space or its legacy local file.
-- Honor NMEM_CLI_PATH and retain direct Windows shim invocation and Grok's
+- Honor NMEM_CLI_PATH and retain Windows shim support and Grok's
   passive-hook no-op behavior.
-- Preserve Git Bash argument handling for Windows command shims, use native
+- Escape Windows batch shim arguments through both parsing stages, use native
   test CLI fixtures and PATH separators, and explicitly encode raw context
   and registry reads as UTF-8 on Windows.
 - Resolve the read loader beside both POSIX and native Windows script paths.
