@@ -1,100 +1,77 @@
 ---
 name: search-memory
-description: Search memory store when past insights would improve response. Recognize when user's stored breakthroughs, decisions, or solutions are relevant. Search proactively based on context, not just explicit requests.
+description: Search Nowledge memories and threads for continuation, reviews, regressions, releases, connector work, prior decisions, cross-tool context, or exact history. Search proactively before concluding, even when startup Working Memory is already present.
 ---
 
 # Search Memory
 
-## When to Search (Autonomous Recognition)
+## When to Search
 
-**Strong signals:**
+Run one targeted search before concluding continuation, review, regression,
+release, connector, prior-decision, cross-tool, or exact-history work. References
+to a previous fix, "that approach", or "like before" are strong signals.
+The startup Context Bundle / Working Memory is a briefing, not a substitute
+for this search. Do not wait for the user to explicitly request retrieval.
 
-- Continuity: Current topic connects to prior work
-- Pattern match: Problem resembles past solved issue
-- Decision context: "Why/how we chose X" implies documented rationale
-- Recurring theme: Topic discussed in past sessions
-- Implicit recall: "that approach", "like before"
+Skip trivial, independent tasks, generic syntax questions, and an explicit
+fresh start.
 
-**Contextual signals:**
+## Retrieve Progressively
 
-- Complex debugging (may match past root causes)
-- Architecture discussion (choices may be documented)
-- Domain-specific question (conventions likely stored)
+Before searching, briefly tell the user what prior context you are looking for.
+Use the CLI; this plugin does not register an MCP server. If NMEM_CLI_PATH is
+set, use its quoted value as the executable instead of bare nmem.
 
-**Skip when:**
-
-- Fundamentally new topic
-- Generic syntax questions
-- Fresh perspective explicitly requested
-
-## Tool Usage
-
-Use `nmem` CLI with `--json` flag for programmatic search:
+Start with the smallest relevant surface:
 
 ```bash
-# Basic search
-nmem --json m search "3-7 core concepts"
+# Durable decisions, procedures, and learnings
+nmem --json m search "3-7 core concepts" -n 5
 
-# With filters
-nmem --json m search "API design" --importance 0.8
-
-# With labels (multiple labels use AND logic)
-nmem --json m search "authentication" -l backend -l security
-
-# With time filter
-nmem --json m search "meeting notes" -t week
-```
-
-Only add `--space "<space name>"` when the user or environment explicitly provided that existing Mem space (for example `NMEM_SPACE`). Never infer a space from the current folder, git repository, branch, or project name.
-
-**Query:** Extract semantic core, preserve terminology, multi-language aware
-
-**Filters:**
-- `--importance MIN`: Minimum importance score (0.0-1.0)
-- `-l, --label LABEL`: Filter by label (can specify multiple)
-- `-t, --time RANGE`: Time filter (today, week, month, year)
-- `-n NUM`: Limit number of results (default: 10)
-
-**JSON Response:** Parse `memories` array, check `score` field for relevance
-
-Use thread search when the user is really asking about a prior conversation, previous session, or exact discussion:
-
-```bash
+# Prior conversations and exact discussion history
 nmem --json t search "query" --limit 5
 ```
 
-If a memory result includes `source_thread` or thread search finds the likely conversation, inspect it progressively instead of loading the whole thread at once:
+Keep the active Space from the Context Bundle. NMEM_SPACE selects an explicit
+session-wide lane; legacy NMEM_SPACE_ID is compatibility-only. If an AI Identity
+resolved another lane and no session override is set, pass that existing lane
+with --space "<space name>". Never infer a Space from cwd, git, or a project name,
+and never remove a selected lane because it returned no matches.
+
+If normal memory search is weak or conceptual, try Deep Search once:
 
 ```bash
+nmem --json m search "query" --mode deep -n 5
+```
+
+Inspect only relevant hits. Judge their content and server warnings rather than
+applying one fixed score threshold across search modes. When a memory includes
+source_thread, or thread search finds the likely conversation, read it in pages:
+
+```bash
+nmem --json m get <memory_id>
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-Increase `--offset` only when more messages are actually needed.
+Increase the offset only when more messages are needed. Use label, importance,
+or time filters only when they narrow this question. For code-backed knowledge,
+verify the finding against the current repository before treating it as current.
 
-**Scores:** 0.6-1.0 direct | 0.3-0.6 related | <0.3 skip
+## Respond Honestly
 
-**Examples:**
+Use retrieved knowledge naturally and cite the memory or original thread when
+it supports the answer. Distinguish a successful search with no relevant matches
+from a CLI, authentication, timeout, or server failure. If retrieval is unavailable,
+say so briefly and continue the authorized work.
 
-```bash
-# Search with importance filter
-nmem --json m search "database optimization" --importance 0.7
-
-# Search with multiple labels
-nmem --json m search "React patterns" -l frontend -l react
-
-# Search recent memories
-nmem --json m search "bug fix" -t week -n 5
-```
-
-## Response
-
-Found: Synthesize, cite when helpful
-None: State clearly, suggest distilling if current discussion valuable
+A session-start receipt confirms briefing loading. A Bash search or Skill call
+shows actual retrieval in the host transcript; do not claim a search occurred
+because startup context was loaded.
 
 ## Troubleshooting
 
-If `nmem` is not in PATH: `pip install nmem-cli`, or on Arch Linux `yay -S nmem-cli` / `paru -S nmem-cli`
-
-For remote servers: run `nmem config client set url https://...` and `nmem config client set api-key ...` once on this machine.
-
-Run `/status` to check server connection.
+Run /nowledge-mem:status or nmem status to check the connection. If the CLI is
+outside PATH, set NMEM_CLI_PATH to its executable path. Install nmem-cli with pip
+or pipx if needed; Arch Linux users can use yay -S nmem-cli or paru -S nmem-cli.
+For remote Mem, configure the shared client on this machine with
+nmem config client set url and nmem config client set api-key.

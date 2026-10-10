@@ -333,10 +333,11 @@ def test_key_plugin_static_contracts_are_declared():
     claude_manifest = _read_json(CLAUDE_PLUGIN / ".claude-plugin" / "plugin.json")
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     claude_save_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py").read_text(encoding="utf-8")
+    claude_context_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-context.py").read_text(encoding="utf-8")
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.24"
+    assert claude_manifest["version"] == "0.7.25"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -346,7 +347,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert "nmem-hook-subagent.py" in json.dumps(claude_hooks["SubagentStart"])
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
     assert "--event stop --detach" in json.dumps(claude_hooks)
-    assert "find_skills" in json.dumps(claude_hooks)
+    assert "find_skills" in claude_context_hook
     assert "CREATE_NO_WINDOW" in claude_save_hook
     assert "extract_skill_outcomes_from_file" in claude_save_hook
     assert "wm read" not in json.dumps(claude_hooks)
@@ -355,7 +356,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert (CLAUDE_PLUGIN / "scripts" / "skill_outcome.py").exists()
     assert (CLAUDE_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
     assert "Never infer a space from the current folder" in claude_read_skill
-    assert "Never infer a space from the current folder" in claude_search_skill
+    assert "Never infer a Space from cwd" in claude_search_skill
 
     agent_plugin_manifest = _read_json(AGENT_PLUGIN / "plugin.json")
     agent_plugin_mcp = _read_json(AGENT_PLUGIN / "mcp.json")
