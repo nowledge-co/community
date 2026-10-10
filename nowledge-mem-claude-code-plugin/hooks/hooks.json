@@ -3,11 +3,13 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume|clear",
+        "matcher": "startup|resume|clear|fork",
         "hooks": [
           {
             "type": "command",
-            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\"; } || cat \"$HOME/ai-now/memory.md\" 2>/dev/null || true"
+            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; if [ -f \"$SCRIPT\" ]; then sh \"$SCRIPT\" --hook; else [ -z \"${GROK_SESSION_ID:-}${GROK_HOOK_EVENT:-}${GROK_WORKSPACE_ROOT:-}${GROK_PLUGIN_ROOT:-}${NMEM_AGENT_ID:-}${NMEM_HOST_AGENT_ID:-}${NMEM_APP_DATA:-}${NMEM_APP_CONFIG_DIR:-}${NMEM_CLI_CONFIG_DIR:-}\" ] && { [ -z \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" ] || [ \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" = default ]; } && [ -n \"${NMEM_AI_NOW_HOME-$HOME/ai-now}\" ] && cat \"${NMEM_AI_NOW_HOME-$HOME/ai-now}/memory.md\" 2>/dev/null || true; fi",
+            "statusMessage": "Loading Nowledge Mem context...",
+            "timeout": 12
           }
         ]
       },
@@ -16,7 +18,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; { { [ -f \"$SCRIPT\" ] && sh \"$SCRIPT\"; } || cat \"$HOME/ai-now/memory.md\" 2>/dev/null || true; } && printf '\\n---\\nContext was compacted. If you discovered important insights, save them before continuing:\\n  nmem m add \"<insight>\" --title \"<short title>\" --importance 0.8\\n'"
+            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; if [ -f \"$SCRIPT\" ]; then sh \"$SCRIPT\" --hook --compact; else [ -z \"${GROK_SESSION_ID:-}${GROK_HOOK_EVENT:-}${GROK_WORKSPACE_ROOT:-}${GROK_PLUGIN_ROOT:-}${NMEM_AGENT_ID:-}${NMEM_HOST_AGENT_ID:-}${NMEM_APP_DATA:-}${NMEM_APP_CONFIG_DIR:-}${NMEM_CLI_CONFIG_DIR:-}\" ] && { [ -z \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" ] || [ \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" = default ]; } && [ -n \"${NMEM_AI_NOW_HOME-$HOME/ai-now}\" ] && cat \"${NMEM_AI_NOW_HOME-$HOME/ai-now}/memory.md\" 2>/dev/null || true; printf '\\nContext was compacted. Save durable insights before continuing.\\n'; fi",
+            "statusMessage": "Restoring Nowledge Mem context...",
+            "timeout": 12
           }
         ]
       }
@@ -39,7 +43,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ local q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Search proactively when past knowledge would help: nmem --json m search \"query\". Save decisions and learnings autonomously: nmem m add \"content\" -t \"Title\" -i 0.8. For recurring procedural work, check managed skills with MCP find_skills or nmem skills match \"task\"; after using one, report with report_skill_outcome or nmem skills outcome <id> --version <ver> --outcome completed.' || true"
+            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; if [ -f \"$SCRIPT\" ]; then sh \"$SCRIPT\" --hook --event UserPromptSubmit; else printf '%s\\n' '[Nowledge Mem] For continuation, review, regression, release, connector, prior-decision, or exact-history work, run one targeted nmem memory or thread search before concluding. Startup briefing is not a substitute. If retrieval fails, say so briefly.'; fi",
+            "timeout": 3
           }
         ]
       }

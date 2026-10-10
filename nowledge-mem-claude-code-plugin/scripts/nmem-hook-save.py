@@ -267,6 +267,9 @@ def _payload_value(payload: dict[str, Any], *keys: str) -> str | None:
 
 def _nmem_command() -> str | None:
     # Windows shims are wrapped by _build_nmem_command before execution.
+    configured = os.environ.get("NMEM_CLI_PATH", "").strip()
+    if configured:
+        return shutil.which(os.path.expandvars(os.path.expanduser(configured)))
     return shutil.which("nmem") or shutil.which("nmem.cmd")
 
 

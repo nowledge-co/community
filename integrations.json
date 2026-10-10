@@ -22,7 +22,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.24",
+      "version": "0.7.25",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -65,7 +65,7 @@
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "SessionStart injects the full Nowledge Context Bundle. SubagentStart uses the exact NMEM_SUBAGENT_CONTEXT_TYPES allowlist for bounded context, skips Explore by default, and gives other unlisted types retrieval routing without a context read. Declarative skills and slash commands invoke nmem CLI directly."
+        "note": "SessionStart injects Context Bundle / Working Memory with a shared timeout budget and a user-visible read receipt. UserPromptSubmit requires one targeted nmem memory or thread search before concluding continuation, review, regression, release, connector, or prior-decision work. Read fallbacks preserve the configured Space. SubagentStart retains its exact allowlist and bounded context. The plugin remains CLI-first and does not register an MCP server."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
       "slashCommands": ["/save", "/search", "/sum", "/status"]
@@ -75,7 +75,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.24",
+      "version": "0.7.25",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
