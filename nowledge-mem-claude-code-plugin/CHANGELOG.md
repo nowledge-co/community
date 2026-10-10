@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve Git Bash argument handling for Windows command shims, use native
   test CLI fixtures and PATH separators, and explicitly encode raw context
   and registry reads as UTF-8 on Windows.
+- Resolve the read loader beside both POSIX and native Windows script paths.
 - Emit one structured hook response after compaction, keeping the checkpoint
   inside model context rather than appending plaintext to JSON.
 

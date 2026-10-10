@@ -9,7 +9,8 @@ if [ -n "${GROK_SESSION_ID:-}${GROK_HOOK_EVENT:-}${GROK_WORKSPACE_ROOT:-}${GROK_
 fi
 
 PY="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
-SCRIPT="${0%/*}/nmem-hook-context.py"
+# Subagent callers on Windows pass a native path with backslashes.
+SCRIPT="${0%[\\/]*}/nmem-hook-context.py"
 if [ -n "$PY" ] && [ -f "$SCRIPT" ]; then
   if [ "${1:-}" = "--hook" ]; then
     shift

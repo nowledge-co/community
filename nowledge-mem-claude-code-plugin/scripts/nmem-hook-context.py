@@ -88,11 +88,6 @@ def find_nmem() -> str | None:
 
 
 def command_args(nmem: str, args: list[str]) -> list[str]:
-    # Preserve Git Bash's direct shim invocation and argument handling. Python's
-    # native batch-file launch otherwise reparses embedded quotes through cmd.
-    if sys.platform == "win32" and nmem.lower().endswith(".cmd"):
-        if shell := shutil.which("sh"):
-            return [shell, "-c", 'exec "$0" "$@"', nmem.replace("\\", "/"), *args]
     # WSL needs Windows interop, using an argument list rather than shell text.
     if nmem.lower().endswith(".cmd") and (
         os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP")
@@ -101,6 +96,11 @@ def command_args(nmem: str, args: list[str]) -> list[str]:
             nmem = nmem[5].upper() + ":\\" + nmem[7:].replace("/", "\\")
         command = subprocess.list2cmdline([nmem, *args])
         return ["cmd.exe", "/d", "/s", "/c", f'"{command}"']
+    # Preserve Git Bash's direct shim invocation and argument handling. Python's
+    # native batch-file launch otherwise reparses embedded quotes through cmd.
+    if sys.platform == "win32" and nmem.lower().endswith(".cmd"):
+        if shell := shutil.which("sh"):
+            return [shell, "-c", 'exec "$0" "$@"', nmem.replace("\\", "/"), *args]
     return [nmem, *args]
 
 
