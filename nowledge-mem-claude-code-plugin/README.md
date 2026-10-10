@@ -95,7 +95,7 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 | `SessionStart` | New, resume, clear, or fork | Claude Code loads Context Bundle via `nmem context`, then falls back to `nmem wm read` in the same Space |
 | `SessionStart` | After compaction | Claude Code re-loads Context Bundle or Working Memory + checkpoint prompt |
 | `SubagentStart` | Claude Code spawns a subagent | Selects full context, routing-only, or no-op behavior from `agent_type` |
-| `UserPromptSubmit` | Every user message | Claude Code injects targeted retrieval routing, even if startup reading failed |
+| `UserPromptSubmit` | Every user message | Claude Code injects a short targeted-retrieval reminder, even if startup reading failed; the full guidance is loaded at startup |
 | `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code or Grok Build session by hook `session_id` before context is compressed |
 | `Stop` | Model finishes responding | Captures session to knowledge graph |
 | `SubagentStop` | Grok Build subagent finishes | Captures the subagent session without blocking the subagent gate |

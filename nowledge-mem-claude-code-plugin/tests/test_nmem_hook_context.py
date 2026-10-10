@@ -40,6 +40,20 @@ def test_prompt_routing_survives_missing_cli_without_reloading_context(module, c
     assert "systemMessage" not in response
 
 
+def test_prompt_routing_stays_short_while_startup_keeps_full_guidance(module, capsys):
+    module.main(event="UserPromptSubmit")
+    prompt = json.loads(capsys.readouterr().out)["hookSpecificOutput"]
+    # The per-turn reminder is retained in every turn of the transcript.
+    assert len(prompt["additionalContext"]) < len(module.ROUTING_GUIDANCE) // 2
+    assert "nmem --json m search" not in prompt["additionalContext"]
+    with mock.patch.object(
+        module, "load_context", return_value=module.ContextRead("", "", "timeout")
+    ):
+        module.main()
+    startup = json.loads(capsys.readouterr().out)["hookSpecificOutput"]
+    assert module.ROUTING_GUIDANCE.strip() in startup["additionalContext"]
+
+
 @pytest.mark.parametrize(
     "source", ["Context Bundle", "Working Memory", "legacy Default-space briefing"]
 )
@@ -58,7 +72,14 @@ def test_startup_receipt_names_actual_source(module, capsys, source):
 
 @pytest.mark.parametrize(
     "reason",
-    ["cli_unavailable", "cli_error", "timeout", "invalid_response", "no_briefing"],
+    [
+        "cli_unavailable",
+        "cli_error",
+        "timeout",
+        "invalid_response",
+        "response_too_large",
+        "no_briefing",
+    ],
 )
 def test_failed_or_empty_startup_keeps_guidance_and_truthful_receipt(
     module, capsys, reason
@@ -217,6 +238,23 @@ def test_cli_exit_status_and_response_shape_are_checked(module, stdout, code, re
         payload, error = module.read_json("/bin/nmem", ["context"], 1)
     assert error == reason
     assert bool(payload) == (not reason)
+
+
+def test_oversized_response_is_reported_separately_and_falls_back(module):
+    oversized = json.dumps({"content": "x" * module.MAX_RESPONSE_BYTES})
+    result = subprocess.CompletedProcess([], 0, oversized, "")
+    with mock.patch.object(module.subprocess, "run", return_value=result):
+        payload, error = module.read_json("/bin/nmem", ["context"], 1)
+    assert (payload, error) == ({}, "response_too_large")
+    with (
+        mock.patch.object(module, "find_nmem", return_value="/bin/nmem"),
+        mock.patch.object(
+            module,
+            "read_json",
+            side_effect=[({}, "response_too_large"), ({"content": "wm"}, "")],
+        ),
+    ):
+        assert module.load_context() == module.ContextRead("wm", "Working Memory")
 
 
 def test_configured_cli_path_is_authoritative_and_can_contain_spaces(

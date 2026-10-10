@@ -38,6 +38,14 @@ nmem m add "content" -t "Title" -i 0.8. For recurring procedural work, check
 managed skills with MCP find_skills or nmem skills match "task"; after using
 one, report with report_skill_outcome or nmem skills outcome <id>.
 """
+# Repeated on every prompt and retained in the transcript, so keep it to the
+# routing decision. Startup and compaction carry the full guidance above.
+PROMPT_GUIDANCE = """[Nowledge Mem] For continuation, review, regression, release,
+connector, prior-decision, cross-tool, or exact-history work, run one targeted
+nmem memory or thread search before concluding; the startup briefing is
+not a substitute. Keep the configured identity and Space. If retrieval fails,
+say so briefly; do not report a failed search as no matches.
+"""
 
 
 class ContextRead(NamedTuple):
@@ -139,7 +147,7 @@ def read_json(nmem: str, args: list[str], timeout: float) -> tuple[dict, str]:
     if result.returncode != 0:
         return {}, "cli_error"
     if len(result.stdout.encode("utf-8")) > MAX_RESPONSE_BYTES:
-        return {}, "invalid_response"
+        return {}, "response_too_large"
     try:
         payload = json.loads(result.stdout)
     except (ValueError, TypeError):
@@ -262,7 +270,7 @@ def main(
     if is_grok_runtime():
         return 0
     if event == "UserPromptSubmit":
-        write_response(event, ROUTING_GUIDANCE.strip())
+        write_response(event, PROMPT_GUIDANCE.strip())
         return 0
     result = load_context(timeout)
     if raw:
@@ -307,7 +315,9 @@ if __name__ == "__main__":
         if not options.raw and not is_grok_runtime():
             write_response(
                 options.event,
-                ROUTING_GUIDANCE.strip(),
+                PROMPT_GUIDANCE.strip()
+                if options.event == "UserPromptSubmit"
+                else ROUTING_GUIDANCE.strip(),
                 "[Nowledge Mem] Startup context unavailable. Check /nowledge-mem:status."
                 if options.event == "SessionStart"
                 else "",
