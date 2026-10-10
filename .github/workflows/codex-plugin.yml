@@ -12,6 +12,18 @@ on:
       - "nowledge-mem-step-code/**"
       - "nowledge-mem-openai-plugin/**"
       - "tests/plugin_e2e/**"
+      - "tests/guidance/**"
+      - "nowledge-mem-alma-plugin/**"
+      - "nowledge-mem-claude-code-plugin/**"
+      - "nowledge-mem-codex-prompts/**"
+      - "nowledge-mem-copilot-cli-plugin/**"
+      - "nowledge-mem-cursor-plugin/**"
+      - "nowledge-mem-devin-plugin/**"
+      - "nowledge-mem-dimagent-plugin/**"
+      - "nowledge-mem-droid-plugin/**"
+      - "nowledge-mem-omp-plugin/**"
+      - "nowledge-mem-openclaw-plugin/**"
+      - "shared/**"
   push:
     branches:
       - main
@@ -25,6 +37,18 @@ on:
       - "nowledge-mem-step-code/**"
       - "nowledge-mem-openai-plugin/**"
       - "tests/plugin_e2e/**"
+      - "tests/guidance/**"
+      - "nowledge-mem-alma-plugin/**"
+      - "nowledge-mem-claude-code-plugin/**"
+      - "nowledge-mem-codex-prompts/**"
+      - "nowledge-mem-copilot-cli-plugin/**"
+      - "nowledge-mem-cursor-plugin/**"
+      - "nowledge-mem-devin-plugin/**"
+      - "nowledge-mem-dimagent-plugin/**"
+      - "nowledge-mem-droid-plugin/**"
+      - "nowledge-mem-omp-plugin/**"
+      - "nowledge-mem-openclaw-plugin/**"
+      - "shared/**"
 
 permissions:
   contents: read
@@ -51,6 +75,8 @@ jobs:
         run: python -m pip install pytest
       - name: Test hook runtime and installer
         run: python -m unittest discover -s nowledge-mem-codex-plugin/tests
+      - name: Test bounded thread retrieval guidance
+        run: python -m unittest discover -s tests/guidance -v
       - name: Test Pi continuation and capture
         run: node --test nowledge-mem-pi-package/tests/*.test.mjs
       - name: Test Step Code package contract

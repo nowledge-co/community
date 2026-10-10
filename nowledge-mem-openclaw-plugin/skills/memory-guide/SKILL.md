@@ -52,7 +52,7 @@ Browse recent activity grouped by day. Filter by `event_type` or exact `date_fro
 
 ## Threads (nowledge_mem_thread_search + nowledge_mem_thread_fetch)
 
-Find past conversations by keyword, then progressively fetch messages. Threads span all sources: this tool, other AI tools, browser capture, imports.
+Find past conversations by keyword, then once for the specific messages needed fetch messages. Threads span all sources: this tool, other AI tools, browser capture, imports.
 
 ## Startup Context (nowledge_mem_context)
 
@@ -63,3 +63,9 @@ Read Context Bundle when identity, active space, active rules, or current priori
 - Search uses natural language queries, not file paths. Never search for "MEMORY.md" or "memory/*.md".
 - When `relatedThreads` appear in results, they often contain the most useful context.
 - Use tools directly; do not tell the user to "check your memory."
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
