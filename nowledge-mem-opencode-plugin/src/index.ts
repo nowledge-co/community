@@ -121,8 +121,17 @@ type V2EventLike = {
 // Other CLI hooks still consume the complete Markdown projection.
 function compactContextBundle(output: string): string {
   try {
-    const bundle = JSON.parse(output)
-    if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)
+    let hasUnsafeNumbers = false
+    const bundle = JSON.parse(output, (_key, value) => {
+      // Preserve the original tokens when parse/stringify could round an
+      // integer or turn numeric overflow into null, including in extra fields.
+      if (typeof value === "number" && (!Number.isFinite(value)
+        || (Number.isInteger(value) && !Number.isSafeInteger(value)))) {
+        hasUnsafeNumbers = true
+      }
+      return value
+    })
+    if (hasUnsafeNumbers || !bundle || typeof bundle !== "object" || Array.isArray(bundle)
       || bundle.bundle_kind !== "context_bundle" || bundle.schema_version !== 1
       || !["owner_profile", "agent_profile", "active_space", "rule_stack", "working_memory", "kfs_roots"]
         .every(key => bundle[key] && typeof bundle[key] === "object" && !Array.isArray(bundle[key]))

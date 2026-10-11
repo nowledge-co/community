@@ -328,8 +328,14 @@ Save proactively when the conversation produces a decision, preference, plan, pr
 `;
 function compactContextBundle(output) {
   try {
-    const bundle = JSON.parse(output);
-    if (!bundle || typeof bundle !== "object" || Array.isArray(bundle) || bundle.bundle_kind !== "context_bundle" || bundle.schema_version !== 1 || !["owner_profile", "agent_profile", "active_space", "rule_stack", "working_memory", "kfs_roots"].every((key) => bundle[key] && typeof bundle[key] === "object" && !Array.isArray(bundle[key])) || typeof bundle.compiled_hash !== "string" || typeof bundle.rendered_markdown !== "string") {
+    let hasUnsafeNumbers = false;
+    const bundle = JSON.parse(output, (_key, value) => {
+      if (typeof value === "number" && (!Number.isFinite(value) || Number.isInteger(value) && !Number.isSafeInteger(value))) {
+        hasUnsafeNumbers = true;
+      }
+      return value;
+    });
+    if (hasUnsafeNumbers || !bundle || typeof bundle !== "object" || Array.isArray(bundle) || bundle.bundle_kind !== "context_bundle" || bundle.schema_version !== 1 || !["owner_profile", "agent_profile", "active_space", "rule_stack", "working_memory", "kfs_roots"].every((key) => bundle[key] && typeof bundle[key] === "object" && !Array.isArray(bundle[key])) || typeof bundle.compiled_hash !== "string" || typeof bundle.rendered_markdown !== "string") {
       return output;
     }
     delete bundle.rendered_markdown;

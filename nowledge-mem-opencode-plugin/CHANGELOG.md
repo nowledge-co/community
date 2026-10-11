@@ -3,9 +3,13 @@
 ## Unreleased
 
 - Return one structured schema-v1 Context Bundle representation to the model,
-  removing only the duplicate Markdown field while preserving configured
-  instructions, rules, exact Space and semantic hash. Existing CLI hooks and
+  formatted as compact single-line JSON. Remove only the duplicate Markdown
+  field while preserving configured instructions, rules, exact Space and
+  semantic hash. Existing CLI hooks and
   unknown, partial, or Markdown-only responses stay compatible.
+- Preserve the original Context Bundle response when any nested field contains
+  an integer outside JavaScript's safe range or numeric overflow, preventing
+  parse/stringify from rounding values or replacing them with null.
 
 ## [0.4.3] - 2026-10-11
 
