@@ -21,7 +21,7 @@ export function createThreadFetchTool(client, logger) {
 				},
 				limit: {
 					type: "number",
-					description: "Max messages to return (1-200, default 50)",
+					description: "Max messages to return (1-200, default 8)",
 				},
 			},
 			required: ["threadId"],
@@ -35,7 +35,7 @@ export function createThreadFetchTool(client, logger) {
 			);
 			const limit = Math.min(
 				200,
-				Math.max(1, Math.trunc(Number(safeParams.limit ?? 50) || 50)),
+				Math.max(1, Math.trunc(Number(safeParams.limit ?? 8) || 8)),
 			);
 
 			if (!threadId) {
