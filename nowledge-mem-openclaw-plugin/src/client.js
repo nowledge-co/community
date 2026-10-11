@@ -968,8 +968,8 @@ export class NowledgeMemClient {
 	}
 
 	/**
-	 * Fetch full messages from a specific thread.
-	 * Supports pagination for progressive retrieval of long conversations.
+	 * Read one small targeted message range from a specific thread.
+	 * A known target offset is supported; do not walk offsets to reconstruct a conversation.
 	 *
 	 * Uses CLI: `nmem --json t show <id> -n N --offset O`
 	 * Falls back to API: GET /threads/{id}

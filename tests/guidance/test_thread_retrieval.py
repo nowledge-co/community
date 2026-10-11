@@ -25,7 +25,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
                 self.assertNotIn("nowledge_mem_thread_fetch(offset=50, limit=50)", text)
                 self.assertNotRegex(text, r"(?i)(?:increase|higher)[^\n]*offset|offset=50 for next page")
                 self.assertNotRegex(text, r"(?i)fetch more pages|fetch more only if|read it in pages|fetch more via")
-                self.assertNotRegex(text, r"(?i)for full conversation context|fetch full messages[^\n]*pagination|limit: 50")
+                self.assertNotRegex(text, r"(?i)for full conversation context|fetch full messages[^\n]*pagination|limit: 50|load it incrementally")
                 for line in text.splitlines():
                     if re.search(r"thread|conversation|t show", line, re.I) and not line.startswith("description:"):
                         self.assertNotRegex(line, r"(?i)progressiv")
@@ -83,7 +83,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
         ])
 
     def test_live_prompt_injections_do_not_request_full_threads(self):
-        for name in ["nowledge-mem-alma-plugin/main.js", "nowledge-mem-openclaw-plugin/src/hooks/behavioral.js", "nowledge-mem-bub-plugin/src/nowledge_mem_bub/plugin.py"]:
+        for name in ["nowledge-mem-alma-plugin/main.js", "nowledge-mem-openclaw-plugin/src/hooks/behavioral.js", "nowledge-mem-openclaw-plugin/src/tools/thread-search.js", "nowledge-mem-bub-plugin/src/nowledge_mem_bub/plugin.py"]:
             with self.subTest(path=name):
                 text = (ROOT / name).read_text(encoding="utf-8")
                 self.assertNotIn("fetch the full conversation", text)
@@ -91,6 +91,9 @@ class ThreadRetrievalGuidance(unittest.TestCase):
                 self.assertNotRegex(text, r"(?i)(?:read|fetch|get) the full (?:conversation|thread)")
                 self.assertNotIn("looking at the full conversation", text)
                 self.assertNotIn("read the full context", text)
+                self.assertNotIn("explore the full context", text)
+                self.assertNotIn("To read full messages", text)
+                self.assertNotIn("for pagination", text)
                 self.assertIn("at most one small targeted message range per question", text)
                 self.assertIn("report the evidence gap and refine search", text)
 

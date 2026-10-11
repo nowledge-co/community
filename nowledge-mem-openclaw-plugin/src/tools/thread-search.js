@@ -10,10 +10,11 @@ export function createThreadSearchTool(client, logger) {
 		name: "nowledge_mem_thread_search",
 		description:
 			"Search past conversations by keyword. Use when the user asks about a past discussion, " +
-			"wants to find a conversation from a specific time, or when you want to explore the full context " +
+			"wants to find a conversation from a specific time, or when you want to find relevant source messages " +
 			"around a topic beyond what memory_search returned. " +
 			"Returns matched threads with message snippets and relevance scores. " +
-			"To read full messages from a thread, pass its threadId to nowledge_mem_thread_fetch.",
+			"Pass its threadId to nowledge_mem_thread_fetch for at most one small targeted message range per question. " +
+			"Never loop over offsets; on slow, incomplete or failed reads, report the evidence gap and refine search.",
 		parameters: {
 			type: "object",
 			properties: {

@@ -49,7 +49,7 @@ nmem --json t search "query" --limit 5
 
 ### 3. Bounded thread inspection
 
-If a thread looks relevant, load it incrementally:
+If a thread looks relevant, inspect one small targeted message range:
 
 ```bash
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200

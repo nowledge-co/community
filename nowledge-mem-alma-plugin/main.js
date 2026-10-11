@@ -1353,7 +1353,7 @@ export async function activate(context) {
 				},
 				offset: {
 					type: "number", minimum: 0, default: 0,
-					description: "Skip first N messages for pagination (default 0)",
+					description: "Start at a known target message offset for one range (default 0); never walk offsets",
 				},
 			},
 			required: ["id"],
