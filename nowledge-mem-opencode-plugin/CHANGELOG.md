@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Return one structured Context Bundle representation to the model, removing only the duplicate Markdown field while preserving configured instructions, rules, exact Space and semantic hash. Existing CLI hooks and Markdown-only responses stay compatible.
+
 ## [0.4.2] - 2026-10-08
 
 - Publish through GitHub OIDC trusted publishing with npm provenance and a verified tarball receipt. Runtime behavior and the OpenCode 1.x compatibility line are unchanged.
