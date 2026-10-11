@@ -1,0 +1,22 @@
+name: iCode plugin
+on:
+  push:
+    paths: ["nowledge-mem-icode-plugin/**", "integrations.json", ".github/workflows/icode-plugin.yml"]
+  pull_request:
+    paths: ["nowledge-mem-icode-plugin/**", "integrations.json", ".github/workflows/icode-plugin.yml"]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pytest pyyaml
+      - run: python -m pytest nowledge-mem-icode-plugin/tests -q

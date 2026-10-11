@@ -2246,7 +2246,7 @@
       "name": "npx Skills",
       "category": "surface",
       "type": "skills",
-      "version": "0.6.2",
+      "version": "0.6.3",
       "directory": "nowledge-mem-npx-skills",
       "transport": "cli",
       "capabilities": {
@@ -2755,6 +2755,58 @@
       "toolNaming": {
         "convention": "minimax-plugin+mcp",
         "note": "MiniMax loads one dedicated behavioral Skill and local MCP. A managed Cloud App may add the same Nowledge tool contract only after MiniMax confirms the provider integration."
+      },
+      "skills": [
+        "nowledge-mem"
+      ],
+      "slashCommands": []
+    },
+    {
+      "id": "icode",
+      "name": "iCode",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-icode-plugin",
+      "transport": "mcp-config+hook",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": false,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "handoff-only",
+        "note": "iCode persists sessions under ~/.chrys/sessions/<short-id>/ (session.json plus a trajectory event log). No nmem transcript parser is registered for that format yet, so the plugin injects the Context Bundle through iCode's user_prompt_submit system_reminder hook and saves explicit resumable handoffs; it does not claim automatic full-thread capture."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "handoff-only",
+        "bestResultRequires": [
+          "In iCode /agents, save the selected Code profile first; then run the uv/PyYAML installer to merge MCP and hooks and install unclaimed shared skills",
+          "Keep nmem configured on this machine for local or remote Mem; the installer reads ~/.nowledge-mem/config.json or NMEM_API_URL/NMEM_API_KEY",
+          "Restart iCode after install or update; agent profiles and hooks load at startup only",
+          "For remote Mem, configure its HTTPS base URL and matching API key in nmem before installation; rerun the installer after changing the endpoint"
+        ]
+      },
+      "install": {
+        "command": "bash -lc 'tmp=\"$(mktemp -d)\" && git clone --depth 1 https://github.com/nowledge-co/community.git \"$tmp/community\" && uv run --no-project --with pyyaml python \"$tmp/community/nowledge-mem-icode-plugin/scripts/install.py\"'",
+        "updateCommand": "bash -lc 'tmp=\"$(mktemp -d)\" && git clone --depth 1 https://github.com/nowledge-co/community.git \"$tmp/community\" && uv run --no-project --with pyyaml python \"$tmp/community/nowledge-mem-icode-plugin/scripts/install.py\"'",
+        "detectionHint": "Running inside iCode (Chrys); ~/.chrys/ exists or CHRYS_SESSION_ROOT_DIR is set",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for iCode. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 iCode 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+        },
+        "docsUrl": "/docs/integrations/icode"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "MCP tools are defined by the backend (memory_search, memory_add, and friends) and load through iCode's agent-profile MCP block, optionally with progressive disclosure; session context injection uses iCode's user_prompt_submit hook."
       },
       "skills": [
         "nowledge-mem"

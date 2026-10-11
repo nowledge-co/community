@@ -4,6 +4,10 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
 
 ## Unreleased
 
+## [0.6.3] - 2026-10-11
+
+- Detect iCode (Chrys) and route users to its dedicated MCP and startup-hook installer.
+
 ## [0.6.2] - 2026-10-11
 
 ### Fixed
