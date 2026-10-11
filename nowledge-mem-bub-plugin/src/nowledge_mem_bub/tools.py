@@ -348,7 +348,7 @@ async def mem_thread_search(
 async def mem_thread_fetch(
     thread_id: str,
     offset: int = 0,
-    limit: int = 20,
+    limit: int = 8,
     *,
     context: Any,
 ) -> str:

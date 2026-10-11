@@ -356,7 +356,7 @@ export class NowledgeMemClient {
 		return this._fetch("GET", "/threads/search", { params });
 	}
 
-	async showThread(id, limit = 30, offset = 0) {
+	async showThread(id, limit = 8, offset = 0) {
 		const params = {
 			limit: Math.max(1, Math.floor(limit)),
 			offset: Math.max(0, Math.floor(offset)),
@@ -589,7 +589,7 @@ function buildCliPlaybookBlock() {
 		"- Add memory: `nmem --json m add \"<content>\" -t \"<title>\" -l tag1 -l tag2 --unit-type decision`",
 		"- Update memory: `nmem --json m update <memory_id> -c \"<new_content>\"`",
 		"- Search threads: `nmem --json t search \"<query>\" -n 5 --source alma`",
-		"- Show thread: `nmem --json t show <thread_id> -n 30 --offset 0 --content-limit 1200`",
+		"- Show thread: `nmem --json t show <thread_id> -n 8 --offset 0 --content-limit 1200`",
 	];
 }
 
@@ -1338,7 +1338,7 @@ export async function activate(context) {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				limit: { type: "number", minimum: 1, maximum: 200, default: 30 },
+				limit: { type: "number", minimum: 1, maximum: 200, default: 8 },
 				offset: { type: "number", minimum: 0, default: 0 },
 			},
 			required: ["id"],
@@ -1348,7 +1348,7 @@ export async function activate(context) {
 			properties: {
 				id: { type: "string", minLength: 1 },
 				limit: {
-					type: "number", minimum: 1, maximum: 200, default: 30,
+					type: "number", minimum: 1, maximum: 200, default: 8,
 					description: "Max messages to return (1-200, default 30)",
 				},
 				offset: {
@@ -1362,7 +1362,7 @@ export async function activate(context) {
 			const id = String(input?.id ?? "").trim();
 			if (!id) return validationErrorResult("thread_show", "id is required");
 			try {
-				const limit = clamp(Number(input?.limit ?? 30) || 30, 1, 200);
+				const limit = clamp(Number(input?.limit ?? 8) || 8, 1, 200);
 				const offset = Math.max(0, Math.floor(Number(input?.offset ?? 0) || 0));
 				const result = await client.showThread(id, limit, offset);
 				const threadMessages = Array.isArray(result?.messages) ? result.messages : [];

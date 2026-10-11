@@ -1,3 +1,5 @@
+import asyncio
+import importlib.util
 import re
 import unittest
 from pathlib import Path
@@ -42,10 +44,40 @@ class ThreadRetrievalGuidance(unittest.TestCase):
         self.assertIn("Read one small targeted message range per question", text)
         self.assertIn("wait for an explicit request for another range", text)
 
+    def test_other_thread_read_defaults_are_small(self):
+        alma = (ROOT / "nowledge-mem-alma-plugin/main.js").read_text(encoding="utf-8")
+        self.assertIn("async showThread(id, limit = 8, offset = 0)", alma)
+        self.assertIn("input?.limit ?? 8", alma)
+        self.assertNotIn("maximum: 200, default: 30", alma)
+        self.assertIn("t show <thread_id> -n 8", alma)
+        for name in ["tools.py", "client.py"]:
+            text = (ROOT / "nowledge-mem-bub-plugin/src/nowledge_mem_bub" / name).read_text(encoding="utf-8")
+            self.assertIn("limit: int = 8", text)
+
     def test_graph_expansion_remains_distinct(self):
         text = (ROOT / "nowledge-mem-codex-plugin/skills/search-memory/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("Progressive graph search", text)
         self.assertIn("maximum depth", text)
+
+    def test_bub_client_default_and_explicit_range(self):
+        path = ROOT / "nowledge-mem-bub-plugin/src/nowledge_mem_bub/client.py"
+        spec = importlib.util.spec_from_file_location("bounded_bub_client", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        client = object.__new__(module.NmemClient)
+        calls = []
+
+        async def execute(*args):
+            calls.append(args)
+            return {}
+
+        client._exec_json = execute
+        asyncio.run(client.fetch_thread("thread-id"))
+        asyncio.run(client.fetch_thread("thread-id", limit=12, offset=40))
+        self.assertEqual(calls, [
+            ("t", "show", "thread-id", "-n", "8", "--content-limit", "1200"),
+            ("t", "show", "thread-id", "-n", "12", "--offset", "40", "--content-limit", "1200"),
+        ])
 
     def test_live_prompt_injections_do_not_request_full_threads(self):
         for name in ["nowledge-mem-alma-plugin/main.js", "nowledge-mem-openclaw-plugin/src/hooks/behavioral.js", "nowledge-mem-bub-plugin/src/nowledge_mem_bub/plugin.py"]:

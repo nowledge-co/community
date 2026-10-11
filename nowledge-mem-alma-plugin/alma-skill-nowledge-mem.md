@@ -35,7 +35,7 @@ If tool calls are not exposed in the current thread, execute via Bash:
 - `nmem --json m search "<query>" -n 5`
 - `nmem --json m show <memory_id>`
 - `nmem --json t search "<query>" -n 5 --source alma`
-- `nmem --json t show <thread_id> -n 30 --offset 0 --content-limit 1200`
+- `nmem --json t show <thread_id> -n 8 --offset 0 --content-limit 1200`
 - `nmem --json m add "<content>" -t "<title>" -l tag1 -l tag2 --unit-type decision`
 - `nmem --json m update <memory_id> -c "<new_content>"`
 
