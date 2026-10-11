@@ -14,6 +14,8 @@ const execFileMock = vi.hoisted(() =>
 )
 
 vi.mock("node:child_process", () => ({ execFile: execFileMock }))
+// Capture tests must neither read user credentials nor depend on a live Mem server.
+vi.mock("node:fs", () => ({ existsSync: () => false, readFileSync: () => "{}" }))
 
 interface FakeAmp {
   readonly events: Map<string, (...args: readonly unknown[]) => unknown>
@@ -105,10 +107,20 @@ describe("Amp plugin entrypoint", () => {
   beforeEach(() => {
     execFileMock.mockClear()
     vi.stubEnv("NMEM_AMP_DEBUG", "")
+    vi.stubEnv("NMEM_AMP_AUTO_SYNC", "1")
+    vi.stubEnv("NMEM_API_URL", "http://mem.test.invalid")
+    vi.stubEnv("NMEM_API_KEY", "")
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, options: RequestInit) => {
+      const body = JSON.parse(String(options.body))
+      return new Response(JSON.stringify({
+        thread: { thread_id: body.thread_id, message_count: body.messages.length },
+      }), { status: 201 })
+    }))
   })
 
   afterEach(() => {
     vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
   })
 
   it("registers tools, commands, lifecycle hooks, and disposal", async () => {
@@ -156,6 +168,7 @@ describe("Amp plugin entrypoint", () => {
       ],
     })
     await amp.disposers[0]!()
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
     expect(amp.logger.log).not.toHaveBeenCalled()
   })
 

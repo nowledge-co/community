@@ -1,0 +1,22 @@
+{
+  "name": "@nowledge/plugin-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "check": "node scripts/build.ts --check",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "test:artifacts": "node --test tests/artifacts/*.test.ts",
+    "receipt": "node scripts/receipt.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "esbuild": "0.25.9",
+    "jiti": "2.7.0",
+    "typescript": "5.6.3"
+  }
+}
