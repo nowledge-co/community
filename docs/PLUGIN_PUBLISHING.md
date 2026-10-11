@@ -158,6 +158,24 @@ PyPI receipts are the exact wheel/sdist artifacts retained by Actions; verificat
 compares both filenames and SHA256 hashes with PyPI. npm retains `pack.json`
 and verifies its integrity against the published version and latest tag.
 
+### Embedded shared core
+
+OpenCode and Pi embed the private [TypeScript core](../shared/plugin-core/README.md)
+in their own artifacts. Shared-source changes trigger all core consumers,
+including Pi's OMP and Step Code wrappers. Build and freshness checks run before
+packing; installation does not fetch the core or run a compiler.
+
+Their publisher receipts retain `core-receipt.json`, the original tarball, and
+`pack.json` together. The core receipt binds the reviewed source SHA, plugin
+version, embedded content manifest, and exact tarball hashes. Verification-only
+recovery checks that original receipt and payload without rebuilding or upload
+credentials. Older releases without an embedded core retain their existing
+receipt contract.
+
+Amp uses the same embedded core through Git/copy installation. Its package
+manifest is not an npm publishing contract. Validate the copied entrypoint and
+payload using the shared artifact checks.
+
 ## Local release guard tests
 
 ```sh

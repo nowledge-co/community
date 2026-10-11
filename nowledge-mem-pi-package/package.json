@@ -1,10 +1,11 @@
 {
   "name": "nowledge-mem-pi",
-  "version": "0.8.10",
+  "version": "0.8.11",
   "description": "Cross-tool memory for Pi. Recall past decisions, search knowledge from every AI tool, and save what matters.",
   "keywords": ["pi-package"],
   "author": "Nowledge Labs",
   "license": "MIT",
+  "files": ["extensions", "skills", "scripts", "AGENTS.md", "README.md", "CHANGELOG.md"],
   "repository": {
     "type": "git",
     "url": "https://github.com/nowledge-co/community.git",
