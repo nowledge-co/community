@@ -75,25 +75,12 @@ async function resolveWindowsNmemExecutable(execFileImpl, readFileImpl, existsIm
 }
 
 // src/session-delta.ts
+import { createHash as createHash2 } from "node:crypto";
+
+// src/generated/plugin-core/index.js
 import { createHash } from "node:crypto";
-function opencodeThreadId(sessionId) {
-  return `opencode-${sessionId}`;
-}
-function sessionSyncLaneKey(sessionId, apiUrl, apiKey, spaceId, agentId, hostAgentId) {
-  const destination = createHash("sha256").update([apiUrl, apiKey ?? "", spaceId ?? "", agentId ?? "", hostAgentId ?? ""].join("\0")).digest("hex");
-  return `${destination}\0${sessionId}`;
-}
 function stableMessageFingerprint(message) {
   return JSON.stringify(message);
-}
-function normalizedTimestamp(raw) {
-  if (raw === null || raw === void 0) return void 0;
-  try {
-    const timestamp = new Date(raw);
-    return Number.isNaN(timestamp.getTime()) ? void 0 : timestamp.toISOString();
-  } catch {
-    return void 0;
-  }
 }
 function prefixFingerprint(messages, end, messageFingerprint) {
   const hash = createHash("sha256");
@@ -105,52 +92,12 @@ function prefixFingerprint(messages, end, messageFingerprint) {
   }
   return hash.digest("hex");
 }
-function isThreadNotFoundResponse(status, data) {
-  if (typeof data === "object" && data !== null && data.error_code === "thread_not_found") return true;
-  if (status === 404) return true;
-  return JSON.stringify(data).toLowerCase().includes("thread not found");
-}
-function isThreadAlreadyExistsResponse(status, data) {
-  if (status === 409) return true;
-  const text = JSON.stringify(data).toLowerCase();
-  return text.includes("thread already exists") || text.includes("already exists in space");
-}
-function isCheckpointConflictResponse(data) {
-  return typeof data === "object" && data !== null && data.error_code === "checkpoint_conflict";
-}
-function isCheckpointedAppendAck(data) {
-  return typeof data === "object" && data !== null && data.success === true && Number.isInteger(data.messages_added) && Number.isInteger(data.total_messages) && data.append_mode === "checkpointed";
-}
-function appendAcknowledgedRemoteCount(data) {
-  if (typeof data !== "object" || data === null || data.success !== true || !Number.isInteger(data.messages_added) || !Number.isInteger(data.total_messages)) return void 0;
-  return data.total_messages;
-}
-function createAcknowledgedRemoteCount(data, expectedThreadId) {
-  if (typeof data !== "object" || data === null) return void 0;
-  const thread = data.thread;
-  if (typeof thread !== "object" || thread === null) return void 0;
-  if (thread.thread_id !== expectedThreadId) return void 0;
-  const messageCount = thread.message_count;
-  if (Number.isInteger(messageCount) && messageCount >= 0) {
-    return messageCount;
-  }
-  const messages = data.messages;
-  return Array.isArray(messages) ? messages.length : void 0;
-}
-async function recreateMissingThread(response, recreate) {
-  if (response.ok || !isThreadNotFoundResponse(response.status, response.data)) {
-    return { response, recreated: false };
-  }
-  return { response: await recreate(), recreated: true };
-}
 function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprint = stableMessageFingerprint) {
   let start = cursor?.count ?? 0;
-  let reset = false;
-  const acknowledgedPrefix = start >= 0 && start <= messages.length ? prefixFingerprint(messages, start, messageFingerprint) : "";
-  if (start < 0 || start > messages.length || start > 0 && (externalId(messages[start - 1]) !== cursor?.lastExternalId || acknowledgedPrefix !== cursor?.prefixFingerprint)) {
-    start = 0;
-    reset = true;
-  }
+  const validCount = Number.isSafeInteger(start) && start >= 0 && start <= messages.length;
+  const prefixMatches = validCount && (start === 0 || externalId(messages[start - 1]) === cursor?.lastExternalId && prefixFingerprint(messages, start, messageFingerprint) === cursor?.prefixFingerprint);
+  const reset = !prefixMatches;
+  if (reset) start = 0;
   const end = messages.length;
   return {
     start,
@@ -164,6 +111,79 @@ function selectAcknowledgedDelta(messages, cursor, externalId, messageFingerprin
     },
     reset
   };
+}
+function record(value) {
+  return typeof value === "object" && value !== null;
+}
+function messageCount(value) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+function isThreadAppendAck(data) {
+  return record(data) && data.success === true && messageCount(data.messages_added) && messageCount(data.total_messages);
+}
+function isCheckpointedAppendAck(data) {
+  return isThreadAppendAck(data) && data.append_mode === "checkpointed";
+}
+function appendAcknowledgedRemoteCount(data) {
+  return isThreadAppendAck(data) ? data.total_messages : void 0;
+}
+function isThreadCreateAck(data, expectedThreadId) {
+  return record(data) && record(data.thread) && data.thread.thread_id === expectedThreadId;
+}
+function createAcknowledgedRemoteCount(data, expectedThreadId) {
+  if (!isThreadCreateAck(data, expectedThreadId)) return void 0;
+  const result = data;
+  if (result.thread.message_count !== void 0) {
+    return messageCount(result.thread.message_count) ? result.thread.message_count : void 0;
+  }
+  return Array.isArray(result.messages) ? result.messages.length : void 0;
+}
+function isCheckpointConflictResponse(data) {
+  return record(data) && data.error_code === "checkpoint_conflict";
+}
+var DEFAULT_THREAD_SYNC_TIMEOUT_MS = 12e4;
+var MIN_THREAD_SYNC_TIMEOUT_MS = 1e3;
+var MAX_THREAD_SYNC_TIMEOUT_MS = 30 * 6e4;
+function resolveThreadSyncTimeoutMs(raw) {
+  const parsed = Number(raw);
+  if (!raw?.trim() || !Number.isSafeInteger(parsed) || parsed <= 0) {
+    return DEFAULT_THREAD_SYNC_TIMEOUT_MS;
+  }
+  return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed));
+}
+
+// src/session-delta.ts
+function opencodeThreadId(sessionId) {
+  return `opencode-${sessionId}`;
+}
+function normalizedTimestamp(raw) {
+  if (raw === null || raw === void 0) return void 0;
+  try {
+    const timestamp = new Date(raw);
+    return Number.isNaN(timestamp.getTime()) ? void 0 : timestamp.toISOString();
+  } catch {
+    return void 0;
+  }
+}
+function sessionSyncLaneKey(sessionId, apiUrl, apiKey, spaceId, agentId, hostAgentId) {
+  const destination = createHash2("sha256").update([apiUrl, apiKey ?? "", spaceId ?? "", agentId ?? "", hostAgentId ?? ""].join("\0")).digest("hex");
+  return `${destination}\0${sessionId}`;
+}
+function isThreadNotFoundResponse(status, data) {
+  if (typeof data === "object" && data !== null && data.error_code === "thread_not_found") return true;
+  if (status === 404) return true;
+  return JSON.stringify(data).toLowerCase().includes("thread not found");
+}
+function isThreadAlreadyExistsResponse(status, data) {
+  if (status === 409) return true;
+  const text = JSON.stringify(data).toLowerCase();
+  return text.includes("thread already exists") || text.includes("already exists in space");
+}
+async function recreateMissingThread(response, recreate) {
+  if (response.ok || !isThreadNotFoundResponse(response.status, response.data)) {
+    return { response, recreated: false };
+  }
+  return { response: await recreate(), recreated: true };
 }
 
 // src/thread-messages.ts
@@ -273,18 +293,6 @@ function toThreadMessages(sdkMessages, includeToolDetails = false) {
     });
   }
   return threadMessages;
-}
-
-// src/thread-sync-timeout.ts
-var DEFAULT_THREAD_SYNC_TIMEOUT_MS = 12e4;
-var MIN_THREAD_SYNC_TIMEOUT_MS = 1e3;
-var MAX_THREAD_SYNC_TIMEOUT_MS = 30 * 6e4;
-function resolveThreadSyncTimeoutMs(raw) {
-  const parsed = Number(raw);
-  if (!raw?.trim() || !Number.isSafeInteger(parsed) || parsed <= 0) {
-    return DEFAULT_THREAD_SYNC_TIMEOUT_MS;
-  }
-  return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed));
 }
 
 // src/index.ts

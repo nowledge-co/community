@@ -4,6 +4,20 @@
 
 - Return one structured Context Bundle representation to the model, removing only the duplicate Markdown field while preserving configured instructions, rules, exact Space and semantic hash. Existing CLI hooks and Markdown-only responses stay compatible.
 
+## [0.4.3] - 2026-10-11
+
+### Changed
+
+- Embed the shared TypeScript plugin core for snapshot deltas, persistence
+  acknowledgements, and thread-sync timeouts. Published or copied plugins remain
+  self-contained; destination keys, host lifecycle, and recovery stay host-owned.
+- Record the embedded core version and content hashes in a generated manifest.
+
+### Fixed
+
+- Reject negative or unsafe persistence acknowledgement counts and invalid
+  snapshot cursor counts before advancing capture state.
+
 ## [0.4.2] - 2026-10-08
 
 - Publish through GitHub OIDC trusted publishing with npm provenance and a verified tarball receipt. Runtime behavior and the OpenCode 1.x compatibility line are unchanged.

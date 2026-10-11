@@ -147,6 +147,12 @@ if [ ! -f "$STAGED_PLUGIN/src/index.ts" ]; then
   echo "Error: staged plugin is missing src/index.ts" >&2
   exit 1
 fi
+for core_file in index.js index.d.ts acknowledgement.d.ts thread-delta.d.ts timeout.d.ts package.json manifest.json; do
+  if [ ! -f "$STAGED_PLUGIN/src/generated/plugin-core/$core_file" ]; then
+    echo "Error: staged plugin is missing embedded core file $core_file" >&2
+    exit 1
+  fi
+done
 if [ ! -f "$STAGED_PLUGIN/skills/$PLUGIN_NAME/SKILL.md" ]; then
   echo "Error: staged plugin is missing skills/$PLUGIN_NAME/SKILL.md" >&2
   exit 1

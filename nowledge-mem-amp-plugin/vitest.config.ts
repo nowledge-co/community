@@ -16,7 +16,8 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       // index.ts is composition-only wiring around the host SDK; focused lifecycle
       // tests exercise its registration, while unit coverage targets behavior modules.
-      exclude: ["src/index.ts", "src/types.ts"],
+      // Generated declarations have no executable coverage; the core has its own suite.
+      exclude: ["src/index.ts", "src/types.ts", "src/generated/**"],
       reporter: ["text", "html"],
       lines: 100,
       functions: 100,

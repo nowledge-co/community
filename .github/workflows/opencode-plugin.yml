@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/opencode-plugin.yml"
       - "nowledge-mem-opencode-plugin/**"
+      - "shared/plugin-core/**"
       - "integrations.json"
       - ".github/workflows/publish-opencode.yml"
   push:
@@ -13,6 +14,7 @@ on:
     paths:
       - ".github/workflows/opencode-plugin.yml"
       - "nowledge-mem-opencode-plugin/**"
+      - "shared/plugin-core/**"
       - "integrations.json"
       - ".github/workflows/publish-opencode.yml"
 
