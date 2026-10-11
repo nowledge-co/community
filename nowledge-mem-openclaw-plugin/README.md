@@ -196,7 +196,7 @@ The behavioral skill and always-on hook nudge the agent to **search before answe
 | "What was I doing last week?" | `nowledge_mem_timeline` | Activity feed grouped by day. Supports exact date ranges. |
 | "How is X connected to Y?" | `nowledge_mem_connections` | Graph walk: edges, entities, EVOLVES chains, document provenance. |
 | Need startup context or today's focus/priorities | `nowledge_mem_context` | Read Context Bundle when available, with Working Memory fallback. Supports Working Memory section-level patch. |
-| Memory has `sourceThreadId` | `nowledge_mem_thread_fetch` | Fetch full source conversation. Pagination via `offset` + `limit`. |
+| Memory has `sourceThreadId` | `nowledge_mem_thread_fetch` | Read one small targeted source-message range; do not walk offsets. |
 | "Find our discussion about X" | `nowledge_mem_thread_search` | Search past conversations by keyword. Returns matched snippets. |
 | "Forget X" | `nowledge_mem_forget` | Delete by ID or search query. |
 | "Is my setup working?" | `nowledge_mem_status` | Show effective config, backend connectivity, and version. |

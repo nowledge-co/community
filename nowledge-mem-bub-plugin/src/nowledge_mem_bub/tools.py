@@ -352,7 +352,7 @@ async def mem_thread_fetch(
     *,
     context: Any,
 ) -> str:
-    """Fetch messages from a specific thread (conversation).  Supports pagination."""
+    """Read one small targeted message range per question. Never loop offsets or increase limits; on slow, incomplete or failed reads, report the gap and refine search."""
     client = _get_client(context)
     result = await client.fetch_thread(thread_id, limit=limit, offset=offset)
 
@@ -368,8 +368,7 @@ async def mem_thread_fetch(
         lines.append(f"[{role}] {text}")
 
     if has_more:
-        next_offset = offset + len(messages)
-        lines.append(f"\n(more messages available — use offset={next_offset})")
+        lines.append("\n(more messages exist; do not walk offsets to reconstruct the thread. Report the evidence gap and refine search, or wait for an explicit request for another range.)")
 
     return "\n".join(lines)
 
