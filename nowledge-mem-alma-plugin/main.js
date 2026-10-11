@@ -1291,8 +1291,8 @@ export async function activate(context) {
 		description:
 			"Search past conversations by keyword. Use when the user asks about a past discussion, " +
 			"wants to find a conversation from a specific time, or when a memory's sourceThreadId suggests " +
-			"looking at the full conversation. Returns matched threads with message snippets. " +
-			"To read full messages, pass a thread id to nowledge_mem_thread_show.",
+			"finding the relevant source messages. Returns matched threads with message snippets. " +
+			"If needed, pass a thread id to nowledge_mem_thread_show for one small targeted range; do not walk offsets.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -1330,7 +1330,7 @@ export async function activate(context) {
 
 	registerTool("nowledge_mem_thread_show", {
 		description:
-			"Fetch messages from a conversation thread. Use to read the full context around a memory — " +
+			"Fetch one targeted message range from a conversation thread around a memory — " +
 			"pass the sourceThreadId from nowledge_mem_search or nowledge_mem_show results, " +
 			"or a thread id from nowledge_mem_thread_search. " +
 			"Search first, then fetch at most one small targeted message range per question. Never loop over offsets to reconstruct a conversation or increase content limits. If the read is slow, incomplete or fails, stop, report the evidence gap and refine search. A known target offset is allowed for the single read.",
