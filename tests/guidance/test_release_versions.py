@@ -22,6 +22,23 @@ PACKAGES = {
     "step-code": ("nowledge-mem-step-code", "package.json"),
 }
 
+# Additional release-bearing surfaces, excluding dependency/compatibility versions.
+EXTRA_SURFACES = {
+    "alma": [("nowledge-mem-alma-plugin/package.json", ("version",))],
+    "openclaw": [
+        ("nowledge-mem-openclaw-plugin/openclaw.plugin.json", ("version",)),
+        ("nowledge-mem-openclaw-plugin/package-lock.json", ("version",)),
+        ("nowledge-mem-openclaw-plugin/package-lock.json", ("packages", "", "version")),
+    ],
+    "claude-code": [(".claude-plugin/marketplace.json", ("plugins", 0, "version"))],
+    "copilot-cli": [(".github/plugin/marketplace.json", ("plugins", 0, "version"))],
+}
+RUNTIME_SURFACES = {
+    "pi": ("nowledge-mem-pi-package/extensions/nowledge-mem.ts", "DEFAULT_PLUGIN_VERSION"),
+    "omp": ("nowledge-mem-omp-plugin/extensions/nowledge-mem.ts", r"process\.env\.NMEM_PLUGIN_VERSION"),
+    "step-code": ("nowledge-mem-step-code/extensions/nowledge-mem.ts", r"process\.env\.NMEM_PLUGIN_VERSION"),
+}
+
 
 class ReleaseVersions(unittest.TestCase):
     def test_guidance_packages_have_matching_release_metadata(self):
@@ -35,6 +52,18 @@ class ReleaseVersions(unittest.TestCase):
                     self.assertEqual(actual, version)
                 changelog = (ROOT / directory / "CHANGELOG.md").read_text(encoding="utf-8")
                 self.assertRegex(changelog, rf"(?m)^## \[?{re.escape(version)}\]?(?:\s|$)")
+                for path, keys in EXTRA_SURFACES.get(identifier, []):
+                    with self.subTest(surface=path, keys=keys):
+                        actual = json.loads((ROOT / path).read_text(encoding="utf-8"))
+                        for key in keys:
+                            actual = actual[key]
+                        self.assertEqual(actual, version)
+                if identifier in RUNTIME_SURFACES:
+                    path, constant = RUNTIME_SURFACES[identifier]
+                    text = (ROOT / path).read_text(encoding="utf-8")
+                    match = re.search(rf'{constant}\s*=\s*"([^"]+)"', text)
+                    self.assertIsNotNone(match, path)
+                    self.assertEqual(match[1], version, path)
         self.assertEqual(registry["grok"]["version"], registry["claude-code"]["version"])
 
 
