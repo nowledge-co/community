@@ -1,6 +1,7 @@
 import asyncio
 import ast
 import importlib.util
+import json
 import re
 import unittest
 from pathlib import Path
@@ -58,6 +59,11 @@ class ThreadRetrievalGuidance(unittest.TestCase):
         for name in ["tools.py", "client.py"]:
             text = (ROOT / "nowledge-mem-bub-plugin/src/nowledge_mem_bub" / name).read_text(encoding="utf-8")
             self.assertIn("limit: int = 8", text)
+
+    def test_alma_manifest_does_not_advertise_page_walks(self):
+        manifest = json.loads((ROOT / "nowledge-mem-alma-plugin/manifest.json").read_text(encoding="utf-8"))
+        self.assertNotRegex(json.dumps(manifest), r"(?i)pagination")
+        self.assertIn("one small targeted message range", json.dumps(manifest))
 
     def test_graph_expansion_remains_distinct(self):
         text = (ROOT / "nowledge-mem-codex-plugin/skills/search-memory/SKILL.md").read_text(encoding="utf-8")
