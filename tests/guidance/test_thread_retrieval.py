@@ -26,6 +26,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
                 self.assertNotRegex(text, r"(?i)(?:increase|higher)[^\n]*offset|offset=50 for next page")
                 self.assertNotRegex(text, r"(?i)fetch more pages|fetch more only if|read it in pages|fetch more via")
                 self.assertNotRegex(text, r"(?i)for full conversation context|fetch full messages[^\n]*pagination|limit: 50|load it incrementally")
+                self.assertNotRegex(text, r"(?i)start with a small page|first page[^\n]*then")
                 for line in text.splitlines():
                     if re.search(r"thread|conversation|t show", line, re.I) and not line.startswith("description:"):
                         self.assertNotRegex(line, r"(?i)progressiv")
