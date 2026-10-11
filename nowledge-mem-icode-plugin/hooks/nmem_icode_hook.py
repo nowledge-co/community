@@ -12,7 +12,7 @@ Behavior (fail-open: any error exits 0 without touching the result file):
 Environment knobs:
 - NMEM_ICODE_CONTEXT=off     disable context injection entirely
 - NMEM_ICODE_RECALL=every|first|off   reminder frequency (default: every)
-- NMEM_ICODE_TIMEOUT_SECONDS nmem call budget per attempt (default: 6)
+- NMEM_ICODE_TIMEOUT_SECONDS total CLI budget (default: 8, capped at 8)
 
 iCode contract: the event payload is a JSON file at CHRYS_HOOK_PAYLOAD_FILE;
 blocking hooks write a JSON object to CHRYS_HOOK_RESULT, and only a
@@ -22,10 +22,13 @@ blocking hooks write a JSON object to CHRYS_HOOK_RESULT, and only a
 from __future__ import annotations
 
 import json
+import hashlib
+import math
 import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 RECALL_REMINDER = (
@@ -43,7 +46,10 @@ CONTEXT_PREFIX = (
 
 
 def _state_dir() -> Path:
-    if sys.platform == "win32":
+    override = os.environ.get("NMEM_CLI_CONFIG_DIR")
+    if override:
+        base = Path(override).expanduser()
+    elif sys.platform == "win32":
         base = Path.home() / "AppData" / "Roaming" / ".nowledge-mem"
     else:
         base = Path.home() / ".nowledge-mem"
@@ -81,9 +87,15 @@ def _load_context(timeout: float) -> str | None:
     prefix = _nmem_argv()
     if prefix is None:
         return None
-    return _run_nmem(prefix, ["context"], timeout) or _run_nmem(
-        prefix, ["working-memory"], timeout
-    )
+    deadline = time.monotonic() + timeout
+    context = _run_nmem(prefix, ["context", "--source-app", "icode"], min(timeout, 6.0))
+    if context:
+        return context[:12000]
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        return None
+    context = _run_nmem(prefix, ["working-memory"], remaining)
+    return context[:12000] if context else None
 
 
 def _already_injected(session_key: str) -> bool:
@@ -100,10 +112,9 @@ def _mark_injected(session_key: str) -> None:
 
 
 def _safe_session_key(payload: dict) -> str:
-    raw = str(payload.get("session_id") or "default")
-    keep = [c if c.isalnum() or c in "-_" else "_" for c in raw]
-    key = "".join(keep)[:64]
-    return key or "default"
+    scope = [payload.get("session_id"), payload.get("profile"), payload.get("cwd")]
+    scope += [os.environ.get(key, "") for key in ("NMEM_API_URL", "NMEM_SPACE", "NMEM_AGENT_ID")]
+    return hashlib.sha256(json.dumps(scope, sort_keys=True).encode()).hexdigest()
 
 
 def main() -> int:
@@ -122,25 +133,28 @@ def main() -> int:
 
     if payload.get("event") != "user_prompt_submit":
         return 0
+    if not payload.get("session_id"):
+        return 0  # No session identity: do not share a context marker across sessions.
 
     recall_mode = os.environ.get("NMEM_ICODE_RECALL", "every").strip().lower()
-    timeout = 6.0
+    timeout = 8.0
     try:
-        timeout = max(1.0, float(os.environ.get("NMEM_ICODE_TIMEOUT_SECONDS", "6")))
+        configured = float(os.environ.get("NMEM_ICODE_TIMEOUT_SECONDS", "8"))
+        if math.isfinite(configured):
+            timeout = min(8.0, max(1.0, configured))
     except ValueError:
         pass
 
     session_key = _safe_session_key(payload)
     reminder: str | None = None
+    context = None
 
     if not _already_injected(session_key):
         context = _load_context(timeout)
         if context:
             reminder = f"{CONTEXT_PREFIX}\n\n{context}"
-            _mark_injected(session_key)
-        elif payload.get("injected") is False:
+        elif recall_mode != "off":
             reminder = RECALL_REMINDER
-            _mark_injected(session_key)
     elif recall_mode == "every":
         reminder = RECALL_REMINDER
 
@@ -156,6 +170,8 @@ def main() -> int:
         )
     except OSError:
         return 0
+    if context:
+        _mark_injected(session_key)
     return 0
 
 

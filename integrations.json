@@ -2246,7 +2246,7 @@
       "name": "npx Skills",
       "category": "surface",
       "type": "skills",
-      "version": "0.6.2",
+      "version": "0.6.3",
       "directory": "nowledge-mem-npx-skills",
       "transport": "cli",
       "capabilities": {
@@ -2788,15 +2788,15 @@
         "distill": "guided",
         "threads": "handoff-only",
         "bestResultRequires": [
-          "Run scripts/install.py once after install or update; it merges the nowledge-mem MCP server into the agent profile YAML, installs the user_prompt_submit hook, and copies the shared skills",
+          "In iCode /agents, save the selected Code profile first; then run the uv/PyYAML installer to merge MCP and hooks and install unclaimed shared skills",
           "Keep nmem configured on this machine for local or remote Mem; the installer reads ~/.nowledge-mem/config.json or NMEM_API_URL/NMEM_API_KEY",
           "Restart iCode after install or update; agent profiles and hooks load at startup only",
-          "For remote or authenticated Mem, paste the headers from nmem config mcp show into the agent profile MCP block when the installer's generated block does not match your deployment"
+          "For remote Mem, configure its HTTPS base URL and matching API key in nmem before installation; rerun the installer after changing the endpoint"
         ]
       },
       "install": {
-        "command": "bash -lc 'tmp=\"$(mktemp -d)\" && git clone --depth 1 https://github.com/nowledge-co/community.git \"$tmp/community\" && python3 \"$tmp/community/nowledge-mem-icode-plugin/scripts/install.py\"'",
-        "updateCommand": "bash -lc 'tmp=\"$(mktemp -d)\" && git clone --depth 1 https://github.com/nowledge-co/community.git \"$tmp/community\" && python3 \"$tmp/community/nowledge-mem-icode-plugin/scripts/install.py\"'",
+        "command": "bash -lc 'tmp=\"$(mktemp -d)\" && git clone --depth 1 https://github.com/nowledge-co/community.git \"$tmp/community\" && uv run --no-project --with pyyaml python \"$tmp/community/nowledge-mem-icode-plugin/scripts/install.py\"'",
+        "updateCommand": "bash -lc 'tmp=\"$(mktemp -d)\" && git clone --depth 1 https://github.com/nowledge-co/community.git \"$tmp/community\" && uv run --no-project --with pyyaml python \"$tmp/community/nowledge-mem-icode-plugin/scripts/install.py\"'",
         "detectionHint": "Running inside iCode (Chrys); ~/.chrys/ exists or CHRYS_SESSION_ROOT_DIR is set",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for iCode. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",

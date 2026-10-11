@@ -21,20 +21,22 @@ Credentials come from ``~/.nowledge-mem/config.json`` (``apiUrl``/``apiKey``)
 or ``NMEM_API_URL``/``NMEM_API_KEY``. The key is written into the agent
 profile YAML (same trust level as iCode's own config) and is never printed.
 
-PyYAML is optional. Without it the installer still copies the hook script and
-skills and prints the exact YAML blocks to paste manually.
+PyYAML is required for automated installation. Without it, preview blocks
+are printed and no files are changed.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
-import stat
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
+from uuid import uuid4
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_VERSION = "0.1.0"
@@ -80,6 +82,8 @@ def _config_dir(flag_value: str | None) -> Path:
 
 
 def _nmem_config_path() -> Path:
+    if os.environ.get("NMEM_CLI_CONFIG_DIR"):
+        return Path(os.environ["NMEM_CLI_CONFIG_DIR"]).expanduser() / "config.json"
     if sys.platform == "win32":
         return Path.home() / "AppData" / "Roaming" / ".nowledge-mem" / "config.json"
     return Path.home() / ".nowledge-mem" / "config.json"
@@ -94,21 +98,35 @@ def _resolve_endpoint() -> tuple[str, str | None]:
         cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         cfg = {}
+    if not isinstance(cfg, dict):
+        raise SystemExit("Mem config must be a JSON object")
+    configured_url = str(cfg.get("apiUrl") or "").strip().rstrip("/")
+    if api_url and api_url != configured_url and cfg.get("apiKey") and not api_key:
+        raise SystemExit("Endpoint override requires its own NMEM_API_KEY; refusing to reuse a different endpoint's key")
     if not api_url:
         api_url = str(cfg.get("apiUrl", "")).strip().rstrip("/")
     if api_key is None:
-        api_key = str(cfg.get("apiKey", "")).strip() or None
+        api_key = str(cfg.get("apiKey") or "").strip() or None
     if not api_url:
         api_url = "http://127.0.0.1:14242"
+    parsed = urlsplit(api_url)
+    local = parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+    if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+            or parsed.username or parsed.password or parsed.query or parsed.fragment
+            or (parsed.scheme == "http" and not local)):
+        raise SystemExit("Use a Mem base URL with HTTPS, or HTTP on loopback; no embedded credentials/query/fragment")
+    if not local and not api_key:
+        raise SystemExit("Remote Mem requires its matching API key; configure nmem or NMEM_API_KEY first")
     return api_url, api_key
 
 
 def _backup(path: Path) -> Path | None:
     if not path.exists():
         return None
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
     target = path.with_name(f"{path.name}.{stamp}.nmem-bak")
     shutil.copy2(path, target)
+    target.chmod(0o600)
     return target
 
 
@@ -247,44 +265,62 @@ def _merge_hooks_file(path: Path, entry: dict) -> list[str]:
     return notes
 
 
-def _copy_hook_script(hooks_dir: Path) -> list[str]:
-    src = PLUGIN_ROOT / "hooks" / HOOK_SCRIPT_NAME
-    dst = hooks_dir / "scripts" / HOOK_SCRIPT_NAME
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dst)
-    dst.chmod(dst.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP)
-    return [f"installed hook script: {dst}"]
+def _fingerprint(path: Path) -> str:
+    digest = hashlib.sha256()
+    files = sorted(path.rglob("*")) if path.is_dir() else [path]
+    for file in files:
+        if file.is_symlink():
+            raise SystemExit(f"refusing to manage symlink: {file}")
+        if file.is_file():
+            digest.update(str(file.relative_to(path) if path.is_dir() else file.name).encode())
+            digest.update(file.read_bytes())
+    return digest.hexdigest()
 
 
-def _copy_skills(skills_root: Path, force: bool) -> list[str]:
-    notes: list[str] = []
-    skills_root.mkdir(parents=True, exist_ok=True)
-    for name in SKILL_NAMES:
-        src = PLUGIN_ROOT / "skills" / name
-        dst = skills_root / name
-        if dst.exists():
-            if force:
-                shutil.rmtree(dst)
-                shutil.copytree(src, dst)
-                notes.append(f"skill {name}: updated (--force)")
+def _install_asset(src: Path, dst: Path, managed: dict, force: bool) -> str:
+    key = str(dst)
+    record = managed.get(key)
+    if dst.is_symlink():
+        raise SystemExit(f"refusing to replace symlink: {dst}")
+    if dst.exists():
+        unchanged = record and _fingerprint(dst) == record["digest"]
+        if not unchanged and not force:
+            return f"kept existing/user-edited asset: {dst}"
+        if not unchanged:
+            backup = dst.with_name(f"{dst.name}.{uuid4().hex}.nmem-bak")
+            if dst.is_dir():
+                shutil.copytree(dst, backup)
             else:
-                notes.append(f"skill {name}: kept existing (use --force to overwrite)")
-            continue
+                shutil.copy2(dst, backup)
+            record = {"backup": str(backup)}
+        if dst.is_dir():
+            shutil.rmtree(dst)
+    record = record or {"backup": None}
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if src.is_dir():
         shutil.copytree(src, dst)
-        notes.append(f"skill {name}: installed")
-    return notes
+    else:
+        shutil.copy2(src, dst)
+    record["digest"] = _fingerprint(dst)
+    managed[key] = record
+    return f"installed managed asset: {dst}"
 
 
-def _write_manifest(config_dir: Path, created: dict) -> None:
+def _write_manifest(config_dir: Path, created: dict, managed: dict,
+                    originals: dict, installed: dict) -> None:
     manifest = {
         "plugin": "nowledge-mem-icode-plugin",
         "version": PLUGIN_VERSION,
         "installed_at": datetime.now(timezone.utc).isoformat(),
         "created": created,
+        "managed": managed,
+        "originals": originals,
+        "installed": installed,
     }
-    (config_dir / MANIFEST_NAME).write_text(
-        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
-    )
+    path = config_dir / MANIFEST_NAME
+    with path.open("w", encoding="utf-8") as file:
+        path.chmod(0o600)
+        file.write(json.dumps(manifest, indent=2) + "\n")
 
 
 def _print_manual_blocks(api_url: str, agent: str) -> None:
@@ -296,12 +332,12 @@ def _print_manual_blocks(api_url: str, agent: str) -> None:
     if yaml:
         print(yaml.safe_dump([entry], sort_keys=False).strip())
     else:
-        print(json.dumps(entry, indent=2))
+        print(json.dumps([entry], indent=2))
     print("\n2) hooks.yaml (hooks list):")
     if yaml:
         print(yaml.safe_dump([hook], sort_keys=False).strip())
     else:
-        print(json.dumps(hook, indent=2))
+        print(json.dumps([hook], indent=2))
 
 
 def install(args: argparse.Namespace) -> int:
@@ -319,12 +355,47 @@ def install(args: argparse.Namespace) -> int:
         print("note: no API key found (local keyless Mem assumed)")
 
     profile_path = agents_dir / f"{agent}.yaml"
+    if args.dry_run or _yaml() is None:
+        print("Preview only: no files modified. Install PyYAML for automated setup.")
+        _print_manual_blocks(api_url, agent)
+        return 0
     if not profile_path.exists():
-        print(
-            f"warning: {profile_path} does not exist yet; iCode will only load it "
-            "after the profile is created (e.g. save that agent once in the TUI), "
-            "or create it from the builtin profile first"
-        )
+        raise SystemExit(f"Open iCode /agents and save the {agent} profile first, then rerun. Refusing to create an incomplete profile: {profile_path}")
+
+    yaml = _yaml()
+    hooks_path = hooks_dir / "hooks.yaml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    hooks_data = yaml.safe_load(hooks_path.read_text(encoding="utf-8")) if hooks_path.exists() else {}
+    hooks_data = hooks_data or {}
+    if not isinstance(profile, dict) or not isinstance(profile.get("tools", {}), dict):
+        raise SystemExit("Agent profile/tools must be mappings")
+    if not isinstance(profile.get("name"), str) or not profile["name"].strip():
+        raise SystemExit("Agent profile must contain its name; save the profile in iCode first")
+    servers = profile.get("tools", {}).get("mcp", [])
+    hooks = hooks_data.get("hooks", []) if isinstance(hooks_data, dict) else None
+    servers = [] if servers is None else servers
+    hooks = [] if hooks is None and isinstance(hooks_data, dict) else hooks
+    if not isinstance(servers, list) or not isinstance(hooks, list):
+        raise SystemExit("MCP servers and hooks must be lists")
+    manifest_path = config_dir / MANIFEST_NAME
+    previous = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    if previous and "managed" not in previous:
+        raise SystemExit("This old install manifest has no ownership receipts; inspect its backups before reinstalling")
+    if previous and previous.get("created", {}).get("agent_profile") != str(profile_path):
+        raise SystemExit("Remove the managed agent installation before selecting another profile")
+    if previous and previous.get("created", {}).get("skills_root") != str(skills_root):
+        raise SystemExit("Remove the installation before selecting another skills root")
+    if previous and not args.force:
+        installed = previous.get("installed", {})
+        current_mcp = [s for s in servers if isinstance(s, dict) and s.get("name") == SERVER_NAME]
+        current_hook = [h for h in hooks if isinstance(h, dict) and h.get("id") == HOOK_ID]
+        if current_mcp != [installed.get("mcp")] or current_hook != [installed.get("hook")]:
+            raise SystemExit("Managed MCP/hook configuration was edited; inspect backups before using --force")
+    managed = previous.get("managed", {})
+    originals = previous.get("originals", {
+        "mcp": [s for s in servers if isinstance(s, dict) and s.get("name") == SERVER_NAME],
+        "hook": [h for h in hooks if isinstance(h, dict) and h.get("id") == HOOK_ID],
+    })
 
     created: dict[str, object] = {
         "config_dir": str(config_dir),
@@ -337,20 +408,18 @@ def install(args: argparse.Namespace) -> int:
     }
 
     notes: list[str] = []
-    notes += _copy_hook_script(hooks_dir)
-    notes += _copy_skills(skills_root, args.force)
-    created["skills"] = [n for n in SKILL_NAMES if (skills_root / n).exists()]
-
-    if args.dry_run:
-        print("dry run: no config files modified")
-        for note in notes:
-            print(f"  - {note}")
-        _print_manual_blocks(api_url, agent)
-        return 0
+    notes.append(_install_asset(PLUGIN_ROOT / "hooks" / HOOK_SCRIPT_NAME,
+                                hooks_dir / "scripts" / HOOK_SCRIPT_NAME, managed, args.force))
+    for name in SKILL_NAMES:
+        notes.append(_install_asset(PLUGIN_ROOT / "skills" / name, skills_root / name, managed, args.force))
 
     notes += _merge_agent_profile(profile_path, agent, _mcp_entry(api_url, api_key))
     notes += _merge_hooks_file(hooks_dir / "hooks.yaml", _hook_entry())
-    _write_manifest(config_dir, created)
+    _write_manifest(config_dir, created, managed, originals,
+                    {"mcp": _mcp_entry(api_url, api_key), "hook": _hook_entry()})
+    # These files may contain the remote bearer key or the prior MCP entry.
+    profile_path.chmod(0o600)
+    manifest_path.chmod(0o600)
 
     for note in notes:
         print(f"- {note}")
@@ -369,23 +438,38 @@ def remove(args: argparse.Namespace) -> int:
         raise SystemExit(f"no install manifest at {manifest_path}; nothing to remove")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     created = manifest.get("created", {})
+    if not all(key in manifest for key in ("managed", "installed", "originals")):
+        raise SystemExit("Manifest has no ownership receipts; inspect its backups before manual removal")
+    agent = created.get("agent", "")
+    profile_path = config_dir / "agents" / f"{agent}.yaml"
+    hooks_file = config_dir / "hooks" / "hooks.yaml"
+    if (not agent or any(c in agent for c in '/\\:*?"<>|')
+            or created.get("agent_profile") != str(profile_path)
+            or created.get("hooks_file") != str(hooks_file)):
+        raise SystemExit("Manifest includes unexpected configuration paths; refusing removal")
+    skills_root = Path(created["skills_root"])
+    allowed = {str(skills_root / name) for name in SKILL_NAMES}
+    allowed.add(str(config_dir / "hooks" / "scripts" / HOOK_SCRIPT_NAME))
+    for key, record in manifest["managed"].items():
+        if key not in allowed:
+            raise SystemExit("Manifest includes an unexpected asset; refusing removal")
+        if record.get("backup") and not Path(record["backup"]).exists():
+            raise SystemExit("An asset backup is missing; restore it before removal")
 
     yaml = _yaml()
+    if yaml is None:
+        raise SystemExit("Install PyYAML before removal; no files were modified")
     notes: list[str] = []
 
-    profile_path = Path(created.get("agent_profile", ""))
     if yaml and profile_path.exists():
         data = yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
         tools = data.get("tools") or {}
         servers = tools.get("mcp")
         if isinstance(servers, list):
-            kept = [
-                s
-                for s in servers
-                if not (isinstance(s, dict) and s.get("name") == SERVER_NAME)
-            ]
+            installed = manifest.get("installed", {}).get("mcp")
+            kept = [s for s in servers if s != installed]
             if len(kept) != len(servers):
-                tools["mcp"] = kept
+                tools["mcp"] = kept + manifest.get("originals", {}).get("mcp", [])
                 _backup(profile_path)
                 profile_path.write_text(
                     yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
@@ -393,14 +477,14 @@ def remove(args: argparse.Namespace) -> int:
                 )
                 notes.append(f"removed {SERVER_NAME} from {profile_path.name}")
 
-    hooks_file = Path(created.get("hooks_file", ""))
     if yaml and hooks_file.exists():
         data = yaml.safe_load(hooks_file.read_text(encoding="utf-8")) or {}
         hooks = data.get("hooks")
         if isinstance(hooks, list):
-            kept = [h for h in hooks if not (isinstance(h, dict) and h.get("id") == HOOK_ID)]
+            installed = manifest.get("installed", {}).get("hook")
+            kept = [h for h in hooks if h != installed]
             if len(kept) != len(hooks):
-                data["hooks"] = kept
+                data["hooks"] = kept + manifest.get("originals", {}).get("hook", [])
                 _backup(hooks_file)
                 hooks_file.write_text(
                     yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
@@ -408,17 +492,24 @@ def remove(args: argparse.Namespace) -> int:
                 )
                 notes.append(f"removed {HOOK_ID} from {hooks_file.name}")
 
-    hook_script = Path(created.get("hook_script", ""))
-    if hook_script.exists():
-        hook_script.unlink()
-        notes.append(f"removed {hook_script}")
-
-    skills_root = Path(created.get("skills_root", ""))
-    for name in created.get("skills", []):
-        skill_dir = skills_root / str(name)
-        if skill_dir.exists():
-            shutil.rmtree(skill_dir)
-            notes.append(f"removed skill {name}")
+    for key, record in manifest.get("managed", {}).items():
+        path = Path(key)
+        if not path.exists():
+            continue
+        if path.is_symlink() or _fingerprint(path) != record["digest"]:
+            notes.append(f"preserved user-edited asset: {path}")
+            continue
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+        if record.get("backup"):
+            backup = Path(record["backup"])
+            if backup.is_dir():
+                shutil.copytree(backup, path)
+            else:
+                shutil.copy2(backup, path)
+        notes.append(f"removed managed asset (backup retained if present): {path}")
 
     manifest_path.unlink()
     for note in notes:
@@ -433,7 +524,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--agent", default="Code", help="agent profile to wire MCP into (default: Code)")
     parser.add_argument("--config-dir", default=None, help="iCode config dir (default: ~/.chrys or %%APPDATA%%\\chrys)")
     parser.add_argument("--skills-root", default=None, help="shared skills dir (default: ~/.agents/skills)")
-    parser.add_argument("--force", action="store_true", help="overwrite existing skill directories")
+    parser.add_argument("--force", action="store_true", help="replace edited configuration/assets, keeping backups")
     parser.add_argument("--dry-run", action="store_true", help="copy nothing into config files; print the manual blocks")
     args = parser.parse_args(argv)
 

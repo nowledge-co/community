@@ -19,7 +19,9 @@ Verify the Nowledge Mem setup for iCode end to end.
    `/runtime` > Hooks to confirm it loaded.
 4. **Fallback diagnosis**: run the hook manually with
    `NMEM_ICODE_CONTEXT=off` removed, `nmem context` on PATH working, and
-   NMEM_ICODE_TIMEOUT_SECONDS high enough for a cold Mem start.
+   `NMEM_ICODE_TIMEOUT_SECONDS` uses a total budget capped at 8 seconds to stay
+   below iCode's hook timeout. If the backend is slow, verify it separately;
+   do not keep increasing a blocking hook timeout.
 
 If everything passes but tools are missing in chat, the MCP server may be
 disabled or the tool scope may exclude them — recheck the server card.

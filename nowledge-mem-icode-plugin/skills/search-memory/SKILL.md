@@ -33,3 +33,11 @@ just explained in this conversation.
 
 Session-start context and project AGENTS.md are hints, not substitutes: when
 provenance, exact history, or current cross-tool state matter, run the search.
+
+After searching, inspect at most one small targeted thread range per question
+(for example, 8 messages with content limited to 1200 where supported). Preserve
+a known nonzero offset. Never walk offsets to reconstruct a conversation or
+raise content limits to compensate for a slow read. If the read is incomplete,
+slow, or fails, report the evidence gap and refine search. A later explicit
+request for another range is a new bounded read; routine “continue” is not
+permission to drain a thread.
