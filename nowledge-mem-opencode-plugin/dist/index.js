@@ -326,6 +326,18 @@ Save proactively when the conversation produces a decision, preference, plan, pr
 - A long productive session is wrapping up
 - The conversation produced decisions or context worth preserving as a full thread
 `;
+function compactContextBundle(output) {
+  try {
+    const bundle = JSON.parse(output);
+    if (!bundle || typeof bundle !== "object" || Array.isArray(bundle) || bundle.bundle_kind !== "context_bundle" || bundle.schema_version !== 1 || !["owner_profile", "agent_profile", "active_space", "rule_stack", "working_memory", "kfs_roots"].every((key) => bundle[key] && typeof bundle[key] === "object" && !Array.isArray(bundle[key])) || typeof bundle.compiled_hash !== "string" || typeof bundle.rendered_markdown !== "string") {
+      return output;
+    }
+    delete bundle.rendered_markdown;
+    return JSON.stringify(bundle);
+  } catch {
+    return output;
+  }
+}
 function spaceToolProperties() {
   return {
     space: {
@@ -699,7 +711,7 @@ var index_default = Plugin.define({
           if (isNmemErrorPayload(bundle)) {
             return { content: await nmem(withExplicitSpaceArg(["wm", "read"], args)) };
           }
-          return { content: bundle };
+          return { content: compactContextBundle(bundle) };
         }
       });
       editor.add({
