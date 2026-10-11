@@ -53,6 +53,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
                 text = (ROOT / name).read_text(encoding="utf-8")
                 self.assertNotIn("fetch the full conversation", text)
                 self.assertNotIn("for full conversation context", text)
+                self.assertNotRegex(text, r"(?i)(?:read|fetch|get) the full (?:conversation|thread)")
                 self.assertIn("at most one small targeted message range per question", text)
                 self.assertIn("report the evidence gap and refine search", text)
 

@@ -787,7 +787,7 @@ export async function activate(context) {
 		description:
 			"Search memories with optional filters and return ranked results. " +
 			"Results include sourceThreadId when the memory was distilled from a conversation — " +
-			"pass it to nowledge_mem_thread_show to read the full conversation.",
+			"pass it to nowledge_mem_thread_show for one small targeted message range; never reconstruct the full conversation by walking offsets.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -847,7 +847,7 @@ export async function activate(context) {
 	registerTool("nowledge_mem_query", {
 		description:
 			"One-shot memory query. Searches memories first, then threads fallback, and returns combined results. " +
-			"Memory results include sourceThreadId when available — use nowledge_mem_thread_show to read the full conversation.",
+			"Memory results include sourceThreadId when available — use nowledge_mem_thread_show for one small targeted message range; never reconstruct the full conversation by walking offsets.",
 		inputSchema: {
 			type: "object",
 			properties: {
