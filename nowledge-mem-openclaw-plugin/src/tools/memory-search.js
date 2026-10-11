@@ -20,6 +20,7 @@ export function createMemorySearchTool(client, logger) {
 			"Uses multi-signal scoring: semantic, BM25 keyword, label, graph & community signals, recency/importance decay. " +
 			"Returns snippets with memoryIds — pass a memoryId to nowledge_mem_connections for cross-topic synthesis or source provenance. " +
 			"Also returns relevant past conversation snippets (relatedThreads) when available. " +
+			"Use a matched messageIndex, when present, to choose one small targeted thread range; never walk offsets or invent missing positions. " +
 			"Supports bi-temporal filtering: event_date_from/to (when the fact HAPPENED), recorded_date_from/to (when it was SAVED). " +
 			"For browsing recent activity by day use nowledge_mem_timeline instead.",
 		parameters: {
@@ -163,6 +164,8 @@ export function createMemorySearchTool(client, logger) {
 								matchedMessages: msgs.map((m) => ({
 									role: m.role,
 									snippet: truncateSnippet(m.snippet, 200),
+									...(Number.isInteger(m.message_index) && m.message_index >= 0
+										? { messageIndex: m.message_index } : {}),
 								})),
 							};
 						});

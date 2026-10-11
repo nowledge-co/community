@@ -38,12 +38,18 @@ If you have existing knowledge in Nowledge Mem, the agent should find it through
 | `mem.timeline` | Recent activity grouped by day. |
 | `mem.forget` | Delete a memory by ID. |
 | `mem.threads` | Search past conversations from any tool. |
-| `mem.thread` | Fetch full messages from a conversation with pagination. |
+| `mem.thread` | Read one small targeted message range (default 8); an explicit known offset is supported. |
 | `mem.status` | Connection and configuration diagnostics. |
 
 All tools work as Bub comma commands too: `,mem.search query=...`
 
 **Bundled skill:** The `nowledge-mem` skill teaches the agent when and how to use these tools effectively.
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `mem.thread` or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
 
 ## Configuration
 

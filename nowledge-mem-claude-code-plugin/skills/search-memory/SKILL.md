@@ -16,7 +16,7 @@ for this search. Do not wait for the user to explicitly request retrieval.
 Skip trivial, independent tasks, generic syntax questions, and an explicit
 fresh start.
 
-## Retrieve Progressively
+## Search First, Then Read a Targeted Range
 
 Before searching, briefly tell the user what prior context you are looking for.
 Use the CLI; this plugin does not register an MCP server. If NMEM_CLI_PATH is
@@ -46,15 +46,16 @@ nmem --json m search "query" --mode deep -n 5
 
 Inspect only relevant hits. Judge their content and server warnings rather than
 applying one fixed score threshold across search modes. When a memory includes
-source_thread, or thread search finds the likely conversation, read it in pages:
+source_thread, or thread search finds the likely conversation, inspect one small
+targeted range for the specific messages needed:
 
 ```bash
 nmem --json m get <memory_id>
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-Increase the offset only when more messages are needed. Use label, importance,
-or time filters only when they narrow this question. For code-backed knowledge,
+Use a known target `--offset` once; do not advance through pages.
+Use label, importance, or time filters only when they narrow this question. For code-backed knowledge,
 verify the finding against the current repository before treating it as current.
 
 ## Respond Honestly
@@ -75,3 +76,9 @@ outside PATH, set NMEM_CLI_PATH to its executable path. Install nmem-cli with pi
 or pipx if needed; Arch Linux users can use yay -S nmem-cli or paru -S nmem-cli.
 For remote Mem, configure the shared client on this machine with
 nmem config client set url and nmem config client set api-key.
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.

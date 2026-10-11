@@ -76,7 +76,7 @@
       {
         "id": "nowledge_mem_thread_show",
         "name": "Show Thread",
-        "description": "Fetch messages from a thread with pagination (offset/limit)."
+        "description": "Read one small targeted message range per question (default 8), using a known offset once; never walk offsets."
       },
       {
         "id": "nowledge_mem_thread_create",

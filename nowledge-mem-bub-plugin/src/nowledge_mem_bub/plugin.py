@@ -30,7 +30,7 @@ You have access to the user's personal knowledge graph (Nowledge Mem).
 It contains knowledge from all their tools — Claude Code, Cursor, ChatGPT, and others — not just this session.
 When prior context would improve your response, search with mem.search.
 Save proactively when the conversation produces a decision, preference, plan, procedure, learning, or important context — do not wait to be asked. Use mem.save.
-When a memory has source_thread_id, fetch the full conversation with mem.thread."""
+When a memory has source_thread_id, use mem.thread for at most one small targeted message range per question. Never loop over offsets or increase content limits. If the read is slow, incomplete or fails, stop, report the evidence gap and refine search."""
 
 _GUIDANCE_WITH_CONTEXT = """\
 You have access to the user's personal knowledge graph (Nowledge Mem).
