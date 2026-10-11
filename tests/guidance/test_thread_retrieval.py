@@ -9,6 +9,7 @@ PATHS = ['nowledge-mem-cursor-plugin/rules/nowledge-mem.mdc', 'nowledge-mem-alma
 
 PATHS.append("nowledge-mem-alma-plugin/skills/nowledge-mem/SKILL.md")
 PATHS.append("nowledge-mem-bub-plugin/src/skills/nowledge-mem/SKILL.md")
+PATHS.append("nowledge-mem-bub-plugin/README.md")
 
 class ThreadRetrievalGuidance(unittest.TestCase):
     def test_thread_reads_have_a_budget_and_failure_exit(self):
@@ -24,6 +25,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
                 self.assertNotIn("nowledge_mem_thread_fetch(offset=50, limit=50)", text)
                 self.assertNotRegex(text, r"(?i)(?:increase|higher)[^\n]*offset|offset=50 for next page")
                 self.assertNotRegex(text, r"(?i)fetch more pages|fetch more only if|read it in pages|fetch more via")
+                self.assertNotRegex(text, r"(?i)for full conversation context|fetch full messages[^\n]*pagination|limit: 50")
                 for line in text.splitlines():
                     if re.search(r"thread|conversation|t show", line, re.I) and not line.startswith("description:"):
                         self.assertNotRegex(line, r"(?i)progressiv")

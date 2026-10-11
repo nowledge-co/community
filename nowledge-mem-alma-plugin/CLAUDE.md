@@ -117,11 +117,11 @@ open -a Alma
 ## Key v0.6.0 Features
 
 - **sourceThreadId**: Search/show/query results include thread provenance for distilled memories.
-  The agent can chain `sourceThreadId` → `nowledge_mem_thread_show` for full conversation context.
+  The agent can chain `sourceThreadId` → `nowledge_mem_thread_show` for one small targeted message range.
 - **Structured save**: `nowledge_mem_store` supports `unit_type`, `event_start`, `event_end`,
   `temporal_context` for richer knowledge graph nodes.
 - **Save dedup**: Before saving, searches for near-identical existing memories. Blocks at >=90% similarity.
-- **Thread pagination**: `nowledge_mem_thread_show` accepts `offset` for a single targeted read.
+- **Targeted thread read**: `nowledge_mem_thread_show` accepts `offset` for a single targeted read.
   Returns `totalMessages`, `hasMore`, `returnedMessages` metadata.
 - **Thread source filter**: `nowledge_mem_thread_search` accepts `source` to filter by platform.
 - **Behavioral guidance**: Recall injection includes proactive save nudge + sourceThreadId awareness.

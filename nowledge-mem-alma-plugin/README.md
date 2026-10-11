@@ -54,7 +54,7 @@ cp -R . ~/.config/alma/plugins/nowledge-mem
 | `nowledge_mem_working_memory` | Read daily Working Memory. Use Context Bundle for full startup identity/scope/rules context. |
 | `nowledge_mem_status` | Check connection mode, server health, CLI availability, and current plugin settings. |
 | `nowledge_mem_thread_search` | Search conversation threads with optional `source` filter |
-| `nowledge_mem_thread_show` | Fetch thread messages with pagination (`offset`/`limit`). Returns `hasMore`. |
+| `nowledge_mem_thread_show` | Read one small targeted message range (`offset`/`limit`, default 8). `hasMore` is metadata, not an instruction to fetch another range. |
 | `nowledge_mem_thread_create` | Create thread from content/messages |
 | `nowledge_mem_thread_delete` | Delete thread (optional cascade) |
 

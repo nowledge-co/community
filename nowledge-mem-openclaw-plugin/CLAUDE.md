@@ -49,7 +49,7 @@ src/
     timeline.js         - activity feed: daily grouping, event_type filter, memoryId hints
     forget.js           - memory deletion by ID or search
     thread-search.js    - search past conversations by keyword
-    thread-fetch.js     - fetch full messages from a thread with pagination
+    thread-fetch.js     - read one small targeted message range (default 8)
 skills/
   memory-guide/
     SKILL.md            - agent behavioral skill: when/how to search, save, explore memory (auto-discovered by OpenClaw)
@@ -216,7 +216,7 @@ Legacy aliases accepted silently in all sources for backward compat:
 | `nmem --json m delete <id>` | `client.execJson()` in forget.js | Delete |
 | `GET /threads/search?query=&limit=` | `client.searchThreads()` | Thread search enrichment (best-effort, API-only) |
 | `nmem --json t search <q> -n N` | `client.searchThreadsFull()` | Full thread search (CLI-first, API fallback) |
-| `nmem --json t show <id> -n N --offset O` | `client.fetchThread()` | Fetch thread messages with pagination |
+| `nmem --json t show <id> -n N --offset O` | `client.fetchThread()` | Read one small targeted message range (default 8) |
 
 All commands have API fallback for older CLI versions.
 

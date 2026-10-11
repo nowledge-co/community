@@ -365,11 +365,11 @@ last_n_days: 7
 
 **nowledge_mem_thread_search** - Search past conversations by keyword. Returns matched threads with message snippets and relevance scores. Use when the user asks about a past discussion or wants to find a conversation from a specific time.
 
-**nowledge_mem_thread_fetch** - Fetch full messages from a conversation thread with pagination. Pass a `sourceThreadId` from memory results or a `threadId` from thread search. Supports `offset` and `limit` for one targeted read of long conversations.
+**nowledge_mem_thread_fetch** - Read one small targeted message range. Pass a `sourceThreadId` from memory results or a `threadId` from thread search. Supports `offset` and `limit` (default 8); a known nonzero offset is valid once, not a reason to walk pages.
 
 ```
 threadId: "openclaw-db-arch-a1b2c3"
-offset: 0, limit: 50
+offset: 0, limit: 8
 -> Thread: "Database architecture discussion" (128 messages)
   [user] We need to decide on the database for task events...
   [assistant] Based on the requirements, PostgreSQL with JSONB...
