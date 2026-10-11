@@ -27,6 +27,9 @@ remains available without a Stop event. Keep Labs default-off consent,
 installed/trusted hooks, normal host approval/sandbox and current backend
 permissions. This mode adds no executor, provider, host or activation flag.
 The old maintenance flag does not by itself authorize missing-profile creation.
+Apply the same pending-confirmation boundary to SessionStart startup, resume,
+clear and compact, and to selected SubagentStart callers of the shared context
+helper. Preserve usable named-context reads and authorized ordinary first-use.
 
 ## Minimal adapter state and interfaces
 
@@ -67,6 +70,10 @@ completion. Exact retry or explicit original-proof selection recovery must
 preserve destination, Space, scope/birth and context CAS. Recovery of a usable
 selection does not relabel the original operation completed. Foreign creators
 and concurrent context edits are conflicts, not permission to overwrite.
+Explicit original-proof recovery supplies the freshly confirmed current
+context revision to the existing selection owner. Observe that owner's validated
+selected result after its reservation check; the hook has no context-write
+authority and cannot silently substitute a fresh expected revision.
 The current maintenance interface has no durable operation journal or status
 lookup; its operation ID correlates the response. Retain only the original
 approved public patch/revision and exact selection reference locally. After
@@ -76,6 +83,12 @@ revision or operation to hide uncertainty. `already_satisfied` with a verified c
 means the requested fields are currently present; it is not an original commit
 receipt or proof the original operation completed. Unsupported owner readback
 remains pending, not an invented status API.
+Immediate `already_satisfied` has this same meaning. Profile-only revision drift
+can converge with the original authorized context still current; a context
+change is a conflict and retains the pending operation. The opaque maintenance
+revision and the named-context revision are different owner tokens. Verify the
+original exact context/selection before accepting convergence; matching profile
+fields alone cannot finish a ticket after a concurrent selection change.
 
 Stop pending IO and startup hint IO have finite byte/work bounds; the later
 ordinary model turn is governed by the host and is not a newly capped Stop
