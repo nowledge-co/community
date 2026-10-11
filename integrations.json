@@ -22,7 +22,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.24",
+      "version": "0.7.25",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -65,7 +65,7 @@
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "SessionStart injects the full Nowledge Context Bundle. SubagentStart uses the exact NMEM_SUBAGENT_CONTEXT_TYPES allowlist for bounded context, skips Explore by default, and gives other unlisted types retrieval routing without a context read. Declarative skills and slash commands invoke nmem CLI directly."
+        "note": "SessionStart injects Context Bundle / Working Memory with a shared timeout budget and a user-visible read receipt. UserPromptSubmit requires one targeted nmem memory or thread search before concluding continuation, review, regression, release, connector, or prior-decision work. Read fallbacks preserve the configured Space. SubagentStart retains its exact allowlist and bounded context. The plugin remains CLI-first and does not register an MCP server."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
       "slashCommands": ["/save", "/search", "/sum", "/status"]
@@ -75,7 +75,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.24",
+      "version": "0.7.25",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -990,7 +990,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.34",
+      "version": "0.8.35",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1024,8 +1024,8 @@
         ]
       },
       "install": {
-        "command": "openclaw plugins install clawhub:nowledge-mem",
-        "updateCommand": "openclaw plugins install clawhub:nowledge-mem --force",
+        "command": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem",
+        "updateCommand": "openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem --force",
         "detectionHint": "Running as OpenClaw agent; ~/.openclaw/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for OpenClaw. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
@@ -1097,7 +1097,7 @@
       "name": "Bub",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.3",
+      "version": "0.7.4",
       "directory": "nowledge-mem-bub-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1148,7 +1148,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.9",
+      "version": "0.8.11",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1200,7 +1200,7 @@
       "name": "Step Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-step-code",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1360,7 +1360,7 @@
       "name": "Amp",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-amp-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1423,7 +1423,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.4.0",
+      "version": "0.4.3",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1469,7 +1469,7 @@
       "toolNaming": {
         "convention": "canonical",
         "prefix": "nowledge_mem_",
-        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode/plugin (OpenCode v2)",
+        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode/plugin (OpenCode v2). Recognized schema-v1 Context Bundle tool output keeps one structured JSON representation while preserving configured instructions, rules, scope, and semantic hash; unknown or partial bundles remain unchanged.",
         "tools": ["nowledge_mem_context_bundle", "nowledge_mem_working_memory", "nowledge_mem_search", "nowledge_mem_save", "nowledge_mem_update", "nowledge_mem_thread_search", "nowledge_mem_save_thread", "nowledge_mem_save_handoff", "nowledge_mem_status"]
       },
       "skills": [],
@@ -1659,7 +1659,7 @@
         "method": "cordis-session-event+cli-import",
         "runtime": "deepseek-harness",
         "command": "nmem t import --file <dsh-thread.json> --source deepseek-harness --id deepseek-harness-<session-id>",
-        "note": "The community DSH bundle listens to DSH session/event turn-end events, serializes user/assistant/tool-result surface messages, skips its own context injections, and imports through nmem with NMEM_IMPORT_ORIGIN=deepseek-harness. Its standalone repository is tagged dsh-plugin for DeepSeek Harness ecosystem discovery."
+        "note": "The community DSH bundle listens to DSH session/event turn-end events, serializes user/assistant/tool-result surface messages, skips its own context injections, and imports through nmem with NMEM_IMPORT_ORIGIN=deepseek-harness. DSH 0.1.7-rc.1 and 0.2.1-alpha.1 use shell.execute(...).result() and producer-owned plugin:nowledge-mem sources; legacy shell.run() and plugin attribution remain supported. Its standalone repository is tagged dsh-plugin for DeepSeek Harness ecosystem discovery."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -1754,7 +1754,7 @@
       "name": "OMP",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-omp-plugin",
       "transport": "plugin+cli",
       "capabilities": {
@@ -2024,7 +2024,7 @@
       "name": "LangGraph",
       "category": "framework",
       "type": "connector",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-langgraph",
       "externalRepo": "https://github.com/langchain-ai/langgraph",
       "transport": "python+mcp+rest",

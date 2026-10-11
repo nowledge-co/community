@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.4] - 2026-10-08
+
+- Publish verified wheel and sdist through GitHub OIDC trusted publishing. Runtime behavior is unchanged.
+
 ## 0.7.3 (2026-07-02)
 
 - Fixed: Windows CLI calls now hide the child console window when Bub invokes `nmem`, avoiding visible `cmd.exe` flashes during memory operations.

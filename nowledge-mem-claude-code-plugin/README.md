@@ -26,7 +26,7 @@ hooks are registered. Grok can load skills from an enabled plugin while
 still blocking hooks from an untrusted plugin, so skill visibility alone is
 not a capture check.
 
-**Prerequisite:** `nmem` CLI must be in your PATH. Hook capture also needs `python3` or `python` available on the same machine:
+**Prerequisite:** `nmem` CLI must be in your PATH, or selected with `NMEM_CLI_PATH`. Lifecycle hooks also need `python3` or `python` available on the same machine:
 
 ```bash
 pip install nmem-cli    # or: pipx install nmem-cli
@@ -55,9 +55,9 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 
 **Claude Code lifecycle hooks:**
 
-- Context Bundle loaded at every session start, resume, and clear when available, with Working Memory fallback
+- Context Bundle loaded at session start, resume, clear, fork, and compaction, with a bounded Working Memory fallback and a visible read receipt
 - Bounded Context Bundle injected for selected Claude Code subagent types, with routing-only or no-op behavior for simpler agents
-- Per-turn behavioral nudge with memory search, thread search, and save syntax
+- Per-turn routing requires a targeted memory or thread search for continuation, review, regression, release, connector, prior-decision, and exact-history work
 - Per-turn managed-skills nudge for recurring procedural work (`find_skills` / `nmem skills match`)
 
 **Grok Build lifecycle hooks:**
@@ -92,16 +92,34 @@ This calls the Windows `nmem` via interop — no extra setup or network configur
 
 | Event | Trigger | Action |
 |-------|---------|--------|
-| `SessionStart` | New, resume, or clear | Claude Code loads Context Bundle via `nmem context`, then falls back to `nmem wm read` |
+| `SessionStart` | New, resume, clear, or fork | Claude Code loads Context Bundle via `nmem context`, then falls back to `nmem wm read` in the same Space |
 | `SessionStart` | After compaction | Claude Code re-loads Context Bundle or Working Memory + checkpoint prompt |
 | `SubagentStart` | Claude Code spawns a subagent | Selects full context, routing-only, or no-op behavior from `agent_type` |
-| `UserPromptSubmit` | Every user message | Claude Code injects search/save syntax as context |
+| `UserPromptSubmit` | Every user message | Claude Code injects a short targeted-retrieval reminder, even if startup reading failed; the full guidance is loaded at startup |
 | `PreCompact` | Before manual or automatic compaction | Saves the exact Claude Code or Grok Build session by hook `session_id` before context is compressed |
 | `Stop` | Model finishes responding | Captures session to knowledge graph |
 | `SubagentStop` | Grok Build subagent finishes | Captures the subagent session without blocking the subagent gate |
 | `SessionEnd` | Grok Build process exits | Performs a final best-effort session capture after the last turn |
 
 In Claude Code, the `SessionStart` hook tries `nmem context` first so the model receives owner identity, AI Identity, active space, active rules, Working Memory, and KFS paths when the installed CLI supports it. It falls back to `nmem wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
+
+The complete CLI read has a 10-second budget, with at most 7 seconds per
+attempt. A failed read in a selected Space never retries in the default Space
+or loads the default local file. An identity-owned read without an explicit
+Space cannot fall back to anonymous Working Memory.
+
+### Read visibility
+
+Claude Code displays a loading message while the startup hook runs, followed
+by a receipt naming the loaded Context Bundle, Working Memory, or legacy local
+briefing. If no briefing exists or the read fails, the receipt says so. Hook
+context is delivered to the model separately from this user-visible message.
+
+The receipt confirms a startup read; it does not claim a targeted search.
+For relevant tasks, the agent announces the prior context it is looking for,
+then invokes Search Memory or a Bash `nmem` search. Those calls appear in the
+normal transcript. Retrieval remains model-invoked, so the hook does not run a
+search on every prompt or guarantee one regardless of model behavior.
 
 The Claude Code `SubagentStart` hook reuses the same source but caps the complete bootstrap envelope at 4 KiB. Full Context Bundle injection uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` allowlist, which defaults to `Plan,code-reviewer,architect,researcher`. `Explore` receives no Mem prompt by default; other unlisted types receive retrieval routing without loading the Context Bundle. Setting the variable replaces the default allowlist, and an empty value disables full Context Bundle injection for every type.
 
@@ -193,12 +211,12 @@ Claude Code already has a clean override surface.
 
 Use `CLAUDE.local.md` for small personal memory-behavior changes such as "prefer saving Chinese notes" or "be more aggressive about searching prior release work" without forcing that rule on the whole team.
 
-## Beyond the default tools
+## CLI-first retrieval
 
-Use the MCP tools for the day-to-day per-turn loop. For anything beyond
-that -- including graph and relationship queries -- reach for the `nmem`
-CLI directly (already installed alongside this plugin). We recommend it
-whenever you hit a gap in the per-turn tool set:
+This plugin intentionally uses `nmem` for reading, searching, and capture,
+following the [CLI migration](https://github.com/nowledge-co/community/pull/36).
+It does not register an MCP server. Keep the same CLI client configuration for
+both local and remote Mem; graph and relationship queries use it too:
 
 ```bash
 nmem graph expand <memory-or-crystal-id> --depth 2
@@ -215,6 +233,13 @@ to see its full capabilities.
 **Server not running:** Start the Nowledge Mem desktop app, or run `nmem serve` on your server
 
 **Check status:** Run `/status` or `nmem status` to see connection details
+
+**Sessions save but previous decisions are not recalled:** Check the startup
+receipt and confirm `nmem --json m search "a known decision" -n 5` works in the
+same Space. On continuation work, the transcript should include an actual
+search; a successful startup read or saved thread alone does not prove recall.
+If the CLI is installed outside PATH, set `NMEM_CLI_PATH` to the executable
+path before launching Claude Code.
 
 **Grok skills load but sessions are not captured:** Run
 `grok plugin details nowledge-mem`, then inspect `/hooks`. Reinstall with

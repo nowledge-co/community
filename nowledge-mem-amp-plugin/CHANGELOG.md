@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.5] - 2026-10-11
+
+### Changed
+
+- Embed the shared TypeScript plugin core for snapshot deltas, persistence
+  acknowledgements, and thread-sync timeouts. Published or copied plugins remain
+  self-contained; destination keys, host lifecycle, and recovery stay host-owned.
+- Record the embedded core version and content hashes in a generated manifest.
+
+### Fixed
+
+- Reject negative or unsafe persistence acknowledgement counts and invalid
+  snapshot cursor counts before advancing capture state.
+
 ## [0.1.4] - 2026-08-19
 
 ### Fixed

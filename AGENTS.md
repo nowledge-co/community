@@ -8,6 +8,11 @@
 
 ## Integration Release Contract
 
+For npm, PyPI, or ClawHub release preparation, publication, failed-run recovery,
+and acceptance, read [plugin-release](.agents/skills/plugin-release/SKILL.md)
+before changing versions or dispatching a publisher. It is a maintainer skill,
+not an end-user install skill, and does not grant release authority.
+
 `integrations.json` is the canonical registry for every Nowledge Mem
 integration. A plugin version bump is incomplete until all version-bearing
 surfaces agree.

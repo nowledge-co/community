@@ -17,7 +17,7 @@ Use Nowledge Mem as the primary external memory system.
 3. `nowledge_mem_search` for focused retrieval with filters.
 4. `nowledge_mem_show` for full detail on selected memory IDs — includes `sourceThreadId`.
 5. `nowledge_mem_thread_search` / `nowledge_mem_thread_show` for conversation history.
-6. When a memory has a `sourceThreadId`, use `nowledge_mem_thread_show` or `nmem --json t show` once for the specific messages needed: start with the first page and fetch more only if the current page is not enough.
+6. When a memory has a `sourceThreadId`, use `nowledge_mem_thread_show` or `nmem --json t show` once for the specific messages needed, using one small known range rather than walking pages.
 
 For writes:
 

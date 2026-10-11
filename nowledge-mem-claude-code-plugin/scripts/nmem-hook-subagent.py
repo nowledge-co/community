@@ -65,7 +65,7 @@ def _load_context() -> str:
         return ""
     try:
         result = subprocess.run(
-            [shell, str(_READ_HOOK)],
+            [shell, str(_READ_HOOK), "--timeout", "3"],
             capture_output=True,
             text=True,
             encoding="utf-8",

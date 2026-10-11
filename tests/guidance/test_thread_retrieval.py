@@ -5,6 +5,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PATHS = ['nowledge-mem-cursor-plugin/rules/nowledge-mem.mdc', 'nowledge-mem-alma-plugin/alma-skill-nowledge-mem.md', 'nowledge-mem-alma-plugin/README.md', 'nowledge-mem-alma-plugin/CLAUDE.md', 'nowledge-mem-codex-plugin/AGENTS.md', 'nowledge-mem-codex-prompts/search_memory.md', 'nowledge-mem-codex-prompts/AGENTS.md', 'nowledge-mem-npx-skills/README.md', 'nowledge-mem-openclaw-plugin/README.md', 'nowledge-mem-openclaw-plugin/CLAUDE.md', 'nowledge-mem-pi-package/AGENTS.md', 'shared/behavioral-guidance.md', 'nowledge-mem-omp-plugin/AGENTS.md', 'nowledge-mem-omp-plugin/skills/search-memory/SKILL.md', 'nowledge-mem-agent-plugin/skills/search-memory/SKILL.md', 'nowledge-mem-claude-code-plugin/commands/search.md', 'nowledge-mem-claude-code-plugin/skills/search-memory/SKILL.md', 'nowledge-mem-cursor-plugin/skills/search-memory/SKILL.md', 'nowledge-mem-devin-plugin/skills/search-memory/SKILL.md', 'nowledge-mem-pi-package/skills/search-memory/SKILL.md', 'nowledge-mem-openclaw-plugin/skills/memory-guide/SKILL.md', 'nowledge-mem-step-code/skills/search-memory/SKILL.md', 'nowledge-mem-npx-skills/skills/search-memory/SKILL.md', 'nowledge-mem-codex-plugin/skills/search-memory/SKILL.md', 'nowledge-mem-copilot-cli-plugin/skills/search-memory/SKILL.md', 'nowledge-mem-dimagent-plugin/skills/search-memory/SKILL.md', 'nowledge-mem-droid-plugin/commands/nowledge-search-memory.md', 'nowledge-mem-droid-plugin/skills/search-memory/SKILL.md']
 
+PATHS.append("nowledge-mem-alma-plugin/skills/nowledge-mem/SKILL.md")
+
 class ThreadRetrievalGuidance(unittest.TestCase):
     def test_thread_reads_have_a_budget_and_failure_exit(self):
         for name in PATHS:
@@ -18,6 +20,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
                 self.assertNotIn("t show` loads the whole thread", text)
                 self.assertNotIn("nowledge_mem_thread_fetch(offset=50, limit=50)", text)
                 self.assertNotRegex(text, r"(?i)(?:increase|higher)[^\n]*offset|offset=50 for next page")
+                self.assertNotRegex(text, r"(?i)fetch more pages|fetch more only if|read it in pages")
                 for line in text.splitlines():
                     if re.search(r"thread|conversation|t show", line, re.I) and not line.startswith("description:"):
                         self.assertNotRegex(line, r"(?i)progressiv")

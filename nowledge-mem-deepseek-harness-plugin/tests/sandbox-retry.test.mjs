@@ -7,7 +7,7 @@ function sandboxUnavailable() {
   return Object.assign(new Error('sandbox unavailable'), { code: 'SANDBOX_UNAVAILABLE' })
 }
 
-function testContext({ policyService, policyServiceError, runResults }) {
+function testContext({ policyService, policyServiceError, runResults, api = 'execute', failureStage = 'result' }) {
   const requests = []
   const warnings = []
   const ctx = {
@@ -20,13 +20,18 @@ function testContext({ policyService, policyServiceError, runResults }) {
       resolve(request) {
         return request
       },
-      async run(request) {
-        requests.push(request)
-        const result = runResults.shift()
-        if (result instanceof Error) throw result
-        return result
-      },
     },
+  }
+  ctx.shell[api] = async function (request) {
+    assert.equal(this, ctx.shell)
+    requests.push(request)
+    const result = runResults.shift()
+    const complete = async () => {
+      if (result instanceof Error) throw result
+      return result
+    }
+    if (api === 'run' || (failureStage === 'execute' && result instanceof Error)) return await complete()
+    return { result: complete }
   }
   if (policyService !== undefined || policyServiceError !== undefined) {
     ctx.get = key => {
@@ -150,4 +155,67 @@ test('retries exactly once with a host-resolved sandbox policy', async () => {
   assert.equal(fixture.requests[0].sandboxPolicy, undefined)
   assert.equal(fixture.requests[1].sandboxPolicy, policy)
   assert.ok(fixture.warnings.some(message => message.includes('host-resolved danger-full-access policy')))
+})
+
+test('supports the legacy run API and its sandbox retry', async () => {
+  const policy = { mode: 'danger-full-access' }
+  const success = { exitCode: 0, stdout: { text: 'ok' } }
+  const fixture = testContext({
+    api: 'run',
+    policyService: { resolve: () => policy },
+    runResults: [sandboxUnavailable(), success],
+  })
+
+  assert.equal(await runShellWithHostSandboxRetry(fixture.ctx, { command: 'nmem status' }, undefined, true), success)
+  assert.equal(fixture.requests.length, 2)
+  assert.equal(fixture.requests[1].sandboxPolicy, policy)
+})
+
+test('retries sandbox errors raised while execute prepares the handle', async () => {
+  const policy = { mode: 'danger-full-access' }
+  const success = { exitCode: 0, stdout: { text: 'ok' } }
+  const fixture = testContext({
+    failureStage: 'execute',
+    policyService: { resolve: () => policy },
+    runResults: [sandboxUnavailable(), success],
+  })
+
+  assert.equal(await runShellWithHostSandboxRetry(fixture.ctx, { command: 'nmem status' }, undefined, true), success)
+  assert.equal(fixture.requests.length, 2)
+})
+
+test('prefers execute and awaits the resolved handle result', async () => {
+  const success = { exitCode: 0, stdout: { text: 'ok' } }
+  const fixture = testContext({ runResults: [success] })
+  fixture.ctx.shell.run = () => assert.fail('legacy run must not be used')
+  const request = { command: 'nmem status', timeoutMs: 8_000 }
+  const spec = { ...request, workdir: '/workspace', onExpiry: 'kill' }
+  fixture.ctx.shell.resolve = value => {
+    assert.equal(value, request)
+    return spec
+  }
+
+  assert.equal(await runShellWithHostSandboxRetry(fixture.ctx, request), success)
+  assert.deepEqual(fixture.requests, [spec])
+  assert.deepEqual(fixture.warnings, [])
+})
+
+test('does not fall back to run or resolve a privileged policy on non-sandbox result failures', async () => {
+  const fixture = testContext({
+    policyServiceError: new Error('must not resolve'),
+    runResults: [new Error('spawn failed')],
+  })
+  fixture.ctx.shell.run = () => assert.fail('must not repeat a failed execution')
+
+  assert.equal(await runShellWithHostSandboxRetry(fixture.ctx, { command: 'nmem status' }, undefined, true), undefined)
+  assert.equal(fixture.requests.length, 1)
+  assert.match(fixture.warnings.at(-1), /nmem shell call failed: Error: spawn failed/)
+})
+
+test('warns when the host exposes neither supported shell API', async () => {
+  const fixture = testContext({ runResults: [] })
+  delete fixture.ctx.shell.execute
+
+  assert.equal(await runShellWithHostSandboxRetry(fixture.ctx, { command: 'nmem status' }), undefined)
+  assert.match(fixture.warnings.at(-1), /unsupported DSH shell contract/)
 })

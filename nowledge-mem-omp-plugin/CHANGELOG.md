@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased
+## [0.1.2] - 2026-10-08
 
 - Inherit Pi's acknowledged message-suffix sync so repeated lifecycle events no
   longer resend the complete OMP branch.
+- Require Pi 0.8.10 or newer on the compatible 0.8.x line.
+- Publish through GitHub OIDC trusted publishing with a verified npm artifact.
 
 ## 0.1.1
 

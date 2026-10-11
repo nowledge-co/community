@@ -123,7 +123,7 @@ class NowledgeClient:
             else normalize_messages(messages),
             "source": "langgraph",
             "space_id": identity.space_id,
-            "tool_version": "nowledge-mem-langgraph/0.1.0",
+            "tool_version": "nowledge-mem-langgraph/0.1.1",
             "metadata": metadata,
         }
         if expected_message_count is not None:

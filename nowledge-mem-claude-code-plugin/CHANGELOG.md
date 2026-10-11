@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.25] - 2026-10-10
+
+### Improved
+
+- Keep the intentional CLI-first integration while requiring a targeted memory
+  or thread search for continuation, review, regression, release, connector,
+  prior-decision, cross-tool, and exact-history work.
+- Show a startup loading message and a truthful user-visible read receipt;
+  keep retrieval guidance available even when the CLI or server is unavailable.
+- Keep the per-prompt reminder to the routing decision (about 350
+  characters); the full retrieval guidance is injected at startup and after
+  compaction rather than repeated on every turn.
+- Align Search Memory with progressive thread retrieval, Deep Search,
+  current-repository verification, and failure versus empty-result handling.
+
+### Fixed
+
+- Bound Context Bundle and Working Memory fallback by one 10-second deadline.
+  Reject failed CLI commands even when they print JSON content, and report an
+  oversized startup response as `response_too_large` rather than invalid.
+- Preserve explicit Space and identity boundaries during fallback instead of
+  silently reading the default Space or its legacy local file.
+- Honor NMEM_CLI_PATH and retain Windows shim support and Grok's
+  passive-hook no-op behavior.
+- Escape Windows batch shim arguments through both parsing stages, use native
+  test CLI fixtures and PATH separators, and explicitly encode raw context
+  and registry reads as UTF-8 on Windows.
+- Resolve the read loader beside both POSIX and native Windows script paths.
+- Emit one structured hook response after compaction, keeping the checkpoint
+  inside model context rather than appending plaintext to JSON.
+
 ## [0.7.24] - 2026-08-21
 
 ### Fixed
