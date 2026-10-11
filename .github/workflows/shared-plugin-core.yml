@@ -47,6 +47,7 @@ jobs:
       - run: npm --prefix shared/plugin-core test
       - run: npm --prefix shared/plugin-core run check
       - run: npm --prefix nowledge-mem-opencode-plugin ci --ignore-scripts
+      - run: node --test nowledge-mem-opencode-plugin/tests/context-bundle.test.mjs
       - run: npm --prefix nowledge-mem-opencode-plugin run check
       - run: git diff --exit-code -- nowledge-mem-opencode-plugin/dist/index.js
       - run: npm --prefix shared/plugin-core run test:artifacts
