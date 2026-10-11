@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.5] - 2026-10-11
+
+### Fixed
+
+- Search first, inspect at most one small targeted thread range per question, and report evidence gaps rather than walking offsets.
+- Preserve explicit target ranges, progressive graph exploration and existing session capture.
+- Default thread reads to eight messages when no limit is supplied.
+- Preserve matched-message positions so late-thread evidence can be selected without page walking.
+
 ## [0.7.4] - 2026-10-08
 
 - Publish verified wheel and sdist through GitHub OIDC trusted publishing. Runtime behavior is unchanged.

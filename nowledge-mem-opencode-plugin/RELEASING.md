@@ -21,7 +21,7 @@ git diff --exit-code -- dist/index.js
 npm pack --json > pack.json
 npm login
 npm whoami
-npm publish opencode-nowledge-mem-0.4.2.tgz --access public --tag latest
+npm publish opencode-nowledge-mem-0.4.3.tgz --access public --tag latest
 node scripts/release.mjs verify pack.json
 ```
 
@@ -49,7 +49,7 @@ the exact reviewed main commit:
 
 ```sh
 gh workflow run publish-opencode.yml --repo nowledge-co/community --ref main \
-  -f version=0.4.2 -f commit=<full-reviewed-main-commit-sha>
+  -f version=0.4.3 -f commit=<full-reviewed-main-commit-sha>
 ```
 
 The workflow rejects a version mismatch or a commit outside main. It tests and

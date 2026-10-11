@@ -166,7 +166,7 @@ Search your knowledge base proactively when past insights would improve the resp
 
 1. Start with `nmem --json m search "<query>"` for durable knowledge (decisions, insights, procedures).
 2. Use `nmem --json t search "<query>"` when the user is asking about a prior conversation or exact session history.
-3. If a memory result includes `source_thread`, inspect the original conversation progressively with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
+3. If a memory result includes `source_thread`, inspect the original conversation once for the specific messages needed with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 4. Prefer the smallest retrieval surface that answers the question — do not over-fetch.
 5. If initial results are weak or conceptual, try `--mode deep` for broader matching.
 
@@ -250,3 +250,9 @@ Nowledge Mem can also hold *managed skills*: compiled, proven procedures for the
 - **MCP or CLI hosts** (no native skills directory): before a recurring or procedural task, check for a matching skill — `find_skills` (MCP) or `nmem skills match "<task>"` (CLI) — and if one matches, read and follow its SKILL.md (`mem_fs cat /skills/<name>/SKILL.md` or `nmem skills show <id>`). Afterward report how it went with `report_skill_outcome` (MCP) or `nmem skills outcome <id>` (CLI) so it improves.
 
 Do this for recurring, procedural work, not for every question.
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.

@@ -19,26 +19,17 @@ import {
 	type AcknowledgedCursor,
 } from "./session-delta.ts";
 
+import { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
+export { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
+
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.10";
+const DEFAULT_PLUGIN_VERSION = "0.8.12";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
 const MAX_MESSAGE_CHARS = 20_000;
 const FLUSH_DELAY_MS = 750;
 const STARTUP_CONTEXT_TIMEOUT_MS = 8_000;
-const DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000;
-const MIN_THREAD_SYNC_TIMEOUT_MS = 1_000;
-const MAX_THREAD_SYNC_TIMEOUT_MS = 30 * 60_000;
-
-export function resolveThreadSyncTimeoutMs(raw: string | undefined): number {
-	const parsed = Number(raw);
-	if (!raw?.trim() || !Number.isSafeInteger(parsed) || parsed <= 0) {
-		return DEFAULT_THREAD_SYNC_TIMEOUT_MS;
-	}
-	return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed));
-}
-
 const THREAD_SYNC_TIMEOUT_MS = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS);
 
 function sourceApp(): string {

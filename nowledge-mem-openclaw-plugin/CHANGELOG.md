@@ -4,6 +4,15 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.36] - 2026-10-11
+
+### Fixed
+
+- Search first, inspect at most one small targeted thread range per question, and report evidence gaps rather than walking offsets.
+- Preserve explicit target ranges, progressive graph exploration and existing session capture.
+- Default thread reads to eight messages when no limit is supplied.
+- Preserve matched-message positions so late-thread evidence can be selected without page walking.
+
 ## [0.8.35] - 2026-10-08
 
 - Align ClawHub-first code-plugin install metadata with the supported host baseline.

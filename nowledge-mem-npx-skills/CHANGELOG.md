@@ -4,7 +4,12 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
 
 ## Unreleased
 
+## [0.6.2] - 2026-10-11
+
 ### Fixed
+
+- Search first, inspect at most one small targeted thread range per question, and report evidence gaps rather than walking offsets.
+- Preserve explicit target ranges, progressive graph exploration and existing session capture.
 
 - Updated `check-integration` to route Agent Plugins-compatible clients to the
   Universal Agent Plugin fallback before dropping to direct MCP or generic

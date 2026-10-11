@@ -22,7 +22,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.25",
+      "version": "0.7.26",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -75,7 +75,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.25",
+      "version": "0.7.26",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -282,7 +282,7 @@
       "name": "Copilot CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-copilot-cli-plugin",
       "transport": "cli",
       "capabilities": {
@@ -457,7 +457,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.38",
+      "version": "0.1.39",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -509,7 +509,7 @@
       },
       "toolNaming": {
         "convention": "hybrid-cli+mcp",
-        "note": "SessionStart injects the Nowledge Context Bundle. SubagentStart uses an exact Codex role allowlist: selected context-heavy roles receive a bounded snapshot, explorer is a no-op by default, and other roles receive targeted retrieval guidance without a context read. UserPromptSubmit keeps cross-tool/exact-history work routed to Nowledge even when Codex local Memory is enabled. The search-memory skill routes bounded Normal, Deep, and one-hop Progressive graph retrieval, and non-empty Memory results get a focused graph through the inline MCP App or standalone fallback. Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and skips Raft-managed execution traces by structured session originator without affecting normal Codex sessions on the same computer. The save-thread skill remains the explicit fallback."
+        "note": "SessionStart injects the Nowledge Context Bundle. SubagentStart uses an exact Codex role allowlist: selected context-heavy roles receive a bounded snapshot, explorer is a no-op by default, and other roles receive targeted retrieval guidance without a context read. UserPromptSubmit keeps cross-tool/exact-history work routed to Nowledge even when Codex local Memory is enabled. The search-memory skill routes bounded Normal, Deep, and one-hop Progressive graph retrieval, and non-empty Memory results get a focused graph through the inline MCP App or standalone fallback. Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. Thread retrieval searches first and reads at most one targeted message slice per question; it never walks offsets to reconstruct a conversation or raises content limits to work around slow reads. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and skips Raft-managed execution traces by structured session originator without affecting normal Codex sessions on the same computer. The save-thread skill remains the explicit fallback."
       },
       "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "explore-graph", "status"],
       "slashCommands": []
@@ -519,7 +519,7 @@
       "name": "DimAgent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-dimagent-plugin",
       "transport": "mcp+hook",
       "capabilities": {
@@ -889,7 +889,7 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "directory": "nowledge-mem-cursor-plugin",
       "transport": "mcp+hook",
       "capabilities": {
@@ -941,7 +941,7 @@
       "name": "Droid",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-droid-plugin",
       "transport": "cli",
       "capabilities": {
@@ -990,7 +990,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.35",
+      "version": "0.8.36",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1047,7 +1047,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.6",
+      "version": "0.7.7",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {
@@ -1097,7 +1097,7 @@
       "name": "Bub",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.4",
+      "version": "0.7.5",
       "directory": "nowledge-mem-bub-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1148,7 +1148,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.10",
+      "version": "0.8.12",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1200,7 +1200,7 @@
       "name": "Step Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-step-code",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1360,7 +1360,7 @@
       "name": "Amp",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-amp-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1423,7 +1423,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.4.2",
+      "version": "0.4.3",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1469,7 +1469,7 @@
       "toolNaming": {
         "convention": "canonical",
         "prefix": "nowledge_mem_",
-        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode/plugin (OpenCode v2)",
+        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode/plugin (OpenCode v2). Recognized schema-v1 Context Bundle tool output keeps one structured JSON representation while preserving configured instructions, rules, scope, and semantic hash; unknown or partial bundles remain unchanged.",
         "tools": ["nowledge_mem_context_bundle", "nowledge_mem_working_memory", "nowledge_mem_search", "nowledge_mem_save", "nowledge_mem_update", "nowledge_mem_thread_search", "nowledge_mem_save_thread", "nowledge_mem_save_handoff", "nowledge_mem_status"]
       },
       "skills": [],
@@ -1754,7 +1754,7 @@
       "name": "OMP",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-omp-plugin",
       "transport": "plugin+cli",
       "capabilities": {
@@ -2187,7 +2187,7 @@
       "name": "Universal Agent Plugin",
       "category": "surface",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-agent-plugin",
       "transport": "agent-plugin+mcp",
       "capabilities": {
@@ -2246,7 +2246,7 @@
       "name": "npx Skills",
       "category": "surface",
       "type": "skills",
-      "version": "0.6.1",
+      "version": "0.6.2",
       "directory": "nowledge-mem-npx-skills",
       "transport": "cli",
       "capabilities": {
@@ -2649,7 +2649,7 @@
       "name": "Devin",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-devin-plugin",
       "transport": "plugin+mcp+cli+api",
       "capabilities": {

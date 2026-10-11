@@ -356,7 +356,7 @@ export class NowledgeMemClient {
 		return this._fetch("GET", "/threads/search", { params });
 	}
 
-	async showThread(id, limit = 30, offset = 0) {
+	async showThread(id, limit = 8, offset = 0) {
 		const params = {
 			limit: Math.max(1, Math.floor(limit)),
 			offset: Math.max(0, Math.floor(offset)),
@@ -589,7 +589,7 @@ function buildCliPlaybookBlock() {
 		"- Add memory: `nmem --json m add \"<content>\" -t \"<title>\" -l tag1 -l tag2 --unit-type decision`",
 		"- Update memory: `nmem --json m update <memory_id> -c \"<new_content>\"`",
 		"- Search threads: `nmem --json t search \"<query>\" -n 5 --source alma`",
-		"- Show thread: `nmem --json t show <thread_id> -n 30 --offset 0 --content-limit 1200`",
+		"- Show thread: `nmem --json t show <thread_id> -n 8 --offset 0 --content-limit 1200`",
 	];
 }
 
@@ -603,7 +603,7 @@ const BEHAVIORAL_GUIDANCE = [
 	"Use Nowledge Mem as the primary memory system for recall/store/update operations.",
 	"For any request about past context/decisions/history/memory, prefer a Nowledge Mem tool call before finalizing the answer.",
 	"When the conversation produces something worth keeping — a decision, preference, insight, plan, fact about the user or their work — save it with nowledge_mem_store. Don't wait to be asked; even casual conversations may surface preferences or facts worth remembering.",
-	"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_show for deeper context.",
+	"When a memory has a sourceThreadId, use nowledge_mem_thread_show for at most one small targeted message range per question (for example 8 messages). Never loop over offsets or increase content limits. If the read is slow, incomplete or fails, stop, report the evidence gap and refine search.",
 ];
 
 function buildMemoryContextBlock(workingMemory, results, options = {}) {
@@ -787,7 +787,7 @@ export async function activate(context) {
 		description:
 			"Search memories with optional filters and return ranked results. " +
 			"Results include sourceThreadId when the memory was distilled from a conversation — " +
-			"pass it to nowledge_mem_thread_show to read the full conversation.",
+			"pass it to nowledge_mem_thread_show for one small targeted message range; never reconstruct the full conversation by walking offsets.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -847,7 +847,7 @@ export async function activate(context) {
 	registerTool("nowledge_mem_query", {
 		description:
 			"One-shot memory query. Searches memories first, then threads fallback, and returns combined results. " +
-			"Memory results include sourceThreadId when available — use nowledge_mem_thread_show to read the full conversation.",
+			"Memory results include sourceThreadId when available — use nowledge_mem_thread_show for one small targeted message range; never reconstruct the full conversation by walking offsets.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -1291,8 +1291,8 @@ export async function activate(context) {
 		description:
 			"Search past conversations by keyword. Use when the user asks about a past discussion, " +
 			"wants to find a conversation from a specific time, or when a memory's sourceThreadId suggests " +
-			"looking at the full conversation. Returns matched threads with message snippets. " +
-			"To read full messages, pass a thread id to nowledge_mem_thread_show.",
+			"finding the relevant source messages. Returns matched threads with message snippets. " +
+			"If needed, pass a thread id to nowledge_mem_thread_show for one small targeted range; do not walk offsets.",
 		inputSchema: {
 			type: "object",
 			properties: {
@@ -1330,15 +1330,15 @@ export async function activate(context) {
 
 	registerTool("nowledge_mem_thread_show", {
 		description:
-			"Fetch messages from a conversation thread. Use to read the full context around a memory — " +
+			"Fetch one targeted message range from a conversation thread around a memory — " +
 			"pass the sourceThreadId from nowledge_mem_search or nowledge_mem_show results, " +
 			"or a thread id from nowledge_mem_thread_search. " +
-			"Supports pagination: set offset to skip earlier messages for progressive retrieval.",
+			"Search first, then fetch at most one small targeted message range per question. Never loop over offsets to reconstruct a conversation or increase content limits. If the read is slow, incomplete or fails, stop, report the evidence gap and refine search. A known target offset is allowed for the single read.",
 		inputSchema: {
 			type: "object",
 			properties: {
 				id: { type: "string", minLength: 1 },
-				limit: { type: "number", minimum: 1, maximum: 200, default: 30 },
+				limit: { type: "number", minimum: 1, maximum: 200, default: 8 },
 				offset: { type: "number", minimum: 0, default: 0 },
 			},
 			required: ["id"],
@@ -1348,12 +1348,12 @@ export async function activate(context) {
 			properties: {
 				id: { type: "string", minLength: 1 },
 				limit: {
-					type: "number", minimum: 1, maximum: 200, default: 30,
-					description: "Max messages to return (1-200, default 30)",
+					type: "number", minimum: 1, maximum: 200, default: 8,
+					description: "Max messages to return (1-200, default 8)",
 				},
 				offset: {
 					type: "number", minimum: 0, default: 0,
-					description: "Skip first N messages for pagination (default 0)",
+					description: "Start at a known target message offset for one range (default 0); never walk offsets",
 				},
 			},
 			required: ["id"],
@@ -1362,7 +1362,7 @@ export async function activate(context) {
 			const id = String(input?.id ?? "").trim();
 			if (!id) return validationErrorResult("thread_show", "id is required");
 			try {
-				const limit = clamp(Number(input?.limit ?? 30) || 30, 1, 200);
+				const limit = clamp(Number(input?.limit ?? 8) || 8, 1, 200);
 				const offset = Math.max(0, Math.floor(Number(input?.offset ?? 0) || 0));
 				const result = await client.showThread(id, limit, offset);
 				const threadMessages = Array.isArray(result?.messages) ? result.messages : [];

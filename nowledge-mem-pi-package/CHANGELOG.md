@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.12] - 2026-10-11
+
+### Fixed
+
+- Search first, inspect at most one small targeted thread range per question, and report evidence gaps rather than walking offsets.
+- Preserve explicit target ranges, progressive graph exploration and existing session capture.
+
+## [0.8.11] - 2026-10-11
+
+### Changed
+
+- Embed the shared TypeScript plugin core for snapshot deltas, persistence
+  acknowledgements, and thread-sync timeouts. Published or copied plugins remain
+  self-contained; destination keys, host lifecycle, and recovery stay host-owned.
+- Record the embedded core version and content hashes in a generated manifest.
+
+### Fixed
+
+- Reject negative or unsafe persistence acknowledgement counts and invalid
+  snapshot cursor counts before advancing capture state.
+
 ## [0.8.10] - 2026-10-08
 
 - Publish through GitHub OIDC trusted publishing with npm provenance and a verified artifact receipt; align runtime version diagnostics. Capture behavior is unchanged.

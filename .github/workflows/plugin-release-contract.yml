@@ -11,6 +11,8 @@ on:
       - .github/workflows/plugin-release-contract.yml
       - docs/PLUGIN_PUBLISHING.md
       - integrations.json
+      - shared/plugin-core/**
+      - .github/workflows/shared-plugin-core.yml
       - nowledge-mem-*/package.json
       - nowledge-mem-*/pyproject.toml
       - nowledge-mem-*/CHANGELOG.md

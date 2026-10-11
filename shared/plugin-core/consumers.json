@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "consumers": [
+    {
+      "id": "opencode",
+      "directory": "nowledge-mem-opencode-plugin",
+      "generatedDirectory": "src/generated/plugin-core",
+      "dependents": []
+    },
+    {
+      "id": "pi",
+      "directory": "nowledge-mem-pi-package",
+      "generatedDirectory": "extensions/generated/plugin-core",
+      "dependents": ["omp", "step-code"]
+    },
+    {
+      "id": "amp",
+      "directory": "nowledge-mem-amp-plugin",
+      "generatedDirectory": "src/generated/plugin-core",
+      "dependents": []
+    }
+  ]
+}

@@ -17,7 +17,7 @@ Use Nowledge Mem as the primary external memory system.
 3. `nowledge_mem_search` for focused retrieval with filters.
 4. `nowledge_mem_show` for full detail on selected memory IDs — includes `sourceThreadId`.
 5. `nowledge_mem_thread_search` / `nowledge_mem_thread_show` for conversation history.
-6. When a memory has a `sourceThreadId`, use `nowledge_mem_thread_show` or `nmem --json t show` progressively: start with the first page and fetch more only if the current page is not enough.
+6. When a memory has a `sourceThreadId`, use `nowledge_mem_thread_show` or `nmem --json t show` once for the specific messages needed, using one small known range rather than walking pages.
 
 For writes:
 
@@ -35,7 +35,7 @@ If tool calls are not exposed in the current thread, execute via Bash:
 - `nmem --json m search "<query>" -n 5`
 - `nmem --json m show <memory_id>`
 - `nmem --json t search "<query>" -n 5 --source alma`
-- `nmem --json t show <thread_id> -n 30 --offset 0 --content-limit 1200`
+- `nmem --json t show <thread_id> -n 8 --offset 0 --content-limit 1200`
 - `nmem --json m add "<content>" -t "<title>" -l tag1 -l tag2 --unit-type decision`
 - `nmem --json m update <memory_id> -c "<new_content>"`
 
@@ -67,3 +67,9 @@ If neither plugin tools nor Bash are available, state the exact blocker once and
   - `Source: nowledge_mem_search + nowledge_mem_show`
   - or `Source: nmem CLI (m search + m show)`
   - or `Source: injected recall context (no live tool call this turn)`
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
