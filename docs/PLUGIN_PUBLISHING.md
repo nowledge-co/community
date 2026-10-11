@@ -176,6 +176,29 @@ Amp uses the same embedded core through Git/copy installation. Its package
 manifest is not an npm publishing contract. Validate the copied entrypoint and
 payload using the shared artifact checks.
 
+## Git and external marketplace delivery
+
+Shipped skills, rules, commands and prompt guidance are plugin behavior, not
+unversioned documentation. Bump every affected plugin manifest and registry
+entry, including Claude Code/Grok's shared package, even for guidance-only
+changes. Git-backed packages and npx skills do not implicitly publish to npm;
+use their actual marketplace/Git install contract.
+
+Alma's marketplace ships from `yetone/alma-plugins`, not from this repository.
+After the community release is merged, synchronize the complete Nowledge Mem
+runtime/skills/docs package to `plugins/nowledge-mem` in that repository and
+update its package/manifest plus the `registry.json` version in the same PR.
+The maintained checkout is `/Users/weyl/dev/alma-plugins`; keep unrelated
+changes intact and submit from the maintainer fork. Record the reviewed
+community source SHA and upstream PR. An open external PR is pending review,
+not marketplace delivery; verify the upstream merge and registry/package
+parity before calling that channel shipped.
+
+Repository-linked external catalogs (such as Grok Build) should keep their
+existing source paths. Check the catalog's actual reference/pin before opening
+an update: do not create a synthetic publisher or resubmit an unchanged
+moving-Git reference. Grok Build and Grok Bot are distinct delivery surfaces.
+
 ## Local release guard tests
 
 ```sh

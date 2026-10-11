@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.1.39] - 2026-10-11
+
+### Fixed
+
+- Search first, inspect at most one small targeted thread range per question, and report evidence gaps rather than walking offsets.
+- Preserve explicit target ranges, progressive graph exploration and existing session capture.
+
 ## [0.1.38] - 2026-10-01
 
 ### Tests

@@ -17,6 +17,13 @@ not an end-user install skill, and does not grant release authority.
 integration. A plugin version bump is incomplete until all version-bearing
 surfaces agree.
 
+Changes to shipped runtime, skills, commands, rules, or hook guidance require a
+plugin version bump before delivery, even when the change is Markdown-only.
+An implementation PR without a bump is not a completed plugin release: land
+the reviewed version update and finish each actual distribution channel.
+Alma changes also require a matching PR to `yetone/alma-plugins`; see the
+external marketplace section of `docs/PLUGIN_PUBLISHING.md`.
+
 When changing an integration's version:
 
 1. Update the package manifest, such as `plugin.yaml`, `plugin.json`,
