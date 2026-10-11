@@ -186,6 +186,18 @@ def test_update_rejects_changed_skills_root_before_writes(fake_home, tmp_path):
     assert not (tmp_path / "different").exists()
 
 
+def test_foreign_hook_script_is_not_wired_into_profile(fake_home, tmp_path):
+    config = fake_home / ".chrys"
+    script = config / "hooks" / "scripts" / "nmem_icode_hook.py"
+    script.parent.mkdir(parents=True)
+    script.write_text("foreign script")
+    with pytest.raises(SystemExit):
+        _install(fake_home, tmp_path)
+    assert script.read_text() == "foreign script"
+    assert not (config / "hooks" / "hooks.yaml").exists()
+    assert not (tmp_path / "skills").exists()
+
+
 def test_update_preserves_edited_mcp_and_remove_leaves_it(fake_home, tmp_path):
     import yaml
     install = _install(fake_home, tmp_path)

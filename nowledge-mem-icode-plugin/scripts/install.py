@@ -271,9 +271,14 @@ def _fingerprint(path: Path) -> str:
     for file in files:
         if file.is_symlink():
             raise SystemExit(f"refusing to manage symlink: {file}")
+        name = str(file.relative_to(path) if path.is_dir() else file.name).encode()
+        digest.update(len(name).to_bytes(8, "big"))
+        digest.update(name)
+        digest.update(b"d" if file.is_dir() else b"f")
         if file.is_file():
-            digest.update(str(file.relative_to(path) if path.is_dir() else file.name).encode())
-            digest.update(file.read_bytes())
+            content = file.read_bytes()
+            digest.update(len(content).to_bytes(8, "big"))
+            digest.update(content)
     return digest.hexdigest()
 
 
@@ -392,6 +397,11 @@ def install(args: argparse.Namespace) -> int:
         if current_mcp != [installed.get("mcp")] or current_hook != [installed.get("hook")]:
             raise SystemExit("Managed MCP/hook configuration was edited; inspect backups before using --force")
     managed = previous.get("managed", {})
+    hook_script = hooks_dir / "scripts" / HOOK_SCRIPT_NAME
+    receipt = managed.get(str(hook_script))
+    if hook_script.is_symlink() or (hook_script.exists() and not args.force
+            and (not receipt or _fingerprint(hook_script) != receipt["digest"])):
+        raise SystemExit("Hook script is foreign or user-edited; inspect it before using --force")
     originals = previous.get("originals", {
         "mcp": [s for s in servers if isinstance(s, dict) and s.get("name") == SERVER_NAME],
         "hook": [h for h in hooks if isinstance(h, dict) and h.get("id") == HOOK_ID],
