@@ -17,11 +17,13 @@
 
 import { ceState } from "../ce-state.js";
 
+const THREAD_READ_GUIDANCE = "When results include a sourceThreadId, use nowledge_mem_thread_fetch for at most one small targeted message range per question (for example 8 messages). Never loop over offsets or increase content limits. If the read is slow, incomplete or fails, stop, report the evidence gap and refine search.";
+
 export const BASE_GUIDANCE = [
 	"<nowledge-mem-guidance>",
 	"You have access to the user's personal knowledge graph (Nowledge Mem).",
 	"Search proactively with memory_search when past context would improve your answer. Do not wait to be asked. Use natural language queries, not file paths.",
-	"When results include a sourceThreadId, use nowledge_mem_thread_fetch for full conversation context.",
+	THREAD_READ_GUIDANCE,
 	"Save autonomously with nowledge_mem_save when the conversation produces a decision, preference, plan, procedure, or learning. Do not wait to be asked.",
 	"</nowledge-mem-guidance>",
 ].join("\n");
@@ -31,7 +33,7 @@ export const SESSION_CONTEXT_GUIDANCE = [
 	"You have access to the user's personal knowledge graph (Nowledge Mem).",
 	"Relevant memories and your Working Memory have already been injected into this prompt.",
 	"Use memory_search for specifics beyond what was auto-recalled, or when the user references prior work not covered above. Natural language queries, not file paths.",
-	"When results include a sourceThreadId, use nowledge_mem_thread_fetch for full conversation context.",
+	THREAD_READ_GUIDANCE,
 	"Save autonomously with nowledge_mem_save when the conversation produces a decision, preference, plan, procedure, or learning. Do not wait to be asked.",
 	"</nowledge-mem-guidance>",
 ].join("\n");

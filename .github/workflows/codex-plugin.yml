@@ -79,6 +79,8 @@ jobs:
         run: python -m unittest discover -s nowledge-mem-codex-plugin/tests
       - name: Test bounded thread retrieval guidance
         run: python -m unittest discover -s tests/guidance -v
+      - name: Test live bounded retrieval prompts
+        run: node --test nowledge-mem-openclaw-plugin/tests/bounded-retrieval-guidance.test.mjs
       - name: Test Pi continuation and capture
         run: node --test nowledge-mem-pi-package/tests/*.test.mjs
       - name: Test Step Code package contract

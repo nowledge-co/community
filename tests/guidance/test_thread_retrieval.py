@@ -20,7 +20,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
                 self.assertNotIn("t show` loads the whole thread", text)
                 self.assertNotIn("nowledge_mem_thread_fetch(offset=50, limit=50)", text)
                 self.assertNotRegex(text, r"(?i)(?:increase|higher)[^\n]*offset|offset=50 for next page")
-                self.assertNotRegex(text, r"(?i)fetch more pages|fetch more only if|read it in pages")
+                self.assertNotRegex(text, r"(?i)fetch more pages|fetch more only if|read it in pages|fetch more via")
                 for line in text.splitlines():
                     if re.search(r"thread|conversation|t show", line, re.I) and not line.startswith("description:"):
                         self.assertNotRegex(line, r"(?i)progressiv")
@@ -39,6 +39,15 @@ class ThreadRetrievalGuidance(unittest.TestCase):
         text = (ROOT / "nowledge-mem-codex-plugin/skills/search-memory/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("Progressive graph search", text)
         self.assertIn("maximum depth", text)
+
+    def test_live_prompt_injections_do_not_request_full_threads(self):
+        for name in ["nowledge-mem-alma-plugin/main.js", "nowledge-mem-openclaw-plugin/src/hooks/behavioral.js"]:
+            with self.subTest(path=name):
+                text = (ROOT / name).read_text(encoding="utf-8")
+                self.assertNotIn("fetch the full conversation", text)
+                self.assertNotIn("for full conversation context", text)
+                self.assertIn("at most one small targeted message range per question", text)
+                self.assertIn("report the evidence gap and refine search", text)
 
 if __name__ == "__main__":
     unittest.main()

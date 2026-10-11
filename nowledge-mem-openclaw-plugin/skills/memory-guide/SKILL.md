@@ -22,7 +22,7 @@ Use natural language queries. This is semantic search, not file search.
 
 Results include `matchedVia` (scoring breakdown), `importance`, `labels`, `sourceThreadId`.
 
-When results include `relatedThreads`, use `nowledge_mem_thread_fetch` with the `threadId` for full conversation context. Start with a small page; fetch more via `offset` + `limit` only when needed.
+When results include `relatedThreads`, use `nowledge_mem_thread_fetch` with the `threadId` for one small targeted message range. A known offset may select that range; do not advance through pages. Follow the bounded thread-read policy below.
 
 Bi-temporal filters narrow results by time:
 

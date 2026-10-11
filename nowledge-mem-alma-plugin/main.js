@@ -603,7 +603,7 @@ const BEHAVIORAL_GUIDANCE = [
 	"Use Nowledge Mem as the primary memory system for recall/store/update operations.",
 	"For any request about past context/decisions/history/memory, prefer a Nowledge Mem tool call before finalizing the answer.",
 	"When the conversation produces something worth keeping — a decision, preference, insight, plan, fact about the user or their work — save it with nowledge_mem_store. Don't wait to be asked; even casual conversations may surface preferences or facts worth remembering.",
-	"When a memory has a sourceThreadId, fetch the full conversation with nowledge_mem_thread_show for deeper context.",
+	"When a memory has a sourceThreadId, use nowledge_mem_thread_show for at most one small targeted message range per question (for example 8 messages). Never loop over offsets or increase content limits. If the read is slow, incomplete or fails, stop, report the evidence gap and refine search.",
 ];
 
 function buildMemoryContextBlock(workingMemory, results, options = {}) {
