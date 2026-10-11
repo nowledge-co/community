@@ -321,7 +321,7 @@ async def mem_forget(memory_id: str, *, context: Any) -> str:
 async def mem_thread_search(
     query: str, limit: int = 5, *, context: Any
 ) -> str:
-    """Search past conversations by keyword.  Returns threads with matched message snippets."""
+    """Search past conversations by keyword. Matched snippets expose known offsets when available; choose one small target range before reading, never walk offsets."""
     client = _get_client(context)
     threads = await client.search_threads(query, limit=limit)
     if not threads:
@@ -335,6 +335,10 @@ async def mem_thread_search(
         entry = f"- [{title}] ({msgs} messages) id: {tid}"
         if snippet:
             entry += f"\n  {snippet}"
+        for match in (t.get("matched_messages") or [])[:3]:
+            index = match.get("message_index")
+            position = f"[offset={index}] " if type(index) is int and index >= 0 else ""
+            entry += f"\n  {position}{str(match.get('snippet') or '')[:200]}"
         lines.append(entry)
     return "\n".join(lines)
 

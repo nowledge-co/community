@@ -1,4 +1,5 @@
 import asyncio
+import ast
 import importlib.util
 import re
 import unittest
@@ -82,6 +83,29 @@ class ThreadRetrievalGuidance(unittest.TestCase):
             ("t", "show", "thread-id", "-n", "8", "--content-limit", "1200"),
             ("t", "show", "thread-id", "-n", "12", "--offset", "40", "--content-limit", "1200"),
         ])
+
+    def test_bub_search_exposes_matched_positions(self):
+        path = ROOT / "nowledge-mem-bub-plugin/src/nowledge_mem_bub/tools.py"
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        function = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "mem_thread_search")
+        # Execute the actual tool body without importing the optional Bub host or decorator.
+        function.decorator_list = []
+
+        class Client:
+            async def search_threads(self, *args, **kwargs):
+                return [{"thread_id": "fixture", "matched_messages": [
+                    {"snippet": "late evidence", "message_index": 120},
+                    {"snippet": "first evidence", "message_index": 0},
+                    {"snippet": "missing position", "message_index": None},
+                ]}]
+
+        namespace = {"Any": object, "_get_client": lambda _: Client()}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), str(path), "exec"), namespace)
+        result = asyncio.run(namespace["mem_thread_search"]("evidence", context=None))
+        self.assertIn("[offset=120] late evidence", result)
+        self.assertIn("[offset=0] first evidence", result)
+        self.assertIn("missing position", result)
+        self.assertNotIn("offset=None", result)
 
     def test_live_prompt_injections_do_not_request_full_threads(self):
         for name in ["nowledge-mem-alma-plugin/main.js", "nowledge-mem-openclaw-plugin/src/hooks/behavioral.js", "nowledge-mem-openclaw-plugin/src/tools/thread-search.js", "nowledge-mem-bub-plugin/src/nowledge_mem_bub/plugin.py"]:
