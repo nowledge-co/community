@@ -22,6 +22,9 @@ from nmem_runtime import build_nmem_command as _build_nmem_command
 from nmem_runtime import find_nmem_command as _find_nmem_command
 from nmem_runtime import is_exact_space_id as _is_exact_space_id
 from nmem_runtime import windows_no_window_kwargs as _windows_no_window_kwargs
+from nmem_pending import pending_startup as _pending_startup
+from nmem_stop_maintenance import _typed_selection
+from nmem_pending import read_pending as _read_pending
 
 
 CONTEXT_TOTAL_TIMEOUT_SECONDS = 10.0
@@ -29,6 +32,7 @@ CONTEXT_ATTEMPT_TIMEOUT_SECONDS = 7.0
 SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS = 4.0
 SUBAGENT_CONTEXT_ATTEMPT_TIMEOUT_SECONDS = 3.0
 SUBAGENT_CONTEXT_MAX_BYTES = 4 * 1024
+MAX_HOOK_INPUT_BYTES = 256 * 1024
 RESUME_PREFIX = "NMEM_THREAD_RESUME_V1:"
 MAILBOX_TIMEOUT_SECONDS = 3.0
 MAILBOX_GUIDANCE = """Executable selection: if NMEM_CLI_PATH is configured, use
@@ -74,7 +78,12 @@ def _nmem_command() -> str | None:
 
 
 def _read_hook_input() -> dict[str, Any]:
-    raw = sys.stdin.read()
+    raw = sys.stdin.read(MAX_HOOK_INPUT_BYTES + 1)
+    try:
+        if len(raw.encode("utf-8")) > MAX_HOOK_INPUT_BYTES:
+            return {}
+    except UnicodeError:
+        return {}
     if not raw.strip():
         return {}
     try:
@@ -158,6 +167,7 @@ def _mailbox_observation() -> dict[str, Any] | None:
                 if (
                     state == "usable" and payload.get("validation") == "live"
                     and payload.get("configured") is True
+                    and _typed_selection(selection)
                     and isinstance(agent, str) and re.fullmatch(token, agent)
                     and _is_exact_space_id(space)
                 ):
@@ -394,18 +404,30 @@ def main(payload: dict[str, Any] | None = None) -> int:
     context_parts = [guidance]
     if resume_context:
         context_parts.append(resume_context)
+    pending_gate, pending_hint = _pending_startup(payload) if event_name in {"SessionStart", "SubagentStart"} else (False, "")
+    if pending_hint:
+        # Keep the bounded control notice ahead of optional context so the
+        # existing 4 KiB child budget cannot truncate its safe reference JSON.
+        context_parts.insert(0, pending_hint)
     if event_name == "SessionStart":
         observation = _mailbox_observation()
-        if observation is None:
+        if observation is None and not pending_gate:
             startup_context = _load_startup_context()
-        elif observation["state"] == "usable":
+        elif observation is not None and observation["state"] == "usable":
             # Context currently ensures agent profiles. An observation must not
             # recreate a deleted identity, so this path reads only exact-Space WM.
-            startup_context = _load_startup_context(
-                context_args=[],
-                working_memory_args=["wm", "read", "--space-id", observation["space_id"]],
-                allow_file_fallback=False,
-            )
+            _, pending = _read_pending() if pending_gate else ("absent", None)
+            if pending_gate and (pending is None or
+                    pending["context_reference"] is not None or
+                    pending["context_name"] is not None and pending["context_name"] != observation["name"] or
+                    pending["space_id"] is not None and pending["space_id"] != observation["space_id"]):
+                startup_context = ""
+            else:
+                startup_context = _load_startup_context(
+                    context_args=[],
+                    working_memory_args=["wm", "read", "--space-id", observation["space_id"]],
+                    allow_file_fallback=False,
+                )
         else:
             startup_context = ""
         if startup_context:
@@ -413,10 +435,29 @@ def main(payload: dict[str, Any] | None = None) -> int:
         if observation is not None:
             context_parts.append(_render_mailbox_context(observation))
     elif event_name == "SubagentStart":
-        startup_context = _load_startup_context(
-            total_timeout_seconds=SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS,
-            attempt_timeout_seconds=SUBAGENT_CONTEXT_ATTEMPT_TIMEOUT_SECONDS,
-        )
+        if pending_gate:
+            started = time.monotonic()
+            observation = _mailbox_observation()
+            _, pending = _read_pending()
+            remaining = SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS - (time.monotonic() - started)
+            if (observation is not None and observation["state"] == "usable" and pending is not None
+                    and pending["context_reference"] is None
+                    and (pending["context_name"] is None or pending["context_name"] == observation["name"])
+                    and (pending["space_id"] is None or pending["space_id"] == observation["space_id"])
+                    and remaining > 0):
+                startup_context = _load_startup_context(
+                    total_timeout_seconds=remaining,
+                    attempt_timeout_seconds=min(SUBAGENT_CONTEXT_ATTEMPT_TIMEOUT_SECONDS, remaining),
+                    context_args=[], working_memory_args=["wm", "read", "--space-id", observation["space_id"]],
+                    allow_file_fallback=False,
+                )
+            else:
+                startup_context = ""
+        else:
+            startup_context = _load_startup_context(
+                total_timeout_seconds=SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS,
+                attempt_timeout_seconds=SUBAGENT_CONTEXT_ATTEMPT_TIMEOUT_SECONDS,
+            )
         if startup_context:
             context_parts.extend(["## Current Nowledge context", startup_context])
 

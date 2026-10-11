@@ -36,6 +36,8 @@ SOURCE_NMEM_RUNTIME = PLUGIN_ROOT / "hooks" / "nmem_runtime.py"
 INSTALLED_NMEM_RUNTIME = HOOKS_DIR / "nmem_runtime.py"
 SOURCE_STOP_MAINTENANCE = PLUGIN_ROOT / "hooks" / "nmem_stop_maintenance.py"
 INSTALLED_STOP_MAINTENANCE = HOOKS_DIR / "nmem_stop_maintenance.py"
+SOURCE_PENDING = PLUGIN_ROOT / "hooks" / "nmem_pending.py"
+INSTALLED_PENDING = HOOKS_DIR / "nmem_pending.py"
 CODEX_HOOKS_KEY_RE = re.compile(r"^\s*codex_hooks\s*=")
 CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*hooks\s*=")
 CODEX_PLUGIN_HOOKS_KEY_RE = re.compile(r"^\s*plugin_hooks\s*=")
@@ -138,6 +140,9 @@ def install_runtime_hook() -> None:
     if not SOURCE_STOP_MAINTENANCE.exists():
         raise SystemExit(f"missing Stop maintenance adapter: {SOURCE_STOP_MAINTENANCE}")
     shutil.copy2(SOURCE_STOP_MAINTENANCE, INSTALLED_STOP_MAINTENANCE)
+    if not SOURCE_PENDING.exists():
+        raise SystemExit(f"missing pending maintenance helper: {SOURCE_PENDING}")
+    shutil.copy2(SOURCE_PENDING, INSTALLED_PENDING)
 
 
 def _quote_for_hook_command(path: Path) -> str:

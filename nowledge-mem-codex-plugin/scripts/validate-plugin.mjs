@@ -67,6 +67,7 @@ for (const file of [
   "hooks/nmem-context.py",
   "hooks/nmem_runtime.py",
   "hooks/nmem_stop_maintenance.py",
+  "hooks/nmem_pending.py",
   "hooks/nmem-stop-launch.py",
   "hooks/nmem-stop-save.py",
   "hooks/skill_outcome.py",

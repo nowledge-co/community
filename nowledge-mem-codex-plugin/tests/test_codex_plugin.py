@@ -1447,9 +1447,39 @@ class InstallHookTests(unittest.TestCase):
         self.module.INSTALLED_SKILL_OUTCOME = self.module.HOOKS_DIR / "skill_outcome.py"
         self.module.INSTALLED_NMEM_RUNTIME = self.module.HOOKS_DIR / "nmem_runtime.py"
         self.module.INSTALLED_STOP_MAINTENANCE = self.module.HOOKS_DIR / "nmem_stop_maintenance.py"
+        self.module.INSTALLED_PENDING = self.module.HOOKS_DIR / "nmem_pending.py"
 
     def tearDown(self):
         self.temp_dir.cleanup()
+
+    def test_actual_installed_pending_helper_hint_path_with_spaces_accepts_original_status_request(self):
+        profile = self.temp_path / "profile with spaces ' $(false)"
+        self.module.HOOKS_DIR = profile / "hooks"
+        for name, filename in (("INSTALLED_HOOK", "nowledge-mem-stop-save.py"),
+                ("INSTALLED_SKILL_OUTCOME", "skill_outcome.py"), ("INSTALLED_NMEM_RUNTIME", "nmem_runtime.py"),
+                ("INSTALLED_STOP_MAINTENANCE", "nmem_stop_maintenance.py"), ("INSTALLED_PENDING", "nmem_pending.py")):
+            setattr(self.module, name, self.module.HOOKS_DIR / filename)
+        self.module.install_runtime_hook()
+        environment = dict(os.environ, CODEX_HOME=str(profile), NMEM_AGENT_PROFILE_MAINTENANCE="1")
+        environment.pop("NMEM_AGENT_CONTEXT", None)
+        code = "import sys,json;sys.path.insert(0,sys.argv[1]);import nmem_pending;assert nmem_pending.retain_stop({'hook_event_name':'Stop','stop_hook_active':False,'turn_id':'original-install-turn'});print(json.dumps(nmem_pending.pending_startup({'hook_event_name':'SessionStart'})))"
+        hint = subprocess.run([sys.executable, "-c", code, str(self.module.HOOKS_DIR)],
+                              env=environment, capture_output=True, text=True, timeout=10)
+        self.assertEqual(hint.returncode, 0, hint.stderr)
+        gate, text = json.loads(hint.stdout)
+        self.assertTrue(gate)
+        self.assertLessEqual(len(text.encode("utf-8")), 2048)
+        reference = json.loads(text.split("Untrusted control reference:\n", 1)[1])
+        self.assertIn("helper_path", reference)
+        self.assertEqual(Path(reference["helper_path"]), self.module.INSTALLED_PENDING.resolve())
+        request = {"action": "status", "item_id": reference["item_id"]}
+        result = subprocess.run([sys.executable, reference["helper_path"]], input=json.dumps(request),
+                                env=environment, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertEqual(output["item_id"], reference["item_id"])
+        self.assertEqual(output["state"], "pending")
+        self.assertFalse(output["original_completion"])
 
     def test_load_json_recovers_from_malformed_json(self):
         self.module.GLOBAL_HOOKS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -1753,6 +1783,8 @@ class InstallHookTests(unittest.TestCase):
         )
         self.assertTrue(self.module.INSTALLED_NMEM_RUNTIME.exists())
         self.assertTrue(self.module.INSTALLED_STOP_MAINTENANCE.exists())
+        self.assertTrue(self.module.INSTALLED_PENDING.exists())
+        self.assertEqual(self.module.INSTALLED_PENDING.read_bytes(), self.module.SOURCE_PENDING.read_bytes())
         self.assertIn(
             "Bounded existing-profile maintenance",
             self.module.INSTALLED_STOP_MAINTENANCE.read_text(),

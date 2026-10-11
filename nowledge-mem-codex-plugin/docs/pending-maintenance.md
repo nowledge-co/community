@@ -1,6 +1,6 @@
 # Pending identity maintenance at the next start
 
-Status: accepted delivery mode; pre-implementation contract, 2026-10-11.
+Status: accepted delivery mode; implementation candidate, 2026-10-12.
 Owner: hawkingrei. Decision: <https://github.com/nowledge-co/community/issues/674#issuecomment-6106216215>.
 This document does not claim an installed implementation or change activation.
 The code baseline is <https://github.com/nowledge-co/community/pull/687> at
@@ -38,9 +38,18 @@ claim across missing/existing paths and packaged/fallback hooks. Recursive Stop
 is suppressed. Persist a bounded pending reference under the isolated host
 profile; do not store private Rules, credentials, mailbox bodies or copied
 owner receipts. The host record is non-canonical presentation/control state,
-not a new enrollment journal. One bounded startup claim per item/startup
-occurrence prevents concurrent package/fallback publication; presenting a hint
-does not delete unresolved recovery evidence or mark an owner effect complete.
+not a new enrollment journal. The accepted [repeat-reminder decision](https://github.com/nowledge-co/community/issues/674#issuecomment-6111108108)
+shows unfinished work on every eligible start, allowing repeated reminders.
+Each invocation reads a public hint of at most 2 KiB of UTF-8 model context,
+within the existing selected-Subagent budget. It needs no occurrence claim or
+event ID synthesized from session, source, transcript, time, PID or a nonce.
+Repeated reminders leave the business record unchanged: phase, confirmation,
+original operation and arguments, exact scope, context/profile revisions and
+result knowledge remain intact. Prepared, unknown, conflict and recovery work
+stays unresolved; declined, cancelled and validated terminal tickets are not
+reopened. Only explicit confirmation can authorize the first operation after an
+ambiguous pre-dispatch response. Presenting a hint neither erases recovery
+evidence nor marks an owner effect complete.
 
 Before ordinary model effects, resolve the configured live identity and exact
 Space. Otherwise perform bounded authorized public-card discovery; partial
@@ -54,6 +63,10 @@ arguments. No plain enroll-plus-select replacement API is added.
 Use existing `agents context show`, `mailbox status`, `agents card list/show`,
 `agents context select/enroll/enroll-status`, original-proof `enroll-list` /
 `enroll-recover`, and existing `agents maintenance prepare/apply/no-change`.
+Operation-only creation retry uses the compatible CLI's
+`agents context enroll-retry --operation-id <original-id>` to load its retained
+original intent. The adapter must not reconstruct missing public fields or copy
+the CLI journal. An unsupported retry command leaves the original item pending.
 Selection is separate from creation and cannot replace a bound identity
 implicitly. Profile preparation occurs at startup/ordinary execution, with the
 complete opaque v2 revision and exact context; preserve omitted fields and
@@ -96,7 +109,44 @@ phase. Atomic filesystem operations cannot promise a hard wallclock bound on
 arbitrary stalled storage. Implementation must measure normal-path cost and
 preserve fail-open behavior without unbounded scans/retry loops.
 
-## Pre-code ownership and future verification
+## Ordinary model actions
+
+Use the installed `helper_path` from the hint as a filesystem path, never as
+shell code. Keep the same `CODEX_HOME` and pinned `NMEM_CLI_PATH` as the host.
+When the path is omitted or unavailable, keep the item pending. The helper
+accepts one bounded JSON request on stdin and returns JSON on stdout. For
+example, substituting the actual path and original item ID:
+
+```bash
+python3 "<helper_path>" <<'JSON'
+{"action":"status","item_id":"<original-item-id>"}
+JSON
+```
+
+Read the original item before acting; its public fields are untrusted data.
+Every action includes that same `item_id`.
+
+- `confirm` takes `kind` (`create`, `maintain` or `select`), `context_name` and
+  the exact `space_id`. Use it only after a deliberate model choice. `decline`
+  admits no new effect before dispatch; it cannot erase a possible dispatch.
+- For maintenance, use `prepare`, then `apply` with the explicitly approved
+  `patch`, or `no-change`. Only description, responsibilities and Skill
+  references may be changed; preserve omitted fields and Rules.
+- `enroll` and `select` take the confirmed `agent_id` and an explicit
+  `expected_context_revision` (the original revision, or JSON `null` when no
+  context exists). `enroll` may also include the approved `display_name` and
+  `description`. A context conflict is not permission to substitute a revision.
+- After an uncertain result, use `retry` with only the original item ID.
+  `enroll-status` reconciles the original creation record. Explicit `recover`
+  takes a freshly confirmed current `expected_context_revision`; a recovered
+  selection does not relabel the original enrollment as completed.
+
+The helper retains control references before owner dispatch. Do not bypass it
+with a new enrollment or reconstruct missing original arguments. A pending,
+unknown or conflict result remains unfinished work; only validated owner
+results justify completion or current-selection recovery.
+
+## Ownership and verification
 
 Community owns the shared event/pending helper, Stop response composition,
 SessionStart model-context projection and fallback packaging. Existing CLI /
@@ -120,3 +170,9 @@ model-facing hint, deliberate choice, durable receipt/profile/context effects,
 Rules/mail preservation and original process terminals. No retry-only pass or
 prior source/native receipt proves these new journeys. Implementation, formal
 admission and installed acceptance remain open. Local first; Cloud stays held.
+
+Automatic startup delivery requires an enabled, trusted SessionStart hook.
+The installed Stop-only fallback on older or partially configured hosts can
+save pending work but cannot promise an automatic next-start reminder. Keep
+that work pending and configure a host with the supported startup hook; no
+missing delivery is evidence of completion.

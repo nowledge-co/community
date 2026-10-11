@@ -1,6 +1,19 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.41] - Unreleased
+
+### Changed
+
+- Save optional identity/profile work as pending at normal Stop. Each eligible
+  start can show unfinished work again; confirmation and owner operations take
+  place in an ordinary model turn.
+- Preserve the original operation through uncertain creation or profile-update
+  results. A reminder alone never creates an identity or completes maintenance.
+
+### Notes
+
+- These changes are an implementation candidate awaiting installed-host
+  acceptance. They do not change Labs activation or enable Cloud Agent Team.
 
 ## [0.1.40] - 2026-10-07
 

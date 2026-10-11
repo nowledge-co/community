@@ -9,6 +9,14 @@ Codex local Memory is a separate, local recall layer. Even when it is enabled, u
 
 ## Preferred path
 
+If startup reports pending maintenance or unavailable scoped context, inspect the
+original pending item first, following `../../docs/pending-maintenance.md`. Do
+not use the CLI Context Bundle fallback before the model explicitly confirms the
+ordinary action: `nmem context` can ensure an identity. Read Working Memory only
+in an independently verified, explicitly approved context and exact Space; do
+not infer a default identity or Space from the hint. This exception also applies
+when the full startup contract is unavailable.
+
 If this session exposes the Nowledge Mem MCP server and you need the full startup contract, prefer `read_context_bundle`.
 
 Otherwise use `read_working_memory` for a lightweight daily briefing, or the CLI Context Bundle fallback:
