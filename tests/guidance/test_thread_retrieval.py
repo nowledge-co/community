@@ -49,6 +49,7 @@ class ThreadRetrievalGuidance(unittest.TestCase):
         self.assertIn("async showThread(id, limit = 8, offset = 0)", alma)
         self.assertIn("input?.limit ?? 8", alma)
         self.assertNotIn("maximum: 200, default: 30", alma)
+        self.assertNotIn("default 30", alma)
         self.assertIn("t show <thread_id> -n 8", alma)
         for name in ["tools.py", "client.py"]:
             text = (ROOT / "nowledge-mem-bub-plugin/src/nowledge_mem_bub" / name).read_text(encoding="utf-8")

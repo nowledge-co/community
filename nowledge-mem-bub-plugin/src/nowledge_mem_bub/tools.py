@@ -340,7 +340,7 @@ async def mem_thread_search(
 
 
 # ---------------------------------------------------------------------------
-# mem.thread — fetch full conversation
+# mem.thread — fetch a targeted message range
 # ---------------------------------------------------------------------------
 
 

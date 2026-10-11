@@ -1349,7 +1349,7 @@ export async function activate(context) {
 				id: { type: "string", minLength: 1 },
 				limit: {
 					type: "number", minimum: 1, maximum: 200, default: 8,
-					description: "Max messages to return (1-200, default 30)",
+					description: "Max messages to return (1-200, default 8)",
 				},
 				offset: {
 					type: "number", minimum: 0, default: 0,
