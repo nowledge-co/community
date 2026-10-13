@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.3] - 2026-10-13
+
+- Route WorkBuddy diagnostics to desktop marketplace installation, enable/reload and explicit MCP Trust; keep ordinary updates non-destructive.
+
 ## [0.1.2] - 2026-10-11
 
 ### Fixed

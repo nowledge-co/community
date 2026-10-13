@@ -1915,7 +1915,7 @@
       "name": "WorkBuddy",
       "category": "office",
       "type": "plugin",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "directory": "nowledge-mem-workbuddy-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -1948,13 +1948,13 @@
         ]
       },
       "install": {
-        "command": "In WorkBuddy, run /plugin marketplace add https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json --name nowledge-community, then /plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "In WorkBuddy, run /plugin marketplace remove nowledge-community, then /plugin marketplace add https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json --name nowledge-community, then /plugin install nowledge-mem@nowledge-community",
-        "configRequired": "Add the raw .workbuddy-plugin/marketplace.json URL, not the repository root: current WorkBuddy resolves .codebuddy-plugin before .workbuddy-plugin when both exist. The WorkBuddy marketplace sparse-checks out only nowledge-mem-workbuddy-plugin. Existing users who added nowledge-co/community at the repository root must remove and re-add the marketplace once, then reinstall. The dedicated connector ships a WorkBuddy manifest and MCP identity, skills, slash commands, lifecycle hooks, and a WorkBuddy-managed Node runner. For remote Mem, generate a user-owned MCP override with nmem config mcp show --host workbuddy and paste it into ~/.workbuddy/.mcp.json, $WORKBUDDY_CONFIG_DIR/.mcp.json, or project .mcp.json.",
+        "command": "In WorkBuddy desktop, open Plugins -> + and add https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json; find Nowledge Mem in nowledge-community, Install and enable it, then reload WorkBuddy and review the MCP Trust prompt. Use /plugin marketplace add and /plugin install only if that host exposes plugin commands.",
+        "updateCommand": "In WorkBuddy Plugins, open the installed Nowledge Mem card and choose Update, then reload. Do not remove the marketplace for an ordinary update.",
+        "configRequired": "Use the raw .workbuddy-plugin/marketplace.json URL, not the repository root, which can select CodeBuddy instead. Confirm the plugin and skill are enabled and explicitly Trust its MCP connector if prompted; an install command alone is not proof of runtime availability. For remote Mem or authenticated localhost, use nmem config mcp show --host workbuddy and add/update nowledge-mem through WorkBuddy's Connections/MCP settings, preserving URL and headers. Do not assume ~/.workbuddy/.mcp.json populates the desktop UI. Manually copying a skill and registering MCP does not install automatic capture hooks.",
         "detectionHint": "Running inside WorkBuddy; ~/.workbuddy/ exists, WORKBUDDY_CONFIG_DIR is set, or WorkBuddy exposes the CodeBuddy-compatible plugin runtime",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for WorkBuddy. Add the raw https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json URL as nowledge-community, not the repository root; install nowledge-mem@nowledge-community, verify with nmem status and the Context Bundle or Working Memory check, then run a short session and confirm nmem t list --source workbuddy shows the imported thread.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 WorkBuddy 安装或更新 Nowledge Mem。把 https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json 原始地址添加为 nowledge-community，不要添加仓库根目录；安装 nowledge-mem@nowledge-community，用 nmem status 和 Context Bundle 或 Working Memory 检查验证，再跑一个短会话并确认 nmem t list --source workbuddy 能看到导入的线程。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md for WorkBuddy setup. In desktop Plugins -> +, add the raw https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json URL, Install and enable Nowledge Mem, reload, and guide the user through explicit MCP Trust. Do not substitute CodeBuddy CLI installation as proof of desktop UI registration. Verify with nmem status and the Context Bundle or Working Memory check, then a memory search inside WorkBuddy; check automatic capture only with full plugin hooks installed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，为 WorkBuddy 配置连接。在桌面端 插件 -> + 添加 https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json，安装并启用 Nowledge Mem，重载后引导用户明确 Trust MCP。不要把 CodeBuddy CLI 安装成功当成桌面 UI 注册成功。在 WorkBuddy 内用 nmem status 和 Context Bundle 或 Working Memory 检查验证，再做一次记忆搜索；只有完整插件 hook 已安装时才检查自动会话采集。"
         },
         "docsUrl": "/docs/integrations/workbuddy"
       },
@@ -2187,7 +2187,7 @@
       "name": "Universal Agent Plugin",
       "category": "surface",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-agent-plugin",
       "transport": "agent-plugin+mcp",
       "capabilities": {
@@ -2246,7 +2246,7 @@
       "name": "npx Skills",
       "category": "surface",
       "type": "skills",
-      "version": "0.6.3",
+      "version": "0.6.4",
       "directory": "nowledge-mem-npx-skills",
       "transport": "cli",
       "capabilities": {
@@ -2649,7 +2649,7 @@
       "name": "Devin",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-devin-plugin",
       "transport": "plugin+mcp+cli+api",
       "capabilities": {

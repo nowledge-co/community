@@ -375,7 +375,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert set(agent_plugin_manifest) <= allowed_agent_plugin_manifest_keys
     assert agent_plugin_manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
     assert agent_plugin_manifest["name"] == "nowledge-mem"
-    assert agent_plugin_manifest["version"] == "0.1.2"
+    assert agent_plugin_manifest["version"] == "0.1.3"
     assert registry_by_id["agent-plugins"]["version"] == agent_plugin_manifest["version"]
     assert registry_by_id["agent-plugins"]["directory"] == AGENT_PLUGIN.name
     assert registry_by_id["agent-plugins"]["autonomy"]["threads"] == "handoff-only"
@@ -692,7 +692,7 @@ def test_key_plugin_static_contracts_are_declared():
     workbuddy_hook_source = (
         WORKBUDDY_PLUGIN / "scripts" / "nowledge-mem-hook.mjs"
     ).read_text(encoding="utf-8")
-    assert workbuddy_manifest["version"] == "0.2.0"
+    assert workbuddy_manifest["version"] == "0.2.1"
     assert registry_by_id["workbuddy"]["version"] == workbuddy_manifest["version"]
     assert registry_by_id["workbuddy"]["directory"] == WORKBUDDY_PLUGIN.name
     assert workbuddy_marketplace_plugin["version"] == workbuddy_manifest["version"]
@@ -706,8 +706,8 @@ def test_key_plugin_static_contracts_are_declared():
         in registry_by_id["workbuddy"]["install"]["command"]
     )
     assert (
-        "marketplace remove nowledge-community"
-        in registry_by_id["workbuddy"]["install"]["updateCommand"]
+        "marketplace remove"
+        not in registry_by_id["workbuddy"]["install"]["updateCommand"]
     )
     assert codebuddy_manifest["version"] == "0.1.1"
     assert registry_by_id["codebuddy"]["version"] == codebuddy_manifest["version"]

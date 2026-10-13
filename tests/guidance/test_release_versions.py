@@ -20,10 +20,12 @@ PACKAGES = {
     "openclaw": ("nowledge-mem-openclaw-plugin", "package.json"),
     "pi": ("nowledge-mem-pi-package", "package.json"),
     "step-code": ("nowledge-mem-step-code", "package.json"),
+    "workbuddy": ("nowledge-mem-workbuddy-plugin", ".workbuddy-plugin/plugin.json"),
 }
 
 # Additional release-bearing surfaces, excluding dependency/compatibility versions.
 EXTRA_SURFACES = {
+    "workbuddy": [(".workbuddy-plugin/marketplace.json", ("plugins", 0, "version"))],
     "alma": [("nowledge-mem-alma-plugin/package.json", ("version",))],
     "openclaw": [
         ("nowledge-mem-openclaw-plugin/openclaw.plugin.json", ("version",)),
