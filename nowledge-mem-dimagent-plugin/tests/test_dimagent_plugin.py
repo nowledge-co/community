@@ -326,7 +326,7 @@ class DimAgentCaptureTests(unittest.TestCase):
             entry for entry in registry["integrations"] if entry["id"] == "dimagent"
         )
         self.assertEqual(integration["directory"], PLUGIN_ROOT.name)
-        self.assertEqual(integration["version"], "0.1.0")
+        self.assertEqual(integration["version"], "0.1.1")
         self.assertTrue(integration["capabilities"]["autoCapture"])
         self.assertEqual(integration["autonomy"]["threads"], "automatic-capture")
         self.assertIn("dimagent", registry["connect"]["appliesTo"])

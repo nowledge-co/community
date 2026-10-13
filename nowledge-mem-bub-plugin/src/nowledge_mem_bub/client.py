@@ -284,7 +284,7 @@ class NmemClient:
         return result.get("threads", []) if isinstance(result, dict) else []
 
     async def fetch_thread(
-        self, thread_id: str, limit: int = 20, offset: int = 0
+        self, thread_id: str, limit: int = 8, offset: int = 0
     ) -> dict:
         args = ["t", "show", thread_id, "-n", str(limit)]
         if offset > 0:

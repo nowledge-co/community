@@ -16,6 +16,20 @@ assert spec.loader is not None
 spec.loader.exec_module(nmem_hook_save)
 
 
+def test_capture_uses_the_same_explicit_cli_path_as_reads():
+    with patch.dict(os.environ, {"NMEM_CLI_PATH": "/custom bin/nmem"}), \
+         patch.object(nmem_hook_save.shutil, "which", return_value="/custom bin/nmem") as which:
+        assert nmem_hook_save._nmem_command() == "/custom bin/nmem"
+    which.assert_called_once_with("/custom bin/nmem")
+
+
+def test_invalid_explicit_cli_path_does_not_switch_clients():
+    with patch.dict(os.environ, {"NMEM_CLI_PATH": "/missing/nmem"}), \
+         patch.object(nmem_hook_save.shutil, "which", return_value=None) as which:
+        assert nmem_hook_save._nmem_command() is None
+    which.assert_called_once_with("/missing/nmem")
+
+
 def test_build_command_uses_unix_nmem_directly(tmp_path):
     command = nmem_hook_save._build_command(
         "/usr/local/bin/nmem",

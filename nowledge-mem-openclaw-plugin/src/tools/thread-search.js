@@ -10,10 +10,12 @@ export function createThreadSearchTool(client, logger) {
 		name: "nowledge_mem_thread_search",
 		description:
 			"Search past conversations by keyword. Use when the user asks about a past discussion, " +
-			"wants to find a conversation from a specific time, or when you want to explore the full context " +
+			"wants to find a conversation from a specific time, or when you want to find relevant source messages " +
 			"around a topic beyond what memory_search returned. " +
 			"Returns matched threads with message snippets and relevance scores. " +
-			"To read full messages from a thread, pass its threadId to nowledge_mem_thread_fetch.",
+			"A match's messageIndex, when present, identifies a target offset for a nearby range; do not invent positions when absent. " +
+			"Pass its threadId to nowledge_mem_thread_fetch for at most one small targeted message range per question. " +
+			"Never loop over offsets; on slow, incomplete or failed reads, report the evidence gap and refine search.",
 		parameters: {
 			type: "object",
 			properties: {
@@ -74,6 +76,8 @@ export function createThreadSearchTool(client, logger) {
 						matchedMessages: msgs.map((m) => ({
 							role: m.role,
 							snippet: truncateSnippet(m.snippet),
+							...(Number.isInteger(m.message_index) && m.message_index >= 0
+								? { messageIndex: m.message_index } : {}),
 						})),
 					};
 				});

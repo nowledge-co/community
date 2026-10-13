@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import http from "node:http"
 import test from "node:test"
+import { setImmediate as nextTurn } from "node:timers/promises"
 
 import plugin from "../src/index.ts"
 
@@ -26,7 +27,7 @@ function createFakeContext({ sessionContext, events = [] } = {}) {
     event: {
       subscribe: () =>
         (async function* () {
-          for (const event of events) yield event
+          for await (const event of events) yield event
         })(),
     },
   }
@@ -131,6 +132,108 @@ test("schedules capture only for idle events on the v2 event stream", async () =
   assert.ok(observed.includes("session-status-idle"), `missing session.status idle capture: ${observed}`)
   assert.ok(!observed.includes("session-busy"), `busy status should not capture: ${observed}`)
 })
+
+test("captures execution completion and deduplicates repeated and legacy events", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] })
+  const requests = []
+  const reads = []
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    requests.push({ url, body: JSON.parse(init.body) })
+    return Response.json({ thread: { thread_id: "opencode-ses_Completed", message_count: 2 } })
+  })
+  let replay
+  const replayReady = new Promise((resolve) => { replay = resolve })
+  const completion = {
+    type: "session.execution.succeeded",
+    data: { sessionID: "ses_Completed" },
+    location: { directory: "/tmp/completed-worktree" },
+  }
+  const { ctx } = createFakeContext({
+    events: (async function* () {
+      yield completion
+      await replayReady
+      yield completion
+      yield { ...completion, type: "session.idle" }
+      yield { ...completion, type: "session.status", data: { ...completion.data, status: { type: "idle" } } }
+    })(),
+    sessionContext: async ({ sessionID }) => {
+      reads.push(sessionID)
+      return [
+        { type: "user", id: "u1", time: { created: 1 }, text: "hello" },
+        { type: "assistant", id: "a1", time: { created: 2 }, content: [{ type: "text", text: "hi" }] },
+      ]
+    },
+  })
+  await withEnv({
+    NMEM_API_URL: "http://127.0.0.1:14242",
+    NMEM_API_KEY: "synthetic-key",
+    NMEM_SPACE: "event-test-space",
+    NMEM_OPENCODE_AUTO_SYNC: "true",
+    NMEM_OPENCODE_AUTO_SYNC_DEBOUNCE_MS: "250",
+  }, async () => {
+    const cleanup = await plugin.setup(ctx)
+    try {
+      await nextTurn()
+      t.mock.timers.tick(250)
+      await nextTurn()
+      assert.equal(requests.length, 1, "completion must persist the conversation")
+      assert.equal(requests[0].url, "http://127.0.0.1:14242/threads")
+      const body = requests[0].body
+      assert.equal(body.thread_id, "opencode-ses_Completed")
+      assert.deepEqual(body.messages.map(({ role, content }) => ({ role, content })), [
+        { role: "user", content: "hello" },
+        { role: "assistant", content: "hi" },
+      ])
+      assert.equal(body.project, "/tmp/completed-worktree")
+      assert.equal(body.workspace, "/tmp/completed-worktree")
+      assert.equal(body.space_id, "event-test-space")
+      assert.equal(body.metadata.sync_reason, "session_execution_succeeded")
+      assert.equal(body.metadata.live_capture, true)
+
+      replay()
+      await nextTurn()
+      t.mock.timers.tick(250)
+      await nextTurn()
+      assert.deepEqual(reads, ["ses_Completed", "ses_Completed"])
+      assert.equal(requests.length, 1, "acknowledged messages must not be saved again")
+    } finally {
+      replay()
+      await cleanup()
+    }
+  })
+})
+
+for (const disabled of [false, true]) {
+  test(`execution events respect eligibility and auto-sync disabled=${disabled}`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] })
+    const reads = []
+    const events = [
+      { type: "session.execution.started", data: { sessionID: "running" } },
+      { type: "session.execution.failed", data: { sessionID: "failed" } },
+      { type: "session.execution.succeeded", data: {} },
+      { type: "session.execution.succeeded", data: { sessionID: "" } },
+    ]
+    if (disabled) events.push({ type: "session.execution.succeeded", data: { sessionID: "disabled" } })
+    const { ctx } = createFakeContext({
+      events,
+      sessionContext: async ({ sessionID }) => { reads.push(sessionID); return [] },
+    })
+    await withEnv({
+      NMEM_OPENCODE_AUTO_SYNC: disabled ? "false" : "true",
+      NMEM_OPENCODE_AUTO_SYNC_DEBOUNCE_MS: "250",
+    }, async () => {
+      const cleanup = await plugin.setup(ctx)
+      try {
+        await nextTurn()
+        t.mock.timers.tick(250)
+        await nextTurn()
+        assert.deepEqual(reads, [])
+      } finally {
+        await cleanup()
+      }
+    })
+  })
+}
 
 test("attributes idle capture to the event location instead of the plugin load location", async () => {
   const requests = []

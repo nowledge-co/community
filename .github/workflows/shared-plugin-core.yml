@@ -1,0 +1,65 @@
+name: Shared plugin core
+
+on:
+  pull_request:
+    paths:
+      - "shared/plugin-core/**"
+      - "nowledge-mem-opencode-plugin/**"
+      - "nowledge-mem-pi-package/**"
+      - "nowledge-mem-amp-plugin/**"
+      - "nowledge-mem-omp-plugin/**"
+      - "nowledge-mem-step-code/**"
+      - "integrations.json"
+      - ".gitattributes"
+      - ".github/workflows/shared-plugin-core.yml"
+  push:
+    branches: [main]
+    paths:
+      - "shared/plugin-core/**"
+      - "nowledge-mem-opencode-plugin/**"
+      - "nowledge-mem-pi-package/**"
+      - "nowledge-mem-amp-plugin/**"
+      - "nowledge-mem-omp-plugin/**"
+      - "nowledge-mem-step-code/**"
+      - "integrations.json"
+      - ".gitattributes"
+      - ".github/workflows/shared-plugin-core.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm --prefix shared/plugin-core ci --ignore-scripts
+      - run: npm --prefix shared/plugin-core run typecheck
+      - run: npm --prefix shared/plugin-core test
+      - run: npm --prefix shared/plugin-core run check
+      - run: npm --prefix nowledge-mem-opencode-plugin ci --ignore-scripts
+      - run: node --test nowledge-mem-opencode-plugin/tests/context-bundle.test.mjs
+      - run: npm --prefix nowledge-mem-opencode-plugin run check
+      - run: git diff --exit-code -- nowledge-mem-opencode-plugin/dist/index.js
+      - run: npm --prefix shared/plugin-core run test:artifacts
+  amp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm --prefix nowledge-mem-amp-plugin ci --ignore-scripts
+      - run: npm --prefix nowledge-mem-amp-plugin run typecheck
+      - run: npm --prefix nowledge-mem-amp-plugin test

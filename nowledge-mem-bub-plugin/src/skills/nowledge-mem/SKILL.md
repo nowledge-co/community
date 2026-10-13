@@ -33,7 +33,7 @@ Recognise these signals and call `mem.search` **before** answering:
 - **Implicit recall** — the user assumes you know something you haven't seen this session
 
 Search both memories and threads.  When a memory has `source_thread_id`,
-fetch the full conversation with `mem.thread` for deeper context.
+read one small targeted message range with `mem.thread` for deeper context.
 
 ## When to save
 
@@ -68,7 +68,9 @@ Two paths into past conversations:
 1. **From a memory**: `mem.search` returns `source_thread_id` → `mem.thread`
 2. **Direct search**: `mem.threads` finds conversations by keyword → `mem.thread`
 
-Use `offset` for pagination on long threads.
+Call `mem.thread` at most once per question, using a small limit (for example 8). A known nonzero offset may select that one range.
+
+Never loop over offsets to reconstruct a conversation. Do not raise content limits to compensate for slow or incomplete reads. Small output limits do not guarantee cheap server-side work on every deployed backend. If the read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search. An explicit request for another range permits a new bounded read; routine “continue” does not permit draining a thread.
 
 ## Graph exploration
 

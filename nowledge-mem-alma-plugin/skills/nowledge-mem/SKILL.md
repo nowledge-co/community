@@ -20,7 +20,13 @@ Use `nowledge_mem_working_memory` only when you need the lighter daily briefing 
 - Use `nowledge_mem_thread_search` when the user is asking about conversation history.
 - When a memory includes `sourceThreadId`, use `nowledge_mem_thread_show` to inspect the original conversation before making strong claims.
 
-Start with a narrow query. Fetch more pages only when the current result is not enough.
+Start with a narrow query, then choose the specific conversation and message range needed.
+
+### Bounded thread reads
+
+Call `nowledge_mem_thread_show` or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
 
 ## Saving
 
@@ -51,7 +57,7 @@ If Alma does not expose plugin tools in the current thread, use Bash with `nmem`
 nmem --json context read --source-app alma
 nmem --json m search "<query>" -n 5
 nmem --json t search "<query>" -n 5 --source alma
-nmem --json t show <thread_id> -n 30 --offset 0 --content-limit 1200
+nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 nmem --json m add "<content>" -t "<title>" --unit-type decision
 ```
 
@@ -66,4 +72,3 @@ When memory affected the answer, include a short source line:
 - `Source: nowledge_mem_thread_search + nowledge_mem_thread_show`
 - `Source: nmem CLI`
 - `Source: injected recall context`
-

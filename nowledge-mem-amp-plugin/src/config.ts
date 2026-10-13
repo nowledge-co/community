@@ -11,6 +11,9 @@
  *   3. hardcoded defaults
  */
 
+import { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
+export { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
+
 /** Default Nowledge Mem local endpoint. */
 const DEFAULT_API_URL = "http://127.0.0.1:14242"
 
@@ -28,15 +31,6 @@ const BOOTSTRAP_DISABLED_VALUES = new Set(["0", "false", "off", "no"])
 
 /** Truthy string values that enable verbose connector lifecycle logging. */
 const DEBUG_ENABLED_VALUES = new Set(["1", "true", "on", "yes"])
-
-/** Default HTTP timeout (milliseconds) for automatic thread sync. */
-const DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000
-
-/** Minimum accepted `NMEM_SYNC_TIMEOUT_MS` value. */
-const MIN_THREAD_SYNC_TIMEOUT_MS = 1_000
-
-/** Maximum accepted `NMEM_SYNC_TIMEOUT_MS` value (30 minutes). */
-const MAX_THREAD_SYNC_TIMEOUT_MS = 30 * 60_000
 
 /**
  * Fully resolved connector configuration.
@@ -180,22 +174,4 @@ export function resolveConfig(
     debugLogging,
     threadSyncTimeoutMs,
   }
-}
-
-/**
- * Resolves the automatic thread-sync timeout from `NMEM_SYNC_TIMEOUT_MS`.
- *
- * Unset, empty, or non-integer values fall back to two minutes. Values are
- * clamped to the same 1-second–30-minute bounds used by the Pi and OpenCode
- * connectors. The explicit manual save tool keeps its own existing timeout.
- *
- * @param raw - Raw environment value.
- * @returns A timeout in milliseconds.
- */
-export function resolveThreadSyncTimeoutMs(raw: string | undefined): number {
-  const parsed = Number(raw)
-  if (!raw?.trim() || !Number.isSafeInteger(parsed) || parsed <= 0) {
-    return DEFAULT_THREAD_SYNC_TIMEOUT_MS
-  }
-  return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed))
 }

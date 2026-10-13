@@ -968,8 +968,8 @@ export class NowledgeMemClient {
 	}
 
 	/**
-	 * Fetch full messages from a specific thread.
-	 * Supports pagination for progressive retrieval of long conversations.
+	 * Read one small targeted message range from a specific thread.
+	 * A known target offset is supported; do not walk offsets to reconstruct a conversation.
 	 *
 	 * Uses CLI: `nmem --json t show <id> -n N --offset O`
 	 * Falls back to API: GET /threads/{id}
@@ -977,13 +977,13 @@ export class NowledgeMemClient {
 	 * @param {string} threadId  Thread ID
 	 * @param {{ offset?: number; limit?: number }} [options]
 	 */
-	async fetchThread(threadId, { offset = 0, limit = 50 } = {}) {
+	async fetchThread(threadId, { offset = 0, limit = 8 } = {}) {
 		const id = String(threadId || "").trim();
 		if (!id) throw new Error("fetchThread requires threadId");
 
 		const normalizedLimit = Math.min(
 			200,
-			Math.max(1, Math.trunc(Number(limit) || 50)),
+			Math.max(1, Math.trunc(Number(limit) || 8)),
 		);
 		const normalizedOffset = Math.max(0, Math.trunc(Number(offset) || 0));
 

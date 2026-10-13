@@ -37,6 +37,28 @@ it deletes only marker-matched test data, not the space itself.
 
 ## Mem connection
 
+### Claude retrieval smoke without a Mem server
+
+The Claude plugin has a separate opt-in recall test:
+
+```bash
+NMEM_E2E_CLAUDE_RECALL=1 \
+uv run --with pytest pytest nowledge-mem-claude-code-plugin/tests/test_nmem_recall_live.py -q
+```
+
+It uses the real Claude host and normal model authentication, with a temporary
+CLI that returns a random prior-decision identifier only after memory search.
+The prompt and startup briefing omit that identifier. The test requires a
+targeted search, use of the retrieved identifier in the final answer, and a
+startup hook receipt. It does not contact a real Mem server or save real
+memories. The default model is Haiku with a USD 0.50 ceiling; override
+`NMEM_E2E_CLAUDE_MODEL` and `NMEM_E2E_CLAUDE_RECALL_MAX_BUDGET_USD` as needed.
+
+This checks model routing and host delivery separately from live-server
+transport and thread-capture tests.
+
+### Live server configuration
+
 For local Mem, keep the desktop app/server running and make sure `nmem status`
 works.
 

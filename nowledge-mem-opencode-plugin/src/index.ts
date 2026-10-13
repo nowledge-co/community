@@ -92,7 +92,7 @@ type HandoffArgs = SpaceToolArgs & {
   summary: string
 }
 
-type SyncReason = "manual_tool" | "session_status_idle" | "session_idle" | "session_compacting"
+type SyncReason = "manual_tool" | "session_execution_succeeded" | "session_status_idle" | "session_idle" | "session_compacting"
 type SessionSyncState = {
   timer?: ReturnType<typeof setTimeout>
   inFlight?: Promise<void>
@@ -114,6 +114,25 @@ type V2EventLike = {
     sessionId?: unknown
     session?: { id?: unknown }
     status?: { type?: unknown }
+  }
+}
+
+// Project only the duplicate display field at this tool's model boundary.
+// Other CLI hooks still consume the complete Markdown projection.
+function compactContextBundle(output: string): string {
+  try {
+    const bundle = JSON.parse(output)
+    if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)
+      || bundle.bundle_kind !== "context_bundle" || bundle.schema_version !== 1
+      || !["owner_profile", "agent_profile", "active_space", "rule_stack", "working_memory", "kfs_roots"]
+        .every(key => bundle[key] && typeof bundle[key] === "object" && !Array.isArray(bundle[key]))
+      || typeof bundle.compiled_hash !== "string" || typeof bundle.rendered_markdown !== "string") {
+      return output
+    }
+    delete bundle.rendered_markdown
+    return JSON.stringify(bundle)
+  } catch {
+    return output
   }
 }
 
@@ -593,7 +612,7 @@ export default Plugin.define({
           if (isNmemErrorPayload(bundle)) {
             return { content: await nmem(withExplicitSpaceArg(["wm", "read"], args)) }
           }
-          return { content: bundle }
+          return { content: compactContextBundle(bundle) }
         },
       })
 
@@ -852,6 +871,10 @@ export default Plugin.define({
           const sessionID = sessionIdFromEvent(event)
           if (!sessionID) continue
           const sessionDirectory = directoryFromEvent(event)
+          if (event.type === "session.execution.succeeded") {
+            scheduleAutoThreadSync(sessionID, "session_execution_succeeded", sessionDirectory)
+            continue
+          }
           if (event.type === "session.status") {
             if (event.data?.status?.type === "idle") {
               scheduleAutoThreadSync(sessionID, "session_status_idle", sessionDirectory)
