@@ -201,7 +201,7 @@
         "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "Install the official Nowledge Mem plugin for a personal or Team workspace on Nowledge Cloud; its fixed Cloud endpoint cannot be replaced with an Access Anywhere or Nowledge Link URL",
+          "Choose official installation for a personal or Team workspace on Nowledge Cloud, or the App connection guide for Mem running on your computer",
           "Complete the host's OAuth connector approval when requested",
           "Custom MCP Apps can expose both read and write tools when the ChatGPT plan, workspace policy, and approved OAuth scopes allow them",
           "For Mem running on your computer, use a separate custom MCP connection with Access Anywhere or Nowledge Link and App OAuth pairing; this is not the official directory plugin",
@@ -214,8 +214,8 @@
         "publicDirectoryStatus": "published",
         "detectionHint": "ChatGPT Web and desktop are cloud clients and are not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT guide. For a personal or Team workspace on Nowledge Cloud, install the published official plugin at https://chatgpt.com/plugins/plugin_asdk_app_6aa3709710648191a62751598b4528bb, sign in, choose the intended workspace and approve OAuth. This plugin has a fixed Cloud endpoint: it does not accept an Access Anywhere or Nowledge Link URL. If Mem runs on the user's computer, use a separate custom MCP connection and App OAuth pairing instead, when the ChatGPT account allows it. Verify search and one scoped write with exact-ID readback when authorized. Do not claim automatic full-chat capture; use browser capture or official export for that.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 指南操作。工作区在 Nowledge Cloud（个人或 Team）时，从 https://chatgpt.com/plugins/plugin_asdk_app_6aa3709710648191a62751598b4528bb 安装已发布的官方插件，登录 Mem，选对工作区并完成 OAuth 授权。这个插件固定连接 Cloud，不能填写 Access Anywhere 或 Nowledge Link 地址。Mem 在用户自己的电脑上时，另建自定义 MCP 连接并完成 App OAuth 配对；先确认 ChatGPT 账号允许自定义连接。验证搜索，并在获得授权后验证一次范围明确的写入和按 ID 读取。完整聊天捕获仍用浏览器扩展或官方导出，不要声称插件会自动备份所有对话。"
+"prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT guide. For a personal or Team workspace on Nowledge Cloud, install the official plugin at https://nowled.ge/openai, sign in to Mem, choose the intended workspace and approve OAuth. For Mem running on the user's computer, follow the App connection guide to set up Access Anywhere or Nowledge Link and a custom MCP connection with OAuth pairing; check that the ChatGPT account allows custom connections. Verify search and one scoped write with exact-ID readback when authorized. For complete-chat capture, use the browser extension or official export.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 指南操作。个人或 Team 工作区在 Nowledge Cloud 时，从 https://nowled.ge/openai 安装官方插件，登录 Mem，选对工作区并完成 OAuth 授权。Mem 在自己的电脑上时，按 App 连接指南设置 Access Anywhere 或 Nowledge Link，并建立自定义 MCP 连接、完成 OAuth 配对；先确认 ChatGPT 账号允许自定义连接。验证搜索，并在获得授权后验证一次范围明确的写入和按 ID 读取。完整聊天捕获请用浏览器扩展或官方导出。"
         },
         "docsUrl": "/docs/integrations/chatgpt-web"
       },
