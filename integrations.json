@@ -201,22 +201,21 @@
         "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "Use the public MCP endpoint ending in /mcp: Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace",
+          "Install the official Nowledge Mem plugin for a personal or Team workspace on Nowledge Cloud; its fixed Cloud endpoint cannot be replaced with an Access Anywhere or Nowledge Link URL",
           "Complete the host's OAuth connector approval when requested",
           "Custom MCP Apps can expose both read and write tools when the ChatGPT plan, workspace policy, and approved OAuth scopes allow them",
-          "Directory publication is separate from private Developer mode setup and remains subject to OpenAI review",
-          "If the account cannot create a custom App, use browser capture until the public plugin is approved",
-          "Treat the universal public plugin as submitted and pending review until OpenAI approves the Plugins Directory listing",
+          "For Mem running on your computer, use a separate custom MCP connection with Access Anywhere or Nowledge Link and App OAuth pairing; this is not the official directory plugin",
+          "Custom MCP availability depends on the ChatGPT account and workspace policy; do not require Developer mode for installing the official directory plugin",
           "Use the browser extension or an official export when you need conversation capture",
           "Keep ChatGPT's connector identity separate from any local ChatGPT export source"
         ]
       },
       "install": {
-        "publicDirectoryStatus": "submitted-pending-review",
+        "publicDirectoryStatus": "published",
         "detectionHint": "ChatGPT Web and desktop are cloud clients and are not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT Cloud path. If custom Apps are available for this account, create one from ChatGPT Apps settings, add the public Nowledge Mem /mcp endpoint, and complete OAuth. Use the Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace. Verify a Context Bundle or Working Memory check, a memory search, and one scoped write when the approved scopes and workspace policy allow it. If the create action is unavailable, use browser capture until the submitted public plugin is approved. Never invent a plugin_asdk_app ID or claim MCP captures ChatGPT threads.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 云端路径操作。如果这个账号可以使用自定义 App，就从 ChatGPT 的 Apps 设置创建一个，添加公开的 Nowledge Mem /mcp 地址并完成 OAuth；Cloud workspace 使用 Cloud endpoint，App workspace 使用 Access Anywhere。在已授权 scope 和 workspace 策略允许时，完成 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次范围明确的写入。如果没有创建入口，先用浏览器扩展捕获内容，并等待已经提交审核的公开 plugin。不要伪造 plugin_asdk_app ID，也不要声称 MCP 会捕获 ChatGPT 会话。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT guide. For a personal or Team workspace on Nowledge Cloud, install the published official plugin at https://chatgpt.com/plugins/plugin_asdk_app_6aa3709710648191a62751598b4528bb, sign in, choose the intended workspace and approve OAuth. This plugin has a fixed Cloud endpoint: it does not accept an Access Anywhere or Nowledge Link URL. If Mem runs on the user's computer, use a separate custom MCP connection and App OAuth pairing instead, when the ChatGPT account allows it. Verify search and one scoped write with exact-ID readback when authorized. Do not claim automatic full-chat capture; use browser capture or official export for that.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 指南操作。工作区在 Nowledge Cloud（个人或 Team）时，从 https://chatgpt.com/plugins/plugin_asdk_app_6aa3709710648191a62751598b4528bb 安装已发布的官方插件，登录 Mem，选对工作区并完成 OAuth 授权。这个插件固定连接 Cloud，不能填写 Access Anywhere 或 Nowledge Link 地址。Mem 在用户自己的电脑上时，另建自定义 MCP 连接并完成 App OAuth 配对；先确认 ChatGPT 账号允许自定义连接。验证搜索，并在获得授权后验证一次范围明确的写入和按 ID 读取。完整聊天捕获仍用浏览器扩展或官方导出，不要声称插件会自动备份所有对话。"
         },
         "docsUrl": "/docs/integrations/chatgpt-web"
       },

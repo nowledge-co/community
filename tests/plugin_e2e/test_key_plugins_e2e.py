@@ -1516,8 +1516,14 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         guide = entry["install"]["agentGuide"]
         assert "https://mem.nowledge.co/SKILL.md" in guide["prompt"], entry["id"]
         assert "https://mem.nowledge.co/SKILL.md" in guide["promptZh"], entry["id"]
-        assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
-        assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
+        if entry["id"] == "chatgpt-cloud":
+            # Hosted official setup verifies the exposed search/write tools;
+            # it must not require access to a user's briefing as an install check.
+            assert "Verify search" in guide["prompt"]
+            assert "验证搜索" in guide["promptZh"]
+        else:
+            assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
+            assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
         assert "/docs/integrations/" not in guide["prompt"], entry["id"]
         assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
 
@@ -1565,16 +1571,17 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     chatgpt_prompt = by_id["chatgpt-cloud"]["install"]["agentGuide"]["prompt"]
     chatgpt_prompt_zh = by_id["chatgpt-cloud"]["install"]["agentGuide"]["promptZh"]
     for text in (chatgpt_prompt, chatgpt_prompt_zh):
-        assert "custom App" in text or "自定义 App" in text
-        assert "workspace policy" in text or "workspace 策略" in text
+        assert "custom MCP connection" in text or "自定义 MCP 连接" in text
+        assert "Nowledge Cloud" in text
+        assert "Team" in text
+        assert "Access Anywhere" in text
+        assert "Nowledge Link" in text
+        assert "https://chatgpt.com/plugins/plugin_asdk_app_6aa3709710648191a62751598b4528bb" in text
         assert "scoped write" in text or "范围明确的写入" in text
-        assert "public plugin" in text or "公开 plugin" in text
-    assert "Plugins Directory" in " ".join(
-        by_id["chatgpt-cloud"]["autonomy"]["bestResultRequires"]
-    )
-    assert by_id["chatgpt-cloud"]["install"]["publicDirectoryStatus"] == (
-        "submitted-pending-review"
-    )
+        assert "pending review" not in text
+    assert "does not accept an Access Anywhere or Nowledge Link URL" in chatgpt_prompt
+    assert "不能填写 Access Anywhere 或 Nowledge Link 地址" in chatgpt_prompt_zh
+    assert by_id["chatgpt-cloud"]["install"]["publicDirectoryStatus"] == "published"
     claude_prompt = by_id["claude-cloud"]["install"]["agentGuide"]["prompt"]
     claude_prompt_zh = by_id["claude-cloud"]["install"]["agentGuide"]["promptZh"]
     for text in (claude_prompt, claude_prompt_zh):
