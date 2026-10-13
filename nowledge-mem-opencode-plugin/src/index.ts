@@ -119,6 +119,35 @@ type V2EventLike = {
 
 // Project only the duplicate display field at this tool's model boundary.
 // Other CLI hooks still consume the complete Markdown projection.
+function normalizedDecimal(token: string): string | null {
+  const parts = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(token)
+  if (!parts) return null
+  const fraction = parts[3] ?? ""
+  const exponent = Number(parts[4] ?? "0")
+  if (!Number.isSafeInteger(exponent)) return null
+  const digits = (parts[2] + fraction).replace(/^0+/, "")
+  if (!digits) return `${parts[1]}0`
+  const coefficient = digits.replace(/0+$/, "")
+  const scale = exponent - fraction.length + digits.length - coefficient.length
+  if (!Number.isSafeInteger(scale)) return null
+  return `${parts[1]}${coefficient}e${scale}`
+}
+
+function hasLossyJsonNumbers(output: string): boolean {
+  // JSON.parse has already validated the text. Consume entire quoted strings
+  // (including escaped quotes) so numeric-looking text is never inspected.
+  const tokens = /"(?:[^"\\]|\\.)*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/g
+  for (const match of output.matchAll(tokens)) {
+    const token = match[0]
+    if (token.startsWith('"')) continue
+    const value = Number(token)
+    if (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value))) return true
+    const original = normalizedDecimal(token)
+    if (original === null || original !== normalizedDecimal(JSON.stringify(value))) return true
+  }
+  return false
+}
+
 function compactContextBundle(output: string): string {
   try {
     const bundle = JSON.parse(output)
@@ -126,7 +155,8 @@ function compactContextBundle(output: string): string {
       || bundle.bundle_kind !== "context_bundle" || bundle.schema_version !== 1
       || !["owner_profile", "agent_profile", "active_space", "rule_stack", "working_memory", "kfs_roots"]
         .every(key => bundle[key] && typeof bundle[key] === "object" && !Array.isArray(bundle[key]))
-      || typeof bundle.compiled_hash !== "string" || typeof bundle.rendered_markdown !== "string") {
+      || typeof bundle.compiled_hash !== "string" || typeof bundle.rendered_markdown !== "string"
+      || hasLossyJsonNumbers(output)) {
       return output
     }
     delete bundle.rendered_markdown
