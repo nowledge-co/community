@@ -1469,7 +1469,7 @@
       "toolNaming": {
         "convention": "canonical",
         "prefix": "nowledge_mem_",
-        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode/plugin (OpenCode v2). Recognized schema-v1 Context Bundle tool output keeps one compact JSON representation while preserving configured instructions, rules, scope, and semantic hash; unknown or partial bundles and responses containing unsafe integers or numeric overflow remain unchanged.",
+        "note": "Plugin registers tools with nowledge_mem_ prefix via @opencode/plugin (OpenCode v2). Recognized schema-v1 Context Bundle tool output keeps one compact JSON representation while preserving configured instructions, rules, scope, and semantic hash; unknown or partial bundles and responses containing unsafe integers, numeric overflow, underflow or decimal precision loss remain unchanged.",
         "tools": ["nowledge_mem_context_bundle", "nowledge_mem_working_memory", "nowledge_mem_search", "nowledge_mem_save", "nowledge_mem_update", "nowledge_mem_thread_search", "nowledge_mem_save_thread", "nowledge_mem_save_handoff", "nowledge_mem_status"]
       },
       "skills": [],

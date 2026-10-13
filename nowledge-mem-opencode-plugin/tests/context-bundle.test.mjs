@@ -130,7 +130,7 @@ test("registered Context tool preserves nested unsafe numeric tokens verbatim", 
     extensions: { ...full.extensions, samples: [{ value: "fixture-number" }] },
   }, null, 2)
   // Insert raw tokens so the fixture itself does not round them first.
-  for (const token of ["9007199254740992", "9007199254740993", "-9007199254740993", "1e30", "1e400", "-1e400"]) {
+  for (const token of ["9007199254740992", "9007199254740993", "-9007199254740993", "1e30", "1e400", "-1e400", "1e-400", "-1e-400", "1.0000000000000001", "-1.0000000000000001", "0.10000000000000001", "-0"]) {
     const payload = template.replace('"fixture-number"', token)
     const { result, args } = await runContext(t, payload)
     assert.equal(result.content, payload)
@@ -143,7 +143,7 @@ test("registered Context tool still compacts safe numbers and large numeric stri
     ...full,
     extensions: { ...full.extensions, samples: [{ value: "fixture-number" }] },
   })
-  for (const token of ["9007199254740991", "-9007199254740991", "0", "0.5", "1e3", '"9007199254740993"']) {
+  for (const token of ["9007199254740991", "-9007199254740991", "0", "0.5", "1e3", "1.25e-2", "100.00", "1e+0003", '"9007199254740993"', '"escaped \\\" 1e-400 1.0000000000000001"']) {
     const payload = template.replace('"fixture-number"', token)
     const { rendered_markdown, ...expected } = JSON.parse(payload)
     const { result, args } = await runContext(t, payload)
