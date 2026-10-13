@@ -535,7 +535,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.4.3"
+    assert opencode_pkg["version"] == "0.4.4"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -1537,7 +1537,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["droid"]["version"] == "0.1.2"
     assert by_id["openclaw"]["version"] == "0.8.36"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.4.3"
+    assert by_id["opencode"]["version"] == "0.4.4"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
     assert by_id["pi"]["version"] == "0.8.12"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
@@ -1877,7 +1877,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.4.3"
+    assert pkg["version"] == "0.4.4"
     assert opencode_registry["version"] == pkg["version"]
     assert 'from "./generated/plugin-core/index.js"' in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source

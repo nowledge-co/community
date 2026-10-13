@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.4.4] - 2026-10-13
 
 - Return one structured schema-v1 Context Bundle representation to the model,
   formatted as compact single-line JSON. Remove only the duplicate Markdown
