@@ -201,22 +201,21 @@
         "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "Use the public MCP endpoint ending in /mcp: Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace",
+          "Choose official installation for a personal or Team workspace on Nowledge Cloud, or the App connection guide for Mem running on your computer",
           "Complete the host's OAuth connector approval when requested",
           "Custom MCP Apps can expose both read and write tools when the ChatGPT plan, workspace policy, and approved OAuth scopes allow them",
-          "Directory publication is separate from private Developer mode setup and remains subject to OpenAI review",
-          "If the account cannot create a custom App, use browser capture until the public plugin is approved",
-          "Treat the universal public plugin as submitted and pending review until OpenAI approves the Plugins Directory listing",
+          "For Mem running on your computer, use a separate custom MCP connection with Access Anywhere or Nowledge Link and App OAuth pairing; this is not the official directory plugin",
+          "Custom MCP availability depends on the ChatGPT account and workspace policy; do not require Developer mode for installing the official directory plugin",
           "Use the browser extension or an official export when you need conversation capture",
           "Keep ChatGPT's connector identity separate from any local ChatGPT export source"
         ]
       },
       "install": {
-        "publicDirectoryStatus": "submitted-pending-review",
+        "publicDirectoryStatus": "published",
         "detectionHint": "ChatGPT Web and desktop are cloud clients and are not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT Cloud path. If custom Apps are available for this account, create one from ChatGPT Apps settings, add the public Nowledge Mem /mcp endpoint, and complete OAuth. Use the Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace. Verify a Context Bundle or Working Memory check, a memory search, and one scoped write when the approved scopes and workspace policy allow it. If the create action is unavailable, use browser capture until the submitted public plugin is approved. Never invent a plugin_asdk_app ID or claim MCP captures ChatGPT threads.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 云端路径操作。如果这个账号可以使用自定义 App，就从 ChatGPT 的 Apps 设置创建一个，添加公开的 Nowledge Mem /mcp 地址并完成 OAuth；Cloud workspace 使用 Cloud endpoint，App workspace 使用 Access Anywhere。在已授权 scope 和 workspace 策略允许时，完成 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次范围明确的写入。如果没有创建入口，先用浏览器扩展捕获内容，并等待已经提交审核的公开 plugin。不要伪造 plugin_asdk_app ID，也不要声称 MCP 会捕获 ChatGPT 会话。"
+"prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT guide. For a personal or Team workspace on Nowledge Cloud, install the official plugin at https://nowled.ge/openai, sign in to Mem, choose the intended workspace and approve OAuth. For Mem running on the user's computer, follow the App connection guide to set up Access Anywhere or Nowledge Link and a custom MCP connection with OAuth pairing; check that the ChatGPT account allows custom connections. Verify search and one scoped write with exact-ID readback when authorized. For complete-chat capture, use the browser extension or official export.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 指南操作。个人或 Team 工作区在 Nowledge Cloud 时，从 https://nowled.ge/openai 安装官方插件，登录 Mem，选对工作区并完成 OAuth 授权。Mem 在自己的电脑上时，按 App 连接指南设置 Access Anywhere 或 Nowledge Link，并建立自定义 MCP 连接、完成 OAuth 配对；先确认 ChatGPT 账号允许自定义连接。验证搜索，并在获得授权后验证一次范围明确的写入和按 ID 读取。完整聊天捕获请用浏览器扩展或官方导出。"
         },
         "docsUrl": "/docs/integrations/chatgpt-web"
       },
