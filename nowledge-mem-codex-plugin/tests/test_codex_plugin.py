@@ -255,7 +255,7 @@ class HookTests(unittest.TestCase):
              mock.patch.object(self.module, "_dispatch_skill_outcomes") as outcomes, \
              mock.patch.object(self.module, "_run_save_with_retries") as legacy, \
              mock.patch.object(self.module, "_claim_capture_event") as claim, \
-             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: json.dumps(payload))):
+             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda *_: json.dumps(payload))):
             self.assertEqual(self.module.main(), 0)
 
         outcomes.assert_called_once_with(payload)
@@ -355,7 +355,7 @@ class HookTests(unittest.TestCase):
              mock.patch.object(self.module, "_dispatch_skill_outcomes") as outcomes, \
              mock.patch.object(self.module, "_run_save_with_retries") as legacy, \
              mock.patch.object(self.module, "_claim_capture_event") as claim, \
-             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: json.dumps(payload))):
+             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda *_: json.dumps(payload))):
             self.assertEqual(self.module.main(), 0)
 
         outcomes.assert_called_once_with(payload)
@@ -439,7 +439,7 @@ class HookTests(unittest.TestCase):
              mock.patch.object(
                  self.module.sys,
                  "stdin",
-                 mock.Mock(read=lambda: json.dumps({"session_id": "full-uuid", "cwd": str(self.temp_path)})),
+                 mock.Mock(read=lambda *_: json.dumps({"session_id": "full-uuid", "cwd": str(self.temp_path)})),
              ):
             self.assertEqual(self.module.main(), 0)
 
@@ -728,7 +728,7 @@ class HookTests(unittest.TestCase):
              mock.patch.object(self.module, "_claim_capture_event", return_value=True), \
              mock.patch.object(self.module, "_run_save_with_retries") as save, \
              mock.patch.object(self.module, "_dispatch_skill_outcomes") as report, \
-             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: hook_payload)):
+             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda *_: hook_payload)):
             self.assertEqual(self.module.main(), 0)
 
         save.assert_not_called()
@@ -763,7 +763,7 @@ class HookTests(unittest.TestCase):
 
     def test_missing_nmem_is_non_fatal(self):
         with mock.patch.object(self.module, "_nmem_command", return_value=None), \
-             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda: "{}")):
+             mock.patch.object(self.module.sys, "stdin", mock.Mock(read=lambda *_: "{}")):
             self.assertEqual(self.module.main(), 0)
 
     def test_hook_response_is_valid_stop_hook_json(self):
@@ -1287,6 +1287,15 @@ class RuntimeHelperTests(unittest.TestCase):
         ), mock.patch.object(self.module.shutil, "which", return_value=None):
             self.assertEqual(self.module.find_nmem_command(), str(nmem))
 
+    def test_missing_explicit_cli_never_uses_another_installation(self):
+        configured = str(self.temp_path / "missing-nmem")
+        with mock.patch.dict(self.module.os.environ, {"NMEM_CLI_PATH": configured}), \
+             mock.patch.object(self.module.shutil, "which", side_effect=lambda name: None if name == configured else "/other/nmem") as which, \
+             mock.patch.object(self.module, "_known_nmem_candidates") as candidates:
+            self.assertIsNone(self.module.find_nmem_command())
+        which.assert_called_once_with(configured)
+        candidates.assert_not_called()
+
     def test_desktop_wrapper_is_found_when_shell_path_is_empty(self):
         nmem = (
             self.temp_path
@@ -1437,6 +1446,7 @@ class InstallHookTests(unittest.TestCase):
         self.module.INSTALLED_HOOK = self.module.HOOKS_DIR / "nowledge-mem-stop-save.py"
         self.module.INSTALLED_SKILL_OUTCOME = self.module.HOOKS_DIR / "skill_outcome.py"
         self.module.INSTALLED_NMEM_RUNTIME = self.module.HOOKS_DIR / "nmem_runtime.py"
+        self.module.INSTALLED_STOP_MAINTENANCE = self.module.HOOKS_DIR / "nmem_stop_maintenance.py"
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -1742,6 +1752,11 @@ class InstallHookTests(unittest.TestCase):
             self.module.INSTALLED_SKILL_OUTCOME.read_text(),
         )
         self.assertTrue(self.module.INSTALLED_NMEM_RUNTIME.exists())
+        self.assertTrue(self.module.INSTALLED_STOP_MAINTENANCE.exists())
+        self.assertIn(
+            "Bounded existing-profile maintenance",
+            self.module.INSTALLED_STOP_MAINTENANCE.read_text(),
+        )
         self.assertIn(
             "def build_nmem_command",
             self.module.INSTALLED_NMEM_RUNTIME.read_text(),

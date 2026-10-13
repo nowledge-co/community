@@ -20,6 +20,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 from nmem_runtime import build_nmem_command as _build_nmem_command
 from nmem_runtime import find_nmem_command as _find_nmem_command
+from nmem_runtime import is_exact_space_id as _is_exact_space_id
 from nmem_runtime import windows_no_window_kwargs as _windows_no_window_kwargs
 
 
@@ -158,7 +159,7 @@ def _mailbox_observation() -> dict[str, Any] | None:
                     state == "usable" and payload.get("validation") == "live"
                     and payload.get("configured") is True
                     and isinstance(agent, str) and re.fullmatch(token, agent)
-                    and isinstance(space, str) and re.fullmatch(token, space)
+                    and _is_exact_space_id(space)
                 ):
                     configured_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
                     configured_space = os.environ.get("NMEM_SPACE", "").strip()

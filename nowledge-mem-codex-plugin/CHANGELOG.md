@@ -1,6 +1,24 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.40] - Unreleased
+
+### Added
+
+- Add opt-in existing-profile maintenance at Codex Stop. With an explicit
+  `NMEM_AGENT_CONTEXT` and `NMEM_AGENT_PROFILE_MAINTENANCE=1`, the hook verifies
+  the live named context, prepares only the approved public profile projection,
+  and asks Codex for one revision-fenced apply-or-no-change decision.
+- Bound Stop input, CLI calls, CLI output, profile fields, and continuation text;
+  recursive, duplicate, unsupported, malformed, timed-out, conflicting, and
+  failed paths end normally without claiming a profile save.
+
+### Fixed
+
+- Keep continuation admission stable across concurrent profile edits during
+  the same Stop while retaining revision-fenced mutation operation IDs.
+- Refuse an unavailable explicit CLI path instead of selecting another install.
+- Preserve exact Space IDs, including empty, whitespace, and Unicode IDs, in
+  live named-context admission at startup and Stop.
 
 ## [0.1.39] - 2026-10-11
 

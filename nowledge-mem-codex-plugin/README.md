@@ -70,6 +70,16 @@ is also set, it must match the validated canonical selector; aliases or Space
 names not verified by this check require explicit configuration reconciliation.
 No hook selects, recovers, enrolls, claims, acknowledges or sends mail.
 
+To opt an already enrolled profile into one bounded review at the end of each
+turn, also set `NMEM_AGENT_PROFILE_MAINTENANCE=1`. On the first Stop, the hook
+revalidates the named context and asks Codex to choose exactly one
+revision-fenced action: update only description, responsibilities, and
+registered Skill references, or record no change. The recursive Stop ends
+normally. Missing profiles are not created, and any unsupported CLI/backend,
+timeout, malformed or oversized response, selector conflict, or command failure
+fails open without a save claim. Both the packaged hook and the installed
+fallback share a local continuation guard so only one prompt is emitted.
+
 At natural start/resume, handoff and pre-completion boundaries, the model checks
 the approved context. Ordinary `nmem --agent-context <name> ...` calls preserve
 stderr notices; do not redirect or hide stderr from the model. `mailbox status`
@@ -215,7 +225,7 @@ if ($null -eq $HookSetup) {
 }
 ```
 
-This enables Codex lifecycle hooks, adds the legacy plugin-hook gate only on hosts that still expose it, keeps the Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks enabled in `/hooks`, then installs a small host-level Stop fallback for Codex builds that still need `~/.codex/hooks.json`. SessionStart injects Context Bundle automatically. SubagentStart uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` role allowlist, which defaults to `planner,code-reviewer,architect,researcher`: selected roles receive a bounded snapshot, `explorer` receives no Mem prompt, and other roles receive retrieval routing without a context read. Setting the variable replaces this default, and an empty value disables full Context Bundle injection. UserPromptSubmit keeps cross-tool and exact-history work routed to Nowledge search, and Stop shells out to `nmem t save --from codex`. Local mode and remote Mem mode use the same `nmem` client configuration. If both bundled and host-level Stop hooks are visible, the hook runtime suppresses the duplicate save for the same transcript state.
+This enables Codex lifecycle hooks, adds the legacy plugin-hook gate only on hosts that still expose it, keeps the Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks enabled in `/hooks`, then installs a small host-level Stop fallback for Codex builds that still need `~/.codex/hooks.json`. SessionStart injects Context Bundle automatically. SubagentStart uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` role allowlist, which defaults to `planner,code-reviewer,architect,researcher`: selected roles receive a bounded snapshot, `explorer` receives no Mem prompt, and other roles receive retrieval routing without a context read. Setting the variable replaces this default, and an empty value disables full Context Bundle injection. UserPromptSubmit keeps cross-tool and exact-history work routed to Nowledge search, and Stop shells out to `nmem t save --from codex`; the explicit profile-maintenance opt-in above adds one bounded continuation after capture. Local mode and remote Mem mode use the same `nmem` client configuration. If both bundled and host-level Stop hooks are visible, the hook runtime suppresses both the duplicate save for the same transcript state and duplicate maintenance continuation for the same turn/profile revision.
 
 Codex reports `agent_type` as the spawned agent's role, not its task name. Current built-in roles are `default`, `explorer`, and `worker`; use those role values, or the names of custom roles, when overriding `NMEM_SUBAGENT_CONTEXT_TYPES`.
 With stock roles, the default policy therefore performs no full Context Bundle

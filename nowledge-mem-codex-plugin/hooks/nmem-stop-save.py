@@ -31,6 +31,8 @@ SESSION_NOT_FOUND_MARKERS = (
 CODEX_HOOK_SUCCESS_RESPONSE = {"continue": True, "suppressOutput": True}
 DELEGATED_CONVERSATION_ORIGINATORS = frozenset({"raft-daemon", "slock-daemon"})
 MAX_SESSION_META_BYTES = 256 * 1024
+MAX_HOOK_INPUT_BYTES = 256 * 1024
+_LAST_HOOK_PAYLOAD: dict[str, Any] = {}
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
@@ -47,9 +49,14 @@ from nmem_runtime import cmd_exe_path as _cmd_exe_path
 from nmem_runtime import find_nmem_command as _find_nmem_command
 from nmem_runtime import windows_no_window_kwargs as _windows_no_window_kwargs
 
+try:
+    from nmem_stop_maintenance import build_stop_response as _build_stop_response
+except Exception:  # pragma: no cover - fail open for partial legacy installs
+    _build_stop_response = None
 
-def _write_hook_response() -> None:
-    json.dump(CODEX_HOOK_SUCCESS_RESPONSE, sys.stdout)
+
+def _write_hook_response(response: dict[str, Any] | None = None) -> None:
+    json.dump(response or CODEX_HOOK_SUCCESS_RESPONSE, sys.stdout)
     sys.stdout.write("\n")
 
 
@@ -60,19 +67,32 @@ def _run_entrypoint() -> object:
     except SystemExit as exc:
         exit_code = exc.code
     finally:
-        _write_hook_response()
+        response = CODEX_HOOK_SUCCESS_RESPONSE
+        if _build_stop_response is not None:
+            try:
+                response = _build_stop_response(_LAST_HOOK_PAYLOAD)
+            except Exception:
+                response = CODEX_HOOK_SUCCESS_RESPONSE
+        _write_hook_response(response)
     return exit_code
 
 
 def _read_hook_input() -> dict[str, Any]:
-    raw = sys.stdin.read()
+    global _LAST_HOOK_PAYLOAD
+    raw = sys.stdin.read(MAX_HOOK_INPUT_BYTES + 1)
+    if len(raw.encode("utf-8")) > MAX_HOOK_INPUT_BYTES:
+        _LAST_HOOK_PAYLOAD = {}
+        return {}
     if not raw.strip():
+        _LAST_HOOK_PAYLOAD = {}
         return {}
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError:
+        _LAST_HOOK_PAYLOAD = {}
         return {}
-    return payload if isinstance(payload, dict) else {}
+    _LAST_HOOK_PAYLOAD = payload if isinstance(payload, dict) else {}
+    return _LAST_HOOK_PAYLOAD
 
 
 def _payload_value(payload: dict[str, Any], *keys: str) -> str | None:
