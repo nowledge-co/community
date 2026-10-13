@@ -11,6 +11,9 @@ test("desktop onboarding leads with marketplace UI and explicit connector trust"
   assert.match(readme, /Trust/);
   assert.match(registry.install.command, /Plugins.*\+/);
   assert.match(registry.install.configRequired, /Trust/);
+  const row = read("../../README.md").split("\n").find((line) => line.includes("**[WorkBuddy Plugin]"));
+  assert.match(row, /Plugins.*\+/);
+  assert.match(row, /Trust/);
 });
 
 test("ordinary updates do not remove the marketplace or change enablement", () => {
