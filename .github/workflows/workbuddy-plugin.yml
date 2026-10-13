@@ -1,0 +1,24 @@
+name: WorkBuddy plugin
+on:
+  pull_request:
+    paths: ["nowledge-mem-workbuddy-plugin/**", ".workbuddy-plugin/**", "integrations.json", ".github/workflows/workbuddy-plugin.yml"]
+  push:
+    branches: [main]
+    paths: ["nowledge-mem-workbuddy-plugin/**", ".workbuddy-plugin/**", "integrations.json", ".github/workflows/workbuddy-plugin.yml"]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+      - run: node --test nowledge-mem-workbuddy-plugin/tests/*.test.mjs

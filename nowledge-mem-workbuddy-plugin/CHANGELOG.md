@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 - 2026-10-13
+
+- Lead desktop installation with Plugins -> +, explicit enable/reload and MCP Trust checks instead of assuming slash commands register components in every WorkBuddy desktop release.
+- Keep ordinary updates non-destructive; reserve removal/re-add for an explicitly diagnosed wrong-marketplace migration.
+- Declare exact Spaces semantics on the bundled MCP connection and document native desktop connector overrides.
+- Distinguish full-plugin lifecycle capture from the skill + MCP manual fallback.
 
 - Treat `NMEM_CLI_PATH` as an explicit override. If it points to a missing
   executable, WorkBuddy hooks now fail open and log the missing CLI instead of

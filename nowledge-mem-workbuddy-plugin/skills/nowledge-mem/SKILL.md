@@ -7,7 +7,7 @@ Nowledge Mem is the user's current cross-tool memory. Use it to resume with rele
 
 ## Start With Context
 
-At the beginning of meaningful work or when resuming, read Context Bundle through the Nowledge Mem MCP server. The SessionStart hook normally provides it automatically.
+At the beginning of meaningful work or when resuming, read Context Bundle through the Nowledge Mem MCP server. With the full plugin and its hooks enabled, SessionStart normally provides it automatically. A manually copied skill has no startup hook.
 
 CLI fallback:
 
@@ -59,7 +59,9 @@ nmem --json m add "content" -t "Title" --unit-type decision -l "label" -s workbu
 
 ## WorkBuddy Threads
 
-Lifecycle hooks automatically sync the active transcript at `PreCompact`, `Stop`, `SubagentStop`, and `SessionEnd`. Real transcript capture runs on the WorkBuddy machine; MCP is not a transcript importer.
+With the full plugin and its hooks enabled, lifecycle hooks enqueue the active transcript at `PreCompact`, `Stop`, `SubagentStop`, and `SessionEnd`. A queue acknowledgement does not prove the Thread has been uploaded; verify it in Mem. Real transcript capture runs on the WorkBuddy machine; MCP is not a transcript importer.
+
+If only this skill and MCP were installed manually, those lifecycle hooks are absent. Use the explicit preview/import commands below; do not claim automatic capture is active.
 
 For a deliberate historical import, preview first:
 
