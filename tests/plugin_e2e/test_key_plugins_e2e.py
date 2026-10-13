@@ -375,7 +375,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert set(agent_plugin_manifest) <= allowed_agent_plugin_manifest_keys
     assert agent_plugin_manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
     assert agent_plugin_manifest["name"] == "nowledge-mem"
-    assert agent_plugin_manifest["version"] == "0.1.2"
+    assert agent_plugin_manifest["version"] == "0.1.3"
     assert registry_by_id["agent-plugins"]["version"] == agent_plugin_manifest["version"]
     assert registry_by_id["agent-plugins"]["directory"] == AGENT_PLUGIN.name
     assert registry_by_id["agent-plugins"]["autonomy"]["threads"] == "handoff-only"

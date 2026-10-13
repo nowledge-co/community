@@ -1,10 +1,10 @@
 name: WorkBuddy plugin
 on:
   pull_request:
-    paths: ["nowledge-mem-workbuddy-plugin/**", ".workbuddy-plugin/**", "integrations.json", "README.md", ".github/workflows/workbuddy-plugin.yml"]
+    paths: ["nowledge-mem-workbuddy-plugin/**", ".workbuddy-plugin/**", "integrations.json", "README.md", "nowledge-mem-agent-plugin/skills/check-integration/SKILL.md", "nowledge-mem-devin-plugin/skills/check-integration/SKILL.md", "nowledge-mem-npx-skills/skills/check-integration/SKILL.md", ".github/workflows/workbuddy-plugin.yml"]
   push:
     branches: [main]
-    paths: ["nowledge-mem-workbuddy-plugin/**", ".workbuddy-plugin/**", "integrations.json", "README.md", ".github/workflows/workbuddy-plugin.yml"]
+    paths: ["nowledge-mem-workbuddy-plugin/**", ".workbuddy-plugin/**", "integrations.json", "README.md", "nowledge-mem-agent-plugin/skills/check-integration/SKILL.md", "nowledge-mem-devin-plugin/skills/check-integration/SKILL.md", "nowledge-mem-npx-skills/skills/check-integration/SKILL.md", ".github/workflows/workbuddy-plugin.yml"]
 permissions:
   contents: read
 jobs:

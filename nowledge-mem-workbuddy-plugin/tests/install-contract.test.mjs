@@ -21,6 +21,14 @@ test("ordinary updates do not remove the marketplace or change enablement", () =
   assert.match(registry.install.updateCommand, /Update/);
 });
 
+test("shipped diagnostic skills keep the same desktop-first install contract", () => {
+  for (const directory of ["nowledge-mem-agent-plugin", "nowledge-mem-npx-skills", "nowledge-mem-devin-plugin"]) {
+    const row = read(`../../${directory}/skills/check-integration/SKILL.md`).split("\n").find((line) => line.includes("**WorkBuddy**"));
+    assert.match(row, /Plugins.*\+/, directory);
+    assert.match(row, /Trust/, directory);
+  }
+});
+
 test("bundled MCP declares exact Spaces semantics without embedding keys", () => {
   const server = JSON.parse(read("../.mcp.json")).mcpServers["nowledge-mem"];
   assert.equal(server.url, "http://127.0.0.1:14242/mcp");

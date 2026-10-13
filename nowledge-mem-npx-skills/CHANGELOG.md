@@ -4,6 +4,10 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
 
 ## Unreleased
 
+## [0.6.4] - 2026-10-13
+
+- Route WorkBuddy diagnostics to desktop marketplace installation, enable/reload and explicit MCP Trust; keep ordinary updates non-destructive.
+
 ## [0.6.3] - 2026-10-11
 
 - Detect iCode (Chrys) and route users to its dedicated MCP and startup-hook installer.
