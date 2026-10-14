@@ -92,7 +92,7 @@ type HandoffArgs = SpaceToolArgs & {
   summary: string
 }
 
-type SyncReason = "manual_tool" | "session_status_idle" | "session_idle" | "session_compacting"
+type SyncReason = "manual_tool" | "session_execution_succeeded" | "session_status_idle" | "session_idle" | "session_compacting"
 type SessionSyncState = {
   timer?: ReturnType<typeof setTimeout>
   inFlight?: Promise<void>
@@ -114,6 +114,55 @@ type V2EventLike = {
     sessionId?: unknown
     session?: { id?: unknown }
     status?: { type?: unknown }
+  }
+}
+
+// Project only the duplicate display field at this tool's model boundary.
+// Other CLI hooks still consume the complete Markdown projection.
+function normalizedDecimal(token: string): string | null {
+  const parts = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(token)
+  if (!parts) return null
+  const fraction = parts[3] ?? ""
+  const exponent = Number(parts[4] ?? "0")
+  if (!Number.isSafeInteger(exponent)) return null
+  const digits = (parts[2] + fraction).replace(/^0+/, "")
+  if (!digits) return `${parts[1]}0`
+  const coefficient = digits.replace(/0+$/, "")
+  const scale = exponent - fraction.length + digits.length - coefficient.length
+  if (!Number.isSafeInteger(scale)) return null
+  return `${parts[1]}${coefficient}e${scale}`
+}
+
+function hasLossyJsonNumbers(output: string): boolean {
+  // JSON.parse has already validated the text. Consume entire quoted strings
+  // (including escaped quotes) so numeric-looking text is never inspected.
+  const tokens = /"(?:[^"\\]|\\.)*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/g
+  for (const match of output.matchAll(tokens)) {
+    const token = match[0]
+    if (token.startsWith('"')) continue
+    const value = Number(token)
+    if (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value))) return true
+    const original = normalizedDecimal(token)
+    if (original === null || original !== normalizedDecimal(JSON.stringify(value))) return true
+  }
+  return false
+}
+
+function compactContextBundle(output: string): string {
+  try {
+    const bundle = JSON.parse(output)
+    if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)
+      || bundle.bundle_kind !== "context_bundle" || bundle.schema_version !== 1
+      || !["owner_profile", "agent_profile", "active_space", "rule_stack", "working_memory", "kfs_roots"]
+        .every(key => bundle[key] && typeof bundle[key] === "object" && !Array.isArray(bundle[key]))
+      || typeof bundle.compiled_hash !== "string" || typeof bundle.rendered_markdown !== "string"
+      || hasLossyJsonNumbers(output)) {
+      return output
+    }
+    delete bundle.rendered_markdown
+    return JSON.stringify(bundle)
+  } catch {
+    return output
   }
 }
 
@@ -593,7 +642,7 @@ export default Plugin.define({
           if (isNmemErrorPayload(bundle)) {
             return { content: await nmem(withExplicitSpaceArg(["wm", "read"], args)) }
           }
-          return { content: bundle }
+          return { content: compactContextBundle(bundle) }
         },
       })
 
@@ -852,6 +901,10 @@ export default Plugin.define({
           const sessionID = sessionIdFromEvent(event)
           if (!sessionID) continue
           const sessionDirectory = directoryFromEvent(event)
+          if (event.type === "session.execution.succeeded") {
+            scheduleAutoThreadSync(sessionID, "session_execution_succeeded", sessionDirectory)
+            continue
+          }
           if (event.type === "session.status") {
             if (event.data?.status?.type === "idle") {
               scheduleAutoThreadSync(sessionID, "session_status_idle", sessionDirectory)

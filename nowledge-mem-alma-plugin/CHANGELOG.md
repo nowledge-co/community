@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## [0.7.7] - 2026-10-11
+
+### Fixed
+
+- Search first, inspect at most one small targeted thread range per question, and report evidence gaps rather than walking offsets.
+- Preserve explicit target ranges, progressive graph exploration and existing session capture.
+- Default thread reads to eight messages when no limit is supplied.
+
 ## 0.7.6
 
 ### Fixed

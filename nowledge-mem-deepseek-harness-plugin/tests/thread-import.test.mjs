@@ -25,9 +25,11 @@ test('keeps one session-scoped title and ignores every plugin-generated prompt',
   const events = [
     userEvent(1, 'Injected context', { kind: 'plugin', plugin: 'nowledge-mem' }),
     userEvent(2, 'Other plugin context', { kind: 'plugin', plugin: 'other-plugin' }),
-    userEvent(3, '\nOriginal session question\nmore detail'),
-    { type: 'assistant/message', seq: 4 },
-    userEvent(5, 'Later continuation prompt'),
+    userEvent(3, 'Migrated context', { kind: 'plugin:nowledge-mem', form: 'snapshot' }),
+    userEvent(4, 'Other migrated context', { kind: 'plugin:other-plugin', form: 'snapshot' }),
+    userEvent(5, '\nOriginal session question\nmore detail'),
+    { type: 'assistant/message', seq: 6 },
+    userEvent(7, 'Later continuation prompt'),
   ]
 
   const title = sessionThreadTitle(
@@ -48,6 +50,15 @@ test('keeps one session-scoped title and ignores every plugin-generated prompt',
     title,
   )
   assert.equal(compactedTitle, 'Original session question')
+})
+
+test('uses the session fallback title when only plugin context is present', () => {
+  assert.equal(sessionThreadTitle(
+    [userEvent(0, 'Injected context', { kind: 'plugin:nowledge-mem', form: 'snapshot' })],
+    'session-1',
+    message => message.content,
+    16_000,
+  ), 'DeepSeek Harness session-1')
 })
 
 test('rebuilds reconciliation arguments from the full payload', () => {

@@ -1,7 +1,7 @@
 {
 	"name": "@nowledge/openclaw-nowledge-mem",
 	"displayName": "Nowledge Mem for OpenClaw",
-	"version": "0.8.34",
+	"version": "0.8.36",
 	"type": "module",
 	"description": "Nowledge Mem memory plugin for OpenClaw, local-first personal knowledge base",
 	"author": {
@@ -29,7 +29,7 @@
 			"./src/index.js"
 		],
 		"install": {
-			"clawhubSpec": "clawhub:nowledge-mem",
+			"clawhubSpec": "clawhub:@nowledge/openclaw-nowledge-mem",
 			"npmSpec": "@nowledge/openclaw-nowledge-mem",
 			"defaultChoice": "clawhub"
 		},

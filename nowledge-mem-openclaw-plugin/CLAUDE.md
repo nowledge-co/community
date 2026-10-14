@@ -49,7 +49,7 @@ src/
     timeline.js         - activity feed: daily grouping, event_type filter, memoryId hints
     forget.js           - memory deletion by ID or search
     thread-search.js    - search past conversations by keyword
-    thread-fetch.js     - fetch full messages from a thread with pagination
+    thread-fetch.js     - read one small targeted message range (default 8)
 skills/
   memory-guide/
     SKILL.md            - agent behavioral skill: when/how to search, save, explore memory (auto-discovered by OpenClaw)
@@ -139,9 +139,9 @@ When `contextEngine` points elsewhere (or is absent), hooks handle everything. N
 - `nowledge_mem_timeline` - activity feed via `nmem f`. Groups by day. `event_type` filter. Exact date range via `date_from`/`date_to` (YYYY-MM-DD). Entries include `(id: <memoryId>)` for chaining to connections.
 - `nowledge_mem_forget` - delete by ID or fuzzy query.
 
-### Thread Tools (progressive conversation retrieval)
+### Thread Tools (bounded conversation retrieval)
 - `nowledge_mem_thread_search` - search past conversations by keyword. Returns threads with matched message snippets, relevance scores, and message counts. Supports `source` filter.
-- `nowledge_mem_thread_fetch` - fetch messages from a specific thread. Start with a small page, then use `offset` + `limit` for progressive retrieval only when more context is needed.
+- `nowledge_mem_thread_fetch` - read one small targeted message range from a specific thread. Choose the needed range from search results before the single read; use a known `offset` once and a small `limit` (default 8).
 
 ### Diagnostics
 - `nowledge_mem_status` - show plugin trust status, memory slot status, effective config (mode, apiUrl, apiKey set, sessionContext, sessionDigest, etc.), backend connectivity, and version. Checks `plugins.allow`: warns if set but plugin not included (loading blocked); shows tip if not set (plugin loads via `entries.enabled` but trust is implicit). Warns if the memory slot points to `memory-core` instead of `openclaw-nowledge-mem` (common after OpenClaw 3.22+ upgrade). No parameters.
@@ -216,7 +216,7 @@ Legacy aliases accepted silently in all sources for backward compat:
 | `nmem --json m delete <id>` | `client.execJson()` in forget.js | Delete |
 | `GET /threads/search?query=&limit=` | `client.searchThreads()` | Thread search enrichment (best-effort, API-only) |
 | `nmem --json t search <q> -n N` | `client.searchThreadsFull()` | Full thread search (CLI-first, API fallback) |
-| `nmem --json t show <id> -n N --offset O` | `client.fetchThread()` | Fetch thread messages with pagination |
+| `nmem --json t show <id> -n N --offset O` | `client.fetchThread()` | Read one small targeted message range (default 8) |
 
 All commands have API fallback for older CLI versions.
 
@@ -272,3 +272,9 @@ After bumping, commit inside the `community/` submodule, then stage the updated 
 - Do NOT expose full WM overwrite from agents - section-level patch is the right granularity.
 - Do NOT add cloud dependencies to the core path.
 - Do NOT accept unknown config keys (strict parser in `config.js`).
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.

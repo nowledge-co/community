@@ -1,0 +1,270 @@
+[
+  {
+    "name": "initial",
+    "messages": [
+      {
+        "id": "a",
+        "content": "first"
+      },
+      {
+        "id": "b",
+        "content": "same"
+      }
+    ],
+    "expected": {
+      "start": 0,
+      "end": 2,
+      "messages": [
+        {
+          "id": "a",
+          "content": "first"
+        },
+        {
+          "id": "b",
+          "content": "same"
+        }
+      ],
+      "next": {
+        "count": 2,
+        "remoteCount": 2,
+        "lastExternalId": "b",
+        "prefixFingerprint": "55228e8d5e4573b3fb90831d294b91ae175db623015b26a078c26227208bc5bb"
+      },
+      "reset": false
+    }
+  },
+  {
+    "name": "unchanged",
+    "messages": [
+      {
+        "id": "a",
+        "content": "first"
+      },
+      {
+        "id": "b",
+        "content": "same"
+      }
+    ],
+    "cursor": {
+      "count": 2,
+      "remoteCount": 2,
+      "lastExternalId": "b",
+      "prefixFingerprint": "55228e8d5e4573b3fb90831d294b91ae175db623015b26a078c26227208bc5bb"
+    },
+    "expected": {
+      "start": 2,
+      "end": 2,
+      "messages": [],
+      "next": {
+        "count": 2,
+        "remoteCount": 2,
+        "lastExternalId": "b",
+        "prefixFingerprint": "55228e8d5e4573b3fb90831d294b91ae175db623015b26a078c26227208bc5bb"
+      },
+      "reset": false
+    }
+  },
+  {
+    "name": "append",
+    "messages": [
+      {
+        "id": "a",
+        "content": "first"
+      },
+      {
+        "id": "b",
+        "content": "same"
+      },
+      {
+        "id": "c",
+        "content": "last"
+      }
+    ],
+    "cursor": {
+      "count": 2,
+      "remoteCount": 20,
+      "lastExternalId": "b",
+      "prefixFingerprint": "55228e8d5e4573b3fb90831d294b91ae175db623015b26a078c26227208bc5bb"
+    },
+    "expected": {
+      "start": 2,
+      "end": 3,
+      "messages": [
+        {
+          "id": "c",
+          "content": "last"
+        }
+      ],
+      "next": {
+        "count": 3,
+        "remoteCount": 20,
+        "lastExternalId": "c",
+        "prefixFingerprint": "498cef0a41fb66b19427fdedc87fc9b19d4ca8172cc2c2b65200987bb5634f76"
+      },
+      "reset": false
+    }
+  },
+  {
+    "name": "earlier prefix edit",
+    "messages": [
+      {
+        "id": "a",
+        "content": "changed"
+      },
+      {
+        "id": "b",
+        "content": "same"
+      }
+    ],
+    "cursor": {
+      "count": 2,
+      "remoteCount": 2,
+      "lastExternalId": "b",
+      "prefixFingerprint": "55228e8d5e4573b3fb90831d294b91ae175db623015b26a078c26227208bc5bb"
+    },
+    "expected": {
+      "start": 0,
+      "end": 2,
+      "messages": [
+        {
+          "id": "a",
+          "content": "changed"
+        },
+        {
+          "id": "b",
+          "content": "same"
+        }
+      ],
+      "next": {
+        "count": 2,
+        "remoteCount": 2,
+        "lastExternalId": "b",
+        "prefixFingerprint": "6a94e68ed8412e2e88887ff8f97e7275b34936bec08b894988e03eee30dda5db"
+      },
+      "reset": true
+    }
+  },
+  {
+    "name": "same length replacement",
+    "messages": [
+      {
+        "id": "x"
+      },
+      {
+        "id": "y"
+      }
+    ],
+    "cursor": {
+      "count": 2,
+      "remoteCount": 2,
+      "lastExternalId": "b",
+      "prefixFingerprint": "55228e8d5e4573b3fb90831d294b91ae175db623015b26a078c26227208bc5bb"
+    },
+    "expected": {
+      "start": 0,
+      "end": 2,
+      "messages": [
+        {
+          "id": "x"
+        },
+        {
+          "id": "y"
+        }
+      ],
+      "next": {
+        "count": 2,
+        "remoteCount": 2,
+        "lastExternalId": "y",
+        "prefixFingerprint": "2d44468eb059acbb07c6b8636468bfda1120b985b3277b5770e37c7a11d2fe81"
+      },
+      "reset": true
+    }
+  },
+  {
+    "name": "snapshot shrink",
+    "messages": [
+      {
+        "id": "a",
+        "content": "first"
+      }
+    ],
+    "cursor": {
+      "count": 2,
+      "remoteCount": 2,
+      "lastExternalId": "b",
+      "prefixFingerprint": "55228e8d5e4573b3fb90831d294b91ae175db623015b26a078c26227208bc5bb"
+    },
+    "expected": {
+      "start": 0,
+      "end": 1,
+      "messages": [
+        {
+          "id": "a",
+          "content": "first"
+        }
+      ],
+      "next": {
+        "count": 1,
+        "remoteCount": 2,
+        "lastExternalId": "a",
+        "prefixFingerprint": "08fe2e6d1cff34d3760667cbb79c29e14506ef0a81587bbe5dc0022c7f463656"
+      },
+      "reset": true
+    }
+  },
+  {
+    "name": "empty after acknowledgement",
+    "messages": [],
+    "cursor": {
+      "count": 2,
+      "remoteCount": 2,
+      "lastExternalId": "b",
+      "prefixFingerprint": "55228e8d5e4573b3fb90831d294b91ae175db623015b26a078c26227208bc5bb"
+    },
+    "expected": {
+      "start": 0,
+      "end": 0,
+      "messages": [],
+      "next": {
+        "count": 0,
+        "remoteCount": 2,
+        "prefixFingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reset": true
+    }
+  },
+  {
+    "name": "UTF-8 framing",
+    "messages": [
+      {
+        "id": "MixedCase",
+        "content": "é🚀"
+      },
+      {
+        "id": "other",
+        "content": "ab:c"
+      }
+    ],
+    "expected": {
+      "start": 0,
+      "end": 2,
+      "messages": [
+        {
+          "id": "MixedCase",
+          "content": "é🚀"
+        },
+        {
+          "id": "other",
+          "content": "ab:c"
+        }
+      ],
+      "next": {
+        "count": 2,
+        "remoteCount": 2,
+        "lastExternalId": "other",
+        "prefixFingerprint": "f04d6b36f119eefded2497375ffb04d095fd5f7228e6c28fc55bf7f8d72ac5ad"
+      },
+      "reset": false
+    }
+  }
+]

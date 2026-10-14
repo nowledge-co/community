@@ -333,10 +333,11 @@ def test_key_plugin_static_contracts_are_declared():
     claude_manifest = _read_json(CLAUDE_PLUGIN / ".claude-plugin" / "plugin.json")
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     claude_save_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py").read_text(encoding="utf-8")
+    claude_context_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-context.py").read_text(encoding="utf-8")
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.24"
+    assert claude_manifest["version"] == "0.7.26"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -346,7 +347,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert "nmem-hook-subagent.py" in json.dumps(claude_hooks["SubagentStart"])
     assert "nmem-hook-save.py" in json.dumps(claude_hooks)
     assert "--event stop --detach" in json.dumps(claude_hooks)
-    assert "find_skills" in json.dumps(claude_hooks)
+    assert "find_skills" in claude_context_hook
     assert "CREATE_NO_WINDOW" in claude_save_hook
     assert "extract_skill_outcomes_from_file" in claude_save_hook
     assert "wm read" not in json.dumps(claude_hooks)
@@ -355,7 +356,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert (CLAUDE_PLUGIN / "scripts" / "skill_outcome.py").exists()
     assert (CLAUDE_PLUGIN / "skills" / "save-thread" / "SKILL.md").exists()
     assert "Never infer a space from the current folder" in claude_read_skill
-    assert "Never infer a space from the current folder" in claude_search_skill
+    assert "Never infer a Space from cwd" in claude_search_skill
 
     agent_plugin_manifest = _read_json(AGENT_PLUGIN / "plugin.json")
     agent_plugin_mcp = _read_json(AGENT_PLUGIN / "mcp.json")
@@ -374,7 +375,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert set(agent_plugin_manifest) <= allowed_agent_plugin_manifest_keys
     assert agent_plugin_manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
     assert agent_plugin_manifest["name"] == "nowledge-mem"
-    assert agent_plugin_manifest["version"] == "0.1.1"
+    assert agent_plugin_manifest["version"] == "0.1.3"
     assert registry_by_id["agent-plugins"]["version"] == agent_plugin_manifest["version"]
     assert registry_by_id["agent-plugins"]["directory"] == AGENT_PLUGIN.name
     assert registry_by_id["agent-plugins"]["autonomy"]["threads"] == "handoff-only"
@@ -480,8 +481,8 @@ def test_key_plugin_static_contracts_are_declared():
     openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
     openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
-    assert openclaw_manifest["version"] == "0.8.34"
-    assert openclaw_pkg["version"] == "0.8.34"
+    assert openclaw_manifest["version"] == "0.8.36"
+    assert openclaw_pkg["version"] == "0.8.36"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
     assert openclaw_manifest["contracts"]["tools"] == [
         "memory_search",
@@ -534,7 +535,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.4.0"
+    assert opencode_pkg["version"] == "0.4.4"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -571,7 +572,7 @@ def test_key_plugin_static_contracts_are_declared():
         encoding="utf-8"
     )
     copilot_capture = (COPILOT_PLUGIN / "hooks" / "copilot-stop-save.py").read_text(encoding="utf-8")
-    assert copilot_manifest["version"] == "0.1.4"
+    assert copilot_manifest["version"] == "0.1.5"
     assert copilot_marketplace_plugin["version"] == copilot_manifest["version"]
     assert registry_by_id["copilot-cli"]["version"] == copilot_manifest["version"]
     assert '"context", "--source-app", "copilot-cli"' in copilot_hook
@@ -583,7 +584,7 @@ def test_key_plugin_static_contracts_are_declared():
 
     droid_manifest = _read_json(DROID_PLUGIN / ".factory-plugin" / "plugin.json")
     droid_hooks = _read_json(DROID_PLUGIN / "hooks" / "hooks.json")
-    assert droid_manifest["version"] == "0.1.1"
+    assert droid_manifest["version"] == "0.1.2"
     assert "--source-app droid" in json.dumps(droid_hooks)
     assert "NMEM_AGENT_ID" in json.dumps(droid_hooks)
     assert "NMEM_HOST_AGENT_ID" in json.dumps(droid_hooks)
@@ -637,7 +638,7 @@ def test_key_plugin_static_contracts_are_declared():
     cursor_working_memory_skill = (
         CURSOR_PLUGIN / "skills" / "read-working-memory" / "SKILL.md"
     ).read_text(encoding="utf-8")
-    assert cursor_manifest["version"] == "0.2.1"
+    assert cursor_manifest["version"] == "0.2.2"
     assert cursor_hooks["hooks"]["sessionStart"][0] == {
         "command": 'node "${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs"',
         "timeout": 15,
@@ -691,7 +692,7 @@ def test_key_plugin_static_contracts_are_declared():
     workbuddy_hook_source = (
         WORKBUDDY_PLUGIN / "scripts" / "nowledge-mem-hook.mjs"
     ).read_text(encoding="utf-8")
-    assert workbuddy_manifest["version"] == "0.2.0"
+    assert workbuddy_manifest["version"] == "0.2.1"
     assert registry_by_id["workbuddy"]["version"] == workbuddy_manifest["version"]
     assert registry_by_id["workbuddy"]["directory"] == WORKBUDDY_PLUGIN.name
     assert workbuddy_marketplace_plugin["version"] == workbuddy_manifest["version"]
@@ -705,8 +706,8 @@ def test_key_plugin_static_contracts_are_declared():
         in registry_by_id["workbuddy"]["install"]["command"]
     )
     assert (
-        "marketplace remove nowledge-community"
-        in registry_by_id["workbuddy"]["install"]["updateCommand"]
+        "marketplace remove"
+        not in registry_by_id["workbuddy"]["install"]["updateCommand"]
     )
     assert codebuddy_manifest["version"] == "0.1.1"
     assert registry_by_id["codebuddy"]["version"] == codebuddy_manifest["version"]
@@ -744,7 +745,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.9"
+    assert pi_pkg["version"] == "0.8.12"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "scripts/sync-history.mjs"
@@ -760,7 +761,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert "external_id" in pi_extension
     assert "deduplicate: true" in pi_extension
     assert "NMEM_SYNC_TIMEOUT_MS" in pi_extension
-    assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in pi_extension
+    assert 'from "./generated/plugin-core/index.js"' in pi_extension
     assert "NMEM_AGENT_ID" in pi_extension
     assert "NMEM_HOST_AGENT_ID" in pi_extension
     assert "custom_message" in pi_extension
@@ -803,8 +804,8 @@ def test_key_plugin_static_contracts_are_declared():
     step_extension = (STEP_CODE_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(
         encoding="utf-8"
     )
-    assert step_pkg["version"] == "0.1.0"
-    assert step_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.9"
+    assert step_pkg["version"] == "0.1.2"
+    assert step_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.10"
     assert step_pkg["pi"]["extensions"] == ["./extensions/nowledge-mem.ts"]
     assert step_pkg["pi"]["skills"] == ["./skills"]
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "step-code"' in step_extension
@@ -815,14 +816,14 @@ def test_key_plugin_static_contracts_are_declared():
     omp_pkg = _read_json(OMP_PLUGIN / "package.json")
     omp_extension = (OMP_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     omp_agent = (OMP_PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
-    assert omp_pkg["version"] == "0.1.1"
-    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.4"
+    assert omp_pkg["version"] == "0.1.3"
+    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.10"
     assert "./extensions/nowledge-mem.ts" in omp_pkg["omp"]["extensions"]
     assert "./skills" in omp_pkg["omp"]["skills"]
     assert "pi" not in omp_pkg
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "omp"' in omp_extension
     assert 'process.env.NMEM_PLUGIN_HOST_LABEL = "OMP"' in omp_extension
-    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.1"' in omp_extension
+    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.3"' in omp_extension
     assert 'import("nowledge-mem-pi/extensions/nowledge-mem.ts")' in omp_extension
     assert "nmem --json context --source-app omp" in omp_agent
     assert "source_app=omp" in omp_agent
@@ -935,8 +936,8 @@ def test_key_plugin_static_contracts_are_declared():
     alma_pkg = _read_json(ALMA_PLUGIN / "package.json")
     alma_skill = ALMA_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md"
     alma_source = (ALMA_PLUGIN / "main.js").read_text(encoding="utf-8")
-    assert alma_manifest["version"] == "0.7.6"
-    assert alma_pkg["version"] == "0.7.6"
+    assert alma_manifest["version"] == "0.7.7"
+    assert alma_pkg["version"] == "0.7.7"
     assert alma_skill.exists()
     assert "nowledge_mem_context_bundle" in alma_skill.read_text(encoding="utf-8")
     assert "nowledge_mem_context_bundle" in alma_source
@@ -1515,8 +1516,14 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         guide = entry["install"]["agentGuide"]
         assert "https://mem.nowledge.co/SKILL.md" in guide["prompt"], entry["id"]
         assert "https://mem.nowledge.co/SKILL.md" in guide["promptZh"], entry["id"]
-        assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
-        assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
+        if entry["id"] == "chatgpt-cloud":
+            # Hosted official setup verifies the exposed search/write tools;
+            # it must not require access to a user's briefing as an install check.
+            assert "Verify search" in guide["prompt"]
+            assert "验证搜索" in guide["promptZh"]
+        else:
+            assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
+            assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
         assert "/docs/integrations/" not in guide["prompt"], entry["id"]
         assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
 
@@ -1524,21 +1531,21 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "raft" in integration_ids
     assert "slock" not in integration_ids
     assert "slock" in by_id["raft"]["aliases"]
-    assert by_id["copilot-cli"]["version"] == "0.1.4"
+    assert by_id["copilot-cli"]["version"] == "0.1.5"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
-    assert by_id["cursor"]["version"] == "0.2.1"
+    assert by_id["cursor"]["version"] == "0.2.2"
     assert by_id["cursor"]["transport"] == "mcp+hook"
     assert by_id["cursor"]["capabilities"]["autoCapture"] is True
     assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"
     assert by_id["cursor"]["threadSave"]["command"] == "nmem t save --from cursor"
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
-    assert by_id["droid"]["version"] == "0.1.1"
-    assert by_id["openclaw"]["version"] == "0.8.34"
+    assert by_id["droid"]["version"] == "0.1.2"
+    assert by_id["openclaw"]["version"] == "0.8.36"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.4.0"
+    assert by_id["opencode"]["version"] == "0.4.4"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
-    assert by_id["pi"]["version"] == "0.8.9"
+    assert by_id["pi"]["version"] == "0.8.12"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["grok-bot"]["version"] is None
@@ -1564,16 +1571,17 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     chatgpt_prompt = by_id["chatgpt-cloud"]["install"]["agentGuide"]["prompt"]
     chatgpt_prompt_zh = by_id["chatgpt-cloud"]["install"]["agentGuide"]["promptZh"]
     for text in (chatgpt_prompt, chatgpt_prompt_zh):
-        assert "custom App" in text or "自定义 App" in text
-        assert "workspace policy" in text or "workspace 策略" in text
+        assert "custom MCP connection" in text or "自定义 MCP 连接" in text
+        assert "Nowledge Cloud" in text
+        assert "Team" in text
+        assert "Access Anywhere" in text
+        assert "Nowledge Link" in text
+        assert "https://nowled.ge/openai" in text
         assert "scoped write" in text or "范围明确的写入" in text
-        assert "public plugin" in text or "公开 plugin" in text
-    assert "Plugins Directory" in " ".join(
-        by_id["chatgpt-cloud"]["autonomy"]["bestResultRequires"]
-    )
-    assert by_id["chatgpt-cloud"]["install"]["publicDirectoryStatus"] == (
-        "submitted-pending-review"
-    )
+        assert "pending review" not in text
+    assert "For Mem running on the user's computer" in chatgpt_prompt
+    assert "Mem 在自己的电脑上" in chatgpt_prompt_zh
+    assert by_id["chatgpt-cloud"]["install"]["publicDirectoryStatus"] == "published"
     claude_prompt = by_id["claude-cloud"]["install"]["agentGuide"]["prompt"]
     claude_prompt_zh = by_id["claude-cloud"]["install"]["agentGuide"]["promptZh"]
     for text in (claude_prompt, claude_prompt_zh):
@@ -1673,14 +1681,14 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert connector["threadSave"]["historicalCommand"] == (
             f"nmem t sync --from {connector_id}"
         )
-    assert by_id["alma"]["version"] == "0.7.6"
+    assert by_id["alma"]["version"] == "0.7.7"
     assert by_id["alma"]["skills"] == ["nowledge-mem"]
     assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
-    assert by_id["bub"]["version"] == "0.7.3"
+    assert by_id["bub"]["version"] == "0.7.5"
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
-    assert by_id["step-code"]["version"] == "0.1.0"
+    assert by_id["step-code"]["version"] == "0.1.2"
     assert by_id["step-code"]["directory"] == "nowledge-mem-step-code"
     assert by_id["step-code"]["transport"] == "plugin+cli"
     assert by_id["step-code"]["capabilities"]["autoRecall"] is True
@@ -1698,7 +1706,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "step update npm:nowledge-mem-step-code"
     )
     assert "save-thread" in by_id["step-code"]["skills"]
-    assert by_id["omp"]["version"] == "0.1.1"
+    assert by_id["omp"]["version"] == "0.1.3"
     assert by_id["omp"]["directory"] == "nowledge-mem-omp-plugin"
     assert by_id["omp"]["transport"] == "plugin+cli"
     assert by_id["omp"]["capabilities"]["autoRecall"] is True
@@ -1766,7 +1774,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "Array.isArray(session?.events)" in session_events
     assert "payload.title" in thread_import
     assert "expectedMessageCount === undefined" in thread_import
-    assert "message?.source?.kind === 'plugin'" in thread_import
+    assert "isPluginSource(message?.source)" in thread_import
 
     assert "export const inject = ['agents', 'sessions', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
@@ -1784,7 +1792,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "'--json', 'm', 'search', query" in source
     assert "NMEM_IMPORT_ORIGIN" in source
     assert "--source" in source and "deepseek-harness" in source
-    assert "message.source.kind === 'plugin' && message.source.plugin === capture.pluginName" in session_capture
+    assert "isPluginSource(message.source, capture.pluginName)" in session_capture
     assert "dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "dsh-plugin" in readme
@@ -1876,9 +1884,9 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.4.0"
+    assert pkg["version"] == "0.4.4"
     assert opencode_registry["version"] == pkg["version"]
-    assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in timeout_source
+    assert 'from "./generated/plugin-core/index.js"' in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source
     assert source.count("timeoutMs: THREAD_SYNC_TIMEOUT_MS") == 2
     assert "timeoutMs: 10_000" not in source
@@ -1919,7 +1927,7 @@ def test_amp_plugin_static_contract_is_self_contained():
 
     # Package manifest and registry entry agree on the basics.
     assert pkg["name"] == "amp-nowledge-mem"
-    assert pkg["version"] == "0.1.4"
+    assert pkg["version"] == "0.1.5"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.ts"
     assert "@ampcode/plugin" in pkg["peerDependencies"]
@@ -2044,7 +2052,7 @@ def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
     bub_tools = (
         BUB_PLUGIN / "src" / "nowledge_mem_bub" / "tools.py"
     ).read_text(encoding="utf-8")
-    assert 'version = "0.7.3"' in bub_pyproject
+    assert 'version = "0.7.5"' in bub_pyproject
     assert "CREATE_NO_WINDOW" in bub_client
     assert "unit_type: str | None = Field(" in bub_tools
     assert "unit_type: str = Field(" not in bub_tools
@@ -2324,9 +2332,9 @@ def test_pi_thread_sync_timeout_contract():
     readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pi_pkg["version"] == "0.8.9"
+    assert pi_pkg["version"] == "0.8.12"
     assert pi_registry["version"] == pi_pkg["version"]
-    assert "DEFAULT_THREAD_SYNC_TIMEOUT_MS = 120_000" in extension
+    assert 'from "./generated/plugin-core/index.js"' in extension
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension
     assert "shouldTryRemoteApiFallback(response.status)" in extension
     assert "NMEM_SYNC_TIMEOUT_MS" in readme

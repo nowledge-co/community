@@ -28,7 +28,15 @@ nmem config client set api-key your-key
 
 ## Install
 
-In WorkBuddy:
+In **WorkBuddy desktop**, open **Plugins -> +** (插件 -> +), paste this marketplace address, then find **Nowledge Mem** in **nowledge-community** and click **Install**:
+
+```text
+https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json
+```
+
+Check that the plugin and its skill are enabled. Reload or restart WorkBuddy, open its MCP/Connections settings, and review **Trust** for the `nowledge-mem` connector if requested. Trust is a user security decision; an agent must not approve it silently. This is the [official desktop marketplace flow](https://www.codebuddy.cn/docs/workbuddy/Plugins).
+
+Only if your host exposes plugin slash commands, the equivalent command path is:
 
 ```text
 /plugin marketplace add https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json --name nowledge-community
@@ -37,7 +45,7 @@ In WorkBuddy:
 
 Use the raw WorkBuddy marketplace URL exactly as shown. Current WorkBuddy releases check `.codebuddy-plugin` before `.workbuddy-plugin` at a repository root, so adding `nowledge-co/community` directly can select the CodeBuddy package.
 
-If you previously added the repository root, migrate it once:
+For an ordinary update, use **Update** on the installed plugin card and reload; do not remove the marketplace. If you have confirmed that an old repository-root marketplace installed the **CodeBuddy** package instead, migrate that specific wrong entry once (this is not the normal update procedure):
 
 ```text
 /plugin marketplace remove nowledge-community
@@ -53,7 +61,17 @@ The bundled MCP endpoint targets local Mem. For remote Mem or authenticated loca
 nmem config mcp show --host workbuddy
 ```
 
-Place the generated block in `~/.workbuddy/.mcp.json`, `$WORKBUDDY_CONFIG_DIR/.mcp.json`, or a project `.mcp.json`.
+In desktop WorkBuddy, add or edit `nowledge-mem` through **Connections / MCP** and preserve the generated URL and all headers. Review its Trust/enable state after saving. The bundled local connection declares `x-nmem-space-protocol: exact-v1`; the generated override must preserve that declaration too.
+
+Do not assume that writing `~/.workbuddy/.mcp.json` by itself registers a connector in the desktop UI. That file belongs to a CLI/project configuration path on hosts that support it; it is not evidence of desktop activation. Do not edit the installed plugin cache or register a second competing endpoint without disabling the old one.
+
+## If installation reports success but nothing appears
+
+Check the **Plugins** marketplace list first: is `nowledge-community` present with the raw URL above, and is Nowledge Mem installed and enabled? Then check **Skills** and **Connections / MCP** separately. If slash commands produced only chat text rather than a plugin-management result, use the desktop UI path above. Reload, review the connector Trust request, and verify an actual memory search before declaring setup complete.
+
+If the desktop marketplace path still fails, report the WorkBuddy version, OS, the add/install error and whether the marketplace is visible. Do not paste credentials or raw session logs.
+
+As a temporary, reduced-capability fallback, install `skills/nowledge-mem/SKILL.md` as a user skill through WorkBuddy's Skills interface (or copy the skill directory to `~/.workbuddy/skills/nowledge-mem/`), then add the generated MCP block through Connections. Enable the skill and explicitly Trust MCP, then restart. This gives memory tools and guidance, **not automatic lifecycle capture**: copying a skill and registering MCP does not install plugin hooks. Use manual `nmem t sync --from workbuddy` preview/import when needed.
 
 ## Automatic Thread Capture
 
@@ -64,18 +82,18 @@ WorkBuddy provides `session_id` and the exact local transcript path to plugin ho
 - `SubagentStop`, after delegated work
 - `SessionEnd`, when the session closes
 
-The hook runs:
+The hook enqueues capture through the shared CLI queue:
 
 ```bash
-nmem --json t sync --from workbuddy --session-id <session-id> --session-dir <transcript_path> --all-projects --apply
+nmem --json t capture --from workbuddy --session-id <session-id> --transcript-path <transcript_path> --sync --all-projects
 ```
 
-Imports are idempotent. Repeated lifecycle events update the same WorkBuddy thread and deduplicate messages.
+The `enqueued` acknowledgement means durable queue acceptance, not completed upload. Check the resulting Thread in Mem. Imports are idempotent; repeated lifecycle events update the same WorkBuddy thread and deduplicate messages.
 For `SubagentStop`, WorkBuddy reports the parent session separately from `agent_id`; the connector uses the subagent's own ID so delegated transcripts cannot collide with the parent thread's message IDs.
 
 ## Verify
 
-Start a new WorkBuddy session and ask it to read your current context. Complete a short exchange, then run:
+Start a new WorkBuddy session and ask it to read your current context and search for a known memory. A successful `nmem doctor` in a terminal only proves CLI connectivity, not that WorkBuddy's MCP connector is enabled and trusted. With the full plugin installed, complete a short exchange, then run:
 
 ```bash
 nmem t list --source workbuddy -n 5

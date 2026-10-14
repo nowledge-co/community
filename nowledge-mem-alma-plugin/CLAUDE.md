@@ -9,7 +9,7 @@ This file is a practical continuation guide for future agent sessions working on
 - Runtime: plain ESM (`main.js`), no build step
 - Memory backend: direct HTTP to Nowledge Mem API (default `http://127.0.0.1:14242`). CLI (`nmem`) is only used for diagnostic in the status tool.
 
-## Current Status (as of v0.7.6)
+## Current Status (as of v0.7.7)
 
 - Plugin is installed/activated and registers 13 tools successfully in Alma logs.
 - Live thread sync works via three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
@@ -117,11 +117,11 @@ open -a Alma
 ## Key v0.6.0 Features
 
 - **sourceThreadId**: Search/show/query results include thread provenance for distilled memories.
-  The agent can chain `sourceThreadId` → `nowledge_mem_thread_show` for full conversation context.
+  The agent can chain `sourceThreadId` → `nowledge_mem_thread_show` for one small targeted message range.
 - **Structured save**: `nowledge_mem_store` supports `unit_type`, `event_start`, `event_end`,
   `temporal_context` for richer knowledge graph nodes.
 - **Save dedup**: Before saving, searches for near-identical existing memories. Blocks at >=90% similarity.
-- **Thread pagination**: `nowledge_mem_thread_show` accepts `offset` for progressive retrieval.
+- **Targeted thread read**: `nowledge_mem_thread_show` accepts `offset` for a single targeted read.
   Returns `totalMessages`, `hasMore`, `returnedMessages` metadata.
 - **Thread source filter**: `nowledge_mem_thread_search` accepts `source` to filter by platform.
 - **Behavioral guidance**: Recall injection includes proactive save nudge + sourceThreadId awareness.
@@ -175,3 +175,9 @@ When modifying API calls, always verify parameter names against the backend endp
 - Do not add external dependencies (keep plugin self-contained).
 - Do not reintroduce plugin command/slash UX unless Alma API guarantees consistent behavior.
 - Do not assume missing tool calls imply missing plugin registration.
+
+### Bounded thread reads
+
+Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
+
+Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.

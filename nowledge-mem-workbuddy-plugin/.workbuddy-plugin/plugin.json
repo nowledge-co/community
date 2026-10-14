@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Cross-tool memory for WorkBuddy. Start with current context and keep WorkBuddy conversations searchable across every connected AI tool.",
   "author": {
     "name": "Nowledge Labs",

@@ -15,17 +15,7 @@
 - These changes are an implementation candidate awaiting installed-host
   acceptance. They do not change Labs activation or enable Cloud Agent Team.
 
-## [0.1.40] - 2026-10-07
-
-### Fixed
-
-- Support maintenance version 2 at Stop, preserving its complete lifecycle-bound
-  revision in the deferred action. Legacy and unknown maintenance protocols
-  skip the optional continuation and allow normal shutdown.
-- Keep one continuation per original Stop even when a context is reselected,
-  and end a conflicting maintenance attempt without preparing a new revision.
-
-## [0.1.39] - 2026-10-07
+## [0.1.40] - Unreleased
 
 ### Added
 
@@ -44,6 +34,13 @@
 - Refuse an unavailable explicit CLI path instead of selecting another install.
 - Preserve exact Space IDs, including empty, whitespace, and Unicode IDs, in
   live named-context admission at startup and Stop.
+
+## [0.1.39] - 2026-10-11
+
+### Fixed
+
+- Search first, inspect at most one small targeted thread range per question, and report evidence gaps rather than walking offsets.
+- Preserve explicit target ranges, progressive graph exploration and existing session capture.
 
 ## [0.1.38] - 2026-10-01
 
