@@ -193,15 +193,60 @@ def merge_hooks_json() -> None:
     save_json(GLOBAL_HOOKS_FILE, hooks_doc)
 
 
-def _validate_toml_if_possible(text: str) -> None:
-    if not text.strip():
-        return
+def _parse_codex_toml(text: str) -> dict:
+    """Use an actual TOML parser, including when setup runs on older Python."""
     try:
         import tomllib
-
-        tomllib.loads(text)
     except ModuleNotFoundError:
-        return
+        pass
+    else:
+        return tomllib.loads(text)
+
+    # Isolated interpreter mode ignores user-site/PYTHONPATH injection. Config
+    # travels on stdin; only the two advisory sections return, never API keys.
+    reader = (
+        "import sys,json\n"
+        "try: import tomllib\n"
+        "except ImportError: sys.exit(3)\n"
+        "try: config=tomllib.loads(sys.stdin.read())\n"
+        "except tomllib.TOMLDecodeError: sys.exit(2)\n"
+        "json.dump({k:config.get(k) for k in ('features','memories')},sys.stdout,default=str)\n"
+    )
+    commands = []
+    for name in ("python3.14", "python3.13", "python3.12", "python3.11", "python3", "python"):
+        executable = shutil.which(name)
+        if executable and [executable] not in commands:
+            commands.append([executable])
+    launcher = shutil.which("py") if os.name == "nt" else None
+    if launcher:
+        commands.extend([launcher, version] for version in ("-3.14", "-3.13", "-3.12", "-3.11"))
+    for command in commands:
+        try:
+            result = subprocess.run(
+                [*command, "-I", "-c", reader], input=text, capture_output=True,
+                text=True, encoding="utf-8", timeout=5, check=False,
+                **_windows_no_window_kwargs(),
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if result.returncode == 2:
+            raise ValueError("Invalid TOML")
+        if result.returncode == 0:
+            try:
+                parsed = json.loads(result.stdout)
+            except (ValueError, TypeError):
+                continue
+            if isinstance(parsed, dict) and set(parsed) == {"features", "memories"}:
+                return parsed
+    raise SystemExit(
+        "error: setup requires a Python 3.11 or newer TOML parser. "
+        "Run setup with Python 3.11 or newer, or make that interpreter available on PATH."
+    )
+
+
+def _validate_toml_if_possible(text: str) -> None:
+    try:
+        _parse_codex_toml(text)
     except Exception as error:
         raise SystemExit(
             f"error: refusing to modify invalid Codex config.toml: {error}"
@@ -551,10 +596,8 @@ def print_codex_memory_coexistence_guidance() -> None:
     if not CONFIG_FILE.exists():
         return
     try:
-        import tomllib
-
-        config = tomllib.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-    except (ModuleNotFoundError, OSError, UnicodeError, ValueError):
+        config = _parse_codex_toml(CONFIG_FILE.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
         return
 
     features = config.get("features")
@@ -582,6 +625,9 @@ def print_codex_memory_coexistence_guidance() -> None:
 
 
 def main() -> int:
+    # Refuse invalid input or an unavailable parser before copying any runtime
+    # hook, creating hook state, or editing the user's configuration.
+    _validate_toml_if_possible(CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else "")
     install_runtime_hook()
     merge_hooks_json()
     plugin_hooks_required = codex_requires_legacy_plugin_hooks_gate()

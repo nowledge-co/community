@@ -1684,6 +1684,48 @@ class InstallHookTests(unittest.TestCase):
             "[features\ncodex_hooks = false\n",
         )
 
+    def test_main_rejects_invalid_config_before_any_installation_write(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        original = "[features\nhooks = true\n"
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        with mock.patch.object(self.module, "install_runtime_hook") as runtime, \
+             mock.patch.object(self.module, "merge_hooks_json") as hooks:
+            with self.assertRaises(SystemExit):
+                self.module.main()
+        runtime.assert_not_called()
+        hooks.assert_not_called()
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+        self.assertFalse(self.module.HOOKS_DIR.exists())
+
+    def test_missing_all_toml_parsers_refuses_before_any_installation_write(self):
+        with mock.patch.dict(sys.modules, {"tomllib": None}), \
+             mock.patch.object(self.module.shutil, "which", return_value=None), \
+             mock.patch.object(self.module, "install_runtime_hook") as runtime, \
+             mock.patch.object(self.module, "merge_hooks_json") as hooks:
+            with self.assertRaisesRegex(SystemExit, "Python 3.11"):
+                self.module.main()
+        runtime.assert_not_called()
+        hooks.assert_not_called()
+        self.assertFalse(self.module.CODEX_DIR.exists())
+
+    def test_older_python_parser_uses_isolated_stdin_and_preserves_advisory(self):
+        original = "[features]\nmemories = true\n[memories]\ngenerate_memories = true\n"
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        result = mock.Mock(returncode=0, stdout=json.dumps({
+            "features": {"memories": True}, "memories": {"generate_memories": True}}))
+        stderr = io.StringIO()
+        with mock.patch.dict(sys.modules, {"tomllib": None}), \
+             mock.patch.object(self.module.shutil, "which", return_value="/fixture/python3.11"), \
+             mock.patch.object(self.module.subprocess, "run", return_value=result) as run, \
+             mock.patch.object(self.module.sys, "stderr", stderr):
+            self.module.print_codex_memory_coexistence_guidance()
+        self.assertIn("Allow memory generation from tool-assisted tasks", stderr.getvalue())
+        self.assertEqual(run.call_args.args[0][:3], ["/fixture/python3.11", "-I", "-c"])
+        self.assertEqual(run.call_args.kwargs["input"], original)
+        self.assertNotIn(original, run.call_args.args[0])
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+
     def test_ensure_nowledge_plugin_hook_state_enables_packaged_stop_hook(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.module.CONFIG_FILE.write_text(

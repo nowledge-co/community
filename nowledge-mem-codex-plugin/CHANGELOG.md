@@ -10,6 +10,12 @@
 - Preserve the original operation through uncertain creation or profile-update
   results. A reminder alone never creates an identity or completes maintenance.
 
+### Fixed
+
+- Validate Codex TOML before installing hooks when setup runs on older Python,
+  using an available Python 3.11 or newer parser. Invalid configuration stays
+  unchanged, and the local Memory coexistence notice remains available.
+
 ### Notes
 
 - These changes are an implementation candidate awaiting installed-host
