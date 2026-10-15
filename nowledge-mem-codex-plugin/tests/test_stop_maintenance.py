@@ -811,6 +811,95 @@ class OrdinaryPendingTests(unittest.TestCase):
                 self.assertEqual(result["state"], "unknown")
                 _, retained = self.pending.read_pending()
                 self.assertEqual(retained["operation"]["agent_id"], key)
+                reference = dict(self.reference(), agent_id=key)
+                with mock.patch("nmem_runtime.find_nmem_command", return_value="/opt/nmem"), \
+                     mock.patch.object(self.pending, "_owner_call") as owner, \
+                     mock.patch.object(self.pending, "_context_reference", return_value=reference):
+                    recovered = self.pending.ordinary_request({"action": "recover", "item_id": item["item_id"],
+                        "expected_context_revision": reference["revision"]})
+                    self.assertEqual(recovered["state"], "recovered_selection")
+                    self.assertFalse(recovered["original_completion"])
+                    owner.assert_not_called()
+                with self.pending._store() as connection:
+                    final, _ = self.pending._read(connection, item["item_id"])
+                self.assertEqual(final["operation"], retained["operation"])
+
+    def unknown_selection(self):
+        self.assertTrue(self.retain())
+        _, item = self.pending.read_pending()
+        self.pending.ordinary_request({"action": "confirm", "item_id": item["item_id"],
+            "kind": "select", "context_name": "reviewer", "space_id": "default"})
+        with mock.patch("nmem_runtime.find_nmem_command", return_value="/opt/nmem"), \
+             mock.patch.object(self.pending, "_owner_call", return_value=None), \
+             mock.patch.object(self.pending, "_context_reference", return_value=None):
+            result = self.pending.ordinary_request({"action": "select", "item_id": item["item_id"],
+                "agent_id": "agent-reviewer", "expected_context_revision": None})
+        self.assertEqual(result["state"], "unknown")
+        return self.pending.read_pending()[1]
+
+    def test_unknown_selection_recovers_read_only_with_explicit_current_revision(self):
+        original = self.unknown_selection()
+        reference = self.reference()
+        with mock.patch("nmem_runtime.find_nmem_command", return_value="/opt/nmem"), \
+             mock.patch.object(self.pending, "_owner_call") as owner, \
+             mock.patch.object(self.pending, "_context_reference", return_value=reference):
+            result = self.pending.ordinary_request({"action": "recover", "item_id": original["item_id"],
+                "expected_context_revision": reference["revision"]})
+            owner.assert_not_called()
+        self.assertEqual(result["state"], "recovered_selection")
+        self.assertIs(result["original_completion"], False)
+        with self.pending._store() as connection:
+            recovered, _ = self.pending._read(connection, original["item_id"])
+        self.assertEqual(recovered["operation"], original["operation"])
+        self.assertEqual(recovered["context_reference"], reference)
+        self.assertTrue(self.retain("next-stop"))
+        self.assertNotEqual(self.pending.read_pending()[1]["item_id"], original["item_id"])
+
+    def test_unknown_selection_recovery_rejects_missing_stale_or_foreign_observation(self):
+        original = self.unknown_selection()
+        cases = [(None, {}), (self.reference(), {}),
+                 (self.reference(), {"expected_context_revision": None}),
+                 (self.reference(), {"expected_context_revision": "a" * 64})]
+        for key, value in (("name", "foreign"), ("agent_id", "foreign"), ("space_id", "foreign")):
+            reference = dict(self.reference(), **{key: value})
+            cases.append((reference, {"expected_context_revision": reference["revision"]}))
+        for reference, fields in cases:
+            with self.subTest(reference=reference, fields=fields), \
+                 mock.patch("nmem_runtime.find_nmem_command", return_value="/opt/nmem"), \
+                 mock.patch.object(self.pending, "_owner_call") as owner, \
+                 mock.patch.object(self.pending, "_context_reference", return_value=reference):
+                result = self.pending.ordinary_request(dict(action="recover", item_id=original["item_id"], **fields))
+                self.assertEqual(result["state"], "unknown")
+                self.assertFalse(result["original_completion"])
+                owner.assert_not_called()
+                self.assertEqual(self.pending.read_pending()[1], original)
+
+    def test_unknown_selection_recovery_preserves_known_binding_and_failed_cas(self):
+        self.unknown_selection()
+        with self.pending._store() as connection:
+            item, generation = self.pending._read(connection)
+        reference = self.reference()
+        for key in ("destination_id", "scope_digest", "birth_digest"):
+            item["operation"][key] = reference[key]
+        self.assertTrue(self.pending._update(item["item_id"], generation, item))
+        for key in ("destination_id", "scope_digest", "birth_digest", None):
+            observed = dict(reference)
+            if key:
+                observed[key] = "f" * 64
+            with self.subTest(axis=key), \
+                 mock.patch("nmem_runtime.find_nmem_command", return_value="/opt/nmem"), \
+                 mock.patch.object(self.pending, "_owner_call") as owner, \
+                 mock.patch.object(self.pending, "_context_reference", return_value=observed):
+                if key is None:
+                    with mock.patch.object(self.pending, "_update", return_value=False):
+                        result = self.pending.ordinary_request({"action": "recover", "item_id": item["item_id"],
+                            "expected_context_revision": reference["revision"]})
+                else:
+                    result = self.pending.ordinary_request({"action": "recover", "item_id": item["item_id"],
+                        "expected_context_revision": reference["revision"]})
+                self.assertEqual(result["state"], "unknown")
+                owner.assert_not_called()
+                self.assertEqual(self.pending.read_pending()[1], item)
 
     def test_whole_live_selection_must_match_local_owner_record(self):
         shown = self.shown()

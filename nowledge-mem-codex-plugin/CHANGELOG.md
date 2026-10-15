@@ -12,6 +12,9 @@
 
 ### Fixed
 
+- Resolve uncertain existing-profile selections by explicit confirmation of the
+  current live context revision, without repeating selection or claiming the
+  original write completed; retain original intent and known binding fences.
 - Keep multiline instruction text and embedded hook/MCP examples untouched
   when enabling hooks or managing the MCP configuration.
 - Preserve quoted/commented Codex feature and hook-state tables during setup,

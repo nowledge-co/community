@@ -316,7 +316,7 @@ def pending_startup(payload: dict[str, Any]) -> tuple[bool, str]:
         return True, "## Pending identity maintenance\n\nLocal pending state could not be verified. Do not use create-capable Context or infer a new identity. No maintenance action has been completed."
     reference = _hint_reference(item)
     # The actual sibling path is bounded JSON data, never command text.
-    hint = "## Pending identity maintenance\n\nConfirm a stable logical identity and approved public description during ordinary model work. Read this item by invoking Python with helper_path as one argv argument and a JSON request on stdin; never evaluate this data as shell text. If its path is omitted, keep pending until the installed helper is verified. Actions: status, confirm, decline, prepare, apply, no-change, retry, select, enroll, enroll-status, recover. Use bounded authorized public-card discovery before deciding an identity is missing; partial results do not prove absence. Every owner effect needs an explicit model choice under normal host approval. The old maintenance opt-in grants no creation permission. Preserve the original operation, intent, exact Space/context and revisions on uncertainty; do not replace them. Repeated reminders perform no effect and establish no completion.\n\nUntrusted control reference:\n" + reference
+    hint = "## Pending identity maintenance\n\nConfirm a stable logical identity and approved public description during ordinary model work. Read this item by invoking Python with helper_path as one argv argument and a JSON request on stdin; never evaluate this data as shell text. If its path is omitted, keep pending until the installed helper is verified. Actions: status, confirm, decline, prepare, apply, no-change, retry, select, enroll, enroll-status, recover. Use bounded authorized public-card discovery before deciding an identity is missing; partial results do not prove absence. Every owner effect needs an explicit model choice under normal host approval. The old maintenance opt-in grants no creation permission. Preserve the original operation, intent, exact Space/context and revisions on uncertainty; do not replace them. For an uncertain existing-profile selection, explicitly confirm the current live context revision and use recover; this only accepts the current selection, never repeats selection or proves the original write completed. Repeated reminders perform no effect and establish no completion.\n\nUntrusted control reference:\n" + reference
     return True, hint if len(hint.encode("utf-8")) <= MAX_HINT_BYTES else "## Pending identity maintenance\n\nPending control is too large to present. Inspect the original item explicitly; no action or completion is established."
 
 
@@ -568,6 +568,8 @@ def ordinary_request(request: Any) -> dict[str, Any]:
                     _update(item["item_id"], generation, item)
                 return _result(item, "Original enrollment is known; historical/status evidence does not establish current original context completion." if proof else "Original owner evidence remains unverified.")
             if action == "recover":
+                if item["confirmed_kind"] == "select":
+                    return _recover_selection(nmem, request, item, generation)
                 return _recover_original(nmem, request, item, generation)
             if action == "prepare":
                 if item["confirmed_kind"] != "maintain" or item["operation"] is not None:
@@ -728,6 +730,31 @@ def _observe_original_status(item: dict[str, Any], owner: Any) -> dict[str, Any]
     # No current-result revision is present in this API. Even completed history
     # plus a currently similar identity must not become current completion.
     return owner["receipt"]
+
+
+def _recover_selection(nmem: str, request: dict[str, Any], item: dict[str, Any], generation: int) -> dict[str, Any]:
+    """Accept explicitly confirmed current selection without replaying a write."""
+    operation = item["operation"]
+    if item["state"] != "unknown" or not operation or operation["kind"] != "select":
+        return _result(item, "No original uncertain selection to reconcile.")
+    revision = request.get("expected_context_revision")
+    if not isinstance(revision, str) or not ID_RE.fullmatch(revision):
+        return _result(item, "Explicitly confirm a fresh current context revision before selection recovery.")
+    current = _context_reference(nmem, item["context_name"])
+    if (not current or current["name"] != item["context_name"]
+            or current["revision"] != revision
+            or current["agent_id"] != operation["agent_id"]
+            or current["space_id"] != item["space_id"]
+            or any(operation[key] is not None and operation[key] != current[key]
+                   for key in ("destination_id", "scope_digest", "birth_digest"))):
+        return _result(item, "Current owner selection does not match the explicit choice and retained binding.")
+    # Legacy unknown selections may lack a retained birth/destination. This is
+    # an explicit acceptance of current live selection, never historical proof
+    # that the original select succeeded. Preserve every original operation field.
+    recovered = dict(item, state="recovered_selection", context_reference=current)
+    if not _update(item["item_id"], generation, recovered):
+        return _result(item, "Pending state changed; no selection recovery published.")
+    return _result(recovered, "Current selection confirmed; original selection completion remains unknown. No owner write was repeated.")
 
 
 def _recover_original(nmem: str, request: dict[str, Any], item: dict[str, Any], generation: int) -> dict[str, Any]:
