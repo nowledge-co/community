@@ -1519,6 +1519,47 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn("statusMessage", stop[1]["hooks"][0])
         self.assertNotIn("/old/nmem-stop-save.py", json.dumps(stop))
 
+    def test_feature_writer_preserves_table_text_inside_multiline_strings(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        for delimiter in ('"' * 3, "'" * 3):
+            for real_table in (False, True):
+                with self.subTest(delimiter=delimiter, real_table=real_table):
+                    instructions = 'developer_instructions = ' + delimiter + '\n[features]\nhooks = false\n' + delimiter + '\n'
+                    original = instructions + ('[features]\nhooks = false\n' if real_table else '')
+                    self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+                    self.module.ensure_codex_hooks_enabled()
+                    updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+                    self.assertTrue(updated.startswith(instructions))
+                    parsed = self.module._parse_codex_toml(updated)
+                    self.assertIs(parsed["features"]["hooks"], True)
+                    self.assertIs(parsed["features"]["plugin_hooks"], True)
+
+    def test_hook_and_mcp_writers_preserve_multiline_configuration_examples(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        key = self.module.PLUGIN_HOOK_STATE_KEYS[0]
+        header = self.module._hook_state_section_header(key)
+        for delimiter in ('"' * 3, "'" * 3):
+            with self.subTest(delimiter=delimiter):
+                instructions = ('developer_instructions = ' + delimiter + '\n'
+                                + header + '\nenabled = false\n'
+                                + self.module.MCP_MANAGED_BEGIN + '\n'
+                                + '[mcp_servers.nowledge-mem]\ncommand = "example"\n'
+                                + self.module.MCP_MANAGED_END + '\n' + delimiter + '\n')
+                original = instructions + header + '\nenabled = false\n'
+                self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+                self.module.ensure_nowledge_plugin_hook_state_enabled()
+                updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+                self.assertTrue(updated.startswith(instructions))
+                self.assertIn(header + '\nenabled = true', updated[len(instructions):])
+                self.assertTrue(self.module._install_mcp_config_from_payload({
+                    "rendered": '[mcp_servers.nowledge-mem]\ncommand = "nmem"',
+                    "apiKeyConfigured": False,
+                }))
+                final = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+                self.assertTrue(final.startswith(instructions))
+                self.assertIn('command = "nmem"', final[len(instructions):])
+                self.module._validate_toml_if_possible(final)
+
     def test_feature_writer_accepts_equivalent_headers_and_keys(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         for header in ('["features"]', "['features']", '[features] # existing features'):

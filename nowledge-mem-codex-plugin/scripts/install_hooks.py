@@ -253,6 +253,47 @@ def _validate_toml_if_possible(text: str) -> None:
         ) from error
 
 
+def _toml_structural_lines(lines: list[str]) -> set[int]:
+    """Exclude multiline string contents from table/key/comment editing."""
+    structural = set()
+    multiline = None
+    for index, line in enumerate(lines):
+        if multiline is None:
+            structural.add(index)
+        position = 0
+        quote = None
+        while position < len(line):
+            if multiline is not None:
+                if multiline == '"' * 3 and line[position] == "\\":
+                    position += 2
+                elif line.startswith(multiline, position):
+                    position += 3
+                    multiline = None
+                else:
+                    position += 1
+            elif quote is not None:
+                if quote == '"' and line[position] == "\\":
+                    position += 2
+                elif line[position] == quote:
+                    position += 1
+                    quote = None
+                else:
+                    position += 1
+            elif line[position] == "#":
+                break
+            elif line[position] in ("'", '"'):
+                quote = line[position]
+                if line.startswith(quote * 3, position):
+                    multiline = quote * 3
+                    quote = None
+                    position += 3
+                else:
+                    position += 1
+            else:
+                position += 1
+    return structural
+
+
 def _table_header_key(line: str) -> tuple[str, ...] | None:
     """Recognize equivalent table spellings without rewriting user comments."""
     stripped = line.strip()
@@ -280,8 +321,9 @@ def _section_bounds(lines: list[str], section_header: str) -> tuple[int | None, 
     section_start = None
     section_end = len(lines)
 
+    structural = _toml_structural_lines(lines)
     for index, line in enumerate(lines):
-        if _table_header_key(line) == _table_header_key(section_header):
+        if index in structural and _table_header_key(line) == _table_header_key(section_header):
             section_start = index
             break
 
@@ -290,7 +332,7 @@ def _section_bounds(lines: list[str], section_header: str) -> tuple[int | None, 
 
     for index in range(section_start + 1, len(lines)):
         stripped = lines[index].strip()
-        if TOML_SECTION_HEADER_RE.match(stripped):
+        if index in structural and TOML_SECTION_HEADER_RE.match(stripped):
             section_end = index
             break
 
@@ -354,7 +396,10 @@ def ensure_codex_hooks_enabled(*, plugin_hooks_required: bool = True) -> None:
         has_hooks_key = False
         has_plugin_hooks_key = False
         codex_hooks_index = None
+        structural = _toml_structural_lines(lines)
         for index in range(features_start + 1, features_end):
+            if index not in structural:
+                continue
             stripped = lines[index].strip()
             if CODEX_HOOKS_NEW_KEY_RE.match(stripped):
                 lines[index] = "hooks = true"
@@ -402,8 +447,9 @@ def _ensure_enabled_key(lines: list[str], section_header: str) -> list[str]:
         lines.extend([section_header, "enabled = true"])
         return lines
 
+    structural = _toml_structural_lines(lines)
     for index in range(section_start + 1, section_end):
-        if TOML_ENABLED_KEY_RE.match(lines[index].strip()):
+        if index in structural and TOML_ENABLED_KEY_RE.match(lines[index].strip()):
             lines[index] = "enabled = true"
             return lines
 
@@ -481,7 +527,10 @@ def _load_codex_mcp_payload() -> dict | None:
 
 def _has_existing_unmanaged_nowledge_mcp(lines: list[str]) -> bool:
     in_managed = False
-    for line in lines:
+    structural = _toml_structural_lines(lines)
+    for index, line in enumerate(lines):
+        if index not in structural:
+            continue
         stripped = line.strip()
         if stripped == MCP_MANAGED_BEGIN:
             in_managed = True
@@ -499,12 +548,13 @@ def _remove_managed_mcp_block(lines: list[str]) -> tuple[list[str], bool, bool]:
     removed = False
     index = 0
 
+    structural = _toml_structural_lines(lines)
     while index < len(lines):
         line = lines[index]
-        if line.strip() == MCP_MANAGED_BEGIN:
+        if index in structural and line.strip() == MCP_MANAGED_BEGIN:
             end_index = None
             for candidate in range(index + 1, len(lines)):
-                if lines[candidate].strip() == MCP_MANAGED_END:
+                if candidate in structural and lines[candidate].strip() == MCP_MANAGED_END:
                     end_index = candidate
                     break
             if end_index is None:

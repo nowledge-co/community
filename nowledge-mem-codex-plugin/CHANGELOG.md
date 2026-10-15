@@ -12,6 +12,8 @@
 
 ### Fixed
 
+- Keep multiline instruction text and embedded hook/MCP examples untouched
+  when enabling hooks or managing the MCP configuration.
 - Preserve quoted/commented Codex feature and hook-state tables during setup,
   and validate generated TOML before replacing the user config. Unsupported
   rewrites fail without corrupting the original config.
