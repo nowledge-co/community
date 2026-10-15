@@ -38,10 +38,10 @@ SOURCE_STOP_MAINTENANCE = PLUGIN_ROOT / "hooks" / "nmem_stop_maintenance.py"
 INSTALLED_STOP_MAINTENANCE = HOOKS_DIR / "nmem_stop_maintenance.py"
 SOURCE_PENDING = PLUGIN_ROOT / "hooks" / "nmem_pending.py"
 INSTALLED_PENDING = HOOKS_DIR / "nmem_pending.py"
-CODEX_HOOKS_KEY_RE = re.compile(r"^\s*codex_hooks\s*=")
-CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*hooks\s*=")
-CODEX_PLUGIN_HOOKS_KEY_RE = re.compile(r"^\s*plugin_hooks\s*=")
-TOML_ENABLED_KEY_RE = re.compile(r"^\s*enabled\s*=")
+CODEX_HOOKS_KEY_RE = re.compile(r"^\s*(?:codex_hooks|\"codex_hooks\"|'codex_hooks')\s*=")
+CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*(?:hooks|\"hooks\"|'hooks')\s*=")
+CODEX_PLUGIN_HOOKS_KEY_RE = re.compile(r"^\s*(?:plugin_hooks|\"plugin_hooks\"|'plugin_hooks')\s*=")
+TOML_ENABLED_KEY_RE = re.compile(r"^\s*(?:enabled|\"enabled\"|'enabled')\s*=")
 NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
 PLUGIN_HOOK_STATE_KEYS = (
     "nowledge-mem@nowledge-community:hooks/hooks.json:session_start:0:0",
@@ -253,12 +253,35 @@ def _validate_toml_if_possible(text: str) -> None:
         ) from error
 
 
+def _table_header_key(line: str) -> tuple[str, ...] | None:
+    """Recognize equivalent table spellings without rewriting user comments."""
+    stripped = line.strip()
+    if not TOML_SECTION_HEADER_RE.fullmatch(stripped) or stripped.startswith("[["):
+        return None
+    # The header regexp validates the whole line, including any trailing comment.
+    header = re.match(rf"^\[\s*({TOML_KEY_SEGMENT}(?:\s*\.\s*{TOML_KEY_SEGMENT})*)\s*\]", stripped)
+    assert header is not None
+    tokens = re.findall(TOML_KEY_SEGMENT, header.group(1))
+    result = []
+    for token in tokens:
+        if token.startswith('"'):
+            try:
+                result.append(json.loads(token))
+            except ValueError:
+                return None
+        elif token.startswith("'"):
+            result.append(token[1:-1])
+        else:
+            result.append(token)
+    return tuple(result)
+
+
 def _section_bounds(lines: list[str], section_header: str) -> tuple[int | None, int]:
     section_start = None
     section_end = len(lines)
 
     for index, line in enumerate(lines):
-        if line.strip() == section_header:
+        if _table_header_key(line) == _table_header_key(section_header):
             section_start = index
             break
 
@@ -363,10 +386,7 @@ def ensure_codex_hooks_enabled(*, plugin_hooks_required: bool = True) -> None:
             for line in reversed(missing_feature_lines):
                 lines.insert(insert_at, line)
 
-    updated = "\n".join(lines)
-    if updated and not updated.endswith("\n"):
-        updated += "\n"
-    CONFIG_FILE.write_text(updated, encoding="utf-8")
+    _write_codex_config_lines(lines, restrict_permissions=False)
 
 
 def _hook_state_section_header(key: str) -> str:

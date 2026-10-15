@@ -12,6 +12,9 @@
 
 ### Fixed
 
+- Preserve quoted/commented Codex feature and hook-state tables during setup,
+  and validate generated TOML before replacing the user config. Unsupported
+  rewrites fail without corrupting the original config.
 - Validate Codex TOML before installing hooks when setup runs on older Python,
   using an available Python 3.11 or newer parser. Invalid configuration stays
   unchanged, and the local Memory coexistence notice remains available.

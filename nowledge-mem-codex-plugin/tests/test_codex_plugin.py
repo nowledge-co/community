@@ -1519,6 +1519,39 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn("statusMessage", stop[1]["hooks"][0])
         self.assertNotIn("/old/nmem-stop-save.py", json.dumps(stop))
 
+    def test_feature_writer_accepts_equivalent_headers_and_keys(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        for header in ('["features"]', "['features']", '[features] # existing features'):
+            with self.subTest(header=header):
+                original = header + '\n"hooks" = false\n\'plugin_hooks\' = false\n'
+                self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+                self.module.ensure_codex_hooks_enabled()
+                updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+                parsed = self.module._parse_codex_toml(updated)
+                self.assertIs(parsed["features"]["hooks"], True)
+                self.assertIs(parsed["features"]["plugin_hooks"], True)
+                self.assertIn(header, updated)
+
+    def test_feature_writer_refuses_unsupported_rewrite_without_corruption(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        original = 'features = { hooks = false }\n'
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            self.module.ensure_codex_hooks_enabled()
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+        self.module._parse_codex_toml(original)
+
+    def test_hook_state_writer_accepts_equivalent_table_and_enabled_key(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        key = self.module.PLUGIN_HOOK_STATE_KEYS[0]
+        header = '["hooks" . state . ' + json.dumps(key) + '] # existing state'
+        original = header + '\n"enabled" = false\n'
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        self.module.ensure_nowledge_plugin_hook_state_enabled()
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+        self.module._validate_toml_if_possible(updated)
+        self.assertIn(header + '\nenabled = true', updated)
+
     def test_ensure_codex_hooks_enabled_only_changes_features_section(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.module.CONFIG_FILE.write_text(
