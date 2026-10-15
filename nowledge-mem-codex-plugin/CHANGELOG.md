@@ -12,6 +12,8 @@
 
 ### Fixed
 
+- Show a minimal pending-status request and Python 3 guidance at startup so
+  agents can inspect the original item without guessing the request format.
 - Resolve uncertain existing-profile selections by explicit confirmation of the
   current live context revision, without repeating selection or claiming the
   original write completed; retain original intent and known binding fences.

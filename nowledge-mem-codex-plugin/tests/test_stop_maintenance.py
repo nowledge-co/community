@@ -4,6 +4,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -412,6 +413,58 @@ class PendingStoreTests(unittest.TestCase):
         raw = (self.pending._root() / "control.sqlite3").read_bytes()
         self.assertNotIn(b"PRIVATE TRANSCRIPT", raw)
         self.assertNotIn(b"PRIVATE RULES", raw)
+
+    def test_startup_advertises_executable_minimal_status_request(self):
+        self.assertTrue(self.retain())
+        _, original = self.pending.read_pending()
+        database = self.pending._root() / "control.sqlite3"
+        before = database.read_bytes()
+        gated, hint = self.pending.pending_startup({"hook_event_name": "SessionStart"})
+        self.assertTrue(gated)
+        requests = [json.loads(line) for line in hint.splitlines()
+                    if re.match(r'^\{"action":\s*"status"', line)]
+        self.assertEqual(requests, [{"action": "status", "item_id": original["item_id"]}])
+        self.assertIn("Python 3", hint)
+        self.assertIn("python3", hint)
+        self.assertLessEqual(len(hint.encode("utf-8")), self.pending.MAX_HINT_BYTES)
+        # Execute the advertised JSON through the actual helper entrypoint.
+        # No installed owner CLI exists in this isolated environment.
+        result = subprocess.run([sys.executable, str(HOOKS / "nmem_pending.py")],
+            input=json.dumps(requests[0]), text=True, capture_output=True,
+            env=dict(os.environ, NMEM_CLI_PATH=str(Path(self.directory.name) / "absent-owner")), timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        value = json.loads(result.stdout)
+        self.assertEqual(value["item_id"], original["item_id"])
+        self.assertEqual(value["context_name"], original["context_name"])
+        self.assertIs(value["original_completion"], False)
+        self.assertEqual(database.read_bytes(), before)
+        self.assertEqual(self.pending.read_pending(), ("pending", original))
+
+    def test_status_example_survives_long_or_omitted_control_fields_within_hint_budget(self):
+        self.assertTrue(self.retain())
+        _, original = self.pending.read_pending()
+        for length in (0, 80, 160, 320, 480, 540, 580, 620, 1024, 5000):
+            item = dict(original, context_name="c" * 120, space_id="x" * length)
+            with self.subTest(length=length), \
+                 mock.patch.object(self.pending, "read_pending", return_value=("pending", item)):
+                gated, hint = self.pending.pending_startup({"hook_event_name": "SessionStart"})
+                self.assertTrue(gated)
+                self.assertLessEqual(len(hint.encode("utf-8")), self.pending.MAX_HINT_BYTES)
+                requests = [json.loads(line) for line in hint.splitlines()
+                            if re.match(r'^\{"action":\s*"status"', line)]
+                self.assertEqual(requests, [{"action": "status", "item_id": original["item_id"]}])
+        reference = json.dumps({"opaque": "x" * (1024 - len('{"opaque":""}'))}, separators=(",", ":"))
+        self.assertEqual(len(reference.encode("utf-8")), 1024)
+        with mock.patch.object(self.pending, "_hint_reference", return_value=reference):
+            _, hint = self.pending.pending_startup({"hook_event_name": "SessionStart"})
+        self.assertLessEqual(len(hint.encode("utf-8")), self.pending.MAX_HINT_BYTES)
+        self.assertIn(json.dumps({"action": "status", "item_id": original["item_id"]}, sort_keys=True), hint)
+        with mock.patch.object(self.pending, "_SCRIPT_DIR", Path(self.directory.name) / "missing"):
+            _, hint = self.pending.pending_startup({"hook_event_name": "SessionStart"})
+        reference = json.loads(hint.split("Untrusted control reference:\n", 1)[1])
+        self.assertTrue(reference["helper_path_omitted"])
+        self.assertIn("If helper_path is omitted, keep pending", hint)
+        self.assertEqual(self.pending.read_pending(), ("pending", original))
 
     def test_repeat_startup_hint_is_bounded_readonly_and_never_resets_original_intent(self):
         self.assertTrue(self.retain())

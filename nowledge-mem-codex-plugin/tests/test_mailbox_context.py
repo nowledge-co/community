@@ -140,7 +140,12 @@ class MailboxContextTests(unittest.TestCase):
                      mock.patch.object(HOOK, "_write_hook_response") as write:
                     self.assertEqual(HOOK.main(payload), 0)
                 load.assert_not_called()
-                self.assertIn("Pending identity maintenance", write.call_args.args[1])
+                rendered = write.call_args.args[1]
+                self.assertIn("Pending identity maintenance", rendered)
+                requests = [json.loads(line) for line in rendered.splitlines()
+                            if line.startswith('{"action": "status"')]
+                item = nmem_pending.read_pending()[1]
+                self.assertEqual(requests, [{"action": "status", "item_id": item["item_id"]}])
 
     def test_sparse_or_malformed_typed_selection_never_admits_mailbox_or_background_read(self):
         os.environ["NMEM_AGENT_CONTEXT"] = "reviewer"
