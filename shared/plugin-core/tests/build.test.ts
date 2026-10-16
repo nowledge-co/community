@@ -10,7 +10,7 @@ test("generated modules are reproducible and stale or extra files fail closed", 
   for (const content of output.values()) assert.equal(content.includes("\r\n"), false);
   assert.deepEqual(await buildCore(), output);
   const manifest = JSON.parse(output.get("manifest.json")!);
-  assert.equal(manifest.core.version, "0.1.0");
+  assert.equal(manifest.core.version, "0.2.0");
   for (const [name, hash] of Object.entries(manifest.files)) assert.equal(sha256(output.get(name)!), hash);
   const directory = await mkdtemp(join(tmpdir(), "nmem-core-freshness-"));
   try {

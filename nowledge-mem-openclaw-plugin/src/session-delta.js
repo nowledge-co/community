@@ -1,4 +1,14 @@
 import { createHash } from "node:crypto";
+import {
+	createAcknowledgedRemoteCount,
+	prefixFingerprint as corePrefixFingerprint,
+} from "./generated/plugin-core/index.js";
+
+export {
+	isCheckpointConflictResponse,
+	isCheckpointedAppendAck,
+	isThreadAppendAck,
+} from "./generated/plugin-core/index.js";
 
 export function sessionSyncLaneKey(threadId, apiUrl, apiKey, spaceId) {
 	const destination = createHash("sha256")
@@ -24,54 +34,27 @@ export function prefixFingerprint(
 	end,
 	messageFingerprint = stableMessageFingerprint,
 ) {
-	const hash = createHash("sha256");
-	for (const message of messages.slice(0, end)) {
-		const value = messageFingerprint(message);
-		hash.update(String(Buffer.byteLength(value)));
-		hash.update(":");
-		hash.update(value);
-	}
-	return hash.digest("hex");
-}
-
-export function isThreadAppendAck(data) {
-	return (
-		data !== null &&
-		typeof data === "object" &&
-		data.success === true &&
-		Number.isInteger(data.messages_added) &&
-		data.messages_added >= 0 &&
-		Number.isInteger(data.total_messages) &&
-		data.total_messages >= 0
-	);
+	return corePrefixFingerprint(messages, end, messageFingerprint);
 }
 
 export function threadCreateAck(data, expectedThreadId) {
 	if (data === null || typeof data !== "object") return null;
 	const thread =
-		data.thread !== null && typeof data.thread === "object" ? data.thread : data;
+		data.thread !== null && typeof data.thread === "object"
+			? data.thread
+			: data;
 	const threadId = String(thread.thread_id ?? "").trim();
-	const totalMessages = thread.message_count ?? thread.total_messages;
-	if (
-		threadId !== String(expectedThreadId || "").trim() ||
-		!Number.isInteger(totalMessages) ||
-		totalMessages < 0
-	) {
-		return null;
-	}
-	return { threadId, totalMessages };
-}
-
-export function isCheckpointedAppendAck(data) {
-	return isThreadAppendAck(data) && data.append_mode === "checkpointed";
-}
-
-export function isCheckpointConflictResponse(data) {
-	return (
-		data !== null &&
-		typeof data === "object" &&
-		data.error_code === "checkpoint_conflict"
+	const totalMessages = createAcknowledgedRemoteCount(
+		{
+			thread: {
+				thread_id: threadId,
+				message_count: thread.message_count ?? thread.total_messages,
+			},
+		},
+		String(expectedThreadId || "").trim(),
 	);
+	if (totalMessages === undefined) return null;
+	return { threadId, totalMessages };
 }
 
 export function selectSnapshotDelta(
@@ -102,9 +85,7 @@ export function selectSnapshotDelta(
 		};
 	}
 	const acknowledgedPrefix =
-		start >= 0
-			? prefixFingerprint(messages, start, messageFingerprint)
-			: "";
+		start >= 0 ? prefixFingerprint(messages, start, messageFingerprint) : "";
 	const fingerprintTrusted = Boolean(cursor?.prefixFingerprint);
 	const externalIdTrusted = Boolean(cursor?.lastExternalId);
 	if (
@@ -134,7 +115,13 @@ export function selectSnapshotDelta(
 	};
 }
 
-export function contentBoundIdempotencyKey(prefix, threadId, start, end, fingerprint) {
+export function contentBoundIdempotencyKey(
+	prefix,
+	threadId,
+	start,
+	end,
+	fingerprint,
+) {
 	return `${prefix}:${threadId}:${start}-${end}:${fingerprint}`;
 }
 

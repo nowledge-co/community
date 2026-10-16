@@ -25,7 +25,7 @@ test("standalone npm payloads contain the reviewed core and reject receipt tampe
       writeFileSync(packPath, output);
       const sourceSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
       const receipt = releaseReceipt(consumer.id, packPath, sourceSha);
-      assert.equal(receipt.coreManifest.core.version, "0.1.0");
+      assert.equal(receipt.coreManifest.core.version, "0.2.0");
       const receiptPath = join(directory, "core-receipt.json");
       writeFileSync(receiptPath, JSON.stringify(receipt));
       const receiptScript = join(repositoryRoot, "shared/plugin-core/scripts/receipt.ts");
@@ -65,6 +65,22 @@ test("standalone npm payloads contain the reviewed core and reject receipt tampe
             if (!events.includes(${JSON.stringify(dependent === "step-code" ? "agent_settled" : "agent_end")})) throw new Error("Missing dependent lifecycle");
           `], { env: { ...process.env, HOME: directory, USERPROFILE: directory } });
         }
+      } else if (consumer.id === "openclaw") {
+        const entry = await import(pathToFileURL(join(installed, "src/index.js")).href);
+        assert.equal(entry.default.id, "openclaw-nowledge-mem");
+        assert.equal(typeof entry.default.register, "function");
+        const adapter = await import(pathToFileURL(join(installed, "src/session-delta.js")).href);
+        assert.equal(adapter.threadCreateAck({ thread_id: "target", message_count: 2 }, "target").totalMessages, 2);
+        assert.equal(adapter.isThreadAppendAck({ success: true, messages_added: 1, total_messages: 2 ** 53 }), false);
+        const clawPath = join(directory, "clawhub-pack.json");
+        const clawPack = { name: pack.name, version: pack.version,
+          path: `/original-run/${pack.filename}`, npmIntegrity: pack.integrity, sha256: receipt.artifact.sha256 };
+        writeFileSync(clawPath, JSON.stringify(clawPack));
+        assert.deepEqual(releaseReceipt(consumer.id, clawPath, sourceSha), receipt);
+        execFileSync(process.execPath, [receiptScript, consumer.id, clawPath, sourceSha]);
+        execFileSync(process.execPath, [receiptScript, "--verify", consumer.id, clawPath, sourceSha]);
+        writeFileSync(clawPath, JSON.stringify({ ...clawPack, sha256: "0".repeat(64) }));
+        assert.throws(() => releaseReceipt(consumer.id, clawPath, sourceSha), /ClawHub artifact SHA256/);
       } else {
         // OpenCode's host SDK remains external; the bundle must not import the core.
         const isolated = await build({ entryPoints: [join(installed, "dist/index.js")], bundle: true,

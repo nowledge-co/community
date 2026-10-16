@@ -481,8 +481,8 @@ def test_key_plugin_static_contracts_are_declared():
     openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
     openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
-    assert openclaw_manifest["version"] == "0.8.36"
-    assert openclaw_pkg["version"] == "0.8.36"
+    assert openclaw_manifest["version"] == "0.8.37"
+    assert openclaw_pkg["version"] == "0.8.37"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
     assert openclaw_manifest["contracts"]["tools"] == [
         "memory_search",
@@ -535,7 +535,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.4.4"
+    assert opencode_pkg["version"] == "0.4.5"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -745,7 +745,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.12"
+    assert pi_pkg["version"] == "0.8.13"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "scripts/sync-history.mjs"
@@ -1541,11 +1541,11 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
     assert by_id["droid"]["version"] == "0.1.2"
-    assert by_id["openclaw"]["version"] == "0.8.36"
+    assert by_id["openclaw"]["version"] == "0.8.37"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.4.4"
+    assert by_id["opencode"]["version"] == "0.4.5"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
-    assert by_id["pi"]["version"] == "0.8.12"
+    assert by_id["pi"]["version"] == "0.8.13"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["grok-bot"]["version"] is None
@@ -1884,7 +1884,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.4.4"
+    assert pkg["version"] == "0.4.5"
     assert opencode_registry["version"] == pkg["version"]
     assert 'from "./generated/plugin-core/index.js"' in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source
@@ -1927,7 +1927,7 @@ def test_amp_plugin_static_contract_is_self_contained():
 
     # Package manifest and registry entry agree on the basics.
     assert pkg["name"] == "amp-nowledge-mem"
-    assert pkg["version"] == "0.1.5"
+    assert pkg["version"] == "0.1.6"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.ts"
     assert "@ampcode/plugin" in pkg["peerDependencies"]
@@ -2332,7 +2332,7 @@ def test_pi_thread_sync_timeout_contract():
     readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pi_pkg["version"] == "0.8.12"
+    assert pi_pkg["version"] == "0.8.13"
     assert pi_registry["version"] == pi_pkg["version"]
     assert 'from "./generated/plugin-core/index.js"' in extension
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension

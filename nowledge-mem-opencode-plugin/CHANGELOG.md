@@ -1,5 +1,11 @@
 # Changelog
 
+
+## [0.4.5] - 2026-10-16
+
+- Embed shared TypeScript core 0.2.0, including the shared prefix-hashing API.
+- Refresh the embedded content manifest for the expanded consumer set.
+
 ## [0.4.4] - 2026-10-13
 
 - Return one structured schema-v1 Context Bundle representation to the model,

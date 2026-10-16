@@ -160,7 +160,7 @@ and verifies its integrity against the published version and latest tag.
 
 ### Embedded shared core
 
-OpenCode and Pi embed the private [TypeScript core](../shared/plugin-core/README.md)
+OpenCode, Pi, and OpenClaw embed the private [TypeScript core](../shared/plugin-core/README.md)
 in their own artifacts. Shared-source changes trigger all core consumers,
 including Pi's OMP and Step Code wrappers. Build and freshness checks run before
 packing; installation does not fetch the core or run a compiler.
@@ -171,6 +171,13 @@ version, embedded content manifest, and exact tarball hashes. Verification-only
 recovery checks that original receipt and payload without rebuilding or upload
 credentials. Older releases without an embedded core retain their existing
 receipt contract.
+
+OpenClaw's npm and ClawHub releases each retain their own original tarball,
+pack metadata, and `core-receipt.json`. The ClawHub receipt verifies its pinned
+CLI's pack object and SHA-256 as well as npm-format integrity. A receipt from
+one channel is not evidence for the other. npm verification-only recovery uses
+the reviewed source's consumer list so older OpenClaw artifacts without an
+embedded core keep their earlier contract.
 
 Amp uses the same embedded core through Git/copy installation. Its package
 manifest is not an npm publishing contract. Validate the copied entrypoint and

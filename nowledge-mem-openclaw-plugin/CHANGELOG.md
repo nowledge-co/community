@@ -4,6 +4,15 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.37] - 2026-10-16
+
+- Embed shared TypeScript core 0.2.0, including the shared prefix-hashing API.
+- Reuse shared persistence acknowledgements and sync timeouts while retaining
+  OpenClaw message projection, compaction-shrink handling, legacy cursors, and
+  response-shape normalization. Reject unsafe acknowledgement counts.
+- Retain embedded-core receipts for both npm and ClawHub artifacts.
+
+
 ## [0.8.36] - 2026-10-11
 
 ### Fixed
