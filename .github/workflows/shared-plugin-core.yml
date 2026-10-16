@@ -7,6 +7,7 @@ on:
       - "nowledge-mem-opencode-plugin/**"
       - "nowledge-mem-pi-package/**"
       - "nowledge-mem-amp-plugin/**"
+      - "nowledge-mem-openclaw-plugin/**"
       - "nowledge-mem-omp-plugin/**"
       - "nowledge-mem-step-code/**"
       - "integrations.json"
@@ -19,6 +20,7 @@ on:
       - "nowledge-mem-opencode-plugin/**"
       - "nowledge-mem-pi-package/**"
       - "nowledge-mem-amp-plugin/**"
+      - "nowledge-mem-openclaw-plugin/**"
       - "nowledge-mem-omp-plugin/**"
       - "nowledge-mem-step-code/**"
       - "integrations.json"
@@ -48,9 +50,18 @@ jobs:
       - run: npm --prefix shared/plugin-core run check
       - run: npm --prefix nowledge-mem-opencode-plugin ci --ignore-scripts
       - run: node --test nowledge-mem-opencode-plugin/tests/context-bundle.test.mjs
+      - run: node --test nowledge-mem-openclaw-plugin/tests/session-delta.test.mjs
       - run: npm --prefix nowledge-mem-opencode-plugin run check
       - run: git diff --exit-code -- nowledge-mem-opencode-plugin/dist/index.js
       - run: npm --prefix shared/plugin-core run test:artifacts
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pytest
+      - name: Check affected integration metadata and adapter contracts
+        run: >-
+          python -m pytest tests/plugin_e2e/test_key_plugins_e2e.py -q
+          -k "opencode_plugin_static_contract or opencode_thread_sync_timeout_contract or amp_plugin_static_contract or pi_thread_sync_timeout_contract"
   amp:
     runs-on: ubuntu-latest
     steps:

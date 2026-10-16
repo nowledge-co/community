@@ -1,10 +1,21 @@
 # Shared Plugin Core Specification
 
-Status: Phase-one implementation proposed; publication and live host acceptance pending
+Status: Phase one merged; phase-two OpenClaw adoption proposed; publication and live host acceptance remain separate
 
-Date: 2026-10-11
+Date: 2026-10-16
 
 Inspected Community baseline: `d6e546efe17c9ba48291a67356c4be6f7a7883a8`
+
+Phase-two baseline: `b868af865262ac2e9f469bb62f6b8223c22ea846`.
+
+Phase two adds OpenClaw as a direct consumer of core `0.2.0`. It shares prefix
+hashing, safe persistence-count validation, and sync timeout parsing. Its
+snapshot selector remains host-owned: shortened snapshots re-anchor locally
+without replaying pre-compaction history, and legacy count-only cursors remain
+supported. Its flat/nested create responses and count aliases are normalized
+in the adapter before using the shared create-acknowledgement check. Both npm
+and ClawHub artifacts receive independent core receipts. Existing consumers
+refresh embedded manifests and patch plugin versions in the same change.
 
 ## 1. Decision
 
@@ -237,6 +248,7 @@ Proposed destinations:
 | OpenCode | `src/generated/plugin-core/` | Core bundled into existing `dist/index.js`; content manifest included in npm files. |
 | Pi | `extensions/generated/plugin-core/` | JavaScript, declarations, module metadata, and content manifest included in the npm tarball. |
 | Amp | `src/generated/plugin-core/` | Same files committed beside the adapter and included by Git/copy installation. |
+| OpenClaw | `src/generated/plugin-core/` | ESM, declarations, and manifest included in both npm and ClawHub tarballs; compaction and cursor compatibility remain in the adapter. |
 
 Commit generated consumer files so checkout-based installs remain usable without
 build tools. Generated files carry a regeneration notice and must never be edited
@@ -323,6 +335,7 @@ that protect installer, metadata, privacy, or exposed-tool contracts.
 | --- | --- | --- |
 | OpenCode | `publish-opencode.yml` | Build/check the embedded core before existing bundle validation and packing; retain bundle freshness checks. |
 | Pi | `publish-npm-plugins.yml`, selector `pi` | Add explicit core generation/check before tests and packing; current pack flow does not supply this build step. |
+| OpenClaw | `publish-npm-plugins.yml`, selector `openclaw`; `publish-clawhub.yml` | Check generated core, then retain each channel's original tarball, pack metadata, and core receipt. |
 | Amp | Git Personal Plugins and local copy installer | Commit generated payload; verify copied folder and manifest. Do not add Amp to npm publishing solely because it has `package.json`. |
 | OMP | `publish-npm-plugins.yml`, selector `omp` | Qualify its resolved Pi release with the existing wrapper; no direct core embedding yet. |
 

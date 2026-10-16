@@ -78,6 +78,9 @@ async function main() {
     "RELEASING.md",
     "src/index.js",
     "src/config.js",
+    "src/generated/plugin-core/index.js",
+    "src/generated/plugin-core/manifest.json",
+    "src/generated/plugin-core/package.json",
     "src/hooks/recall.js",
     "skills/memory-guide/SKILL.md",
   ]) {

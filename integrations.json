@@ -989,7 +989,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.36",
+      "version": "0.8.37",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1005,7 +1005,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Plugin captures interactive sessions through Context Engine afterTurn and, when plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true, agent_end as a safety net. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron, subagent, and OpenClaw 2.0 Incognito session keys are excluded from automatic capture. Memory tools still use nmem CLI."
+        "note": "Plugin captures interactive sessions through Context Engine afterTurn and, when plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true, agent_end as a safety net. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron, subagent, and OpenClaw 2.0 Incognito session keys are excluded from automatic capture. Memory tools still use nmem CLI. Sync acknowledgements, prefix hashing, and timeout parsing use the embedded shared TypeScript core; OpenClaw compaction and legacy cursor compatibility remain host-owned."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -1147,7 +1147,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.12",
+      "version": "0.8.13",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1359,7 +1359,7 @@
       "name": "Amp",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-amp-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1422,7 +1422,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.4.4",
+      "version": "0.4.5",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {

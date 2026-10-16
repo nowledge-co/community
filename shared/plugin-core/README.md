@@ -1,7 +1,9 @@
 # Internal plugin core
 
 This private TypeScript package owns acknowledged snapshot selection, persistence
-acknowledgement validation, and bounded thread-sync timeout parsing. Host IDs,
+acknowledgement validation, shared UTF-8 prefix hashing, and bounded thread-sync
+timeout parsing. OpenClaw uses hashing, acknowledgements, and timeouts while
+retaining its compaction-shrink and legacy-cursor selection rules. Host IDs,
 destination keys, SDK lifecycle, transport, recovery, and cursor persistence stay
 in each connector. File-backed capture uses `nmem`.
 
@@ -42,3 +44,11 @@ Artifact checks use disposable directories and host API doubles. They prove
 packaging and adapter registration, not acceptance by a live host or Mem backend.
 Pi's OMP and Step Code wrappers are loaded against the newly packed Pi payload
 with Jiti 2.7, the loader dependency of the inspected Pi SDK 1.1.0 package.
+
+OpenClaw's npm tarball is loaded from an isolated directory, including its real
+entrypoint and adapted sync helpers. The existing ClawHub preview job packs with
+the pinned CLI and checks the same embedded-core receipt against the real
+ClawPack. `receipt.ts` accepts npm's pack array or ClawHub 0.23.3's pack object;
+both formats retain the original tarball beside their pack metadata. Absolute
+ClawHub source paths are reduced to the retained artifact filename, and both
+SHA-512 integrity and ClawHub SHA-256 are checked.

@@ -76,11 +76,11 @@ jobs:
             *) artifact=receipt/pack.json ;;
           esac
           if [ -f release-source/shared/plugin-core/consumers.json ]; then
-            case "$RELEASE_PLUGIN" in
-              opencode|pi)
-                node verifier/shared/plugin-core/scripts/receipt.ts --verify "$RELEASE_PLUGIN" \
-                  "$artifact" "$RELEASE_COMMIT" "$PWD/release-source" ;;
-            esac
+            embedded=$(node -e 'const fs = require("node:fs"); const config = JSON.parse(fs.readFileSync("release-source/shared/plugin-core/consumers.json")); process.stdout.write(String(config.consumers.some(entry => entry.id === process.env.RELEASE_PLUGIN)))')
+            if [ "$embedded" = true ]; then
+              node verifier/shared/plugin-core/scripts/receipt.ts --verify "$RELEASE_PLUGIN" \
+                "$artifact" "$RELEASE_COMMIT" "$PWD/release-source"
+            fi
           fi
           python verifier/scripts/plugin-release.py verify "$RELEASE_PLUGIN" "$RELEASE_VERSION" \
             --root release-source --artifact "$artifact"
