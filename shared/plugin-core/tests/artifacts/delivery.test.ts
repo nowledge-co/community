@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,7 +15,7 @@ if (!npmCli) throw new Error("Run artifact checks through npm run test:artifacts
 const jitiLoader = pathToFileURL(resolve(repositoryRoot, "shared/plugin-core/node_modules/jiti/lib/jiti.mjs")).href;
 
 test("standalone npm payloads contain the reviewed core and reject receipt tampering", async () => {
-  for (const consumer of consumers().filter(entry => entry.id !== "amp")) {
+  for (const consumer of consumers().filter(entry => !["amp", "alma"].includes(entry.id))) {
     const directory = mkdtempSync(join(tmpdir(), "nmem-core-artifact-"));
     try {
       const output = execFileSync(process.execPath, [npmCli, "pack", "--ignore-scripts", "--json", "--cache", join(directory, "npm-cache"), "--pack-destination", directory], {
@@ -105,6 +106,48 @@ test("standalone npm payloads contain the reviewed core and reject receipt tampe
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
+  }
+});
+
+test("Alma's complete marketplace folder loads without the parent checkout or development dependencies", () => {
+  const consumer = consumers().find(entry => entry.id === "alma")!;
+  const directory = mkdtempSync(join(tmpdir(), "nmem-alma-delivery-"));
+  try {
+    const installed = join(directory, "nowledge-mem");
+    cpSync(join(repositoryRoot, consumer.directory), installed, {
+      recursive: true,
+      filter: path => !path.split(/[\\/]/).includes("node_modules") && !path.endsWith(".tgz"),
+    });
+    const manifest = JSON.parse(readFileSync(join(installed, consumer.generatedDirectory, "manifest.json"), "utf8"));
+    const metadata = JSON.parse(readFileSync(join(installed, "manifest.json"), "utf8"));
+    const packageMetadata = JSON.parse(readFileSync(join(installed, "package.json"), "utf8"));
+    assert.equal(packageMetadata.version, metadata.version);
+    assert.equal(manifest.core.version, "0.2.0");
+    for (const [name, expected] of Object.entries(manifest.files)) {
+      const bytes = readFileSync(join(installed, consumer.generatedDirectory, name));
+      assert.equal(createHash("sha256").update(bytes).digest("hex"), expected);
+    }
+    execFileSync(process.execPath, ["--input-type=module", "-e", `
+      import assert from "node:assert/strict";
+      globalThis.fetch = () => { throw new Error("Artifact loading must not contact a backend"); };
+      const entry = await import(${JSON.stringify(pathToFileURL(join(installed, "main.js")).href)});
+      const adapter = await import(${JSON.stringify(pathToFileURL(join(installed, "session-delta.js")).href)});
+      assert.equal(adapter.isThreadAppendAck({success: true, messages_added: 1, total_messages: 2 ** 53}), false);
+      const tools = []; const events = [];
+      const plugin = await entry.activate({
+        storagePath: ${JSON.stringify(join(directory, "storage"))},
+        logger: {info() {}, warn() {}, error() {}, debug() {}},
+        settings: {get(key) {return {"nowledgeMem.recallPolicy": "off", "nowledgeMem.apiUrl": "https://artifact.invalid", "nowledgeMem.apiKey": "synthetic"}[key]}},
+        tools: {register(name) {tools.push(name); return {dispose() {}}}},
+        events: {on(name) {events.push(name); return {dispose() {}}}},
+      });
+      assert.deepEqual(tools.sort(), ${JSON.stringify(metadata.contributes.tools.map((tool: { id: string }) => tool.id).sort())});
+      assert.ok(events.includes("chat.message.didReceive"));
+      assert.ok(events.includes("thread.activated"));
+      await plugin.dispose();
+    `], { env: { ...process.env, HOME: directory, USERPROFILE: directory } });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
   }
 });
 

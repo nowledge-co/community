@@ -23,7 +23,7 @@ export function consumers(root = repositoryRoot): Consumer[] {
     if (!integration || integration.directory !== consumer.directory || seen.has(consumer.id)) {
       throw new Error(`Invalid or duplicate core consumer: ${consumer.id}`);
     }
-    if (!/^(src|extensions)\/generated\/plugin-core$/.test(consumer.generatedDirectory)) {
+    if (!/^(?:(src|extensions)\/)?generated\/plugin-core$/.test(consumer.generatedDirectory)) {
       throw new Error(`Invalid generated directory: ${consumer.generatedDirectory}`);
     }
     const destination = resolve(root, consumer.directory, consumer.generatedDirectory);

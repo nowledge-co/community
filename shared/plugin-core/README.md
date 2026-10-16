@@ -7,6 +7,13 @@ retaining its compaction-shrink and legacy-cursor selection rules. Host IDs,
 destination keys, SDK lifecycle, transport, recovery, and cursor persistence stay
 in each connector. File-backed capture uses `nmem`.
 
+Alma shares snapshot selection, hashing, append acknowledgements, and timeouts.
+Its adapter retains role/content fingerprints and fills only absent legacy
+anchors before selection; any supplied anchor is still checked. It keeps its
+assistant-complete flush planning, strict create-response validation, outbox,
+HTTP delivery, and lifecycle. Invalid local counts and unsafe append counts
+cannot establish a trusted checkpoint.
+
 See [the spec](../../docs/SHARED_PLUGIN_CORE_SPEC.md) for boundaries and delivery.
 The Node 24 requirement here applies to build and test tooling. Generated ESM
 targets ES2022 and has no dependency on this package at installation time.
@@ -52,3 +59,9 @@ ClawPack. `receipt.ts` accepts npm's pack array or ClawHub 0.23.3's pack object;
 both formats retain the original tarball beside their pack metadata. Absolute
 ClawHub source paths are reduced to the retained artifact filename, and both
 SHA-512 integrity and ClawHub SHA-256 are checked.
+
+Alma's marketplace delivery is a complete plugin folder, not an npm package.
+Artifact checks copy that folder without development dependencies, verify its
+embedded hashes, and activate its real entrypoint against an isolated host
+double. The external marketplace synchronization happens after the Community
+source merges, following the publishing runbook.

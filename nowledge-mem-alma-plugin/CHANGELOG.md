@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.7.8] - 2026-10-17
+
+- Reuse embedded TypeScript core 0.2.0 for snapshot selection, prefix hashing, append acknowledgements, and sync timeouts.
+- Preserve role/content fingerprints, count-only and partially anchored cursors, assistant-complete flushes, routing, outbox, and lifecycle behavior.
+- Reject unsafe append acknowledgement counts and reconcile invalid local cursor counts.
+- Ship generated ESM with the plugin; installation needs no compiler or public core dependency.
+
 ## [0.7.7] - 2026-10-11
 
 ### Fixed
