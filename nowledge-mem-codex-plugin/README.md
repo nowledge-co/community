@@ -70,15 +70,27 @@ is also set, it must match the validated canonical selector; aliases or Space
 names not verified by this check require explicit configuration reconciliation.
 No hook selects, recovers, enrolls, claims, acknowledges or sends mail.
 
-To opt an already enrolled profile into one bounded review at the end of each
-turn, also set `NMEM_AGENT_PROFILE_MAINTENANCE=1`. On the first Stop, the hook
-revalidates the named context and asks Codex to choose exactly one
-revision-fenced action: update only description, responsibilities, and
-registered Skill references, or record no change. The recursive Stop ends
-normally. Missing profiles are not created, and any unsupported CLI/backend,
-timeout, malformed or oversized response, selector conflict, or command failure
-fails open without a save claim. Both the packaged hook and the installed
-fallback share a local continuation guard so only one prompt is emitted.
+To save pending profile work at the end of each turn, also set
+`NMEM_AGENT_PROFILE_MAINTENANCE=1`. Stop records a small local reference and ends
+normally. It performs no identity/profile backend work and does not ask Codex
+to continue. Packaged and installed fallback hooks share original-turn
+admission; recursive Stop adds no pending work. Transcript capture remains
+independent.
+
+Each eligible start may show unfinished work again, including repeated starts
+in the same session. The reminder itself neither confirms an operation nor
+changes its result. In an ordinary turn, the model must confirm a meaningful
+public-profile update or separately confirm a missing identity's create-only
+enrollment. The maintenance flag alone grants no creation permission. See
+[pending maintenance](docs/pending-maintenance.md) for the owner commands and
+recovery contract.
+
+Existing-profile updates require maintenance version 2 and retain its complete
+prepared revision and original patch. Creation retry uses the original
+operation ID and retained CLI intent. Unavailable owners, ambiguous decisions,
+conflicts and uncertain responses keep the work unresolved; do not prepare a
+replacement revision or create another operation to hide uncertainty. No
+pending operation edits Rules or acknowledges mail.
 
 At natural start/resume, handoff and pre-completion boundaries, the model checks
 the approved context. Ordinary `nmem --agent-context <name> ...` calls preserve
@@ -225,7 +237,9 @@ if ($null -eq $HookSetup) {
 }
 ```
 
-This enables Codex lifecycle hooks, adds the legacy plugin-hook gate only on hosts that still expose it, keeps the Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks enabled in `/hooks`, then installs a small host-level Stop fallback for Codex builds that still need `~/.codex/hooks.json`. SessionStart injects Context Bundle automatically. SubagentStart uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` role allowlist, which defaults to `planner,code-reviewer,architect,researcher`: selected roles receive a bounded snapshot, `explorer` receives no Mem prompt, and other roles receive retrieval routing without a context read. Setting the variable replaces this default, and an empty value disables full Context Bundle injection. UserPromptSubmit keeps cross-tool and exact-history work routed to Nowledge search, and Stop shells out to `nmem t save --from codex`; the explicit profile-maintenance opt-in above adds one bounded continuation after capture. Local mode and remote Mem mode use the same `nmem` client configuration. If both bundled and host-level Stop hooks are visible, the hook runtime suppresses both the duplicate save for the same transcript state and duplicate maintenance continuation for the same turn/profile revision.
+Setup needs a Python 3.11 or newer TOML parser. If the setup command uses an older Python, it looks for a supported interpreter on `PATH` (or through the Windows Python launcher). If none is available, setup stops before installing hooks or changing configuration. Run setup with Python 3.11 or newer to continue. Invalid existing TOML is refused rather than rewritten.
+
+This enables Codex lifecycle hooks, adds the legacy plugin-hook gate only on hosts that still expose it, keeps the Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks enabled in `/hooks`, then installs a small host-level Stop fallback for Codex builds that still need `~/.codex/hooks.json`. SessionStart injects Context Bundle automatically. SubagentStart uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` role allowlist, which defaults to `planner,code-reviewer,architect,researcher`: selected roles receive a bounded snapshot, `explorer` receives no Mem prompt, and other roles receive retrieval routing without a context read. Setting the variable replaces this default, and an empty value disables full Context Bundle injection. UserPromptSubmit keeps cross-tool and exact-history work routed to Nowledge search, and Stop shells out to `nmem t save --from codex`; the explicit profile-maintenance opt-in above records a pending maintenance item and lets Stop finish normally. On hosts with an enabled and trusted SessionStart hook, every eligible startup displays the unresolved item. The model must explicitly confirm any create or update operation. Local mode and remote Mem mode use the same `nmem` client configuration. If both bundled and host-level Stop hooks are visible, the hook runtime suppresses duplicate saves for the same transcript state and uses the original turn to admit one pending item. Repeated startup reminders do not create a new item or operation.
 
 Codex reports `agent_type` as the spawned agent's role, not its task name. Current built-in roles are `default`, `explorer`, and `worker`; use those role values, or the names of custom roles, when overriding `NMEM_SUBAGENT_CONTEXT_TYPES`.
 With stock roles, the default policy therefore performs no full Context Bundle

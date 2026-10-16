@@ -1447,9 +1447,39 @@ class InstallHookTests(unittest.TestCase):
         self.module.INSTALLED_SKILL_OUTCOME = self.module.HOOKS_DIR / "skill_outcome.py"
         self.module.INSTALLED_NMEM_RUNTIME = self.module.HOOKS_DIR / "nmem_runtime.py"
         self.module.INSTALLED_STOP_MAINTENANCE = self.module.HOOKS_DIR / "nmem_stop_maintenance.py"
+        self.module.INSTALLED_PENDING = self.module.HOOKS_DIR / "nmem_pending.py"
 
     def tearDown(self):
         self.temp_dir.cleanup()
+
+    def test_actual_installed_pending_helper_hint_path_with_spaces_accepts_original_status_request(self):
+        profile = self.temp_path / "profile with spaces ' $(false)"
+        self.module.HOOKS_DIR = profile / "hooks"
+        for name, filename in (("INSTALLED_HOOK", "nowledge-mem-stop-save.py"),
+                ("INSTALLED_SKILL_OUTCOME", "skill_outcome.py"), ("INSTALLED_NMEM_RUNTIME", "nmem_runtime.py"),
+                ("INSTALLED_STOP_MAINTENANCE", "nmem_stop_maintenance.py"), ("INSTALLED_PENDING", "nmem_pending.py")):
+            setattr(self.module, name, self.module.HOOKS_DIR / filename)
+        self.module.install_runtime_hook()
+        environment = dict(os.environ, CODEX_HOME=str(profile), NMEM_AGENT_PROFILE_MAINTENANCE="1")
+        environment.pop("NMEM_AGENT_CONTEXT", None)
+        code = "import sys,json;sys.path.insert(0,sys.argv[1]);import nmem_pending;assert nmem_pending.retain_stop({'hook_event_name':'Stop','stop_hook_active':False,'turn_id':'original-install-turn'});print(json.dumps(nmem_pending.pending_startup({'hook_event_name':'SessionStart'})))"
+        hint = subprocess.run([sys.executable, "-c", code, str(self.module.HOOKS_DIR)],
+                              env=environment, capture_output=True, text=True, timeout=10)
+        self.assertEqual(hint.returncode, 0, hint.stderr)
+        gate, text = json.loads(hint.stdout)
+        self.assertTrue(gate)
+        self.assertLessEqual(len(text.encode("utf-8")), 2048)
+        reference = json.loads(text.split("Untrusted control reference:\n", 1)[1])
+        self.assertIn("helper_path", reference)
+        self.assertEqual(Path(reference["helper_path"]), self.module.INSTALLED_PENDING.resolve())
+        request = {"action": "status", "item_id": reference["item_id"]}
+        result = subprocess.run([sys.executable, reference["helper_path"]], input=json.dumps(request),
+                                env=environment, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertEqual(output["item_id"], reference["item_id"])
+        self.assertEqual(output["state"], "pending")
+        self.assertFalse(output["original_completion"])
 
     def test_load_json_recovers_from_malformed_json(self):
         self.module.GLOBAL_HOOKS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -1488,6 +1518,80 @@ class InstallHookTests(unittest.TestCase):
         self.assertEqual(stop[1]["hooks"][0]["timeout"], 15)
         self.assertIn("statusMessage", stop[1]["hooks"][0])
         self.assertNotIn("/old/nmem-stop-save.py", json.dumps(stop))
+
+    def test_feature_writer_preserves_table_text_inside_multiline_strings(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        for delimiter in ('"' * 3, "'" * 3):
+            for real_table in (False, True):
+                with self.subTest(delimiter=delimiter, real_table=real_table):
+                    instructions = 'developer_instructions = ' + delimiter + '\n[features]\nhooks = false\n' + delimiter + '\n'
+                    original = instructions + ('[features]\nhooks = false\n' if real_table else '')
+                    self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+                    self.module.ensure_codex_hooks_enabled()
+                    updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+                    self.assertTrue(updated.startswith(instructions))
+                    parsed = self.module._parse_codex_toml(updated)
+                    self.assertIs(parsed["features"]["hooks"], True)
+                    self.assertIs(parsed["features"]["plugin_hooks"], True)
+
+    def test_hook_and_mcp_writers_preserve_multiline_configuration_examples(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        key = self.module.PLUGIN_HOOK_STATE_KEYS[0]
+        header = self.module._hook_state_section_header(key)
+        for delimiter in ('"' * 3, "'" * 3):
+            with self.subTest(delimiter=delimiter):
+                instructions = ('developer_instructions = ' + delimiter + '\n'
+                                + header + '\nenabled = false\n'
+                                + self.module.MCP_MANAGED_BEGIN + '\n'
+                                + '[mcp_servers.nowledge-mem]\ncommand = "example"\n'
+                                + self.module.MCP_MANAGED_END + '\n' + delimiter + '\n')
+                original = instructions + header + '\nenabled = false\n'
+                self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+                self.module.ensure_nowledge_plugin_hook_state_enabled()
+                updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+                self.assertTrue(updated.startswith(instructions))
+                self.assertIn(header + '\nenabled = true', updated[len(instructions):])
+                self.assertTrue(self.module._install_mcp_config_from_payload({
+                    "rendered": '[mcp_servers.nowledge-mem]\ncommand = "nmem"',
+                    "apiKeyConfigured": False,
+                }))
+                final = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+                self.assertTrue(final.startswith(instructions))
+                self.assertIn('command = "nmem"', final[len(instructions):])
+                self.module._validate_toml_if_possible(final)
+
+    def test_feature_writer_accepts_equivalent_headers_and_keys(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        for header in ('["features"]', "['features']", '[features] # existing features'):
+            with self.subTest(header=header):
+                original = header + '\n"hooks" = false\n\'plugin_hooks\' = false\n'
+                self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+                self.module.ensure_codex_hooks_enabled()
+                updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+                parsed = self.module._parse_codex_toml(updated)
+                self.assertIs(parsed["features"]["hooks"], True)
+                self.assertIs(parsed["features"]["plugin_hooks"], True)
+                self.assertIn(header, updated)
+
+    def test_feature_writer_refuses_unsupported_rewrite_without_corruption(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        original = 'features = { hooks = false }\n'
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            self.module.ensure_codex_hooks_enabled()
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+        self.module._parse_codex_toml(original)
+
+    def test_hook_state_writer_accepts_equivalent_table_and_enabled_key(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        key = self.module.PLUGIN_HOOK_STATE_KEYS[0]
+        header = '["hooks" . state . ' + json.dumps(key) + '] # existing state'
+        original = header + '\n"enabled" = false\n'
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        self.module.ensure_nowledge_plugin_hook_state_enabled()
+        updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
+        self.module._validate_toml_if_possible(updated)
+        self.assertIn(header + '\nenabled = true', updated)
 
     def test_ensure_codex_hooks_enabled_only_changes_features_section(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -1654,6 +1758,48 @@ class InstallHookTests(unittest.TestCase):
             "[features\ncodex_hooks = false\n",
         )
 
+    def test_main_rejects_invalid_config_before_any_installation_write(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        original = "[features\nhooks = true\n"
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        with mock.patch.object(self.module, "install_runtime_hook") as runtime, \
+             mock.patch.object(self.module, "merge_hooks_json") as hooks:
+            with self.assertRaises(SystemExit):
+                self.module.main()
+        runtime.assert_not_called()
+        hooks.assert_not_called()
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+        self.assertFalse(self.module.HOOKS_DIR.exists())
+
+    def test_missing_all_toml_parsers_refuses_before_any_installation_write(self):
+        with mock.patch.dict(sys.modules, {"tomllib": None}), \
+             mock.patch.object(self.module.shutil, "which", return_value=None), \
+             mock.patch.object(self.module, "install_runtime_hook") as runtime, \
+             mock.patch.object(self.module, "merge_hooks_json") as hooks:
+            with self.assertRaisesRegex(SystemExit, "Python 3.11"):
+                self.module.main()
+        runtime.assert_not_called()
+        hooks.assert_not_called()
+        self.assertFalse(self.module.CODEX_DIR.exists())
+
+    def test_older_python_parser_uses_isolated_stdin_and_preserves_advisory(self):
+        original = "[features]\nmemories = true\n[memories]\ngenerate_memories = true\n"
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        result = mock.Mock(returncode=0, stdout=json.dumps({
+            "features": {"memories": True}, "memories": {"generate_memories": True}}))
+        stderr = io.StringIO()
+        with mock.patch.dict(sys.modules, {"tomllib": None}), \
+             mock.patch.object(self.module.shutil, "which", return_value="/fixture/python3.11"), \
+             mock.patch.object(self.module.subprocess, "run", return_value=result) as run, \
+             mock.patch.object(self.module.sys, "stderr", stderr):
+            self.module.print_codex_memory_coexistence_guidance()
+        self.assertIn("Allow memory generation from tool-assisted tasks", stderr.getvalue())
+        self.assertEqual(run.call_args.args[0][:3], ["/fixture/python3.11", "-I", "-c"])
+        self.assertEqual(run.call_args.kwargs["input"], original)
+        self.assertNotIn(original, run.call_args.args[0])
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+
     def test_ensure_nowledge_plugin_hook_state_enables_packaged_stop_hook(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.module.CONFIG_FILE.write_text(
@@ -1753,6 +1899,8 @@ class InstallHookTests(unittest.TestCase):
         )
         self.assertTrue(self.module.INSTALLED_NMEM_RUNTIME.exists())
         self.assertTrue(self.module.INSTALLED_STOP_MAINTENANCE.exists())
+        self.assertTrue(self.module.INSTALLED_PENDING.exists())
+        self.assertEqual(self.module.INSTALLED_PENDING.read_bytes(), self.module.SOURCE_PENDING.read_bytes())
         self.assertIn(
             "Bounded existing-profile maintenance",
             self.module.INSTALLED_STOP_MAINTENANCE.read_text(),

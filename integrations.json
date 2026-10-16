@@ -456,7 +456,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.40",
+      "version": "0.1.41",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -489,7 +489,7 @@
           "Restart Codex and trust the new or changed Nowledge Mem hooks when prompted; enabled and trusted are separate Codex security states",
           "If Codex local Memory is also enabled, turn off Allow memory generation from tool-assisted tasks so MCP and web results do not get copied into Codex's separate local memory store",
           "Use the bundled local MCP server, or use nmem config mcp show --host codex to override mcp_servers.nowledge-mem for remote Mem or authenticated localhost",
-          "Optional local mailbox guidance requires explicit NMEM_AGENT_CONTEXT, a compatible CLI/backend and an independently approved context; when NMEM_CLI_PATH is set, both hooks and model-issued CLI calls must use that executable rather than another nmem from PATH; NMEM_AGENT_PROFILE_MAINTENANCE=1 separately opts an existing live profile into one bounded revision-fenced Stop review and never creates an identity, edits Rules, settles mail or controls hosts automatically",
+          "Optional local mailbox guidance requires explicit NMEM_AGENT_CONTEXT, a compatible CLI/backend and an independently approved context; when NMEM_CLI_PATH is set, both hooks and model-issued CLI calls must use that executable rather than another nmem from PATH; NMEM_AGENT_PROFILE_MAINTENANCE=1 saves pending profile work at Stop and allows repeated reminders on later starts. Read pending status with a verified Python 3 interpreter and JSON containing only action=status and the original item_id. The model must confirm any ordinary-turn update or create-only enrollment; the flag alone never authorizes identity creation, Rules edits, mailbox settlement or host control",
           "Keep nmem available on this machine",
           "Run nmem t sync --from codex --all-projects --apply only when you want to import older Codex sessions",
           "Merge the package AGENTS.md into the project for stronger follow-through"
@@ -508,7 +508,7 @@
       },
       "toolNaming": {
         "convention": "hybrid-cli+mcp",
-        "note": "SessionStart injects the Nowledge Context Bundle. SubagentStart uses an exact Codex role allowlist: selected context-heavy roles receive a bounded snapshot, explorer is a no-op by default, and other roles receive targeted retrieval guidance without a context read. UserPromptSubmit keeps cross-tool/exact-history work routed to Nowledge even when Codex local Memory is enabled. The search-memory skill routes bounded Normal, Deep, and one-hop Progressive graph retrieval, and non-empty Memory results get a focused graph through the inline MCP App or standalone fallback. Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. Thread retrieval searches first and reads at most one targeted message slice per question; it never walks offsets to reconstruct a conversation or raises content limits to work around slow reads. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and skips Raft-managed execution traces by structured session originator without affecting normal Codex sessions on the same computer. Existing-profile maintenance is a separate bounded, duplicate-guarded apply-or-no-change continuation; it exits normally on recursive Stop and does not create an identity. The save-thread skill remains the explicit fallback."
+        "note": "SessionStart injects the Nowledge Context Bundle when safe; a pending identity confirmation suppresses create-capable context bootstrap. SubagentStart uses an exact Codex role allowlist: selected context-heavy roles receive a bounded snapshot, explorer is a no-op by default, and other roles receive targeted retrieval guidance without a context read. UserPromptSubmit keeps cross-tool/exact-history work routed to Nowledge even when Codex local Memory is enabled. The search-memory skill routes bounded Normal, Deep, and one-hop Progressive graph retrieval, and non-empty Memory results get a focused graph through the inline MCP App or standalone fallback. Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. Thread retrieval searches first and reads at most one targeted message slice per question; it never walks offsets to reconstruct a conversation or raises content limits to work around slow reads. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and skips Raft-managed execution traces by structured session originator without affecting normal Codex sessions on the same computer. Optional identity/profile work is saved as pending at normal Stop, with bounded read-only reminders on every eligible start. Confirmation and owner operations occur in an ordinary model turn; reminders alone never create or update a profile. The save-thread skill remains the explicit fallback."
       },
       "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "explore-graph", "status"],
       "slashCommands": []

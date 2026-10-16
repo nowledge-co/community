@@ -36,10 +36,12 @@ SOURCE_NMEM_RUNTIME = PLUGIN_ROOT / "hooks" / "nmem_runtime.py"
 INSTALLED_NMEM_RUNTIME = HOOKS_DIR / "nmem_runtime.py"
 SOURCE_STOP_MAINTENANCE = PLUGIN_ROOT / "hooks" / "nmem_stop_maintenance.py"
 INSTALLED_STOP_MAINTENANCE = HOOKS_DIR / "nmem_stop_maintenance.py"
-CODEX_HOOKS_KEY_RE = re.compile(r"^\s*codex_hooks\s*=")
-CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*hooks\s*=")
-CODEX_PLUGIN_HOOKS_KEY_RE = re.compile(r"^\s*plugin_hooks\s*=")
-TOML_ENABLED_KEY_RE = re.compile(r"^\s*enabled\s*=")
+SOURCE_PENDING = PLUGIN_ROOT / "hooks" / "nmem_pending.py"
+INSTALLED_PENDING = HOOKS_DIR / "nmem_pending.py"
+CODEX_HOOKS_KEY_RE = re.compile(r"^\s*(?:codex_hooks|\"codex_hooks\"|'codex_hooks')\s*=")
+CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*(?:hooks|\"hooks\"|'hooks')\s*=")
+CODEX_PLUGIN_HOOKS_KEY_RE = re.compile(r"^\s*(?:plugin_hooks|\"plugin_hooks\"|'plugin_hooks')\s*=")
+TOML_ENABLED_KEY_RE = re.compile(r"^\s*(?:enabled|\"enabled\"|'enabled')\s*=")
 NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
 PLUGIN_HOOK_STATE_KEYS = (
     "nowledge-mem@nowledge-community:hooks/hooks.json:session_start:0:0",
@@ -138,6 +140,9 @@ def install_runtime_hook() -> None:
     if not SOURCE_STOP_MAINTENANCE.exists():
         raise SystemExit(f"missing Stop maintenance adapter: {SOURCE_STOP_MAINTENANCE}")
     shutil.copy2(SOURCE_STOP_MAINTENANCE, INSTALLED_STOP_MAINTENANCE)
+    if not SOURCE_PENDING.exists():
+        raise SystemExit(f"missing pending maintenance helper: {SOURCE_PENDING}")
+    shutil.copy2(SOURCE_PENDING, INSTALLED_PENDING)
 
 
 def _quote_for_hook_command(path: Path) -> str:
@@ -188,27 +193,137 @@ def merge_hooks_json() -> None:
     save_json(GLOBAL_HOOKS_FILE, hooks_doc)
 
 
-def _validate_toml_if_possible(text: str) -> None:
-    if not text.strip():
-        return
+def _parse_codex_toml(text: str) -> dict:
+    """Use an actual TOML parser, including when setup runs on older Python."""
     try:
         import tomllib
-
-        tomllib.loads(text)
     except ModuleNotFoundError:
-        return
+        pass
+    else:
+        return tomllib.loads(text)
+
+    # Isolated interpreter mode ignores user-site/PYTHONPATH injection. Config
+    # travels on stdin; only the two advisory sections return, never API keys.
+    reader = (
+        "import sys,json\n"
+        "try: import tomllib\n"
+        "except ImportError: sys.exit(3)\n"
+        "try: config=tomllib.loads(sys.stdin.read())\n"
+        "except tomllib.TOMLDecodeError: sys.exit(2)\n"
+        "json.dump({k:config.get(k) for k in ('features','memories')},sys.stdout,default=str)\n"
+    )
+    commands = []
+    for name in ("python3.14", "python3.13", "python3.12", "python3.11", "python3", "python"):
+        executable = shutil.which(name)
+        if executable and [executable] not in commands:
+            commands.append([executable])
+    launcher = shutil.which("py") if os.name == "nt" else None
+    if launcher:
+        commands.extend([launcher, version] for version in ("-3.14", "-3.13", "-3.12", "-3.11"))
+    for command in commands:
+        try:
+            result = subprocess.run(
+                [*command, "-I", "-c", reader], input=text, capture_output=True,
+                text=True, encoding="utf-8", timeout=5, check=False,
+                **_windows_no_window_kwargs(),
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if result.returncode == 2:
+            raise ValueError("Invalid TOML")
+        if result.returncode == 0:
+            try:
+                parsed = json.loads(result.stdout)
+            except (ValueError, TypeError):
+                continue
+            if isinstance(parsed, dict) and set(parsed) == {"features", "memories"}:
+                return parsed
+    raise SystemExit(
+        "error: setup requires a Python 3.11 or newer TOML parser. "
+        "Run setup with Python 3.11 or newer, or make that interpreter available on PATH."
+    )
+
+
+def _validate_toml_if_possible(text: str) -> None:
+    try:
+        _parse_codex_toml(text)
     except Exception as error:
         raise SystemExit(
             f"error: refusing to modify invalid Codex config.toml: {error}"
         ) from error
 
 
+def _toml_structural_lines(lines: list[str]) -> set[int]:
+    """Exclude multiline string contents from table/key/comment editing."""
+    structural = set()
+    multiline = None
+    for index, line in enumerate(lines):
+        if multiline is None:
+            structural.add(index)
+        position = 0
+        quote = None
+        while position < len(line):
+            if multiline is not None:
+                if multiline == '"' * 3 and line[position] == "\\":
+                    position += 2
+                elif line.startswith(multiline, position):
+                    position += 3
+                    multiline = None
+                else:
+                    position += 1
+            elif quote is not None:
+                if quote == '"' and line[position] == "\\":
+                    position += 2
+                elif line[position] == quote:
+                    position += 1
+                    quote = None
+                else:
+                    position += 1
+            elif line[position] == "#":
+                break
+            elif line[position] in ("'", '"'):
+                quote = line[position]
+                if line.startswith(quote * 3, position):
+                    multiline = quote * 3
+                    quote = None
+                    position += 3
+                else:
+                    position += 1
+            else:
+                position += 1
+    return structural
+
+
+def _table_header_key(line: str) -> tuple[str, ...] | None:
+    """Recognize equivalent table spellings without rewriting user comments."""
+    stripped = line.strip()
+    if not TOML_SECTION_HEADER_RE.fullmatch(stripped) or stripped.startswith("[["):
+        return None
+    # The header regexp validates the whole line, including any trailing comment.
+    header = re.match(rf"^\[\s*({TOML_KEY_SEGMENT}(?:\s*\.\s*{TOML_KEY_SEGMENT})*)\s*\]", stripped)
+    assert header is not None
+    tokens = re.findall(TOML_KEY_SEGMENT, header.group(1))
+    result = []
+    for token in tokens:
+        if token.startswith('"'):
+            try:
+                result.append(json.loads(token))
+            except ValueError:
+                return None
+        elif token.startswith("'"):
+            result.append(token[1:-1])
+        else:
+            result.append(token)
+    return tuple(result)
+
+
 def _section_bounds(lines: list[str], section_header: str) -> tuple[int | None, int]:
     section_start = None
     section_end = len(lines)
 
+    structural = _toml_structural_lines(lines)
     for index, line in enumerate(lines):
-        if line.strip() == section_header:
+        if index in structural and _table_header_key(line) == _table_header_key(section_header):
             section_start = index
             break
 
@@ -217,7 +332,7 @@ def _section_bounds(lines: list[str], section_header: str) -> tuple[int | None, 
 
     for index in range(section_start + 1, len(lines)):
         stripped = lines[index].strip()
-        if TOML_SECTION_HEADER_RE.match(stripped):
+        if index in structural and TOML_SECTION_HEADER_RE.match(stripped):
             section_end = index
             break
 
@@ -281,7 +396,10 @@ def ensure_codex_hooks_enabled(*, plugin_hooks_required: bool = True) -> None:
         has_hooks_key = False
         has_plugin_hooks_key = False
         codex_hooks_index = None
+        structural = _toml_structural_lines(lines)
         for index in range(features_start + 1, features_end):
+            if index not in structural:
+                continue
             stripped = lines[index].strip()
             if CODEX_HOOKS_NEW_KEY_RE.match(stripped):
                 lines[index] = "hooks = true"
@@ -313,10 +431,7 @@ def ensure_codex_hooks_enabled(*, plugin_hooks_required: bool = True) -> None:
             for line in reversed(missing_feature_lines):
                 lines.insert(insert_at, line)
 
-    updated = "\n".join(lines)
-    if updated and not updated.endswith("\n"):
-        updated += "\n"
-    CONFIG_FILE.write_text(updated, encoding="utf-8")
+    _write_codex_config_lines(lines, restrict_permissions=False)
 
 
 def _hook_state_section_header(key: str) -> str:
@@ -332,8 +447,9 @@ def _ensure_enabled_key(lines: list[str], section_header: str) -> list[str]:
         lines.extend([section_header, "enabled = true"])
         return lines
 
+    structural = _toml_structural_lines(lines)
     for index in range(section_start + 1, section_end):
-        if TOML_ENABLED_KEY_RE.match(lines[index].strip()):
+        if index in structural and TOML_ENABLED_KEY_RE.match(lines[index].strip()):
             lines[index] = "enabled = true"
             return lines
 
@@ -411,7 +527,10 @@ def _load_codex_mcp_payload() -> dict | None:
 
 def _has_existing_unmanaged_nowledge_mcp(lines: list[str]) -> bool:
     in_managed = False
-    for line in lines:
+    structural = _toml_structural_lines(lines)
+    for index, line in enumerate(lines):
+        if index not in structural:
+            continue
         stripped = line.strip()
         if stripped == MCP_MANAGED_BEGIN:
             in_managed = True
@@ -429,12 +548,13 @@ def _remove_managed_mcp_block(lines: list[str]) -> tuple[list[str], bool, bool]:
     removed = False
     index = 0
 
+    structural = _toml_structural_lines(lines)
     while index < len(lines):
         line = lines[index]
-        if line.strip() == MCP_MANAGED_BEGIN:
+        if index in structural and line.strip() == MCP_MANAGED_BEGIN:
             end_index = None
             for candidate in range(index + 1, len(lines)):
-                if lines[candidate].strip() == MCP_MANAGED_END:
+                if candidate in structural and lines[candidate].strip() == MCP_MANAGED_END:
                     end_index = candidate
                     break
             if end_index is None:
@@ -546,10 +666,8 @@ def print_codex_memory_coexistence_guidance() -> None:
     if not CONFIG_FILE.exists():
         return
     try:
-        import tomllib
-
-        config = tomllib.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-    except (ModuleNotFoundError, OSError, UnicodeError, ValueError):
+        config = _parse_codex_toml(CONFIG_FILE.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
         return
 
     features = config.get("features")
@@ -577,6 +695,9 @@ def print_codex_memory_coexistence_guidance() -> None:
 
 
 def main() -> int:
+    # Refuse invalid input or an unavailable parser before copying any runtime
+    # hook, creating hook state, or editing the user's configuration.
+    _validate_toml_if_possible(CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else "")
     install_runtime_hook()
     merge_hooks_json()
     plugin_hooks_required = codex_requires_legacy_plugin_hooks_gate()

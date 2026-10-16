@@ -21,7 +21,9 @@ SPEC.loader.exec_module(HOOK)
 
 class MailboxContextTests(unittest.TestCase):
     def setUp(self):
-        self.environment = mock.patch.dict(os.environ, {}, clear=True)
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.environment = mock.patch.dict(os.environ, {"CODEX_HOME": self.directory.name}, clear=True)
         self.environment.start()
         self.addCleanup(self.environment.stop)
 
@@ -31,7 +33,7 @@ class MailboxContextTests(unittest.TestCase):
             "state": "usable",
             "validation": "live",
             "configured": True,
-            "selection": {"scope": {"space_id": "default"}, "address": {"agent_id": "b"}},
+            "selection": {"scope": {"store_id": "fixture-store", "store_incarnation": "fixture-incarnation", "workspace_id": None, "space_id": "default"}, "address": {"agent_id": "b", "identity_birth": "birth-b", "custodian_id": "fixture-owner", "attachment_id": "attachment-b", "attachment_generation": 1}},
         }
         value.update(changes)
         return value
@@ -118,6 +120,88 @@ class MailboxContextTests(unittest.TestCase):
             ), "scoped briefing")
         self.assertEqual(run.call_args.args[0], ["nmem", "--json", "wm", "read", "--space-id", "exact-id"])
         self.assertEqual(run.call_count, 1)
+
+    def test_pending_missing_identity_never_runs_create_capable_startup_context(self):
+        import nmem_pending
+        for event_name, source in (("SessionStart", "startup"), ("SessionStart", "resume"),
+                                   ("SessionStart", "clear"), ("SessionStart", "compact"),
+                                   ("SubagentStart", "planner")):
+            with self.subTest(event=event_name, source=source), \
+                 tempfile.TemporaryDirectory() as directory, \
+                 mock.patch.dict(os.environ, {"CODEX_HOME": directory,
+                                              "NMEM_AGENT_PROFILE_MAINTENANCE": "1",
+                                              "NMEM_AGENT_ID": "not-confirmed"}):
+                self.assertTrue(nmem_pending.retain_stop({"hook_event_name": "Stop",
+                    "stop_hook_active": False, "turn_id": "original-turn"}))
+                payload = {"hook_event_name": event_name, "source": source,
+                           "agent_type": "planner", "session_id": "same-session"}
+                with mock.patch.object(HOOK, "_load_startup_context", return_value="") as load, \
+                     mock.patch.object(HOOK, "_resume_context", return_value=("", False)), \
+                     mock.patch.object(HOOK, "_write_hook_response") as write:
+                    self.assertEqual(HOOK.main(payload), 0)
+                load.assert_not_called()
+                rendered = write.call_args.args[1]
+                self.assertIn("Pending identity maintenance", rendered)
+                requests = [json.loads(line) for line in rendered.splitlines()
+                            if line.startswith('{"action": "status"')]
+                item = nmem_pending.read_pending()[1]
+                self.assertEqual(requests, [{"action": "status", "item_id": item["item_id"]}])
+
+    def test_sparse_or_malformed_typed_selection_never_admits_mailbox_or_background_read(self):
+        os.environ["NMEM_AGENT_CONTEXT"] = "reviewer"
+        changes = [("scope", key, None, True) for key in ("store_id", "store_incarnation", "workspace_id")]
+        changes += [("address", key, None, True) for key in ("identity_birth", "custodian_id", "attachment_id", "attachment_generation")]
+        changes += [("address", "attachment_generation", value, False) for value in (True, 0, -1, 1.5, 1 << 53)]
+        changes += [("scope", "store_id", "invalid\0identifier", False), ("scope", "workspace_id", {}, False),
+                    ("address", "identity_birth", "b" * 129, False), ("address", "agent_id", "Uppercase", False)]
+        for part, key, value, remove in changes:
+            with self.subTest(axis=key, value=value, remove=remove):
+                status = self.status()
+                if remove:
+                    del status["selection"][part][key]
+                else:
+                    status["selection"][part][key] = value
+                context, _ = self.invoke(result=subprocess.CompletedProcess([], 0, json.dumps(status), ""))
+                self.load.assert_not_called()
+                self.assertNotIn("pre-completion", context)
+
+    def test_original_pending_binding_never_repin_by_same_named_live_status(self):
+        import nmem_pending
+        with mock.patch.dict(os.environ, {"NMEM_AGENT_CONTEXT": "reviewer", "NMEM_AGENT_PROFILE_MAINTENANCE": "1"}):
+            self.assertTrue(nmem_pending.retain_stop({"hook_event_name": "Stop", "stop_hook_active": False, "turn_id": "original"}))
+            with nmem_pending._store() as connection:
+                item, generation = nmem_pending._read(connection)
+            item.update(state="prepared", confirmed_kind="maintain", space_id="default",
+                context_reference={"name": "reviewer", "destination_id": "d" * 64, "revision": "c" * 64,
+                    "selection_digest": "e" * 64, "scope_digest": "f" * 64, "birth_digest": "a" * 64,
+                    "agent_id": "b", "space_id": "default"})
+            self.assertTrue(nmem_pending._update(item["item_id"], generation, item))
+            for event in ("SessionStart", "SubagentStart"):
+                with self.subTest(event=event), mock.patch.dict(os.environ, {"NMEM_SUBAGENT_CONTEXT_TYPES": "worker"}):
+                    context, _ = self.invoke(event, subprocess.CompletedProcess([], 0, json.dumps(self.status()), ""))
+                self.load.assert_not_called()
+                self.assertIn("Pending identity maintenance", context)
+                self.assertEqual(nmem_pending.read_pending()[1]["context_reference"], item["context_reference"])
+
+    def test_oversized_pending_space_keeps_original_scope_and_whole_child_hint_json(self):
+        import nmem_pending
+        space = " 研发 " * 1000
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.dict(os.environ, {"CODEX_HOME": directory, "NMEM_AGENT_PROFILE_MAINTENANCE": "1",
+                                          "NMEM_SPACE_ID": space}):
+            self.assertTrue(nmem_pending.retain_stop({"hook_event_name": "Stop", "stop_hook_active": False,
+                                                      "turn_id": "turn-large-scope"}))
+            with mock.patch.object(HOOK, "_load_startup_context") as load, \
+                 mock.patch.object(HOOK, "_write_hook_response") as write:
+                self.assertEqual(HOOK.main({"hook_event_name": "SubagentStart", "agent_type": "planner"}), 0)
+            load.assert_not_called()
+            rendered = write.call_args.args[1]
+            self.assertLessEqual(len(rendered.encode("utf-8")), HOOK.SUBAGENT_CONTEXT_MAX_BYTES)
+            raw = rendered.split("Untrusted control reference:\n", 1)[1].split("\n", 1)[0]
+            reference = json.loads(raw)
+            self.assertTrue(reference["space_id_omitted"])
+            self.assertNotIn("space_id", reference)
+            self.assertEqual(nmem_pending.read_pending()[1]["space_id"], space)
 
     def test_refusal_preserves_only_typed_cause_and_status(self):
         os.environ["NMEM_AGENT_CONTEXT"] = "reviewer"

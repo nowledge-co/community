@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.1.41] - Unreleased
+
+### Changed
+
+- Save optional identity/profile work as pending at normal Stop. Each eligible
+  start can show unfinished work again; confirmation and owner operations take
+  place in an ordinary model turn.
+- Preserve the original operation through uncertain creation or profile-update
+  results. A reminder alone never creates an identity or completes maintenance.
+
+### Fixed
+
+- Show a minimal pending-status request and Python 3 guidance at startup so
+  agents can inspect the original item without guessing the request format.
+- Resolve uncertain existing-profile selections by explicit confirmation of the
+  current live context revision, without repeating selection or claiming the
+  original write completed; retain original intent and known binding fences.
+- Keep multiline instruction text and embedded hook/MCP examples untouched
+  when enabling hooks or managing the MCP configuration.
+- Preserve quoted/commented Codex feature and hook-state tables during setup,
+  and validate generated TOML before replacing the user config. Unsupported
+  rewrites fail without corrupting the original config.
+- Validate Codex TOML before installing hooks when setup runs on older Python,
+  using an available Python 3.11 or newer parser. Invalid configuration stays
+  unchanged, and the local Memory coexistence notice remains available.
+
+### Notes
+
+- These changes are an implementation candidate awaiting installed-host
+  acceptance. They do not change Labs activation or enable Cloud Agent Team.
+
 ## [0.1.40] - Unreleased
 
 ### Added
