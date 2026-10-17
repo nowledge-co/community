@@ -26,7 +26,10 @@ test("sessionSyncLaneKey isolates api url, key, and space", () => {
 		sessionSyncLaneKey("thread", "https://mem", "key-a", "space"),
 		sessionSyncLaneKey("thread", "https://mem", "key-b", "space"),
 	);
-	assert.equal(sessionSyncLaneKey("thread", "https://mem", "key", "space-a"), first);
+	assert.equal(
+		sessionSyncLaneKey("thread", "https://mem", "key", "space-a"),
+		first,
+	);
 });
 
 test("selectAcknowledgedDelta appends only the unacknowledged suffix", () => {
@@ -54,9 +57,133 @@ test("selectAcknowledgedDelta resets same-length prefix replacements", () => {
 
 test("count-only cursors without fingerprints still slice the tail", () => {
 	const messages = [{ id: "a" }, { id: "b" }, { id: "c" }];
-	const delta = selectAcknowledgedDelta(messages, { count: 2, remoteCount: 2 }, id);
+	const delta = selectAcknowledgedDelta(
+		messages,
+		{ count: 2, remoteCount: 2 },
+		id,
+	);
 	assert.deepEqual(delta.messages, [{ id: "c" }]);
 	assert.equal(delta.reset, false);
+});
+
+test("partially anchored legacy cursors still validate every supplied anchor", () => {
+	const messages = [
+		{ id: "a", content: "first" },
+		{ id: "b", content: "reply" },
+	];
+	const acknowledged = selectAcknowledgedDelta(messages, undefined, id).next;
+	for (const anchor of [
+		{},
+		{ lastExternalId: acknowledged.lastExternalId },
+		{ prefixFingerprint: acknowledged.prefixFingerprint },
+	]) {
+		const cursor = { count: 2, remoteCount: 17, ...anchor };
+		const delta = selectAcknowledgedDelta(
+			[...messages, { id: "c", content: "next" }],
+			cursor,
+			id,
+		);
+		assert.equal(delta.reset, false);
+		assert.equal(delta.start, 2);
+		assert.equal(delta.next.remoteCount, 17);
+		assert.equal(delta.next.lastExternalId, "c");
+		assert.equal(
+			cursor.prefixFingerprint,
+			anchor.prefixFingerprint,
+			"selection does not mutate persisted state",
+		);
+	}
+	assert.equal(
+		selectAcknowledgedDelta(messages, { count: 2, lastExternalId: "wrong" }, id)
+			.reset,
+		true,
+	);
+	assert.equal(
+		selectAcknowledgedDelta(
+			messages,
+			{ count: 2, prefixFingerprint: "wrong" },
+			id,
+		).reset,
+		true,
+	);
+});
+
+test("Alma fingerprints keep role and content while ignoring unrelated host metadata", () => {
+	const messages = [
+		{ id: "a", role: "user", content: "é 👋", metadata: { local: 1 } },
+	];
+	const cursor = selectAcknowledgedDelta(messages, undefined, id).next;
+	const metadataOnly = [
+		{ ...messages[0], external_id: "other", metadata: { local: 2 } },
+	];
+	assert.equal(selectAcknowledgedDelta(metadataOnly, cursor, id).reset, false);
+	assert.equal(
+		selectAcknowledgedDelta([{ ...messages[0], role: "assistant" }], cursor, id)
+			.reset,
+		true,
+	);
+	assert.equal(
+		selectAcknowledgedDelta([{ ...messages[0], content: "edited" }], cursor, id)
+			.reset,
+		true,
+	);
+});
+
+test("shortened Alma snapshots reconcile fully and keep remote length separate", () => {
+	const messages = [{ id: "a" }, { id: "b" }, { id: "c" }];
+	const cursor = {
+		...selectAcknowledgedDelta(messages, undefined, id).next,
+		remoteCount: 17,
+	};
+	const delta = selectAcknowledgedDelta(messages.slice(0, 1), cursor, id);
+	assert.equal(delta.reset, true);
+	assert.equal(delta.start, 0);
+	assert.deepEqual(delta.messages, messages.slice(0, 1));
+	assert.equal(delta.next.remoteCount, 17);
+});
+
+test("invalid local counts reconcile instead of slicing or trusting an imprecise checkpoint", () => {
+	const messages = [{ id: "a" }, { id: "b" }];
+	for (const count of [-1, 0.5, NaN, Infinity, 2 ** 53, "1"]) {
+		const delta = selectAcknowledgedDelta(
+			messages,
+			{ count, remoteCount: 17 },
+			id,
+		);
+		assert.equal(delta.reset, true);
+		assert.deepEqual(delta.messages, messages);
+		assert.equal(delta.next.remoteCount, 17);
+	}
+});
+
+test("append acknowledgements reject unsafe counts and allow a zero-message replay", () => {
+	for (const value of [2 ** 53, -1, 0.5, "1", null]) {
+		assert.equal(
+			isThreadAppendAck({
+				success: true,
+				messages_added: value,
+				total_messages: 3,
+			}),
+			false,
+		);
+		assert.equal(
+			isThreadAppendAck({
+				success: true,
+				messages_added: 1,
+				total_messages: value,
+			}),
+			false,
+		);
+	}
+	assert.equal(
+		isCheckpointedAppendAck({
+			success: true,
+			append_mode: "checkpointed",
+			messages_added: 0,
+			total_messages: 17,
+		}),
+		true,
+	);
 });
 
 test("acknowledgement helpers require explicit checkpointed acks", () => {
@@ -69,15 +196,43 @@ test("acknowledgement helpers require explicit checkpointed acks", () => {
 		}),
 		true,
 	);
-	assert.equal(isThreadAppendAck({ success: true, messages_added: 1, total_messages: 3 }), true);
-	assert.equal(isThreadAppendAck({ success: true, messages_added: -1, total_messages: 3 }), false);
-	assert.equal(isThreadAppendAck({ success: true, messages_added: 1, total_messages: -1 }), false);
-	assert.equal(isCheckpointedAppendAck({ success: true, messages_added: 1, total_messages: 3 }), false);
-	assert.equal(isCheckpointConflictResponse({ error_code: "checkpoint_conflict" }), true);
-	assert.equal(isThreadNotFoundResponse(400, { detail: "Thread not found: alma-x" }), true);
-	assert.equal(isThreadNotFoundResponse(400, { error_code: "thread_not_found" }), true);
+	assert.equal(
+		isThreadAppendAck({ success: true, messages_added: 1, total_messages: 3 }),
+		true,
+	);
+	assert.equal(
+		isThreadAppendAck({ success: true, messages_added: -1, total_messages: 3 }),
+		false,
+	);
+	assert.equal(
+		isThreadAppendAck({ success: true, messages_added: 1, total_messages: -1 }),
+		false,
+	);
+	assert.equal(
+		isCheckpointedAppendAck({
+			success: true,
+			messages_added: 1,
+			total_messages: 3,
+		}),
+		false,
+	);
+	assert.equal(
+		isCheckpointConflictResponse({ error_code: "checkpoint_conflict" }),
+		true,
+	);
+	assert.equal(
+		isThreadNotFoundResponse(400, { detail: "Thread not found: alma-x" }),
+		true,
+	);
+	assert.equal(
+		isThreadNotFoundResponse(400, { error_code: "thread_not_found" }),
+		true,
+	);
 	assert.equal(isThreadNotFoundResponse(500, { detail: "other" }), false);
-	assert.equal(isThreadNotFoundResponse(500, { detail: "upstream thread not found" }), false);
+	assert.equal(
+		isThreadNotFoundResponse(500, { detail: "upstream thread not found" }),
+		false,
+	);
 	assert.match(
 		contentBoundIdempotencyKey("alma-thread", "t", 2, 4, "abc"),
 		/^alma-thread:t:2-4:abc$/,
@@ -89,7 +244,11 @@ test("planAutomaticFlush omits expected_message_count until a trusted fingerprin
 		{ role: "user", content: "hi" },
 		{ role: "assistant", content: "hello" },
 	];
-	const initial = planAutomaticFlush({ messages: first, cursor: null, threadId: "alma-x" });
+	const initial = planAutomaticFlush({
+		messages: first,
+		cursor: null,
+		threadId: "alma-x",
+	});
 	assert.equal(initial.expectedMessageCount, undefined);
 	assert.equal(initial.delta.start, 0);
 	assert.match(initial.idempotencyKey, /^alma-thread:alma-x:0-2:/);
@@ -124,6 +283,10 @@ test("resolveThreadSyncTimeoutMs honors 120s default and 1s-30min bounds", () =>
 	assert.equal(resolveThreadSyncTimeoutMs("250"), 1_000);
 	assert.equal(resolveThreadSyncTimeoutMs("9999999"), 30 * 60_000);
 	assert.equal(resolveThreadSyncTimeoutMs("abc"), 120_000);
+	assert.equal(resolveThreadSyncTimeoutMs(5_000), 5_000);
+	for (const raw of [null, "", " ", "0", "-1", "1.5", String(2 ** 53)]) {
+		assert.equal(resolveThreadSyncTimeoutMs(raw), 120_000);
+	}
 });
 
 test("hasUserAndAssistant requires both roles, not just two messages", () => {

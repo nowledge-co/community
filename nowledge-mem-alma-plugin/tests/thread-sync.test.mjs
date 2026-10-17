@@ -20,6 +20,7 @@ test("user Given an acknowledged prefix When a new message is appended Then the 
 
 for (const [scenario, body, expected] of [
 	["success without persistence", { success: true }, /explicit persistence acknowledgement/],
+	["an unsafe remote count", { success: true, append_mode: "checkpointed", messages_added: 1, total_messages: 2 ** 53 }, /explicit persistence acknowledgement/],
 	["an uncheckpointed reply", { success: true, messages_added: 1, total_messages: 2 }, /not acknowledged as checkpointed/],
 ]) {
 	test(`user Given ${scenario} When the server responds to a checkpointed append Then the caller is told persistence is unconfirmed`, async (t) => {

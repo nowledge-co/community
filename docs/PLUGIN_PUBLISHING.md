@@ -183,6 +183,12 @@ Amp uses the same embedded core through Git/copy installation. Its package
 manifest is not an npm publishing contract. Validate the copied entrypoint and
 payload using the shared artifact checks.
 
+Alma also embeds the core through folder-based delivery. Include its complete
+`generated/plugin-core` directory in the marketplace mirror and manual copies;
+the source and marketplace embedded manifests must match byte-for-byte. Shared
+artifact checks validate file hashes and load the complete copied plugin with a
+host double. They do not publish an npm package or prove live Alma acceptance.
+
 ## Git and external marketplace delivery
 
 Shipped skills, rules, commands and prompt guidance are plugin behavior, not

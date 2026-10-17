@@ -1,45 +1,28 @@
 import { createHash } from "node:crypto";
+import {
+	prefixFingerprint,
+	selectAcknowledgedDelta as selectCoreAcknowledgedDelta,
+} from "./generated/plugin-core/index.js";
+
+export {
+	isCheckpointConflictResponse,
+	isCheckpointedAppendAck,
+	isThreadAppendAck,
+} from "./generated/plugin-core/index.js";
 
 export function sessionSyncLaneKey(threadId, apiUrl, apiKey, spaceId) {
 	const destination = createHash("sha256")
-		.update([String(apiUrl || ""), String(apiKey || ""), String(spaceId || "")].join("\0"))
+		.update(
+			[String(apiUrl || ""), String(apiKey || ""), String(spaceId || "")].join(
+				"\0",
+			),
+		)
 		.digest("hex");
 	return `${destination}\0${String(threadId || "")}`;
 }
 
 export function stableMessageFingerprint(message) {
 	return JSON.stringify({ role: message?.role, content: message?.content });
-}
-
-function prefixFingerprint(messages, end, messageFingerprint) {
-	const hash = createHash("sha256");
-	for (const message of messages.slice(0, end)) {
-		const value = messageFingerprint(message);
-		hash.update(String(Buffer.byteLength(value)));
-		hash.update(":");
-		hash.update(value);
-	}
-	return hash.digest("hex");
-}
-
-export function isThreadAppendAck(data) {
-	return (
-		data !== null &&
-		typeof data === "object" &&
-		data.success === true &&
-		Number.isInteger(data.messages_added) &&
-		data.messages_added >= 0 &&
-		Number.isInteger(data.total_messages) &&
-		data.total_messages >= 0
-	);
-}
-
-export function isCheckpointedAppendAck(data) {
-	return isThreadAppendAck(data) && data.append_mode === "checkpointed";
-}
-
-export function isCheckpointConflictResponse(data) {
-	return data !== null && typeof data === "object" && data.error_code === "checkpoint_conflict";
 }
 
 export function isThreadNotFoundResponse(status, data) {
@@ -51,7 +34,12 @@ export function isThreadNotFoundResponse(status, data) {
 		return true;
 	}
 	if (status === 404) return true;
-	return status === 400 && JSON.stringify(data ?? {}).toLowerCase().includes("thread not found");
+	return (
+		status === 400 &&
+		JSON.stringify(data ?? {})
+			.toLowerCase()
+			.includes("thread not found")
+	);
 }
 
 export function selectAcknowledgedDelta(
@@ -60,39 +48,35 @@ export function selectAcknowledgedDelta(
 	externalId,
 	messageFingerprint = stableMessageFingerprint,
 ) {
-	let start = cursor?.count ?? 0;
-	let reset = false;
-	if (start < 0 || start > messages.length) {
-		start = 0;
-		reset = true;
-	} else if (start > 0) {
-		const fingerprintTrusted = Boolean(cursor?.prefixFingerprint);
-		const externalIdTrusted = Boolean(cursor?.lastExternalId);
-		const prefix = prefixFingerprint(messages, start, messageFingerprint);
-		if (
-			(externalIdTrusted && externalId(messages[start - 1]) !== cursor.lastExternalId) ||
-			(fingerprintTrusted && prefix !== cursor.prefixFingerprint)
-		) {
-			start = 0;
-			reset = true;
-		}
-	}
-	const end = messages.length;
-	return {
-		start,
-		end,
-		messages: messages.slice(start),
-		next: {
-			count: end,
-			remoteCount: cursor?.remoteCount ?? end,
-			...(end > 0 ? { lastExternalId: externalId(messages[end - 1]) } : {}),
-			prefixFingerprint: prefixFingerprint(messages, end, messageFingerprint),
-		},
-		reset,
-	};
+	const count = cursor?.count;
+	// Alma persisted count-only and partially anchored cursors before prefix checks.
+	// Preserve that compatibility without weakening the shared selector's contract.
+	const compatibleCursor =
+		Number.isSafeInteger(count) && count > 0 && count <= messages.length
+			? {
+					...cursor,
+					lastExternalId:
+						cursor.lastExternalId || externalId(messages[count - 1]),
+					prefixFingerprint:
+						cursor.prefixFingerprint ||
+						prefixFingerprint(messages, count, messageFingerprint),
+				}
+			: cursor;
+	return selectCoreAcknowledgedDelta(
+		messages,
+		compatibleCursor,
+		externalId,
+		messageFingerprint,
+	);
 }
 
-export function contentBoundIdempotencyKey(prefix, threadId, start, end, fingerprint) {
+export function contentBoundIdempotencyKey(
+	prefix,
+	threadId,
+	start,
+	end,
+	fingerprint,
+) {
 	return `${prefix}:${threadId}:${start}-${end}:${fingerprint}`;
 }
 
@@ -113,7 +97,11 @@ export function planAutomaticFlush({
 			break;
 		}
 	}
-	const delta = selectAcknowledgedDelta(messages.slice(0, snapshotEnd), cursor, externalId);
+	const delta = selectAcknowledgedDelta(
+		messages.slice(0, snapshotEnd),
+		cursor,
+		externalId,
+	);
 	const trusted =
 		!delta.reset &&
 		Number.isInteger(cursor?.remoteCount) &&

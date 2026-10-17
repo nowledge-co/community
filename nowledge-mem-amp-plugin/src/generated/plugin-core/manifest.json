@@ -3,7 +3,7 @@
   "core": {
     "name": "@nowledge/plugin-core",
     "version": "0.2.0",
-    "sourceDigest": "3d895318c475cd2f1d22120d745d6c213dffcc65bbed384bd854b0678500d456"
+    "sourceDigest": "f06362cae4cdb5cd24a1eab4420860d41ab707f1558a25b779fcb3d74c651c56"
   },
   "build": {
     "target": "es2022",

@@ -7,12 +7,13 @@ This file is a practical continuation guide for future agent sessions working on
 
 - Plugin target: Alma local plugin system
 - Runtime: plain ESM (`main.js`), no build step
+- Shared sync logic: checked-in ESM at `generated/plugin-core`; regenerate from the Community root rather than editing it.
 - Memory backend: direct HTTP to Nowledge Mem API (default `http://127.0.0.1:14242`). CLI (`nmem`) is only used for diagnostic in the status tool.
 
-## Current Status (as of v0.7.7)
+## Current Implementation (v0.7.8)
 
-- Plugin is installed/activated and registers 13 tools successfully in Alma logs.
-- Live thread sync works via three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
+- Registers 13 tools. Prior releases were observed installed and activated in Alma; that evidence does not qualify this candidate's live host acceptance.
+- Thread sync uses three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
 - The plugin ships a native Alma Skill at `skills/nowledge-mem/SKILL.md`; it is supplementary guidance on top of tools/hooks.
 - Thread IDs are deterministic: `alma-{sha1(almaThreadId)[:12]}`. Survives plugin restarts, LRU eviction, and Alma relaunches. First flush tries append (thread may exist from prior session), falls back to create.
 - Captured text comes only from canonical `context.chat.getMessages()` records; hooks coordinate rereads and recall, never supply fallback saved text.
@@ -101,7 +102,7 @@ curl -s 'http://127.0.0.1:14242/memories/search?q=alma&limit=3'   # Test search 
 ```bash
 mkdir -p ~/.config/alma/plugins/nowledge-mem
 cp manifest.json main.js session-delta.js sync-lifecycle.js sync-outbox.js thread-sync-timeout.js package.json README.md CHANGELOG.md alma-skill-nowledge-mem.md ~/.config/alma/plugins/nowledge-mem/
-cp -R skills ~/.config/alma/plugins/nowledge-mem/
+cp -R skills generated ~/.config/alma/plugins/nowledge-mem/
 osascript -e 'tell application "Alma" to quit' || true
 node -e "const fs=require('fs');const p=process.env.HOME+'/Library/Application Support/alma/plugin-cache';if(fs.existsSync(p))for(const f of fs.readdirSync(p))if(f.endsWith('.mjs'))fs.unlinkSync(p+'/'+f)"
 open -a Alma

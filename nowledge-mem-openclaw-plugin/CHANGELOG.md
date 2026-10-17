@@ -4,6 +4,10 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.38] - 2026-10-17
+
+- Refresh the embedded core 0.2.0 content manifest for Alma adoption; runtime behavior is unchanged.
+
 ## [0.8.37] - 2026-10-16
 
 - Embed shared TypeScript core 0.2.0, including the shared prefix-hashing API.

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "core": {
+    "name": "@nowledge/plugin-core",
+    "version": "0.2.0",
+    "sourceDigest": "f06362cae4cdb5cd24a1eab4420860d41ab707f1558a25b779fcb3d74c651c56"
+  },
+  "build": {
+    "target": "es2022",
+    "format": "esm",
+    "esbuild": "0.25.9",
+    "typescript": "5.6.3"
+  },
+  "files": {
+    "acknowledgement.d.ts": "ffd0fd090f289c4deafba41d9faa83fb7f4a6070bd53588de5d1a947b076f65a",
+    "index.d.ts": "6e7965f903a043a34c3dd454f909e878134c1bf451ec7ff3c3026f035f1aaee0",
+    "index.js": "0e25a05abe9f9282dc6a7d3cc64a3da872c1e5192908308ee5086c0465f6c032",
+    "package.json": "609158e6c5fbc237939fa3ddf7faab80ab690bdc0c8d584414a885130103c4e8",
+    "thread-delta.d.ts": "83f31e3334086f6fdfe5e6e1b1c4b1a994bb6d49fda2fdedf450d14f4ec18cba",
+    "timeout.d.ts": "85bfd4185e9d0b22073250b5cbe19da38613d9af9fbc2022403ebb527dad9f8f"
+  }
+}
