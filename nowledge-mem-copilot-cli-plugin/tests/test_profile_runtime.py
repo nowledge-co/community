@@ -162,3 +162,37 @@ def test_shell_installer_resolves_its_symlink_before_locating_python_script(tmp_
     result = subprocess.run([bash, str(link)], env=env, cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert (home / '.copilot' / 'nowledge-mem-hooks' / 'copilot-hook.py').exists()
+
+
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX directory symlink traversal guard')
+@pytest.mark.parametrize('absolute', [False, True])
+@pytest.mark.parametrize('surface', ['capture', 'installer', 'bootstrap'])
+def test_symlink_parent_components_select_the_same_physical_profile(tmp_path, absolute, surface):
+    env, home = isolated_env(tmp_path)
+    target = tmp_path / 'physical' / 'nested'
+    target.mkdir(parents=True)
+    (tmp_path / 'linked').symlink_to(target, target_is_directory=True)
+    value = 'linked/../selected'
+    env['COPILOT_HOME'] = str(tmp_path / value) if absolute else value
+    runtime = tmp_path / 'physical' / 'selected' / 'nowledge-mem-hooks'
+    if surface == 'capture':
+        result = subprocess.run([sys.executable, '-c',
+            "import runpy,sys;m=runpy.run_path(sys.argv[1]);m['log']({'selected':True})", str(CAPTURE)],
+            env=env, cwd=tmp_path, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        assert json.loads((runtime / 'hook-log.jsonl').read_text()) == {'selected': True}
+    elif surface == 'installer':
+        result = run_installer(copied_installer(tmp_path), env, tmp_path)
+        assert result.returncode == 0, result.stderr
+        assert (runtime / 'copilot-hook.py').exists()
+    else:
+        runtime.mkdir(parents=True)
+        (runtime / 'copilot-hook.py').write_text("print('physical-profile')\n")
+        for command in hook_commands():
+            argv = shlex.split(command)
+            argv[0] = sys.executable
+            result = subprocess.run(argv, input='{}', env=env, cwd=tmp_path, capture_output=True, text=True)
+            assert result.returncode == 0, result.stderr
+            assert result.stdout.strip() == 'physical-profile'
+    assert not (tmp_path / 'selected').exists()
+    assert not (home / '.copilot').exists()

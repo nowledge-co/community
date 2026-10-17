@@ -25,7 +25,16 @@ def effective_profile() -> Path:
     value = os.environ.get('COPILOT_HOME')
     if value == '':
         raise ValueError('COPILOT_HOME must not be empty')
-    return Path(os.path.abspath(value)) if value is not None else Path.home() / '.copilot'
+    if value is None:
+        return Path.home() / '.copilot'
+    path = Path(value)
+    if not path.is_absolute():
+        if path.root or path.drive:
+            raise ValueError('COPILOT_HOME must identify a complete directory path')
+        # Keep .. components: filesystem traversal through symlinks must agree
+        # with Copilot and the Desktop profile owner.
+        path = Path.cwd() / path
+    return path
 
 
 def regular(path: Path) -> bool:

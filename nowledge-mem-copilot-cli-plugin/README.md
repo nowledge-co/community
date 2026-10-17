@@ -4,11 +4,17 @@
 
 ## Install
 
-```bash
-# Add the Nowledge community marketplace
-copilot plugin marketplace add nowledge-co/community
+First inspect the marketplace:
 
-# Install the plugin
+```bash
+copilot plugin marketplace list
+```
+
+If `nowledge-community` is absent, run `copilot plugin marketplace add nowledge-co/community`, then list again. Continue only when its source is exactly `GitHub: nowledge-co/community`, without a branch, tag or commit pin. Reuse an existing verified registration. Stop if the source conflicts, multiple entries match, or the listing cannot establish its identity.
+
+Then install the source-qualified plugin:
+
+```bash
 copilot plugin install nowledge-mem@nowledge-community
 ```
 

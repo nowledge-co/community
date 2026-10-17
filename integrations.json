@@ -310,12 +310,13 @@
         ]
       },
       "install": {
-        "command": "copilot plugin marketplace add nowledge-co/community && copilot plugin install nowledge-mem@nowledge-community",
+        "command": "copilot plugin install nowledge-mem@nowledge-community",
         "updateCommand": "copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem@nowledge-community",
+        "configRequired": "Before the qualified install command, run copilot plugin marketplace list. Add nowledge-co/community only when nowledge-community is absent, then list again and verify its source is exactly GitHub: nowledge-co/community without a ref or pin. Stop for a conflicting, pinned, ambiguous or unreadable registration. Reuse an existing verified canonical marketplace; do not add it again.",
         "detectionHint": "Running as GitHub Copilot CLI agent; COPILOT_HOME selects its profile, defaulting to ~/.copilot",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Copilot CLI. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Copilot CLI 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Copilot CLI. Inspect marketplace registration first; add only when absence is established, verify the unpinned canonical source, then install the qualified plugin. Stop on conflicting or unclear registration. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Copilot CLI 安装或更新 Nowledge Mem。先检查市场注册，仅在确认缺失时添加，验证来源为未固定版本的官方仓库后安装带来源限定的插件；来源冲突或结果不明确时停止。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/copilot-cli"
       },

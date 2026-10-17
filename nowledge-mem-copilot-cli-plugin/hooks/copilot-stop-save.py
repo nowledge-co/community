@@ -33,7 +33,16 @@ def effective_copilot_home() -> Path:
         raise ValueError("COPILOT_HOME must not be empty")
     # Resolve a relative override once against this process's initial cwd.
     # Profile paths are literal: do not expand ~, variables, or shell syntax.
-    return Path(os.path.abspath(value)) if value is not None else Path.home() / ".copilot"
+    if value is None:
+        return Path.home() / ".copilot"
+    path = Path(value)
+    if not path.is_absolute():
+        if path.root or path.drive:
+            raise ValueError('COPILOT_HOME must identify a complete directory path')
+        # Keep .. components: filesystem traversal through symlinks must agree
+        # with Copilot and the Desktop profile owner.
+        path = Path.cwd() / path
+    return path
 
 
 ROOT = effective_copilot_home() / "nowledge-mem-hooks"
