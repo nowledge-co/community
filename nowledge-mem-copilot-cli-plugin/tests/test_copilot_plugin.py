@@ -37,6 +37,14 @@ copilot_stop_save = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(copilot_stop_save)
 
 
+@pytest.fixture(autouse=True)
+def isolate_capture_paths(tmp_path, monkeypatch):
+    root = tmp_path / 'capture-runtime'
+    monkeypatch.setattr(copilot_stop_save, 'ROOT', root)
+    monkeypatch.setattr(copilot_stop_save, 'STATE_DIR', root / 'state')
+    monkeypatch.setattr(copilot_stop_save, 'LOG_FILE', root / 'hook-log.jsonl')
+
+
 def test_script_compatibility_launchers_delegate_to_packaged_hook():
     repo_root = Path(__file__).parent.parent
     python_launcher = (repo_root / "scripts" / "copilot-stop-save.py").read_text()

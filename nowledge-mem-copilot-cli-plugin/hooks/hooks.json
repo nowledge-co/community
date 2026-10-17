@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event session-start"
+            "command": "python3 -c \"import os,pathlib,runpy,sys; h=os.environ.get('COPILOT_HOME'); h != '' or sys.exit('COPILOT_HOME must not be empty'); d=pathlib.Path(h) if h is not None else pathlib.Path.home()/'.copilot'; d.is_absolute() or not (d.root or d.drive) or sys.exit('COPILOT_HOME must identify a complete directory path'); d=d if d.is_absolute() else pathlib.Path.cwd()/d; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(d/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str((p if p.exists() else pathlib.Path(r)/'copilot-hook.py').resolve()), run_name='__main__')\" --event session-start"
           }
         ]
       },
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event compact"
+            "command": "python3 -c \"import os,pathlib,runpy,sys; h=os.environ.get('COPILOT_HOME'); h != '' or sys.exit('COPILOT_HOME must not be empty'); d=pathlib.Path(h) if h is not None else pathlib.Path.home()/'.copilot'; d.is_absolute() or not (d.root or d.drive) or sys.exit('COPILOT_HOME must identify a complete directory path'); d=d if d.is_absolute() else pathlib.Path.cwd()/d; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(d/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str((p if p.exists() else pathlib.Path(r)/'copilot-hook.py').resolve()), run_name='__main__')\" --event compact"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event user-prompt-submit"
+            "command": "python3 -c \"import os,pathlib,runpy,sys; h=os.environ.get('COPILOT_HOME'); h != '' or sys.exit('COPILOT_HOME must not be empty'); d=pathlib.Path(h) if h is not None else pathlib.Path.home()/'.copilot'; d.is_absolute() or not (d.root or d.drive) or sys.exit('COPILOT_HOME must identify a complete directory path'); d=d if d.is_absolute() else pathlib.Path.cwd()/d; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(d/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str((p if p.exists() else pathlib.Path(r)/'copilot-hook.py').resolve()), run_name='__main__')\" --event user-prompt-submit"
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event stop",
+            "command": "python3 -c \"import os,pathlib,runpy,sys; h=os.environ.get('COPILOT_HOME'); h != '' or sys.exit('COPILOT_HOME must not be empty'); d=pathlib.Path(h) if h is not None else pathlib.Path.home()/'.copilot'; d.is_absolute() or not (d.root or d.drive) or sys.exit('COPILOT_HOME must identify a complete directory path'); d=d if d.is_absolute() else pathlib.Path.cwd()/d; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(d/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str((p if p.exists() else pathlib.Path(r)/'copilot-hook.py').resolve()), run_name='__main__')\" --event stop",
             "async": true
           }
         ]
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event pre-compact",
+            "command": "python3 -c \"import os,pathlib,runpy,sys; h=os.environ.get('COPILOT_HOME'); h != '' or sys.exit('COPILOT_HOME must not be empty'); d=pathlib.Path(h) if h is not None else pathlib.Path.home()/'.copilot'; d.is_absolute() or not (d.root or d.drive) or sys.exit('COPILOT_HOME must identify a complete directory path'); d=d if d.is_absolute() else pathlib.Path.cwd()/d; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(d/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str((p if p.exists() else pathlib.Path(r)/'copilot-hook.py').resolve()), run_name='__main__')\" --event pre-compact",
             "timeout": 35
           }
         ]
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import os,pathlib,runpy; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(pathlib.Path.home()/'.copilot'/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str(p if p.exists() else pathlib.Path(r)/'copilot-hook.py'), run_name='__main__')\" --event session-end",
+            "command": "python3 -c \"import os,pathlib,runpy,sys; h=os.environ.get('COPILOT_HOME'); h != '' or sys.exit('COPILOT_HOME must not be empty'); d=pathlib.Path(h) if h is not None else pathlib.Path.home()/'.copilot'; d.is_absolute() or not (d.root or d.drive) or sys.exit('COPILOT_HOME must identify a complete directory path'); d=d if d.is_absolute() else pathlib.Path.cwd()/d; r=os.environ.get('COPILOT_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT') or str(d/'nowledge-mem-hooks'); p=pathlib.Path(r)/'hooks'/'copilot-hook.py'; runpy.run_path(str((p if p.exists() else pathlib.Path(r)/'copilot-hook.py').resolve()), run_name='__main__')\" --event session-end",
             "timeout": 35
           }
         ]

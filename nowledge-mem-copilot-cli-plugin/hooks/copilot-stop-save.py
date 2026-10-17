@@ -9,6 +9,8 @@ Thread ID: ``copilot-{session_id}`` (stable per-session, enables incremental
 append). State management with file locking for concurrent session safety.
 """
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
@@ -27,7 +29,25 @@ except ImportError:
     fcntl = None  # Windows — locking handled via msvcrt fallback
 
 
-ROOT = Path.home() / ".copilot" / "nowledge-mem-hooks"
+def effective_copilot_home() -> Path:
+    value = os.environ.get("COPILOT_HOME")
+    if value == "":
+        raise ValueError("COPILOT_HOME must not be empty")
+    # Resolve a relative override once against this process's initial cwd.
+    # Profile paths are literal: do not expand ~, variables, or shell syntax.
+    if value is None:
+        return Path.home() / ".copilot"
+    path = Path(value)
+    if not path.is_absolute():
+        if path.root or path.drive:
+            raise ValueError('COPILOT_HOME must identify a complete directory path')
+        # Keep .. components: filesystem traversal through symlinks must agree
+        # with Copilot and the Desktop profile owner.
+        path = Path.cwd() / path
+    return path
+
+
+ROOT = effective_copilot_home() / "nowledge-mem-hooks"
 STATE_DIR = ROOT / "state"
 LOG_FILE = ROOT / "hook-log.jsonl"
 
