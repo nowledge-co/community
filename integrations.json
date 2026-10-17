@@ -281,7 +281,7 @@
       "name": "Copilot CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-copilot-cli-plugin",
       "transport": "cli",
       "capabilities": {
@@ -311,8 +311,8 @@
       },
       "install": {
         "command": "copilot plugin marketplace add nowledge-co/community && copilot plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "copilot plugin marketplace add nowledge-co/community && copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem",
-        "detectionHint": "Running as GitHub Copilot CLI agent; ~/.copilot/ exists",
+        "updateCommand": "copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem@nowledge-community",
+        "detectionHint": "Running as GitHub Copilot CLI agent; COPILOT_HOME selects its profile, defaulting to ~/.copilot",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Copilot CLI. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
           "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Copilot CLI 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"

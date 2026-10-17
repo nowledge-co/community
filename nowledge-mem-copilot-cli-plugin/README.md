@@ -75,7 +75,7 @@ The plugin no longer ships separate command docs. Skills are still interpreted b
 
 The `SessionStart` hook tries `nmem --json context --source-app copilot-cli` first so Copilot receives identity, active scope, active rules, and current priorities when the installed CLI supports it. It falls back to `nmem --json wm read`, then to `~/ai-now/memory.md` only as the **Default-space** compatibility path.
 
-The `Stop`, `PreCompact`, and `SessionEnd` hooks run the same Python capture script from the plugin's own `hooks/` directory. For older installs, it still falls back to `~/.copilot/nowledge-mem-hooks/` if that compatibility copy exists. It reads the Copilot CLI transcript, extracts messages, filters secrets, and creates threads via `nmem t import`. This is idempotent — repeated runs only append new content.
+The `Stop`, `PreCompact`, and `SessionEnd` hooks run the same Python capture script from the plugin's own `hooks/` directory. For older installs, it falls back to `nowledge-mem-hooks/` inside the active Copilot profile if that compatibility copy exists. It reads the Copilot CLI transcript, extracts messages, filters secrets, and creates threads via `nmem t import`. This is idempotent — repeated runs only append new content.
 
 ### Session Capture Details
 
@@ -116,10 +116,11 @@ For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Copi
 ## Update
 
 ```bash
-copilot plugin marketplace add nowledge-co/community
 copilot plugin marketplace update nowledge-community
-copilot plugin update nowledge-mem
+copilot plugin update nowledge-mem@nowledge-community
 ```
+
+Use these update commands after confirming `copilot plugin marketplace list` identifies `nowledge-community` as `GitHub: nowledge-co/community`, and `copilot plugin list --json` identifies the installed plugin as `nowledge-mem@nowledge-community`. If a different source or a direct installation is shown, follow that source's update flow. An unclear result needs inspection before changing the registration.
 
 Restart Copilot CLI to apply changes.
 
@@ -154,7 +155,9 @@ to see its full capabilities.
 
 **Server not running:** Start the Nowledge Mem desktop app, or run `nmem serve` on your server
 
-**Session capture not working:** Restart Copilot CLI first. If capture still does not run, check `~/.copilot/nowledge-mem-hooks/hook-log.jsonl` for diagnostics. For older installs or local-development setups, you can still run `scripts/install-hooks.sh` from the source checkout as a compatibility fallback.
+**Session capture not working:** Restart Copilot CLI first. If capture still does not run, check `nowledge-mem-hooks/hook-log.jsonl` inside the active Copilot profile. For older installs or local development, run `python3 scripts/install_hooks.py` (or `scripts/install-hooks.sh`) from the source checkout to install the complete compatibility runtime. An interrupted installation is recovered on the next run. If recovery reports an error, keep the transaction files and retry after resolving the reported filesystem problem.
+
+The profile defaults to `~/.copilot`. Set `COPILOT_HOME` for a separate profile; the capture state, logs, and compatibility scripts all use that directory directly. A relative override is anchored to the process's starting directory. Paths are literal: `~`, `$HOME`, and shell expressions inside the value are not expanded. An explicitly empty value is rejected. Use the same profile for installation and Copilot sessions. Python 3 and `nmem` must be available for capture.
 
 **Check status:** Run `nmem status` to see connection details
 

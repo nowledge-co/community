@@ -27,7 +27,16 @@ except ImportError:
     fcntl = None  # Windows — locking handled via msvcrt fallback
 
 
-ROOT = Path.home() / ".copilot" / "nowledge-mem-hooks"
+def effective_copilot_home() -> Path:
+    value = os.environ.get("COPILOT_HOME")
+    if value == "":
+        raise ValueError("COPILOT_HOME must not be empty")
+    # Resolve a relative override once against this process's initial cwd.
+    # Profile paths are literal: do not expand ~, variables, or shell syntax.
+    return Path(os.path.abspath(value)) if value is not None else Path.home() / ".copilot"
+
+
+ROOT = effective_copilot_home() / "nowledge-mem-hooks"
 STATE_DIR = ROOT / "state"
 LOG_FILE = ROOT / "hook-log.jsonl"
 
