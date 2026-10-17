@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.42] - Unreleased
+
+### Added
+
+- Add default-off session mailbox startup/resume with an explicitly configured
+  Agent Context and `NMEM_BRIDGE_SESSION_MAILBOX=1`. Retain the exact native
+  session binding across startup, resume and compaction through a compatible CLI.
+- Report registration separately from session-addressed messaging availability.
+  Existing identity-scoped mailbox guidance remains the default.
+
+### Notes
+
+- CLI/backend support and installed-host acceptance are separate requirements.
+  This adapter does not enable session-addressed message operations.
+
 ## [0.1.41] - Unreleased
 
 ### Changed
