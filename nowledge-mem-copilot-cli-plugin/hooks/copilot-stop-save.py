@@ -9,6 +9,8 @@ Thread ID: ``copilot-{session_id}`` (stable per-session, enables incremental
 append). State management with file locking for concurrent session safety.
 """
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
