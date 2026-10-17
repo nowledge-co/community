@@ -186,6 +186,100 @@ def _mailbox_observation() -> dict[str, Any] | None:
     return observation
 
 
+def _session_mailbox_observation(payload: dict[str, Any]) -> dict[str, Any]:
+    """Opt-in registration only; native correlation is never proof possession."""
+    observation: dict[str, Any] = {"state": "unverified", "delivery_ready": False}
+    name = os.environ.get("NMEM_AGENT_CONTEXT", "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,120}", name):
+        observation.update(state="selection_required")
+        return observation
+    observation["name"] = name
+    if not isinstance(payload.get("source"), str) or payload["source"] not in {"startup", "resume", "clear", "compact"}:
+        observation.update(state="refused", reason="This lifecycle source cannot register a session.")
+        return observation
+    native = payload.get("session_id", payload.get("sessionId"))
+    try:
+        valid_native = isinstance(native, str) and 0 < len(native.encode("utf-8")) <= 1024 and "\0" not in native
+    except UnicodeError:
+        valid_native = False
+    if (not valid_native or "session_id" in payload and "sessionId" in payload
+            and payload["session_id"] != payload["sessionId"]):
+        observation.update(state="refused", reason="The host did not provide one valid exact native session ID.")
+        return observation
+    nmem = _nmem_command()
+    if not nmem:
+        return observation
+    # Selection is read-only and independently checked before registration can
+    # have an effect. Ambient selectors cannot silently change host identity.
+    selected = _run_nmem_json(nmem, ["agents", "context", "show", "--name", name],
+                              timeout_seconds=MAILBOX_TIMEOUT_SECONDS)
+    selection = selected.get("selection") if isinstance(selected, dict) else None
+    if (not isinstance(selected, dict) or selected.get("name") != name
+            or selected.get("configured") is not True or not _typed_selection(selection)):
+        return observation
+    agent = selection["address"]["agent_id"]
+    space = selection["scope"]["space_id"]
+    configured_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
+    configured_space = os.environ.get("NMEM_SPACE", "").strip()
+    legacy_space = os.environ.get("NMEM_SPACE_ID")
+    if (configured_agent and configured_agent != agent
+            or configured_space and configured_space != space
+            or legacy_space is not None and legacy_space != space
+            or os.environ.get("NMEM_HOST_AGENT_ID", "").strip()):
+        observation.update(state="refused", reason="Ambient identity or Space selectors conflict with the configured context.")
+        return observation
+    result = _run_nmem_result(nmem, ["--agent-context", name, "mailbox", "session-bootstrap",
+                                    "--host", "codex", "--session-id", native],
+                              timeout_seconds=MAILBOX_TIMEOUT_SECONDS)
+    if result is None:
+        return observation
+    exit_code, reply = result
+    cause = reply.get("error_code")
+    if isinstance(cause, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,119}", cause):
+        observation["error_code"] = cause
+    status = reply.get("http_status")
+    if isinstance(status, int) and not isinstance(status, bool) and 400 <= status <= 599:
+        observation.update(state="refused", http_status=status)
+    if exit_code != 0 or "error_code" in reply or "http_status" in reply:
+        return observation
+    registration = reply.get("registration")
+    address = registration.get("address") if isinstance(registration, dict) else None
+    if not isinstance(address, dict):
+        return observation
+    candidate = {"scope": address.get("scope"), "address": address.get("agent")}
+    times = [registration.get(key) for key in ("registered_at", "observed_at", "lease_expires_at")]
+    if (reply.get("state") != "active" or reply.get("context") != name
+            or reply.get("delivery_ready") is not False or not isinstance(reply.get("resumed"), bool)
+            or registration.get("state") != "active" or registration.get("closed_at") is not None
+            or type(address.get("schema_version")) is not int or address["schema_version"] != 2
+            or not _typed_selection(candidate) or candidate != selection
+            or any(not isinstance(at, int) or isinstance(at, bool) or at < 0 for at in times)
+            or not times[0] <= times[1] < times[2]
+            or not isinstance(address.get("binding_generation"), int)
+            or isinstance(address.get("binding_generation"), bool)
+            or not 0 < address["binding_generation"] < (1 << 53)
+            or any(not isinstance(address.get(key), str)
+                   or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", address[key])
+                   for key in ("session_id", "registration_id", "mailbox_id"))):
+        return observation
+    observation.update(state="active", resumed=reply["resumed"], agent_id=agent, space_id=space)
+    return observation
+
+
+def _render_session_mailbox_context(observation: dict[str, Any]) -> str:
+    # Never echo CLI bodies: only explicitly selected non-secret fields survive.
+    public = {key: value for key, value in observation.items()
+              if key in {"state", "delivery_ready", "name", "resumed", "reason", "error_code", "http_status"}}
+    return ("## Nowledge Bridge session registration\n\n"
+            + json.dumps(public, ensure_ascii=True, sort_keys=True)
+            + "\n\nSession-addressed messaging is unavailable in this experimental adapter. "
+              "Registration alone does not establish message delivery or acceptance. "
+              "Registration expires after 24 hours; resume does not renew it. "
+              "Keep session-scoped message operations disabled. Preserve the original "
+              "session on failure. A lost proof cannot be recreated from a session ID. "
+              "Identity or binding changes require explicit owner action.")
+
+
 def _render_mailbox_context(observation: dict[str, Any]) -> str:
     rendered = "## Local mailbox observation\n\n" + json.dumps(observation, ensure_ascii=True, sort_keys=True)
     if observation["state"] == "usable":
@@ -410,10 +504,11 @@ def main(payload: dict[str, Any] | None = None) -> int:
         # existing 4 KiB child budget cannot truncate its safe reference JSON.
         context_parts.insert(0, pending_hint)
     if event_name == "SessionStart":
-        observation = _mailbox_observation()
+        session_mode = os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1"
+        observation = _session_mailbox_observation(payload) if session_mode else _mailbox_observation()
         if observation is None and not pending_gate:
             startup_context = _load_startup_context()
-        elif observation is not None and observation["state"] == "usable":
+        elif observation is not None and observation["state"] in {"usable", "active"}:
             # Context currently ensures agent profiles. An observation must not
             # recreate a deleted identity, so this path reads only exact-Space WM.
             _, pending = _read_pending() if pending_gate else ("absent", None)
@@ -433,7 +528,8 @@ def main(payload: dict[str, Any] | None = None) -> int:
         if startup_context:
             context_parts.extend(["## Current Nowledge context", startup_context])
         if observation is not None:
-            context_parts.append(_render_mailbox_context(observation))
+            context_parts.append(_render_session_mailbox_context(observation) if session_mode
+                                 else _render_mailbox_context(observation))
     elif event_name == "SubagentStart":
         if pending_gate:
             started = time.monotonic()

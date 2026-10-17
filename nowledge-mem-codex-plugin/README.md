@@ -68,7 +68,30 @@ loading a default identity as a substitute. If `NMEM_AGENT_ID`, `NMEM_SPACE` or
 the legacy `NMEM_SPACE_ID`
 is also set, it must match the validated canonical selector; aliases or Space
 names not verified by this check require explicit configuration reconciliation.
-No hook selects, recovers, enrolls, claims, acknowledges or sends mail.
+The default mailbox guidance path never selects, recovers, enrolls, claims,
+acknowledges or sends mail. The separate experimental session adapter below
+can register an already selected identity, while leaving message operations disabled.
+
+#### Experimental session registration
+
+With a CLI and local backend that explicitly support `mailbox session-bootstrap`,
+set `NMEM_BRIDGE_SESSION_MAILBOX=1` alongside your approved
+`NMEM_AGENT_CONTEXT`. This is off by default. The SessionStart hook first checks
+the saved selection, then registers or inspects the mailbox belonging to the
+exact native session supplied by Codex. Startup, resume, clear and compact for
+the same native session keep that original binding. A genuinely new session
+has a separate mailbox; missing proof or failed validation does not silently
+replace the original one. SubagentStart and UserPromptSubmit do not register.
+Registration expires after 24 hours. Resume checks the original registration
+and does not renew it.
+
+This adapter currently reports `delivery_ready: false`. Session registration
+is available independently of session-addressed message operations, which remain
+disabled. The hook does not install identity-scoped message guidance for this
+experimental session. It never outputs a session proof or accepts one in a
+command argument. Unsupported CLI/backend versions emit a bounded diagnostic
+and leave ordinary Codex work available. Installed-host acceptance is separate
+from the adapter's source tests.
 
 To save pending profile work at the end of each turn, also set
 `NMEM_AGENT_PROFILE_MAINTENANCE=1`. Stop records a small local reference and ends
