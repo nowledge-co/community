@@ -82,6 +82,8 @@ exact native session supplied by Codex. Startup, resume, clear and compact for
 the same native session keep that original binding. A genuinely new session
 has a separate mailbox; missing proof or failed validation does not silently
 replace the original one. SubagentStart and UserPromptSubmit do not register.
+Registration expires after 24 hours. Resume checks the original registration
+and does not renew it.
 
 This adapter currently reports `delivery_ready: false`. Session registration
 is available independently of session-addressed message operations, which remain

@@ -274,6 +274,7 @@ def _render_session_mailbox_context(observation: dict[str, Any]) -> str:
             + json.dumps(public, ensure_ascii=True, sort_keys=True)
             + "\n\nSession-addressed messaging is unavailable in this experimental adapter. "
               "Registration alone does not establish message delivery or acceptance. "
+              "Registration expires after 24 hours; resume does not renew it. "
               "Keep session-scoped message operations disabled. Preserve the original "
               "session on failure. A lost proof cannot be recreated from a session ID. "
               "Identity or binding changes require explicit owner action.")
