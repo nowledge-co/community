@@ -90,10 +90,14 @@ def copied_installer(tmp_path):
 
 def run_installer(package, env, cwd):
     import shutil
-    bash = shutil.which('bash')
-    if bash is None:
-        pytest.skip('compatibility shell wrapper requires bash; Python publisher is tested separately')
-    return subprocess.run([bash, str(package / 'scripts' / 'install-hooks.sh')],
+    if os.name == 'nt':
+        command = [sys.executable, str(package / 'scripts' / 'install_hooks.py')]
+    else:
+        bash = shutil.which('bash')
+        if bash is None:
+            pytest.skip('compatibility shell wrapper requires bash')
+        command = [bash, str(package / 'scripts' / 'install-hooks.sh')]
+    return subprocess.run(command,
                           env=env, cwd=cwd, capture_output=True, text=True)
 
 
@@ -111,6 +115,7 @@ def test_compatibility_install_contains_current_entry_point_and_retains_state(tm
     assert state.read_text() == 'existing capture state'
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX file permissions; portable source IO failure is covered by publisher tests')
 def test_late_source_failure_preserves_complete_previous_runtime(tmp_path):
     env, home = isolated_env(tmp_path)
     package = copied_installer(tmp_path)
@@ -140,6 +145,7 @@ def test_compatibility_installer_honors_literal_relative_profile(tmp_path):
     assert not (home / '.copilot').exists()
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='Bash wrapper is a POSIX compatibility path')
 def test_shell_installer_fails_before_writes_when_python_is_unavailable(tmp_path):
     env, home = isolated_env(tmp_path)
     package = copied_installer(tmp_path)

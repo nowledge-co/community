@@ -45,6 +45,17 @@ def test_publication_fault_restores_entire_previous_runtime(runtime, boundary):
     assert not (profile / publisher.TRANSACTION).exists()
 
 
+def test_staging_source_io_failure_preserves_all_live_files(runtime):
+    source, profile, hook = runtime
+    invalid = source / publisher.FILES[1]
+    invalid.unlink()
+    invalid.mkdir()
+    with pytest.raises(RuntimeError, match='previous runtime retained'):
+        publisher.publish(source, profile)
+    generation(hook, 'old')
+    assert not (profile / publisher.TRANSACTION).exists()
+
+
 def test_original_absence_is_restored(runtime):
     source, profile, hook = runtime
     absent = hook / publisher.FILES[0]
