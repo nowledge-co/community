@@ -10,7 +10,7 @@ First inspect the marketplace:
 copilot plugin marketplace list
 ```
 
-If `nowledge-community` is absent, run `copilot plugin marketplace add nowledge-co/community`, then list again. Continue only when its source is exactly `GitHub: nowledge-co/community`, without a branch, tag or commit pin. Reuse an existing verified registration. Stop if the source conflicts, multiple entries match, or the listing cannot establish its identity.
+Inspect every entry, including aliases and pinned or local sources. Stop if the community repository appears under another name, or an entry has unclear provenance that prevents ruling out a related source. Only when both `nowledge-community` and related sources are unambiguously absent, run `copilot plugin marketplace add nowledge-co/community`, then list again. Continue only when its source is exactly `GitHub: nowledge-co/community`, without a branch, tag or commit pin. Reuse an existing verified registration. Stop if the source conflicts, multiple entries match, or the listing cannot establish its identity.
 
 Then install the source-qualified plugin:
 
