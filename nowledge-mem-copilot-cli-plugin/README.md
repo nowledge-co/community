@@ -121,12 +121,12 @@ For multi-agent orchestrators, set `NMEM_AGENT_ID=<agent-slug>` per spawned Copi
 
 ## Update
 
+Before updating, run `copilot plugin marketplace list` and `copilot plugin list --json`. Use the commands below only when the complete marketplace listing confirms the unpinned `GitHub: nowledge-co/community` source without a related alias, and the plugin row reports `name: nowledge-mem`, `marketplace: nowledge-community`, and `source: installed`. Stop on conflicting or unclear results. For a direct or custom-source installation, use that source’s update flow.
+
 ```bash
 copilot plugin marketplace update nowledge-community
 copilot plugin update nowledge-mem@nowledge-community
 ```
-
-Use these update commands after confirming `copilot plugin marketplace list` identifies `nowledge-community` as `GitHub: nowledge-co/community`, and `copilot plugin list --json` identifies the installed plugin as `nowledge-mem@nowledge-community`. If a different source or a direct installation is shown, follow that source's update flow. An unclear result needs inspection before changing the registration.
 
 Restart Copilot CLI to apply changes.
 
