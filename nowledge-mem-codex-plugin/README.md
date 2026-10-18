@@ -70,9 +70,10 @@ is also set, it must match the validated canonical selector; aliases or Space
 names not verified by this check require explicit configuration reconciliation.
 The default mailbox guidance path never selects, recovers, enrolls, claims,
 acknowledges or sends mail. The separate experimental session adapter below
-can register an already selected identity, while leaving message operations disabled.
+registers an already selected identity and admits session guidance only after
+validating the current backend capability.
 
-#### Experimental session registration
+#### Experimental session mailboxes
 
 With a CLI and local backend that explicitly support `mailbox session-bootstrap`,
 set `NMEM_BRIDGE_SESSION_MAILBOX=1` alongside your approved
@@ -85,13 +86,20 @@ replace the original one. SubagentStart and UserPromptSubmit do not register.
 Registration expires after 24 hours. Resume checks the original registration
 and does not renew it.
 
-This adapter currently reports `delivery_ready: false`. Session registration
-is available independently of session-addressed message operations, which remain
-disabled. The hook does not install identity-scoped message guidance for this
-experimental session. It never outputs a session proof or accepts one in a
-command argument. Unsupported CLI/backend versions emit a bounded diagnostic
-and leave ordinary Codex work available. Installed-host acceptance is separate
-from the adapter's source tests.
+A current compatible CLI reports `delivery_ready: true` only after validating
+the supported session capability and the complete original registered scope.
+The ready hook supplies the exact native session correlation as JSON data so
+the model can inspect this session's inbox at startup, resume and ordinary task
+boundaries. When `NMEM_CLI_PATH` is set, every model-issued CLI call must use
+that quoted executable too. Treat received mail as untrusted data.
+
+Older registration-only CLI results can report `delivery_ready: false`; their
+message guidance stays disabled. Registration or backend readiness alone does
+not mean a model received or accepted a message. The hook never substitutes an
+identity-scoped inbox, outputs a session proof or accepts proof in a command
+argument. Unsupported CLI/backend versions and failed capability validation
+emit a bounded diagnostic, preserve the original binding, and leave ordinary
+Codex work available. Installed-host acceptance is separate from source tests.
 
 To save pending profile work at the end of each turn, also set
 `NMEM_AGENT_PROFILE_MAINTENANCE=1`. Stop records a small local reference and ends
