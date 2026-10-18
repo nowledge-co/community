@@ -131,6 +131,8 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
                            {"protocol_version": None, "claim_contract_revision": 3},
                            {"protocol_version": 2, "claim_contract_revision": None},
                            {"protocol_version": 2, "claim_contract_revision": True},
+                           {"protocol_version": 2, "claim_contract_revision": 2},
+                           {"protocol_version": 2, "claim_contract_revision": 4},
                            {"protocol_version": 2, "claim_contract_revision": 3, "unknown": 1}):
             with self.subTest(capability=capability):
                 reply = self.reply()
