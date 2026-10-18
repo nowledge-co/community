@@ -875,6 +875,9 @@ export class NowledgeMemClient {
 		) {
 			throw new Error("Distillation scheduling was not acknowledged with a task ID");
 		}
+		if (result.enqueued === false) {
+			throw new Error("Distillation background scheduler is unavailable");
+		}
 		return result;
 	}
 

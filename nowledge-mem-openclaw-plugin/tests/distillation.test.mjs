@@ -139,6 +139,7 @@ test("capture logs background task acceptance without claiming completed memorie
 });
 
 for (const [name, ack, status] of [
+	["unavailable scheduler", { ...scheduled, enqueued: false }, 200],
 	["rejected", { ...scheduled, success: false }, 200],
 	["missing task ID", { success: true }, 200],
 	["empty task ID", { success: true, task_id: " " }, 200],
@@ -160,10 +161,21 @@ for (const [name, ack, status] of [
 			logs.warn[0],
 			status === 503
 				? /Scheduler unavailable/
-				: /scheduling was not acknowledged with a task ID/,
+				: ack?.enqueued === false
+					? /background scheduler is unavailable/
+					: /scheduling was not acknowledged with a task ID/,
 		);
 		assert.ok(
 			logs.info.every((message) => !/scheduled|distilled/.test(message)),
 		);
 	});
 }
+
+test("distillThread accepts a Cloud single-flight acknowledgement for an already queued task", async (t) => {
+	const ack = { ...scheduled, enqueued: true, already_queued: true };
+	const { client } = await backend(t, { ack });
+	assert.deepEqual(
+		await client.distillThread({ threadId: "oc-test-thread" }),
+		ack,
+	);
+});

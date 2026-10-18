@@ -9,7 +9,7 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 ### Fixed
 
 - Schedule automatic distillation by stored thread ID, without the inline content removed in Mem 0.10.7.
-- Report background task acceptance instead of a synchronous memory count, and reject missing scheduling acknowledgements.
+- Report background task acceptance instead of a synchronous memory count, and reject missing scheduling acknowledgements or an unavailable background scheduler.
 
 ## [0.8.38] - 2026-10-17
 

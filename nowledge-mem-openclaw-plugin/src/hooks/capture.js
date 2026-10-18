@@ -742,7 +742,7 @@ async function persistMessages({
 
 /**
  * Build a plain-text conversation string from normalized messages.
- * Used as input for triage and distillation.
+ * Used as input for triage; distillation reads the stored thread.
  *
  * Per-message content is capped at MAX_DISTILL_MESSAGE_CHARS and the
  * total output at MAX_CONVERSATION_CHARS to keep LLM API payloads
