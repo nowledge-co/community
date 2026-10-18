@@ -124,6 +124,32 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
         self.assertNotIn("native_session_id", observed)
         self.assertNotIn("inspect this session's inbox", HOOK._render_session_mailbox_context(observed))
 
+    def test_ready_guides_body_receiving_with_automatic_acceptance(self):
+        reply = self.reply()
+        reply.update(delivery_ready=True,
+                     capability={"protocol_version": 2, "claim_contract_revision": 3})
+        observed, _, _ = self.observe(reply=reply)
+        rendered = HOOK._render_session_mailbox_context(observed)
+        self.assertIn("claim --operation-id <original-operation-id>", rendered)
+        self.assertIn("default automatic mode", rendered)
+        self.assertIn("acceptance before returning the bounded body batch", rendered)
+        self.assertIn("No separate ACK/accept or lease-management step", rendered)
+        self.assertIn("Summaries, inbox listings, hints and history do not consume", rendered)
+        self.assertIn("does not prove model visibility, task agreement or completion", rendered)
+        self.assertIn("recover that same original operation", rendered)
+        self.assertIn("never issue a replacement claim", rendered)
+        self.assertNotIn("--mode explicit", rendered)
+
+    def test_unsupported_paths_do_not_advertise_automatic_body_receiving(self):
+        observed, _, _ = self.observe()
+        rendered = HOOK._render_session_mailbox_context(observed)
+        self.assertIn("Keep session-scoped message operations disabled", rendered)
+        self.assertNotIn("claim --operation-id", rendered)
+        self.assertNotIn("acceptance before returning", rendered)
+        self.assertNotIn("Claim/accept deliberately", HOOK.MAILBOX_GUIDANCE)
+        self.assertIn("does not establish automatic session receiving", HOOK.MAILBOX_GUIDANCE)
+        self.assertIn("Summaries, inbox listings, hints and history do not consume", HOOK.MAILBOX_GUIDANCE)
+
     def test_invalid_capability_never_grants_ready(self):
         for capability in (None, {}, {"protocol_version": 1, "claim_contract_revision": 3},
                            {"protocol_version": True, "claim_contract_revision": 3},
