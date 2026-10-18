@@ -849,25 +849,36 @@ export class NowledgeMemClient {
 	}
 
 	/**
-	 * Distill memories from a conversation thread.
-	 * Calls the full distillation endpoint which uses LLM to extract
-	 * structured memories (with unit_type, temporal data, labels).
+	 * Schedule background distillation of an already stored conversation thread.
+	 * Mem 0.10.7+ no longer accepts inline content for distillation.
+	 * The acknowledgement reports task acceptance, not completed memories.
 	 *
-	 * @param {{ threadId: string, title?: string, content: string }} params
+	 * @param {{ threadId: string, title?: string }} params
 	 */
-	async distillThread({ threadId, title, content }) {
-		return this.apiJson(
+	async distillThread({ threadId, title }) {
+		const normalizedThreadId = String(threadId || "").trim();
+		if (!normalizedThreadId) throw new Error("distillThread requires threadId");
+		const result = await this.apiJson(
 			"POST",
-			"/memories/distill",
+			"/memories/distill/schedule",
 			{
-				thread_id: String(threadId || ""),
+				thread_id: normalizedThreadId,
 				thread_title: title || "",
-				thread_content: String(content || ""),
 				distillation_type: "simple_llm",
 				extraction_level: "swift",
 			},
-			60_000, // 60s timeout for LLM distillation
 		);
+		if (
+			result?.success !== true ||
+			typeof result.task_id !== "string" ||
+			!result.task_id.trim()
+		) {
+			throw new Error("Distillation scheduling was not acknowledged with a task ID");
+		}
+		if (result.enqueued === false) {
+			throw new Error("Distillation background scheduler is unavailable");
+		}
+		return result;
 	}
 
 	// ── Thread search ────────────────────────────────────────────────────────

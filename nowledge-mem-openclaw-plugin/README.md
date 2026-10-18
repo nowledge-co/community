@@ -203,7 +203,7 @@ The behavioral skill and always-on hook nudge the agent to **search before answe
 
 ### Session Lifecycle (Automatic Capture)
 
-When sessions end, conversations are captured and optionally distilled. No user action needed.
+Conversations are captured during the session lifecycle. After positive triage, the plugin schedules background distillation of the saved thread. Task acceptance is logged immediately; extracted memories appear after the backend finishes the task. No user action needed.
 
 ```mermaid
 flowchart TD
@@ -216,7 +216,8 @@ flowchart TD
     C --> F{"sessionDigest enabled+ enough messages+ cooldown passed?"}
     F -->|"Yes"| G["LLM triage (~100 tokens):worth distilling?"]
     F -->|"No"| H["Done - thread saved"]
-    G -->|"Decisions, insights,preferences found"| I["Full distillation ->structured memories(with sourceThreadId)"]
+    G -->|"Decisions, insights,preferences found"| I["Schedule background distillation by thread ID"]
+    I --> J["Backend extracts structured memories(with sourceThreadId)"]
     G -->|"Routine chat"| H
 
     D --> H
@@ -226,7 +227,7 @@ flowchart TD
 **Key points:**
 - Thread capture is unconditional: every conversation is saved and searchable via `nowledge_mem_thread_search`
 - Thread sync is incremental: the plugin preserves the real transcript, appends only the unsynced tail, and requires Mem's checkpointed acknowledgement before the local cursor advances
-- LLM distillation only runs at `agent_end`, not during compaction/reset checkpoints
+- Distillation is scheduled from `agent_end` or Context Engine `afterTurn`, not during compaction/reset checkpoints
 - Distilled memories carry `sourceThreadId`, linking them back to the source conversation
 - Cooldown (`digestMinInterval`, default 300s) prevents burst distillation
 

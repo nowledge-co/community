@@ -47,7 +47,7 @@ clawhub package publish . \
   --family code-plugin \
   --name @nowledge/openclaw-nowledge-mem \
   --owner nowledge \
-  --version 0.8.38 \
+  --version 0.8.39 \
   --tags latest \
   --source-repo nowledge-co/community \
   --source-commit "$(git rev-parse HEAD)" \
@@ -99,13 +99,13 @@ clawhub package publish . \
   --family code-plugin \
   --name @nowledge/openclaw-nowledge-mem \
   --owner nowledge \
-  --version 0.8.38 \
+  --version 0.8.39 \
   --tags latest \
   --source-repo nowledge-co/community \
   --source-commit "$(git rev-parse HEAD)" \
   --source-path nowledge-mem-openclaw-plugin \
   --wait \
-  --changelog "OpenClaw 2.0 Incognito-safe automatic capture and package-version diagnostics"
+  --changelog "Schedule automatic distillation from stored threads and report background task acceptance accurately"
 ```
 
 If your globally installed `clawhub` CLI is older or does not support the
