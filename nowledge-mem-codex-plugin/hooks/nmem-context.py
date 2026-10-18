@@ -187,7 +187,7 @@ def _mailbox_observation() -> dict[str, Any] | None:
 
 
 def _session_mailbox_observation(payload: dict[str, Any]) -> dict[str, Any]:
-    """Opt-in registration only; native correlation is never proof possession."""
+    """Opt-in registration and verified capability; native correlation is not proof."""
     observation: dict[str, Any] = {"state": "unverified", "delivery_ready": False}
     name = os.environ.get("NMEM_AGENT_CONTEXT", "").strip()
     if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,120}", name):
@@ -248,8 +248,19 @@ def _session_mailbox_observation(payload: dict[str, Any]) -> dict[str, Any]:
         return observation
     candidate = {"scope": address.get("scope"), "address": address.get("agent")}
     times = [registration.get(key) for key in ("registered_at", "observed_at", "lease_expires_at")]
+    ready = reply.get("delivery_ready")
+    capability = reply.get("capability")
+    if type(ready) is not bool:
+        return observation
+    if ready and (not isinstance(capability, dict)
+                  or set(capability) != {"protocol_version", "claim_contract_revision"}
+                  or type(capability["protocol_version"]) is not int
+                  or capability["protocol_version"] != 2
+                  or type(capability["claim_contract_revision"]) is not int
+                  or capability["claim_contract_revision"] != 3):
+        return observation
     if (reply.get("state") != "active" or reply.get("context") != name
-            or reply.get("delivery_ready") is not False or not isinstance(reply.get("resumed"), bool)
+            or not isinstance(reply.get("resumed"), bool)
             or registration.get("state") != "active" or registration.get("closed_at") is not None
             or type(address.get("schema_version")) is not int or address["schema_version"] != 2
             or not _typed_selection(candidate) or candidate != selection
@@ -262,7 +273,7 @@ def _session_mailbox_observation(payload: dict[str, Any]) -> dict[str, Any]:
                    or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", address[key])
                    for key in ("session_id", "registration_id", "mailbox_id"))):
         return observation
-    observation.update(state="active", resumed=reply["resumed"], agent_id=agent, space_id=space)
+    observation.update(state="active", delivery_ready=ready, resumed=reply["resumed"], agent_id=agent, space_id=space)
     return observation
 
 
@@ -270,6 +281,18 @@ def _render_session_mailbox_context(observation: dict[str, Any]) -> str:
     # Never echo CLI bodies: only explicitly selected non-secret fields survive.
     public = {key: value for key, value in observation.items()
               if key in {"state", "delivery_ready", "name", "resumed", "reason", "error_code", "http_status"}}
+    if observation.get("state") == "active" and observation.get("delivery_ready") is True:
+        return ("## Nowledge Bridge session capability\n\n"
+                + json.dumps(public, ensure_ascii=True, sort_keys=True)
+                + "\n\nBackend session messaging is ready. This startup observation "
+                  "has not received or accepted any message. Use session-scoped "
+                  "mailbox commands with the configured named context and exact "
+                  "host session. When NMEM_CLI_PATH is set, use its quoted value "
+                  "for every CLI call; do not substitute another nmem from PATH. "
+                  "Preserve the original operation ID when retrying "
+                  "the same intent. Do not substitute an identity-scoped inbox or "
+                  "another session. Registration expires after 24 hours; resume "
+                  "does not renew it. Identity or binding changes require explicit owner action.")
     return ("## Nowledge Bridge session registration\n\n"
             + json.dumps(public, ensure_ascii=True, sort_keys=True)
             + "\n\nSession-addressed messaging is unavailable in this experimental adapter. "

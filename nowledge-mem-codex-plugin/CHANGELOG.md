@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.43] - Unreleased
+
+### Changed
+
+- Admit session messaging guidance only after the CLI validates the current
+  backend capability and original registered scope. Retain registration-only
+  behavior for older compatible CLI results.
+- Backend readiness does not mean a message has been received or accepted;
+  installed-host delivery acceptance remains separate.
+
 ## [0.1.42] - Unreleased
 
 ### Added

@@ -91,6 +91,35 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
         observed, _, _ = self.observe(reply=reply)
         self.assertNotEqual(observed["state"], "active")
 
+    def test_ready_requires_exact_typed_current_capability(self):
+        reply = self.reply()
+        reply.update(delivery_ready=True,
+                     capability={"protocol_version": 2, "claim_contract_revision": 3})
+        observed, _, _ = self.observe(reply=reply)
+        self.assertEqual(observed["state"], "active")
+        self.assertIs(observed["delivery_ready"], True)
+        rendered = HOOK._render_session_mailbox_context(observed)
+        self.assertIn("Backend session messaging is ready", rendered)
+        self.assertIn("has not received or accepted", rendered)
+        self.assertIn("When NMEM_CLI_PATH is set, use its quoted value", rendered)
+        self.assertNotIn("random-session", rendered)
+        self.assertNotIn("Keep session-scoped message operations disabled", rendered)
+
+    def test_invalid_capability_never_grants_ready(self):
+        for capability in (None, {}, {"protocol_version": 1, "claim_contract_revision": 3},
+                           {"protocol_version": True, "claim_contract_revision": 3},
+                           {"protocol_version": 2.0, "claim_contract_revision": 3},
+                           {"protocol_version": None, "claim_contract_revision": 3},
+                           {"protocol_version": 2, "claim_contract_revision": None},
+                           {"protocol_version": 2, "claim_contract_revision": True},
+                           {"protocol_version": 2, "claim_contract_revision": 3, "unknown": 1}):
+            with self.subTest(capability=capability):
+                reply = self.reply()
+                reply.update(delivery_ready=True, capability=capability)
+                observed, _, _ = self.observe(reply=reply)
+                self.assertIs(observed["delivery_ready"], False)
+                self.assertNotEqual(observed["state"], "active")
+
     def test_missing_old_cli_and_timeout_keep_registration_unverified(self):
         for result in (None, (1, {}), (1, {"error_code": "mailbox_attachment_stale", "http_status": 409})):
             with self.subTest(result=result), \
