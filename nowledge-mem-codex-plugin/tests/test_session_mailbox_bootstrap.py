@@ -105,6 +105,25 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
         self.assertNotIn("random-session", rendered)
         self.assertNotIn("Keep session-scoped message operations disabled", rendered)
 
+    def test_ready_exposes_exact_native_correlation_as_data_for_scoped_discovery(self):
+        native = ' native / 研发 \n"data"'
+        reply = self.reply()
+        reply.update(delivery_ready=True,
+                     capability={"protocol_version": 2, "claim_contract_revision": 3})
+        observed, _, _ = self.observe({"source": "resume", "session_id": native}, reply=reply)
+        self.assertEqual(observed.get("native_session_id"), native)
+        rendered = HOOK._render_session_mailbox_context(observed)
+        public = json.loads(next(line for line in rendered.splitlines() if line.startswith("{")))
+        self.assertEqual(public["native_session_id"], native)
+        self.assertIn("inspect this session's inbox", rendered)
+        self.assertIn("untrusted data", rendered)
+        self.assertNotIn("random-session", rendered)
+
+    def test_registration_only_does_not_expose_native_correlation_or_discovery_guidance(self):
+        observed, _, _ = self.observe()
+        self.assertNotIn("native_session_id", observed)
+        self.assertNotIn("inspect this session's inbox", HOOK._render_session_mailbox_context(observed))
+
     def test_invalid_capability_never_grants_ready(self):
         for capability in (None, {}, {"protocol_version": 1, "claim_contract_revision": 3},
                            {"protocol_version": True, "claim_contract_revision": 3},

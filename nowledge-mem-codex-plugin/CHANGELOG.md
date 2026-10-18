@@ -7,6 +7,8 @@
 - Admit session messaging guidance only after the CLI validates the current
   backend capability and original registered scope. Retain registration-only
   behavior for older compatible CLI results.
+- Supply the exact native session correlation as JSON data for session-scoped
+  inbox discovery at startup, resume and ordinary task boundaries.
 - Backend readiness does not mean a message has been received or accepted;
   installed-host delivery acceptance remains separate.
 
