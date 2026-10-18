@@ -823,15 +823,10 @@ export async function triageAndDistill({
 		const distillResult = await client.distillThread({
 			threadId: captureResult.threadId,
 			title: buildThreadTitle(ctx, captureResult.normalized),
-			content: conversationText,
 		});
 
-		const count =
-			distillResult?.memories_created ??
-			distillResult?.created_memories?.length ??
-			0;
 		logger.info(
-			`capture: distilled ${count} memories from ${captureResult.threadId}`,
+			`capture: scheduled background distillation for ${captureResult.threadId} (task ${distillResult.task_id})`,
 		);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);

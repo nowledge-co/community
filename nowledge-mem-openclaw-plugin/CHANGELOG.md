@@ -4,6 +4,13 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.39] - 2026-10-18
+
+### Fixed
+
+- Schedule automatic distillation by stored thread ID, without the inline content removed in Mem 0.10.7.
+- Report background task acceptance instead of a synchronous memory count, and reject missing scheduling acknowledgements.
+
 ## [0.8.38] - 2026-10-17
 
 - Refresh the embedded core 0.2.0 content manifest for Alma adoption; runtime behavior is unchanged.
