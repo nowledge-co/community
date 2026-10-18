@@ -281,7 +281,7 @@
       "name": "Copilot CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-copilot-cli-plugin",
       "transport": "cli",
       "capabilities": {
@@ -310,12 +310,13 @@
         ]
       },
       "install": {
-        "command": "copilot plugin marketplace add nowledge-co/community && copilot plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "copilot plugin marketplace add nowledge-co/community && copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem",
-        "detectionHint": "Running as GitHub Copilot CLI agent; ~/.copilot/ exists",
+        "command": "copilot plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem@nowledge-community",
+        "configRequired": "Before the qualified install command, run copilot plugin marketplace list and inspect every entry. Stop if the community repository appears under another name, is pinned, or any entry prevents ruling out a related source. Add nowledge-co/community only when both the canonical name and related sources are unambiguously absent, then list again and verify the source is exactly GitHub: nowledge-co/community without a ref or pin. Reuse an existing verified canonical registration. Stop for conflicting or unreadable results.",
+        "detectionHint": "Running as GitHub Copilot CLI agent; COPILOT_HOME selects its profile, defaulting to ~/.copilot",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Copilot CLI. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Copilot CLI 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Copilot CLI. Inspect the complete marketplace listing first, including related sources under aliases. Stop on aliased, pinned, conflicting or unclear provenance. Add only when the canonical name and related sources are unambiguously absent, verify the unpinned canonical source, then install the qualified plugin. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Copilot CLI 安装或更新 Nowledge Mem。先检查完整市场列表，包括别名下的相关来源；发现别名、固定版本、来源冲突或无法确认的条目时停止。只有确认官方名称和相关来源均缺失时才添加，验证来源为未固定版本的官方仓库后安装带来源限定的插件。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/copilot-cli"
       },

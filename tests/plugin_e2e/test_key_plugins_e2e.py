@@ -572,7 +572,7 @@ def test_key_plugin_static_contracts_are_declared():
         encoding="utf-8"
     )
     copilot_capture = (COPILOT_PLUGIN / "hooks" / "copilot-stop-save.py").read_text(encoding="utf-8")
-    assert copilot_manifest["version"] == "0.1.5"
+    assert copilot_manifest["version"] == "0.1.6"
     assert copilot_marketplace_plugin["version"] == copilot_manifest["version"]
     assert registry_by_id["copilot-cli"]["version"] == copilot_manifest["version"]
     assert '"context", "--source-app", "copilot-cli"' in copilot_hook
@@ -1531,7 +1531,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "raft" in integration_ids
     assert "slock" not in integration_ids
     assert "slock" in by_id["raft"]["aliases"]
-    assert by_id["copilot-cli"]["version"] == "0.1.5"
+    assert by_id["copilot-cli"]["version"] == "0.1.6"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
     assert by_id["cursor"]["version"] == "0.2.2"
     assert by_id["cursor"]["transport"] == "mcp+hook"

@@ -18,7 +18,7 @@ Before release:
 5. Install the plugin locally and verify:
    - Context Bundle loads at session start, or Working Memory loads as the fallback on older `nmem`
    - Per-turn nudge appears
-   - Stop, PreCompact, and SessionEnd hooks capture sessions from the packaged plugin runtime, and `copilot-stop-save.py` writes diagnostics to `~/.copilot/nowledge-mem-hooks/hook-log.jsonl` for both the packaged and compatibility paths
+   - Stop, PreCompact, and SessionEnd hooks capture sessions from the packaged plugin runtime, and `copilot-stop-save.py` writes diagnostics to `nowledge-mem-hooks/hook-log.jsonl` inside the active Copilot profile (`COPILOT_HOME`, default `~/.copilot`) for both the packaged and compatibility paths
    - Copilot shows only the skill-backed surface (no extra command-doc entries)
    - The remaining skills still match actual behavior (`read-working-memory`, `search-memory`, `distill-memory`, `save-thread`)
    - `nmem status` still works as the direct troubleshooting path
