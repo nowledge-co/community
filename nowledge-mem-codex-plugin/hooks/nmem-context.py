@@ -252,15 +252,15 @@ def _session_mailbox_observation(payload: dict[str, Any]) -> dict[str, Any]:
     candidate = {"scope": address.get("scope"), "address": address.get("agent")}
     times = [registration.get(key) for key in ("registered_at", "observed_at", "lease_expires_at")]
     ready = reply.get("delivery_ready")
-    capability = reply.get("capability")
+    capability = reply.get("receiving_capability")
     if type(ready) is not bool:
         return observation
     if ready and (not isinstance(capability, dict)
-                  or set(capability) != {"protocol_version", "claim_contract_revision"}
+                  or set(capability) != {"protocol_version", "receive_mode", "recovery_owner"}
                   or type(capability["protocol_version"]) is not int
                   or capability["protocol_version"] != 2
-                  or type(capability["claim_contract_revision"]) is not int
-                  or capability["claim_contract_revision"] != 3):
+                  or capability["receive_mode"] != "auto"
+                  or capability["recovery_owner"] != "server"):
         return observation
     if (reply.get("state") != "active" or reply.get("context") != name
             or not isinstance(reply.get("resumed"), bool)

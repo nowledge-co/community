@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Match the native CLI's server-qualified V2 automatic receiving and
+  server-owned recovery descriptor; older descriptors grant no receiving guidance.
 - Admit session messaging guidance only after the CLI validates the current
   backend capability and original registered scope. Retain registration-only
   behavior for older compatible CLI results.

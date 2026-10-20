@@ -94,7 +94,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
     def test_ready_requires_exact_typed_current_capability(self):
         reply = self.reply()
         reply.update(delivery_ready=True,
-                     capability={"protocol_version": 2, "claim_contract_revision": 3})
+                     receiving_capability={"protocol_version": 2, "receive_mode": "auto", "recovery_owner": "server"})
         observed, _, _ = self.observe(reply=reply)
         self.assertEqual(observed["state"], "active")
         self.assertIs(observed["delivery_ready"], True)
@@ -109,7 +109,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
         native = ' native / 研发 \n"data"'
         reply = self.reply()
         reply.update(delivery_ready=True,
-                     capability={"protocol_version": 2, "claim_contract_revision": 3})
+                     receiving_capability={"protocol_version": 2, "receive_mode": "auto", "recovery_owner": "server"})
         observed, _, _ = self.observe({"source": "resume", "session_id": native}, reply=reply)
         self.assertEqual(observed.get("native_session_id"), native)
         rendered = HOOK._render_session_mailbox_context(observed)
@@ -127,7 +127,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
     def test_ready_guides_body_receiving_with_automatic_acceptance(self):
         reply = self.reply()
         reply.update(delivery_ready=True,
-                     capability={"protocol_version": 2, "claim_contract_revision": 3})
+                     receiving_capability={"protocol_version": 2, "receive_mode": "auto", "recovery_owner": "server"})
         observed, _, _ = self.observe(reply=reply)
         rendered = HOOK._render_session_mailbox_context(observed)
         self.assertIn("claim --operation-id <original-operation-id>", rendered)
@@ -151,18 +151,20 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
         self.assertIn("Summaries, inbox listings, hints and history do not consume", HOOK.MAILBOX_GUIDANCE)
 
     def test_invalid_capability_never_grants_ready(self):
-        for capability in (None, {}, {"protocol_version": 1, "claim_contract_revision": 3},
-                           {"protocol_version": True, "claim_contract_revision": 3},
-                           {"protocol_version": 2.0, "claim_contract_revision": 3},
-                           {"protocol_version": None, "claim_contract_revision": 3},
-                           {"protocol_version": 2, "claim_contract_revision": None},
-                           {"protocol_version": 2, "claim_contract_revision": True},
-                           {"protocol_version": 2, "claim_contract_revision": 2},
-                           {"protocol_version": 2, "claim_contract_revision": 4},
-                           {"protocol_version": 2, "claim_contract_revision": 3, "unknown": 1}):
+        for capability in (None, {},
+                           {"protocol_version": 2, "claim_contract_revision": 3},
+                           {"protocol_version": 1, "receive_mode": "auto", "recovery_owner": "server"},
+                           {"protocol_version": 3, "receive_mode": "auto", "recovery_owner": "server"},
+                           {"protocol_version": True, "receive_mode": "auto", "recovery_owner": "server"},
+                           {"protocol_version": 2.0, "receive_mode": "auto", "recovery_owner": "server"},
+                           {"protocol_version": 2, "receive_mode": "explicit", "recovery_owner": "server"},
+                           {"protocol_version": 2, "receive_mode": True, "recovery_owner": "server"},
+                           {"protocol_version": 2, "receive_mode": "auto", "recovery_owner": "client"},
+                           {"protocol_version": 2, "receive_mode": "auto", "recovery_owner": None},
+                           {"protocol_version": 2, "receive_mode": "auto", "recovery_owner": "server", "unknown": 1}):
             with self.subTest(capability=capability):
                 reply = self.reply()
-                reply.update(delivery_ready=True, capability=capability)
+                reply.update(delivery_ready=True, receiving_capability=capability)
                 observed, _, _ = self.observe(reply=reply)
                 self.assertIs(observed["delivery_ready"], False)
                 self.assertNotEqual(observed["state"], "active")
