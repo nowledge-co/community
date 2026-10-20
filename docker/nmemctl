@@ -137,6 +137,13 @@ DC=(docker compose ${NMEM_COMPOSE_FILES})
 # Service name in compose.yaml. Override with NMEM_SERVICE if you renamed it.
 SVC="${NMEM_SERVICE:-mem}"
 
+# Seconds Docker waits after SIGTERM before SIGKILL. The server drains work and
+# writes a final graph checkpoint on SIGTERM; its own budget is 20 s plus the
+# checkpoint. Docker's 10 s default can kill it mid-checkpoint, which leaves the
+# graph needing recovery on the next start. Matches stop_grace_period in
+# compose.yaml.
+STOP_TIMEOUT=60
+
 # ---------------------------------------------------------------------------
 # Output helpers
 # ---------------------------------------------------------------------------
@@ -348,7 +355,7 @@ cmd_up() {
 cmd_down() {
   require_docker
   step "Stopping Nowledge Mem (data preserved)"
-  "${DC[@]}" down
+  "${DC[@]}" down -t "$STOP_TIMEOUT"
   ok "stopped"
 }
 
@@ -356,7 +363,7 @@ cmd_restart() {
   require_docker
   step "Restarting Nowledge Mem"
   if is_running; then
-    "${DC[@]}" restart "$SVC"
+    "${DC[@]}" restart -t "$STOP_TIMEOUT" "$SVC"
   else
     "${DC[@]}" up -d
   fi
@@ -573,7 +580,7 @@ cmd_upgrade() {
   fi
 
   step "Recreating container with new image"
-  "${DC[@]}" up -d --force-recreate "$SVC"
+  "${DC[@]}" up -d --force-recreate -t "$STOP_TIMEOUT" "$SVC"
 
   step "Waiting for /livez"
   for i in $(seq 1 60); do
@@ -602,7 +609,7 @@ cmd_wipe() {
   fi
 
   step "Stopping container"
-  "${DC[@]}" down
+  "${DC[@]}" down -t "$STOP_TIMEOUT"
 
   step "Removing bind-mount contents"
   # Files inside are owned by UID 10001 (container's user) — we use the
@@ -831,7 +838,7 @@ cmd_export() {
   # Tar-ing live DB pages mid-write is the classic backup footgun.
   if is_running; then
     step "Stopping container (required — DB must be at rest)"
-    "${DC[@]}" down
+    "${DC[@]}" down -t "$STOP_TIMEOUT"
   fi
 
   step "Discovering current image (for archive manifest)"
@@ -1502,7 +1509,7 @@ cmd_auto_update_enable() {
       NMEM_COMPOSE_FILES="-f compose.yaml $AUTO_UPDATE_OVERLAY"
     fi
     DC=(docker compose ${NMEM_COMPOSE_FILES})
-    "${DC[@]}" up -d --force-recreate updater "$SVC" >/dev/null 2>&1
+    "${DC[@]}" up -d --force-recreate -t "$STOP_TIMEOUT" updater "$SVC" >/dev/null 2>&1
     ok "both containers restarted on the repaired token"
     cmd_auto_update_status
     return 0
@@ -1622,7 +1629,7 @@ cmd_auto_update_rotate() {
   # Without recreating mem too, mem would keep the OLD token in its
   # environment and 401 every time it tries to reach the sidecar.
   step "Recreating both updater and mem containers on the new token"
-  "${DC[@]}" up -d --force-recreate updater "$SVC" >/dev/null 2>&1
+  "${DC[@]}" up -d --force-recreate -t "$STOP_TIMEOUT" updater "$SVC" >/dev/null 2>&1
   ok "both containers restarted on the new token"
 
   step "Token rotated"

@@ -39,6 +39,11 @@ services:
     image: docker.io/nowledgelabs/mem:${NMEM_IMAGE_TAG:-latest}
     container_name: nowledge-mem
     restart: unless-stopped
+    # On stop, the server drains work and writes a final graph checkpoint.
+    # Docker's 10-second default can kill it mid-checkpoint, and the next start
+    # then has to recover the graph. 60 s covers the server's 20 s shutdown
+    # budget plus a large checkpoint. `nmemctl` passes the same value.
+    stop_grace_period: 60s
     labels:
       # Identification metadata for operators and future tooling. The
       # updater sidecar targets NOWLEDGE_MEM_CONTAINER/NOWLEDGE_MEM_SERVICE.
