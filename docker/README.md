@@ -770,6 +770,18 @@ your dataset — bump it per the table above and recreate the stack.
   shows "agent is busy, try again in a few seconds" instead of
   silently double-booking memory and OOM-killing the container.
 
+**Give the server time to stop.** On `SIGTERM` the server finishes
+in-flight work and writes a final graph checkpoint. Docker's default is
+to kill a container 10 seconds after `SIGTERM`, which can interrupt that
+checkpoint, and the next start then has to recover the graph. The
+reference compose sets `stop_grace_period: 60s`, and `nmemctl` passes
+`-t 60` to every stop, restart and recreate. If you run the image some
+other way, do the same: `docker run --stop-timeout 60 ...`,
+`docker stop -t 60 nowledge-mem`, or the equivalent stop timeout setting
+on your NAS or orchestrator. If you raise
+`NMEM_GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS` above its 20-second default,
+raise the grace period by the same amount.
+
 **Container memory cap is now cgroup-aware.** Earlier builds would
 size Kuzu's auto-cap from the *host's* RAM, ignoring your
 `mem_limit`. Starting 0.8.4 the auto-cap clamps to the cgroup

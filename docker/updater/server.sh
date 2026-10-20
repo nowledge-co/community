@@ -402,7 +402,7 @@ case "$method $path" in
       audit "APPLY start ref=$ref snapshot=$snapshot"
 
       # Step 1: stop the mem container.
-      if ! docker stop -t 30 "$NOWLEDGE_MEM_CONTAINER" >/dev/null 2>&1; then
+      if ! docker stop -t 60 "$NOWLEDGE_MEM_CONTAINER" >/dev/null 2>&1; then
         audit "APPLY stop failed"
         exit 1
       fi
