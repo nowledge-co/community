@@ -44,11 +44,20 @@ FAKE_DOCKER
   printf '%s\n' "$workdir"
 }
 
+# Prints the combined output followed by a final `exit=<status>` line, so a
+# test can assert both what an operator reads and what a script sees.
 run_nmemctl() {
-  local workdir="$1"
+  local workdir="$1" status=0
   shift
   (cd "$workdir" && PATH="$workdir/bin:$PATH" NMEM_FAKE_DOCKER_LOG="$workdir/docker.log" \
-    NMEM_FAKE_HEALTH="$workdir/health.json" ./nmemctl "$@") 2>&1 || true
+    NMEM_FAKE_HEALTH="$workdir/health.json" ./nmemctl "$@") 2>&1 || status=$?
+  printf 'exit=%s\n' "$status"
+}
+
+expect_exit() {
+  local output="$1" expected="$2" what="$3"
+  printf '%s\n' "$output" | tail -n 1 | grep -Fqx "exit=$expected" \
+    || { printf '%s\n' "$output" >&2; fail "$what must exit $expected"; }
 }
 
 test_status_reports_a_parked_server() {
@@ -57,6 +66,7 @@ test_status_reports_a_parked_server() {
   output="$(run_nmemctl "$workdir" status)"
   printf '%s\n' "$output" | grep -Fq "needs recovery (reason: failed_attempt_retained)" \
     || { printf '%s\n' "$output" >&2; fail "status must report the recovery-required reason"; }
+  expect_exit "$output" 3 "status of a parked server"
 }
 
 test_restart_reports_a_parked_server() {
@@ -65,6 +75,20 @@ test_restart_reports_a_parked_server() {
   output="$(run_nmemctl "$workdir" restart)"
   printf '%s\n' "$output" | grep -Fq "needs recovery (reason: insufficient_space)" \
     || { printf '%s\n' "$output" >&2; fail "restart must report the recovery-required reason"; }
+  printf '%s\n' "$output" | grep -Fq "ready in" \
+    || { printf '%s\n' "$output" >&2; fail "restart must keep the \"ready in\" line"; }
+  expect_exit "$output" 3 "restart of a parked server"
+}
+
+test_up_reports_a_parked_server() {
+  local workdir output
+  workdir="$(make_fixture up '{"status":"recovery_required","reason":"environment_unavailable"}')"
+  output="$(run_nmemctl "$workdir" up)"
+  printf '%s\n' "$output" | grep -Fq "needs recovery (reason: environment_unavailable)" \
+    || { printf '%s\n' "$output" >&2; fail "up must report the recovery-required reason"; }
+  printf '%s\n' "$output" | grep -Fq "ready in" \
+    || { printf '%s\n' "$output" >&2; fail "up must keep the \"ready in\" line"; }
+  expect_exit "$output" 3 "up of a parked server"
 }
 
 test_healthy_server_has_no_warning() {
@@ -75,10 +99,12 @@ test_healthy_server_has_no_warning() {
     printf '%s\n' "$output" >&2
     fail "a healthy server must not be reported as needing recovery"
   fi
+  expect_exit "$output" 0 "status of a healthy server"
 }
 
 test_status_reports_a_parked_server
 test_restart_reports_a_parked_server
+test_up_reports_a_parked_server
 test_healthy_server_has_no_warning
 
 printf 'nmemctl recovery-required tests passed\n'
