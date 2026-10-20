@@ -39,7 +39,7 @@ set -euo pipefail
 # Version of the controller itself. Bump when nmemctl semantics or
 # command surface change. Independent of the docker image version
 # (which `./nmemctl version` reports separately).
-NMEMCTL_VERSION="2.4.0"
+NMEMCTL_VERSION="2.5.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -203,6 +203,9 @@ probe_livez() {
 # 0.10.105+): it serves /livez and the web UI, but not your data. Read the
 # public /health status (a reason code only, no paths) and say so.
 # Returns 0 when the server reports ordinary health, 2 when it is parked.
+# Commands that wait for or report the server exit with status 3 when it is
+# parked, so scripts can tell a live but recovery-required server apart.
+RECOVERY_REQUIRED_EXIT=3
 report_health_state() {
   local out status reason
   out="$("${DC[@]}" exec -T "$SVC" curl -fsS http://127.0.0.1:14242/health 2>/dev/null || true)"
@@ -232,8 +235,8 @@ bring_up_and_wait() {
   # is (i-1)*2, not i*2.
   for i in $(seq 1 60); do
     if probe_livez; then
-      ok "live in $(( (i - 1) * 2 ))s"
-      report_health_state || true
+      ok "ready in $(( (i - 1) * 2 ))s"
+      report_health_state || exit "$RECOVERY_REQUIRED_EXIT"
       return 0
     fi
     sleep 2
@@ -391,8 +394,8 @@ cmd_restart() {
   step "Waiting for /livez"
   for i in $(seq 1 60); do
     if probe_livez; then
-      ok "live in $(( (i - 1) * 2 ))s"
-      report_health_state || true
+      ok "ready in $(( (i - 1) * 2 ))s"
+      report_health_state || exit "$RECOVERY_REQUIRED_EXIT"
       return 0
     fi
     sleep 2
@@ -411,9 +414,10 @@ cmd_status() {
   fi
 
   step "Health"
+  local parked=0
   if probe_livez; then
     ok "/livez responding"
-    report_health_state || true
+    report_health_state || parked=1
   else
     warn "/livez not responding yet"
   fi
@@ -431,6 +435,9 @@ cmd_status() {
     note "API key:  $key"
   fi
   print_url
+  if [[ $parked -eq 1 ]]; then
+    exit "$RECOVERY_REQUIRED_EXIT"
+  fi
 }
 
 cmd_logs() {
@@ -610,7 +617,7 @@ cmd_upgrade() {
 
   step "Waiting for /livez"
   for i in $(seq 1 60); do
-    if probe_livez; then ok "live in $(( (i - 1) * 2 ))s"; break; fi
+    if probe_livez; then ok "ready in $(( (i - 1) * 2 ))s"; break; fi
     sleep 2
     [[ $i -eq 60 ]] && fail "server did not come back up in 120s."
   done
@@ -619,6 +626,8 @@ cmd_upgrade() {
     step "Upgrade complete"
   else
     step "Upgrade installed, but the server needs recovery before it serves data"
+    cmd_version_inner
+    exit "$RECOVERY_REQUIRED_EXIT"
   fi
   cmd_version_inner
 }
