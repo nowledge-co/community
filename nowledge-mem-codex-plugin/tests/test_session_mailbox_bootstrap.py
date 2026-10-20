@@ -140,6 +140,30 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
         self.assertIn("never issue a replacement claim", rendered)
         self.assertNotIn("--mode explicit", rendered)
 
+    def test_uncertain_receive_guides_original_body_retrieval(self):
+        reply = self.reply()
+        reply.update(delivery_ready=True,
+                     receiving_capability={"protocol_version": 2, "receive_mode": "auto", "recovery_owner": "server"})
+        observed, _, _ = self.observe(reply=reply)
+        rendered = HOOK._render_session_mailbox_context(observed)
+        for instruction in (
+            "recover --operation-id <original-operation-id>",
+            "Recover returns a receipt, not message bodies",
+            "When its state is `received`",
+            "receipt.items[].message_id",
+            "read <message-id>",
+            "same named context and native session",
+            "same operation ID, limit and after-sequence",
+            "Pending remains unresolved",
+            "unavailable or retired outcomes",
+            "does not require a client operation journal",
+            "never issue a replacement claim",
+        ):
+            with self.subTest(instruction=instruction):
+                self.assertIn(instruction, rendered)
+        self.assertIn("use its quoted value", rendered)
+        self.assertIn("quote argument values as data", rendered)
+
     def test_unsupported_paths_do_not_advertise_automatic_body_receiving(self):
         observed, _, _ = self.observe()
         rendered = HOOK._render_session_mailbox_context(observed)
