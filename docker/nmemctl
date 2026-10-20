@@ -198,6 +198,26 @@ probe_livez() {
     >/dev/null 2>&1
 }
 
+# /livez only proves the process is up. A server whose automatic graph
+# recovery is exhausted stays up in a recovery-required state (Nowledge Mem
+# 0.10.105+): it serves /livez and the web UI, but not your data. Read the
+# public /health status (a reason code only, no paths) and say so.
+# Returns 0 when the server reports ordinary health, 2 when it is parked.
+report_health_state() {
+  local out status reason
+  out="$("${DC[@]}" exec -T "$SVC" curl -fsS http://127.0.0.1:14242/health 2>/dev/null || true)"
+  status="$(printf '%s' "$out" | _json_field status | tr -d '\r\n')"
+  if [[ "$status" == "recovery_required" ]]; then
+    reason="$(printf '%s' "$out" | _json_field reason | tr -d '\r\n')"
+    warn "the server is up, but its database needs recovery (reason: ${reason:-unknown})."
+    note "Your data is kept as it is. Open the web UI on this server for the"
+    note "explanation and next step, or read it with:"
+    note "  ${DC[*]} exec -T $SVC curl -fsS http://127.0.0.1:14242/health/details"
+    return 2
+  fi
+  return 0
+}
+
 # Bring the stack up and block until /livez answers. Idempotent.
 bring_up_and_wait() {
   # First-run safety: ensure the bind-mount dirs exist + are owned by the
@@ -212,7 +232,8 @@ bring_up_and_wait() {
   # is (i-1)*2, not i*2.
   for i in $(seq 1 60); do
     if probe_livez; then
-      ok "ready in $(( (i - 1) * 2 ))s"
+      ok "live in $(( (i - 1) * 2 ))s"
+      report_health_state || true
       return 0
     fi
     sleep 2
@@ -369,7 +390,11 @@ cmd_restart() {
   fi
   step "Waiting for /livez"
   for i in $(seq 1 60); do
-    if probe_livez; then ok "ready in $(( (i - 1) * 2 ))s"; return 0; fi
+    if probe_livez; then
+      ok "live in $(( (i - 1) * 2 ))s"
+      report_health_state || true
+      return 0
+    fi
     sleep 2
   done
   fail "server did not become live in 120s after restart."
@@ -388,6 +413,7 @@ cmd_status() {
   step "Health"
   if probe_livez; then
     ok "/livez responding"
+    report_health_state || true
   else
     warn "/livez not responding yet"
   fi
@@ -584,12 +610,16 @@ cmd_upgrade() {
 
   step "Waiting for /livez"
   for i in $(seq 1 60); do
-    if probe_livez; then ok "ready in $(( (i - 1) * 2 ))s"; break; fi
+    if probe_livez; then ok "live in $(( (i - 1) * 2 ))s"; break; fi
     sleep 2
     [[ $i -eq 60 ]] && fail "server did not come back up in 120s."
   done
 
-  step "Upgrade complete"
+  if report_health_state; then
+    step "Upgrade complete"
+  else
+    step "Upgrade installed, but the server needs recovery before it serves data"
+  fi
   cmd_version_inner
 }
 
