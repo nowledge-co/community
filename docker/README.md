@@ -654,6 +654,14 @@ rotation (`max-size: 10m`, `max-file: 5`). To follow:
 - `GET /health` — public status-only liveness response. Use `/livez` for
   orchestrator probes and `/health/details` for detailed readiness diagnostics.
 
+If automatic graph recovery cannot finish, the server stays up instead of
+restarting in a loop: `/livez` stays green, `/health` reports
+`"status": "recovery_required"`, and the web UI explains the next step. From
+nmemctl 2.5.0, `./nmemctl status`, `up`, `restart`, and `upgrade` still print
+the usual `ready in` line but then exit with status `3` in this state, so a
+script can tell "up but needs recovery" apart from "ready" (`0`) and from a
+failed start (`1`).
+
 ### Embedding status and search quality
 
 A bare container with no local model and no remote embedding configured runs in hash-fallback mode: keyword/FTS search works, but semantic search quality is degraded. `/health/details` reports this explicitly:
