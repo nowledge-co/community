@@ -2,6 +2,7 @@ import importlib.util
 import hashlib
 import json
 import os
+import sys
 import time
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -721,8 +722,7 @@ def test_background_session_key_falls_back_to_payload_cwd_without_env(tmp_path):
 
 # A stand-in for the nmem CLI that answers `t capture` like the real queue
 # (status=enqueued + queue_key) and replays scripted `t capture-status` states.
-FAKE_NMEM = r"""#!/usr/bin/env python3
-import json, os, sys
+FAKE_NMEM = r"""import json, os, sys
 from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ["FAKE_NMEM_LOG"], "a", encoding="utf-8") as log:
@@ -746,14 +746,22 @@ sys.exit(0)
 
 
 def _fake_nmem(tmp_path, plan):
-    script = tmp_path / "fake-nmem"
-    script.write_text(FAKE_NMEM, encoding="utf-8")
-    script.chmod(0o755)
+    script = tmp_path / "fake_nmem.py"
+    script.write_text(f"#!{sys.executable}\n" + FAKE_NMEM, encoding="utf-8")
+    if os.name == "nt":
+        # Native Windows resolves the CLI as a .cmd shim, which the hook runs
+        # through cmd.exe (see _build_nmem_command).
+        cli = tmp_path / "nmem.cmd"
+        cli.write_text(f'@echo off\n"{sys.executable}" "{script}" %*\n', encoding="utf-8")
+    else:
+        cli = tmp_path / "nmem"
+        cli.write_text(script.read_text(encoding="utf-8"), encoding="utf-8")
+    cli.chmod(0o755)
     plan_path = tmp_path / "plan.json"
     plan_path.write_text(json.dumps(plan), encoding="utf-8")
     log = tmp_path / "nmem-calls.jsonl"
     env = {
-        "NMEM_CLI_PATH": str(script),
+        "NMEM_CLI_PATH": str(cli),
         "FAKE_NMEM_PLAN": str(plan_path),
         "FAKE_NMEM_LOG": str(log),
         "GROK_PLUGIN_DATA": str(tmp_path / "plugin-data"),
