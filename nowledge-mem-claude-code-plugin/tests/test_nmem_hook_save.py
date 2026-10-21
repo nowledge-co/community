@@ -5,7 +5,7 @@ import os
 import time
 from pathlib import Path
 from subprocess import CompletedProcess
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 
 SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "nmem-hook-save.py"
@@ -256,7 +256,7 @@ def test_run_capture_retries_until_nmem_acknowledges_enqueue():
             ["/usr/local/bin/nmem", "--json", "t", "save"]
         )
 
-    assert captured is True
+    assert captured == {"status": "enqueued"}
     assert returncode == 0
     assert stderr == ""
     assert run.call_count == 2
@@ -318,7 +318,12 @@ def test_background_worker_coalesces_to_latest_session_payload(tmp_path):
         nmem_hook_save._enqueue_background_payload(key, second)
         lease_token = nmem_hook_save._background_lease_path(key).read_text().split()[0]
         assert nmem_hook_save._drain_background_capture(key, "stop", lease_token) == 0
-        capture.assert_called_once_with("stop", second)
+        capture.assert_called_once_with(
+            "stop",
+            second,
+            heartbeat=ANY,
+            confirm_seconds=nmem_hook_save.BACKGROUND_CONFIRM_SECONDS,
+        )
         assert not nmem_hook_save._background_lease_path(key).exists()
         assert not list(nmem_hook_save._background_queue_dir(key).glob("*.json"))
 
@@ -409,7 +414,7 @@ def test_run_capture_reports_uncaptured_when_transcript_never_flushes():
             ["/usr/local/bin/nmem", "--json", "t", "save"]
         )
 
-    assert captured is False
+    assert captured is None
     assert returncode == 0
     assert stderr == ""
 
@@ -428,7 +433,7 @@ def test_run_capture_reports_json_stdout_errors():
             ["/usr/local/bin/nmem", "--json", "t", "save"]
         )
 
-    assert captured is False
+    assert captured is None
     assert returncode == 1
     assert "path_not_found" in stderr
 
@@ -613,7 +618,7 @@ def test_build_command_prefers_claude_project_dir_over_payload_cwd(tmp_path):
             "CLAUDE_PROJECT_DIR": str(project),
             "GROK_WORKSPACE_ROOT": str(grok_workspace),
         },
-    ):
+    ), patch.object(nmem_hook_save, "_host_runtime", return_value="claude-code"):
         command = nmem_hook_save._build_command(
             "/usr/local/bin/nmem",
             {"session_id": "session-1", "cwd": str(subdir)},
@@ -844,7 +849,7 @@ def test_capture_is_unconfirmed_when_cli_cannot_report_status(tmp_path, capsys):
 def test_capture_is_unconfirmed_when_status_never_settles(tmp_path, capsys):
     plan = {"statuses": [_status("pending", pending=1)]}
 
-    with patch.object(nmem_hook_save, "PRE_COMPACT_CONFIRM_SECONDS", 0.2, create=True):
+    with patch.object(nmem_hook_save, "FOREGROUND_CONFIRM_SECONDS", 0.2, create=True):
         out, _calls = _run_grok_capture(tmp_path, plan, "pre-compact", capsys)
 
     assert "saved" not in out.out.lower()
