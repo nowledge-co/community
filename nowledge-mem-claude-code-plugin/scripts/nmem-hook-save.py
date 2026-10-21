@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import secrets
 import shlex
 import shutil
@@ -360,7 +361,25 @@ def _cmd_exe_path(path: str) -> str:
     return "nmem.cmd" if Path(path).name.lower() == "nmem.cmd" else path
 
 
-def _build_nmem_command(nmem: str, *args: str) -> list[str]:
+def _escape_cmd_meta(value: str) -> str:
+    return re.sub(r'([()%!^"<>&|;, *?])', r"^\1", value)
+
+
+def _batch_argument(value: str) -> str:
+    value = re.sub(r'(\\*)"', lambda match: match[1] * 2 + '\\"', value)
+    value = re.sub(r"(\\+)$", lambda match: match[1] * 2, value)
+    # Batch shims parse arguments in cmd /c and again when forwarding %*.
+    return _escape_cmd_meta(_escape_cmd_meta(f'"{value}"'))
+
+
+def _build_nmem_command(nmem: str, *args: str) -> list[str] | str:
+    if sys.platform == "win32" and nmem.lower().endswith(".cmd"):
+        # Native Windows: same verbatim command as nmem-hook-context.py. A list
+        # would make Python CRT-quote the cmd text (\"), which cmd.exe rejects.
+        command = _escape_cmd_meta(nmem.replace("/", "\\"))
+        command += "".join(" " + _batch_argument(arg) for arg in args)
+        shell = subprocess.list2cmdline([os.environ.get("COMSPEC", "cmd.exe")])
+        return f'{shell} /d /v:off /s /c "{command}"'
     if nmem.lower().endswith(".cmd"):
         command_line = subprocess.list2cmdline([_cmd_exe_path(nmem), *args])
         return [
@@ -402,7 +421,7 @@ def _session_id(payload: dict[str, Any]) -> str:
 def _build_command(
     nmem: str,
     payload: dict[str, Any],
-) -> list[str]:
+) -> list[str] | str:
     runtime = _host_runtime()
     session_id = _session_id(payload)
     if not session_id:
@@ -461,7 +480,7 @@ def _capture_disabled(stdout: str) -> bool:
     )
 
 
-def _run_command(command: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
+def _run_command(command: list[str] | str, timeout: float) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         stdout=subprocess.PIPE,
@@ -582,7 +601,7 @@ def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
 
 
 def _run_capture_with_retries(
-    command: list[str],
+    command: list[str] | str,
 ) -> tuple[dict[str, Any] | None, int, str]:
     """Run ``nmem t capture`` until it acknowledges the enqueue.
 

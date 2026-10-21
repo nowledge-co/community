@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is kept in `last-capture.json` in the plugin data directory.
 - Disabled automatic capture is reported as disabled instead of "no flushed
   transcript found".
+- On native Windows, capture through an `nmem.cmd` shim now runs. The save
+  hook passed the shim to `cmd.exe` as a quoted argument list, which `cmd.exe`
+  could not parse; it now uses the same verbatim command as the context hook.
 
 ## [0.7.26] - 2026-10-11
 

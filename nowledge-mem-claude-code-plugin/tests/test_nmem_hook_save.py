@@ -201,10 +201,11 @@ def test_build_command_resolves_project_symlink(tmp_path):
 
 
 def test_build_command_wraps_windows_cmd_for_wsl_bridge():
-    command = nmem_hook_save._build_command(
-        "/mnt/c/Users/Alice/AppData/Roaming/npm/nmem.cmd",
-        {"session_id": "session-1"},
-    )
+    with patch.object(nmem_hook_save.sys, "platform", "linux"):
+        command = nmem_hook_save._build_command(
+            "/mnt/c/Users/Alice/AppData/Roaming/npm/nmem.cmd",
+            {"session_id": "session-1"},
+        )
 
     assert command[:3] == ["cmd.exe", "/s", "/c"]
     assert "C:\\Users\\Alice\\AppData\\Roaming\\npm\\nmem.cmd" in command[3]
@@ -214,10 +215,12 @@ def test_build_command_wraps_windows_cmd_for_wsl_bridge():
 
 
 def test_build_command_preserves_spaces_in_windows_cmd_path():
-    command = nmem_hook_save._build_command(
-        r"C:\Users\Alice\AppData\Local\Nowledge Mem CLI\bin\nmem.cmd",
-        {"session_id": "session-with-spaces"},
-    )
+    # WSL interop path: a POSIX Python invoking a Windows .cmd shim.
+    with patch.object(nmem_hook_save.sys, "platform", "linux"):
+        command = nmem_hook_save._build_command(
+            r"C:\Users\Alice\AppData\Local\Nowledge Mem CLI\bin\nmem.cmd",
+            {"session_id": "session-with-spaces"},
+        )
 
     assert command[:3] == ["cmd.exe", "/s", "/c"]
     assert command[3].startswith(
@@ -229,6 +232,7 @@ def test_build_command_preserves_spaces_in_windows_cmd_path():
 
 def test_build_command_converts_wsl_project_path_for_windows_cmd():
     with patch.object(nmem_hook_save.shutil, "which", return_value=None), \
+        patch.object(nmem_hook_save.sys, "platform", "linux"), \
         patch.dict(nmem_hook_save.os.environ, {"WSL_DISTRO_NAME": "Ubuntu"}):
         command = nmem_hook_save._build_command(
             "/mnt/c/Users/Alice/AppData/Roaming/npm/nmem.cmd",
@@ -238,6 +242,21 @@ def test_build_command_converts_wsl_project_path_for_windows_cmd():
     assert command[:3] == ["cmd.exe", "/s", "/c"]
     assert "\\\\wsl.localhost\\Ubuntu\\home\\alice\\project" in command[3]
     assert "--project /home/alice/project" not in command[3]
+
+
+def test_native_windows_cmd_shim_uses_verbatim_cmd_command():
+    # A list would let Python CRT-quote the cmd text, which cmd.exe rejects.
+    with patch.object(nmem_hook_save.sys, "platform", "win32"), \
+        patch.dict(nmem_hook_save.os.environ, {"COMSPEC": "C:\\Windows\\System32\\cmd.exe"}):
+        command = nmem_hook_save._build_nmem_command(
+            "C:/Users/Alice/Nowledge Mem CLI/bin/nmem.cmd",
+            "--json", "t", "capture-status", "--queue-key", "queue 1",
+        )
+
+    assert isinstance(command, str)
+    assert command.startswith("C:\\Windows\\System32\\cmd.exe /d /v:off /s /c ")
+    assert "C:\\Users\\Alice\\Nowledge^ Mem^ CLI\\bin\\nmem.cmd" in command
+    assert '\\"' not in command
 
 
 def test_run_capture_retries_until_nmem_acknowledges_enqueue():
@@ -794,6 +813,7 @@ def _run_grok_capture(tmp_path, plan, event, capsys):
         patch.object(nmem_hook_save, "CAPTURE_STATUS_POLL_SECONDS", 0.0, create=True):
         assert nmem_hook_save._capture_payload(event, payload) == 0
     out = capsys.readouterr()
+    assert log.exists(), f"fake nmem never ran; hook stderr: {out.err!r}"
     calls = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
     return out, calls
 
