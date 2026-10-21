@@ -39,7 +39,7 @@ set -euo pipefail
 # Version of the controller itself. Bump when nmemctl semantics or
 # command surface change. Independent of the docker image version
 # (which `./nmemctl version` reports separately).
-NMEMCTL_VERSION="2.5.0"
+NMEMCTL_VERSION="2.5.1"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -271,7 +271,11 @@ print_url() {
       ip="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
     fi
     : "${ip:=localhost}"
-    note "http://${ip}:14242/app"
+    # The host port the compose file (or an override) publishes for 14242.
+    local port
+    port="$("${DC[@]}" port "$SVC" 14242 2>/dev/null | head -n 1 | awk -F: '{print $NF}')" || port=""
+    [[ "$port" =~ ^[0-9]+$ ]] || port=14242
+    note "http://${ip}:${port}/app"
   fi
 }
 
@@ -336,11 +340,19 @@ read_image_tag() {
 # operator for elevation.
 prepare_dirs() {
   mkdir -p "$DIR_DATA" "$DIR_CONFIG" "$DIR_CACHE"
-  # Quick path: if ownership already matches, skip the helper container.
-  # Saves ~1s on every `up` after the first.
-  local first
-  first="$(stat -c '%u:%g' "$DIR_DATA" 2>/dev/null || stat -f '%u:%g' "$DIR_DATA" 2>/dev/null || true)"
-  if [[ "$first" == "${CONTAINER_UID}:${CONTAINER_GID}" ]]; then
+  # Quick path: if every directory already belongs to the image user, skip
+  # the helper container. Saves ~1s on every `up` after the first. Check all
+  # three: restored ./data with a new ./config must still be fixed, or the
+  # server cannot write its config.
+  local dir owner owned=1
+  for dir in "$DIR_DATA" "$DIR_CONFIG" "$DIR_CACHE"; do
+    owner="$(stat -c '%u:%g' "$dir" 2>/dev/null || stat -f '%u:%g' "$dir" 2>/dev/null || true)"
+    if [[ "$owner" != "${CONTAINER_UID}:${CONTAINER_GID}" ]]; then
+      owned=0
+      break
+    fi
+  done
+  if [[ $owned -eq 1 ]]; then
     return 0
   fi
   docker run --rm \
