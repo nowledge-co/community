@@ -1651,7 +1651,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.1.5"
+    assert dsh["version"] == "0.1.6"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1764,13 +1764,15 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.1.5"
+    assert pkg["version"] == "0.1.6"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
     assert "dsh-plugin" in pkg["keywords"]
     for peer_name in pkg["peerDependencies"]:
         assert pkg["peerDependenciesMeta"][peer_name]["optional"] is True
+        if peer_name != "@deepseek-ai/cordis":
+            assert "0.2.1-rc.2" in pkg["peerDependencies"][peer_name]
     assert dsh_registry["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh_registry["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
     assert dsh_registry["version"] == pkg["version"]
