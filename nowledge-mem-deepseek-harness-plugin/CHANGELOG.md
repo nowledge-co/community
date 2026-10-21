@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.6
+
+- Admits the tested DSH 0.2.1-rc.2 host packages without an unsafe version
+  exemption, with compatibility coverage on Ubuntu and Windows.
+
 - Restores startup context, prompt recall, and turn-end capture on DSH
   0.1.7-rc.1 and 0.2.1-alpha.1 through `shell.execute(...).result()`, while
   retaining the legacy `shell.run()` path and host-authorized sandbox retry.

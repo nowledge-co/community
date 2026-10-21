@@ -171,9 +171,13 @@ test('peer ranges admit the tested host previews and preserve optional runtime p
   for (const [name, range] of Object.entries(manifest.peerDependencies)) {
     const versions = name === '@deepseek-ai/cordis'
       ? ['4.0.4', '4.0.5-alpha.1']
-      : ['0.1.5-rc.2', '0.1.7-rc.1', '0.2.1-alpha.1']
+      : ['0.1.5-rc.2', '0.1.7-rc.1', '0.2.1-alpha.1', '0.2.1-rc.2']
     for (const version of versions) assert.equal(satisfies(version, range), true, `${name}@${version}`)
     assert.equal(manifest.peerDependenciesMeta[name].optional, true)
     assert.equal(satisfies(name === '@deepseek-ai/cordis' ? '5.0.0' : '0.3.0', range), false)
+    if (name !== '@deepseek-ai/cordis') {
+      assert.equal(satisfies('0.2.1-rc.3', range), false, `${name} must not admit untested previews`)
+      assert.equal(satisfies('0.2.1', range), false, `${name} must not admit untested GA`)
+    }
   }
 })
