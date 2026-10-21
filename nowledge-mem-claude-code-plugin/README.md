@@ -246,6 +246,14 @@ path before launching Claude Code.
 `--trust` if the hooks are blocked, restart Grok Build, complete one turn, and
 confirm a recent thread with `nmem t search "a phrase from that turn" --source grok`.
 
+**Hooks run but no thread appears:** A successful hook only means the capture
+was handed to `nmem`. The hook now waits for `nmem` to confirm a saved thread
+and records the latest result in `last-capture.json` in the plugin data
+directory (`$GROK_PLUGIN_DATA` or `$CLAUDE_PLUGIN_DATA`). A failed capture also
+writes one line to `nowledge-mem/hook-save/background.log` in the system temp
+directory, with the exact `nmem --json t save ...` command that shows the
+underlying error.
+
 ## Links
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/claude-code)

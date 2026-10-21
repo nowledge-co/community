@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.27] - 2026-10-21
+
+### Fixed
+
+- Grok Build sessions started in a subdirectory of a Git repository are
+  captured again. Grok reports the repository root as the workspace but files
+  the session under the directory it was started in; capture now looks there
+  first.
+- A capture is reported as saved only after `nmem` confirms the thread.
+  Previously the hook treated "queued" as "saved", so a later failure left no
+  trace. Failures now record the session, the queue status, and the exact
+  `nmem --json t save ...` command that shows the error, and the latest result
+  is kept in `last-capture.json` in the plugin data directory.
+- Disabled automatic capture is reported as disabled instead of "no flushed
+  transcript found".
+- On native Windows, capture through an `nmem.cmd` shim now runs. The save
+  hook passed the shim to `cmd.exe` as a quoted argument list, which `cmd.exe`
+  could not parse; it now uses the same verbatim command as the context hook.
+
 ## [0.7.26] - 2026-10-11
 
 ### Fixed
