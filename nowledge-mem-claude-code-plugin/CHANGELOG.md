@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.28] - 2026-10-22
+
+### Fixed
+
+- Capture recovery commands keep the `nmem` the hook actually ran. The
+  suggested `nmem --json t save ...` and `capture-status` commands began with a
+  bare `nmem`, so a CLI configured through `NMEM_CLI_PATH` (or one with spaces
+  in its path) was not runnable, and a different `nmem` earlier on `PATH` would
+  have run instead. They now start with the configured executable, quoted for
+  the host platform.
+- A stalled or failed capture no longer says "no Thread was saved". The queue
+  can stall after the Thread was saved and only its acknowledgement was lost,
+  so the hook now reports the observed queue status, says it is not known
+  whether a Thread was saved, and points at `nmem t list` and the queue status.
+
 ## [0.7.27] - 2026-10-21
 
 ### Fixed

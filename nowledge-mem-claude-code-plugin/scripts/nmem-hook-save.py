@@ -686,9 +686,24 @@ def _record_capture_outcome(
         pass
 
 
-def _diagnostic_save_command(payload: dict[str, Any], session_id: str) -> str:
-    """Foreground command that reproduces the queued save and prints its error."""
-    args = ["nmem", "--json", "t", "save", "--from", _host_runtime(), "--session-id", session_id]
+def _shell_command(args: list[str]) -> str:
+    """Render a command the user can paste, quoted for the host platform."""
+    if sys.platform == "win32":
+        return subprocess.list2cmdline(args)
+    return " ".join(shlex.quote(arg) for arg in args)
+
+
+def _capture_status_command(nmem: str, queue_key: str) -> str:
+    return _shell_command([nmem, "--json", "t", "capture-status", "--queue-key", queue_key])
+
+
+def _diagnostic_save_command(payload: dict[str, Any], session_id: str, nmem: str) -> str:
+    """Foreground command that reproduces the queued save and prints its error.
+
+    ``nmem`` is the executable the capture itself ran, so the suggestion
+    reproduces the same client even when it is not the first ``nmem`` on PATH.
+    """
+    args = [nmem, "--json", "t", "save", "--from", _host_runtime(), "--session-id", session_id]
     cwd = _project_dir(payload)
     if cwd:
         args.extend(["--project", cwd])
@@ -698,9 +713,7 @@ def _diagnostic_save_command(payload: dict[str, Any], session_id: str) -> str:
     transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
     if transcript_path:
         args.extend(["--session-file", transcript_path])
-    return subprocess.list2cmdline(args) if sys.platform == "win32" else " ".join(
-        shlex.quote(arg) for arg in args
-    )
+    return _shell_command(args)
 
 
 def _wait_for_capture(
@@ -849,19 +862,28 @@ def _capture_payload(
         )
         return 0
 
-    status_hint = f"nmem --json t capture-status --queue-key {queue_key}" if queue_key else ""
-    diagnose = _diagnostic_save_command(payload, session_id)
+    status_hint = _capture_status_command(nmem, queue_key) if queue_key else ""
+    diagnose = _diagnostic_save_command(payload, session_id, nmem)
     if status == "unconfirmed":
         message = (
             f"nowledge-mem: {event} capture not confirmed for {label} session {session_id}: "
             f"{detail}. Check: {status_hint or diagnose}"
         )
     else:
+        # A queue that stalls or fails can follow a successful Thread save whose
+        # acknowledgement was lost, so this state proves neither that a Thread
+        # exists nor that none does. Report what was observed and point at the
+        # places that can settle it.
+        detail = (
+            f"capture status: {status}; the save was queued but no saved-Thread "
+            "confirmation arrived"
+        )
         message = (
-            f"nowledge-mem: {event} capture failed for {label} session {session_id}: "
-            f"no Thread was saved (capture status: {status}). "
-            f"See the error with: {diagnose}"
+            f"nowledge-mem: {event} capture {status} for {label} session {session_id} "
+            f"({detail}). It is not known whether a Thread was saved. "
+            f"Inspect with: {_shell_command([nmem, 't', 'list'])}"
             + (f" ; queue: {status_hint}" if status_hint else "")
+            + f" ; reproduce and see the error with: {diagnose}"
         )
     print(message, file=sys.stderr)
     _record_capture_outcome(
