@@ -2,11 +2,15 @@ import importlib.util
 import hashlib
 import json
 import os
+import shlex
+import subprocess
 import sys
 import time
 from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import ANY, patch
+
+import pytest
 
 
 SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "nmem-hook-save.py"
@@ -764,16 +768,18 @@ sys.exit(0)
 """
 
 
-def _fake_nmem(tmp_path, plan):
+def _fake_nmem(tmp_path, plan, cli_dir=None):
+    cli_dir = cli_dir or tmp_path
+    cli_dir.mkdir(parents=True, exist_ok=True)
     script = tmp_path / "fake_nmem.py"
     script.write_text(f"#!{sys.executable}\n" + FAKE_NMEM, encoding="utf-8")
     if os.name == "nt":
         # Native Windows resolves the CLI as a .cmd shim, which the hook runs
         # through cmd.exe (see _build_nmem_command).
-        cli = tmp_path / "nmem.cmd"
+        cli = cli_dir / "nmem.cmd"
         cli.write_text(f'@echo off\n"{sys.executable}" "{script}" %*\n', encoding="utf-8")
     else:
-        cli = tmp_path / "nmem"
+        cli = cli_dir / "nmem"
         cli.write_text(script.read_text(encoding="utf-8"), encoding="utf-8")
     cli.chmod(0o755)
     plan_path = tmp_path / "plan.json"
@@ -805,11 +811,11 @@ def _last_capture(tmp_path):
     )
 
 
-def _run_grok_capture(tmp_path, plan, event, capsys):
+def _run_grok_capture(tmp_path, plan, event, capsys, cli_dir=None, extra_env=None):
     _repo, session_cwd, grok_env = _grok_git_subdirectory_session(tmp_path)
-    env, log = _fake_nmem(tmp_path, plan)
+    env, log = _fake_nmem(tmp_path, plan, cli_dir)
     payload = {"sessionId": "grok-subdir-session", "cwd": str(session_cwd)}
-    with patch.dict(os.environ, {**grok_env, **env}), \
+    with patch.dict(os.environ, {**grok_env, **env, **(extra_env or {})}), \
         patch.object(nmem_hook_save, "CAPTURE_STATUS_POLL_SECONDS", 0.0, create=True):
         assert nmem_hook_save._capture_payload(event, payload) == 0
     out = capsys.readouterr()
@@ -898,3 +904,93 @@ def test_disabled_automatic_capture_is_reported_as_disabled(tmp_path, capsys):
     assert "no flushed transcript" not in out.err
     assert len(calls) == 1
     assert _last_capture(tmp_path)["status"] == "disabled"
+
+
+def _cli_token(path):
+    """How a recovery command must spell the configured executable."""
+    if os.name == "nt":
+        return subprocess.list2cmdline([str(path)])
+    return shlex.quote(str(path))
+
+
+def _decoy_path_nmem(tmp_path):
+    """A different `nmem` that wins PATH lookup; it must never be suggested."""
+    decoy_dir = tmp_path / "decoy-bin"
+    decoy_dir.mkdir()
+    decoy = decoy_dir / ("nmem.cmd" if os.name == "nt" else "nmem")
+    decoy.write_text("@echo off\r\n" if os.name == "nt" else "#!/bin/sh\nexit 1\n")
+    decoy.chmod(0o755)
+    return decoy_dir, decoy
+
+
+@pytest.mark.parametrize("path_mode", ["absent", "conflicting"])
+@pytest.mark.parametrize("status", ["failed", "pending"])
+def test_recovery_commands_keep_the_configured_cli(tmp_path, capsys, path_mode, status):
+    cli_dir = tmp_path / "custom bin"
+    plan = {"statuses": [_status(status, pending=1)]}
+    if path_mode == "conflicting":
+        decoy_dir, decoy = _decoy_path_nmem(tmp_path)
+        extra_env = {"PATH": str(decoy_dir)}
+    else:
+        decoy = None
+        empty = tmp_path / "empty-bin"
+        empty.mkdir()
+        extra_env = {"PATH": str(empty)}
+    if os.name == "nt":
+        extra_env = {}  # cmd.exe needs the system PATH; the decoy check below still applies
+
+    with patch.object(nmem_hook_save, "FOREGROUND_CONFIRM_SECONDS", 0.2, create=True):
+        out, _calls = _run_grok_capture(
+            tmp_path, plan, "pre-compact", capsys, cli_dir=cli_dir, extra_env=extra_env
+        )
+
+    cli = cli_dir / ("nmem.cmd" if os.name == "nt" else "nmem")
+    token = _cli_token(cli)
+    assert " " in str(cli)
+    if status == "failed":
+        assert f"{token} --json t save --from grok --session-id grok-subdir-session" in out.err
+    assert f"{token} --json t capture-status --queue-key queue-1" in out.err
+    assert ": nmem --json" not in out.err
+    assert "; queue: nmem --json" not in out.err
+    if decoy is not None:
+        assert str(decoy) not in out.err
+
+
+def test_recovery_command_uses_windows_quoting_for_the_configured_cli():
+    payload = {"sessionId": "s1", "cwd": "C:\\work"}
+    cli = "C:\\Program Files\\nmem\\nmem.exe"
+    with patch.object(nmem_hook_save.sys, "platform", "win32"):
+        command = nmem_hook_save._diagnostic_save_command(payload, "s1", cli)
+        hint = nmem_hook_save._capture_status_command(cli, "queue 1")
+
+    assert command.startswith(f'"{cli}" --json t save --from ')
+    assert hint == f'"{cli}" --json t capture-status --queue-key "queue 1"'
+
+
+@pytest.mark.parametrize("status", ["stalled", "failed"])
+def test_unacknowledged_terminal_status_does_not_claim_absence_or_success(
+    tmp_path, capsys, status
+):
+    # The Thread may have been saved and only the queue acknowledgement lost,
+    # so a stalled/failed queue proves neither that a Thread exists nor that
+    # none does.
+    receipt = {"thread_id": "grok-grok-subdir-session", "action": "created", "total_messages": 2}
+    plan = {"statuses": [_status("pending", pending=1), _status(status, pending=1)]}
+    plan_after_save = {
+        "statuses": [_status(status, pending=1, acknowledgments=[receipt])]
+    }
+    for scenario, tmp in (("queued", tmp_path / "a"), ("after-save", tmp_path / "b")):
+        tmp.mkdir()
+        out, _calls = _run_grok_capture(
+            tmp, plan if scenario == "queued" else plan_after_save, "pre-compact", capsys
+        )
+        err = out.err.lower()
+        assert "saved" not in out.out.lower()
+        assert f"capture status: {status}" in err
+        assert "no thread was saved" not in err
+        assert "nothing was saved" not in err
+        assert "not saved" not in err
+        assert "not known whether a thread was saved" in err
+        assert "t list" in err
+        assert "t capture-status --queue-key queue-1" in err
+        assert _last_capture(tmp)["status"] == "failed"
