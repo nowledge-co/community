@@ -120,6 +120,7 @@ rm -rf /tmp/community
 | `NMEM_SPACE` | Active memory space for this canvas or agent | `default` |
 | `NMEM_AGENT_ID` | Agent role identifier (`planner`, `coder`, `reviewer`) | (empty / derived) |
 | `NMEM_DISABLE_PROMPT_INJECT` | Set to `1` to disable prompt context injection | `0` |
+| `NMEM_PROMPT_GUIDANCE_ONLY` | Set to `1` to inject only lightweight routing guidance without loading Context Bundle | `0` |
 | `NMEM_DISABLE_AUTO_CAPTURE` | Set to `1` to disable automatic thread capture on stop | `0` |
 
 ---

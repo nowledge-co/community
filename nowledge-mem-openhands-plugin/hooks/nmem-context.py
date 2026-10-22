@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import os
 import sys
-import time
 from pathlib import Path
 
 # Add hooks directory to path
@@ -18,38 +17,6 @@ PROMPT_ROUTING_GUIDANCE = (
     "prior architecture decisions, and multi-agent canvas coordination. "
     "Search Nowledge memory or threads when past context is relevant."
 )
-
-
-def _get_session_marker(session_id: str) -> Path:
-    state_dir = Path("~/.nowledge-mem/plugins/openhands/sessions").expanduser()
-    state_dir.mkdir(parents=True, exist_ok=True)
-    clean_id = session_id.strip().replace("/", "_").replace(chr(92), "_")
-    return state_dir / f"{clean_id}.injected"
-
-
-def _has_session_injected(session_id: str) -> bool:
-    if not session_id:
-        return False
-    marker = _get_session_marker(session_id)
-    # Check if marker exists and is recent (< 24 hours)
-    if marker.is_file():
-        try:
-            mtime = marker.stat().st_mtime
-            if time.time() - mtime < 86400:
-                return True
-        except OSError:
-            pass
-    return False
-
-
-def _mark_session_injected(session_id: str) -> None:
-    if not session_id:
-        return
-    try:
-        marker = _get_session_marker(session_id)
-        marker.write_text(str(time.time()), encoding="utf-8")
-    except OSError:
-        pass
 
 
 def main() -> None:
@@ -70,28 +37,36 @@ def main() -> None:
         except Exception:
             pass
 
-        session_id = (
-            hook_input.get("session_id")
-            or hook_input.get("sessionId")
-            or os.environ.get("OPENHANDS_SESSION_ID", "").strip()
+        working_dir = (
+            hook_input.get("working_dir")
+            or os.environ.get("OPENHANDS_PROJECT_DIR", "")
+            or os.getcwd()
         )
 
+        session_key = nmem_shared.resolve_session_key(hook_input, working_dir)
+
+        # If prompt guidance only is requested, bypass context bundle entirely
+        if os.environ.get("NMEM_PROMPT_GUIDANCE_ONLY", "").strip().lower() in ("1", "true", "yes"):
+            nmem_shared.mark_session_injected(session_key, working_dir)
+            nmem_shared.emit({"additionalContext": PROMPT_ROUTING_GUIDANCE})
+            sys.exit(0)
+
         # Check if this session already received the initial Context Bundle
-        already_injected = _has_session_injected(session_id) if session_id else False
+        already_injected = nmem_shared.has_session_injected(session_key, working_dir)
 
         if already_injected:
             # Subsequent turns receive lightweight guidance to preserve token budget
             nmem_shared.emit({"additionalContext": PROMPT_ROUTING_GUIDANCE})
             sys.exit(0)
 
-        # Turn 1: load full startup context
-        startup_context = nmem_shared.read_startup_context()
+        # Load full startup context
+        startup_context = nmem_shared.read_startup_context(working_dir)
         if not startup_context:
             nmem_shared.emit({"additionalContext": PROMPT_ROUTING_GUIDANCE})
             sys.exit(0)
 
-        if session_id:
-            _mark_session_injected(session_id)
+        # Mark session injected only after successfully retrieving startup context
+        nmem_shared.mark_session_injected(session_key, working_dir)
 
         agent_id = nmem_shared.resolve_agent_id()
         agent_note = f" (Node/Agent: {agent_id})" if agent_id else ""

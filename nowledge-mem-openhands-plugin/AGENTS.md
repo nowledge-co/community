@@ -9,6 +9,7 @@ This plugin provides persistent, cross-agent memory for OpenHands and OpenHands 
 - `NMEM_SPACE`: Space name to route memories, threads, and working memory to.
 - `NMEM_AGENT_ID`: Agent or worker node identifier (e.g. `planner`, `coder`, `reviewer`).
 - `NMEM_DISABLE_PROMPT_INJECT`: Set to `1` to suppress automatic Context Bundle injection in `UserPromptSubmit`.
+- `NMEM_PROMPT_GUIDANCE_ONLY`: Set to `1` to inject only lightweight routing guidance on prompt submission without loading the full Context Bundle.
 - `NMEM_DISABLE_AUTO_CAPTURE`: Set to `1` to suppress automatic thread capture on `Stop`.
 
 ## Agent Skills

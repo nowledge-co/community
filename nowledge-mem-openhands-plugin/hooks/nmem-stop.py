@@ -16,23 +16,20 @@ def main() -> None:
     try:
         hook_input = nmem_shared.read_hook_input()
 
-        if os.environ.get("NMEM_DISABLE_AUTO_CAPTURE", "").strip().lower() in ("1", "true", "yes"):
-            nmem_shared.emit({"decision": "approve"})
-            sys.exit(0)
-
-        conversation_id = (
-            hook_input.get("session_id")
-            or hook_input.get("conversationId")
-            or hook_input.get("conversation_id")
-            or os.environ.get("OPENHANDS_SESSION_ID", "")
-            or os.environ.get("OPENHANDS_CONVERSATION_ID", "")
-            or os.environ.get("CONVERSATION_ID", "")
-        )
+        conversation_id = nmem_shared.resolve_session_id(hook_input)
         working_dir = (
             hook_input.get("working_dir")
             or os.environ.get("OPENHANDS_PROJECT_DIR", "")
             or os.getcwd()
         )
+        session_key = conversation_id or nmem_shared.resolve_session_key(hook_input, working_dir)
+
+        # Clear injection marker when session completes so future workspace sessions aren't starved
+        nmem_shared.clear_session_injected(session_key, working_dir)
+
+        if os.environ.get("NMEM_DISABLE_AUTO_CAPTURE", "").strip().lower() in ("1", "true", "yes"):
+            nmem_shared.emit({"decision": "approve"})
+            sys.exit(0)
 
         space = nmem_shared.resolve_space(working_dir)
         agent_id = nmem_shared.resolve_agent_id()
