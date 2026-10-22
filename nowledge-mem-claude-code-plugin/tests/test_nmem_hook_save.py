@@ -833,8 +833,14 @@ def test_pre_compact_does_not_claim_saved_when_capture_fails(tmp_path, capsys):
     assert "capture failed" in out.err
     assert "grok-subdir-session" in out.err
     # Actionable: the exact foreground command that surfaces the real error.
-    assert "nmem --json t save --from grok --session-id grok-subdir-session" in out.err
-    assert "t capture-status --queue-key queue-1" in out.err
+    # The command starts with the resolved CLI (a full path in the fake-CLI
+    # seam), rendered the way the hook renders it for this platform.
+    cli = tmp_path / ("nmem.cmd" if os.name == "nt" else "nmem")
+    token = _cli_token(cli)
+    err = out.err.lower() if os.name == "nt" else out.err  # Windows paths are case-insensitive
+    expect = lambda text: (text.lower() if os.name == "nt" else text)  # noqa: E731
+    assert expect(f"{token} --json t save --from grok --session-id grok-subdir-session") in err
+    assert expect(f"{token} --json t capture-status --queue-key queue-1") in err
     assert ["--json", "t", "capture-status", "--queue-key", "queue-1"] in calls
     record = _last_capture(tmp_path)
     assert record["status"] == "failed"
