@@ -7,7 +7,7 @@ still need verification in your account.
 
 ## Connect Muse
 
-1. In Nowledge Mem App, open **Connectors → AI Tools → Meta Muse → Install**.
+1. In Nowledge Mem App, open **Connectors → AI Tools → Meta Muse → Guided setup**.
    Complete browser pairing, then choose **Open Muse** and paste the copied
    setup prompt. Use the same browser for pairing and OAuth approval.
 2. In Cloud, choose **Open Muse** from the Cloud OAuth configuration and paste
@@ -30,8 +30,11 @@ Read https://mem.nowledge.co/SKILL.md, then read
 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md.
 Reuse my Nowledge Mem connection. Help me read context, search knowledge, and save
 original conversations in Threads. Set up host-owned sync once a day by default.
-Confirm my timezone, execution time, conversations, and target Space. Reuse an
-existing matching task. Report daily sync as enabled only after the host confirms
+Use the current conversation and reuse my confirmed Space, timezone, time and
+host defaults. Ask only for missing values with no usable default. Reuse one
+Thread through durable IDs and mappings; choose its title automatically. Read
+and retain the full skill in the host skill store or private connector docs and
+report its version and saved location. Reuse an existing matching task. Report daily sync as enabled only after the host confirms
 a scheduled task that can access originals and call MCP tools in the background.
 If a required capability is missing, report that daily sync is not enabled.
 ```
@@ -40,7 +43,7 @@ If a required capability is missing, report that daily sync is not enabled.
 先读取 https://mem.nowledge.co/SKILL.md，再读取
 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。
 复用我的 Nowledge Mem 连接，读取上下文、检索知识，把对话原文保存为 Threads。
-默认由宿主每天同步一次。确认我的时区、执行时间、对话范围与目标 Space，复用已有任务。
+默认由宿主每天同步一次。默认当前对话，复用已确认的 Space、时区、时间和宿主默认值；仅询问没有默认值的缺失项。自动生成标题，用稳定 ID 与持久映射复用同一 Thread。读取并保存完整 skill 到宿主技能库或私有连接器文档，报告版本和保存位置，复用已有任务。
 只有宿主确认定时任务能在后台读取原文并调用 MCP 后，才报告每日同步已启用。
 缺少必要能力时明确报告每日同步尚未启用。
 ```

@@ -25,13 +25,19 @@ or unattended daily execution. Check each capability for the current account.
 4. Inspect the connected tool catalog. Use the exposed names; hosts may add a
    prefix. If `sync_thread` is missing, explain the version, profile, or permission
    gap. Do not bypass it with native Thread creation tools or Memory writes.
-5. Read Context Bundle to resolve context and scope. Confirm the user's exact
-   target Space before the first write. A source label or client name is not an
+5. Read Context Bundle to resolve context and scope. Reuse the user's confirmed exact
+   target Space; ask before the first write only if no destination is confirmed. A source label or client name is not an
    AI Identity or a Space selector. Preserve existing conversation ownership.
 
 ## Muse setup
 
-1. In App, choose **Connectors → AI Tools → Meta Muse → Install**. Complete
+The verified path creates a custom MCP client in Muse's private workspace through
+chat. A native Remote MCP settings menu or official connector listing has not
+been verified. This is guided custom-client setup, not a native plugin install.
+Inspect the actual catalog before context/search calls; report missing tools as
+unavailable. Tool discovery is not a successful context/search receipt.
+
+1. In App, choose **Connectors → AI Tools → Meta Muse → Guided setup**. Complete
    owner pairing in the browser that will open the OAuth consent. Keep Access
    Anywhere running. Choose **Open Muse** and paste the copied setup prompt.
    In Cloud, use **Open Muse** in the Cloud OAuth configuration; no Desktop
@@ -56,6 +62,11 @@ or unattended daily execution. Check each capability for the current account.
    tool call as separate steps. Wait for each external-request approval, with
    up to 240 seconds per request. Save the actual receipt before the next step.
    Do not restart a whole multi-request script after an approval timeout.
+   Start an already authorized request instead of asking the user to authorize
+   the same intent again. Only describe an approval card as pending when the
+   host actually displays one. One-request approval remains the default; do not
+   request broader permanent permission to make a test pass. Report the actual
+   host-provided permission scope, which may be wider than the endpoint.
    If no `Mcp-Session-Id` is returned, do not invent one. Check write status
    before explicit replay of the same snapshot. Do not require permanent
    permission for all domain subdomains to complete a one-time test.
@@ -64,6 +75,45 @@ or unattended daily execution. Check each capability for the current account.
    `thread_fetch_messages` from the actual catalog. Verify first additions,
    zero additions on exact replay and the original roles/content. Then apply
    the shared daily execution procedure below to authorized real conversations.
+
+## Load and retain this procedure
+
+Fetch the full skill and check that the response is this document, not an error
+page. Save it with the host's supported skill mechanism. If the host has no skill
+installer, retain the full procedure in its private connector documentation and
+make the connector and daily task read it. Do not claim a skill was installed
+when only a URL or a temporary test script was saved. Report the source URL,
+version or content digest, saved location and how later runs load it. If the URL
+is unavailable, use a user-provided reviewed copy or report the delivery gap;
+do not guess its contents. Retain connection and sync state in the host's private
+workspace; credentials belong only in its credential store.
+
+## Defaults: do not repeat answered questions
+
+- “Sync this conversation” means the current host conversation. Reuse the
+  connection and the exact target Space already confirmed by the user. Ask about
+  the destination only if none is confirmed or the requested destination changes.
+- Keep one Thread per conversation. Reuse the saved mapping first. Otherwise use
+  the host's stable conversation ID with a provider prefix, for example
+  `meta-muse:<conversation-id>`. Before creating it, check the exact Thread ID
+  with the exposed read tool. Reuse only an identity whose source and Space match.
+  A title match alone does not establish conversation identity. Never merge a
+  synthetic test Thread into a real conversation.
+- Choose the title from the host's conversation title; otherwise use a short
+  description of the first user request. Do not ask the user to invent IDs or
+  titles. Use provider message IDs when available. Client-generated IDs are
+  allowed only with a durable mapping to the same original conversation and
+  message occurrences, retained across runs. Do not invent provider IDs or
+  recalculate IDs from changing array positions. If durable identity cannot be
+  retained, report that limit instead of creating duplicate Threads.
+- Preserve all accessible, exportable original messages and roles, including
+  visible system, developer and tool messages when provided by the host. Exclude
+  credentials and hidden internal instructions. Report inaccessible originals;
+  never reconstruct them from a summary.
+- Store the skill version, connection reference, confirmed Space, conversation
+  and message mappings, actual Thread ID, last successful receipt and task ID.
+  Reuse these values on later runs. Never request these technical choices again
+  merely because a new day or run has started.
 
 ## Read and write knowledge
 
@@ -77,8 +127,11 @@ or unattended daily execution. Check each capability for the current account.
 
 ## Set up daily execution
 
-Default to **once a day**, in the user's timezone. Confirm the time and which
-conversations to include. Reuse or update an existing matching host task so this
+Default to **once a day**, in the user's timezone, for the current conversation
+unless the user selected a wider scope. Reuse the host's existing timezone and
+schedule defaults, or an already confirmed time. State the chosen time and which
+conversations to include. Ask only for a missing timezone or execution time when
+the host has no usable default; do not repeat answered questions. Reuse or update an existing matching host task so this
 setup does not create duplicate schedules. The task must use the same connection,
 authorized target Space, and this procedure; it must be able to call MCP tools
 and access the selected conversations when it runs without an active chat.
