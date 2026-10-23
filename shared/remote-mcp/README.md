@@ -4,7 +4,18 @@ Dots, Grok Bot, and other hosted clients can use the same Remote MCP procedure.
 Muse is **pending account verification**. Its connection, message access, and
 scheduled execution have not been verified.
 
-## Copy this prompt
+## Muse preparation only
+
+Muse protocol support remains unverified. Use this prompt to prepare the checks:
+
+```text
+Read https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md.
+Prepare a Meta Muse acceptance checklist only. Do not connect, call tools, upload
+conversations, or create daily tasks. List protocol, account, target Space,
+original-message access, stable IDs, and background scheduling as unverified.
+```
+
+## Copy this prompt for a verified connection
 
 ```text
 Read https://mem.nowledge.co/SKILL.md, then read

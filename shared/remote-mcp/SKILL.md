@@ -8,6 +8,8 @@ description: Use connected Nowledge Mem tools in a hosted AI client and set up d
 Use this shared procedure for Dots, Grok Bot, and other hosted clients. Muse is
 pending real-account verification. Do not assume a host supports MCP, OAuth,
 original-message access, or scheduled tool calls until each capability is checked.
+For Muse, prepare a capability checklist only. Do not connect, call MCP tools,
+upload originals, or create a scheduled task before real-account verification.
 
 ## Connect and choose a destination
 

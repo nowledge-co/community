@@ -73,7 +73,6 @@
       "type": "connector",
       "version": null,
       "directory": null,
-      "transport": "mcp",
       "availability": "pending-verification",
       "capabilities": {
         "workingMemory": false,
@@ -90,27 +89,21 @@
       },
       "autonomy": {
         "bootstrap": "guided",
-        "recall": "guided",
-        "distill": "guided",
         "threads": "none",
         "bestResultRequires": [
-          "A public HTTPS MCP endpoint and explicit OAuth consent",
-          "An exact target Space for writes",
-          "Host access to original messages with stable IDs",
-          "A confirmed host scheduler task before claiming daily sync is enabled"
+          "Real-account verification of connection protocol and authorization",
+          "A verified Cloud or direct-to-App target and explicit Space",
+          "Verified access to originals, stable IDs, and background host tools",
+          "A confirmed host task before daily sync can be enabled"
         ]
       },
       "install": {
         "detectionHint": "This hosted client cannot be detected from the local desktop app.",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md, then https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Reuse my Nowledge Mem MCP connection for context and search. After the connection is verified, perform a Context Bundle or Working Memory check. Save original conversations in Threads. Set up host-owned sync once a day after confirming my timezone, time, and target Space. Report any missing permission, original messages, or scheduler. Do not report daily sync as enabled without a confirmed host task. Muse protocol and account access are not verified; do not claim a working connection.",
-          "promptZh": "先读取 https://mem.nowledge.co/SKILL.md，再读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。复用我的 Nowledge Mem MCP 连接读取上下文和检索知识；确认连接可用后进行 Context Bundle 或 Working Memory 检查。对话原文保存为 Threads。确认时区、执行时间和目标 Space 后，由宿主建立每天一次同步任务。缺少权限、原文或定时能力时明确说明；没有确认宿主任务前不要报告每日同步已启用。 Muse 协议和账号接入尚未验证，不要声称已连接成功。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md, then https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Prepare a Meta Muse acceptance checklist only. Protocol, account access, originals, and scheduling are not verified. Do not connect, change existing connections, call MCP tools, upload conversations, or create daily tasks. List Cloud or direct-to-App access, exact Space, permissions, conversation scope, stable IDs, and host scheduling as unverified requirements. A Context Bundle or Working Memory check and scoped write/readback are future acceptance steps, not completed checks.",
+          "promptZh": "先读取 https://mem.nowledge.co/SKILL.md，再读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。只准备 Meta Muse 接入验收清单；协议、账号接入、原文和定时能力尚未验证。不要连接、修改现有连接、调用 MCP、上传对话或创建每日任务。列出 Cloud 或 App 直连、精确 Space、权限、对话范围、稳定 ID 和宿主定时能力等待验证项。Context Bundle 或 Working Memory 检查及范围明确的写入/回读仅为后续验收步骤，不是已完成的验证。"
         },
         "docsUrl": "https://github.com/nowledge-co/community/tree/main/shared/remote-mcp"
-      },
-      "toolNaming": {
-        "convention": "mcp-backend",
-        "note": "Use the tool names supplied by the connected server. Client names are provenance, not authorization."
       },
       "skills": [],
       "slashCommands": []
