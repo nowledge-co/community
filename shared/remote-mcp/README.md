@@ -28,8 +28,8 @@ Opening Muse cannot install a native plugin or enable a daily task by itself.
 ```text
 Read https://mem.nowledge.co/SKILL.md, then read
 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md.
-Reuse my Nowledge Mem connection. Help me read context, search knowledge, and save
-original conversations in Threads. Set up host-owned sync once a day by default.
+Reuse my Nowledge Mem connection. Inspect the actual tool catalog. Read context and search only when exposed;
+otherwise report unavailable. Save original conversations in Threads. Set up host-owned sync once a day by default.
 Use the current conversation and reuse my confirmed Space, timezone, time and
 host defaults. Ask only for missing values with no usable default. Reuse one
 Thread through durable IDs and mappings; choose its title automatically. Read
@@ -42,7 +42,7 @@ If a required capability is missing, report that daily sync is not enabled.
 ```text
 先读取 https://mem.nowledge.co/SKILL.md，再读取
 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。
-复用我的 Nowledge Mem 连接，读取上下文、检索知识，把对话原文保存为 Threads。
+复用我的 Nowledge Mem 连接，先检查实际工具目录；仅在提供相应工具时读取上下文、检索知识，否则报告不可用。把对话原文保存为 Threads。
 默认由宿主每天同步一次。默认当前对话，复用已确认的 Space、时区、时间和宿主默认值；仅询问没有默认值的缺失项。自动生成标题，用稳定 ID 与持久映射复用同一 Thread。读取并保存完整 skill 到宿主技能库或私有连接器文档，报告版本和保存位置，复用已有任务。
 只有宿主确认定时任务能在后台读取原文并调用 MCP 后，才报告每日同步已启用。
 缺少必要能力时明确报告每日同步尚未启用。

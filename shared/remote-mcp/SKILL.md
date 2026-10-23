@@ -25,7 +25,8 @@ or unattended daily execution. Check each capability for the current account.
 4. Inspect the connected tool catalog. Use the exposed names; hosts may add a
    prefix. If `sync_thread` is missing, explain the version, profile, or permission
    gap. Do not bypass it with native Thread creation tools or Memory writes.
-5. Read Context Bundle to resolve context and scope. Reuse the user's confirmed exact
+5. Read Context Bundle to resolve context and scope only if exposed in the tool
+   catalog; otherwise report it unavailable and continue with the confirmed scope. Reuse the user's confirmed exact
    target Space; ask before the first write only if no destination is confirmed. A source label or client name is not an
    AI Identity or a Space selector. Preserve existing conversation ownership.
 
