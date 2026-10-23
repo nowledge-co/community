@@ -38,11 +38,15 @@ been verified. This is guided custom-client setup, not a native plugin install.
 Inspect the actual catalog before context/search calls; report missing tools as
 unavailable. Tool discovery is not a successful context/search receipt.
 
-1. In App, choose **Connectors → AI Tools → Meta Muse → Guided setup**. Complete
-   owner pairing in the browser that will open the OAuth consent. Keep Access
-   Anywhere running. Choose **Open Muse** and paste the copied setup prompt.
-   In Cloud, use **Open Muse** in the Cloud OAuth configuration; no Desktop
-   pairing is needed. Preserve the Cloud endpoint's `space_protocol=exact-v1`.
+1. In App, choose **Connectors → AI Tools → Meta Muse → Copy setup prompt**.
+   Complete browser owner pairing if the copy action opens it, then paste the
+   prompt into Muse. Keep Access Anywhere running. Existing connections and
+   active pairing are reused. In Cloud, copy the setup prompt from the Muse
+   card, or the full prompt in the Cloud OAuth configuration. No Desktop pairing
+   is needed; preserve the endpoint's `space_protocol=exact-v1`.
+   Muse is configured through chat, so no Install action or connector-settings
+   menu is needed. The copied prompt includes setup and daily Thread sync.
+
 2. Reuse an existing connection. Otherwise use Muse's custom MCP client and
    `credentials.request_api_access` to display a real OAuth connect action.
    Read the MCP `WWW-Authenticate` challenge and public resource metadata,

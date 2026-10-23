@@ -7,11 +7,12 @@ still need verification in your account.
 
 ## Connect Muse
 
-1. In Nowledge Mem App, open **Connectors → AI Tools → Meta Muse → Guided setup**.
-   Complete browser pairing, then choose **Open Muse** and paste the copied
-   setup prompt. Use the same browser for pairing and OAuth approval.
-2. In Cloud, choose **Open Muse** from the Cloud OAuth configuration and paste
-   its prompt. Keep the full workspace endpoint, including its query string.
+1. In Nowledge Mem App, open **Connectors → AI Tools → Meta Muse → Copy setup prompt**.
+   Complete browser pairing if prompted, then paste the prompt into Muse.
+   Existing connections and active pairing are reused.
+2. In Cloud, copy the Muse setup prompt and paste it into Muse. Keep the full
+   workspace endpoint, including its query string. No Desktop pairing is needed.
+
 3. Muse displays its real OAuth connect action. Approve only the requested
    context and Thread scopes. Credentials do not belong in chat.
 4. Ask Muse to verify a synthetic Thread save, identical replay with zero
@@ -19,9 +20,9 @@ still need verification in your account.
    Space, timezone and daily time. A daily task needs its own confirmation.
 
 The [shared skill](SKILL.md#muse-setup) contains the verified custom-client
-steps, discovery, request approval handling and response checks. If clipboard
-access fails, expand **Read or copy manually** in the configuration page.
-Opening Muse cannot install a native plugin or enable a daily task by itself.
+steps, discovery, request approval handling and response checks. If copying
+fails, allow clipboard access and retry the same action. Muse setup happens in
+chat; there is no separate Install action or manual-text panel on its card.
 
 ## Copy this prompt for a verified connection
 
