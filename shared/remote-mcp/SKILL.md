@@ -118,10 +118,13 @@ workspace; credentials belong only in its credential store.
 
 ## Read and write knowledge
 
-- Read Context Bundle at startup when identity, Space, or current work matters.
-  Use Working Memory for a lighter briefing.
-- Search before answering questions about earlier work or decisions. Fetch exact
-  Memories or Thread messages when the answer needs the original evidence.
+- Read Context Bundle at startup when identity, Space, or current work matters,
+  only if exposed in the tool catalog. Use Working Memory for a lighter briefing
+  only when available. Otherwise report unavailable and continue the confirmed
+  Thread workflow.
+- Search before answering questions about earlier work or decisions only when
+  the matching search tool is exposed. Fetch exact Memories or Thread messages
+  when supported and needed for evidence; otherwise report the capability gap.
 - Store conversation originals in **Threads**. A summary is not an original
   conversation. Distilling a durable claim into a **Memory** is a separate action
   with its own permission; do not do it automatically on every synchronization.
