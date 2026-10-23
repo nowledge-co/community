@@ -325,11 +325,6 @@ def test_key_plugin_static_contracts_are_declared():
     copilot_marketplace_plugin = next(
         plugin for plugin in copilot_marketplace["plugins"] if plugin.get("name") == "nowledge-mem"
     )
-    for plugin in claude_marketplace["plugins"]:
-        source = plugin.get("source", {})
-        if source.get("source") == "git-subdir":
-            assert source["url"].startswith("https://github.com/")
-
     claude_manifest = _read_json(CLAUDE_PLUGIN / ".claude-plugin" / "plugin.json")
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     claude_save_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py").read_text(encoding="utf-8")
@@ -2046,6 +2041,43 @@ def test_host_owned_official_integrations_keep_their_real_boundaries():
     assert by_id["arkloop"]["autonomy"]["threads"] == "automatic-capture"
     assert by_id["opticlm"]["capabilities"]["workingMemory"] is False
     assert by_id["opticlm"]["capabilities"]["autoRecall"] is False
+
+
+def test_claude_marketplace_lists_in_repo_plugins_by_relative_path():
+    """Every Claude marketplace entry must be a relative-path string source.
+
+    Claude Desktop's configured-marketplace sync marks any entry whose
+    ``source`` is not a string (``github``, ``url``, ``git-subdir``, ...) as an
+    external source and drops it from the Plugins view, so the marketplace
+    clones fine but shows "No available plugins". Claude Code's own docs also
+    say a plugin inside the marketplace repository should use a relative path,
+    and only relative-path entries let Claude read ``plugin.json`` before
+    install. Users who want a small cache can still add the marketplace with
+    ``--sparse .claude-plugin nowledge-mem-claude-code-plugin``.
+    """
+    marketplace = _read_json(COMMUNITY_ROOT / ".claude-plugin" / "marketplace.json")
+    assert marketplace["name"] == "nowledge-community"
+    assert marketplace["owner"]["name"]
+    assert marketplace["plugins"]
+
+    for plugin in marketplace["plugins"]:
+        source = plugin["source"]
+        assert isinstance(source, str), (
+            f"{plugin['name']}: Claude Desktop excludes non-string sources; "
+            f"use a './<dir>' path, got {source!r}"
+        )
+        assert source.startswith("./"), source
+        assert ".." not in Path(source).parts, source
+        plugin_dir = (COMMUNITY_ROOT / source).resolve()
+        assert plugin_dir.parent == COMMUNITY_ROOT.resolve(), source
+        manifest = _read_json(plugin_dir / ".claude-plugin" / "plugin.json")
+        assert manifest["name"] == plugin["name"]
+        assert manifest["version"] == plugin["version"]
+
+    claude_entry = next(
+        plugin for plugin in marketplace["plugins"] if plugin["name"] == "nowledge-mem"
+    )
+    assert claude_entry["source"] == f"./{CLAUDE_PLUGIN.name}"
 
 
 def test_zcode_external_marketplace_indexes_standalone_plugin():
