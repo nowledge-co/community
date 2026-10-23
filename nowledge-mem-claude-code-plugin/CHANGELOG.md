@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Claude Desktop lists Nowledge Mem in the `nowledge-community` marketplace
+  again. The marketplace entry pointed at its own repository through a
+  `git-subdir` source, which Claude Desktop treats as an external plugin and
+  hides, so the marketplace synced but showed no available plugins. The entry
+  now uses the relative path `./nowledge-mem-claude-code-plugin`. Run
+  `claude plugin marketplace update nowledge-community` to pick it up; there is
+  no need to remove or re-add the marketplace.
+
 ## [0.7.28] - 2026-10-22
 
 ### Fixed

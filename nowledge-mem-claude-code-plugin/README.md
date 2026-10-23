@@ -14,6 +14,19 @@ claude plugin marketplace add https://github.com/nowledge-co/community
 claude plugin install nowledge-mem@nowledge-community
 ```
 
+To download only this plugin instead of the whole community repository, add the
+marketplace with a sparse checkout:
+
+```bash
+claude plugin marketplace add nowledge-co/community \
+  --sparse .claude-plugin nowledge-mem-claude-code-plugin
+```
+
+The same marketplace works in Claude Desktop (`extraKnownMarketplaces` or an
+organization marketplace allowlist). It lists the plugin by a relative path,
+because Claude Desktop hides marketplace entries that point at an external
+source.
+
 Grok Build:
 
 ```bash
