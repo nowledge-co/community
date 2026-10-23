@@ -6,17 +6,21 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class RemoteMcpSyncGuidance(unittest.TestCase):
-    def test_pending_muse_does_not_advertise_a_verified_protocol(self):
+    def test_muse_uses_verified_guided_mcp_without_automatic_capture_claim(self):
         registry = json.loads((ROOT / "integrations.json").read_text(encoding="utf-8"))
         muse = next(entry for entry in registry["integrations"] if entry["id"] == "muse")
-        self.assertEqual(muse["availability"], "pending-verification")
-        self.assertNotIn("transport", muse)
-        self.assertNotIn("toolNaming", muse)
-        self.assertFalse(any(muse["capabilities"].values()))
+        self.assertEqual(muse["availability"], "guided")
+        self.assertEqual(muse["transport"], "mcp")
+        self.assertEqual(muse["threadSave"]["method"], "mcp-sync")
+        self.assertFalse(muse["capabilities"]["autoCapture"])
+        self.assertFalse(muse["capabilities"]["autoRecall"])
         for locale in ("prompt", "promptZh"):
             prompt = muse["install"]["agentGuide"][locale]
-            self.assertIn("shared/remote-mcp/SKILL.md", prompt)
-            self.assertRegex(prompt, r"Do not connect|不要连接")
+            for required in ("shared/remote-mcp/SKILL.md", "S256", "Threads"):
+                self.assertIn(required, prompt)
+        skill = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
+        for required in ("240 seconds", "User-Agent", "WWW-Authenticate", "Mcp-Session-Id", "credentials.request_api_access"):
+            self.assertIn(required, skill)
 
     def test_daily_sync_requires_host_scope_and_a_confirmed_task(self):
         text = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")

@@ -5,11 +5,11 @@ description: Use connected Nowledge Mem tools in a hosted AI client and set up d
 
 # Remote MCP: use and daily Thread sync
 
-Use this shared procedure for Dots, Grok Bot, and other hosted clients. Muse is
-pending real-account verification. Do not assume a host supports MCP, OAuth,
-original-message access, or scheduled tool calls until each capability is checked.
-For Muse, prepare a capability checklist only. Do not connect, call MCP tools,
-upload originals, or create a scheduled task before real-account verification.
+Use this shared procedure for Dots, Grok Bot, Meta Muse, and other hosted clients.
+Muse Desktop OAuth, tool discovery, synthetic Thread save, exact replay and
+original readback passed real-account acceptance on 2026-10-23. This does not
+prove access to personal transcript history, stable host IDs, Cloud runtime,
+or unattended daily execution. Check each capability for the current account.
 
 ## Connect and choose a destination
 
@@ -28,6 +28,42 @@ upload originals, or create a scheduled task before real-account verification.
 5. Read Context Bundle to resolve context and scope. Confirm the user's exact
    target Space before the first write. A source label or client name is not an
    AI Identity or a Space selector. Preserve existing conversation ownership.
+
+## Muse setup
+
+1. In App, choose **Connectors → AI Tools → Meta Muse → Install**. Complete
+   owner pairing in the browser that will open the OAuth consent. Keep Access
+   Anywhere running. Choose **Open Muse** and paste the copied setup prompt.
+   In Cloud, use **Open Muse** in the Cloud OAuth configuration; no Desktop
+   pairing is needed. Preserve the Cloud endpoint's `space_protocol=exact-v1`.
+2. Reuse an existing connection. Otherwise use Muse's custom MCP client and
+   `credentials.request_api_access` to display a real OAuth connect action.
+   Read the MCP `WWW-Authenticate` challenge and public resource metadata,
+   then `/.well-known/oauth-authorization-server` on the selected origin.
+   Use returned issuer, resource, registration, authorization and token values.
+   Do not invent a client secret or registration result. The verified App path
+   uses public DCR, PKCE S256 and token authentication `none`.
+3. Request only `mem:read threads:read threads:sync offline_access` for the
+   context and Thread workflow. Ask for separate permission for Memory writes.
+   Complete the displayed OAuth action. Opening Muse or saving credentials
+   alone does not prove a working MCP call.
+4. A custom client must declare a truthful application User-Agent, for example
+   `NowledgeMem-Muse/1.0`. The tested default `Python-urllib/3.12` was rejected
+   by the development domain with Cloudflare 1010 before MCP initialization.
+   Inspect the actual response before assigning a cause. Do not impersonate
+   a browser, disable security controls or assume every 403 is an OAuth error.
+5. Execute `initialize`, `notifications/initialized`, `tools/list` and each
+   tool call as separate steps. Wait for each external-request approval, with
+   up to 240 seconds per request. Save the actual receipt before the next step.
+   Do not restart a whole multi-request script after an approval timeout.
+   If no `Mcp-Session-Id` is returned, do not invent one. Check write status
+   before explicit replay of the same snapshot. Do not require permanent
+   permission for all domain subdomains to complete a one-time test.
+6. After choosing the exact Space, ask to use a synthetic snapshot for the
+   first save/replay/readback check. Use `sync_thread` and
+   `thread_fetch_messages` from the actual catalog. Verify first additions,
+   zero additions on exact replay and the original roles/content. Then apply
+   the shared daily execution procedure below to authorized real conversations.
 
 ## Read and write knowledge
 

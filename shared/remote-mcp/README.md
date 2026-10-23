@@ -1,19 +1,27 @@
 # Use Nowledge Mem from a hosted AI client
 
-Dots, Grok Bot, and other hosted clients can use the same Remote MCP procedure.
-Muse is **pending account verification**. Its connection, message access, and
-scheduled execution have not been verified.
+Dots, Grok Bot, Meta Muse and other hosted clients use the same Remote MCP
+procedure. Muse has passed real-account Desktop OAuth and a synthetic Thread
+save, replay and readback check. Daily execution and personal transcript access
+still need verification in your account.
 
-## Muse preparation only
+## Connect Muse
 
-Muse protocol support remains unverified. Use this prompt to prepare the checks:
+1. In Nowledge Mem App, open **Connectors → AI Tools → Meta Muse → Install**.
+   Complete browser pairing, then choose **Open Muse** and paste the copied
+   setup prompt. Use the same browser for pairing and OAuth approval.
+2. In Cloud, choose **Open Muse** from the Cloud OAuth configuration and paste
+   its prompt. Keep the full workspace endpoint, including its query string.
+3. Muse displays its real OAuth connect action. Approve only the requested
+   context and Thread scopes. Credentials do not belong in chat.
+4. Ask Muse to verify a synthetic Thread save, identical replay with zero
+   additions and original readback. Then choose your real conversation scope,
+   Space, timezone and daily time. A daily task needs its own confirmation.
 
-```text
-Read https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md.
-Prepare a Meta Muse acceptance checklist only. Do not connect, call tools, upload
-conversations, or create daily tasks. List protocol, account, target Space,
-original-message access, stable IDs, and background scheduling as unverified.
-```
+The [shared skill](SKILL.md#muse-setup) contains the verified custom-client
+steps, discovery, request approval handling and response checks. If clipboard
+access fails, expand **Read or copy manually** in the configuration page.
+Opening Muse cannot install a native plugin or enable a daily task by itself.
 
 ## Copy this prompt for a verified connection
 
