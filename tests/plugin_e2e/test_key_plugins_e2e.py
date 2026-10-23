@@ -2025,6 +2025,43 @@ def test_host_owned_official_integrations_keep_their_real_boundaries():
     assert by_id["opticlm"]["capabilities"]["autoRecall"] is False
 
 
+def test_claude_marketplace_lists_in_repo_plugins_by_relative_path():
+    """Every Claude marketplace entry must be a relative-path string source.
+
+    Claude Desktop's configured-marketplace sync marks any entry whose
+    ``source`` is not a string (``github``, ``url``, ``git-subdir``, ...) as an
+    external source and drops it from the Plugins view, so the marketplace
+    clones fine but shows "No available plugins". Claude Code's own docs also
+    say a plugin inside the marketplace repository should use a relative path,
+    and only relative-path entries let Claude read ``plugin.json`` before
+    install. Users who want a small cache can still add the marketplace with
+    ``--sparse .claude-plugin nowledge-mem-claude-code-plugin``.
+    """
+    marketplace = _read_json(COMMUNITY_ROOT / ".claude-plugin" / "marketplace.json")
+    assert marketplace["name"] == "nowledge-community"
+    assert marketplace["owner"]["name"]
+    assert marketplace["plugins"]
+
+    for plugin in marketplace["plugins"]:
+        source = plugin["source"]
+        assert isinstance(source, str), (
+            f"{plugin['name']}: Claude Desktop excludes non-string sources; "
+            f"use a './<dir>' path, got {source!r}"
+        )
+        assert source.startswith("./"), source
+        assert ".." not in Path(source).parts, source
+        plugin_dir = (COMMUNITY_ROOT / source).resolve()
+        assert plugin_dir.parent == COMMUNITY_ROOT.resolve(), source
+        manifest = _read_json(plugin_dir / ".claude-plugin" / "plugin.json")
+        assert manifest["name"] == plugin["name"]
+        assert manifest["version"] == plugin["version"]
+
+    claude_entry = next(
+        plugin for plugin in marketplace["plugins"] if plugin["name"] == "nowledge-mem"
+    )
+    assert claude_entry["source"] == f"./{CLAUDE_PLUGIN.name}"
+
+
 def test_zcode_external_marketplace_indexes_standalone_plugin():
     registry = _read_json(COMMUNITY_ROOT / "integrations.json")
     by_id = {entry["id"]: entry for entry in registry["integrations"]}
