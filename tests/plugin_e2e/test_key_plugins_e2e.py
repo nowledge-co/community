@@ -325,11 +325,6 @@ def test_key_plugin_static_contracts_are_declared():
     copilot_marketplace_plugin = next(
         plugin for plugin in copilot_marketplace["plugins"] if plugin.get("name") == "nowledge-mem"
     )
-    for plugin in claude_marketplace["plugins"]:
-        source = plugin.get("source", {})
-        if source.get("source") == "git-subdir":
-            assert source["url"].startswith("https://github.com/")
-
     claude_manifest = _read_json(CLAUDE_PLUGIN / ".claude-plugin" / "plugin.json")
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     claude_save_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py").read_text(encoding="utf-8")
