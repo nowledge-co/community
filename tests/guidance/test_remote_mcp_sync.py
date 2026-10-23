@@ -12,6 +12,8 @@ class RemoteMcpSyncGuidance(unittest.TestCase):
         self.assertEqual(muse["availability"], "guided")
         self.assertEqual(muse["transport"], "mcp")
         self.assertEqual(muse["threadSave"]["method"], "mcp-sync")
+        self.assertFalse(muse["capabilities"]["workingMemory"])
+        self.assertFalse(muse["capabilities"]["search"])
         self.assertFalse(muse["capabilities"]["autoCapture"])
         self.assertFalse(muse["capabilities"]["autoRecall"])
         for locale in ("prompt", "promptZh"):

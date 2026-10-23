@@ -75,8 +75,8 @@
       "directory": null,
       "availability": "guided",
       "capabilities": {
-        "workingMemory": true,
-        "search": true,
+        "workingMemory": false,
+        "search": false,
         "distill": false,
         "autoRecall": false,
         "autoCapture": false,
@@ -85,7 +85,7 @@
       },
       "threadSave": {
         "method": "mcp-sync",
-        "note": "Real-account Desktop OAuth, tool discovery, synthetic snapshot save, zero-addition replay and exact original readback passed. Personal transcript access, stable provider IDs, Cloud runtime and unattended scheduling require separate verification."
+        "note": "Real-account Desktop OAuth, tool discovery, synthetic snapshot save, zero-addition replay and exact original readback passed. Context and search calls, personal transcript access, stable provider IDs, Cloud runtime and unattended scheduling require separate verification."
       },
       "autonomy": {
         "bootstrap": "guided",
