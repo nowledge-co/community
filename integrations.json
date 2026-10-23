@@ -54,8 +54,8 @@
       "install": {
         "detectionHint": "This hosted client cannot be detected from the local desktop app.",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md, then https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Reuse my Nowledge Mem MCP connection for context and search. Save original conversations in Threads. Set up host-owned sync once a day after confirming my timezone, time, and target Space. Report any missing permission, original messages, or scheduler. Do not report daily sync as enabled without a confirmed host task.",
-          "promptZh": "先读取 https://mem.nowledge.co/SKILL.md，再读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。复用我的 Nowledge Mem MCP 连接读取上下文和检索知识；对话原文保存为 Threads。确认时区、执行时间和目标 Space 后，由宿主建立每天一次同步任务。缺少权限、原文或定时能力时明确说明；没有确认宿主任务前不要报告每日同步已启用。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md, then https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Reuse my Nowledge Mem MCP connection for context and search. After the connection is verified, perform a Context Bundle or Working Memory check. Save original conversations in Threads. Set up host-owned sync once a day after confirming my timezone, time, and target Space. Report any missing permission, original messages, or scheduler. Do not report daily sync as enabled without a confirmed host task.",
+          "promptZh": "先读取 https://mem.nowledge.co/SKILL.md，再读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。复用我的 Nowledge Mem MCP 连接读取上下文和检索知识；确认连接可用后进行 Context Bundle 或 Working Memory 检查。对话原文保存为 Threads。确认时区、执行时间和目标 Space 后，由宿主建立每天一次同步任务。缺少权限、原文或定时能力时明确说明；没有确认宿主任务前不要报告每日同步已启用。"
         },
         "docsUrl": "https://github.com/nowledge-co/community/tree/main/shared/remote-mcp"
       },
@@ -103,8 +103,8 @@
       "install": {
         "detectionHint": "This hosted client cannot be detected from the local desktop app.",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md, then https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Reuse my Nowledge Mem MCP connection for context and search. Save original conversations in Threads. Set up host-owned sync once a day after confirming my timezone, time, and target Space. Report any missing permission, original messages, or scheduler. Do not report daily sync as enabled without a confirmed host task. Muse protocol and account access are not verified; do not claim a working connection.",
-          "promptZh": "先读取 https://mem.nowledge.co/SKILL.md，再读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。复用我的 Nowledge Mem MCP 连接读取上下文和检索知识；对话原文保存为 Threads。确认时区、执行时间和目标 Space 后，由宿主建立每天一次同步任务。缺少权限、原文或定时能力时明确说明；没有确认宿主任务前不要报告每日同步已启用。 Muse 协议和账号接入尚未验证，不要声称已连接成功。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md, then https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Reuse my Nowledge Mem MCP connection for context and search. After the connection is verified, perform a Context Bundle or Working Memory check. Save original conversations in Threads. Set up host-owned sync once a day after confirming my timezone, time, and target Space. Report any missing permission, original messages, or scheduler. Do not report daily sync as enabled without a confirmed host task. Muse protocol and account access are not verified; do not claim a working connection.",
+          "promptZh": "先读取 https://mem.nowledge.co/SKILL.md，再读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。复用我的 Nowledge Mem MCP 连接读取上下文和检索知识；确认连接可用后进行 Context Bundle 或 Working Memory 检查。对话原文保存为 Threads。确认时区、执行时间和目标 Space 后，由宿主建立每天一次同步任务。缺少权限、原文或定时能力时明确说明；没有确认宿主任务前不要报告每日同步已启用。 Muse 协议和账号接入尚未验证，不要声称已连接成功。"
         },
         "docsUrl": "https://github.com/nowledge-co/community/tree/main/shared/remote-mcp"
       },
