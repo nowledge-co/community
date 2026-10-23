@@ -256,3 +256,11 @@ Do this for recurring, procedural work, not for every question.
 Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
 
 Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
+
+## Hosted clients: daily original Thread sync
+
+Hosted MCP clients use [the shared Remote MCP skill](remote-mcp/SKILL.md) for
+tool use and daily original-conversation synchronization. Store originals in
+Threads; Memory distillation is separate. Default to once a day when the host
+can provide originals and a working scheduler. A connection or prompt is not
+proof that daily execution is enabled.

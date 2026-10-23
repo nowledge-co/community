@@ -1,6 +1,6 @@
 ---
 name: nowledge-mem
-description: Use a connected Nowledge Mem Cloud workspace for cross-tool context, memory search, scoped knowledge writes, thread lookup, and Library retrieval in ChatGPT or Codex.
+description: Use a connected Nowledge Mem Cloud workspace for cross-tool context, memory search, scoped knowledge writes, thread lookup, original Thread sync, and Library retrieval in ChatGPT or Codex.
 ---
 
 # Nowledge Mem Cloud
@@ -26,8 +26,21 @@ Respect the tools actually exposed by the connected server. Do not claim access 
 ## Boundaries
 
 - Remote MCP lets ChatGPT or Codex call Mem. It does not let Mem read the host's private transcript.
-- Use the browser extension or an official export for ChatGPT conversation capture. Use the dedicated local Codex connector for Codex lifecycle hooks and transcript capture.
+- Use the browser extension or an official export for complete ChatGPT conversation capture. Use the dedicated local Codex connector for Codex lifecycle hooks and transcript capture.
 - A client name and `source_app` are provenance, not an AI Identity or Space selector.
 - Never create a new Space merely to make a connection succeed.
 
 When a task materially depends on remembered context, cite or summarize the retrieved evidence honestly. Do not describe a retrieval as proof that the memory helped unless the user or downstream work confirms it.
+
+## Daily conversation synchronization
+
+Read https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md before setting up original-message storage or daily execution.
+Use the same procedure as other hosted clients. Default to once a day through
+the host's scheduler only when it can access originals and call MCP tools in
+the background. Reuse an existing task, confirm timezone, time, conversations,
+and target Space, and report the actual scheduling result.
+
+`threads:sync` explicitly permits `sync_thread`; it does not grant access to
+private host history. Store accessible original conversations in Threads,
+not Memories. If the host cannot supply originals, stable IDs, or a scheduler,
+report daily sync as not enabled and offer supported export or explicit sync.

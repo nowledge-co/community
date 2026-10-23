@@ -18,6 +18,104 @@
   },
   "integrations": [
     {
+      "id": "dots",
+      "name": "Dots",
+      "category": "cloud",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "transport": "mcp",
+      "availability": "guided",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "mcp-sync",
+        "note": "sync_thread can save caller-supplied original snapshots with threads:sync consent. Complete-history collection and automatic daily execution are not implied."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "explicit-save",
+        "bestResultRequires": [
+          "A public HTTPS MCP endpoint and explicit OAuth consent",
+          "An exact target Space for writes",
+          "Host access to original messages with stable IDs",
+          "A confirmed host scheduler task before claiming daily sync is enabled"
+        ]
+      },
+      "install": {
+        "detectionHint": "This hosted client cannot be detected from the local desktop app.",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md, then https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Reuse my Nowledge Mem MCP connection for context and search. Save original conversations in Threads. Set up host-owned sync once a day after confirming my timezone, time, and target Space. Report any missing permission, original messages, or scheduler. Do not report daily sync as enabled without a confirmed host task.",
+          "promptZh": "先读取 https://mem.nowledge.co/SKILL.md，再读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。复用我的 Nowledge Mem MCP 连接读取上下文和检索知识；对话原文保存为 Threads。确认时区、执行时间和目标 Space 后，由宿主建立每天一次同步任务。缺少权限、原文或定时能力时明确说明；没有确认宿主任务前不要报告每日同步已启用。"
+        },
+        "docsUrl": "https://github.com/nowledge-co/community/tree/main/shared/remote-mcp"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "Use the tool names supplied by the connected server. Client names are provenance, not authorization."
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
+      "id": "muse",
+      "name": "Meta Muse",
+      "category": "cloud",
+      "type": "connector",
+      "version": null,
+      "directory": null,
+      "transport": "mcp",
+      "availability": "pending-verification",
+      "capabilities": {
+        "workingMemory": false,
+        "search": false,
+        "distill": false,
+        "autoRecall": false,
+        "autoCapture": false,
+        "graphExploration": false,
+        "status": false
+      },
+      "threadSave": {
+        "method": "none",
+        "note": "Muse account verification is pending. Protocol support, original-message access, stable IDs, and host scheduling are unverified."
+      },
+      "autonomy": {
+        "bootstrap": "guided",
+        "recall": "guided",
+        "distill": "guided",
+        "threads": "none",
+        "bestResultRequires": [
+          "A public HTTPS MCP endpoint and explicit OAuth consent",
+          "An exact target Space for writes",
+          "Host access to original messages with stable IDs",
+          "A confirmed host scheduler task before claiming daily sync is enabled"
+        ]
+      },
+      "install": {
+        "detectionHint": "This hosted client cannot be detected from the local desktop app.",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md, then https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Reuse my Nowledge Mem MCP connection for context and search. Save original conversations in Threads. Set up host-owned sync once a day after confirming my timezone, time, and target Space. Report any missing permission, original messages, or scheduler. Do not report daily sync as enabled without a confirmed host task. Muse protocol and account access are not verified; do not claim a working connection.",
+          "promptZh": "先读取 https://mem.nowledge.co/SKILL.md，再读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。复用我的 Nowledge Mem MCP 连接读取上下文和检索知识；对话原文保存为 Threads。确认时区、执行时间和目标 Space 后，由宿主建立每天一次同步任务。缺少权限、原文或定时能力时明确说明；没有确认宿主任务前不要报告每日同步已启用。 Muse 协议和账号接入尚未验证，不要声称已连接成功。"
+        },
+        "docsUrl": "https://github.com/nowledge-co/community/tree/main/shared/remote-mcp"
+      },
+      "toolNaming": {
+        "convention": "mcp-backend",
+        "note": "Use the tool names supplied by the connected server. Client names are provenance, not authorization."
+      },
+      "skills": [],
+      "slashCommands": []
+    },
+    {
       "id": "claude-code",
       "name": "Claude Code",
       "category": "coding",
@@ -142,7 +240,7 @@
       },
       "threadSave": {
         "method": "none",
-        "note": "Grok Bot is a cloud-managed host. Its documented plugin and hook surfaces may be available through Grok Bot or team settings, and the shared Claude-compatible package can be enabled there when the host exposes it. The Bot-specific transcript export and hook payload needed for automatic full-thread capture are not yet a verified Nowledge contract. Use MCP for memory operations and supported import paths for conversations you can export."
+        "note": "Grok Bot is a cloud-managed host. Its documented plugin and hook surfaces may be available through Grok Bot or team settings, and the shared Claude-compatible package can be enabled there when the host exposes it. The Bot-specific transcript export and hook payload needed for automatic full-thread capture are not yet a verified Nowledge contract. Use MCP for memory operations and supported import paths for conversations you can export. The public sync_thread tool can store supplied original snapshots with explicit threads:sync consent. This is not a verified Grok transcript collector; use the shared Remote MCP guide to check original-message access, stable IDs, and host scheduling."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -161,8 +259,8 @@
       "install": {
         "detectionHint": "Grok Bot is a cloud-managed host and is not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow its Grok connector path. First ask me to choose Nowledge Cloud or Mem App and a target Space. Then open https://grok.com/connectors and guide me to add the public Nowledge Mem /mcp endpoint as a Custom connector. For Cloud, use its Cloud endpoint. For App, use the endpoint supplied by Access Anywhere Quick link, Nowledge Link, or my public domain. Complete OAuth; do not ask for or paste a Mem API key. Do not run a local Grok Build plugin command or use localhost. After I confirm the connector is added, verify connected status, a Context Bundle or Working Memory check, bounded search, one scoped test write to my chosen Space, and exact-ID readback. Report the created test Memory ID and that complete-thread capture is not automatic unless Grok provides a documented export or hook payload.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按其中的 Grok connector 路径操作。先让我选择 Nowledge Cloud 或 Mem App，以及目标 Space。然后打开 https://grok.com/connectors，引导我把公开的 Nowledge Mem /mcp 地址添加为 Custom connector。Cloud 使用 Cloud endpoint；App 使用 Access Anywhere Quick link、Nowledge Link 或我的公开域名提供的 endpoint。完成 OAuth；不要索要或粘贴 Mem API key。不要运行本地 Grok Build plugin 命令，也不要使用 localhost。我确认连接器已添加后，验证 connected 状态、进行 Context Bundle 或 Working Memory 检查、一次有界搜索、向所选 Space 写入一条范围明确的测试记忆，并按精确 ID 回读。最后报告测试 Memory ID，并说明除非 Grok 提供有文档说明的导出或 hook payload，否则不会自动捕获完整会话。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow its Grok connector path. First ask me to choose Nowledge Cloud or Mem App and a target Space. Then open https://grok.com/connectors and guide me to add the public Nowledge Mem /mcp endpoint as a Custom connector. For Cloud, use its Cloud endpoint. For App, use the endpoint supplied by Access Anywhere Quick link, Nowledge Link, or my public domain. Complete OAuth; do not ask for or paste a Mem API key. Do not run a local Grok Build plugin command or use localhost. After I confirm the connector is added, verify connected status, a Context Bundle or Working Memory check, bounded search, one scoped test write to my chosen Space, and exact-ID readback. Report the created test Memory ID and that complete-thread capture is not automatic unless Grok provides a documented export or hook payload. After connection, read https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md for tool use and daily original Thread sync. Confirm host scheduling support before reporting daily sync as enabled.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按其中的 Grok connector 路径操作。先让我选择 Nowledge Cloud 或 Mem App，以及目标 Space。然后打开 https://grok.com/connectors，引导我把公开的 Nowledge Mem /mcp 地址添加为 Custom connector。Cloud 使用 Cloud endpoint；App 使用 Access Anywhere Quick link、Nowledge Link 或我的公开域名提供的 endpoint。完成 OAuth；不要索要或粘贴 Mem API key。不要运行本地 Grok Build plugin 命令，也不要使用 localhost。我确认连接器已添加后，验证 connected 状态、进行 Context Bundle 或 Working Memory 检查、一次有界搜索、向所选 Space 写入一条范围明确的测试记忆，并按精确 ID 回读。最后报告测试 Memory ID，并说明除非 Grok 提供有文档说明的导出或 hook payload，否则不会自动捕获完整会话。 连接后读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指引使用工具并每日同步对话原文到 Threads。确认宿主支持定时执行后才能报告每日同步已启用。"
         },
         "docsUrl": "/docs/integrations/grok-bot"
       },
@@ -214,8 +312,8 @@
         "publicDirectoryStatus": "published",
         "detectionHint": "ChatGPT Web and desktop are cloud clients and are not locally detectable by the desktop app",
         "agentGuide": {
-"prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT guide. For a personal or Team workspace on Nowledge Cloud, install the official plugin at https://nowled.ge/openai, sign in to Mem, choose the intended workspace and approve OAuth. For Mem running on the user's computer, follow the App connection guide to set up Access Anywhere or Nowledge Link and a custom MCP connection with OAuth pairing; check that the ChatGPT account allows custom connections. Verify search and one scoped write with exact-ID readback when authorized. For complete-chat capture, use the browser extension or official export.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 指南操作。个人或 Team 工作区在 Nowledge Cloud 时，从 https://nowled.ge/openai 安装官方插件，登录 Mem，选对工作区并完成 OAuth 授权。Mem 在自己的电脑上时，按 App 连接指南设置 Access Anywhere 或 Nowledge Link，并建立自定义 MCP 连接、完成 OAuth 配对；先确认 ChatGPT 账号允许自定义连接。验证搜索，并在获得授权后验证一次范围明确的写入和按 ID 读取。完整聊天捕获请用浏览器扩展或官方导出。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the ChatGPT guide. For a personal or Team workspace on Nowledge Cloud, install the official plugin at https://nowled.ge/openai, sign in to Mem, choose the intended workspace and approve OAuth. For Mem running on the user's computer, follow the App connection guide to set up Access Anywhere or Nowledge Link and a custom MCP connection with OAuth pairing; check that the ChatGPT account allows custom connections. Verify search and one scoped write with exact-ID readback when authorized. For complete-chat capture, use the browser extension or official export. After connection, read https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md for tool use and daily original Thread sync. Confirm host scheduling support before reporting daily sync as enabled.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 ChatGPT 指南操作。个人或 Team 工作区在 Nowledge Cloud 时，从 https://nowled.ge/openai 安装官方插件，登录 Mem，选对工作区并完成 OAuth 授权。Mem 在自己的电脑上时，按 App 连接指南设置 Access Anywhere 或 Nowledge Link，并建立自定义 MCP 连接、完成 OAuth 配对；先确认 ChatGPT 账号允许自定义连接。验证搜索，并在获得授权后验证一次范围明确的写入和按 ID 读取。完整聊天捕获请用浏览器扩展或官方导出。 连接后读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指引使用工具并每日同步对话原文到 Threads。确认宿主支持定时执行后才能报告每日同步已启用。"
         },
         "docsUrl": "/docs/integrations/chatgpt-web"
       },
@@ -223,7 +321,9 @@
         "convention": "openai-plugin+mcp-backend",
         "note": "The plugin contributes the reusable workflow; the registered Cloud MCP connection supplies tools. The dedicated Codex package remains the local hook and transcript-capture path."
       },
-      "skills": ["nowledge-mem"],
+      "skills": [
+        "nowledge-mem"
+      ],
       "slashCommands": []
     },
     {
@@ -264,8 +364,8 @@
       "install": {
         "detectionHint": "Claude Cloud is a hosted client and is not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Claude Cloud path. Open the prefilled Connect to Claude link for the selected public Nowledge Mem /mcp endpoint, review the name and URL, then approve the requested workspace scopes. Use the Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace. Verify a Context Bundle or Working Memory check, a memory search, and one scoped write. Do not put this remote server in claude_desktop_config.json, use localhost, or claim automatic transcript capture.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Claude 云端路径操作。打开所选公开 Nowledge Mem /mcp endpoint 对应的 Connect to Claude 预填链接，确认名称和 URL，再批准请求的 workspace scopes。Cloud workspace 使用 Cloud endpoint；App workspace 使用 Access Anywhere。通过 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次有范围的写入进行验证。不要把这个远程 server 写进 claude_desktop_config.json，不要使用 localhost，也不要声称会自动捕获对话。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the Claude Cloud path. Open the prefilled Connect to Claude link for the selected public Nowledge Mem /mcp endpoint, review the name and URL, then approve the requested workspace scopes. Use the Cloud endpoint for a Cloud workspace or Access Anywhere for an App workspace. Verify a Context Bundle or Working Memory check, a memory search, and one scoped write. Do not put this remote server in claude_desktop_config.json, use localhost, or claim automatic transcript capture. After connection, read https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md for tool use and daily original Thread sync. Confirm host scheduling support before reporting daily sync as enabled.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，并按 Claude 云端路径操作。打开所选公开 Nowledge Mem /mcp endpoint 对应的 Connect to Claude 预填链接，确认名称和 URL，再批准请求的 workspace scopes。Cloud workspace 使用 Cloud endpoint；App workspace 使用 Access Anywhere。通过 Context Bundle 或 Working Memory 检查、一次记忆搜索和一次有范围的写入进行验证。不要把这个远程 server 写进 claude_desktop_config.json，不要使用 localhost，也不要声称会自动捕获对话。 连接后读取 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指引使用工具并每日同步对话原文到 Threads。确认宿主支持定时执行后才能报告每日同步已启用。"
         },
         "docsUrl": "/docs/integrations/claude-cloud"
       },
