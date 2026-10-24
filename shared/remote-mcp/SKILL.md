@@ -13,10 +13,13 @@ or unattended daily execution. Check each capability for the current account.
 
 ## Short launcher prompts
 
-Muse, Dots and Grok Bot use a short launcher: read the universal guide and this
-full skill, save the procedure, reuse the confirmed connection and Space, and
+Muse, Dots and Grok Bot use a short launcher: read the universal guide and the current host
+configuration guide, then retain this full skill, save the procedure, reuse the confirmed connection and Space, and
 sync the current conversation after each reply in the same Thread. The Muse setup
-launcher also includes the current MCP URL; keep it intact, including its query.
+launcher also includes the current Remote MCP (OAuth) URL; keep it intact,
+including its query. Host guides are `/docs/integrations/meta-muse`,
+`/docs/integrations/openai-dots` and `/docs/integrations/grok-bot` on
+https://mem.nowledge.co. Those guides link to this full shared skill.
 The detailed connection, approval, identity, snapshot and failure rules live
 here rather than in copied prompts. Read and retain this full procedure before
 setup; if it cannot be loaded, report incomplete setup instead of inventing it.

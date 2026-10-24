@@ -19,11 +19,15 @@ not belong in chat. The full skill contains the verified custom-client steps.
 ## Short prompt
 
 ```text
-Read https://mem.nowledge.co/SKILL.md and https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Follow the shared guide and save the full skill. Reuse the connection, confirmed Space. After each reply, call sync automatically to save the current conversation's originals, including this reply, to the same Thread; do not replace them with a Memory. Report the connection, skill saved location and actual status of automatic sync. If setup is incomplete, explain why.
+Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/meta-muse to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.
+
+Save the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.
 ```
 
 ```text
-读取 https://mem.nowledge.co/SKILL.md 和 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指南配置并保存完整 skill。复用已有连接、已确认的 Space；默认每次回复都自动调用同步，将当前对话原文（含本轮回复）保存到同一 Thread，不替换为 Memory。完成后报告连接、skill 保存位置和自动同步的实际状态；无法完成时说明原因。
+读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/meta-muse，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。
+
+将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。
 ```
 
 ## Synchronize each reply

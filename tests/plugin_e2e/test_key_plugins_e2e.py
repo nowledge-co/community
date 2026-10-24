@@ -1523,8 +1523,8 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
             assert "验证搜索" in guide["promptZh"]
         elif entry["id"] in {"muse", "dots", "grok-bot"}:
             # Hosted launchers delegate protocol and tool checks to the full skill.
-            assert "shared/remote-mcp/SKILL.md" in guide["prompt"], entry["id"]
-            assert "shared/remote-mcp/SKILL.md" in guide["promptZh"], entry["id"]
+            assert "/docs/integrations/" in guide["prompt"], entry["id"]
+            assert "/docs/integrations/" in guide["promptZh"], entry["id"]
             shared = (COMMUNITY_ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
             assert "Read Context Bundle" in shared
             assert "only if exposed" in shared
@@ -1532,8 +1532,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         else:
             assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
             assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
-        assert "/docs/integrations/" not in guide["prompt"], entry["id"]
-        assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
+        if entry["id"] not in {"muse", "dots", "grok-bot"}:
+            assert "/docs/integrations/" not in guide["prompt"], entry["id"]
+            assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
 
     by_id = {entry["id"]: entry for entry in integrations}
     assert "raft" in integration_ids
@@ -1566,8 +1567,8 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     grok_prompt = by_id["grok-bot"]["install"]["agentGuide"]["prompt"]
     grok_prompt_zh = by_id["grok-bot"]["install"]["agentGuide"]["promptZh"]
     for text in (grok_prompt, grok_prompt_zh):
-        assert "Space" in text
-        assert "shared/remote-mcp/SKILL.md" in text
+        assert "Thread" in text
+        assert "/docs/integrations/grok-bot" in text
     # Host-specific setup stays in the referenced skill, not the launcher.
     shared = (COMMUNITY_ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
     for required in ("grok.com/connectors", "Custom connector", "OAuth",
