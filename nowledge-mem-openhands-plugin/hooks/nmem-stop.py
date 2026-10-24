@@ -22,10 +22,10 @@ def main() -> None:
             or os.environ.get("OPENHANDS_PROJECT_DIR", "")
             or os.getcwd()
         )
-        session_key = conversation_id or nmem_shared.resolve_session_key(hook_input, working_dir)
 
-        # Clear injection marker when session completes so future workspace sessions aren't starved
-        nmem_shared.clear_session_injected(session_key, working_dir)
+        # Stop fires at the end of every agent turn (reason="agent_finished") and the next
+        # message continues the same conversation, so it must not reset the prompt-injection
+        # marker. Markers expire by TTL; see nmem_shared.has_session_injected.
 
         if os.environ.get("NMEM_DISABLE_AUTO_CAPTURE", "").strip().lower() in ("1", "true", "yes"):
             nmem_shared.emit({"decision": "approve"})

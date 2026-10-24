@@ -432,21 +432,41 @@ def resolve_session_key(
     return f"workspace_{digest}"
 
 
+# Injection markers record that a conversation already received the full Context
+# Bundle, so later turns only get the short routing guidance.
+#
+# Lifetime: a marker is NOT cleared on Stop. OpenHands sends Stop with
+# reason="agent_finished" at the end of every agent turn, and the next
+# send_message() continues the same conversation ID. SessionEnd is not a safe
+# boundary either (OpenHands also emits it when it replaces the hook config of a
+# live conversation). Markers therefore expire by TTL only and stale files are
+# pruned opportunistically.
+#
+# Location: only the Nowledge Mem config dir (never the database data dir, the
+# workspace, or the OpenHands conversation folder).
+_EXPLICIT_SESSION_TTL_SECONDS = 24 * 3600
+# Without a conversation ID every conversation in the same workspace shares one
+# key, so the window is deliberately short.
+_WORKSPACE_FALLBACK_TTL_SECONDS = 30 * 60
+_MARKER_PRUNE_AFTER_SECONDS = 7 * 24 * 3600
+_MARKER_SUFFIX = ".injected"
+
+
 def get_candidate_state_dirs(working_dir: str | Path | None = None) -> list[Path]:
-    """Return ordered candidate directories for persisting session injection markers."""
+    """Ordered directories for injection markers: Nowledge Mem config dir, then a per-user temp dir."""
     dirs: list[Path] = []
     if env_dir := os.environ.get("NMEM_CLI_CONFIG_DIR", "").strip():
         dirs.append(Path(env_dir) / "plugins" / "openhands" / "sessions")
-    if env_dir := os.environ.get("NMEM_APP_DATA", "").strip():
-        dirs.append(Path(env_dir) / "openhands" / "sessions")
     dirs.append(Path("~/.nowledge-mem/plugins/openhands/sessions").expanduser())
-    if working_dir:
-        dirs.append(Path(working_dir) / ".openhands" / "sessions")
-        dirs.append(Path(working_dir) / ".nowledge-mem" / "sessions")
-
     uid_suffix = f"-{os.getuid()}" if hasattr(os, "getuid") else ""
     dirs.append(Path(tempfile.gettempdir()) / f"nowledge-mem-openhands-sessions{uid_suffix}")
     return dirs
+
+
+def _session_ttl(session_key: str) -> int:
+    if session_key.startswith("workspace_"):
+        return _WORKSPACE_FALLBACK_TTL_SECONDS
+    return _EXPLICIT_SESSION_TTL_SECONDS
 
 
 def has_session_injected(
@@ -456,102 +476,55 @@ def has_session_injected(
     """Check if the session has already received its initial context injection."""
     if not session_key:
         return False
-    clean_id = clean_session_key(session_key)
+    name = clean_session_key(session_key) + _MARKER_SUFFIX
+    ttl = _session_ttl(session_key)
     now = time.time()
-    # Workspace fallback uses a shorter 30-minute window unless cleared on stop;
-    # explicit session keys have a 24-hour window.
-    ttl = 1800 if session_key.startswith("workspace_") else 86400
-
-    # 1. Check conversation events dir if already discovered on disk
-    try:
-        conv_dir = find_conversation_dir(session_key, working_dir)
-        if conv_dir:
-            marker = conv_dir / ".nmem_injected"
-            if marker.is_file():
-                try:
-                    if now - marker.stat().st_mtime < ttl:
-                        return True
-                except OSError:
-                    pass
-    except Exception:
-        pass
-
-    # 2. Check candidate state directories
     for s_dir in get_candidate_state_dirs(working_dir):
-        marker = s_dir / f"{clean_id}.injected"
-        if marker.is_file():
-            try:
-                if now - marker.stat().st_mtime < ttl:
-                    return True
-            except OSError:
-                pass
+        try:
+            if now - (s_dir / name).stat().st_mtime < ttl:
+                return True
+        except OSError:
+            continue
     return False
+
+
+def _prune_stale_markers(state_dir: Path) -> None:
+    """Best-effort removal of marker files older than the prune window."""
+    cutoff = time.time() - _MARKER_PRUNE_AFTER_SECONDS
+    try:
+        entries = list(state_dir.glob(f"*{_MARKER_SUFFIX}"))
+    except OSError:
+        return
+    for entry in entries:
+        try:
+            if entry.is_file() and entry.stat().st_mtime < cutoff:
+                entry.unlink(missing_ok=True)
+        except OSError:
+            continue
 
 
 def mark_session_injected(
     session_key: str,
     working_dir: str | Path | None = None,
 ) -> None:
-    """Mark that the session has received its initial context injection."""
+    """Record that the session has received its initial context injection."""
     if not session_key:
         return
-    clean_id = clean_session_key(session_key)
-    ts = str(time.time())
-
-    # 1. Mark conversation dir if present
-    try:
-        conv_dir = find_conversation_dir(session_key, working_dir)
-        if conv_dir and conv_dir.is_dir():
-            (conv_dir / ".nmem_injected").write_text(ts, encoding="utf-8")
-    except Exception:
-        pass
-
-    # 2. Mark highest-priority writable state directory
+    name = clean_session_key(session_key) + _MARKER_SUFFIX
     for s_dir in get_candidate_state_dirs(working_dir):
         try:
             s_dir.mkdir(parents=True, exist_ok=True)
-            marker = s_dir / f"{clean_id}.injected"
-            marker.write_text(ts, encoding="utf-8")
+            marker = s_dir / name
+            marker.write_text(str(time.time()), encoding="utf-8")
             if os.name != "nt":
                 try:
                     os.chmod(marker, 0o600)
                 except OSError:
                     pass
-            break
         except OSError:
             continue
-
-
-def clear_session_injected(
-    session_key: str,
-    working_dir: str | Path | None = None,
-) -> None:
-    """Clear session injection marker upon session completion/stop."""
-    if not session_key:
-        return
-    clean_id = clean_session_key(session_key)
-
-    # 1. Clear conversation dir marker if present
-    try:
-        conv_dir = find_conversation_dir(session_key, working_dir)
-        if conv_dir:
-            marker = conv_dir / ".nmem_injected"
-            if marker.is_file():
-                try:
-                    marker.unlink(missing_ok=True)
-                except OSError:
-                    pass
-    except Exception:
-        pass
-
-    # 2. Clear candidate state directory markers
-    for s_dir in get_candidate_state_dirs(working_dir):
-        marker = s_dir / f"{clean_id}.injected"
-        if marker.is_file():
-            try:
-                marker.unlink(missing_ok=True)
-            except OSError:
-                pass
+        _prune_stale_markers(s_dir)
+        break
 
 
 def read_startup_context(cwd: str | Path | None = None) -> dict[str, str] | None:

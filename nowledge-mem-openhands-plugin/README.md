@@ -139,6 +139,7 @@ Defined in `hooks/hooks.json`:
 3. **`Stop`**:
    - Executes `hooks/nmem-stop.py`.
    - Captures conversation thread state and registers it into Nowledge Mem.
+   - Runs at the end of every agent turn; it does not reset the once-per-conversation context injection (see Startup Context Injection).
 
 ---
 
@@ -214,6 +215,11 @@ flowchart TD
 - When a user submits a prompt, `hooks/nmem-context.py` runs before the agent begins planning.
 - Directly queries Nowledge Mem's REST endpoint (`GET /context/bundle` or fallback `GET /working-memory`) with bounded timeouts; latency depends on the backend and network.
 - Formats persistent knowledge into an `additionalContext` payload, giving the agent immediate situational awareness of prior decisions, preferences, and workspace conventions.
+
+**Once per conversation.** The full Context Bundle is injected on the first prompt of a conversation only; later prompts in the same conversation get a short routing reminder. The hook remembers this with a small marker file per conversation, stored only under the Nowledge Mem config directory: `$NMEM_CLI_CONFIG_DIR/plugins/openhands/sessions`, else `~/.nowledge-mem/plugins/openhands/sessions`, else a per-user temp directory as a last resort. Nothing is written to the Nowledge Mem database directory, the workspace, or OpenHands' own conversation folder.
+
+- **Stop does not reset it.** OpenHands fires `Stop` (`reason="agent_finished"`) at the end of every agent turn, and the next message continues the same conversation, so `Stop` never clears the marker. `SessionEnd` is not used either, because OpenHands also emits it when it swaps the hook configuration of a live conversation. Markers instead expire after 24 hours and any marker older than 7 days is deleted the next time one is written.
+- **Workspace fallback limitation.** The hook keys the marker on the conversation ID OpenHands passes in the hook payload (or `OPENHANDS_SESSION_ID` / `OPENHANDS_CONVERSATION_ID`). If neither is present, it falls back to a hash of the workspace path. Then every conversation in that workspace shares one marker: a second conversation started within 30 minutes of the first gets the short reminder instead of the full bundle, and a single conversation longer than 30 minutes gets the bundle again. Pass an explicit conversation ID wherever you can; the fallback is a best-effort safety net, not an identity.
 
 ### 2. Native Tier-2 Event Parsing
 - Unlike naive single-turn capture, OpenHands writes discrete event objects into `events/event-*.json` (or `.openhands/conversations/<id>/events/`).

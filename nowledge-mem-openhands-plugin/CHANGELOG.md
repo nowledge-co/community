@@ -6,8 +6,9 @@ All notable changes to the `nowledge-mem-openhands-plugin` are documented in thi
 
 ### Fixed
 - Robust session-first prompt context injection in `hooks/nmem-context.py` resolving session identifiers across `session_id`, `sessionId`, `conversation_id`, and `conversationId`, preventing repeated context bundle injection across conversational turns.
-- Deterministic workspace directory fallback with bounded TTL and automatic cleanup on session stop in `hooks/nmem-stop.py`.
-- Multi-layer session marker discovery across `NMEM_CLI_CONFIG_DIR`, `NMEM_APP_DATA`, workspace `.openhands/sessions`, native conversation event directories, and per-user temporary directory fallback.
+- Deterministic workspace directory fallback with a short (30 minute) window when no conversation ID is available; documented as a best-effort limitation in the README.
+- Injection markers are stored only under the Nowledge Mem config directory (`NMEM_CLI_CONFIG_DIR/plugins/openhands/sessions`, else `~/.nowledge-mem/plugins/openhands/sessions`, else a per-user temp directory). Nothing is written to `NMEM_APP_DATA`, the workspace, or the OpenHands conversation folder.
+- An ordinary `Stop` (`reason="agent_finished"`, fired after every agent turn) no longer clears the injection marker, so later turns of the same conversation get guidance only. Markers expire by TTL (24 hours for explicit conversation IDs) and markers older than 7 days are pruned opportunistically.
 - Added `NMEM_PROMPT_GUIDANCE_ONLY` override allowing environments to bypass full context bundle injection in favor of lightweight routing reminders.
 - Context injection marking deferred until successful context retrieval to avoid starving sessions during transient backend daemon startup.
 
