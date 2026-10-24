@@ -256,3 +256,12 @@ Do this for recurring, procedural work, not for every question.
 Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
 
 Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
+
+## Hosted clients: per-reply original Thread sync
+
+Hosted MCP clients use [the shared Remote MCP skill](remote-mcp/SKILL.md).
+Default to syncing each normal assistant reply with the current conversation's
+originals in the same Thread and confirmed Space. Include the current reply;
+never replace originals with a Memory. Sync receipts do not recursively trigger
+new syncs. Report actual receipts and unsupported host capabilities. A scheduler
+is not required by default; existing schedules are not silently changed.
