@@ -529,3 +529,13 @@ skip visualization and keep the retrieved evidence.
 The standalone fallback preserves API path prefixes in `base_url`. It requires
 trusted browser identity and scope evidence; CLI-only hosts skip automatic
 browser links and retain the successful retrieval when that evidence is absent.
+
+### Mailbox check before finishing
+
+When `NMEM_AGENT_CONTEXT` names an approved, live compatibility mailbox, Stop
+can remind the Agent once to inspect new pending mail. The check is read-only:
+it does not receive, acknowledge or execute messages. Recursive Stop and failed
+checks end normally, and an unchanged pending state is not repeated in the same
+host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. Native session
+mailboxes without a qualified read-only probe are skipped rather than replaced
+with a legacy inbox. This does not enable polling or idle wakeup.

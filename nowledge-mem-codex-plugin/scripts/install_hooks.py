@@ -42,16 +42,21 @@ CODEX_HOOKS_KEY_RE = re.compile(r"^\s*(?:codex_hooks|\"codex_hooks\"|'codex_hook
 CODEX_HOOKS_NEW_KEY_RE = re.compile(r"^\s*(?:hooks|\"hooks\"|'hooks')\s*=")
 CODEX_PLUGIN_HOOKS_KEY_RE = re.compile(r"^\s*(?:plugin_hooks|\"plugin_hooks\"|'plugin_hooks')\s*=")
 TOML_ENABLED_KEY_RE = re.compile(r"^\s*(?:enabled|\"enabled\"|'enabled')\s*=")
-NOWLEDGE_HOOK_MARKERS = ("nowledge-mem-stop-save.py", "nmem-stop-save.py")
+NOWLEDGE_HOOK_MARKERS = (
+    "nowledge-mem-stop-save.py", "nmem-stop-save.py",
+    "nowledge-mem-mailbox-stop.py", "nmem-mailbox-stop.py",
+)
 PLUGIN_HOOK_STATE_KEYS = (
     "nowledge-mem@nowledge-community:hooks/hooks.json:session_start:0:0",
     "nowledge-mem@nowledge-community:hooks/hooks.json:subagent_start:0:0",
     "nowledge-mem@nowledge-community:hooks/hooks.json:user_prompt_submit:0:0",
     "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0",
+    "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:1",
     "nowledge-mem@local:hooks/hooks.json:session_start:0:0",
     "nowledge-mem@local:hooks/hooks.json:subagent_start:0:0",
     "nowledge-mem@local:hooks/hooks.json:user_prompt_submit:0:0",
     "nowledge-mem@local:hooks/hooks.json:stop:0:0",
+    "nowledge-mem@local:hooks/hooks.json:stop:0:1",
 )
 MCP_MANAGED_BEGIN = "# BEGIN Nowledge Mem MCP (managed by nowledge-mem-codex-plugin)"
 MCP_MANAGED_END = "# END Nowledge Mem MCP"
@@ -143,6 +148,14 @@ def install_runtime_hook() -> None:
     if not SOURCE_PENDING.exists():
         raise SystemExit(f"missing pending maintenance helper: {SOURCE_PENDING}")
     shutil.copy2(SOURCE_PENDING, INSTALLED_PENDING)
+    for source_name, installed_name in (
+        ("nmem-mailbox-stop.py", "nowledge-mem-mailbox-stop.py"),
+        ("nmem_mailbox_stop.py", "nmem_mailbox_stop.py"),
+    ):
+        source = PLUGIN_ROOT / "hooks" / source_name
+        if not source.is_file():
+            raise SystemExit(f"missing mailbox Stop helper: {source}")
+        shutil.copy2(source, HOOKS_DIR / installed_name)
 
 
 def _quote_for_hook_command(path: Path) -> str:
@@ -151,6 +164,10 @@ def _quote_for_hook_command(path: Path) -> str:
 
 def _hook_command() -> str:
     return f"{_quote_for_hook_command(Path(sys.executable))} {_quote_for_hook_command(INSTALLED_HOOK)} --event stop"
+
+
+def _mailbox_hook_command() -> str:
+    return f"{_quote_for_hook_command(Path(sys.executable))} {_quote_for_hook_command(HOOKS_DIR / 'nowledge-mem-mailbox-stop.py')}"
 
 
 def _is_nowledge_hook(hook: object) -> bool:
@@ -185,6 +202,12 @@ def merge_hooks_json() -> None:
                     "command": _hook_command(),
                     "timeout": 15,
                     "statusMessage": "Queueing Codex thread capture...",
+                },
+                {
+                    "type": "command",
+                    "command": _mailbox_hook_command(),
+                    "timeout": 5,
+                    "statusMessage": "Checking the selected Nowledge Bridge mailbox...",
                 }
             ],
         }

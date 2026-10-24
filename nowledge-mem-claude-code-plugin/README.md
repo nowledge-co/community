@@ -276,3 +276,13 @@ underlying error.
 ---
 
 Made with care by [Nowledge Labs](https://nowledge-labs.ai)
+
+### Mailbox check before finishing
+
+When `NMEM_AGENT_CONTEXT` names an approved, live compatibility mailbox, Stop
+can remind the Agent once to inspect new pending mail. The check is read-only:
+it does not receive, acknowledge or execute messages. Recursive Stop and failed
+checks end normally, and an unchanged pending state is not repeated in the same
+host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. Native session
+mailboxes without a qualified read-only probe are skipped rather than replaced
+with a legacy inbox. This does not enable polling or idle wakeup.

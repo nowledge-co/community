@@ -5,6 +5,18 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.29] - Unreleased
+
+### Added
+
+- At normal Stop, check an explicitly approved compatibility mailbox and remind
+  the Agent once about a new pending state. The bounded check never consumes or
+  acknowledges mail; recursive Stop, stale bindings and unavailable services
+  end normally. Set `NMEM_NO_MAILBOX_NOTICE=1` to disable reminders.
+- Coordinate duplicate reminders through a private bounded cache. Experimental
+  session modes without a qualified read-only probe never fall back to an older
+  identity inbox.
+
 ## [Unreleased]
 
 ### Fixed
