@@ -14,6 +14,19 @@ claude plugin marketplace add https://github.com/nowledge-co/community
 claude plugin install nowledge-mem@nowledge-community
 ```
 
+To download only this plugin instead of the whole community repository, add the
+marketplace with a sparse checkout:
+
+```bash
+claude plugin marketplace add nowledge-co/community \
+  --sparse .claude-plugin nowledge-mem-claude-code-plugin
+```
+
+The same marketplace works in Claude Desktop (`extraKnownMarketplaces` or an
+organization marketplace allowlist). It lists the plugin by a relative path,
+because Claude Desktop hides marketplace entries that point at an external
+source.
+
 Grok Build:
 
 ```bash
@@ -245,6 +258,14 @@ path before launching Claude Code.
 `grok plugin details nowledge-mem`, then inspect `/hooks`. Reinstall with
 `--trust` if the hooks are blocked, restart Grok Build, complete one turn, and
 confirm a recent thread with `nmem t search "a phrase from that turn" --source grok`.
+
+**Hooks run but no thread appears:** A successful hook only means the capture
+was handed to `nmem`. The hook now waits for `nmem` to confirm a saved thread
+and records the latest result in `last-capture.json` in the plugin data
+directory (`$GROK_PLUGIN_DATA` or `$CLAUDE_PLUGIN_DATA`). A failed capture also
+writes one line to `nowledge-mem/hook-save/background.log` in the system temp
+directory, with the exact `<nmem> --json t save ...` command (using the configured `NMEM_CLI_PATH` when set) that shows the
+underlying error.
 
 ## Links
 

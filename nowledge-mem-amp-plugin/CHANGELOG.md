@@ -1,5 +1,15 @@
 # Changelog
 
+
+## [0.1.7] - 2026-10-17
+
+- Refresh the embedded core 0.2.0 content manifest for Alma adoption; runtime behavior is unchanged.
+
+## [0.1.6] - 2026-10-16
+
+- Embed shared TypeScript core 0.2.0, including the shared prefix-hashing API.
+- Refresh the embedded content manifest for the expanded consumer set.
+
 ## [0.1.5] - 2026-10-11
 
 ### Changed

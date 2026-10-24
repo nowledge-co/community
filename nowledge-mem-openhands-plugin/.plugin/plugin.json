@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cross-agent persistent memory, startup context, memory rules, and agent skills for OpenHands and multi-agent orchestrations.",
   "author": {
     "name": "Nowledge Co",

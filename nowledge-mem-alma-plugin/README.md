@@ -2,6 +2,12 @@
 
 Local-first personal memory for [Alma](https://alma.now), powered by [Nowledge Mem](https://mem.nowledge.co).
 
+The plugin includes its shared sync runtime in `generated/plugin-core`. Copy the
+complete plugin folder for manual installs; no compiler, core package install, or
+parent Community checkout is needed at runtime. The generated manifest records
+the embedded core version and file hashes. Alma keeps its role/content message
+projection and legacy cursor compatibility in the adapter.
+
 This plugin gives Alma chat-native persistent memory:
 
 - Search your memory graph during chats with tools

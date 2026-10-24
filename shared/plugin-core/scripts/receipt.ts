@@ -10,8 +10,14 @@ export function releaseReceipt(plugin: string, packPath: string, sourceSha: stri
   const consumer = consumers(root).find(entry => entry.id === plugin);
   if (!consumer) throw new Error(`No embedded core for ${plugin}`);
   const metadata = JSON.parse(readFileSync(join(root, consumer.directory, "package.json"), "utf8"));
-  const packs = JSON.parse(readFileSync(packPath, "utf8"));
-  if (!Array.isArray(packs) || packs.length !== 1) throw new Error("Require one tested tarball");
+  const document = JSON.parse(readFileSync(packPath, "utf8"));
+  // ClawHub 0.23.3 records an absolute path; retained artifacts move machines.
+  const packs = Array.isArray(document) ? document :
+    typeof document?.path === "string" && typeof document?.npmIntegrity === "string" ? [{
+      name: document.name, version: document.version,
+      filename: basename(document.path), integrity: document.npmIntegrity,
+    }] : [];
+  if (packs.length !== 1) throw new Error("Require one tested tarball");
   const [pack] = packs;
   if (pack.name !== metadata.name || pack.version !== metadata.version || basename(pack.filename) !== pack.filename) {
     throw new Error("Pack identity differs from reviewed plugin");
@@ -20,6 +26,10 @@ export function releaseReceipt(plugin: string, packPath: string, sourceSha: stri
   const bytes = readFileSync(artifact);
   const integrity = `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
   if (integrity !== pack.integrity) throw new Error("Tarball differs from pack integrity");
+  const artifactSha256 = createHash("sha256").update(bytes).digest("hex");
+  if (!Array.isArray(document) && artifactSha256 !== document.sha256) {
+    throw new Error("ClawHub artifact SHA256 differs from pack receipt");
+  }
   const manifestPath = `${consumer.generatedDirectory}/manifest.json`;
   const manifest = JSON.parse(readFileSync(join(root, consumer.directory, manifestPath), "utf8"));
   const coreMetadata = JSON.parse(readFileSync(join(root, "shared/plugin-core/package.json"), "utf8"));
@@ -29,6 +39,10 @@ export function releaseReceipt(plugin: string, packPath: string, sourceSha: stri
     throw new Error("Invalid embedded core manifest");
   }
   const readPacked = (name: string): Buffer => execFileSync("tar", ["-xOf", artifact, `package/${name}`]);
+  const packedPackage = JSON.parse(readPacked("package.json").toString("utf8"));
+  if (packedPackage.name !== metadata.name || packedPackage.version !== metadata.version) {
+    throw new Error("Packed package identity differs from source");
+  }
   const packedManifest = JSON.parse(readPacked(manifestPath).toString("utf8"));
   if (JSON.stringify(packedManifest) !== JSON.stringify(manifest)) throw new Error("Packed core manifest differs from source");
   for (const [name, expected] of Object.entries(manifest.files)) {
@@ -41,7 +55,7 @@ export function releaseReceipt(plugin: string, packPath: string, sourceSha: stri
     sourceSha,
     plugin: { id: plugin, name: metadata.name, version: metadata.version },
     coreManifest: manifest,
-    artifact: { filename: pack.filename, integrity, sha256: createHash("sha256").update(bytes).digest("hex") },
+    artifact: { filename: pack.filename, integrity, sha256: artifactSha256 },
   };
 }
 

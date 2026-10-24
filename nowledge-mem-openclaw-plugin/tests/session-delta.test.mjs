@@ -60,10 +60,97 @@ test("selectSnapshotDelta treats a shorter transcript as OpenClaw compaction", (
 		undefined,
 		id,
 	).next;
-	const delta = selectSnapshotDelta([{ id: "new-a" }, { id: "new-b" }], cursor, id);
+	const delta = selectSnapshotDelta(
+		[{ id: "new-a" }, { id: "new-b" }],
+		cursor,
+		id,
+	);
 	assert.equal(delta.compactionShrink, true);
 	assert.deepEqual(delta.messages, []);
 	assert.equal(delta.next.count, 2);
+});
+
+test("compaction preserves the remote count and appends only new post-compaction turns", () => {
+	const original = [{ id: "a" }, { id: "b" }, { id: "c" }];
+	const cursor = {
+		...selectSnapshotDelta(original, undefined, id).next,
+		remoteCount: 17,
+	};
+	const compacted = [{ id: "summary" }, { id: "tail" }];
+	const shrink = selectSnapshotDelta(compacted, cursor, id);
+	assert.equal(shrink.reset, false);
+	assert.equal(shrink.compactionShrink, true);
+	assert.equal(shrink.next.remoteCount, 17);
+	const later = selectSnapshotDelta(
+		[...compacted, { id: "new" }],
+		shrink.next,
+		id,
+	);
+	assert.deepEqual(later.messages, [{ id: "new" }]);
+	assert.equal(later.next.remoteCount, 17);
+	assert.equal(later.compactionShrink, false);
+});
+
+test("legacy count-only cursors remain usable without requiring new anchors", () => {
+	const messages = [{ id: "a" }, { id: "b" }, { id: "c" }];
+	const delta = selectSnapshotDelta(messages, { count: 2, remoteCount: 9 }, id);
+	assert.equal(delta.reset, false);
+	assert.deepEqual(delta.messages, [{ id: "c" }]);
+	assert.equal(delta.next.remoteCount, 9);
+});
+
+test("OpenClaw fingerprints retain content and external IDs while ignoring unrelated metadata", () => {
+	const original = [
+		{
+			role: "user",
+			content: "é",
+			metadata: { external_id: "a", tool_state: "running" },
+		},
+	];
+	const changed = [
+		{ ...original[0], metadata: { external_id: "a", tool_state: "done" } },
+	];
+	assert.equal(prefixFingerprint(original, 1), prefixFingerprint(changed, 1));
+	assert.notEqual(
+		prefixFingerprint(original, 1),
+		prefixFingerprint([{ ...original[0], metadata: { external_id: "b" } }], 1),
+	);
+});
+
+test("shared acknowledgements reject unsafe counts after OpenClaw shape normalization", () => {
+	for (const count of [-1, 0.5, NaN, Infinity, 2 ** 53]) {
+		assert.equal(
+			isThreadAppendAck({
+				success: true,
+				messages_added: count,
+				total_messages: 2,
+			}),
+			false,
+		);
+		assert.equal(
+			isThreadAppendAck({
+				success: true,
+				messages_added: 1,
+				total_messages: count,
+			}),
+			false,
+		);
+		assert.equal(
+			threadCreateAck({ thread_id: "target", message_count: count }, "target"),
+			null,
+		);
+	}
+	for (const data of [
+		{ thread_id: " target ", message_count: 2 },
+		{ thread: { thread_id: "target", message_count: 2 } },
+		{ thread: { thread_id: "target", total_messages: 2 } },
+	]) {
+		assert.deepEqual(threadCreateAck(data, " target "), {
+			threadId: "target",
+			totalMessages: 2,
+		});
+		assert.equal(threadCreateAck(data, "Target"), null);
+	}
 });
 
 test("acknowledgement helpers require explicit checkpointed acks", () => {
@@ -76,11 +163,30 @@ test("acknowledgement helpers require explicit checkpointed acks", () => {
 		}),
 		true,
 	);
-	assert.equal(isThreadAppendAck({ success: true, messages_added: 1, total_messages: 3 }), true);
-	assert.equal(isThreadAppendAck({ success: true, messages_added: -1, total_messages: 3 }), false);
-	assert.equal(isThreadAppendAck({ success: true, messages_added: 1, total_messages: -1 }), false);
-	assert.equal(isCheckpointedAppendAck({ success: true, messages_added: 1, total_messages: 3 }), false);
-	assert.equal(isCheckpointConflictResponse({ error_code: "checkpoint_conflict" }), true);
+	assert.equal(
+		isThreadAppendAck({ success: true, messages_added: 1, total_messages: 3 }),
+		true,
+	);
+	assert.equal(
+		isThreadAppendAck({ success: true, messages_added: -1, total_messages: 3 }),
+		false,
+	);
+	assert.equal(
+		isThreadAppendAck({ success: true, messages_added: 1, total_messages: -1 }),
+		false,
+	);
+	assert.equal(
+		isCheckpointedAppendAck({
+			success: true,
+			messages_added: 1,
+			total_messages: 3,
+		}),
+		false,
+	);
+	assert.equal(
+		isCheckpointConflictResponse({ error_code: "checkpoint_conflict" }),
+		true,
+	);
 	assert.match(
 		contentBoundIdempotencyKey("oc:agent_end", "t", 2, 4, "abc"),
 		/^oc:agent_end:t:2-4:abc$/,
@@ -88,13 +194,22 @@ test("acknowledgement helpers require explicit checkpointed acks", () => {
 });
 
 test("threadCreateAck requires the target id and an explicit non-negative count", () => {
-	assert.deepEqual(threadCreateAck({ thread_id: "target", message_count: 2 }, "target"), {
-		threadId: "target",
-		totalMessages: 2,
-	});
-	assert.equal(threadCreateAck({ thread_id: "other", message_count: 2 }, "target"), null);
+	assert.deepEqual(
+		threadCreateAck({ thread_id: "target", message_count: 2 }, "target"),
+		{
+			threadId: "target",
+			totalMessages: 2,
+		},
+	);
+	assert.equal(
+		threadCreateAck({ thread_id: "other", message_count: 2 }, "target"),
+		null,
+	);
 	assert.equal(threadCreateAck({ thread_id: "target" }, "target"), null);
-	assert.equal(threadCreateAck({ thread_id: "target", message_count: -1 }, "target"), null);
+	assert.equal(
+		threadCreateAck({ thread_id: "target", message_count: -1 }, "target"),
+		null,
+	);
 });
 
 test("resolveThreadSyncTimeoutMs honors 120s default and 1s-30min bounds", () => {
@@ -134,7 +249,10 @@ test("prefixFingerprint hashes the length-prefixed prefix with the default finge
 		hashed,
 		prefixFingerprint(messages, messages.length, stableMessageFingerprint),
 	);
-	assert.notEqual(hashed, stableMessageFingerprint(messages[messages.length - 1]));
+	assert.notEqual(
+		hashed,
+		stableMessageFingerprint(messages[messages.length - 1]),
+	);
 });
 
 test("selectSnapshotDelta trusts a cursor hashed with the shared prefixFingerprint helper", () => {

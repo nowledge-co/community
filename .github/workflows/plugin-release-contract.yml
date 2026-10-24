@@ -60,6 +60,8 @@ jobs:
         run: |
           npm install --global clawhub@0.23.3
           clawhub package pack nowledge-mem-openclaw-plugin --pack-destination "$PWD" --json > clawhub-pack.json
+          node shared/plugin-core/scripts/receipt.ts openclaw clawhub-pack.json "$PREVIEW_COMMIT"
+          node shared/plugin-core/scripts/receipt.ts --verify openclaw clawhub-pack.json "$PREVIEW_COMMIT"
           version=$(node -p "require('./nowledge-mem-openclaw-plugin/package.json').version")
           clawhub package publish "nowledge-openclaw-nowledge-mem-${version}.tgz" \
             --family code-plugin --name @nowledge/openclaw-nowledge-mem --owner nowledge \

@@ -18,6 +18,18 @@
       "directory": "nowledge-mem-amp-plugin",
       "generatedDirectory": "src/generated/plugin-core",
       "dependents": []
+    },
+    {
+      "id": "openclaw",
+      "directory": "nowledge-mem-openclaw-plugin",
+      "generatedDirectory": "src/generated/plugin-core",
+      "dependents": []
+    },
+    {
+      "id": "alma",
+      "directory": "nowledge-mem-alma-plugin",
+      "generatedDirectory": "generated/plugin-core",
+      "dependents": []
     }
   ]
 }

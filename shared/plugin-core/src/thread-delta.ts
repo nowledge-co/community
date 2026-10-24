@@ -19,7 +19,7 @@ export function stableMessageFingerprint(message: unknown): string {
   return JSON.stringify(message);
 }
 
-function prefixFingerprint<T>(
+export function prefixFingerprint<T>(
   messages: readonly T[],
   end: number,
   messageFingerprint: (message: T) => string,

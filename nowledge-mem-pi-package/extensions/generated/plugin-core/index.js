@@ -85,6 +85,7 @@ export {
   isCheckpointedAppendAck,
   isThreadAppendAck,
   isThreadCreateAck,
+  prefixFingerprint,
   resolveThreadSyncTimeoutMs,
   selectAcknowledgedDelta,
   stableMessageFingerprint

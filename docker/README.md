@@ -654,6 +654,14 @@ rotation (`max-size: 10m`, `max-file: 5`). To follow:
 - `GET /health` — public status-only liveness response. Use `/livez` for
   orchestrator probes and `/health/details` for detailed readiness diagnostics.
 
+If automatic graph recovery cannot finish, the server stays up instead of
+restarting in a loop: `/livez` stays green, `/health` reports
+`"status": "recovery_required"`, and the web UI explains the next step. From
+nmemctl 2.5.0, `./nmemctl status`, `up`, `restart`, and `upgrade` still print
+the usual `ready in` line but then exit with status `3` in this state, so a
+script can tell "up but needs recovery" apart from "ready" (`0`) and from a
+failed start (`1`).
+
 ### Embedding status and search quality
 
 A bare container with no local model and no remote embedding configured runs in hash-fallback mode: keyword/FTS search works, but semantic search quality is degraded. `/health/details` reports this explicitly:
@@ -769,6 +777,18 @@ your dataset — bump it per the table above and recreate the stack.
   returns `AgentBusy` immediately rather than queueing — the browser
   shows "agent is busy, try again in a few seconds" instead of
   silently double-booking memory and OOM-killing the container.
+
+**Give the server time to stop.** On `SIGTERM` the server finishes
+in-flight work and writes a final graph checkpoint. Docker's default is
+to kill a container 10 seconds after `SIGTERM`, which can interrupt that
+checkpoint, and the next start then has to recover the graph. The
+reference compose sets `stop_grace_period: 60s`, and `nmemctl` passes
+`-t 60` to every stop, restart and recreate. If you run the image some
+other way, do the same: `docker run --stop-timeout 60 ...`,
+`docker stop -t 60 nowledge-mem`, or the equivalent stop timeout setting
+on your NAS or orchestrator. If you raise
+`NMEM_GRACEFUL_SHUTDOWN_TIMEOUT_SECONDS` above its 20-second default,
+raise the grace period by the same amount.
 
 **Container memory cap is now cgroup-aware.** Earlier builds would
 size Kuzu's auto-cap from the *host's* RAM, ignoring your

@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Claude Desktop lists Nowledge Mem in the `nowledge-community` marketplace
+  again. The marketplace entry pointed at its own repository through a
+  `git-subdir` source, which Claude Desktop treats as an external plugin and
+  hides, so the marketplace synced but showed no available plugins. The entry
+  now uses the relative path `./nowledge-mem-claude-code-plugin`. Run
+  `claude plugin marketplace update nowledge-community` to pick it up; there is
+  no need to remove or re-add the marketplace.
+
+## [0.7.28] - 2026-10-22
+
+### Fixed
+
+- Capture recovery commands keep the `nmem` the hook actually ran. The
+  suggested `nmem --json t save ...` and `capture-status` commands began with a
+  bare `nmem`, so a CLI configured through `NMEM_CLI_PATH` (or one with spaces
+  in its path) was not runnable, and a different `nmem` earlier on `PATH` would
+  have run instead. They now start with the configured executable, quoted for
+  the host platform.
+- A stalled or failed capture no longer says "no Thread was saved". The queue
+  can stall after the Thread was saved and only its acknowledgement was lost,
+  so the hook now reports the observed queue status, says it is not known
+  whether a Thread was saved, and points at `nmem t list` and the queue status.
+
+## [0.7.27] - 2026-10-21
+
+### Fixed
+
+- Grok Build sessions started in a subdirectory of a Git repository are
+  captured again. Grok reports the repository root as the workspace but files
+  the session under the directory it was started in; capture now looks there
+  first.
+- A capture is reported as saved only after `nmem` confirms the thread.
+  Previously the hook treated "queued" as "saved", so a later failure left no
+  trace. Failures now record the session, the queue status, and the exact
+  `nmem --json t save ...` command that shows the error, and the latest result
+  is kept in `last-capture.json` in the plugin data directory.
+- Disabled automatic capture is reported as disabled instead of "no flushed
+  transcript found".
+- On native Windows, capture through an `nmem.cmd` shim now runs. The save
+  hook passed the shim to `cmd.exe` as a quoted argument list, which `cmd.exe`
+  could not parse; it now uses the same verbatim command as the context hook.
+
 ## [0.7.26] - 2026-10-11
 
 ### Fixed

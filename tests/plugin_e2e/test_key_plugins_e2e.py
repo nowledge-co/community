@@ -325,11 +325,6 @@ def test_key_plugin_static_contracts_are_declared():
     copilot_marketplace_plugin = next(
         plugin for plugin in copilot_marketplace["plugins"] if plugin.get("name") == "nowledge-mem"
     )
-    for plugin in claude_marketplace["plugins"]:
-        source = plugin.get("source", {})
-        if source.get("source") == "git-subdir":
-            assert source["url"].startswith("https://github.com/")
-
     claude_manifest = _read_json(CLAUDE_PLUGIN / ".claude-plugin" / "plugin.json")
     claude_hooks = _read_json(CLAUDE_PLUGIN / "hooks" / "hooks.json")["hooks"]
     claude_save_hook = (CLAUDE_PLUGIN / "scripts" / "nmem-hook-save.py").read_text(encoding="utf-8")
@@ -337,7 +332,7 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.26"
+    assert claude_manifest["version"] == "0.7.28"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -481,8 +476,8 @@ def test_key_plugin_static_contracts_are_declared():
     openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
     openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
-    assert openclaw_manifest["version"] == "0.8.36"
-    assert openclaw_pkg["version"] == "0.8.36"
+    assert openclaw_manifest["version"] == "0.8.39"
+    assert openclaw_pkg["version"] == "0.8.39"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
     assert openclaw_manifest["contracts"]["tools"] == [
         "memory_search",
@@ -535,7 +530,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.4.4"
+    assert opencode_pkg["version"] == "0.4.6"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -572,7 +567,7 @@ def test_key_plugin_static_contracts_are_declared():
         encoding="utf-8"
     )
     copilot_capture = (COPILOT_PLUGIN / "hooks" / "copilot-stop-save.py").read_text(encoding="utf-8")
-    assert copilot_manifest["version"] == "0.1.5"
+    assert copilot_manifest["version"] == "0.1.6"
     assert copilot_marketplace_plugin["version"] == copilot_manifest["version"]
     assert registry_by_id["copilot-cli"]["version"] == copilot_manifest["version"]
     assert '"context", "--source-app", "copilot-cli"' in copilot_hook
@@ -745,7 +740,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.12"
+    assert pi_pkg["version"] == "0.8.14"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "scripts/sync-history.mjs"
@@ -936,8 +931,8 @@ def test_key_plugin_static_contracts_are_declared():
     alma_pkg = _read_json(ALMA_PLUGIN / "package.json")
     alma_skill = ALMA_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md"
     alma_source = (ALMA_PLUGIN / "main.js").read_text(encoding="utf-8")
-    assert alma_manifest["version"] == "0.7.7"
-    assert alma_pkg["version"] == "0.7.7"
+    assert alma_manifest["version"] == "0.7.8"
+    assert alma_pkg["version"] == "0.7.8"
     assert alma_skill.exists()
     assert "nowledge_mem_context_bundle" in alma_skill.read_text(encoding="utf-8")
     assert "nowledge_mem_context_bundle" in alma_source
@@ -1531,7 +1526,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "raft" in integration_ids
     assert "slock" not in integration_ids
     assert "slock" in by_id["raft"]["aliases"]
-    assert by_id["copilot-cli"]["version"] == "0.1.5"
+    assert by_id["copilot-cli"]["version"] == "0.1.6"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
     assert by_id["cursor"]["version"] == "0.2.2"
     assert by_id["cursor"]["transport"] == "mcp+hook"
@@ -1541,11 +1536,11 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
     assert by_id["droid"]["version"] == "0.1.2"
-    assert by_id["openclaw"]["version"] == "0.8.36"
+    assert by_id["openclaw"]["version"] == "0.8.39"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.4.4"
+    assert by_id["opencode"]["version"] == "0.4.6"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
-    assert by_id["pi"]["version"] == "0.8.12"
+    assert by_id["pi"]["version"] == "0.8.14"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["grok-bot"]["version"] is None
@@ -1651,7 +1646,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.1.5"
+    assert dsh["version"] == "0.1.6"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1681,7 +1676,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert connector["threadSave"]["historicalCommand"] == (
             f"nmem t sync --from {connector_id}"
         )
-    assert by_id["alma"]["version"] == "0.7.7"
+    assert by_id["alma"]["version"] == "0.7.8"
     assert by_id["alma"]["skills"] == ["nowledge-mem"]
     assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
     assert by_id["bub"]["version"] == "0.7.5"
@@ -1720,6 +1715,27 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
 
 
+def test_alma_plugin_static_contract_is_self_contained():
+    package = _read_json(ALMA_PLUGIN / "package.json")
+    manifest = _read_json(ALMA_PLUGIN / "manifest.json")
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    integration = next(item for item in registry["integrations"] if item["id"] == "alma")
+    assert package["version"] == manifest["version"] == integration["version"] == "0.7.8"
+    assert package["main"] == manifest["main"] == "main.js"
+    generated = ALMA_PLUGIN / "generated" / "plugin-core"
+    core_manifest = _read_json(generated / "manifest.json")
+    assert core_manifest["core"]["version"] == "0.2.0"
+    assert _read_json(generated / "package.json")["type"] == "module"
+    for name in core_manifest["files"]:
+        assert (generated / name).is_file()
+    for name in ["session-delta.js", "thread-sync-timeout.js"]:
+        source = (ALMA_PLUGIN / name).read_text(encoding="utf-8")
+        assert '"./generated/plugin-core/index.js"' in source
+        assert "../../shared/" not in source
+    guide = (ALMA_PLUGIN / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "cp -R skills generated " in guide
+
+
 def test_deepseek_harness_plugin_static_contract_is_self_contained():
     pkg = _read_json(DEEPSEEK_HARNESS_PLUGIN / "package.json")
     patch = (DEEPSEEK_HARNESS_PLUGIN / "cordis.patch.yml").read_text(encoding="utf-8")
@@ -1743,13 +1759,15 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.1.5"
+    assert pkg["version"] == "0.1.6"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
     assert "dsh-plugin" in pkg["keywords"]
     for peer_name in pkg["peerDependencies"]:
         assert pkg["peerDependenciesMeta"][peer_name]["optional"] is True
+        if peer_name != "@deepseek-ai/cordis":
+            assert "0.2.1-rc.2" in pkg["peerDependencies"][peer_name]
     assert dsh_registry["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh_registry["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
     assert dsh_registry["version"] == pkg["version"]
@@ -1884,7 +1902,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.4.4"
+    assert pkg["version"] == "0.4.6"
     assert opencode_registry["version"] == pkg["version"]
     assert 'from "./generated/plugin-core/index.js"' in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source
@@ -1927,7 +1945,7 @@ def test_amp_plugin_static_contract_is_self_contained():
 
     # Package manifest and registry entry agree on the basics.
     assert pkg["name"] == "amp-nowledge-mem"
-    assert pkg["version"] == "0.1.5"
+    assert pkg["version"] == "0.1.7"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.ts"
     assert "@ampcode/plugin" in pkg["peerDependencies"]
@@ -2023,6 +2041,43 @@ def test_host_owned_official_integrations_keep_their_real_boundaries():
     assert by_id["arkloop"]["autonomy"]["threads"] == "automatic-capture"
     assert by_id["opticlm"]["capabilities"]["workingMemory"] is False
     assert by_id["opticlm"]["capabilities"]["autoRecall"] is False
+
+
+def test_claude_marketplace_lists_in_repo_plugins_by_relative_path():
+    """Every Claude marketplace entry must be a relative-path string source.
+
+    Claude Desktop's configured-marketplace sync marks any entry whose
+    ``source`` is not a string (``github``, ``url``, ``git-subdir``, ...) as an
+    external source and drops it from the Plugins view, so the marketplace
+    clones fine but shows "No available plugins". Claude Code's own docs also
+    say a plugin inside the marketplace repository should use a relative path,
+    and only relative-path entries let Claude read ``plugin.json`` before
+    install. Users who want a small cache can still add the marketplace with
+    ``--sparse .claude-plugin nowledge-mem-claude-code-plugin``.
+    """
+    marketplace = _read_json(COMMUNITY_ROOT / ".claude-plugin" / "marketplace.json")
+    assert marketplace["name"] == "nowledge-community"
+    assert marketplace["owner"]["name"]
+    assert marketplace["plugins"]
+
+    for plugin in marketplace["plugins"]:
+        source = plugin["source"]
+        assert isinstance(source, str), (
+            f"{plugin['name']}: Claude Desktop excludes non-string sources; "
+            f"use a './<dir>' path, got {source!r}"
+        )
+        assert source.startswith("./"), source
+        assert ".." not in Path(source).parts, source
+        plugin_dir = (COMMUNITY_ROOT / source).resolve()
+        assert plugin_dir.parent == COMMUNITY_ROOT.resolve(), source
+        manifest = _read_json(plugin_dir / ".claude-plugin" / "plugin.json")
+        assert manifest["name"] == plugin["name"]
+        assert manifest["version"] == plugin["version"]
+
+    claude_entry = next(
+        plugin for plugin in marketplace["plugins"] if plugin["name"] == "nowledge-mem"
+    )
+    assert claude_entry["source"] == f"./{CLAUDE_PLUGIN.name}"
 
 
 def test_zcode_external_marketplace_indexes_standalone_plugin():
@@ -2332,7 +2387,7 @@ def test_pi_thread_sync_timeout_contract():
     readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pi_pkg["version"] == "0.8.12"
+    assert pi_pkg["version"] == "0.8.14"
     assert pi_registry["version"] == pi_pkg["version"]
     assert 'from "./generated/plugin-core/index.js"' in extension
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension

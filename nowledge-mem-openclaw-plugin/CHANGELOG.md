@@ -4,6 +4,26 @@ All notable changes to the Nowledge Mem OpenClaw plugin will be documented in th
 
 ## Unreleased
 
+## [0.8.39] - 2026-10-18
+
+### Fixed
+
+- Schedule automatic distillation by stored thread ID, without the inline content removed in Mem 0.10.7.
+- Report background task acceptance instead of a synchronous memory count, and reject missing scheduling acknowledgements or an unavailable background scheduler.
+
+## [0.8.38] - 2026-10-17
+
+- Refresh the embedded core 0.2.0 content manifest for Alma adoption; runtime behavior is unchanged.
+
+## [0.8.37] - 2026-10-16
+
+- Embed shared TypeScript core 0.2.0, including the shared prefix-hashing API.
+- Reuse shared persistence acknowledgements and sync timeouts while retaining
+  OpenClaw message projection, compaction-shrink handling, legacy cursors, and
+  response-shape normalization. Reject unsafe acknowledgement counts.
+- Retain embedded-core receipts for both npm and ClawHub artifacts.
+
+
 ## [0.8.36] - 2026-10-11
 
 ### Fixed

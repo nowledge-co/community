@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - 'nowledge-mem-alma-plugin/**'
+      - 'shared/plugin-core/**'
       - '.github/workflows/alma-plugin.yml'
   push:
     branches: [main]
     paths:
       - 'nowledge-mem-alma-plugin/**'
+      - 'shared/plugin-core/**'
       - '.github/workflows/alma-plugin.yml'
 
 permissions:

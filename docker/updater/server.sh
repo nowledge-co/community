@@ -27,7 +27,9 @@
 #     would always claim stale and double-fire apply).
 #   - /livez watch after recreate: poll up to NOWLEDGE_LIVEZ_TIMEOUT_SECONDS.
 #     If never green, return failure with snapshot path so the operator
-#     can decide whether to restore or debug forward.
+#     can decide whether to restore or debug forward. A live server whose
+#     /health reports `recovery_required` is audited as "APPLY not clean"
+#     (exit 5) without rollback: the server stays up and explains itself.
 #   - Last-N snapshot rotation: keep newest NOWLEDGE_SNAPSHOT_RETAIN
 #     `_pre-upgrade-*.tar.gz`; delete older.
 #   - All endpoints log to stderr (captured by `docker logs`) for the
@@ -402,7 +404,7 @@ case "$method $path" in
       audit "APPLY start ref=$ref snapshot=$snapshot"
 
       # Step 1: stop the mem container.
-      if ! docker stop -t 30 "$NOWLEDGE_MEM_CONTAINER" >/dev/null 2>&1; then
+      if ! docker stop -t 60 "$NOWLEDGE_MEM_CONTAINER" >/dev/null 2>&1; then
         audit "APPLY stop failed"
         exit 1
       fi
@@ -584,6 +586,16 @@ case "$method $path" in
         if docker exec "$NOWLEDGE_MEM_CONTAINER" \
              curl -fsS http://127.0.0.1:14242/livez \
              >/dev/null 2>&1; then
+          # /livez only proves the process is up. A server parked in the
+          # recovery-required state is not a clean apply; keep the new image
+          # (no rollback: the old one cannot open the data either) and say so.
+          health="$(docker exec "$NOWLEDGE_MEM_CONTAINER" \
+            curl -fsS http://127.0.0.1:14242/health 2>/dev/null || true)"
+          if printf '%s' "$health" | grep -q '"status"[[:space:]]*:[[:space:]]*"recovery_required"'; then
+            reason="$(printf '%s' "$health" | sed -n 's/.*"reason"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p')"
+            audit "APPLY not clean ref=$ref: server is up but parked in recovery_required (reason=${reason:-unknown}); no rollback"
+            exit 5
+          fi
           audit "APPLY done ref=$ref"
           break
         fi

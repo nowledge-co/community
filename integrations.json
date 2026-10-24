@@ -22,7 +22,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.26",
+      "version": "0.7.28",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -75,7 +75,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.26",
+      "version": "0.7.28",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -281,7 +281,7 @@
       "name": "Copilot CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-copilot-cli-plugin",
       "transport": "cli",
       "capabilities": {
@@ -310,12 +310,13 @@
         ]
       },
       "install": {
-        "command": "copilot plugin marketplace add nowledge-co/community && copilot plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "copilot plugin marketplace add nowledge-co/community && copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem",
-        "detectionHint": "Running as GitHub Copilot CLI agent; ~/.copilot/ exists",
+        "command": "copilot plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "copilot plugin marketplace update nowledge-community && copilot plugin update nowledge-mem@nowledge-community",
+        "configRequired": "Before the qualified install command, run copilot plugin marketplace list and inspect every entry. Stop if the community repository appears under another name, is pinned, or any entry prevents ruling out a related source. Add nowledge-co/community only when both the canonical name and related sources are unambiguously absent, then list again and verify the source is exactly GitHub: nowledge-co/community without a ref or pin. Reuse an existing verified canonical registration. Stop for conflicting or unreadable results.",
+        "detectionHint": "Running as GitHub Copilot CLI agent; COPILOT_HOME selects its profile, defaulting to ~/.copilot",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Copilot CLI. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Copilot CLI 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Copilot CLI. Inspect the complete marketplace listing first, including related sources under aliases. Stop on aliased, pinned, conflicting or unclear provenance. Add only when the canonical name and related sources are unambiguously absent, verify the unpinned canonical source, then install the qualified plugin. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Copilot CLI 安装或更新 Nowledge Mem。先检查完整市场列表，包括别名下的相关来源；发现别名、固定版本、来源冲突或无法确认的条目时停止。只有确认官方名称和相关来源均缺失时才添加，验证来源为未固定版本的官方仓库后安装带来源限定的插件。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/copilot-cli"
       },
@@ -819,7 +820,7 @@
       "name": "OpenHands",
       "category": "orchestrator",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-openhands-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -990,7 +991,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.36",
+      "version": "0.8.39",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1006,7 +1007,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Plugin captures interactive sessions through Context Engine afterTurn and, when plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true, agent_end as a safety net. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron, subagent, and OpenClaw 2.0 Incognito session keys are excluded from automatic capture. Memory tools still use nmem CLI."
+        "note": "Plugin captures interactive sessions through Context Engine afterTurn and, when plugins.entries.openclaw-nowledge-mem.hooks.allowConversationAccess=true, agent_end as a safety net. Persists threads via Nowledge Mem HTTP API with incremental tail sync. Isolated cron, subagent, and OpenClaw 2.0 Incognito session keys are excluded from automatic capture. Memory tools still use nmem CLI. Sync acknowledgements, prefix hashing, and timeout parsing use the embedded shared TypeScript core; OpenClaw compaction and legacy cursor compatibility remain host-owned."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -1047,7 +1048,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.7",
+      "version": "0.7.8",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {
@@ -1061,7 +1062,7 @@
       },
       "threadSave": {
         "method": "plugin-capture",
-        "note": "Plugin captures threads live via idle timer, thread switch, and quit hooks; sends via the Nowledge Mem HTTP API"
+        "note": "Plugin captures threads live via idle timer, thread switch, and quit hooks; shares snapshot selection, acknowledgement validation, hashing, and timeouts through the embedded TypeScript core while retaining legacy cursor compatibility and HTTP delivery"
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -1148,7 +1149,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.12",
+      "version": "0.8.14",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1360,7 +1361,7 @@
       "name": "Amp",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.7",
       "directory": "nowledge-mem-amp-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1423,7 +1424,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.4.4",
+      "version": "0.4.6",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1642,7 +1643,7 @@
       "name": "DeepSeek Harness",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-deepseek-harness-plugin",
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
       "transport": "dsh-bundle+mcp+cli",
@@ -1659,7 +1660,7 @@
         "method": "cordis-session-event+cli-import",
         "runtime": "deepseek-harness",
         "command": "nmem t import --file <dsh-thread.json> --source deepseek-harness --id deepseek-harness-<session-id>",
-        "note": "The community DSH bundle listens to DSH session/event turn-end events, serializes user/assistant/tool-result surface messages, skips its own context injections, and imports through nmem with NMEM_IMPORT_ORIGIN=deepseek-harness. DSH 0.1.7-rc.1 and 0.2.1-alpha.1 use shell.execute(...).result() and producer-owned plugin:nowledge-mem sources; legacy shell.run() and plugin attribution remain supported. Its standalone repository is tagged dsh-plugin for DeepSeek Harness ecosystem discovery."
+        "note": "The community DSH bundle listens to DSH session/event turn-end events, serializes user/assistant/tool-result surface messages, skips its own context injections, and imports through nmem with NMEM_IMPORT_ORIGIN=deepseek-harness. DSH 0.1.7-rc.1, 0.2.1-alpha.1, and 0.2.1-rc.2 use shell.execute(...).result() and producer-owned plugin:nowledge-mem sources; legacy shell.run() and plugin attribution remain supported. Its standalone repository is tagged dsh-plugin for DeepSeek Harness ecosystem discovery."
       },
       "autonomy": {
         "bootstrap": "automatic",

@@ -66,8 +66,16 @@ jobs:
           npm test
       - name: Install pinned code-plugin capable CLI
         run: npm install --global clawhub@0.23.3
+      - name: Validate embedded core from reviewed source
+        run: |
+          npm --prefix shared/plugin-core ci --ignore-scripts
+          npm --prefix shared/plugin-core run typecheck
+          npm --prefix shared/plugin-core test
+          npm --prefix shared/plugin-core run check
       - name: Pack exact tested code-plugin
         run: clawhub package pack nowledge-mem-openclaw-plugin --pack-destination "$PWD" --json > clawhub-pack.json
+      - name: Record embedded core and tested ClawPack
+        run: node shared/plugin-core/scripts/receipt.ts openclaw clawhub-pack.json "$RELEASE_COMMIT"
       - name: Preview publication without registry writes
         run: |
           clawhub package publish "nowledge-openclaw-nowledge-mem-${RELEASE_VERSION}.tgz" \
@@ -90,6 +98,7 @@ jobs:
             --wait --wait-timeout 600 --json > clawhub-published.json
       - name: Verify exact artifact and reviewed source
         run: |
+          node shared/plugin-core/scripts/receipt.ts --verify openclaw clawhub-pack.json "$RELEASE_COMMIT"
           clawhub package inspect @nowledge/openclaw-nowledge-mem --version "$RELEASE_VERSION" --json > clawhub-after.json
           python scripts/plugin-release.py verify-clawhub "$RELEASE_VERSION" clawhub-pack.json clawhub-after.json "$RELEASE_COMMIT"
       - uses: actions/upload-artifact@v4
@@ -102,3 +111,5 @@ jobs:
             clawhub-before.json
             clawhub-published.json
             clawhub-after.json
+            core-receipt.json
+            nowledge-openclaw-nowledge-mem-*.tgz

@@ -1,9 +1,18 @@
 # Internal plugin core
 
 This private TypeScript package owns acknowledged snapshot selection, persistence
-acknowledgement validation, and bounded thread-sync timeout parsing. Host IDs,
+acknowledgement validation, shared UTF-8 prefix hashing, and bounded thread-sync
+timeout parsing. OpenClaw uses hashing, acknowledgements, and timeouts while
+retaining its compaction-shrink and legacy-cursor selection rules. Host IDs,
 destination keys, SDK lifecycle, transport, recovery, and cursor persistence stay
 in each connector. File-backed capture uses `nmem`.
+
+Alma shares snapshot selection, hashing, append acknowledgements, and timeouts.
+Its adapter retains role/content fingerprints and fills only absent legacy
+anchors before selection; any supplied anchor is still checked. It keeps its
+assistant-complete flush planning, strict create-response validation, outbox,
+HTTP delivery, and lifecycle. Invalid local counts and unsafe append counts
+cannot establish a trusted checkpoint.
 
 See [the spec](../../docs/SHARED_PLUGIN_CORE_SPEC.md) for boundaries and delivery.
 The Node 24 requirement here applies to build and test tooling. Generated ESM
@@ -42,3 +51,17 @@ Artifact checks use disposable directories and host API doubles. They prove
 packaging and adapter registration, not acceptance by a live host or Mem backend.
 Pi's OMP and Step Code wrappers are loaded against the newly packed Pi payload
 with Jiti 2.7, the loader dependency of the inspected Pi SDK 1.1.0 package.
+
+OpenClaw's npm tarball is loaded from an isolated directory, including its real
+entrypoint and adapted sync helpers. The existing ClawHub preview job packs with
+the pinned CLI and checks the same embedded-core receipt against the real
+ClawPack. `receipt.ts` accepts npm's pack array or ClawHub 0.23.3's pack object;
+both formats retain the original tarball beside their pack metadata. Absolute
+ClawHub source paths are reduced to the retained artifact filename, and both
+SHA-512 integrity and ClawHub SHA-256 are checked.
+
+Alma's marketplace delivery is a complete plugin folder, not an npm package.
+Artifact checks copy that folder without development dependencies, verify its
+embedded hashes, and activate its real entrypoint against an isolated host
+double. The external marketplace synchronization happens after the Community
+source merges, following the publishing runbook.

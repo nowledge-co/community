@@ -2,3 +2,5 @@ shared/plugin-core/** text eol=lf
 nowledge-mem-opencode-plugin/src/generated/plugin-core/** text eol=lf
 nowledge-mem-pi-package/extensions/generated/plugin-core/** text eol=lf
 nowledge-mem-amp-plugin/src/generated/plugin-core/** text eol=lf
+nowledge-mem-openclaw-plugin/src/generated/plugin-core/** text eol=lf
+nowledge-mem-alma-plugin/generated/plugin-core/** text eol=lf

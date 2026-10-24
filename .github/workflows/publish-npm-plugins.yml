@@ -74,8 +74,8 @@ jobs:
           if [ "$RELEASE_PLUGIN" = openclaw ]; then
             node "$PACKAGE_DIR/scripts/validate-plugin.mjs"
           fi
-      - name: Validate Pi embedded core from reviewed source
-        if: inputs.plugin == 'pi'
+      - name: Validate embedded core from reviewed source
+        if: inputs.plugin == 'pi' || inputs.plugin == 'openclaw'
         run: |
           npm --prefix shared/plugin-core ci --ignore-scripts
           npm --prefix shared/plugin-core run typecheck
@@ -84,9 +84,9 @@ jobs:
       - name: Pack exact tested artifact
         working-directory: ${{ env.PACKAGE_DIR }}
         run: npm pack --json > pack.json
-      - name: Record Pi embedded core and tested artifact
-        if: inputs.plugin == 'pi'
-        run: node shared/plugin-core/scripts/receipt.ts pi "$PACKAGE_DIR/pack.json" "$RELEASE_COMMIT"
+      - name: Record embedded core and tested artifact
+        if: inputs.plugin == 'pi' || inputs.plugin == 'openclaw'
+        run: node shared/plugin-core/scripts/receipt.ts "$RELEASE_PLUGIN" "$PACKAGE_DIR/pack.json" "$RELEASE_COMMIT"
       - name: Publish the tested artifact through npm OIDC
         working-directory: ${{ env.PACKAGE_DIR }}
         run: |
@@ -94,8 +94,8 @@ jobs:
           npm publish "$artifact" --access public --tag latest --provenance
       - name: Verify published integrity and latest
         run: |
-          if [ "$RELEASE_PLUGIN" = pi ]; then
-            node shared/plugin-core/scripts/receipt.ts --verify pi "$PACKAGE_DIR/pack.json" "$RELEASE_COMMIT"
+          if [ "$RELEASE_PLUGIN" = pi ] || [ "$RELEASE_PLUGIN" = openclaw ]; then
+            node shared/plugin-core/scripts/receipt.ts --verify "$RELEASE_PLUGIN" "$PACKAGE_DIR/pack.json" "$RELEASE_COMMIT"
           fi
           python scripts/plugin-release.py verify "$RELEASE_PLUGIN" "$RELEASE_VERSION" --artifact "$PACKAGE_DIR/pack.json"
       - uses: actions/upload-artifact@v4

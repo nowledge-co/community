@@ -1,10 +1,36 @@
 # Shared Plugin Core Specification
 
-Status: Phase-one implementation proposed; publication and live host acceptance pending
+Status: Phases one and two merged; phase-three Alma adoption proposed; publication and live host acceptance remain separate
 
-Date: 2026-10-11
+Date: 2026-10-17
 
 Inspected Community baseline: `d6e546efe17c9ba48291a67356c4be6f7a7883a8`
+
+Phase-two baseline: `b868af865262ac2e9f469bb62f6b8223c22ea846`.
+
+Phase two adds OpenClaw as a direct consumer of core `0.2.0`. It shares prefix
+hashing, safe persistence-count validation, and sync timeout parsing. Its
+snapshot selector remains host-owned: shortened snapshots re-anchor locally
+without replaying pre-compaction history, and legacy count-only cursors remain
+supported. Its flat/nested create responses and count aliases are normalized
+in the adapter before using the shared create-acknowledgement check. Both npm
+and ClawHub artifacts receive independent core receipts. Existing consumers
+refresh embedded manifests and patch plugin versions in the same change.
+
+Phase-three baseline: `d5051e1a5bc1a6e7a57a7ab8e51ae36eb55bd2c0`.
+
+Phase three adds Alma to the existing core `0.2.0` without changing core runtime
+contracts. Its adapter preserves the `{role, content}` message projection and
+legacy count-only or partially anchored cursors by supplying only missing
+anchors before calling the strict shared selector. Supplied anchors remain
+authoritative; invalid local counts reconcile fully and unsafe append counts
+are rejected. Create-response checks, assistant-complete flush planning,
+HTTP transport, outbox, and lifecycle remain host-owned. Consumer metadata
+changes refresh the source digest and every embedded manifest, so affected
+plugins receive patch versions even though the existing consumers' runtime
+modules remain unchanged. Alma's complete-folder artifact is validated in
+isolation. Its external marketplace PR follows the Community merge and records
+that reviewed source SHA; it is a separate delivery gate.
 
 ## 1. Decision
 
@@ -65,6 +91,7 @@ feature. Model behavior cannot be guaranteed solely by sharing instructions.
 | OpenCode | [Snapshot helpers](../nowledge-mem-opencode-plugin/src/session-delta.ts), [timeout helper](../nowledge-mem-opencode-plugin/src/thread-sync-timeout.ts), bundled `dist/index.js` | Suitable first consumer; preserve bundle entrypoint. |
 | Pi | [Snapshot helpers](../nowledge-mem-pi-package/extensions/session-delta.ts), host-loaded TypeScript extension | Embed generated modules beside the extension. |
 | Amp | [Snapshot helpers](../nowledge-mem-amp-plugin/src/session-delta.ts), TypeScript entrypoint, [copy installer](../nowledge-mem-amp-plugin/scripts/install.sh) | The copied plugin directory must include the core. npm metadata is not proof of an npm release channel. |
+| Alma | [Snapshot adapter](../nowledge-mem-alma-plugin/session-delta.js), plain ESM entrypoint, external marketplace folder | Share the strict selector through a legacy-anchor adapter; copy the generated directory with the whole plugin. |
 | OMP | [Wrapper](../nowledge-mem-omp-plugin/extensions/nowledge-mem.ts) imports Pi and sets process environment; package depends on Pi with a version range | A Pi change also affects OMP. Validate this transitive consumer without rewriting its adapter in phase one. |
 | OpenClaw | [Snapshot delta](../nowledge-mem-openclaw-plugin/src/session-delta.js) treats a shortened snapshot as host compaction | Exclude its delta algorithm until compaction semantics have an explicit contract. |
 | DeepSeek Harness | [Event delta](../nowledge-mem-deepseek-harness-plugin/src/session-delta.js) uses sequence anchors and CLI import acknowledgements | Event streams are a different algorithm from snapshots. |
@@ -237,6 +264,8 @@ Proposed destinations:
 | OpenCode | `src/generated/plugin-core/` | Core bundled into existing `dist/index.js`; content manifest included in npm files. |
 | Pi | `extensions/generated/plugin-core/` | JavaScript, declarations, module metadata, and content manifest included in the npm tarball. |
 | Amp | `src/generated/plugin-core/` | Same files committed beside the adapter and included by Git/copy installation. |
+| OpenClaw | `src/generated/plugin-core/` | ESM, declarations, and manifest included in both npm and ClawHub tarballs; compaction and cursor compatibility remain in the adapter. |
+| Alma | `generated/plugin-core/` | ESM, declarations, and manifest included in the complete marketplace/plugin folder; role/content projection and legacy anchors remain in the adapter. |
 
 Commit generated consumer files so checkout-based installs remain usable without
 build tools. Generated files carry a regeneration notice and must never be edited
@@ -323,7 +352,9 @@ that protect installer, metadata, privacy, or exposed-tool contracts.
 | --- | --- | --- |
 | OpenCode | `publish-opencode.yml` | Build/check the embedded core before existing bundle validation and packing; retain bundle freshness checks. |
 | Pi | `publish-npm-plugins.yml`, selector `pi` | Add explicit core generation/check before tests and packing; current pack flow does not supply this build step. |
+| OpenClaw | `publish-npm-plugins.yml`, selector `openclaw`; `publish-clawhub.yml` | Check generated core, then retain each channel's original tarball, pack metadata, and core receipt. |
 | Amp | Git Personal Plugins and local copy installer | Commit generated payload; verify copied folder and manifest. Do not add Amp to npm publishing solely because it has `package.json`. |
+| Alma | `yetone/alma-plugins`, `plugins/nowledge-mem` | After the Community merge, synchronize the complete runtime/skills/docs/generated folder and registry version in an external PR; retain the reviewed Community SHA and verify marketplace parity after merge. |
 | OMP | `publish-npm-plugins.yml`, selector `omp` | Qualify its resolved Pi release with the existing wrapper; no direct core embedding yet. |
 
 The core remains `private: true` and is not added to publisher allowlists.

@@ -1,9 +1,18 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { selectAcknowledgedDelta, type AcknowledgedCursor } from "../src/thread-delta.ts";
+import { createHash } from "node:crypto";
+import { prefixFingerprint, selectAcknowledgedDelta, type AcknowledgedCursor } from "../src/thread-delta.ts";
 
 type Message = { id: string; content?: string };
+test("shared prefix hashing frames UTF-8 bytes and respects the host projection", () => {
+  const messages = [{ content: "é", ignored: 1 }, { content: "👋", ignored: 2 }];
+  const fingerprint = (message: typeof messages[number]) => message.content;
+  assert.equal(prefixFingerprint(messages, 2, fingerprint), createHash("sha256").update("2:é4:👋").digest("hex"));
+  assert.equal(prefixFingerprint(messages, 1, fingerprint), createHash("sha256").update("2:é").digest("hex"));
+  assert.equal(prefixFingerprint(messages, 0, fingerprint), createHash("sha256").digest("hex"));
+});
+
 type Fixture = { name: string; messages: Message[]; cursor?: AcknowledgedCursor; expected: unknown };
 const fixtures: Fixture[] = JSON.parse(readFileSync(new URL("./fixtures/snapshot-deltas.json", import.meta.url), "utf8"));
 

@@ -7,7 +7,9 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import secrets
+import shlex
 import shutil
 import subprocess
 import sys
@@ -24,6 +26,17 @@ PER_ATTEMPT_TIMEOUT_SECONDS = 5
 SKILL_OUTCOME_TIMEOUT_SECONDS = 8
 SAVE_RETRY_DELAYS_SECONDS = (0.0, 0.5, 1.5)
 BACKGROUND_LEASE_STALE_SECONDS = 90.0
+# `nmem t capture` only proves the observation was queued. A Thread is saved
+# only once `nmem t capture-status` reports the CLI worker's acknowledgement.
+# The detached worker has no host deadline; a foreground capture (PreCompact)
+# runs inside the host's 35s hook timeout together with the enqueue budget.
+BACKGROUND_CONFIRM_SECONDS = 60.0
+FOREGROUND_CONFIRM_SECONDS = 15.0
+CAPTURE_STATUS_POLL_SECONDS = 1.0
+CAPTURE_STATUS_TIMEOUT_SECONDS = 5.0
+CAPTURE_STATUS_TERMINAL = frozenset(
+    {"acknowledged", "failed", "skipped", "disabled", "stalled"}
+)
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
@@ -56,16 +69,33 @@ def _background_state_root() -> Path:
     return Path(tempfile.gettempdir()) / "nowledge-mem" / "hook-save"
 
 
+def _project_dir(payload: dict[str, Any]) -> str | None:
+    """Return the directory the host keys this session's transcript under.
+
+    Claude Code keys transcripts by its project directory, while the hook
+    payload ``cwd`` follows a mid-session ``cd``, so ``CLAUDE_PROJECT_DIR``
+    wins there. Grok Build keys a session by its session cwd
+    (``summary.json`` ``info.cwd``) and sends that value as the payload
+    ``cwd``, but sets ``GROK_WORKSPACE_ROOT`` and its ``CLAUDE_PROJECT_DIR``
+    alias to the git root of that cwd. Discovery from the git root misses
+    every session started in a repository subdirectory.
+    """
+    workspace = (
+        os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
+        or os.environ.get("GROK_WORKSPACE_ROOT", "").strip()
+    )
+    payload_cwd = _payload_value(payload, "cwd")
+    if _host_runtime() == "grok":
+        return payload_cwd or workspace or None
+    return workspace or payload_cwd
+
+
 def _background_session_key(payload: dict[str, Any]) -> str:
     session_id = _payload_value(payload, "session_id", "sessionId") or ""
     transcript_path = (
         _payload_value(payload, "transcript_path", "transcriptPath") or ""
     )
-    cwd = (
-        os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
-        or os.environ.get("GROK_WORKSPACE_ROOT", "").strip()
-        or _payload_value(payload, "cwd")
-    )
+    cwd = _project_dir(payload)
     if session_id:
         identity = {"session_id": session_id}
     elif transcript_path:
@@ -331,7 +361,25 @@ def _cmd_exe_path(path: str) -> str:
     return "nmem.cmd" if Path(path).name.lower() == "nmem.cmd" else path
 
 
-def _build_nmem_command(nmem: str, *args: str) -> list[str]:
+def _escape_cmd_meta(value: str) -> str:
+    return re.sub(r'([()%!^"<>&|;, *?])', r"^\1", value)
+
+
+def _batch_argument(value: str) -> str:
+    value = re.sub(r'(\\*)"', lambda match: match[1] * 2 + '\\"', value)
+    value = re.sub(r"(\\+)$", lambda match: match[1] * 2, value)
+    # Batch shims parse arguments in cmd /c and again when forwarding %*.
+    return _escape_cmd_meta(_escape_cmd_meta(f'"{value}"'))
+
+
+def _build_nmem_command(nmem: str, *args: str) -> list[str] | str:
+    if sys.platform == "win32" and nmem.lower().endswith(".cmd"):
+        # Native Windows: same verbatim command as nmem-hook-context.py. A list
+        # would make Python CRT-quote the cmd text (\"), which cmd.exe rejects.
+        command = _escape_cmd_meta(nmem.replace("/", "\\"))
+        command += "".join(" " + _batch_argument(arg) for arg in args)
+        shell = subprocess.list2cmdline([os.environ.get("COMSPEC", "cmd.exe")])
+        return f'{shell} /d /v:off /s /c "{command}"'
     if nmem.lower().endswith(".cmd"):
         command_line = subprocess.list2cmdline([_cmd_exe_path(nmem), *args])
         return [
@@ -364,14 +412,18 @@ def _resolve_space_from_cwd(project_path: Path) -> str | None:
     return env_space or None
 
 
+def _session_id(payload: dict[str, Any]) -> str:
+    return _payload_value(payload, "session_id", "sessionId") or os.environ.get(
+        "GROK_SESSION_ID", ""
+    ).strip()
+
+
 def _build_command(
     nmem: str,
     payload: dict[str, Any],
-) -> list[str]:
+) -> list[str] | str:
     runtime = _host_runtime()
-    session_id = _payload_value(payload, "session_id", "sessionId") or os.environ.get(
-        "GROK_SESSION_ID", ""
-    ).strip()
+    session_id = _session_id(payload)
     if not session_id:
         return []
     args = [
@@ -384,11 +436,7 @@ def _build_command(
         session_id,
     ]
 
-    cwd = (
-        os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
-        or os.environ.get("GROK_WORKSPACE_ROOT", "").strip()
-        or _payload_value(payload, "cwd")
-    )
+    cwd = _project_dir(payload)
     if cwd:
         project_path = Path(cwd).expanduser()
         project = str(project_path if nmem.lower().endswith(".cmd") else project_path.resolve())
@@ -410,18 +458,29 @@ def _build_command(
     return _build_nmem_command(nmem, *args)
 
 
-def _capture_has_result(stdout: str) -> bool:
+def _parse_json_object(stdout: str) -> dict[str, Any] | None:
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:
-        return False
-
-    if not isinstance(payload, dict):
-        return False
-    return payload.get("status") == "enqueued"
+        return None
+    return payload if isinstance(payload, dict) else None
 
 
-def _run_command(command: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
+def _capture_has_result(stdout: str) -> bool:
+    payload = _parse_json_object(stdout)
+    return payload is not None and payload.get("status") == "enqueued"
+
+
+def _capture_disabled(stdout: str) -> bool:
+    payload = _parse_json_object(stdout)
+    return (
+        payload is not None
+        and payload.get("status") == "skipped"
+        and payload.get("reason") == "automatic_capture_disabled"
+    )
+
+
+def _run_command(command: list[str] | str, timeout: float) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         stdout=subprocess.PIPE,
@@ -542,8 +601,13 @@ def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
 
 
 def _run_capture_with_retries(
-    command: list[str],
-) -> tuple[bool, int, str]:
+    command: list[str] | str,
+) -> tuple[dict[str, Any] | None, int, str]:
+    """Run ``nmem t capture`` until it acknowledges the enqueue.
+
+    Returns the enqueue response (``status`` is ``enqueued`` or a
+    ``skipped`` automatic-capture-disabled answer), or ``None``.
+    """
     last_returncode = 0
     last_stderr = ""
     start = time.monotonic()
@@ -576,49 +640,259 @@ def _run_capture_with_retries(
             or ""
         )
 
-        if proc.returncode == 0 and _capture_has_result(proc.stdout or ""):
-            return True, last_returncode, last_stderr
+        stdout = proc.stdout or ""
+        if proc.returncode == 0 and (
+            _capture_has_result(stdout) or _capture_disabled(stdout)
+        ):
+            return _parse_json_object(stdout), last_returncode, last_stderr
 
-    return False, last_returncode, last_stderr
+    return None, last_returncode, last_stderr
 
 
-def _capture_payload(event: str, payload: dict[str, Any]) -> int:
+def _capture_state_root() -> Path:
+    plugin_data = os.environ.get("CLAUDE_PLUGIN_DATA") or os.environ.get("GROK_PLUGIN_DATA")
+    if plugin_data:
+        return Path(plugin_data).expanduser()
+    return _background_state_root()
+
+
+def _record_capture_outcome(
+    event: str,
+    session_id: str,
+    status: str,
+    *,
+    queue_key: str | None = None,
+    thread_ids: list[str] | None = None,
+    detail: str | None = None,
+) -> None:
+    """Persist the latest capture outcome where `/status` checks can read it."""
+    record = {
+        "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "runtime": _host_runtime(),
+        "event": event,
+        "session_id": session_id,
+        "status": status,
+        "queue_key": queue_key,
+        "thread_ids": thread_ids or [],
+        "detail": detail,
+    }
+    path = _capture_state_root() / "last-capture.json"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        pending = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        pending.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        pending.replace(path)
+    except OSError:
+        pass
+
+
+def _shell_command(args: list[str]) -> str:
+    """Render a command the user can paste, quoted for the host platform."""
+    if sys.platform == "win32":
+        return subprocess.list2cmdline(args)
+    return " ".join(shlex.quote(arg) for arg in args)
+
+
+def _capture_status_command(nmem: str, queue_key: str) -> str:
+    return _shell_command([nmem, "--json", "t", "capture-status", "--queue-key", queue_key])
+
+
+def _diagnostic_save_command(payload: dict[str, Any], session_id: str, nmem: str) -> str:
+    """Foreground command that reproduces the queued save and prints its error.
+
+    ``nmem`` is the executable the capture itself ran, so the suggestion
+    reproduces the same client even when it is not the first ``nmem`` on PATH.
+    """
+    args = [nmem, "--json", "t", "save", "--from", _host_runtime(), "--session-id", session_id]
+    cwd = _project_dir(payload)
+    if cwd:
+        args.extend(["--project", cwd])
+    space = _resolve_space_from_cwd(Path(cwd or "."))
+    if space:
+        args.extend(["--space", space])
+    transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
+    if transcript_path:
+        args.extend(["--session-file", transcript_path])
+    return _shell_command(args)
+
+
+def _wait_for_capture(
+    nmem: str,
+    queue_key: str,
+    budget_seconds: float,
+    heartbeat: Any = None,
+) -> tuple[str, dict[str, Any] | None, str]:
+    """Poll the CLI capture queue until the observation reaches a terminal state.
+
+    Returns ``(status, state, detail)`` where status is a terminal queue state
+    or ``unconfirmed`` when the CLI cannot report one within the budget.
+    """
+    command = _build_nmem_command(nmem, "--json", "t", "capture-status", "--queue-key", queue_key)
+    deadline = time.monotonic() + budget_seconds
+    state: dict[str, Any] | None = None
+    detail = "capture status did not settle in time"
+    while True:
+        if heartbeat is not None:
+            heartbeat()
+        remaining = deadline - time.monotonic()
+        try:
+            proc = _run_command(command, max(1.0, min(CAPTURE_STATUS_TIMEOUT_SECONDS, remaining)))
+        except subprocess.TimeoutExpired:
+            proc = None
+            detail = "capture status timed out"
+        except Exception as exc:
+            return "unconfirmed", state, f"capture status unavailable: {exc}"
+        if proc is not None:
+            if proc.returncode != 0:
+                message = (proc.stderr or proc.stdout or "").strip().splitlines()
+                return (
+                    "unconfirmed",
+                    state,
+                    "this nmem cannot report capture status"
+                    + (f" ({message[-1]})" if message else ""),
+                )
+            state = _parse_json_object(proc.stdout or "")
+            status = str((state or {}).get("status") or "")
+            if status in CAPTURE_STATUS_TERMINAL:
+                return status, state, ""
+            if status == "unavailable":
+                detail = "capture queue is unavailable for this connection"
+            elif status:
+                detail = f"capture still {status}"
+        if time.monotonic() + CAPTURE_STATUS_POLL_SECONDS >= deadline:
+            return "unconfirmed", state, detail
+        time.sleep(CAPTURE_STATUS_POLL_SECONDS)
+
+
+def _acknowledged_thread_ids(state: dict[str, Any] | None) -> list[str]:
+    rows = (state or {}).get("acknowledgments")
+    if not isinstance(rows, list):
+        return []
+    return [
+        str(row["thread_id"])
+        for row in rows
+        if isinstance(row, dict) and isinstance(row.get("thread_id"), str) and row["thread_id"]
+    ]
+
+
+def _capture_payload(
+    event: str,
+    payload: dict[str, Any],
+    heartbeat: Any = None,
+    confirm_seconds: float | None = None,
+) -> int:
+    session_id = _session_id(payload)
     nmem = _nmem_command()
     if not nmem:
-        print("nowledge-mem: nmem not found; skipped hook capture", file=sys.stderr)
+        detail = "nmem was not found on PATH (set NMEM_CLI_PATH to the nmem executable)"
+        print(f"nowledge-mem: {event} capture failed: {detail}", file=sys.stderr)
+        _record_capture_outcome(event, session_id, "failed", detail=detail)
         return 0
 
     command = _build_command(nmem, payload)
     if not command:
         print(f"nowledge-mem: {event} capture skipped without session identity", file=sys.stderr)
+        _record_capture_outcome(
+            event, session_id, "skipped", detail="hook input had no session identity"
+        )
         return 0
 
     try:
-        captured, returncode, stderr = _run_capture_with_retries(command)
+        enqueued, returncode, stderr = _run_capture_with_retries(command)
     except Exception as exc:
         print(f"nowledge-mem: {event} capture failed: {exc}", file=sys.stderr)
+        _record_capture_outcome(event, session_id, "failed", detail=str(exc))
         return 0
 
     if returncode != 0:
         message = stderr.strip()
         if message:
             print(f"nowledge-mem: {event} capture skipped: {message}", file=sys.stderr)
+        _record_capture_outcome(event, session_id, "failed", detail=message or None)
         return 0
 
-    if not captured:
+    if not enqueued:
         print(
             f"nowledge-mem: {event} capture skipped: no flushed transcript found",
             file=sys.stderr,
         )
+        _record_capture_outcome(
+            event, session_id, "skipped", detail="nmem did not queue the capture"
+        )
         return 0
 
-    _report_skill_outcomes(nmem, payload)
-
-    if event == "pre-compact":
+    if enqueued.get("status") == "skipped":
         print(
-            f"Nowledge Mem saved the current {_runtime_label(_host_runtime())} thread before compaction."
+            f"nowledge-mem: {event} capture skipped: automatic capture is disabled "
+            "for this Mem connection",
+            file=sys.stderr,
         )
+        _record_capture_outcome(
+            event, session_id, "disabled", detail="automatic capture is disabled"
+        )
+        return 0
 
+    label = _runtime_label(_host_runtime())
+    queue_key = enqueued.get("queue_key")
+    if isinstance(queue_key, str) and queue_key:
+        budget = FOREGROUND_CONFIRM_SECONDS if confirm_seconds is None else confirm_seconds
+        status, state, detail = _wait_for_capture(nmem, queue_key, budget, heartbeat)
+    else:
+        queue_key = None
+        status, state, detail = "unconfirmed", None, "nmem returned no capture queue key"
+
+    thread_ids = _acknowledged_thread_ids(state)
+    if status == "acknowledged":
+        _record_capture_outcome(
+            event, session_id, "saved", queue_key=queue_key, thread_ids=thread_ids
+        )
+        _report_skill_outcomes(nmem, payload)
+        if event == "pre-compact":
+            print(f"Nowledge Mem saved the current {label} thread before compaction.")
+        return 0
+
+    if status == "skipped":
+        # The CLI admitted the observation but found no conversation to save yet.
+        _record_capture_outcome(
+            event,
+            session_id,
+            "skipped",
+            queue_key=queue_key,
+            detail="no conversation to save yet",
+        )
+        return 0
+
+    status_hint = _capture_status_command(nmem, queue_key) if queue_key else ""
+    diagnose = _diagnostic_save_command(payload, session_id, nmem)
+    if status == "unconfirmed":
+        message = (
+            f"nowledge-mem: {event} capture not confirmed for {label} session {session_id}: "
+            f"{detail}. Check: {status_hint or diagnose}"
+        )
+    else:
+        # A queue that stalls or fails can follow a successful Thread save whose
+        # acknowledgement was lost, so this state proves neither that a Thread
+        # exists nor that none does. Report what was observed and point at the
+        # places that can settle it.
+        detail = (
+            f"capture status: {status}; the save was queued but no saved-Thread "
+            "confirmation arrived"
+        )
+        message = (
+            f"nowledge-mem: {event} capture {status} for {label} session {session_id} "
+            f"({detail}). It is not known whether a Thread was saved. "
+            f"Inspect with: {_shell_command([nmem, 't', 'list'])}"
+            + (f" ; queue: {status_hint}" if status_hint else "")
+            + f" ; reproduce and see the error with: {diagnose}"
+        )
+    print(message, file=sys.stderr)
+    _record_capture_outcome(
+        event,
+        session_id,
+        "unconfirmed" if status == "unconfirmed" else "failed",
+        queue_key=queue_key,
+        detail=detail or f"capture status: {status}",
+    )
     return 0
 
 
@@ -629,7 +903,12 @@ def _drain_background_capture(key: str, event: str, lease_token: str) -> int:
             payload = _take_latest_background_payload(key)
             if payload is None:
                 break
-            _capture_payload(event, payload)
+            _capture_payload(
+                event,
+                payload,
+                heartbeat=lambda: _touch_background_worker(key, lease_token),
+                confirm_seconds=BACKGROUND_CONFIRM_SECONDS,
+            )
     finally:
         _release_background_worker(key, lease_token)
 

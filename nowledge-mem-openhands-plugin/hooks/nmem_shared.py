@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -166,7 +167,7 @@ def http_request(
     url = f"{api_url}{endpoint}"
 
     headers = {
-        "User-Agent": "NowledgeMem-OpenHands/0.1.0",
+        "User-Agent": "NowledgeMem-OpenHands/0.1.1",
         "Accept": "application/json",
         **_make_auth_headers(api_key),
     }
@@ -383,6 +384,147 @@ def resolve_agent_id() -> str:
         or os.environ.get("OPENHANDS_AGENT_NAME", "").strip()
         or os.environ.get("AGENT_NAME", "").strip()
     )
+
+
+def resolve_session_id(hook_input: dict[str, Any] | None = None) -> str:
+    """Resolve active OpenHands session or conversation identifier across payload and environment."""
+    inp = hook_input or {}
+    for key in ("session_id", "sessionId", "conversation_id", "conversationId"):
+        val = inp.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    for env_key in (
+        "OPENHANDS_SESSION_ID",
+        "OPENHANDS_CONVERSATION_ID",
+        "CONVERSATION_ID",
+    ):
+        val = os.environ.get(env_key, "").strip()
+        if val:
+            return val
+    return ""
+
+
+def clean_session_key(session_key: str) -> str:
+    """Sanitize session key for filesystem use."""
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", session_key.strip())
+
+
+def resolve_session_key(
+    hook_input: dict[str, Any] | None = None,
+    working_dir: str | Path | None = None,
+) -> str:
+    """Resolve a stable session identifier across payload, env, or workspace fallback."""
+    explicit = resolve_session_id(hook_input)
+    if explicit:
+        return explicit
+
+    target_dir = (
+        working_dir
+        or (hook_input.get("working_dir") if hook_input else None)
+        or os.environ.get("OPENHANDS_PROJECT_DIR")
+        or os.getcwd()
+    )
+    try:
+        norm_dir = str(Path(target_dir).resolve())
+    except Exception:
+        norm_dir = str(target_dir)
+    digest = hashlib.sha256(norm_dir.encode("utf-8")).hexdigest()[:16]
+    return f"workspace_{digest}"
+
+
+# Injection markers record that a conversation already received the full Context
+# Bundle, so later turns only get the short routing guidance.
+#
+# Lifetime: a marker is NOT cleared on Stop. OpenHands sends Stop with
+# reason="agent_finished" at the end of every agent turn, and the next
+# send_message() continues the same conversation ID. SessionEnd is not a safe
+# boundary either (OpenHands also emits it when it replaces the hook config of a
+# live conversation). Markers therefore expire by TTL only and stale files are
+# pruned opportunistically.
+#
+# Location: only the Nowledge Mem config dir (never the database data dir, the
+# workspace, or the OpenHands conversation folder).
+_EXPLICIT_SESSION_TTL_SECONDS = 24 * 3600
+# Without a conversation ID every conversation in the same workspace shares one
+# key, so the window is deliberately short.
+_WORKSPACE_FALLBACK_TTL_SECONDS = 30 * 60
+_MARKER_PRUNE_AFTER_SECONDS = 7 * 24 * 3600
+_MARKER_SUFFIX = ".injected"
+
+
+def get_candidate_state_dirs(working_dir: str | Path | None = None) -> list[Path]:
+    """Ordered directories for injection markers: Nowledge Mem config dir, then a per-user temp dir."""
+    dirs: list[Path] = []
+    if env_dir := os.environ.get("NMEM_CLI_CONFIG_DIR", "").strip():
+        dirs.append(Path(env_dir) / "plugins" / "openhands" / "sessions")
+    dirs.append(Path("~/.nowledge-mem/plugins/openhands/sessions").expanduser())
+    uid_suffix = f"-{os.getuid()}" if hasattr(os, "getuid") else ""
+    dirs.append(Path(tempfile.gettempdir()) / f"nowledge-mem-openhands-sessions{uid_suffix}")
+    return dirs
+
+
+def _session_ttl(session_key: str) -> int:
+    if session_key.startswith("workspace_"):
+        return _WORKSPACE_FALLBACK_TTL_SECONDS
+    return _EXPLICIT_SESSION_TTL_SECONDS
+
+
+def has_session_injected(
+    session_key: str,
+    working_dir: str | Path | None = None,
+) -> bool:
+    """Check if the session has already received its initial context injection."""
+    if not session_key:
+        return False
+    name = clean_session_key(session_key) + _MARKER_SUFFIX
+    ttl = _session_ttl(session_key)
+    now = time.time()
+    for s_dir in get_candidate_state_dirs(working_dir):
+        try:
+            if now - (s_dir / name).stat().st_mtime < ttl:
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def _prune_stale_markers(state_dir: Path) -> None:
+    """Best-effort removal of marker files older than the prune window."""
+    cutoff = time.time() - _MARKER_PRUNE_AFTER_SECONDS
+    try:
+        entries = list(state_dir.glob(f"*{_MARKER_SUFFIX}"))
+    except OSError:
+        return
+    for entry in entries:
+        try:
+            if entry.is_file() and entry.stat().st_mtime < cutoff:
+                entry.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
+def mark_session_injected(
+    session_key: str,
+    working_dir: str | Path | None = None,
+) -> None:
+    """Record that the session has received its initial context injection."""
+    if not session_key:
+        return
+    name = clean_session_key(session_key) + _MARKER_SUFFIX
+    for s_dir in get_candidate_state_dirs(working_dir):
+        try:
+            s_dir.mkdir(parents=True, exist_ok=True)
+            marker = s_dir / name
+            marker.write_text(str(time.time()), encoding="utf-8")
+            if os.name != "nt":
+                try:
+                    os.chmod(marker, 0o600)
+                except OSError:
+                    pass
+        except OSError:
+            continue
+        _prune_stale_markers(s_dir)
+        break
 
 
 def read_startup_context(cwd: str | Path | None = None) -> dict[str, str] | None:

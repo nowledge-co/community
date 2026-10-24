@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.14] - 2026-10-17
+
+- Refresh the embedded core 0.2.0 content manifest for Alma adoption; runtime behavior is unchanged.
+
+## [0.8.13] - 2026-10-16
+
+- Embed shared TypeScript core 0.2.0, including the shared prefix-hashing API.
+- Refresh the embedded content manifest for the expanded consumer set.
+
+
 ## [0.8.12] - 2026-10-11
 
 ### Fixed
