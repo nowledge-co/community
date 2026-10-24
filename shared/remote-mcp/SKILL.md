@@ -41,6 +41,20 @@ Report the actual connection, saved skill location and scheduled-task status.
    target Space; ask before the first write only if no destination is confirmed. A source label or client name is not an
    AI Identity or a Space selector. Preserve existing conversation ownership.
 
+## Dots and Grok Bot setup
+
+Follow the universal guide's Dots route for the selected Cloud workspace or App.
+Use the host's supported connector flow; do not treat its installed Memory
+connector as permission or access to all conversation originals.
+
+For Grok Bot, open https://grok.com/connectors and add the selected public MCP
+endpoint as a Custom connector. Use the Cloud workspace URL or the App's Access
+Anywhere URL, retaining its complete path and query. Complete OAuth and inspect
+the actual tools. Do not run the local Grok Build plugin installer for Grok Bot,
+use localhost, or ask for a Mem API key. Reuse a confirmed target and ask only
+when it is missing. Apply the shared scope and first-save readback checks below;
+a connected status alone does not prove transcript access or a daily task.
+
 ## Muse setup
 
 The verified path creates a custom MCP client in Muse's private workspace through

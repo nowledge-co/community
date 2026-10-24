@@ -1521,6 +1521,14 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
             # it must not require access to a user's briefing as an install check.
             assert "Verify search" in guide["prompt"]
             assert "验证搜索" in guide["promptZh"]
+        elif entry["id"] in {"muse", "dots", "grok-bot"}:
+            # Hosted launchers delegate protocol and tool checks to the full skill.
+            assert "shared/remote-mcp/SKILL.md" in guide["prompt"], entry["id"]
+            assert "shared/remote-mcp/SKILL.md" in guide["promptZh"], entry["id"]
+            shared = (COMMUNITY_ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
+            assert "Read Context Bundle" in shared
+            assert "only if exposed" in shared
+            assert "Inspect the connected tool catalog" in shared
         else:
             assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
             assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
@@ -1558,16 +1566,14 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     grok_prompt = by_id["grok-bot"]["install"]["agentGuide"]["prompt"]
     grok_prompt_zh = by_id["grok-bot"]["install"]["agentGuide"]["promptZh"]
     for text in (grok_prompt, grok_prompt_zh):
-        assert "Nowledge Cloud" in text
-        assert "Mem App" in text
-        assert "OAuth" in text
-        assert "API key" in text
-        assert "grok.com/connectors" in text
         assert "Space" in text
-        assert "exact-ID readback" in text or "精确 ID 回读" in text
-        assert "complete-thread capture" in text or "完整会话" in text
-    assert "do not ask for or paste a Mem API key" in grok_prompt
-    assert "不要索要或粘贴 Mem API key" in grok_prompt_zh
+        assert "shared/remote-mcp/SKILL.md" in text
+    # Host-specific setup stays in the referenced skill, not the launcher.
+    shared = (COMMUNITY_ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
+    for required in ("grok.com/connectors", "Custom connector", "OAuth",
+                     "Cloud uses its workspace MCP URL", "Never ask for keys or tokens in chat",
+                     "exact-ID readback", "threads:sync"):
+        assert required in shared
     chatgpt_prompt = by_id["chatgpt-cloud"]["install"]["agentGuide"]["prompt"]
     chatgpt_prompt_zh = by_id["chatgpt-cloud"]["install"]["agentGuide"]["promptZh"]
     for text in (chatgpt_prompt, chatgpt_prompt_zh):
