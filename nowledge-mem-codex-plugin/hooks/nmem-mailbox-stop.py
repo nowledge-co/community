@@ -5,7 +5,12 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
 
 from nmem_mailbox_stop import build_stop_response, eligible, read_event
 from nmem_runtime import build_nmem_command, find_nmem_command

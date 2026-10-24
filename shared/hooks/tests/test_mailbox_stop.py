@@ -371,6 +371,53 @@ class MailboxStateTests(unittest.TestCase):
             if package == "nowledge-mem-codex-plugin":
                 self.assertIn(script, notices[0]["commandWindows"])
 
+    def test_real_launchers_work_from_an_unrelated_directory(self):
+        with tempfile.TemporaryDirectory(prefix="mailbox launcher ") as directory:
+            for package, script in (
+                ("nowledge-mem-codex-plugin", "nmem-mailbox-stop.py"),
+                ("nowledge-mem-claude-code-plugin", "nmem-hook-mailbox.py"),
+            ):
+                with self.subTest(package=package):
+                    plugin = ROOT / package
+                    config = json.loads((plugin / "hooks/hooks.json").read_text())
+                    hook = next(
+                        hook
+                        for entry in config["hooks"]["Stop"]
+                        for hook in entry["hooks"]
+                        if script in hook["command"]
+                    )
+                    env = dict(
+                        os.environ,
+                        PLUGIN_ROOT=str(plugin),
+                        CLAUDE_PLUGIN_ROOT=str(plugin),
+                        NMEM_AGENT_CONTEXT="",
+                        NMEM_CLI_PATH=str(Path(directory) / "missing"),
+                        CODEX_HOME=directory,
+                        CLAUDE_CONFIG_DIR=directory,
+                    )
+                    if package == "nowledge-mem-codex-plugin":
+                        command = (
+                            hook["commandWindows"]
+                            if os.name == "nt"
+                            else hook["command"]
+                        )
+                        shell = True
+                    else:
+                        command = [sys.executable, str(plugin / "scripts" / script)]
+                        shell = False
+                    result = subprocess.run(
+                        command,
+                        shell=shell,
+                        cwd=directory,
+                        env=env,
+                        input='{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"test"}',
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(json.loads(result.stdout), {})
+
     def test_packaged_helpers_match_canonical_source(self):
         source = (ROOT / "shared/hooks/nmem_mailbox_stop.py").read_bytes()
         for relative in (
