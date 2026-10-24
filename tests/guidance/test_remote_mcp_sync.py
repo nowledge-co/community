@@ -25,7 +25,10 @@ class RemoteMcpSyncGuidance(unittest.TestCase):
             self.assertIn(required, skill)
 
     def test_hosted_launcher_prompts_are_short_and_share_the_skill(self):
-        registry = json.loads((ROOT / "integrations.json").read_text(encoding="utf-8"))
+        registry_text = (ROOT / "integrations.json").read_text(encoding="utf-8")
+        self.assertNotIn("daily sync is enabled", registry_text)
+        self.assertNotIn("Confirm host scheduling support", registry_text)
+        registry = json.loads(registry_text)
         for host in ("muse", "dots", "grok-bot"):
             guide = next(entry for entry in registry["integrations"] if entry["id"] == host)["install"]["agentGuide"]
             for key, limit in (("prompt", 900), ("promptZh", 400)):
