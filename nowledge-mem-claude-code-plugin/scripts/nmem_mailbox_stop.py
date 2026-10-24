@@ -6,6 +6,8 @@ import hashlib
 import json
 import os
 import re
+import select
+import signal
 import sqlite3
 import subprocess
 import sys
@@ -24,8 +26,9 @@ IDENTIFIER = re.compile(r"[A-Za-z0-9_.:-]{1,128}\Z")
 
 
 def read_event() -> dict:
-    raw = sys.stdin.read(MAX_INPUT_BYTES + 1)
-    if len(raw.encode("utf-8")) > MAX_INPUT_BYTES:
+    raw = getattr(sys.stdin, "buffer", sys.stdin).read(MAX_INPUT_BYTES + 1)
+    encoded = raw.encode("utf-8") if isinstance(raw, str) else raw
+    if len(encoded) > MAX_INPUT_BYTES:
         return {}
     try:
         event = json.loads(raw)
@@ -122,36 +125,134 @@ def _binding(value: object, context: str, env: dict) -> dict | None:
     }
 
 
+def _pipe_available(pipe, remaining: float) -> int:
+    if os.name != "nt":
+        ready, _, _ = select.select([pipe], [], [], min(remaining, 0.05))
+        return 8192 if ready else 0
+
+    # Python 3.11 cannot select/nonblock a Windows anonymous pipe. Peek first
+    # so a quiet CLI cannot hold Stop inside a blocking read.
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    peek = kernel.PeekNamedPipe
+    peek.argtypes = [
+        wintypes.HANDLE,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        ctypes.POINTER(wintypes.DWORD),
+        wintypes.LPVOID,
+    ]
+    peek.restype = wintypes.BOOL
+    available = wintypes.DWORD()
+    if not peek(
+        msvcrt.get_osfhandle(pipe.fileno()),
+        None,
+        0,
+        None,
+        ctypes.byref(available),
+        None,
+    ):
+        error = ctypes.get_last_error()
+        if error in (109, 232):
+            return -1
+        raise ctypes.WinError(error)
+    if not available.value:
+        time.sleep(min(remaining, 0.01))
+    return available.value
+
+
+def _terminate_tree(process: subprocess.Popen) -> None:
+    if os.name == "nt":
+        if process.returncode is None:
+            taskkill = (
+                Path(os.environ.get("SystemRoot", r"C:\Windows"))
+                / "System32/taskkill.exe"
+            )
+            try:
+                subprocess.run(
+                    [str(taskkill), "/PID", str(process.pid), "/T", "/F"],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=0.75,
+                    check=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+            try:
+                process.kill()
+            except OSError:
+                pass
+    else:
+        # Each probe owns a new session, including descendants holding stdout.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    try:
+        process.wait(timeout=0.25)
+    except subprocess.TimeoutExpired:
+        pass
+
+
 def _run_json(command: list[str] | str, deadline: float) -> dict | None:
-    remaining = deadline - time.monotonic()
-    if remaining <= 0:
+    if deadline <= time.monotonic():
         return None
     kwargs = (
-        {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
-        if sys.platform == "win32"
-        else {}
+        {
+            "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+        }
+        if os.name == "nt"
+        else {"start_new_session": True}
     )
+    process = None
     try:
-        with tempfile.TemporaryFile() as output:
-            result = subprocess.run(
-                command,
-                stdout=output,
-                stderr=subprocess.DEVNULL,
-                timeout=remaining,
-                check=False,
-                close_fds=True,
-                **kwargs,
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            bufsize=0,
+            close_fds=True,
+            **kwargs,
+        )
+        output = bytearray()
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None
+            available = _pipe_available(process.stdout, remaining)
+            if available < 0:
+                break
+            if not available:
+                continue
+            chunk = os.read(
+                process.stdout.fileno(),
+                min(available, 8192, MAX_OUTPUT_BYTES + 1 - len(output)),
             )
-            if result.returncode != 0:
+            if not chunk:
+                break
+            output.extend(chunk)
+            if len(output) > MAX_OUTPUT_BYTES:
                 return None
-            output.seek(0, os.SEEK_END)
-            if output.tell() > MAX_OUTPUT_BYTES:
-                return None
-            output.seek(0)
-            value = json.loads(output.read(MAX_OUTPUT_BYTES + 1))
+        if process.wait(timeout=max(0, deadline - time.monotonic())) != 0:
+            return None
+        value = json.loads(output)
+        return value if isinstance(value, dict) else None
     except (OSError, ValueError, subprocess.TimeoutExpired):
         return None
-    return value if isinstance(value, dict) else None
+    finally:
+        if process is not None:
+            try:
+                _terminate_tree(process)
+            finally:
+                process.stdout.close()
 
 
 def _digest(value: object) -> str:

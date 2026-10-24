@@ -73,6 +73,7 @@ class MailboxStopTests(unittest.TestCase):
         self.summary_override = None
         self.failure = None
         self.env = {
+            "USERPROFILE": str(self.root),
             "NMEM_AGENT_CONTEXT": "reviewer",
             "NMEM_CLI_PATH": sys.executable,
             "CODEX_HOME": str(self.root / "codex"),
@@ -85,10 +86,10 @@ class MailboxStopTests(unittest.TestCase):
             return ROOT / "nowledge-mem-codex-plugin/hooks/nmem-mailbox-stop.py"
         return ROOT / "nowledge-mem-claude-code-plugin/scripts/nmem-hook-mailbox.py"
 
-    def cli(self, command, **kwargs):
+    def cli(self, command, deadline):
         self.calls.append(command)
         if self.failure is not None:
-            raise self.failure
+            return None
         args = command[1:]
         if args == ["--json", "agents", "context", "show", "--name", "reviewer"]:
             self.shows += 1
@@ -122,26 +123,30 @@ class MailboxStopTests(unittest.TestCase):
             }
         else:
             self.fail(f"Unexpected CLI operation: {args}")
-        self.assertGreater(kwargs["timeout"], 0)
-        self.assertLessEqual(kwargs["timeout"], CORE.TOTAL_TIMEOUT_SECONDS)
-        self.assertTrue(kwargs["close_fds"])
-        kwargs["stdout"].write(json.dumps(reply).encode())
-        return subprocess.CompletedProcess(command, 0)
+        remaining = deadline - CORE.time.monotonic()
+        self.assertGreater(remaining, 0)
+        self.assertLessEqual(remaining, CORE.TOTAL_TIMEOUT_SECONDS)
+        return reply
 
     def run_hook(self, wrapper=None):
         script = wrapper or self.wrapper
         output = io.StringIO()
-        # Reload the packaged helper: an installed package must stand alone.
+        spec = importlib.util.spec_from_file_location(
+            "nmem_mailbox_stop", script.with_name("nmem_mailbox_stop.py")
+        )
+        helper = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helper)
+        # Use the packaged helper, replacing only its CLI transport. Real
+        # launcher and process-resource tests exercise the other boundaries.
         with mock.patch.dict(os.environ, self.env, clear=True), mock.patch.dict(
-            sys.modules
+            sys.modules, {"nmem_mailbox_stop": helper}
         ), mock.patch.object(sys, "path", list(sys.path)), mock.patch.object(
             sys, "stdin", io.StringIO(json.dumps(self.event))
         ), mock.patch.object(
             sys, "stdout", output
         ), mock.patch.object(
-            subprocess, "run", side_effect=self.cli
+            helper, "_run_json", side_effect=self.cli
         ):
-            sys.modules.pop("nmem_mailbox_stop", None)
             runpy.run_path(str(script), run_name="__main__")
         return json.loads(output.getvalue())
 
@@ -339,13 +344,6 @@ class MailboxStateTests(unittest.TestCase):
             with mock.patch.object(sys, "stdin", io.StringIO(value)):
                 self.assertEqual(CORE.read_event(), {})
 
-        def oversized(command, **kwargs):
-            kwargs["stdout"].write(b"x" * (CORE.MAX_OUTPUT_BYTES + 1))
-            return subprocess.CompletedProcess(command, 0)
-
-        with mock.patch.object(subprocess, "run", side_effect=oversized):
-            self.assertIsNone(CORE._run_json(["nmem"], CORE.time.monotonic() + 1))
-
     def test_both_packages_register_synchronous_mailbox_hooks_beside_capture(self):
         for package, script in (
             ("nowledge-mem-codex-plugin", "nmem-mailbox-stop.py"),
@@ -423,6 +421,115 @@ class MailboxStateTests(unittest.TestCase):
             "nowledge-mem-claude-code-plugin/scripts/nmem_mailbox_stop.py",
         ):
             self.assertEqual((ROOT / relative).read_bytes(), source)
+
+
+class MailboxProcessTests(unittest.TestCase):
+    def test_runner_rejects_output_before_an_oversized_writer_finishes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            marker = Path(directory) / "finished"
+            code = (
+                "import sys; from pathlib import Path; "
+                "sys.stdout.buffer.write(b'x' * (2 * 1024 * 1024)); "
+                "sys.stdout.buffer.flush(); Path(sys.argv[1]).write_text('finished')"
+            )
+            result = CORE._run_json(
+                [sys.executable, "-c", code, str(marker)], CORE.time.monotonic() + 5
+            )
+            self.assertIsNone(result)
+            self.assertFalse(
+                marker.exists(),
+                "overflow must stop the writer before all output is spooled",
+            )
+
+    def _wait_for_exit(self, pid):
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+
+            kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel.OpenProcess.argtypes = [
+                wintypes.DWORD,
+                wintypes.BOOL,
+                wintypes.DWORD,
+            ]
+            kernel.OpenProcess.restype = wintypes.HANDLE
+            kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+            kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+            handle = kernel.OpenProcess(0x100000, False, pid)
+            if not handle:
+                return True
+            try:
+                return kernel.WaitForSingleObject(handle, 2000) == 0
+            finally:
+                kernel.CloseHandle(handle)
+        deadline = CORE.time.monotonic() + 2
+        while CORE.time.monotonic() < deadline:
+            result = subprocess.run(
+                ["ps", "-o", "stat=", "-p", str(pid)],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            state = result.stdout.strip()
+            if not state or state.startswith("Z"):
+                return True
+            CORE.time.sleep(0.01)
+        return False
+
+    def test_runner_deadline_terminates_the_owned_descendant_tree(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            child_pid = root / "child.pid"
+            release = root / "release"
+            marker = root / "after-timeout"
+            child_code = (
+                "import sys,time; from pathlib import Path; "
+                "release=Path(sys.argv[1]); end=time.monotonic()+15\n"
+                "while not release.exists() and time.monotonic()<end: time.sleep(0.01)\n"
+                "if release.exists(): Path(sys.argv[2]).write_text('outlived probe')\n"
+            )
+            parent_code = (
+                "import subprocess,sys,time; from pathlib import Path; "
+                "child=subprocess.Popen([sys.executable,'-c',sys.argv[1],sys.argv[3],sys.argv[4]]); "
+                "Path(sys.argv[2]).write_text(str(child.pid)); "
+                "print('child-created',flush=True); time.sleep(60)"
+            )
+            clock = CORE.time.monotonic
+            deadline = clock() + 5
+
+            def after_child_creation():
+                # Trigger the deadline only after the owned child exists.
+                return deadline + 1 if child_pid.exists() else clock()
+
+            try:
+                with mock.patch.object(
+                    CORE.time, "monotonic", side_effect=after_child_creation
+                ):
+                    result = CORE._run_json(
+                        [
+                            sys.executable,
+                            "-c",
+                            parent_code,
+                            child_code,
+                            str(child_pid),
+                            str(release),
+                            str(marker),
+                        ],
+                        deadline,
+                    )
+                self.assertIsNone(result)
+                self.assertTrue(
+                    child_pid.exists(), "the timeout must exercise a real descendant"
+                )
+                self.assertTrue(
+                    self._wait_for_exit(int(child_pid.read_text())),
+                    "descendant outlived the bounded probe",
+                )
+                self.assertFalse(marker.exists())
+            finally:
+                release.touch()
+                if child_pid.exists():
+                    self._wait_for_exit(int(child_pid.read_text()))
 
 
 if __name__ == "__main__":

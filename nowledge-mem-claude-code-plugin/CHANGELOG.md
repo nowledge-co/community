@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- At normal Stop, check an explicitly approved compatibility mailbox and remind
+- In Claude Code, check an explicitly approved compatibility mailbox at normal Stop and remind
   the Agent once about a new pending state. The bounded check never consumes or
   acknowledges mail; recursive Stop, stale bindings and unavailable services
   end normally. Set `NMEM_NO_MAILBOX_NOTICE=1` to disable reminders.
