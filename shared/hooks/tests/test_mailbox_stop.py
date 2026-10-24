@@ -134,9 +134,7 @@ class MailboxStopTests(unittest.TestCase):
         # Reload the packaged helper: an installed package must stand alone.
         with mock.patch.dict(os.environ, self.env, clear=True), mock.patch.dict(
             sys.modules
-        ), mock.patch.object(
-            sys, "path", [str(script.parent), *sys.path]
-        ), mock.patch.object(
+        ), mock.patch.object(sys, "path", list(sys.path)), mock.patch.object(
             sys, "stdin", io.StringIO(json.dumps(self.event))
         ), mock.patch.object(
             sys, "stdout", output
