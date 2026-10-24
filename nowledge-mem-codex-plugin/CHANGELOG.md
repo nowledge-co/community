@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.1.43] - Unreleased
+
+### Changed
+
+- Match the native CLI's server-qualified V2 automatic receiving and
+  server-owned recovery descriptor; older descriptors grant no receiving guidance.
+- Admit session messaging guidance only after the CLI validates the current
+  backend capability and original registered scope. Retain registration-only
+  behavior for older compatible CLI results.
+- Supply the exact native session correlation as JSON data for session-scoped
+  inbox discovery at startup, resume and ordinary task boundaries.
+- Backend readiness does not mean a message has been received or accepted;
+  installed-host delivery acceptance remains separate.
+
+## [0.1.42] - Unreleased
+
+### Added
+
+- Add default-off session mailbox startup/resume with an explicitly configured
+  Agent Context and `NMEM_BRIDGE_SESSION_MAILBOX=1`. Retain the exact native
+  session binding across startup, resume and compaction through a compatible CLI.
+- Report registration separately from session-addressed messaging availability.
+  Existing identity-scoped mailbox guidance remains the default.
+
+### Notes
+
+- CLI/backend support and installed-host acceptance are separate requirements.
+  This adapter does not enable session-addressed message operations.
+
 ## [0.1.41] - Unreleased
 
 ### Changed
