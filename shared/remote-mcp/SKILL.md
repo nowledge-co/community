@@ -6,6 +6,8 @@ description: Use connected Nowledge Mem tools in a hosted AI client and sync eac
 # Remote MCP: use and per-reply Thread sync
 
 Use this shared procedure for Dots, Grok Bot, Meta Muse, and other hosted clients.
+Remote MCP is the connection method. OAuth authorizes access to MCP tools;
+`sync_thread` saves original conversations in Threads.
 Muse Desktop OAuth, tool discovery, synthetic Thread save, exact replay and
 original readback passed real-account acceptance on 2026-10-23. This does not
 prove access to personal transcript history, stable host IDs, Cloud runtime,

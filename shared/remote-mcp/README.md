@@ -2,6 +2,8 @@
 
 Muse, Dots and Grok Bot use the same [full Remote MCP skill](SKILL.md).
 Copy a short prompt; the skill owns detailed connection and synchronization rules.
+Connect through Remote MCP and authorize tool access with OAuth. The
+`sync_thread` tool saves original conversations in Threads.
 
 ## Connect Muse
 
