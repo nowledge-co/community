@@ -27,26 +27,11 @@ chat; there is no separate Install action or manual-text panel on its card.
 ## Copy this prompt for a verified connection
 
 ```text
-Read https://mem.nowledge.co/SKILL.md, then read
-https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md.
-Reuse my Nowledge Mem connection. Inspect the actual tool catalog. Read context and search only when exposed;
-otherwise report unavailable. Save original conversations in Threads. Set up host-owned sync once a day by default.
-Use the current conversation and reuse my confirmed Space, timezone, time and
-host defaults. Ask only for missing values with no usable default. Reuse one
-Thread through durable IDs and mappings; choose its title automatically. Read
-and retain the full skill in the host skill store or private connector docs and
-report its version and saved location. Reuse an existing matching task. Report daily sync as enabled only after the host confirms
-a scheduled task that can access originals and call MCP tools in the background.
-If a required capability is missing, report that daily sync is not enabled.
+Read https://mem.nowledge.co/SKILL.md and https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Follow the shared guide and save the full skill. Reuse the connection, confirmed Space and schedule settings. Sync the current conversation's originals once a day to the same Thread; do not replace them with a Memory. Report the connection, skill saved location and actual status of the daily task. If setup is incomplete, explain why.
 ```
 
 ```text
-先读取 https://mem.nowledge.co/SKILL.md，再读取
-https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md。
-复用我的 Nowledge Mem 连接，先检查实际工具目录；仅在提供相应工具时读取上下文、检索知识，否则报告不可用。把对话原文保存为 Threads。
-默认由宿主每天同步一次。默认当前对话，复用已确认的 Space、时区、时间和宿主默认值；仅询问没有默认值的缺失项。自动生成标题，用稳定 ID 与持久映射复用同一 Thread。读取并保存完整 skill 到宿主技能库或私有连接器文档，报告版本和保存位置，复用已有任务。
-只有宿主确认定时任务能在后台读取原文并调用 MCP 后，才报告每日同步已启用。
-缺少必要能力时明确报告每日同步尚未启用。
+读取 https://mem.nowledge.co/SKILL.md 和 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指南配置并保存完整 skill。复用已有连接、已确认的 Space 和时间设置；默认每天一次同步当前对话原文到同一 Thread，不替换为 Memory。完成后报告连接、skill 保存位置和每日任务的实际状态；无法完成时说明原因。
 ```
 
 ## What setup does

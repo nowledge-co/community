@@ -18,11 +18,21 @@ class RemoteMcpSyncGuidance(unittest.TestCase):
         self.assertFalse(muse["capabilities"]["autoRecall"])
         for locale in ("prompt", "promptZh"):
             prompt = muse["install"]["agentGuide"][locale]
-            for required in ("shared/remote-mcp/SKILL.md", "S256", "Threads"):
+            for required in ("https://mem.nowledge.co/SKILL.md", "shared/remote-mcp/SKILL.md", "Thread"):
                 self.assertIn(required, prompt)
         skill = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
         for required in ("240 seconds", "User-Agent", "WWW-Authenticate", "Mcp-Session-Id", "credentials.request_api_access"):
             self.assertIn(required, skill)
+
+    def test_hosted_launcher_prompts_are_short_and_share_the_skill(self):
+        registry = json.loads((ROOT / "integrations.json").read_text(encoding="utf-8"))
+        for host in ("muse", "dots", "grok-bot"):
+            guide = next(entry for entry in registry["integrations"] if entry["id"] == host)["install"]["agentGuide"]
+            for key, limit in (("prompt", 900), ("promptZh", 400)):
+                with self.subTest(host=host, locale=key):
+                    self.assertLessEqual(len(guide[key]), limit)
+                    self.assertIn("shared/remote-mcp/SKILL.md", guide[key])
+                    self.assertNotIn("S256", guide[key])
 
     def test_daily_sync_requires_host_scope_and_a_confirmed_task(self):
         text = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")

@@ -11,6 +11,17 @@ original readback passed real-account acceptance on 2026-10-23. This does not
 prove access to personal transcript history, stable host IDs, Cloud runtime,
 or unattended daily execution. Check each capability for the current account.
 
+## Short launcher prompts
+
+Muse, Dots and Grok Bot use a short launcher: read the universal guide and this
+full skill, save the procedure, reuse the confirmed connection and Space, and
+sync the current conversation once a day in the same Thread. The Muse setup
+launcher also includes the current MCP URL; keep it intact, including its query.
+The detailed connection, approval, identity, snapshot and failure rules live
+here rather than in copied prompts. Read and retain this full procedure before
+setup; if it cannot be loaded, report incomplete setup instead of inventing it.
+Report the actual connection, saved skill location and scheduled-task status.
+
 ## Connect and choose a destination
 
 1. Read https://mem.nowledge.co/SKILL.md for the current host setup path. Reuse an
