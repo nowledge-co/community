@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
 from contextlib import closing
 from pathlib import Path
 from typing import Callable
@@ -165,94 +166,220 @@ def _pipe_available(pipe, remaining: float) -> int:
     return available.value
 
 
-def _terminate_tree(process: subprocess.Popen) -> None:
-    if os.name == "nt":
-        if process.returncode is None:
-            taskkill = (
-                Path(os.environ.get("SystemRoot", r"C:\Windows"))
-                / "System32/taskkill.exe"
+def _join_windows_job() -> int:
+    """Join before spawning the CLI; exiting this owner kills its descendants."""
+    import ctypes
+    from ctypes import wintypes
+
+    class BasicLimits(ctypes.Structure):
+        _fields_ = [
+            ("process_time", ctypes.c_longlong),
+            ("job_time", ctypes.c_longlong),
+            ("flags", wintypes.DWORD),
+            ("min_working_set", ctypes.c_size_t),
+            ("max_working_set", ctypes.c_size_t),
+            ("active_processes", wintypes.DWORD),
+            ("affinity", ctypes.c_size_t),
+            ("priority", wintypes.DWORD),
+            ("scheduling", wintypes.DWORD),
+        ]
+
+    class IoCounters(ctypes.Structure):
+        _fields_ = [
+            (name, ctypes.c_ulonglong)
+            for name in (
+                "read_ops",
+                "write_ops",
+                "other_ops",
+                "read_bytes",
+                "write_bytes",
+                "other_bytes",
             )
-            try:
-                subprocess.run(
-                    [str(taskkill), "/PID", str(process.pid), "/T", "/F"],
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=0.75,
-                    check=False,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
-                )
-            except (OSError, subprocess.TimeoutExpired):
-                pass
-            try:
-                process.kill()
-            except OSError:
-                pass
-    else:
-        # Each probe owns a new session, including descendants holding stdout.
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        ]
+
+    class ExtendedLimits(ctypes.Structure):
+        _fields_ = [
+            ("basic", BasicLimits),
+            ("io", IoCounters),
+            ("process_memory", ctypes.c_size_t),
+            ("job_memory", ctypes.c_size_t),
+            ("peak_process_memory", ctypes.c_size_t),
+            ("peak_job_memory", ctypes.c_size_t),
+        ]
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateJobObjectW.argtypes = [wintypes.LPVOID, wintypes.LPCWSTR]
+    kernel.CreateJobObjectW.restype = wintypes.HANDLE
+    kernel.SetInformationJobObject.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    ]
+    kernel.SetInformationJobObject.restype = wintypes.BOOL
+    kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+    kernel.AssignProcessToJobObject.restype = wintypes.BOOL
+    kernel.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    job = kernel.CreateJobObjectW(None, None)
+    if not job:
+        raise ctypes.WinError(ctypes.get_last_error())
+    limits = ExtendedLimits()
+    limits.basic.flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+    if not kernel.SetInformationJobObject(
+        job, 9, ctypes.byref(limits), ctypes.sizeof(limits)
+    ):
+        error = ctypes.get_last_error()
+        kernel.CloseHandle(job)
+        raise ctypes.WinError(error)
+    if not kernel.AssignProcessToJobObject(job, kernel.GetCurrentProcess()):
+        error = ctypes.get_last_error()
+        kernel.CloseHandle(job)
+        raise ctypes.WinError(error)
+    # Deliberately owned until process exit, including abrupt parent cancellation.
+    # Children inherit job membership, never this non-inheritable handle.
+    return job
+
+
+def _expire_guardian() -> None:
+    if os.name == "nt":
+        os._exit(124)  # Closing the guardian's last Job handle kills the tree.
+    os.killpg(os.getpid(), signal.SIGKILL)
+
+
+def _owned_probe(packet_path: str, status_path: str) -> None:
+    with open(packet_path, "rb") as packet_file:
+        raw = packet_file.read(16 * 1024 + 1)
+    if len(raw) > 16 * 1024:
+        raise ValueError("probe command is too large")
+    packet = json.loads(raw)
+    lifetime = packet["lifetime"]
+    if not isinstance(lifetime, (int, float)) or not 0 < lifetime <= 6:
+        raise ValueError("invalid probe lifetime")
+    if os.name == "nt":
+        _job = _join_windows_job()
+    elif os.getpgrp() != os.getpid():
+        raise ValueError("probe guardian requires its own session")
+    watchdog = threading.Timer(lifetime, _expire_guardian)
+    watchdog.daemon = True
+    watchdog.start()
     try:
-        process.wait(timeout=0.25)
+        flags = (
+            {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+            if os.name == "nt"
+            else {}
+        )
+        result = subprocess.run(
+            packet["command"],
+            stdin=subprocess.DEVNULL,
+            stdout=sys.stdout.buffer,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            **flags,
+        )
+        code = result.returncode
+    except (OSError, ValueError):
+        code = 125
+    status = Path(status_path)
+    temporary = status.with_suffix(".tmp")
+    temporary.write_text(str(code), encoding="ascii")
+    temporary.replace(status)
+    sys.stdout.flush()
+    os.close(sys.stdout.fileno())
+    # Keep the owner identity alive until the parent cleans the complete group.
+    # The watchdog also covers a parent killed by the host before finally runs.
+    threading.Event().wait()
+
+
+def _terminate_tree(process: subprocess.Popen) -> None:
+    # No poll/wait may reap this owner before group cleanup. The guardian stays
+    # alive after the CLI exits; an early guardian failure remains an unreaped
+    # child, retaining its PID until this cleanup is complete.
+    try:
+        if os.name == "nt":
+            process.kill()  # Process exit closes its exclusive Job handle.
+        else:
+            os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except OSError:
+        if os.name != "nt":
+            raise
+    try:
+        process.wait(timeout=0.5)
     except subprocess.TimeoutExpired:
         pass
 
 
 def _run_json(command: list[str] | str, deadline: float) -> dict | None:
-    if deadline <= time.monotonic():
+    remaining = deadline - time.monotonic()
+    if not 0 < remaining <= 5:
+        return None
+    encoded = json.dumps(
+        {"command": command, "lifetime": remaining + 1}, ensure_ascii=True
+    )
+    if len(encoded.encode("utf-8")) > 16 * 1024:
         return None
     kwargs = (
-        {
-            "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
-        }
+        {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
         if os.name == "nt"
         else {"start_new_session": True}
     )
-    process = None
-    try:
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            bufsize=0,
-            close_fds=True,
-            **kwargs,
+    with tempfile.TemporaryDirectory(prefix="nmem-probe-owner-") as directory:
+        packet, status = (
+            Path(directory) / "command.json",
+            Path(directory) / "exit-status",
         )
-        output = bytearray()
-        while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                return None
-            available = _pipe_available(process.stdout, remaining)
-            if available < 0:
-                break
-            if not available:
-                continue
-            chunk = os.read(
-                process.stdout.fileno(),
-                min(available, 8192, MAX_OUTPUT_BYTES + 1 - len(output)),
+        packet.write_text(encoded, encoding="utf-8")
+        process = None
+        try:
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(Path(__file__).resolve()),
+                    "--owned-probe",
+                    str(packet),
+                    str(status),
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                bufsize=0,
+                close_fds=True,
+                **kwargs,
             )
-            if not chunk:
-                break
-            output.extend(chunk)
-            if len(output) > MAX_OUTPUT_BYTES:
-                return None
-        if process.wait(timeout=max(0, deadline - time.monotonic())) != 0:
+            output = bytearray()
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return None
+                available = _pipe_available(process.stdout, remaining)
+                if available < 0:
+                    break
+                if not available:
+                    continue
+                chunk = os.read(
+                    process.stdout.fileno(),
+                    min(available, 8192, MAX_OUTPUT_BYTES + 1 - len(output)),
+                )
+                if not chunk:
+                    break
+                output.extend(chunk)
+                if len(output) > MAX_OUTPUT_BYTES:
+                    return None
+            with status.open("rb") as status_file:
+                if status_file.read(17) != b"0":
+                    return None
+            value = json.loads(output)
+            return value if isinstance(value, dict) else None
+        except (OSError, ValueError, subprocess.TimeoutExpired):
             return None
-        value = json.loads(output)
-        return value if isinstance(value, dict) else None
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        return None
-    finally:
-        if process is not None:
-            try:
-                _terminate_tree(process)
-            finally:
-                process.stdout.close()
+        finally:
+            if process is not None:
+                try:
+                    _terminate_tree(process)
+                finally:
+                    process.stdout.close()
 
 
 def _digest(value: object) -> str:
@@ -401,3 +528,7 @@ def build_stop_response(
         }
     except (OSError, ValueError, sqlite3.Error):
         return {}
+
+
+if __name__ == "__main__" and len(sys.argv) == 4 and sys.argv[1] == "--owned-probe":
+    _owned_probe(sys.argv[2], sys.argv[3])

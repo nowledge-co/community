@@ -476,60 +476,207 @@ class MailboxProcessTests(unittest.TestCase):
             CORE.time.sleep(0.01)
         return False
 
-    def test_runner_deadline_terminates_the_owned_descendant_tree(self):
+    @staticmethod
+    def _published_ids(path):
+        try:
+            value = json.loads(path.read_text())
+            if set(value) == {"parent", "child"} and all(
+                type(pid) is int and pid > 0 for pid in value.values()
+            ):
+                return value
+        except (OSError, ValueError, TypeError):
+            pass
+        return None
+
+    def _has_exited(self, pid):
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+
+            kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel.OpenProcess.argtypes = [
+                wintypes.DWORD,
+                wintypes.BOOL,
+                wintypes.DWORD,
+            ]
+            kernel.OpenProcess.restype = wintypes.HANDLE
+            kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+            kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+            handle = kernel.OpenProcess(0x100000, False, pid)
+            if not handle:
+                return True
+            try:
+                return kernel.WaitForSingleObject(handle, 0) == 0
+            finally:
+                kernel.CloseHandle(handle)
+        result = subprocess.run(
+            ["ps", "-o", "stat=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        state = result.stdout.strip()
+        return not state or state.startswith("Z")
+
+    def test_fixture_waits_for_complete_atomic_pid_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            published = Path(directory) / "processes.json"
+            temporary = published.with_suffix(".tmp")
+            temporary.touch()
+            self.assertIsNone(self._published_ids(published))
+            published.touch()
+            self.assertIsNone(self._published_ids(published))
+            temporary.write_text('{"parent":11,"child":12}')
+            self.assertIsNone(self._published_ids(published))
+            temporary.replace(published)
+            self.assertEqual(
+                self._published_ids(published), {"parent": 11, "child": 12}
+            )
+
+    def test_runner_preserves_valid_unicode_json_before_reaping_its_owner(self):
+        value = {"value": "snow-\u96ea", "ok": True}
+        code = "import sys; sys.stdout.buffer.write(sys.argv[1].encode('utf-8'))"
+        owners = []
+        terminate = CORE._terminate_tree
+
+        def cleanup(process):
+            owners.append(process.returncode)
+            terminate(process)
+
+        with mock.patch.object(CORE, "_terminate_tree", side_effect=cleanup):
+            result = CORE._run_json(
+                [sys.executable, "-c", code, json.dumps(value, ensure_ascii=False)],
+                CORE.time.monotonic() + 5,
+            )
+        self.assertEqual(result, value)
+        self.assertEqual(
+            owners, [None], "the group owner must not be reaped before cleanup"
+        )
+        failed = CORE._run_json(
+            [sys.executable, "-c", "print('{}'); raise SystemExit(1)"],
+            CORE.time.monotonic() + 5,
+        )
+        self.assertIsNone(failed)
+
+    def test_guardian_watchdog_reclaims_children_without_parent_cleanup(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            child_pid = root / "child.pid"
-            release = root / "release"
-            marker = root / "after-timeout"
-            child_code = (
-                "import sys,time; from pathlib import Path; "
-                "release=Path(sys.argv[1]); end=time.monotonic()+15\n"
-                "while not release.exists() and time.monotonic()<end: time.sleep(0.01)\n"
-                "if release.exists(): Path(sys.argv[2]).write_text('outlived probe')\n"
+            published = root / "processes.json"
+            packet, status = root / "command.json", root / "status"
+            code = (
+                "import json,os,subprocess,sys,time; from pathlib import Path; "
+                "child=subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)']); "
+                "target=Path(sys.argv[1]); tmp=target.with_suffix('.tmp'); "
+                "tmp.write_text(json.dumps({'parent':os.getpid(),'child':child.pid})); "
+                "tmp.replace(target); time.sleep(60)"
             )
-            parent_code = (
-                "import subprocess,sys,time; from pathlib import Path; "
-                "child=subprocess.Popen([sys.executable,'-c',sys.argv[1],sys.argv[3],sys.argv[4]]); "
-                "Path(sys.argv[2]).write_text(str(child.pid)); "
-                "print('child-created',flush=True); time.sleep(60)"
+            packet.write_text(
+                json.dumps(
+                    {
+                        "command": [sys.executable, "-c", code, str(published)],
+                        "lifetime": 2,
+                    }
+                )
             )
-            clock = CORE.time.monotonic
-            deadline = clock() + 5
-
-            def after_child_creation():
-                # Trigger the deadline only after the owned child exists.
-                return deadline + 1 if child_pid.exists() else clock()
-
+            kwargs = (
+                {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+                if os.name == "nt"
+                else {"start_new_session": True}
+            )
+            owner = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(Path(CORE.__file__).resolve()),
+                    "--owned-probe",
+                    str(packet),
+                    str(status),
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                **kwargs,
+            )
             try:
-                with mock.patch.object(
-                    CORE.time, "monotonic", side_effect=after_child_creation
-                ):
-                    result = CORE._run_json(
-                        [
-                            sys.executable,
-                            "-c",
-                            parent_code,
-                            child_code,
-                            str(child_pid),
-                            str(release),
-                            str(marker),
-                        ],
-                        deadline,
-                    )
-                self.assertIsNone(result)
-                self.assertTrue(
-                    child_pid.exists(), "the timeout must exercise a real descendant"
+                owner.wait(timeout=5)
+                ids = self._published_ids(published)
+                self.assertIsNotNone(
+                    ids, "the watchdog must exercise an owned live tree"
                 )
-                self.assertTrue(
-                    self._wait_for_exit(int(child_pid.read_text())),
-                    "descendant outlived the bounded probe",
-                )
-                self.assertFalse(marker.exists())
+                self.assertTrue(self._wait_for_exit(ids["parent"]))
+                self.assertTrue(self._wait_for_exit(ids["child"]))
             finally:
-                release.touch()
-                if child_pid.exists():
-                    self._wait_for_exit(int(child_pid.read_text()))
+                if owner.returncode is None:
+                    CORE._terminate_tree(owner)
+
+    def test_runner_deadline_terminates_the_owned_descendant_tree(self):
+        for leader_exits_first in (False, True):
+            with self.subTest(
+                leader_exits_first=leader_exits_first
+            ), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                published = root / "processes.json"
+                release, marker = root / "release", root / "after-timeout"
+                child_code = (
+                    "import sys,time; from pathlib import Path; "
+                    "release=Path(sys.argv[1]); end=time.monotonic()+15\n"
+                    "while not release.exists() and time.monotonic()<end: time.sleep(0.01)\n"
+                    "if release.exists(): Path(sys.argv[2]).write_text('outlived probe')\n"
+                )
+                parent_code = (
+                    "import json,os,subprocess,sys,time; from pathlib import Path; "
+                    "child=subprocess.Popen([sys.executable,'-c',sys.argv[1],sys.argv[3],sys.argv[4]]); "
+                    "target=Path(sys.argv[2]); tmp=target.with_suffix('.tmp'); "
+                    "tmp.write_text(json.dumps({'parent':os.getpid(),'child':child.pid})); tmp.replace(target); "
+                    "print('child-created',flush=True); "
+                    + (
+                        "raise SystemExit(0)"
+                        if leader_exits_first
+                        else "time.sleep(60)"
+                    )
+                )
+                clock = CORE.time.monotonic
+                deadline = clock() + 5
+
+                def after_child_creation():
+                    ids = self._published_ids(published)
+                    if ids and (
+                        not leader_exits_first or self._has_exited(ids["parent"])
+                    ):
+                        return deadline + 1
+                    return clock()
+
+                try:
+                    with mock.patch.object(
+                        CORE.time, "monotonic", side_effect=after_child_creation
+                    ):
+                        result = CORE._run_json(
+                            [
+                                sys.executable,
+                                "-c",
+                                parent_code,
+                                child_code,
+                                str(published),
+                                str(release),
+                                str(marker),
+                            ],
+                            deadline,
+                        )
+                    self.assertIsNone(result)
+                    ids = self._published_ids(published)
+                    self.assertIsNotNone(
+                        ids, "the timeout must exercise a published real descendant"
+                    )
+                    self.assertTrue(
+                        self._wait_for_exit(ids["child"]),
+                        "descendant outlived the bounded probe",
+                    )
+                    self.assertTrue(self._wait_for_exit(ids["parent"]))
+                    self.assertFalse(marker.exists())
+                finally:
+                    release.touch()
+                    ids = self._published_ids(published)
+                    if ids:
+                        self._wait_for_exit(ids["child"])
 
 
 if __name__ == "__main__":
