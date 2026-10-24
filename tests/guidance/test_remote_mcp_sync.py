@@ -36,6 +36,9 @@ class RemoteMcpSyncGuidance(unittest.TestCase):
                     self.assertLessEqual(len(guide[key]), limit)
                     self.assertIn("/docs/integrations/" + {"muse": "meta-muse", "dots": "openai-dots", "grok-bot": "grok-bot"}[host], guide[key])
                     self.assertNotIn("S256", guide[key])
+                    required = ("OAuth", "含本轮回复", "同一 Thread", "每次回复", "实际状态", "总结你改了什么") if key == "promptZh" else ("OAuth", "including this reply", "same Thread", "After each reply", "actual sync status", "summarize what you changed")
+                    for value in required:
+                        self.assertIn(value, guide[key])
 
     def test_per_reply_sync_requires_originals_and_no_recursive_calls(self):
         text = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
