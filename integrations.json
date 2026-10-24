@@ -819,7 +819,7 @@
       "name": "OpenHands",
       "category": "orchestrator",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-openhands-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {

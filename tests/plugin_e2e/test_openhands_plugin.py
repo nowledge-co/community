@@ -51,6 +51,7 @@ class TestOpenHandsPluginManifest:
         manifest_dot = json.loads((PLUGIN_DIR / ".plugin" / "plugin.json").read_text(encoding="utf-8"))
 
         assert manifest_dot["name"] == "nowledge-mem"
+        assert manifest_dot["version"] == "0.1.1"
         for field in ("name", "version", "description", "author", "license", "keywords"):
             assert field in manifest_dot, f"Missing field: {field}"
         assert "openhands" in manifest_dot["keywords"]
@@ -578,6 +579,324 @@ class TestReviewerFindingsDetection:
         ctx2 = out2.get("additionalContext", "")
         assert "<nowledge_working_memory>" not in ctx2
         assert "OpenHands local session history and Nowledge Mem are complementary." in ctx2
+
+    def test_session_first_prompt_injection_without_session_id(self, tmp_path: Path) -> None:
+        """Verify that prompt injection tracks sessions via workspace fallback when session_id is omitted."""
+        fake_home = tmp_path / "home"
+        fake_home.mkdir(parents=True)
+        proj_dir = tmp_path / "proj"
+        proj_dir.mkdir(parents=True)
+
+        mock_mem = fake_home / "ai-now" / "memory.md"
+        mock_mem.parent.mkdir(parents=True, exist_ok=True)
+        mock_mem.write_text("# Workspace Test Briefing\nMock working memory without session ID", encoding="utf-8")
+
+        env = os.environ.copy()
+        env["HOME"] = str(fake_home)
+        env["OPENHANDS_PROJECT_DIR"] = str(proj_dir)
+        for var in ("OPENHANDS_SESSION_ID", "OPENHANDS_CONVERSATION_ID", "CONVERSATION_ID", "SESSION_ID"):
+            env.pop(var, None)
+        env["NMEM_API_URL"] = "http://127.0.0.1:9999"
+
+        context_script = PLUGIN_DIR / "hooks" / "nmem-context.py"
+
+        # Turn 1: without session_id in payload or env
+        proc1 = subprocess.run(
+            [sys.executable, str(context_script)],
+            input=json.dumps({"message": "Hello without session ID"}),
+            capture_output=True,
+            text=True,
+            timeout=5.0,
+            env=env,
+            cwd=str(proj_dir),
+        )
+        assert proc1.returncode == 0
+        out1 = json.loads(proc1.stdout)
+        ctx1 = out1.get("additionalContext", "")
+        assert "<nowledge_working_memory>" in ctx1
+        assert "Mock working memory without session ID" in ctx1
+
+        # Turn 2: still without session_id in payload or env
+        proc2 = subprocess.run(
+            [sys.executable, str(context_script)],
+            input=json.dumps({"message": "Second message without session ID"}),
+            capture_output=True,
+            text=True,
+            timeout=5.0,
+            env=env,
+            cwd=str(proj_dir),
+        )
+        assert proc2.returncode == 0
+        out2 = json.loads(proc2.stdout)
+        ctx2 = out2.get("additionalContext", "")
+        assert "<nowledge_working_memory>" not in ctx2
+        assert "OpenHands local session history and Nowledge Mem are complementary." in ctx2
+
+    # ------------------------------------------------------------------
+    # Injection marker lifecycle (driven through the real hook scripts)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _marker_env(tmp_path: Path, *, config_dir: bool = True, auto_capture: bool = True) -> dict[str, str]:
+        fake_home = tmp_path / "home"
+        proj_dir = tmp_path / "proj"
+        app_data = tmp_path / "app-data"
+        for d in (fake_home, proj_dir, app_data):
+            d.mkdir(parents=True, exist_ok=True)
+        mock_mem = fake_home / "ai-now" / "memory.md"
+        mock_mem.parent.mkdir(parents=True, exist_ok=True)
+        mock_mem.write_text("# Marker Lifecycle Briefing\nMock working memory", encoding="utf-8")
+
+        # Minimal, hermetic environment: no inherited NMEM_*/OPENHANDS_* settings or credentials
+        # (and nothing sensitive to echo if an assertion prints the env).
+        env = {k: os.environ[k] for k in ("PATH", "LANG", "LC_ALL", "TMPDIR", "SYSTEMROOT") if k in os.environ}
+        env["HOME"] = str(fake_home)
+        env["OPENHANDS_PROJECT_DIR"] = str(proj_dir)
+        env["NMEM_APP_DATA"] = str(app_data)
+        env["NMEM_API_URL"] = "http://127.0.0.1:9999"
+        if config_dir:
+            env["NMEM_CLI_CONFIG_DIR"] = str(tmp_path / "nmem-config")
+        if not auto_capture:
+            env["NMEM_DISABLE_AUTO_CAPTURE"] = "1"
+        return env
+
+    @staticmethod
+    def _run_hook(script: str, payload: dict, env: dict[str, str]) -> dict:
+        proc = subprocess.run(
+            [sys.executable, str(PLUGIN_DIR / "hooks" / script)],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            timeout=20.0,
+            env=env,
+            cwd=env["OPENHANDS_PROJECT_DIR"],
+        )
+        assert proc.returncode == 0, proc.stderr
+        return json.loads(proc.stdout)
+
+    @classmethod
+    def _prompt(cls, env: dict[str, str], conversation_id: str | None, text: str = "next turn") -> str:
+        payload: dict = {"message": text}
+        if conversation_id:
+            payload["session_id"] = conversation_id
+        return cls._run_hook("nmem-context.py", payload, env).get("additionalContext", "")
+
+    @classmethod
+    def _stop(cls, env: dict[str, str], conversation_id: str | None) -> None:
+        # OpenHands sends Stop with reason "agent_finished" at the end of EVERY agent turn.
+        payload: dict = {"reason": "agent_finished", "working_dir": env["OPENHANDS_PROJECT_DIR"]}
+        if conversation_id:
+            payload["session_id"] = conversation_id
+        out = cls._run_hook("nmem-stop.py", payload, env)
+        assert out.get("decision") == "approve"
+
+    @staticmethod
+    def _is_full(ctx: str) -> bool:
+        return "<nowledge_working_memory>" in ctx
+
+    @staticmethod
+    def _is_guidance_only(ctx: str) -> bool:
+        return (
+            "<nowledge_working_memory>" not in ctx
+            and "OpenHands local session history and Nowledge Mem are complementary." in ctx
+        )
+
+    @pytest.mark.parametrize("auto_capture", [True, False], ids=["capture-on", "capture-disabled"])
+    def test_ordinary_stop_keeps_marker_for_same_conversation(self, tmp_path: Path, auto_capture: bool) -> None:
+        """Prompt A full, Stop A (agent_finished), prompt A guidance only, prompt B full."""
+        env = self._marker_env(tmp_path, auto_capture=auto_capture)
+
+        assert self._is_full(self._prompt(env, "conv-A", "turn 1"))
+        self._stop(env, "conv-A")
+        assert self._is_guidance_only(self._prompt(env, "conv-A", "turn 2"))
+        self._stop(env, "conv-A")
+        assert self._is_guidance_only(self._prompt(env, "conv-A", "turn 3"))
+
+        # A genuinely different conversation still receives its initial context.
+        assert self._is_full(self._prompt(env, "conv-B", "other conversation"))
+
+    @pytest.mark.parametrize("auto_capture", [True, False], ids=["capture-on", "capture-disabled"])
+    def test_workspace_fallback_survives_ordinary_stop(self, tmp_path: Path, auto_capture: bool) -> None:
+        """Without any conversation ID, Stop alone must not be treated as a new conversation."""
+        env = self._marker_env(tmp_path, auto_capture=auto_capture)
+
+        assert self._is_full(self._prompt(env, None, "turn 1"))
+        self._stop(env, None)
+        assert self._is_guidance_only(self._prompt(env, None, "turn 2"))
+
+        # A different workspace has a different fallback key and gets full context.
+        other = tmp_path / "other-proj"
+        other.mkdir()
+        other_env = dict(env, OPENHANDS_PROJECT_DIR=str(other))
+        assert self._is_full(self._prompt(other_env, None, "other workspace"))
+
+    def test_markers_live_only_under_nmem_config_dir(self, tmp_path: Path) -> None:
+        env = self._marker_env(tmp_path)
+        proj_dir = Path(env["OPENHANDS_PROJECT_DIR"])
+        app_data = Path(env["NMEM_APP_DATA"])
+        # A native OpenHands conversation folder that the hook can discover.
+        persistence = tmp_path / "oh-persistence"
+        native_conversation(persistence, "conv-A")
+        env["OPENHANDS_PERSISTENCE_DIR"] = str(persistence)
+        before = {p.relative_to(proj_dir) for p in proj_dir.rglob("*")}
+
+        assert self._is_full(self._prompt(env, "conv-A", "turn 1"))
+        self._stop(env, "conv-A")
+        assert self._is_guidance_only(self._prompt(env, "conv-A", "turn 2"))
+
+        sessions = tmp_path / "nmem-config" / "plugins" / "openhands" / "sessions"
+        assert [p.name for p in sessions.iterdir()] == ["conv-A.injected"]
+        # Nothing in the database data dir, the workspace, or the OpenHands conversation folder.
+        assert list(app_data.rglob("*")) == []
+        assert {p.relative_to(proj_dir) for p in proj_dir.rglob("*")} == before
+        assert [p for p in persistence.rglob("*") if "injected" in p.name] == []
+
+    def test_default_marker_location_is_home_nmem_config_dir(self, tmp_path: Path) -> None:
+        env = self._marker_env(tmp_path, config_dir=False)
+        proj_dir = Path(env["OPENHANDS_PROJECT_DIR"])
+        app_data = Path(env["NMEM_APP_DATA"])
+
+        assert self._is_full(self._prompt(env, None, "turn 1"))
+        self._stop(env, None)
+        assert self._is_guidance_only(self._prompt(env, None, "turn 2"))
+
+        sessions = Path(env["HOME"]) / ".nowledge-mem" / "plugins" / "openhands" / "sessions"
+        assert len(list(sessions.glob("workspace_*.injected"))) == 1
+        assert list(app_data.rglob("*")) == []
+        assert [p for p in proj_dir.rglob("*") if "injected" in p.name or p.name == "sessions"] == []
+
+    def test_candidate_state_dirs_are_nmem_config_dir_then_temp_only(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("HOME", str(tmp_path / "home"))
+        monkeypatch.setenv("NMEM_APP_DATA", str(tmp_path / "app-data"))
+        monkeypatch.setenv("NMEM_CLI_CONFIG_DIR", str(tmp_path / "cfg"))
+        dirs = nmem_shared.get_candidate_state_dirs(tmp_path / "proj")
+        assert dirs[0] == tmp_path / "cfg" / "plugins" / "openhands" / "sessions"
+        assert dirs[1] == tmp_path / "home" / ".nowledge-mem" / "plugins" / "openhands" / "sessions"
+        assert len(dirs) == 3 and "nowledge-mem-openhands-sessions" in dirs[2].name
+        for d in dirs:
+            assert not str(d).startswith(str(tmp_path / "app-data"))
+            assert not str(d).startswith(str(tmp_path / "proj"))
+
+    def test_expired_markers_inject_full_context_again(self, tmp_path: Path) -> None:
+        env = self._marker_env(tmp_path)
+        sessions = tmp_path / "nmem-config" / "plugins" / "openhands" / "sessions"
+
+        assert self._is_full(self._prompt(env, "conv-A"))
+        assert self._is_full(self._prompt(env, None))
+        marker_a = sessions / "conv-A.injected"
+        (marker_ws,) = sessions.glob("workspace_*.injected")
+
+        # Explicit conversations keep their marker for hours...
+        stale = time.time() - 23 * 3600
+        os.utime(marker_a, (stale, stale))
+        assert self._is_guidance_only(self._prompt(env, "conv-A"))
+        # ...until the TTL passes.
+        stale = time.time() - 25 * 3600
+        os.utime(marker_a, (stale, stale))
+        assert self._is_full(self._prompt(env, "conv-A"))
+
+        # The ID-less workspace key is shared by every conversation in that workspace,
+        # so its window is deliberately much shorter.
+        stale = time.time() - 31 * 60
+        os.utime(marker_ws, (stale, stale))
+        assert self._is_full(self._prompt(env, None))
+
+    def test_stale_markers_are_pruned_opportunistically(self, tmp_path: Path) -> None:
+        env = self._marker_env(tmp_path)
+        sessions = tmp_path / "nmem-config" / "plugins" / "openhands" / "sessions"
+        sessions.mkdir(parents=True)
+        old = sessions / "conv-old.injected"
+        recent = sessions / "conv-recent.injected"
+        unrelated = sessions / "notes.txt"
+        for f in (old, recent, unrelated):
+            f.write_text("x", encoding="utf-8")
+        os.utime(old, (time.time() - 8 * 86400,) * 2)
+        os.utime(unrelated, (time.time() - 8 * 86400,) * 2)
+        os.utime(recent, (time.time() - 3 * 86400,) * 2)
+
+        assert self._is_full(self._prompt(env, "conv-new"))
+
+        assert not old.exists()
+        assert recent.exists()
+        assert unrelated.exists()
+        assert (sessions / "conv-new.injected").exists()
+
+    def test_session_first_prompt_injection_with_conversation_id(self, tmp_path: Path) -> None:
+        """Verify that prompt injection honors conversation_id and conversationId payload fields."""
+        conv_id = f"conv-test-{int(time.time())}"
+        fake_home = tmp_path / "home"
+        fake_home.mkdir(parents=True)
+
+        mock_mem = fake_home / "ai-now" / "memory.md"
+        mock_mem.parent.mkdir(parents=True, exist_ok=True)
+        mock_mem.write_text("# Conversation ID Briefing\nMock conv memory", encoding="utf-8")
+
+        env = os.environ.copy()
+        env["HOME"] = str(fake_home)
+        for var in ("OPENHANDS_SESSION_ID", "OPENHANDS_CONVERSATION_ID", "CONVERSATION_ID", "SESSION_ID"):
+            env.pop(var, None)
+        env["NMEM_API_URL"] = "http://127.0.0.1:9999"
+
+        context_script = PLUGIN_DIR / "hooks" / "nmem-context.py"
+
+        # Turn 1 with conversation_id
+        proc1 = subprocess.run(
+            [sys.executable, str(context_script)],
+            input=json.dumps({"conversation_id": conv_id}),
+            capture_output=True,
+            text=True,
+            timeout=5.0,
+            env=env,
+        )
+        assert proc1.returncode == 0
+        out1 = json.loads(proc1.stdout)
+        assert "<nowledge_working_memory>" in out1.get("additionalContext", "")
+
+        # Turn 2 with conversationId
+        proc2 = subprocess.run(
+            [sys.executable, str(context_script)],
+            input=json.dumps({"conversationId": conv_id}),
+            capture_output=True,
+            text=True,
+            timeout=5.0,
+            env=env,
+        )
+        assert proc2.returncode == 0
+        out2 = json.loads(proc2.stdout)
+        assert "<nowledge_working_memory>" not in out2.get("additionalContext", "")
+        assert "OpenHands local session history and Nowledge Mem are complementary." in out2.get("additionalContext", "")
+
+    def test_prompt_guidance_only_environment_flag(self, tmp_path: Path) -> None:
+        """Verify NMEM_PROMPT_GUIDANCE_ONLY emits guidance without fetching context bundle on Turn 1."""
+        fake_home = tmp_path / "home"
+        fake_home.mkdir(parents=True)
+
+        mock_mem = fake_home / "ai-now" / "memory.md"
+        mock_mem.parent.mkdir(parents=True, exist_ok=True)
+        mock_mem.write_text("# Guidance Only Briefing\nShould not be loaded", encoding="utf-8")
+
+        env = os.environ.copy()
+        env["HOME"] = str(fake_home)
+        env["NMEM_PROMPT_GUIDANCE_ONLY"] = "1"
+        env["NMEM_API_URL"] = "http://127.0.0.1:9999"
+
+        context_script = PLUGIN_DIR / "hooks" / "nmem-context.py"
+
+        proc = subprocess.run(
+            [sys.executable, str(context_script)],
+            input=json.dumps({"session_id": "guidance-only-session"}),
+            capture_output=True,
+            text=True,
+            timeout=5.0,
+            env=env,
+        )
+        assert proc.returncode == 0
+        out = json.loads(proc.stdout)
+        ctx = out.get("additionalContext", "")
+        assert "<nowledge_working_memory>" not in ctx
+        assert "OpenHands local session history and Nowledge Mem are complementary." in ctx
 
     def test_read_startup_context_passes_space_id_query_param(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Verify that read_startup_context includes space_id in the GET query string."""
