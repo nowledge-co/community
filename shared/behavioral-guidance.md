@@ -257,10 +257,11 @@ Search memories or threads first, then choose the specific conversation and mess
 
 Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
 
-## Hosted clients: daily original Thread sync
+## Hosted clients: per-reply original Thread sync
 
-Hosted MCP clients use [the shared Remote MCP skill](remote-mcp/SKILL.md) for
-tool use and daily original-conversation synchronization. Store originals in
-Threads; Memory distillation is separate. Default to once a day when the host
-can provide originals and a working scheduler. A connection or prompt is not
-proof that daily execution is enabled.
+Hosted MCP clients use [the shared Remote MCP skill](remote-mcp/SKILL.md).
+Default to syncing each normal assistant reply with the current conversation's
+originals in the same Thread and confirmed Space. Include the current reply;
+never replace originals with a Memory. Sync receipts do not recursively trigger
+new syncs. Report actual receipts and unsupported host capabilities. A scheduler
+is not required by default; existing schedules are not silently changed.

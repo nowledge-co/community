@@ -54,8 +54,8 @@
       "install": {
         "detectionHint": "This hosted client cannot be detected from the local desktop app.",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Follow the shared guide and save the full skill. Reuse the connection, confirmed Space and schedule settings. Sync the current conversation's originals once a day to the same Thread; do not replace them with a Memory. Report the connection, skill saved location and actual status of the daily task. If setup is incomplete, explain why.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指南配置并保存完整 skill。复用已有连接、已确认的 Space 和时间设置；默认每天一次同步当前对话原文到同一 Thread，不替换为 Memory。完成后报告连接、skill 保存位置和每日任务的实际状态；无法完成时说明原因。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Follow the shared guide and save the full skill. Reuse the connection, confirmed Space. After each reply, call sync automatically to save the current conversation's originals, including this reply, to the same Thread; do not replace them with a Memory. Report the connection, skill saved location and actual status of automatic sync. If setup is incomplete, explain why.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指南配置并保存完整 skill。复用已有连接、已确认的 Space；默认每次回复都自动调用同步，将当前对话原文（含本轮回复）保存到同一 Thread，不替换为 Memory。完成后报告连接、skill 保存位置和自动同步的实际状态；无法完成时说明原因。"
         },
         "docsUrl": "https://github.com/nowledge-co/community/tree/main/shared/remote-mcp"
       },
@@ -101,8 +101,8 @@
       "install": {
         "detectionHint": "This hosted client cannot be detected from the local desktop app.",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Follow the shared guide and save the full skill. Reuse the connection, confirmed Space and schedule settings. Sync the current conversation's originals once a day to the same Thread; do not replace them with a Memory. Report the connection, skill saved location and actual status of the daily task. If setup is incomplete, explain why.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指南配置并保存完整 skill。复用已有连接、已确认的 Space 和时间设置；默认每天一次同步当前对话原文到同一 Thread，不替换为 Memory。完成后报告连接、skill 保存位置和每日任务的实际状态；无法完成时说明原因。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Follow the shared guide and save the full skill. Reuse the connection, confirmed Space. After each reply, call sync automatically to save the current conversation's originals, including this reply, to the same Thread; do not replace them with a Memory. Report the connection, skill saved location and actual status of automatic sync. If setup is incomplete, explain why.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指南配置并保存完整 skill。复用已有连接、已确认的 Space；默认每次回复都自动调用同步，将当前对话原文（含本轮回复）保存到同一 Thread，不替换为 Memory。完成后报告连接、skill 保存位置和自动同步的实际状态；无法完成时说明原因。"
         },
         "docsUrl": "https://github.com/nowledge-co/community/tree/main/shared/remote-mcp"
       },
@@ -258,8 +258,8 @@
       "install": {
         "detectionHint": "Grok Bot is a cloud-managed host and is not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Follow the shared guide and save the full skill. Reuse the connection, confirmed Space and schedule settings. Sync the current conversation's originals once a day to the same Thread; do not replace them with a Memory. Report the connection, skill saved location and actual status of the daily task. If setup is incomplete, explain why.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指南配置并保存完整 skill。复用已有连接、已确认的 Space 和时间设置；默认每天一次同步当前对话原文到同一 Thread，不替换为 Memory。完成后报告连接、skill 保存位置和每日任务的实际状态；无法完成时说明原因。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md. Follow the shared guide and save the full skill. Reuse the connection, confirmed Space. After each reply, call sync automatically to save the current conversation's originals, including this reply, to the same Thread; do not replace them with a Memory. Report the connection, skill saved location and actual status of automatic sync. If setup is incomplete, explain why.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md，按共享指南配置并保存完整 skill。复用已有连接、已确认的 Space；默认每次回复都自动调用同步，将当前对话原文（含本轮回复）保存到同一 Thread，不替换为 Memory。完成后报告连接、skill 保存位置和自动同步的实际状态；无法完成时说明原因。"
         },
         "docsUrl": "/docs/integrations/grok-bot"
       },
@@ -276,7 +276,7 @@
       "name": "ChatGPT Web and Desktop",
       "category": "cloud",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-openai-plugin",
       "transport": "openai-plugin+mcp",
       "capabilities": {

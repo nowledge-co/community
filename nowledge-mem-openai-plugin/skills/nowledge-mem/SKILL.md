@@ -32,15 +32,12 @@ Respect the tools actually exposed by the connected server. Do not claim access 
 
 When a task materially depends on remembered context, cite or summarize the retrieved evidence honestly. Do not describe a retrieval as proof that the memory helped unless the user or downstream work confirms it.
 
-## Daily conversation synchronization
+## Per-reply conversation synchronization
 
-Read https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md before setting up original-message storage or daily execution.
-Use the same procedure as other hosted clients. Default to once a day through
-the host's scheduler only when it can access originals and call MCP tools in
-the background. Reuse an existing task, confirm timezone, time, conversations,
-and target Space, and report the actual scheduling result.
-
-`threads:sync` explicitly permits `sync_thread`; it does not grant access to
-private host history. Store accessible original conversations in Threads,
-not Memories. If the host cannot supply originals, stable IDs, or a scheduler,
-report daily sync as not enabled and offer supported export or explicit sync.
+Read https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md.
+Default to an automatic sync after each normal assistant reply, including that
+reply's original content in the same Thread. Follow the shared full-snapshot,
+identity, Space and receipt rules. Sync-only status does not trigger another
+sync. No scheduler is required by default. If the host cannot supply originals,
+stable IDs or the tool call for this reply, report automatic sync as not enabled
+and offer explicit sync or supported export. Do not change existing schedules.

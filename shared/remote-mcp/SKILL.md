@@ -1,9 +1,9 @@
 ---
 name: remote-mcp
-description: Use connected Nowledge Mem tools in a hosted AI client and set up daily original-conversation sync to Threads when the host has message access and a scheduler.
+description: Use connected Nowledge Mem tools in a hosted AI client and sync each assistant reply to Threads when the host exposes original messages and MCP tools.
 ---
 
-# Remote MCP: use and daily Thread sync
+# Remote MCP: use and per-reply Thread sync
 
 Use this shared procedure for Dots, Grok Bot, Meta Muse, and other hosted clients.
 Muse Desktop OAuth, tool discovery, synthetic Thread save, exact replay and
@@ -15,12 +15,12 @@ or unattended daily execution. Check each capability for the current account.
 
 Muse, Dots and Grok Bot use a short launcher: read the universal guide and this
 full skill, save the procedure, reuse the confirmed connection and Space, and
-sync the current conversation once a day in the same Thread. The Muse setup
+sync the current conversation after each reply in the same Thread. The Muse setup
 launcher also includes the current MCP URL; keep it intact, including its query.
 The detailed connection, approval, identity, snapshot and failure rules live
 here rather than in copied prompts. Read and retain this full procedure before
 setup; if it cannot be loaded, report incomplete setup instead of inventing it.
-Report the actual connection, saved skill location and scheduled-task status.
+Report the actual connection, saved skill location and automatic-sync status.
 
 ## Connect and choose a destination
 
@@ -53,7 +53,7 @@ Anywhere URL, retaining its complete path and query. Complete OAuth and inspect
 the actual tools. Do not run the local Grok Build plugin installer for Grok Bot,
 use localhost, or ask for a Mem API key. Reuse a confirmed target and ask only
 when it is missing. Apply the shared scope and first-save readback checks below;
-a connected status alone does not prove transcript access or a daily task.
+a connected status alone does not prove transcript access or automatic reply synchronization.
 
 ## Muse setup
 
@@ -63,15 +63,19 @@ been verified. This is guided custom-client setup, not a native plugin install.
 Inspect the actual catalog before context/search calls; report missing tools as
 unavailable. Tool discovery is not a successful context/search receipt.
 
-1. In App, choose **Connectors → AI Tools → Meta Muse → Copy setup prompt**.
+1. On App versions that offer the Muse card, choose **Connectors → AI Tools → Meta Muse → Copy setup prompt**.
    Complete browser owner pairing if the copy action opens it, then paste the
    prompt into Muse. Keep Access Anywhere running. Existing connections and
    active pairing are reused. In Cloud, copy the setup prompt from the Muse
    card, or the full prompt in the Cloud OAuth configuration. No Desktop pairing
    is needed; preserve the endpoint's `space_protocol=exact-v1`.
    Muse is configured through chat, so no Install action or connector-settings
-   menu is needed. The copied prompt includes setup and daily Thread sync.
+   menu is needed. The copied prompt includes setup and per-reply Thread sync.
 
+If the card is absent, use the App's existing Access Anywhere public MCP URL.
+   Paste that complete endpoint with the short prompt from the shared README;
+   complete owner pairing through the existing Remote MCP setup when needed.
+   If no public endpoint or pairing control is available, report that setup gap.
 2. Reuse an existing connection. Otherwise use Muse's custom MCP client and
    `credentials.request_api_access` to display a real OAuth connect action.
    Read the MCP `WWW-Authenticate` challenge and public resource metadata,
@@ -104,14 +108,14 @@ unavailable. Tool discovery is not a successful context/search receipt.
    first save/replay/readback check. Use `sync_thread` and
    `thread_fetch_messages` from the actual catalog. Verify first additions,
    zero additions on exact replay and the original roles/content. Then apply
-   the shared daily execution procedure below to authorized real conversations.
+   the shared per-reply procedure below to authorized real conversations.
 
 ## Load and retain this procedure
 
 Fetch the full skill and check that the response is this document, not an error
 page. Save it with the host's supported skill mechanism. If the host has no skill
 installer, retain the full procedure in its private connector documentation and
-make the connector and daily task read it. Do not claim a skill was installed
+make the connector and reply workflow read it. Do not claim a skill was installed
 when only a URL or a temporary test script was saved. Report the source URL,
 version or content digest, saved location and how later runs load it. If the URL
 is unavailable, use a user-provided reviewed copy or report the delivery gap;
@@ -158,33 +162,34 @@ workspace; credentials belong only in its credential store.
   conversation. Distilling a durable claim into a **Memory** is a separate action
   with its own permission; do not do it automatically on every synchronization.
 
-## Set up daily execution
+## Sync every assistant reply
 
-Default to **once a day**, in the user's timezone, for the current conversation
-unless the user selected a wider scope. Reuse the host's existing timezone and
-schedule defaults, or an already confirmed time. State the chosen time and which
-conversations to include. Ask only for a missing timezone or execution time when
-the host has no usable default; do not repeat answered questions. Reuse or update an existing matching host task so this
-setup does not create duplicate schedules. The task must use the same connection,
-authorized target Space, and this procedure; it must be able to call MCP tools
-and access the selected conversations when it runs without an active chat.
+Default to an automatic `sync_thread` call for each normal assistant reply in
+the current conversation. Reuse the confirmed exact Space, connection and Thread.
+Include the original user messages and this assistant reply in the full ordered
+snapshot; do not substitute a summary. When the host must call tools before its
+final output, finish the reply content first, sync that exact content, then emit
+it without changing it. If the host cannot expose or retain this reply's original
+content, report that automatic reply sync is not enabled and explain the limit.
 
-Use the host's supported scheduler. Report daily sync as enabled only after the
-host confirms a real task and its timezone, next run, and conversation scope.
-A prompt, skill installation, OAuth connection, or Mem-side timer is not a host
-schedule and cannot grant access to private host history.
+A sync receipt or sync-only status message must not trigger another reply/sync
+cycle. Use one synchronization per normal reply, with stable message IDs and
+the snapshot rules below. Save checkpoints only on a durable successful receipt.
+On failure, keep the same mapping and unsaved originals for a later permitted
+attempt; do not spin or discard earlier messages to make the next write pass.
 
-If original messages, stable IDs, background MCP calls, or scheduling are missing,
-report **daily sync is not enabled** and name the missing capability. Offer an
-explicit sync of accessible originals or the host's supported export path. Do not
-claim that a reminder can read all chats. Keep the task quiet when no information
-changed; report failures or required user action through the host's task status.
+A daily task or scheduler is not required by default. Do not create one, or
+silently delete or modify an existing schedule. A separately requested schedule
+needs its own host confirmation and accessible original messages. Never claim
+that a prompt or tool listing proves automatic execution; report actual receipts
+and capability gaps. Offer explicit sync or a supported export when automatic
+reply synchronization is unavailable.
 
 ## Execute each synchronization
 
 1. Read the host's actual original messages. Keep stable source, conversation,
    and message IDs, exact roles/content, chronological order, and available
-   original timestamps. Use one Thread per host conversation across daily runs.
+   original timestamps. Use one Thread per host conversation across replies.
    Never invent original IDs from a changing array position, generate text from
    memory, or claim unseen history was included. If stable IDs cannot be recovered,
    stop and explain rather than creating a new Thread on every run.
@@ -212,5 +217,5 @@ changed; report failures or required user action through the host's task status.
 
 Report connection, read access, Thread write access, original-message coverage,
 and scheduling separately. Do not label a partial snapshot as a complete history
-or a successful manual call as an active daily task. Keep credentials and private
+or a successful manual call as automatic reply synchronization. Keep credentials and private
 message content out of status reports.

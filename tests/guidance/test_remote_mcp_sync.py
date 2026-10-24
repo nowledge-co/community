@@ -34,17 +34,12 @@ class RemoteMcpSyncGuidance(unittest.TestCase):
                     self.assertIn("shared/remote-mcp/SKILL.md", guide[key])
                     self.assertNotIn("S256", guide[key])
 
-    def test_daily_sync_requires_host_scope_and_a_confirmed_task(self):
+    def test_per_reply_sync_requires_originals_and_no_recursive_calls(self):
         text = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("once a day", text)
-        self.assertIn("timezone", text)
-        self.assertIn("which", text)
-        self.assertIn("conversations to include", text)
-        self.assertIn("target Space", text)
-        self.assertIn("confirms a real task", text)
-        self.assertIn("daily sync is not enabled", text)
-        self.assertIn("Threads", text)
-        self.assertIn("A summary is not an original", text)
+        for value in ("each normal assistant reply", "this assistant reply", "same Thread",
+                      "must not trigger another reply/sync", "not required by default",
+                      "automatic reply sync is not enabled", "full ordered"):
+            self.assertIn(value, text)
 
     def test_original_snapshot_receipt_controls_checkpoint_and_retry(self):
         text = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
