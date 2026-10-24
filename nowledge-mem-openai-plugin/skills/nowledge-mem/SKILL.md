@@ -34,7 +34,7 @@ When a task materially depends on remembered context, cite or summarize the retr
 
 ## Per-reply conversation synchronization
 
-Read https://raw.githubusercontent.com/nowledge-co/community/main/shared/remote-mcp/SKILL.md.
+Read https://mem.nowledge.co/SKILL.md.
 Default to an automatic sync after each normal assistant reply, including that
 reply's original content in the same Thread. Follow the shared full-snapshot,
 identity, Space and receipt rules. Sync-only status does not trigger another

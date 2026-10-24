@@ -1525,10 +1525,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
             # Hosted launchers delegate protocol and tool checks to the full skill.
             assert "/docs/integrations/" in guide["prompt"], entry["id"]
             assert "/docs/integrations/" in guide["promptZh"], entry["id"]
-            shared = (COMMUNITY_ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
-            assert "Read Context Bundle" in shared
-            assert "only if exposed" in shared
-            assert "Inspect the connected tool catalog" in shared
+            assert "https://mem.nowledge.co/SKILL.md" in guide["prompt"], entry["id"]
+            assert "shared/remote-mcp" not in guide["prompt"], entry["id"]
+            assert "shared/remote-mcp" not in guide["promptZh"], entry["id"]
         else:
             assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
             assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
@@ -1569,12 +1568,10 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     for text in (grok_prompt, grok_prompt_zh):
         assert "Thread" in text
         assert "/docs/integrations/grok-bot" in text
-    # Host-specific setup stays in the referenced skill, not the launcher.
-    shared = (COMMUNITY_ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
-    for required in ("grok.com/connectors", "Custom connector", "OAuth",
-                     "Cloud uses its workspace MCP URL", "Never ask for keys or tokens in chat",
-                     "exact-ID readback", "threads:sync"):
-        assert required in shared
+    # Complete tool-use and sync rules live at the universal skill URL.
+    for text in (grok_prompt, grok_prompt_zh):
+        assert "https://mem.nowledge.co/SKILL.md" in text
+        assert "shared/remote-mcp" not in text
     chatgpt_prompt = by_id["chatgpt-cloud"]["install"]["agentGuide"]["prompt"]
     chatgpt_prompt_zh = by_id["chatgpt-cloud"]["install"]["agentGuide"]["promptZh"]
     for text in (chatgpt_prompt, chatgpt_prompt_zh):

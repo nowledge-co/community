@@ -20,9 +20,6 @@ class RemoteMcpSyncGuidance(unittest.TestCase):
             prompt = muse["install"]["agentGuide"][locale]
             for required in ("https://mem.nowledge.co/SKILL.md", "/docs/integrations/meta-muse", "Thread"):
                 self.assertIn(required, prompt)
-        skill = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
-        for required in ("240 seconds", "User-Agent", "WWW-Authenticate", "Mcp-Session-Id", "credentials.request_api_access"):
-            self.assertIn(required, skill)
 
     def test_hosted_launcher_prompts_are_short_and_share_the_skill(self):
         registry_text = (ROOT / "integrations.json").read_text(encoding="utf-8")
@@ -40,21 +37,19 @@ class RemoteMcpSyncGuidance(unittest.TestCase):
                     for value in required:
                         self.assertIn(value, guide[key])
 
-    def test_per_reply_sync_requires_originals_and_no_recursive_calls(self):
-        text = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
-        for value in ("each normal assistant reply", "this assistant reply", "same Thread",
-                      "must not trigger another reply/sync", "not required by default",
-                      "automatic reply sync is not enabled", "full ordered"):
-            self.assertIn(value, text)
-
-    def test_original_snapshot_receipt_controls_checkpoint_and_retry(self):
-        text = (ROOT / "shared/remote-mcp/SKILL.md").read_text(encoding="utf-8")
-        for required in ("threads:sync", "threads:read", "full ordered snapshot",
-                         "stable", "snapshot_saved: true", "only after", "same IDs",
-                         "space_id", "8 MiB"):
-            with self.subTest(required=required):
-                self.assertIn(required, text)
-
+    def test_hosted_consumers_use_the_universal_skill_without_an_extra_dependency(self):
+        registry_text = (ROOT / "integrations.json").read_text(encoding="utf-8")
+        package_skill = (ROOT / "nowledge-mem-openai-plugin/skills/nowledge-mem/SKILL.md").read_text(encoding="utf-8")
+        for text in (registry_text, package_skill):
+            self.assertNotIn("shared/remote-mcp", text)
+            self.assertIn("https://mem.nowledge.co/SKILL.md", text)
+        self.assertFalse((ROOT / "shared/remote-mcp/SKILL.md").exists())
+        registry = json.loads(registry_text)
+        for host in ("muse", "dots", "grok-bot", "chatgpt-cloud", "claude-cloud"):
+            guide = next(entry for entry in registry["integrations"] if entry["id"] == host)["install"]["agentGuide"]
+            for key in ("prompt", "promptZh"):
+                with self.subTest(host=host, locale=key):
+                    self.assertIn("https://mem.nowledge.co/SKILL.md", guide[key])
 
 if __name__ == "__main__":
     unittest.main()
