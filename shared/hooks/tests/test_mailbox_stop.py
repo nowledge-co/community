@@ -220,6 +220,19 @@ class MailboxStopTests(unittest.TestCase):
                 else:
                     self.env[key] = old
 
+    def test_native_unsupported_or_wrong_mailbox_never_falls_back(self):
+        self.env["NMEM_BRIDGE_SESSION_MAILBOX"] = "1"
+        self.failure = OSError("unsupported probe capability")
+        self.assertEqual(self.run_hook(), {})
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(self.calls[0][-1], "--native-session")
+        self.calls.clear()
+        self.failure = None
+        self.kind = "compatibility"
+        self.assertEqual(self.run_hook(), {})
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(self.calls[0][-1], "--native-session")
+
     def test_native_backends_use_one_truthful_host_probe(self):
         self.env["NMEM_BRIDGE_SESSION_MAILBOX"] = "1"
         for kind in ("local-session", "cloud-session"):
@@ -234,14 +247,23 @@ class MailboxStopTests(unittest.TestCase):
                     self.assertIn("automatically ACKs", response["reason"])
         self.assertEqual(len(self.calls), 2)
 
-    def test_incomplete_observation_does_not_claim_pending_or_empty(self):
-        self.pending = False
+    def test_incomplete_observation_remains_explicit_with_or_without_pending(self):
+        self.env["NMEM_BRIDGE_SESSION_MAILBOX"] = "1"
         self.incomplete = True
-        response = self.run_hook()
-        self.assertEqual(response["decision"], "block")
-        self.assertIn("was incomplete", response["reason"])
-        self.assertNotIn("has pending messages", response["reason"])
-        self.assertEqual(self.run_hook(), {})
+        for kind in ("local-session", "cloud-session"):
+            for pending in (False, True):
+                with self.subTest(kind=kind, pending=pending):
+                    self.kind = kind
+                    self.pending = pending
+                    self.binding_key = ("1" if kind == "local-session" else "2") * 64
+                    self.token = ("3" if pending else "4") * 64
+                    response = self.run_hook()
+                    self.assertEqual(response["decision"], "block")
+                    self.assertIn("was incomplete", response["reason"])
+                    self.assertEqual(
+                        "has pending messages" in response["reason"], pending
+                    )
+                    self.assertEqual(self.run_hook(), {})
 
     def test_changed_binding_never_inherits_a_notice(self):
         self.assertEqual(self.run_hook()["decision"], "block")
@@ -275,6 +297,7 @@ class MailboxStopTests(unittest.TestCase):
             ("host", "other"),
             ("session_id", "other"),
             ("mailbox_kind", "local-session"),
+            ("mailbox_kind", {}),
             ("has_pending", "true"),
             ("scan_incomplete", 0),
             ("binding_key", "x" * 64),

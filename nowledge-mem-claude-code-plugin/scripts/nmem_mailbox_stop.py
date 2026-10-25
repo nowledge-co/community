@@ -466,11 +466,11 @@ def build_stop_response(
         key = _digest([host, event["session_id"], result["binding_key"]])
         if not _claim_notice(state_root, key, result["change_token"]):
             return {}
-        observation = (
-            "Your selected Nowledge Bridge mailbox has pending messages. "
-            if result["has_pending"]
-            else "The bounded check of your selected Nowledge Bridge mailbox was incomplete. "
-        )
+        observation = ""
+        if result["has_pending"]:
+            observation = "Your selected Nowledge Bridge mailbox has pending messages. "
+        if result["scan_incomplete"]:
+            observation += "The bounded mailbox check was incomplete. "
         return {
             "decision": "block",
             "reason": (
