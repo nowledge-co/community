@@ -44,7 +44,16 @@ copies with `python3 shared/hooks/sync.py` and exercises both adapters with
 
 The Stop check supports a native CLI on the host OS. POSIX hosts skip Windows
 `.cmd`, `.bat` and `.exe` executables before mailbox probes: WSL interop has
-neither qualified request-file sharing nor cross-kernel process cleanup.
+no qualified cross-kernel process cleanup.
+
+The helper performs one versioned `nmem mailbox probe` call. The CLI owns exact
+context/destination/Space and existing proof admission, including the final
+context readback. Python validates the content-free result and one approved
+inspection argument vector, then coordinates duplicate reminders. Native mode
+uses the actual host/session ID and never falls back to a compatibility inbox.
+Unsupported CLI/server capabilities quietly finish Stop. Native Cloud guidance
+is a Receive prefix: the normal turn must append a fresh recorded operation ID;
+Receive automatically ACKs, while the hook itself never runs it.
 
 ---
 

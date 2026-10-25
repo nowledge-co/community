@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import importlib.util
 import io
 import json
@@ -39,38 +38,13 @@ class MailboxStopTests(unittest.TestCase):
             "session_id": "session-1",
             "stop_hook_active": False,
         }
-        self.selection = {
-            "scope": {
-                "store_id": "store",
-                "store_incarnation": "incarnation",
-                "workspace_id": None,
-                "space_id": "research",
-            },
-            "address": {
-                "agent_id": "reviewer",
-                "custodian_id": "owner",
-                "identity_birth": "birth",
-                "attachment_id": "attachment",
-                "attachment_generation": 1,
-            },
-        }
-        self.binding = {
-            "name": "reviewer",
-            "configured": True,
-            "state": "unverified",
-            "validation": "unverified",
-            "destination_id": "a" * 64,
-            "revision": "b" * 64,
-            "selection": self.selection,
-        }
         self.pending = True
-        self.token = "pending-state-1"
+        self.incomplete = False
+        self.token = "c" * 64
+        self.binding_key = "a" * 64
+        self.kind = "compatibility"
         self.calls = []
-        self.requests = []
-        self.shows = 0
-        self.status_state = "usable"
-        self.changed_binding = None
-        self.summary_override = None
+        self.response_override = None
         self.failure = None
         self.env = {
             "USERPROFILE": str(self.root),
@@ -91,38 +65,55 @@ class MailboxStopTests(unittest.TestCase):
         if self.failure is not None:
             return None
         args = command[1:]
-        if args == ["--json", "agents", "context", "show", "--name", "reviewer"]:
-            self.shows += 1
-            reply = (
-                self.changed_binding
-                if self.shows > 1 and self.changed_binding is not None
-                else self.binding
-            )
-        elif args == ["--json", "--agent-context", "reviewer", "mailbox", "status"]:
-            reply = {
-                "name": "reviewer",
-                "configured": True,
-                "validation": "live",
-                "state": self.status_state,
-                "selection": self.selection,
-            }
-        elif args[:4] == ["--json", "mailbox", "command", "--request-file"]:
-            request = json.loads(Path(args[4]).read_text(encoding="utf-8"))
-            self.requests.append(request)
-            self.assertEqual(
-                request, {"selection": self.selection, "operation": {"kind": "summary"}}
-            )
-            reply = self.summary_override or {
-                "kind": "summary",
-                "result": {
-                    "has_pending": self.pending,
-                    "change_token": self.token,
-                    "observed_at": 123,
-                    "body": "private-sender-text-must-not-be-injected",
-                },
-            }
+        expected = [
+            "--json",
+            "--agent-context",
+            "reviewer",
+            "mailbox",
+            "probe",
+            "--host",
+            self.host,
+            "--session-id",
+            "session-1",
+        ]
+        if self.env.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1":
+            expected.append("--native-session")
+        self.assertEqual(args, expected)
+        inspect = ["--json", "--agent-context", "reviewer", "mailbox"]
+        if self.kind == "compatibility":
+            inspect.extend(["inbox", "--limit", "20"])
         else:
-            self.fail(f"Unexpected CLI operation: {args}")
+            inspect.extend(
+                [
+                    "cloud-session" if self.kind == "cloud-session" else "session",
+                    "--host",
+                    self.host,
+                    "--session-id",
+                    "session-1",
+                ]
+            )
+            inspect.extend(
+                ["--space-id", "research", "receive"]
+                if self.kind == "cloud-session"
+                else ["inbox", "--limit", "20"]
+            )
+        reply = (
+            self.response_override
+            if self.response_override is not None
+            else {
+                "schema_version": 1,
+                "context": "reviewer",
+                "host": self.host,
+                "session_id": "session-1",
+                "mailbox_kind": self.kind,
+                "has_pending": self.pending,
+                "scan_incomplete": self.incomplete,
+                "binding_key": self.binding_key,
+                "change_token": self.token,
+                "inspect_args": inspect,
+                "body": "private-sender-text-must-not-be-injected",
+            }
+        )
         remaining = deadline - CORE.time.monotonic()
         self.assertGreater(remaining, 0)
         self.assertLessEqual(remaining, CORE.TOTAL_TIMEOUT_SECONDS)
@@ -156,16 +147,12 @@ class MailboxStopTests(unittest.TestCase):
         self.assertIn('"mailbox", "inbox"', response["reason"])
         self.assertIn("NMEM_CLI_PATH", response["reason"])
         self.assertNotIn("private-sender-text", response["reason"])
-        self.assertEqual(len(self.calls), 4)
-        self.assertEqual(len(self.requests), 1)
-        self.assertFalse(
-            Path(self.calls[2][-1]).exists(), "temporary request must be reclaimed"
-        )
+        self.assertEqual(len(self.calls), 1)
 
     def test_same_pending_state_does_not_repeat_but_new_state_can_remind(self):
         self.assertEqual(self.run_hook()["decision"], "block")
         self.assertEqual(self.run_hook(), {})
-        self.token = "pending-state-2"
+        self.token = "d" * 64
         self.assertEqual(self.run_hook()["decision"], "block")
 
     def test_recursive_stop_and_other_events_never_probe(self):
@@ -186,13 +173,15 @@ class MailboxStopTests(unittest.TestCase):
                     "stop_hook_active": False,
                 }
 
-    def test_empty_or_unusable_mailbox_lets_stop_finish(self):
+    def test_empty_or_unsupported_mailbox_lets_stop_finish(self):
         self.pending = False
         self.assertEqual(self.run_hook(), {})
         self.pending = True
-        self.status_state = "invalidated"
+        self.failure = OSError("unsupported probe capability")
         self.assertEqual(self.run_hook(), {})
-        self.assertEqual(len(self.requests), 1)
+        self.assertEqual(
+            len(self.calls), 2, "one attempt per Stop; no compatibility fallback"
+        )
 
     def test_posix_host_skips_windows_cli_before_any_mailbox_probe(self):
         with mock.patch.object(sys, "platform", "linux"):
@@ -213,13 +202,12 @@ class MailboxStopTests(unittest.TestCase):
                         (self.root / "claude/nowledge-mem/mailbox-stop").exists()
                     )
 
-    def test_unconfigured_disabled_or_native_session_mode_never_probes_legacy_mail(
+    def test_unconfigured_disabled_or_missing_cli_never_probes(
         self,
     ):
         for key, value in (
             ("NMEM_AGENT_CONTEXT", ""),
             ("NMEM_NO_MAILBOX_NOTICE", "1"),
-            ("NMEM_BRIDGE_SESSION_MAILBOX", "1"),
             ("NMEM_CLI_PATH", str(self.root / "missing")),
         ):
             with self.subTest(variable=key):
@@ -232,63 +220,70 @@ class MailboxStopTests(unittest.TestCase):
                 else:
                     self.env[key] = old
 
-    def test_ambient_identity_and_exact_space_conflicts_never_probe_summary(self):
-        for key, value in (
-            ("NMEM_AGENT_ID", "other"),
-            ("NMEM_SPACE", "other"),
-            ("NMEM_SPACE_ID", "research "),
-            ("NMEM_HOST_AGENT_ID", "alias"),
-        ):
-            with self.subTest(variable=key):
-                self.env[key] = value
-                self.assertEqual(self.run_hook(), {})
-                self.assertEqual(self.requests, [])
-                del self.env[key]
+    def test_native_backends_use_one_truthful_host_probe(self):
+        self.env["NMEM_BRIDGE_SESSION_MAILBOX"] = "1"
+        for kind in ("local-session", "cloud-session"):
+            with self.subTest(kind=kind):
+                self.kind = kind
+                self.binding_key = ("1" if kind == "local-session" else "2") * 64
+                response = self.run_hook()
+                self.assertEqual(response["decision"], "block")
+                self.assertIn('"--host", "' + self.host + '"', response["reason"])
+                if kind == "cloud-session":
+                    self.assertIn("--operation-id", response["reason"])
+                    self.assertIn("automatically ACKs", response["reason"])
+        self.assertEqual(len(self.calls), 2)
 
-    def test_empty_whitespace_and_case_sensitive_space_ids_keep_exact_bytes(self):
-        for space in ("", " ", "DEFAULT", "research "):
-            with self.subTest(space=space):
-                self.selection["scope"]["space_id"] = space
-                self.env["NMEM_SPACE_ID"] = space
-                self.token += "x"
-                self.assertEqual(self.run_hook()["decision"], "block")
-                self.assertEqual(
-                    self.requests[-1]["selection"]["scope"]["space_id"], space
-                )
-
-    def test_reselection_after_summary_suppresses_stale_hint(self):
-        self.changed_binding = copy.deepcopy(self.binding)
-        self.changed_binding["revision"] = "c" * 64
+    def test_incomplete_observation_does_not_claim_pending_or_empty(self):
+        self.pending = False
+        self.incomplete = True
+        response = self.run_hook()
+        self.assertEqual(response["decision"], "block")
+        self.assertIn("was incomplete", response["reason"])
+        self.assertNotIn("has pending messages", response["reason"])
         self.assertEqual(self.run_hook(), {})
-        self.assertEqual(len(self.requests), 1)
 
-    def test_wrong_generation_or_destination_never_inherits_a_notice(self):
+    def test_changed_binding_never_inherits_a_notice(self):
         self.assertEqual(self.run_hook()["decision"], "block")
-        self.selection["address"]["attachment_generation"] = 2
-        self.binding["revision"] = "c" * 64
-        self.assertEqual(self.run_hook()["decision"], "block")
-        self.binding["destination_id"] = "d" * 64
+        self.binding_key = "b" * 64
         self.assertEqual(self.run_hook()["decision"], "block")
 
-    def test_timeout_failure_and_malformed_summary_fail_open(self):
-        self.failure = subprocess.TimeoutExpired("nmem", 1)
-        self.assertEqual(self.run_hook(), {})
-        self.failure = OSError("unavailable")
-        self.assertEqual(self.run_hook(), {})
-        self.failure = None
-        for value in (
-            {"kind": "sent", "result": {}},
-            {
-                "kind": "summary",
-                "result": {"has_pending": "true", "change_token": "token"},
-            },
-            {
-                "kind": "summary",
-                "result": {"has_pending": True, "change_token": "x" * 129},
-            },
-        ):
-            self.summary_override = value
+    def test_timeout_failure_and_malformed_envelopes_fail_open(self):
+        for failure in (subprocess.TimeoutExpired("nmem", 1), OSError("unavailable")):
+            self.failure = failure
             self.assertEqual(self.run_hook(), {})
+        self.failure = None
+        baseline = self.cli(
+            [
+                sys.executable,
+                "--json",
+                "--agent-context",
+                "reviewer",
+                "mailbox",
+                "probe",
+                "--host",
+                self.host,
+                "--session-id",
+                "session-1",
+            ],
+            CORE.time.monotonic() + 3,
+        )
+        for field, bad in (
+            ("schema_version", True),
+            ("schema_version", 2),
+            ("context", "other"),
+            ("host", "other"),
+            ("session_id", "other"),
+            ("mailbox_kind", "local-session"),
+            ("has_pending", "true"),
+            ("scan_incomplete", 0),
+            ("binding_key", "x" * 64),
+            ("change_token", ""),
+            ("inspect_args", ["--json", "mailbox", "receive"]),
+        ):
+            with self.subTest(field=field):
+                self.response_override = dict(baseline, **{field: bad})
+                self.assertEqual(self.run_hook(), {})
 
     def test_installed_codex_fallback_shares_package_deduplication(self):
         if self.host != "codex":
@@ -432,6 +427,116 @@ class MailboxStateTests(unittest.TestCase):
                     )
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertEqual(json.loads(result.stdout), {})
+
+    def test_registered_native_launchers_invoke_only_one_probe(self):
+        with tempfile.TemporaryDirectory(
+            prefix="native mailbox launcher "
+        ) as directory:
+            root = Path(directory)
+            script = root / "probe_cli.py"
+            script.write_text(
+                "import json, os, sys\nfrom pathlib import Path\n"
+                "args = sys.argv[1:]\n"
+                "with Path(os.environ['NMEM_PROBE_TEST_CALLS']).open('a') as log: log.write(json.dumps(args) + '\\n')\n"
+                "context = args[args.index('--agent-context') + 1]\n"
+                "host = args[args.index('--host') + 1]\n"
+                "session = args[args.index('--session-id') + 1]\n"
+                "print(json.dumps(dict(schema_version=1, context=context, host=host, session_id=session, "
+                "mailbox_kind='cloud-session', has_pending=True, scan_incomplete=False, "
+                "binding_key='a'*64, change_token='b'*64, "
+                "inspect_args=['--json','--agent-context',context,'mailbox','cloud-session',"
+                "'--host',host,'--session-id',session,'--space-id','research','receive'])))\n",
+                encoding="utf-8",
+            )
+            executable = root / ("nmem.cmd" if os.name == "nt" else "nmem")
+            executable.write_text(
+                (
+                    f'@"{sys.executable}" "{script}" %*\n'
+                    if os.name == "nt"
+                    else f'#!{sys.executable}\nexec(compile(open({str(script)!r}).read(), {str(script)!r}, "exec"))\n'
+                ),
+                encoding="utf-8",
+            )
+            executable.chmod(0o700)
+            for package, entrypoint, host in (
+                ("nowledge-mem-codex-plugin", "hooks/nmem-mailbox-stop.py", "codex"),
+                (
+                    "nowledge-mem-claude-code-plugin",
+                    "scripts/nmem-hook-mailbox.py",
+                    "claude-code",
+                ),
+            ):
+                with self.subTest(host=host):
+                    plugin = ROOT / package
+                    hooks = json.loads((plugin / "hooks/hooks.json").read_text())[
+                        "hooks"
+                    ]["Stop"]
+                    hook = next(
+                        hook
+                        for entry in hooks
+                        for hook in entry["hooks"]
+                        if Path(entrypoint).name in hook["command"]
+                    )
+                    calls = root / (host + ".jsonl")
+                    env = dict(
+                        os.environ,
+                        PLUGIN_ROOT=str(plugin),
+                        CLAUDE_PLUGIN_ROOT=str(plugin),
+                        NMEM_AGENT_CONTEXT="reviewer",
+                        NMEM_BRIDGE_SESSION_MAILBOX="1",
+                        NMEM_CLI_PATH=str(executable),
+                        NMEM_PROBE_TEST_CALLS=str(calls),
+                        CODEX_HOME=str(root / host),
+                        CLAUDE_CONFIG_DIR=str(root / host),
+                    )
+                    if os.name == "nt" and host == "claude-code":
+                        command = [sys.executable, str(plugin / entrypoint)]
+                        use_shell = False
+                    else:
+                        command = (
+                            hook["commandWindows"]
+                            if os.name == "nt"
+                            else hook["command"]
+                        )
+                        use_shell = True
+                    result = subprocess.run(
+                        command,
+                        shell=use_shell,
+                        cwd=directory,
+                        env=env,
+                        input=json.dumps(
+                            {
+                                "hook_event_name": "Stop",
+                                "stop_hook_active": False,
+                                "session_id": "native",
+                            }
+                        ),
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(json.loads(result.stdout).get("decision"), "block")
+                    observed = [
+                        json.loads(line) for line in calls.read_text().splitlines()
+                    ]
+                    self.assertEqual(
+                        observed,
+                        [
+                            [
+                                "--json",
+                                "--agent-context",
+                                "reviewer",
+                                "mailbox",
+                                "probe",
+                                "--host",
+                                host,
+                                "--session-id",
+                                "native",
+                                "--native-session",
+                            ]
+                        ],
+                    )
 
     def test_packaged_helpers_match_canonical_source(self):
         source = (ROOT / "shared/hooks/nmem_mailbox_stop.py").read_bytes()
