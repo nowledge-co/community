@@ -279,15 +279,19 @@ Made with care by [Nowledge Labs](https://nowledge-labs.ai)
 
 ### Mailbox check before finishing
 
-In Claude Code, when `NMEM_AGENT_CONTEXT` names an approved, live compatibility mailbox, Stop
-can remind the Agent once to inspect new pending mail. The check is read-only:
+In Claude Code, when `NMEM_AGENT_CONTEXT` names an approved Agent Context, Stop
+uses one `nmem mailbox probe` call and can remind the Agent once to inspect new pending mail. The check is read-only:
 it does not receive, acknowledge or execute messages. Recursive Stop and failed
 checks end normally, and an unchanged pending state is not repeated in the same
-host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. Native session
-mailboxes without a qualified read-only probe are skipped rather than replaced
-with a legacy inbox. This does not enable polling or idle wakeup.
+host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. Set `NMEM_BRIDGE_SESSION_MAILBOX=1` only for an already registered native session.
+The probe uses the actual Codex or Claude Code host ID and checks its original
+Local or Cloud mailbox. Incomplete scans are reported as incomplete. Unsupported
+CLI/server versions and missing or ambiguous original credentials quietly skip
+the reminder without falling back to another mailbox. Native Cloud Receive
+requires a fresh recorded `--operation-id` during normal work and automatically
+ACKs; the hook never runs it. This does not enable polling or idle wakeup.
 
 In WSL, this Stop check requires a Linux CLI. Windows `.cmd`, `.bat` and `.exe`
-CLIs are skipped because request-file access and process cleanup across the two
+CLIs are skipped because process cleanup across the two
 systems are unsupported. The hook never substitutes another executable for
 `NMEM_CLI_PATH`.

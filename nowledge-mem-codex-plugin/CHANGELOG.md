@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.43] - Unreleased
+
+- Use one read-only CLI pending probe for compatibility and explicitly opted-in native Local/Cloud mailboxes. Keep exact host/session binding, bounded scan completeness, and fail open on unsupported versions without mailbox fallback.
+
 ## [0.1.42] - Unreleased
 
 ### Added
