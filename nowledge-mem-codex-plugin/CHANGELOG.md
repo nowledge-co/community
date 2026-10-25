@@ -11,6 +11,8 @@
 - Coordinate duplicate reminders through a private bounded cache. Experimental
   session modes without a qualified read-only probe never fall back to an older
   identity inbox.
+- Skip Windows CLI executables in WSL before probing; this Stop check requires
+  a CLI native to the host OS.
 
 ## [0.1.41] - Unreleased
 

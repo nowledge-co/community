@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coordinate duplicate reminders through a private bounded cache. Experimental
   session modes without a qualified read-only probe never fall back to an older
   identity inbox.
+- In Claude Code on WSL, skip Windows CLI executables before probing; this Stop
+  check requires a CLI native to the host OS.
 
 ## [Unreleased]
 

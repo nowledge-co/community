@@ -26,6 +26,13 @@ MAX_CACHE_ROWS = 256
 IDENTIFIER = re.compile(r"[A-Za-z0-9_.:-]{1,128}\Z")
 
 
+def supports_native_cli(executable: str) -> bool:
+    # WSL interop cannot share these request paths or process-tree ownership.
+    return sys.platform == "win32" or not executable.lower().endswith(
+        (".cmd", ".bat", ".exe")
+    )
+
+
 def read_event() -> dict:
     raw = getattr(sys.stdin, "buffer", sys.stdin).read(MAX_INPUT_BYTES + 1)
     encoded = raw.encode("utf-8") if isinstance(raw, str) else raw

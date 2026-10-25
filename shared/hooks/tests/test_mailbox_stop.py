@@ -194,6 +194,25 @@ class MailboxStopTests(unittest.TestCase):
         self.assertEqual(self.run_hook(), {})
         self.assertEqual(len(self.requests), 1)
 
+    def test_posix_host_skips_windows_cli_before_any_mailbox_probe(self):
+        with mock.patch.object(sys, "platform", "linux"):
+            for suffix in (".cmd", ".bat", ".exe", ".CMD"):
+                with self.subTest(suffix=suffix):
+                    self.calls.clear()
+                    executable = self.root / ("nmem" + suffix)
+                    executable.write_text("", encoding="ascii")
+                    executable.chmod(0o700)
+                    self.env["NMEM_CLI_PATH"] = str(executable)
+                    self.env["WSL_DISTRO_NAME"] = "test-distro"
+                    self.assertEqual(self.run_hook(), {})
+                    self.assertEqual(self.calls, [])
+                    self.assertFalse(
+                        (self.root / "codex/nowledge-mem/mailbox-stop").exists()
+                    )
+                    self.assertFalse(
+                        (self.root / "claude/nowledge-mem/mailbox-stop").exists()
+                    )
+
     def test_unconfigured_disabled_or_native_session_mode_never_probes_legacy_mail(
         self,
     ):

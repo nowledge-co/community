@@ -539,3 +539,8 @@ checks end normally, and an unchanged pending state is not repeated in the same
 host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. Native session
 mailboxes without a qualified read-only probe are skipped rather than replaced
 with a legacy inbox. This does not enable polling or idle wakeup.
+
+In WSL, this Stop check requires a Linux CLI. Windows `.cmd`, `.bat` and `.exe`
+CLIs are skipped because request-file access and process cleanup across the two
+systems are unsupported. The hook never substitutes another executable for
+`NMEM_CLI_PATH`.
