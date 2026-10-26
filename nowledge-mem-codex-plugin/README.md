@@ -21,6 +21,18 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 - Codex lifecycle hooks for startup context, bounded subagent bootstrap, per-prompt memory routing, and automatic transcript capture
 - project `AGENTS.md` for repo-specific follow-through
 
+## Historical imports from isolated Codex homes
+
+If `nmem t sync --from codex --all-projects` reports that Codex session
+directories were not found, the host may be using a per-run Codex home instead
+of `~/.codex`. `--all-projects` selects projects within discovered transcript
+roots; do not assume it searches every host's runtime directories.
+
+For the supported, preview-first workflow, see
+[Import transcripts from isolated homes](docs/isolated-session-import.md).
+This is a manual historical-import workaround, not a change to automatic
+Stop-hook capture or a fix to core CLI discovery.
+
 ## Continue a selected Mem Thread
 
 In Mem, open a Thread and choose **Continue in → Codex CLI**. Run the copied
