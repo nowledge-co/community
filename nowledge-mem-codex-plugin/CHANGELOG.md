@@ -1,33 +1,50 @@
 # Changelog
 
-## [0.1.43] - Unreleased
+## [0.1.44] - Unreleased
+
+### Added
+
+- Add default-off Nowledge Bridge session startup and resume with an explicitly
+  configured Agent Context and `NMEM_BRIDGE_SESSION_MAILBOX=1`. Revalidate the
+  exact native session binding through a compatible CLI and backend; a new
+  session does not inherit another session's mailbox.
+- Report registration separately from session-addressed receiving readiness.
+  Existing identity-scoped mailbox guidance remains the default.
 
 ### Changed
 
-- Match the native CLI's server-qualified V2 automatic receiving and
-  server-owned recovery descriptor; older descriptors grant no receiving guidance.
-- Admit session messaging guidance only after the CLI validates the current
-  backend capability and original registered scope. Retain registration-only
-  behavior for older compatible CLI results.
-- Supply the exact native session correlation as JSON data for session-scoped
-  inbox discovery at startup, resume and ordinary task boundaries.
-- Backend readiness does not mean a message has been received or accepted;
-  installed-host delivery acceptance remains separate.
+- Show session messaging guidance only after the CLI validates the current
+  backend capability, complete original scope and server-owned automatic
+  receiving and recovery descriptor. Older or unsupported descriptors grant no
+  receiving guidance.
+- Preserve the exact native session correlation for session-scoped discovery at
+  startup, resume and ordinary task boundaries.
+- Explain receipt-only recovery: read the original receipt's message IDs in the
+  same context/session, or replay the unchanged original Claim operation. Do not
+  create a replacement operation or perform a separate acknowledgement step.
+
+### Notes
+
+- Backend readiness and delivery acceptance do not prove model visibility or
+  task completion. Installed-host delivery remains separately unverified.
+
+## [0.1.43] - Unreleased
+
+- Use one read-only CLI pending probe for compatibility and explicitly opted-in native Local/Cloud mailboxes. Keep exact host/session binding, bounded scan completeness, and fail open on unsupported versions without mailbox fallback.
 
 ## [0.1.42] - Unreleased
 
 ### Added
 
-- Add default-off session mailbox startup/resume with an explicitly configured
-  Agent Context and `NMEM_BRIDGE_SESSION_MAILBOX=1`. Retain the exact native
-  session binding across startup, resume and compaction through a compatible CLI.
-- Report registration separately from session-addressed messaging availability.
-  Existing identity-scoped mailbox guidance remains the default.
-
-### Notes
-
-- CLI/backend support and installed-host acceptance are separate requirements.
-  This adapter does not enable session-addressed message operations.
+- At normal Stop, check an explicitly approved compatibility mailbox and remind
+  the Agent once about a new pending state. The bounded check never consumes or
+  acknowledges mail; recursive Stop, stale bindings and unavailable services
+  end normally. Set `NMEM_NO_MAILBOX_NOTICE=1` to disable reminders.
+- Coordinate duplicate reminders through a private bounded cache. Experimental
+  session modes without a qualified read-only probe never fall back to an older
+  identity inbox.
+- Skip Windows CLI executables in WSL before probing; this Stop check requires
+  a CLI native to the host OS.
 
 ## [0.1.41] - Unreleased
 

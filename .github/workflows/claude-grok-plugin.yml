@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/claude-grok-plugin.yml"
       - "integrations.json"
+      - "shared/hooks/**"
       - "nowledge-mem-claude-code-plugin/**"
   push:
     branches:
@@ -12,6 +13,7 @@ on:
     paths:
       - ".github/workflows/claude-grok-plugin.yml"
       - "integrations.json"
+      - "shared/hooks/**"
       - "nowledge-mem-claude-code-plugin/**"
 
 permissions:
@@ -39,6 +41,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: '"C:\Program Files\Git\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
+      - name: Validate shared mailbox helpers
+        run: python shared/hooks/sync.py
+      - name: Test passive mailbox Stop adapters
+        run: python -m unittest discover -s shared/hooks/tests -v
       - name: Install test dependency
         run: python -m pip install pytest
       - name: Test Claude Code and Grok Build hook contracts
