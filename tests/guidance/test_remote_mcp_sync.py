@@ -40,8 +40,10 @@ class RemoteMcpSyncGuidance(unittest.TestCase):
     def test_hosted_consumers_use_the_universal_skill_without_an_extra_dependency(self):
         registry_text = (ROOT / "integrations.json").read_text(encoding="utf-8")
         package_skill = (ROOT / "nowledge-mem-openai-plugin/skills/nowledge-mem/SKILL.md").read_text(encoding="utf-8")
-        for text in (registry_text, package_skill):
+        shared_guidance = (ROOT / "shared/behavioral-guidance.md").read_text(encoding="utf-8")
+        for text in (registry_text, package_skill, shared_guidance):
             self.assertNotIn("shared/remote-mcp", text)
+            self.assertNotIn("remote-mcp/SKILL.md", text)
             self.assertIn("https://mem.nowledge.co/SKILL.md", text)
         self.assertFalse((ROOT / "shared/remote-mcp/SKILL.md").exists())
         registry = json.loads(registry_text)

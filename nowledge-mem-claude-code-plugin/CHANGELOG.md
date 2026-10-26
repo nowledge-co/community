@@ -5,7 +5,35 @@ All notable changes to the Nowledge Mem Claude Code plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.30] - Unreleased
+
+- Use one read-only CLI pending probe for compatibility and explicitly opted-in native Local/Cloud mailboxes. Keep exact host/session binding, bounded scan completeness, and fail open on unsupported versions without mailbox fallback.
+
+## [0.7.29] - Unreleased
+
+### Added
+
+- In Claude Code, check an explicitly approved compatibility mailbox at normal Stop and remind
+  the Agent once about a new pending state. The bounded check never consumes or
+  acknowledges mail; recursive Stop, stale bindings and unavailable services
+  end normally. Set `NMEM_NO_MAILBOX_NOTICE=1` to disable reminders.
+- Coordinate duplicate reminders through a private bounded cache. Experimental
+  session modes without a qualified read-only probe never fall back to an older
+  identity inbox.
+- In Claude Code on WSL, skip Windows CLI executables before probing; this Stop
+  check requires a CLI native to the host OS.
+
 ## [Unreleased]
+
+### Fixed
+
+- Claude Desktop lists Nowledge Mem in the `nowledge-community` marketplace
+  again. The marketplace entry pointed at its own repository through a
+  `git-subdir` source, which Claude Desktop treats as an external plugin and
+  hides, so the marketplace synced but showed no available plugins. The entry
+  now uses the relative path `./nowledge-mem-claude-code-plugin`. Run
+  `claude plugin marketplace update nowledge-community` to pick it up; there is
+  no need to remove or re-add the marketplace.
 
 ## [0.7.28] - 2026-10-22
 

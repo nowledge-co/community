@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/codex-plugin.yml"
       - "integrations.json"
+      - "shared/hooks/**"
       - "nowledge-mem-codex-plugin/**"
       - "nowledge-mem-npx-skills/**"
       - "nowledge-mem-agent-plugin/**"
@@ -32,6 +33,7 @@ on:
     paths:
       - ".github/workflows/codex-plugin.yml"
       - "integrations.json"
+      - "shared/hooks/**"
       - "nowledge-mem-codex-plugin/**"
       - "nowledge-mem-npx-skills/**"
       - "nowledge-mem-agent-plugin/**"
@@ -75,6 +77,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
+      - name: Validate shared mailbox helpers
+        run: python shared/hooks/sync.py
+      - name: Test passive mailbox Stop adapters
+        run: python -m unittest discover -s shared/hooks/tests -v
       - name: Install test dependency
         run: python -m pip install pytest
       - name: Test hook runtime and installer

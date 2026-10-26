@@ -14,6 +14,19 @@ claude plugin marketplace add https://github.com/nowledge-co/community
 claude plugin install nowledge-mem@nowledge-community
 ```
 
+To download only this plugin instead of the whole community repository, add the
+marketplace with a sparse checkout:
+
+```bash
+claude plugin marketplace add nowledge-co/community \
+  --sparse .claude-plugin nowledge-mem-claude-code-plugin
+```
+
+The same marketplace works in Claude Desktop (`extraKnownMarketplaces` or an
+organization marketplace allowlist). It lists the plugin by a relative path,
+because Claude Desktop hides marketplace entries that point at an external
+source.
+
 Grok Build:
 
 ```bash
@@ -263,3 +276,22 @@ underlying error.
 ---
 
 Made with care by [Nowledge Labs](https://nowledge-labs.ai)
+
+### Mailbox check before finishing
+
+In Claude Code, when `NMEM_AGENT_CONTEXT` names an approved Agent Context, Stop
+uses one `nmem mailbox probe` call and can remind the Agent once to inspect new pending mail. The check is read-only:
+it does not receive, acknowledge or execute messages. Recursive Stop and failed
+checks end normally, and an unchanged pending state is not repeated in the same
+host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. Set `NMEM_BRIDGE_SESSION_MAILBOX=1` only for an already registered native session.
+The probe uses the actual Codex or Claude Code host ID and checks its original
+Local or Cloud mailbox. Incomplete scans are reported as incomplete. Unsupported
+CLI/server versions and missing or ambiguous original credentials quietly skip
+the reminder without falling back to another mailbox. Native Cloud Receive
+requires a fresh recorded `--operation-id` during normal work and automatically
+ACKs; the hook never runs it. This does not enable polling or idle wakeup.
+
+In WSL, this Stop check requires a Linux CLI. Windows `.cmd`, `.bat` and `.exe`
+CLIs are skipped because process cleanup across the two
+systems are unsupported. The hook never substitutes another executable for
+`NMEM_CLI_PATH`.

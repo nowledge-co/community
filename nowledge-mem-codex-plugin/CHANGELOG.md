@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.43] - Unreleased
+
+- Use one read-only CLI pending probe for compatibility and explicitly opted-in native Local/Cloud mailboxes. Keep exact host/session binding, bounded scan completeness, and fail open on unsupported versions without mailbox fallback.
+
+## [0.1.42] - Unreleased
+
+### Added
+
+- At normal Stop, check an explicitly approved compatibility mailbox and remind
+  the Agent once about a new pending state. The bounded check never consumes or
+  acknowledges mail; recursive Stop, stale bindings and unavailable services
+  end normally. Set `NMEM_NO_MAILBOX_NOTICE=1` to disable reminders.
+- Coordinate duplicate reminders through a private bounded cache. Experimental
+  session modes without a qualified read-only probe never fall back to an older
+  identity inbox.
+- Skip Windows CLI executables in WSL before probing; this Stop check requires
+  a CLI native to the host OS.
+
 ## [0.1.41] - Unreleased
 
 ### Changed
