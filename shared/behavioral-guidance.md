@@ -257,6 +257,15 @@ Search memories or threads first, then choose the specific conversation and mess
 
 Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
 
+## Hosted clients: per-reply original Thread sync
+
+Hosted MCP clients use [the universal Nowledge Mem skill](https://mem.nowledge.co/SKILL.md).
+Default to syncing each normal assistant reply with the current conversation's
+originals in the same Thread and confirmed Space. Include the current reply;
+never replace originals with a Memory. Sync receipts do not recursively trigger
+new syncs. Report actual receipts and unsupported host capabilities. A scheduler
+is not required by default; existing schedules are not silently changed.
+
 ## Mailbox recipient selection
 
 A card helps choose whom to contact by `agent_id`; names, descriptions and
@@ -287,3 +296,4 @@ existing behavior.
 
 When the host runs in WSL, this Stop check requires a Linux CLI. A Windows
 `.cmd`, `.bat` or `.exe` CLI is skipped; no alternate executable is selected.
+

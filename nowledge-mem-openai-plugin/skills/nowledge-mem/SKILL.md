@@ -1,6 +1,6 @@
 ---
 name: nowledge-mem
-description: Use a connected Nowledge Mem Cloud workspace for cross-tool context, memory search, scoped knowledge writes, thread lookup, and Library retrieval in ChatGPT or Codex.
+description: Use a connected Nowledge Mem Cloud workspace for cross-tool context, memory search, scoped knowledge writes, thread lookup, original Thread sync, and Library retrieval in ChatGPT or Codex.
 ---
 
 # Nowledge Mem Cloud
@@ -26,8 +26,18 @@ Respect the tools actually exposed by the connected server. Do not claim access 
 ## Boundaries
 
 - Remote MCP lets ChatGPT or Codex call Mem. It does not let Mem read the host's private transcript.
-- Use the browser extension or an official export for ChatGPT conversation capture. Use the dedicated local Codex connector for Codex lifecycle hooks and transcript capture.
+- Use the browser extension or an official export for complete ChatGPT conversation capture. Use the dedicated local Codex connector for Codex lifecycle hooks and transcript capture.
 - A client name and `source_app` are provenance, not an AI Identity or Space selector.
 - Never create a new Space merely to make a connection succeed.
 
 When a task materially depends on remembered context, cite or summarize the retrieved evidence honestly. Do not describe a retrieval as proof that the memory helped unless the user or downstream work confirms it.
+
+## Per-reply conversation synchronization
+
+Read https://mem.nowledge.co/SKILL.md.
+Default to an automatic sync after each normal assistant reply, including that
+reply's original content in the same Thread. Follow the shared full-snapshot,
+identity, Space and receipt rules. Sync-only status does not trigger another
+sync. No scheduler is required by default. If the host cannot supply originals,
+stable IDs or the tool call for this reply, report automatic sync as not enabled
+and offer explicit sync or supported export. Do not change existing schedules.

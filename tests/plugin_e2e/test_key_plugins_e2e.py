@@ -1516,11 +1516,19 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
             # it must not require access to a user's briefing as an install check.
             assert "Verify search" in guide["prompt"]
             assert "验证搜索" in guide["promptZh"]
+        elif entry["id"] in {"muse", "dots", "grok-bot"}:
+            # Hosted launchers delegate protocol and tool checks to the full skill.
+            assert "/docs/integrations/" in guide["prompt"], entry["id"]
+            assert "/docs/integrations/" in guide["promptZh"], entry["id"]
+            assert "https://mem.nowledge.co/SKILL.md" in guide["prompt"], entry["id"]
+            assert "shared/remote-mcp" not in guide["prompt"], entry["id"]
+            assert "shared/remote-mcp" not in guide["promptZh"], entry["id"]
         else:
             assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
             assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
-        assert "/docs/integrations/" not in guide["prompt"], entry["id"]
-        assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
+        if entry["id"] not in {"muse", "dots", "grok-bot"}:
+            assert "/docs/integrations/" not in guide["prompt"], entry["id"]
+            assert "/docs/integrations/" not in guide["promptZh"], entry["id"]
 
     by_id = {entry["id"]: entry for entry in integrations}
     assert "raft" in integration_ids
@@ -1553,16 +1561,12 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     grok_prompt = by_id["grok-bot"]["install"]["agentGuide"]["prompt"]
     grok_prompt_zh = by_id["grok-bot"]["install"]["agentGuide"]["promptZh"]
     for text in (grok_prompt, grok_prompt_zh):
-        assert "Nowledge Cloud" in text
-        assert "Mem App" in text
-        assert "OAuth" in text
-        assert "API key" in text
-        assert "grok.com/connectors" in text
-        assert "Space" in text
-        assert "exact-ID readback" in text or "精确 ID 回读" in text
-        assert "complete-thread capture" in text or "完整会话" in text
-    assert "do not ask for or paste a Mem API key" in grok_prompt
-    assert "不要索要或粘贴 Mem API key" in grok_prompt_zh
+        assert "Thread" in text
+        assert "/docs/integrations/grok-bot" in text
+    # Complete tool-use and sync rules live at the universal skill URL.
+    for text in (grok_prompt, grok_prompt_zh):
+        assert "https://mem.nowledge.co/SKILL.md" in text
+        assert "shared/remote-mcp" not in text
     chatgpt_prompt = by_id["chatgpt-cloud"]["install"]["agentGuide"]["prompt"]
     chatgpt_prompt_zh = by_id["chatgpt-cloud"]["install"]["agentGuide"]["promptZh"]
     for text in (chatgpt_prompt, chatgpt_prompt_zh):
