@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.1.44] - Unreleased
+
+### Added
+
+- Add default-off Nowledge Bridge session startup and resume with an explicitly
+  configured Agent Context and `NMEM_BRIDGE_SESSION_MAILBOX=1`. Revalidate the
+  exact native session binding through a compatible CLI and backend; a new
+  session does not inherit another session's mailbox.
+- Report registration separately from session-addressed receiving readiness.
+  Existing identity-scoped mailbox guidance remains the default.
+
+### Changed
+
+- Show session messaging guidance only after the CLI validates the current
+  backend capability, complete original scope and server-owned automatic
+  receiving and recovery descriptor. Older or unsupported descriptors grant no
+  receiving guidance.
+- Preserve the exact native session correlation for session-scoped discovery at
+  startup, resume and ordinary task boundaries.
+- Explain receipt-only recovery: read the original receipt's message IDs in the
+  same context/session, or replay the unchanged original Claim operation. Do not
+  create a replacement operation or perform a separate acknowledgement step.
+
+### Notes
+
+- Backend readiness and delivery acceptance do not prove model visibility or
+  task completion. Installed-host delivery remains separately unverified.
+
 ## [0.1.43] - Unreleased
 
 - Use one read-only CLI pending probe for compatibility and explicitly opted-in native Local/Cloud mailboxes. Keep exact host/session binding, bounded scan completeness, and fail open on unsupported versions without mailbox fallback.
