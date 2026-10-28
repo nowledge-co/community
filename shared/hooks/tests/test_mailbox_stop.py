@@ -114,9 +114,9 @@ class MailboxStopTests(unittest.TestCase):
                 "body": "private-sender-text-must-not-be-injected",
             }
         )
-        remaining = deadline - CORE.time.monotonic()
-        self.assertGreater(remaining, 0)
-        self.assertLessEqual(remaining, CORE.TOTAL_TIMEOUT_SECONDS)
+        now = CORE.time.monotonic()
+        self.assertGreater(deadline, now)
+        self.assertLessEqual(deadline, now + CORE.TOTAL_TIMEOUT_SECONDS)
         return reply
 
     def run_hook(self, wrapper=None, *, diagnose=False):
@@ -166,6 +166,25 @@ class MailboxStopTests(unittest.TestCase):
         self.assertIn("NMEM_CLI_PATH", response["reason"])
         self.assertNotIn("private-sender-text", response["reason"])
         self.assertEqual(len(self.calls), 1)
+
+    def test_cli_budget_guard_accepts_an_exact_coarse_clock_deadline(self):
+        # A coarse Windows monotonic clock may return the same value twice.
+        # Subtraction rounds (1.4 + 3) - 1.4 above 3 despite an exact budget.
+        now = 1.4
+        self.assertGreater((now + CORE.TOTAL_TIMEOUT_SECONDS) - now, CORE.TOTAL_TIMEOUT_SECONDS)
+        with mock.patch.object(CORE.time, "monotonic", return_value=now):
+            command = [sys.executable, "--json", "--agent-context", "reviewer",
+                       "mailbox", "probe", "--host", self.host, "--session-id", "session-1"]
+            response = self.cli(
+                command,
+                now + CORE.TOTAL_TIMEOUT_SECONDS,
+            )
+            with self.assertRaises(AssertionError):
+                self.cli(command, now + CORE.TOTAL_TIMEOUT_SECONDS + 0.001)
+            with self.assertRaises(AssertionError):
+                self.cli(command, now)
+            self.assertEqual(self.run_hook()["decision"], "block")
+        self.assertIsInstance(response, dict)
 
     def test_same_pending_state_does_not_repeat_but_new_state_can_remind(self):
         self.assertEqual(self.run_hook()["decision"], "block")
