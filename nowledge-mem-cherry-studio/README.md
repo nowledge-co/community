@@ -52,6 +52,11 @@ nowledge-mem-cherry-studio --database '/absolute/path/Data/cherrystudio.sqlite' 
 nowledge-mem-cherry-studio --database '/absolute/path/Data/cherrystudio.sqlite' --space-id 'YOUR_SPACE_ID' --watch --apply
 ```
 
+After a successful apply, open Threads in the configured Mem workspace and find
+the Cherry conversation by its title. Complete another reply in Cherry and check
+that it appears in the same Thread; an alternate branch should appear separately.
+The terminal should report `synced`, not `retrying` or `failed`.
+
 `--apply` consents to importing **existing history as well as future replies**
 from the selected database. There is no topic allowlist or future-only mode in
 0.1.0. Do not enable it if that scope is inappropriate. If `--space-id` is omitted,
@@ -69,8 +74,10 @@ Space deliberately before uploading. No automatic startup service is installed.
   Switching back does not concatenate alternatives. An unselected branch is not
   proactively uploaded. Invalid, deleted or pending ancestry is refused and
   retried rather than guessed.
-- Existing Agent session identities remain compatible with earlier `nmem`
-  imports. This companion does not create a parallel identity scheme.
+- Active Agent conversation identities remain compatible with earlier `nmem`
+  imports. Trashed sessions and internal background sessions are excluded when
+  those visibility columns are present. This does not create a parallel identity
+  scheme or delete earlier imports of those sessions.
 
 The database and its `-wal` are observed every 15 seconds. Changed sources trigger
 native full-session reconciliation; unchanged sources are reconciled every five
