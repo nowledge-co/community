@@ -8,6 +8,7 @@ PACKAGES = {
     "agent-plugins": ("nowledge-mem-agent-plugin", "plugin.json"),
     "alma": ("nowledge-mem-alma-plugin", "manifest.json"),
     "bub": ("nowledge-mem-bub-plugin", "pyproject.toml"),
+    "cherry-studio": ("nowledge-mem-cherry-studio", "pyproject.toml"),
     "claude-code": ("nowledge-mem-claude-code-plugin", ".claude-plugin/plugin.json"),
     "codex-cli": ("nowledge-mem-codex-plugin", ".codex-plugin/plugin.json"),
     "copilot-cli": ("nowledge-mem-copilot-cli-plugin", ".claude-plugin/plugin.json"),

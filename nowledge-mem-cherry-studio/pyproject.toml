@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nowledge-mem-cherry-studio"
+version = "0.1.0"
+description = "Opt-in Cherry Studio thread sync through the Nowledge Mem CLI"
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.scripts]
+nowledge-mem-cherry-studio = "nowledge_mem_cherry_studio:main"
+
+[tool.setuptools]
+py-modules = ["nowledge_mem_cherry_studio"]
