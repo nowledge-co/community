@@ -125,6 +125,30 @@ def required_topics(database):
         raise SyncError("Cannot inspect Cherry Studio metadata; check version and database availability") from None
 
 
+def forbidden_agent_sessions(database):
+    """Reject older readers that still include trash/internal Agent sessions."""
+    try:
+        conn = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=2)
+        try:
+            conn.execute("PRAGMA query_only=ON")
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(agent_session)")}
+            clauses = []
+            if "deleted_at" in columns:
+                clauses.append("deleted_at IS NOT NULL")
+            if "type" in columns:
+                clauses.append("type IS NULL OR type <> 'conversation'")
+            if not clauses:
+                return set()
+            rows = conn.execute("SELECT id FROM agent_session WHERE " + " OR ".join(clauses) + " LIMIT 10001").fetchall()
+            if len(rows) > 10000:
+                raise SyncError("Agent visibility inventory exceeds the compatibility inspection limit")
+            return {row[0] for row in rows}
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        raise SyncError("Cannot inspect Cherry Studio session visibility") from None
+
+
 def invoke(command, timeout, env=None):
     # Redirect to private temporary files instead of unbounded captured pipes.
     # No transcript or CLI error body is printed or retained after the call.
@@ -162,8 +186,11 @@ def sync_bound(args, env):
     if args.space_id is not None:
         command += ["--space-id", args.space_id]
     expected = required_topics(args.database)
+    forbidden = forbidden_agent_sessions(args.database)
     preview = invoke(command, args.timeout, env)
     actual = {row.get("session_id") for row in preview["results"]}
+    if actual & forbidden:
+        raise SyncError("This nmem reader includes trash or internal Agent sessions; update nmem before enabling sync")
     if not expected.issubset(actual):
         raise SyncError("This nmem reader does not cover ordinary Cherry chats; update nmem before enabling sync")
     if not args.apply:

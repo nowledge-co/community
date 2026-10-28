@@ -86,6 +86,21 @@ class CompanionTests(unittest.TestCase):
         self.assertNotEqual(sync.fingerprint(self.database), before)
         conn.close()
 
+    def test_legacy_reader_cannot_apply_trashed_or_background_agent_sessions(self):
+        conn = sqlite3.connect(self.database)
+        conn.executescript("ALTER TABLE agent_session ADD COLUMN type TEXT;"
+                           "ALTER TABLE agent_session ADD COLUMN deleted_at INTEGER;"
+                           "INSERT INTO agent_session VALUES('session-1','background',NULL);"
+                           "INSERT INTO agent_session VALUES('trash','conversation',1);"
+                           "INSERT INTO agent_session VALUES('visible','conversation',NULL);")
+        conn.close()
+        self.assertEqual(sync.forbidden_agent_sessions(self.database), {"session-1", "trash"})
+        self.args.apply = True
+        with patch.object(sync, "invoke", return_value=receipt()) as call:
+            with self.assertRaisesRegex(sync.SyncError, "trash or internal"):
+                sync.sync_once(self.args)
+        self.assertEqual(call.call_count, 1)
+
     def test_profile_change_between_preview_and_apply_does_not_upload(self):
         self.args.apply = True
         with patch.object(sync, "profile_stamp", side_effect=["old", "old", "old", "new"]), patch.object(sync, "invoke", return_value=receipt()) as call:
