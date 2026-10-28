@@ -15,6 +15,7 @@ import tempfile
 import time
 
 VERSION = "0.1.0"
+UNBOUND_PROFILE = object()
 
 
 class SyncError(Exception):
@@ -70,11 +71,13 @@ def profile_stamp():
 
 
 @contextlib.contextmanager
-def pinned_profile():
+def pinned_profile(expected=UNBOUND_PROFILE):
     # Snapshot the native config opaquely, without parsing credentials or
     # duplicating native auth/Space resolution. Both children read this private
     # immutable copy, never a mutable profile between preview and apply.
     before = profile_stamp()
+    if expected is not UNBOUND_PROFILE and before != expected:
+        raise SyncError("nmem profile changed before binding the destination; stop and restart after reviewing it")
     try:
         with tempfile.TemporaryDirectory(prefix="cherry-nmem-") as directory:
             source = config_directory() / "config.json"
@@ -147,8 +150,8 @@ def invoke(command, timeout, env=None):
     return value
 
 
-def sync_once(args):
-    with pinned_profile() as env:
+def sync_once(args, expected_profile=UNBOUND_PROFILE):
+    with pinned_profile(expected_profile) as env:
         return sync_bound(args, env)
 
 
@@ -216,7 +219,7 @@ def run(args, *, sleep=time.sleep, clock=time.monotonic):
             # Periodic full reconciliation also handles target/profile changes,
             # remote deletion and lost acknowledgements; there is no skip cursor.
             if observed != acknowledged or clock() - last_success >= args.reconcile_interval:
-                report = sync_once(args)
+                report = sync_once(args, expected_profile=initial_profile)
                 print(json.dumps(report), flush=True)
                 acknowledged = observed  # BEFORE the call, not a racing newer WAL.
                 last_success = clock()

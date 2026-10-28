@@ -114,6 +114,18 @@ class CompanionTests(unittest.TestCase):
             self.assertEqual(json.loads(pinned.read_text())["apiUrl"], "http://127.0.0.1:8001")
         self.assertFalse(pinned.exists())
 
+    def test_profile_change_after_watch_check_cannot_rebind_the_upload(self):
+        config = sync.config_directory() / "config.json"
+        config.parent.mkdir()
+        config.write_text('{"apiUrl":"http://127.0.0.1:8001"}')
+        self.args.apply = True
+        def change_profile(_):
+            config.write_text('{"apiUrl":"http://127.0.0.1:80022"}')
+            return (1,)
+        with patch.object(sync, "fingerprint", side_effect=change_profile), patch.object(sync, "invoke", side_effect=[receipt(), receipt(True, "created")]) as call, contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(sync.run(self.args), 1)
+        call.assert_not_called()
+
     def test_failed_observation_retries_without_advancing_progress(self):
         self.args.watch = True
         snapshots = [(1,), (1,), (1,)]
