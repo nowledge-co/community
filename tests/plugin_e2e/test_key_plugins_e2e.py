@@ -1516,6 +1516,15 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
             # it must not require access to a user's briefing as an install check.
             assert "Verify search" in guide["prompt"]
             assert "验证搜索" in guide["promptZh"]
+        elif entry["id"] == "cherry-studio":
+            # This foreground companion captures originals; it does not inject
+            # a briefing or install model-facing recall skills.
+            assert entry["capabilities"]["workingMemory"] is False
+            assert entry["threadSave"]["method"] == "cli-native"
+            assert "Preview the exact local database" in guide["prompt"]
+            assert "先预览明确选择的本地数据库" in guide["promptZh"]
+            assert "Never infer consent" in guide["prompt"]
+            assert "MCP 接通不代表同意上传历史" in guide["promptZh"]
         elif entry["id"] in {"muse", "dots", "grok-bot"}:
             # Hosted launchers delegate protocol and tool checks to the full skill.
             assert "/docs/integrations/" in guide["prompt"], entry["id"]

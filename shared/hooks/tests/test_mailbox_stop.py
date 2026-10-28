@@ -114,12 +114,12 @@ class MailboxStopTests(unittest.TestCase):
                 "body": "private-sender-text-must-not-be-injected",
             }
         )
-        remaining = deadline - CORE.time.monotonic()
-        self.assertGreater(remaining, 0)
-        self.assertLessEqual(remaining, CORE.TOTAL_TIMEOUT_SECONDS)
+        now = CORE.time.monotonic()
+        self.assertGreater(deadline, now)
+        self.assertLessEqual(deadline, now + CORE.TOTAL_TIMEOUT_SECONDS)
         return reply
 
-    def run_hook(self, wrapper=None):
+    def run_hook(self, wrapper=None, *, diagnose=False):
         script = wrapper or self.wrapper
         output = io.StringIO()
         spec = importlib.util.spec_from_file_location(
@@ -127,6 +127,18 @@ class MailboxStopTests(unittest.TestCase):
         )
         helper = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(helper)
+        self.hook_diagnostics = []
+        previous_trace = sys.gettrace()
+
+        def trace(frame, event, value):
+            if event == "exception" and Path(frame.f_code.co_filename).name in {
+                script.name, "nmem_mailbox_stop.py", "nmem_runtime.py"
+            }:
+                kind, error, _ = value
+                self.hook_diagnostics.append(
+                    f"{Path(frame.f_code.co_filename).name}:{frame.f_lineno} {kind.__name__}: {error}"
+                )
+            return trace
         # Use the packaged helper, replacing only its CLI transport. Real
         # launcher and process-resource tests exercise the other boundaries.
         with mock.patch.dict(os.environ, self.env, clear=True), mock.patch.dict(
@@ -138,7 +150,13 @@ class MailboxStopTests(unittest.TestCase):
         ), mock.patch.object(
             helper, "_run_json", side_effect=self.cli
         ):
-            runpy.run_path(str(script), run_name="__main__")
+            try:
+                if diagnose:
+                    sys.settrace(trace)
+                runpy.run_path(str(script), run_name="__main__")
+            finally:
+                if diagnose:
+                    sys.settrace(previous_trace)
         return json.loads(output.getvalue())
 
     def test_pending_mail_produces_one_model_visible_non_consuming_check(self):
@@ -148,6 +166,25 @@ class MailboxStopTests(unittest.TestCase):
         self.assertIn("NMEM_CLI_PATH", response["reason"])
         self.assertNotIn("private-sender-text", response["reason"])
         self.assertEqual(len(self.calls), 1)
+
+    def test_cli_budget_guard_accepts_an_exact_coarse_clock_deadline(self):
+        # A coarse Windows monotonic clock may return the same value twice.
+        # Subtraction rounds (1.4 + 3) - 1.4 above 3 despite an exact budget.
+        now = 1.4
+        self.assertGreater((now + CORE.TOTAL_TIMEOUT_SECONDS) - now, CORE.TOTAL_TIMEOUT_SECONDS)
+        with mock.patch.object(CORE.time, "monotonic", return_value=now):
+            command = [sys.executable, "--json", "--agent-context", "reviewer",
+                       "mailbox", "probe", "--host", self.host, "--session-id", "session-1"]
+            response = self.cli(
+                command,
+                now + CORE.TOTAL_TIMEOUT_SECONDS,
+            )
+            with self.assertRaises(AssertionError):
+                self.cli(command, now + CORE.TOTAL_TIMEOUT_SECONDS + 0.001)
+            with self.assertRaises(AssertionError):
+                self.cli(command, now)
+            self.assertEqual(self.run_hook()["decision"], "block")
+        self.assertIsInstance(response, dict)
 
     def test_same_pending_state_does_not_repeat_but_new_state_can_remind(self):
         self.assertEqual(self.run_hook()["decision"], "block")
@@ -328,7 +365,12 @@ class MailboxStopTests(unittest.TestCase):
             sum("nowledge-mem-stop-save.py" in value for value in commands), 1
         )
         installed = installer.HOOKS_DIR / "nowledge-mem-mailbox-stop.py"
-        self.assertEqual(self.run_hook(installed)["decision"], "block")
+        response = self.run_hook(installed, diagnose=True)
+        self.assertEqual(
+            response.get("decision"), "block",
+            f"installed launcher response={response!r}; transport_calls={len(self.calls)}; "
+            f"handled_exceptions={self.hook_diagnostics!r}",
+        )
         self.assertEqual(self.run_hook(), {})
 
     def test_unavailable_cache_does_not_block_stop(self):
@@ -339,7 +381,11 @@ class MailboxStopTests(unittest.TestCase):
         )
         root.mkdir(parents=True)
         (root / "mailbox-stop-v1.sqlite3").mkdir()
-        self.assertEqual(self.run_hook(), {})
+        self.assertEqual(self.run_hook(diagnose=True), {})
+        self.assertTrue(
+            any("OperationalError" in error for error in self.hook_diagnostics),
+            self.hook_diagnostics,
+        )
 
 
 class ClaudeMailboxStopTests(MailboxStopTests):

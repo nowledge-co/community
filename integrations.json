@@ -8,7 +8,7 @@
     "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为我当前使用的 AI 工具安装或更新 Nowledge Mem。",
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
-      "claude-code", "grok", "grok-bot", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli",
+      "claude-code", "grok", "grok-bot", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli", "cherry-studio",
       "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "step-code", "opencode", "craft-agent", "workbuddy", "codebuddy", "dimagent",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
       "raft", "lody", "multica", "cumora", "paseo", "openhands", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct",
@@ -17,6 +17,46 @@
     "doesNotApplyTo": ["cradle", "arkloop", "opticlm", "browser-extension", "raycast", "antigravity-extractor", "windsurf-extractor"]
   },
   "integrations": [
+    {
+      "id": "cherry-studio",
+      "name": "Cherry Studio",
+      "category": "coding",
+      "type": "connector",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-cherry-studio",
+      "transport": "cli",
+      "availability": "guided",
+      "capabilities": {
+        "workingMemory": false, "search": false, "distill": false,
+        "autoRecall": false, "autoCapture": true, "graphExploration": false, "status": true
+      },
+      "threadSave": {
+        "method": "cli-native",
+        "runtime": "cherrystudio",
+        "command": "nowledge-mem-cherry-studio --database <cherrystudio.sqlite> --watch --apply",
+        "note": "Opt-in local companion for Cherry Studio 2.1.8. nmem owns native parsing and canonical reconciliation; MCP alone does not capture conversations. Requires a CLI reader covering ordinary topics and Agent sessions."
+      },
+      "autonomy": {
+        "bootstrap": "manual", "recall": "manual", "distill": "manual",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Run the companion on the Cherry Studio machine and explicitly choose a database and target Space",
+          "Preview first, then opt into --watch --apply; existing history is included",
+          "Keep a compatible nmem CLI configured for your local or remote Mem endpoint"
+        ]
+      },
+      "install": {
+        "command": "python3 -m pip install 'git+https://github.com/nowledge-co/community.git#subdirectory=nowledge-mem-cherry-studio'",
+        "detectionHint": "Cherry Studio 2.x SQLite database selected by the user; MCP configuration alone is not sync",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and the Cherry Studio companion README. Preview the exact local database before explicitly enabling automatic Thread synchronization. Never infer consent to upload history from an MCP connection.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 Cherry Studio companion README。先预览明确选择的本地数据库，获得授权后再开启 Thread 自动同步；MCP 接通不代表同意上传历史。"
+        },
+        "docsUrl": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-cherry-studio#readme"
+      },
+      "toolNaming": { "convention": "cli-native", "note": "Standalone foreground companion, not a Cherry plugin SDK or an MCP transcript tool." },
+      "skills": [], "slashCommands": []
+    },
     {
       "id": "dots",
       "name": "Dots",
