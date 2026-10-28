@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.1.7
+
+- Captures human input and assistant reply text instead of the model execution
+  trace. Tool-call steps (including their narration), tool results, reasoning,
+  and producer-injected context no longer inflate synchronized Threads or titles.
+- Keeps existing session/message identities and acknowledged import checkpoints.
+  Previously imported noise is not automatically deleted or rewritten.
+
 ## 0.1.6
 
 - Admits the tested DSH 0.2.1-rc.2 host packages without an unsafe version

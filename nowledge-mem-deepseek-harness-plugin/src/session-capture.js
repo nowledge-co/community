@@ -1,43 +1,16 @@
 import { selectUnacknowledgedEvents } from './session-delta.js'
 import { snapshotSessionEvents } from './session-events.js'
 import { boundText, sessionThreadTitle } from './thread-import.js'
-import { isPluginSource } from './message-source.js'
-
-function eventMessage(event) {
-  switch (event.type) {
-    case 'user/message':
-      return event.data
-    case 'assistant/message':
-      return event.data.message
-    case 'tool/result':
-      return event.data.message
-    default:
-      return undefined
-  }
-}
-
-function importRole(event) {
-  switch (event.type) {
-    case 'user/message':
-      return 'user'
-    case 'assistant/message':
-      return 'assistant'
-    case 'tool/result':
-      return 'tool'
-    default:
-      return undefined
-  }
-}
+import { transcriptMessage, transcriptText } from './transcript.js'
 
 function buildThreadImportDelta(capture, acknowledgedSeq) {
   const delta = selectUnacknowledgedEvents(capture.events, acknowledgedSeq)
   const messages = []
   for (const event of delta.events) {
-    const role = importRole(event)
-    const message = eventMessage(event)
-    if (role === undefined || message === undefined) continue
-    if (isPluginSource(message.source, capture.pluginName)) continue
-    const content = boundText(capture.renderMessage(message).trim(), capture.maxMessageChars)
+    const message = transcriptMessage(event)
+    if (message === undefined) continue
+    const role = event.type === 'user/message' ? 'user' : 'assistant'
+    const content = boundText(transcriptText(message).trim(), capture.maxMessageChars)
     if (content === '') continue
     const metadata = {
       external_id: `deepseek-harness:${capture.sessionId}:${event.seq}:${message.id}`,
@@ -51,11 +24,6 @@ function buildThreadImportDelta(capture, acknowledgedSeq) {
       metadata.dsh_step = event.data.step
       metadata.dsh_model_provider = event.data.message.source.provider
       metadata.dsh_model = event.data.message.source.model
-    } else if (event.type === 'tool/result') {
-      metadata.dsh_turn = event.data.turn
-      metadata.dsh_step = event.data.step
-      metadata.dsh_tool_call_id = event.data.message.source.callId
-      if (event.data.error !== undefined) metadata.dsh_tool_error = event.data.error
     }
     messages.push({
       role,
@@ -95,13 +63,11 @@ export function captureSession(session, options) {
     session,
     sessionId,
     sourceApp: options.sourceApp,
-    pluginName: options.pluginName,
-    renderMessage: options.renderMessage,
     maxMessageChars: options.maxMessageChars,
     title: sessionThreadTitle(
       events,
       sessionId,
-      options.renderMessage,
+      transcriptText,
       options.maxMessageChars,
       options.establishedTitle,
     ),

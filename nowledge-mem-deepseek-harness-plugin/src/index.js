@@ -282,8 +282,6 @@ async function loadRecallMessage(ctx, config, query, signal, session) {
 export function buildThreadImportPayload(session, maxMessageChars, sourceApp = DEFAULT_SOURCE_APP) {
   return captureSession(session, {
     sourceApp,
-    pluginName: name,
-    renderMessage: messageText,
     maxMessageChars,
   }).deltaFrom(-1)?.payload
 }
@@ -291,8 +289,6 @@ export function buildThreadImportPayload(session, maxMessageChars, sourceApp = D
 async function importSession(ctx, config, session, cursor) {
   const capture = captureSession(session, {
     sourceApp: config.sourceApp,
-    pluginName: name,
-    renderMessage: messageText,
     maxMessageChars: config.maxThreadMessageChars,
     establishedTitle: cursor?.title,
   })

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { setImmediate } from 'node:timers/promises'
 import test from 'node:test'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, createAssistantMessage, createToolResultMessage } from '@deepseek-ai/dsh-llm'
 import { Session } from '@deepseek-ai/dsh-session'
 import { assertV4RowAdmission } from '@deepseek-ai/dsh-session-format-v3-to-v4'
 import { satisfies } from 'semver'
@@ -163,6 +163,43 @@ test('turn-end imports a real host session without own injections or an injected
   assert.equal(host.imports[0].title, 'review the previous release decision')
   assert.deepEqual(host.imports[0].messages.map(message => message.content), ['review the previous release decision'])
   assert.equal(host.requests.at(-1).env.NMEM_IMPORT_ORIGIN, 'deepseek-harness')
+  assert.deepEqual(host.warnings, [])
+})
+
+test('native DSH turn-end exports human dialogue, not the model execution trace', { timeout: 2_000 }, async () => {
+  const host = fixture({ contextOnSessionStart: false, recallOnPrompt: false })
+  const append = (type, data) => {
+    const row = host.session.append(type, data, { surfaceOp: 'append' })
+    assert.doesNotThrow(() => assertV4RowAdmission(row))
+  }
+  append('user/message', userMessage('Runtime directory context', { kind: 'plugin:runtime' }))
+  append('user/message', userMessage('How should I test this?'))
+  append('assistant/message', {
+    turn: 1, step: 1, stream: [],
+    message: createAssistantMessage({ source: { provider: 'deepseek', model: 'test' }, content: [
+      { type: 'reasoning', text: 'Private execution reasoning' },
+      { type: 'text', text: 'I will inspect the directory' },
+      { type: 'tool-call', id: 'call-1', name: 'shell', arguments: '{"command":"ls"}' },
+    ] }),
+  })
+  append('tool/result', { turn: 1, step: 1, message: createToolResultMessage({
+    callId: 'call-1', isError: false, content: [{ type: 'text', text: 'Raw directory listing' }],
+  }) })
+  append('assistant/message', {
+    turn: 1, step: 2, stream: [],
+    message: createAssistantMessage({ source: { provider: 'deepseek', model: 'test' }, content: [
+      { type: 'reasoning', text: 'Private answer reasoning' },
+      { type: 'text', text: 'Run the regression suite.' },
+    ] }),
+  })
+  const end = host.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+  host.listeners.get('session/event')(host.session, end)
+  await host.importFinished
+  assert.equal(host.imports[0].title, 'How should I test this?')
+  assert.deepEqual(host.imports[0].messages.map(({ role, content }) => [role, content]), [
+    ['user', 'How should I test this?'],
+    ['assistant', 'Run the regression suite.'],
+  ])
   assert.deepEqual(host.warnings, [])
 })
 
