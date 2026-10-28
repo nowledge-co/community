@@ -101,6 +101,14 @@ class CompanionTests(unittest.TestCase):
                 sync.sync_once(self.args)
         self.assertEqual(call.call_count, 1)
 
+    def test_source_change_during_compatibility_check_is_not_an_upgrade_error(self):
+        self.args.apply = True
+        for required, forbidden in [({"topic:new"}, set()), (set(), {"session-1"})]:
+            with self.subTest(required=required), patch.object(sync, "required_topics", return_value=required), patch.object(sync, "forbidden_agent_sessions", return_value=forbidden), patch.object(sync, "fingerprint", side_effect=[(1,), (2,)]), patch.object(sync, "invoke", return_value=receipt()) as call:
+                with self.assertRaisesRegex(sync.SyncError, "changed while checking"):
+                    sync.sync_once(self.args)
+            self.assertEqual(call.call_count, 1)
+
     def test_profile_change_between_preview_and_apply_does_not_upload(self):
         self.args.apply = True
         with patch.object(sync, "profile_stamp", side_effect=["old", "old", "old", "new"]), patch.object(sync, "invoke", return_value=receipt()) as call:

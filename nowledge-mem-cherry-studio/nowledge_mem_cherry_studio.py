@@ -185,10 +185,13 @@ def sync_bound(args, env):
                "--all-projects", "--session-dir", str(args.database)]
     if args.space_id is not None:
         command += ["--space-id", args.space_id]
+    source_stamp = fingerprint(args.database)
     expected = required_topics(args.database)
     forbidden = forbidden_agent_sessions(args.database)
     preview = invoke(command, args.timeout, env)
     actual = {row.get("session_id") for row in preview["results"]}
+    if (actual & forbidden or not expected.issubset(actual)) and fingerprint(args.database) != source_stamp:
+        raise SyncError("Cherry Studio changed while checking reader compatibility; retry after the current turn completes")
     if actual & forbidden:
         raise SyncError("This nmem reader includes trash or internal Agent sessions; update nmem before enabling sync")
     if not expected.issubset(actual):
