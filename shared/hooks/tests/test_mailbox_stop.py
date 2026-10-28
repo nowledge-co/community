@@ -362,7 +362,11 @@ class MailboxStopTests(unittest.TestCase):
         )
         root.mkdir(parents=True)
         (root / "mailbox-stop-v1.sqlite3").mkdir()
-        self.assertEqual(self.run_hook(), {})
+        self.assertEqual(self.run_hook(diagnose=True), {})
+        self.assertTrue(
+            any("OperationalError" in error for error in self.hook_diagnostics),
+            self.hook_diagnostics,
+        )
 
 
 class ClaudeMailboxStopTests(MailboxStopTests):
