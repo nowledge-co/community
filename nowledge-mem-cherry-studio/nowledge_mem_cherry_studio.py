@@ -41,10 +41,14 @@ def bounded_seconds(raw):
 def fingerprint(database):
     # WAL changes matter even when SQLite never touches the main file's mtime.
     values = []
-    for path in (database, Path(str(database) + "-wal")):
+    for index, path in enumerate((database, Path(str(database) + "-wal"))):
         try:
             stat = path.stat()
-            values.append((stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns))
+            # A read-only SQLite connection may create an empty WAL sidecar.
+            # Header-only files contain no transaction pages and are not a
+            # source edit; do not misdiagnose our own metadata inspection.
+            values.append(None if index == 1 and stat.st_size <= 32 else
+                          (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns))
         except FileNotFoundError:
             values.append(None)
     return tuple(values)

@@ -86,6 +86,14 @@ class CompanionTests(unittest.TestCase):
         self.assertNotEqual(sync.fingerprint(self.database), before)
         conn.close()
 
+    def test_empty_reader_wal_sidecar_is_not_a_conversation_change(self):
+        before = sync.fingerprint(self.database)
+        wal = Path(str(self.database) + "-wal")
+        wal.write_bytes(b"\0" * 32)
+        self.assertEqual(sync.fingerprint(self.database), before)
+        wal.write_bytes(b"\0" * 33)
+        self.assertNotEqual(sync.fingerprint(self.database), before)
+
     def test_legacy_reader_cannot_apply_trashed_or_background_agent_sessions(self):
         conn = sqlite3.connect(self.database)
         conn.executescript("ALTER TABLE agent_session ADD COLUMN type TEXT;"

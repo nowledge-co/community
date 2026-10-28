@@ -115,6 +115,10 @@ excluding it at the source before the whole batch can report success. An empty
 database may report no readable sessions until a conversation is completed.
 If the CLI is too old, update it before retrying; never disable the compatibility
 check to force an apparently successful sync.
+If the database changes during a compatibility check, the companion instead
+reports a source-change retry. Let the current Cherry turn finish; this is not
+evidence that the CLI needs an update. Empty WAL sidecars created by SQLite
+readers do not count as new conversation data.
 
 ## Development
 
