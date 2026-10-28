@@ -37,6 +37,7 @@ EXTRA_SURFACES = {
     "copilot-cli": [(".github/plugin/marketplace.json", ("plugins", 0, "version"))],
 }
 RUNTIME_SURFACES = {
+    "cherry-studio": ("nowledge-mem-cherry-studio/nowledge_mem_cherry_studio.py", "VERSION"),
     "pi": ("nowledge-mem-pi-package/extensions/nowledge-mem.ts", "DEFAULT_PLUGIN_VERSION"),
     "omp": ("nowledge-mem-omp-plugin/extensions/nowledge-mem.ts", r"process\.env\.NMEM_PLUGIN_VERSION"),
     "step-code": ("nowledge-mem-step-code/extensions/nowledge-mem.ts", r"process\.env\.NMEM_PLUGIN_VERSION"),
