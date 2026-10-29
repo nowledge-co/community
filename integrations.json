@@ -1290,7 +1290,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.14",
+      "version": "0.8.15",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1896,7 +1896,7 @@
       "name": "OMP",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "directory": "nowledge-mem-omp-plugin",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1911,7 +1911,7 @@
       "threadSave": {
         "method": "plugin-capture",
         "historicalCommand": "nmem t sync --from omp",
-        "note": "The OMP plugin injects startup Context Bundle or Working Memory, syncs completed OMP session branches as Mem threads with source_app=omp, and nmem t sync --from omp can backfill older OMP session files. The Pi package remains separate and should not be installed as the OMP connector."
+        "note": "The OMP plugin injects startup Context Bundle or Working Memory and syncs human dialogue from completed OMP branches with source_app=omp, matching the default Codex import's text projection. Capture preserves complete user/assistant text (including commentary, final replies, and user-invoked skill drafts) while excluding agent-attributed injections, tool calls/results, reasoning, expanded skills, internal summaries, and image/file payloads or placeholders. The separate nmem t sync --from omp history importer is not changed by the plugin's capture projection. The Pi package remains separate and should not be installed as the OMP connector."
       },
       "autonomy": {
         "bootstrap": "guided",

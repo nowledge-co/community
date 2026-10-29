@@ -1,0 +1,22 @@
+{"type":"session_meta","timestamp":"2026-10-29T00:00:00.000Z","payload":{"id":"01a1880d-0000-7000-8000-000000000002","timestamp":"2026-10-29T00:00:00.000Z","cwd":"/synthetic/codex","originator":"codex_cli_rs","source":"cli"}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"developer","content":[{"type":"input_text","text":"INTERNAL system and tool definitions"}]}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"# AGENTS.md instructions\n\n<INSTRUCTIONS>\nINTERNAL repository rules\n</INSTRUCTIONS>"}]}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>INTERNAL environment</environment_context>"}]}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<skills_instructions>INTERNAL skills catalog</skills_instructions>"}]}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<skill>\n<name>review</name>\n<path>/synthetic/SKILL.md</path>\nINTERNAL expanded skill\n</skill>"}]}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<nmem-context>INTERNAL injected memory</nmem-context>"}]}}
+{"type":"event_msg","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"user_message","message":"Synthetic human question"}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Synthetic human question"}]}}
+{"type":"event_msg","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"agent_message","message":"I will check the change","phase":"commentary"}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"assistant","phase":"commentary","content":[{"type":"output_text","text":"I will check the change"}]}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"function_call","name":"read","arguments":"{\"path\":\"SKILL.md\"}","call_id":"fixture-tool"}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"function_call_output","call_id":"fixture-tool","output":"INTERNAL tool output"}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"reasoning","summary":[{"type":"summary_text","text":"INTERNAL reasoning"}]}}
+{"type":"event_msg","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"agent_message","message":"Synthetic assistant answer","phase":"final"}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"assistant","phase":"final","content":[{"type":"output_text","text":"Synthetic assistant answer"}]}}
+{"type":"event_msg","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"user_message","message":"/skill:review fixture"}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"/skill:review fixture"}]}}
+{"type":"event_msg","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"user_message","message":"Look at these","images":["data:image/png;base64,synthetic-fixture"]}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Look at these"},{"type":"input_image","image_url":"data:image/png;base64,synthetic-fixture"},{"type":"input_file","filename":"report.txt","file_data":"INTERNAL file data"}]}}
+{"type":"event_msg","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"agent_message","message":"I reviewed the attachments","phase":"final"}}
+{"type":"response_item","timestamp":"2026-10-29T00:00:00.000Z","payload":{"type":"message","role":"assistant","phase":"final","content":[{"type":"output_text","text":"I reviewed the attachments"}]}}
