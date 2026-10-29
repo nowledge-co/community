@@ -1,6 +1,12 @@
 # Nowledge Mem for DeepSeek Harness
 
-Community DeepSeek Harness (`dsh`) bundle for Nowledge Mem, published from the standalone `nowledge-co/nowledge-mem-deepseek-harness` repo and mirrored in `nowledge-co/community`.
+[![Get Nowledge Mem](https://img.shields.io/badge/Get-Nowledge%20Mem-00A3A3?style=flat&logo=rocket&logoColor=white)](https://mem.nowledge.co/)
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-dsh--plugin-111827?style=flat)](https://github.com/deepseek-ai/deepseek-harness)
+
+One memory layer for every AI tool and agent, packaged as a DeepSeek Harness (`dsh`) bundle. Nowledge Mem brings DSH into the same durable memory system as your other agents, with startup context, prompt-time recall, MCP memory tools, and turn-end thread capture.
+
+This repository is the canonical standalone plugin package, mirrored in `nowledge-co/community` for the Nowledge Mem connector index.
 
 ## Install
 
@@ -46,7 +52,7 @@ export NMEM_API_KEY="<mem-api-key>"
 
 - Injects the Nowledge Mem Context Bundle once per DSH session through `agent/pre-step`.
 - Runs prompt-time memory recall for continuation, release, regression, connector, plugin, and other recall-shaped prompts.
-- Adds the Mem MCP server through DSH's `@deepseek-ai/dsh-mcp-client`, so tools appear as `mcp__nowledge_mem__...`.
+- Adds the Mem MCP server through DSH's reconnecting `@deepseek-ai/dsh-mcp-client`, so tools appear as `mcp__nowledge_mem__...`.
 - Imports the real DSH surface transcript after completed turns with `nmem t import --source deepseek-harness`.
 - Stamps CLI imports with `NMEM_IMPORT_ORIGIN=deepseek-harness`.
 
@@ -99,7 +105,23 @@ Mem MCP tools are registered through DSH's MCP bridge under the `nowledge_mem` n
 
 ### Thread Capture
 
-After each completed DSH turn, the plugin serializes user, assistant, and tool-result events, skips its own injected context messages, and imports the transcript into Mem as `source=deepseek-harness`.
+After each completed DSH turn, the plugin imports human input and assistant
+reply text into Mem as `source=deepseek-harness`. DSH marks actual user input
+with `source.kind: "user"`; user-role context from other producers (runtime,
+clock, skills, Mem or other plugins) is not a human prompt. Assistant steps
+containing tool calls, including their intermediate narration, tool results,
+reasoning blocks and execution metadata are not conversation text and are not
+stored as Thread messages. Image blocks retain an attachment placeholder, not
+image bytes. Visible text is preserved verbatim within the configured size cap;
+the plugin does not summarize or rewrite answers.
+
+Updating the plugin changes future captures; it does not delete or rewrite
+previously imported noisy messages. Stable identities still prevent new copies
+of unchanged conversation messages. Reopening an older polluted session may
+report an import conflict if an existing message with the same identity contains
+execution text: do not delete the Thread or change its identity to force a
+retry. Review a scoped cleanup/export with support first. New sessions can be
+used to verify the updated capture without touching old data.
 
 ### Sandbox Compatibility Retry
 
@@ -123,8 +145,7 @@ The canonical public repository is `nowledge-co/nowledge-mem-deepseek-harness`, 
 
 ## Development
 
-From `nowledge-mem-deepseek-harness-plugin`, install development dependencies
-before running the regression suite:
+Install development dependencies before running the regression suite:
 
 ```sh
 npm ci
@@ -138,7 +159,6 @@ user-message and inbox-splice rows using the official v4 admission validator.
 CLI responses and shell execution are deterministic test doubles; a live DSH
 and Mem smoke test is still required to verify an installed release.
 
-The DeepSeek Harness GitHub Actions workflow checks changes to this mirror,
-its registry, and its static contract on pull requests and pushes to `main`.
-It runs ESLint and the community static contract, plus Ubuntu/Windows tests
-with Node.js 24 and DSH 0.1.7-rc.1, 0.2.1-alpha.1, and 0.2.1-rc.2, including npm package checks.
+GitHub Actions runs ESLint and tests on every pull request and push to `main`.
+The test matrix covers Ubuntu and Windows with Node.js 24 and DSH 0.1.7-rc.1,
+0.2.1-alpha.1, and 0.2.1-rc.2. It also checks the npm package contents with `npm pack --dry-run`.
