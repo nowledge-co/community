@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.45] - Unreleased
+
+- Stream optional skill-outcome scans with bounded record size, reference state and time instead of retaining the full transcript.
+
 ## [0.1.44] - Unreleased
 
 ### Added
