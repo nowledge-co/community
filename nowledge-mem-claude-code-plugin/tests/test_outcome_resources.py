@@ -104,6 +104,66 @@ class OutcomeResources(unittest.TestCase):
             self.assertEqual(command.call_count, 1)
             self.assertEqual(heartbeat.call_count, 1)
 
+    def test_rejected_contender_hands_off_after_owner_finishes(self):
+        hook = load(HOOK)
+        with tempfile.TemporaryDirectory() as root:
+            state = Path(root)
+            key = "handoff-session"
+            with patch.object(hook, "_background_state_root", return_value=state):
+                token = hook._claim_background_worker(key)
+                hook._enqueue_background_payload(key, {"session_id": "one"})
+                child_code = r"""
+import importlib.util, pathlib, sys
+spec = importlib.util.spec_from_file_location('hook', sys.argv[1])
+hook = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(hook)
+root = pathlib.Path(sys.argv[2])
+hook._background_state_root = lambda: root
+def capture(*args, **kwargs):
+    (root / 'entered').touch()
+    assert sys.stdin.readline().strip() == 'release'
+    return 0
+hook._capture_payload = capture
+hook._drain_background_capture('handoff-session', 'stop', sys.argv[3])
+"""
+                child = subprocess.Popen([sys.executable, "-c", child_code, str(HOOK), root, token], stdin=subprocess.PIPE)
+                try:
+                    deadline = time.monotonic() + 10
+                    while not (state / "entered").exists():
+                        self.assertIsNone(child.poll())
+                        self.assertLess(time.monotonic(), deadline)
+                        time.sleep(0.01)
+                    lease = hook._background_lease_path(key)
+                    stale = time.time() - hook.BACKGROUND_LEASE_STALE_SECONDS - 1
+                    os.utime(lease, (stale, stale))
+                    contender = hook._claim_background_worker(key)
+                    self.assertIsNotNone(contender)
+                    real_release = hook._release_background_worker
+                    settled = [False]
+                    def release(k, t):
+                        if t == contender and not settled[0]:
+                            settled[0] = True
+                            # A exits while B still owns a fresh scheduling lease.
+                            child.communicate(input=b"release\n", timeout=10)
+                            self.assertEqual(child.returncode, 0)
+                            with patch.object(hook, "_spawn_background_worker") as spawn:
+                                hook._enqueue_background_payload(key, {"session_id": "new"})
+                                self.assertIsNone(hook._claim_background_worker(key))
+                                spawn.assert_not_called()
+                        real_release(k, t)
+                    with patch.object(hook, "_release_background_worker", side_effect=release), \
+                         patch.object(hook, "_capture_payload", return_value=0) as capture:
+                        hook._drain_background_capture(key, "stop", contender)
+                        self.assertEqual(capture.call_count, 1)
+                        self.assertEqual(capture.call_args.args[1], {"session_id": "new"})
+                        self.assertFalse(hook._background_payload_pending(key))
+                finally:
+                    if child.poll() is None:
+                        child.kill()
+                    child.wait(timeout=10)
+                    if not child.stdin.closed:
+                        child.stdin.close()
+
     def test_stale_lease_cannot_overlap_live_drain_and_recovers(self):
         hook = load(HOOK)
         with tempfile.TemporaryDirectory() as root:

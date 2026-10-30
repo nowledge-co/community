@@ -944,11 +944,20 @@ def _capture_payload(
 
 
 def _drain_background_capture(key: str, event: str, lease_token: str) -> int:
-    with _background_execution_lock(key) as acquired:
-        if not acquired:
+    # A rejected contender must settle its lease before its last lock probe.
+    # Otherwise the owner may see that fresh lease, decline successor launch,
+    # and exit just before the contender deletes it (stranding queued work).
+    for attempt in range(2):
+        with _background_execution_lock(key) as acquired:
+            if acquired:
+                _drain_background_capture_owned(key, event, lease_token)
+                break
+        if attempt == 0:
             _release_background_worker(key, lease_token)
-            return 0
-        _drain_background_capture_owned(key, event, lease_token)
+    else:
+        # An owner still holds custody after our lease settlement; its final
+        # post-unlock pending check is responsible for any queued work.
+        return 0
     # Check after releasing execution custody. A launched successor can now
     # consume the queue; if none was launched, reclaim the scheduling lease.
     if _background_payload_pending(key):
