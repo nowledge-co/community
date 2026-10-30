@@ -23,7 +23,7 @@ import { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 export { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.14";
+const DEFAULT_PLUGIN_VERSION = "0.8.16";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -351,7 +351,37 @@ function normalizeRole(role: unknown): "user" | "assistant" | "system" | undefin
 	return undefined;
 }
 
+function piEntryToMessage(entry: JsonObject, index: number, ambient: JsonObject): ThreadMessage | undefined {
+	if (entry.type !== "message" || !entry.message || typeof entry.message !== "object") return undefined;
+	const msg = entry.message as JsonObject;
+	if (msg.role !== "user" && msg.role !== "assistant") return undefined;
+	const parts = Array.isArray(msg.content) ? msg.content : [msg.content];
+	// Like the default Codex/OMP projection, capture human text only. An
+	// allowlist keeps tool calls, reasoning and future internal blocks out.
+	const content = parts.map((part) => {
+		if (typeof part === "string") return part;
+		if (!part || typeof part !== "object" || (part as JsonObject).type !== "text") return "";
+		return partToText(part);
+	}).filter(Boolean).join("\n").trim();
+	// Preserve complete dialogue, without synthetic attachment placeholders
+	// or the legacy 20k cap. Captions remain normal text blocks.
+	if (!content) return undefined;
+	return {
+		role: msg.role,
+		content,
+		timestamp: stringValue(entry.timestamp),
+		metadata: {
+			external_id: `pi-entry-${stringValue(entry.id) || index}`,
+			pi_entry_id: stringValue(entry.id),
+			pi_entry_type: entry.type,
+			pi_message_role: msg.role,
+			...ambient,
+		},
+	};
+}
+
 function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): ThreadMessage | undefined {
+	if (sourceApp() === "pi") return piEntryToMessage(entry, index, ambient);
 	if (entry.type === "message") {
 		const message = entry.message;
 		if (!message || typeof message !== "object") return undefined;

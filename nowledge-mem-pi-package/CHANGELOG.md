@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.16] - 2026-10-30
+
+### Fixed
+
+- Align Pi automatic capture with the human-text policy in OMP PR #782:
+  preserve user/assistant text, commentary, attachment captions and complete long
+  messages; exclude tool calls/results, thinking, shell output, custom context
+  and internal summaries. Keep native IDs, routing and acknowledged deltas.
+- Other hosts and the separate CLI history importer retain their existing
+  behavior. Existing saved Threads are not rewritten or cleaned.
+
 ## [0.8.14] - 2026-10-17
 
 - Refresh the embedded core 0.2.0 content manifest for Alma adoption; runtime behavior is unchanged.

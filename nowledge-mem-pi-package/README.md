@@ -24,6 +24,11 @@ The copied handoff contains no API key or conversation transcript. Native
 Pi gains a native extension plus five skills:
 
 - Completed Pi conversations sync into Nowledge Mem as searchable threads
+- Automatic capture keeps user/assistant text, including commentary, attachment
+  captions and full long messages. Tool activity, thinking, shell output, custom
+  extension context and internal summaries are excluded. Binary attachments are
+  not uploaded or replaced with synthetic placeholders. Previously stored Threads
+  and the separate `nmem t sync --from pi` history importer are unchanged.
 - Context Bundle or Working Memory is injected at Pi startup when available
 - Search, thread lookup, and distillation stay available through skills and the `nmem` CLI
 - Remote Mem works through `~/.nowledge-mem/config.json` or `NMEM_API_URL` / `NMEM_API_KEY`
