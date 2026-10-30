@@ -332,7 +332,7 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.30"
+    assert claude_manifest["version"] == "0.7.31"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -398,7 +398,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.44"
+    assert codex_manifest["version"] == "0.1.45"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"

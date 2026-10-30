@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -160,6 +161,45 @@ def _claim_background_worker(key: str) -> str | None:
             handle.write(f"{token} {os.getpid()} {time.time()}\n")
         return token
     return None
+
+
+@contextmanager
+def _background_execution_lock(key: str):
+    """OS custody survives lease expiry and is released even on worker death.
+
+    Never unlink this file: all workers must lock the same inode. Lease tokens
+    only schedule launch; this lock owns actual queue consumption and capture.
+    """
+    lock_path = _background_state_root() / f"{key}.execution"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+b") as handle:
+        if sys.platform == "win32":
+            import msvcrt
+            if os.fstat(handle.fileno()).st_size == 0:
+                handle.write(b"0")
+                handle.flush()
+            handle.seek(0)
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError:
+                yield False
+                return
+            try:
+                yield True
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                yield False
+                return
+            try:
+                yield True
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def _background_lease_owned(key: str, token: str) -> bool:
@@ -563,18 +603,25 @@ def _release_skill_outcome_claim(lock_path: Path | None) -> None:
         pass
 
 
-def _report_skill_outcomes(nmem: str, payload: dict[str, Any]) -> None:
+def _report_skill_outcomes(nmem: str, payload: dict[str, Any], heartbeat=None) -> None:
     if extract_skill_outcomes_from_file is None or build_outcome_args is None:
         return
     transcript_path = _payload_value(payload, "transcript_path", "transcriptPath")
-    outcomes = extract_skill_outcomes_from_file(transcript_path)
+    deadline = time.monotonic() + SKILL_OUTCOME_TIMEOUT_SECONDS
+    outcomes = extract_skill_outcomes_from_file(transcript_path, heartbeat=heartbeat)
     for skill_id, version in outcomes:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            print("nowledge-mem: optional skill outcomes skipped: reporting time limit", file=sys.stderr)
+            break
+        if heartbeat is not None:
+            heartbeat()
         lock_path = _claim_skill_outcome_report(payload, skill_id, version)
         if lock_path is None:
             continue
         command = _build_nmem_command(nmem, *build_outcome_args(skill_id, version))
         try:
-            proc = _run_command(command, SKILL_OUTCOME_TIMEOUT_SECONDS)
+            proc = _run_command(command, remaining)
         except subprocess.TimeoutExpired:
             _release_skill_outcome_claim(lock_path)
             print(
@@ -846,7 +893,7 @@ def _capture_payload(
         _record_capture_outcome(
             event, session_id, "saved", queue_key=queue_key, thread_ids=thread_ids
         )
-        _report_skill_outcomes(nmem, payload)
+        _report_skill_outcomes(nmem, payload, heartbeat=heartbeat)
         if event == "pre-compact":
             print(f"Nowledge Mem saved the current {label} thread before compaction.")
         return 0
@@ -897,6 +944,21 @@ def _capture_payload(
 
 
 def _drain_background_capture(key: str, event: str, lease_token: str) -> int:
+    with _background_execution_lock(key) as acquired:
+        if not acquired:
+            _release_background_worker(key, lease_token)
+            return 0
+        _drain_background_capture_owned(key, event, lease_token)
+    # Check after releasing execution custody. A launched successor can now
+    # consume the queue; if none was launched, reclaim the scheduling lease.
+    if _background_payload_pending(key):
+        successor_token = _claim_background_worker(key)
+        if successor_token is not None:
+            return _drain_background_capture(key, event, successor_token)
+    return 0
+
+
+def _drain_background_capture_owned(key: str, event: str, lease_token: str) -> None:
     try:
         while True:
             _touch_background_worker(key, lease_token)
@@ -911,16 +973,6 @@ def _drain_background_capture(key: str, event: str, lease_token: str) -> int:
             )
     finally:
         _release_background_worker(key, lease_token)
-
-    # Close the enqueue-vs-release race: if a Stop arrived after our final queue
-    # read but before the lease disappeared, it saw the old lease and did not
-    # spawn a worker. Claim again here; otherwise the enqueuing process won the
-    # same claim and already spawned the successor.
-    if _background_payload_pending(key):
-        successor_token = _claim_background_worker(key)
-        if successor_token is not None:
-            return _drain_background_capture(key, event, successor_token)
-    return 0
 
 
 def main() -> int:
