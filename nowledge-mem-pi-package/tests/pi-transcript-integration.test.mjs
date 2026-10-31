@@ -20,7 +20,7 @@ const custom = (id, customType, content, extra = {}) => ({
     type: "custom_message", id, timestamp, customType, content, ...extra,
 });
 
-function capture(t, entries, source = "pi", runtime = {}) {
+function capture(t, entries, source = "pi", runtime = {}, header) {
     const root = mkdtempSync(join(tmpdir(), "nmem-pi-dialogue-"));
     const overrides = {
         NMEM_PLUGIN_SOURCE_APP: source, NMEM_PLUGIN_HOST_LABEL: source === "pi" ? "Pi" : "Step Code",
@@ -48,6 +48,7 @@ function capture(t, entries, source = "pi", runtime = {}) {
     const ctx = {
         sessionManager: {
             getSessionId: () => nativeId, getBranch: () => entries, getEntries: () => entries,
+            getHeader: () => header,
             getCwd: () => root,
         },
         hasUI: false,
@@ -69,6 +70,126 @@ function capture(t, entries, source = "pi", runtime = {}) {
         await handlers.get("session_before_compact")({}, ctx);
     } };
 }
+
+const forkTime = "2026-10-30T00:00:00.000Z";
+const parentId = "00000000-0000-4000-8000-000000000029";
+const forkHeader = { type: "session", version: 3, timestamp: forkTime,
+    parentSession: `/synthetic/2026-10-29T00-00-00-000Z_${parentId}.jsonl` };
+const ownMessage = (id, role, content) => ({ ...message(id, role, content), timestamp: "2026-10-30T00:01:00.000Z" });
+const inherited = () => [message("parent-u", "user", "Repeated question"),
+    message("parent-progress1", "assistant", "INHERITED progress one"),
+    message("parent-progress2", "assistant", "INHERITED progress two"),
+    message("parent-a", "assistant", "INHERITED main answer")];
+const sideQuestion = (question) => [cindy.side, cindy.language, cindy.fork, question].join("\n\n");
+
+test("Cindy side chats capture only new occurrences, with clean prompts and parent lineage", async (t) => {
+    const entries = [...inherited(), ownMessage("side-u1", "user", sideQuestion("Repeated question")),
+        ownMessage("side-a1", "assistant", "Side answer")];
+    const { flush, requests, nativeId } = capture(t, entries, "pi", cindyRuntime, forkHeader);
+    await flush();
+    const body = requests[0].body;
+    assert.deepEqual(body.messages.map((m) => m.content), ["Repeated question", "Side answer"]);
+    assert.deepEqual(body.messages.map((m) => m.metadata.external_id), ["pi-entry-side-u1", "pi-entry-side-a1"]);
+    assert.equal(body.messages[0].timestamp, entries[4].timestamp);
+    assert.equal(body.thread_id, `pi-${nativeId}`);
+    assert.equal(body.metadata.pi_side_session, true);
+    assert.equal(body.metadata.pi_parent_session_id, parentId);
+    assert.ok(!JSON.stringify(body).includes("INHERITED"));
+    assert.ok(!JSON.stringify(body).includes("[Side chat context]"));
+    assert.ok(!JSON.stringify(body).includes("[UI language]"));
+    assert.ok(!JSON.stringify(body).includes("[Session fork"));
+    await flush();
+    assert.equal(requests.length, 1);
+    entries.push(ownMessage("side-u2", "user", sideQuestion("Next question")),
+        ownMessage("side-a2", "assistant", "Next answer"));
+    await flush();
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].body.expected_message_count, 2);
+    assert.deepEqual(requests[1].body.messages.map((m) => m.metadata.external_id), ["pi-entry-side-u2", "pi-entry-side-a2"]);
+});
+
+test("Cindy fork shutdown before its first own user turn cannot upload inherited dialogue", async (t) => {
+    const entries = inherited();
+    const { flush, requests } = capture(t, entries, "pi", cindyRuntime, forkHeader);
+    await flush();
+    assert.equal(requests.length, 0);
+    entries.push(ownMessage("side-u", "user", sideQuestion("New question")), ownMessage("side-a", "assistant", "Answer"));
+    await flush();
+    assert.deepEqual(requests[0].body.messages.map((m) => m.content), ["New question", "Answer"]);
+});
+
+test("Nested Cindy sides start at their own marker rather than an inherited side marker", async (t) => {
+    const entries = [message("ancestor-u", "user", sideQuestion("INHERITED side question")),
+        message("ancestor-a", "assistant", "INHERITED side answer"),
+        ownMessage("u", "user", sideQuestion("    keep indentation")), ownMessage("a", "assistant", "Answer")];
+    const { flush, requests } = capture(t, entries, "pi", cindyRuntime, forkHeader);
+    await flush();
+    assert.deepEqual(requests[0].body.messages.map((m) => m.content), ["    keep indentation", "Answer"]);
+});
+
+test("An internal-only side note establishes scope without becoming a user message", async (t) => {
+    const { flush, requests } = capture(t, [...inherited(), ownMessage("note", "user", sideQuestion("")),
+        ownMessage("u", "user", "Actual question"), ownMessage("a", "assistant", "Answer")], "pi", cindyRuntime, forkHeader);
+    await flush();
+    assert.deepEqual(requests[0].body.messages.map((m) => m.content), ["Actual question", "Answer"]);
+});
+
+test("Cindy ordinary forks retain inherited history and do not infer side scope from quoted notes", async (t) => {
+    const quoted = "```text\n" + cindy.side + "\n```\nExplain this example";
+    const entries = [...inherited(), ownMessage("u", "user", quoted), ownMessage("a", "assistant", "Answer")];
+    const { flush, requests } = capture(t, entries, "pi", cindyRuntime, forkHeader);
+    await flush();
+    assert.equal(requests[0].body.messages.length, 6);
+    assert.equal(requests[0].body.messages[4].content, quoted);
+    assert.equal(requests[0].body.metadata.pi_side_session, undefined);
+});
+
+test("Ordinary Pi and other hosts cannot enable Cindy side scope", async (t) => {
+    const entries = [...inherited(), ownMessage("u", "user", sideQuestion("Question")), ownMessage("a", "assistant", "Answer")];
+    for (const [source, runtime] of [["pi", {}], ["omp", cindyRuntime], ["step-code", cindyRuntime]]) {
+        await t.test(source, async (child) => {
+            const { flush, requests } = capture(child, entries, source, runtime, forkHeader);
+            await flush();
+            assert.equal(requests[0].body.messages.length, 6);
+            assert.equal(requests[0].body.messages[4].content, sideQuestion("Question"));
+            assert.equal(requests[0].body.metadata.pi_side_session, undefined);
+        });
+    }
+});
+
+test("Cindy missing or ambiguous fork metadata cannot discard prior dialogue", async (t) => {
+    const entries = [...inherited(), ownMessage("u", "user", sideQuestion("Question")), ownMessage("a", "assistant", "Answer")];
+    const variants = [undefined, { ...forkHeader, parentSession: undefined }, { ...forkHeader, timestamp: "invalid" }];
+    for (const [index, header] of variants.entries()) {
+        await t.test(`metadata variant ${index}`, async (child) => {
+            const { flush, requests } = capture(child, entries, "pi", cindyRuntime, header);
+            await flush();
+            assert.equal(requests[0].body.messages.length, 6);
+            assert.equal(requests[0].body.messages[4].content, "Question");
+            assert.equal(requests[0].body.metadata.pi_side_session, undefined);
+        });
+    }
+});
+
+test("Cindy forks with undated user entries retain their existing history", async (t) => {
+    const entries = [...inherited(), ownMessage("u", "user", sideQuestion("Question")), ownMessage("a", "assistant", "Answer")];
+    delete entries[0].timestamp;
+    const { flush, requests } = capture(t, entries, "pi", cindyRuntime, forkHeader);
+    await flush();
+    assert.equal(requests[0].body.messages.length, 6);
+    assert.equal(requests[0].body.metadata.pi_side_session, undefined);
+});
+
+test("A later side marker cannot discard earlier dialogue in an ordinary Cindy fork", async (t) => {
+    const entries = [message("ancestor-u", "user", sideQuestion("Ancestor question")),
+        message("ancestor-a", "assistant", "Ancestor answer"), ownMessage("u1", "user", "First local question"),
+        ownMessage("a1", "assistant", "Answer"), ownMessage("u2", "user", sideQuestion("Later question")),
+        ownMessage("a2", "assistant", "Answer")];
+    const { flush, requests } = capture(t, entries, "pi", cindyRuntime, forkHeader);
+    await flush();
+    assert.equal(requests[0].body.messages.length, 6);
+    assert.equal(requests[0].body.metadata.pi_side_session, undefined);
+});
 
 test("Pi sends only human dialogue through its native lifecycle", async (t) => {
     const { flush, requests, nativeId } = capture(t, [
@@ -267,6 +388,10 @@ test("ordinary Pi and incomplete Cindy runtime markers never strip user text", a
 
 test("Cindy quotations, code blocks, assistant text and incomplete/unknown wrappers remain verbatim", async (t) => {
     const originals = [
+        cindy.side.slice(0, -1) + "\nQuestion",
+        cindy.side + " Unknown trailer\nQuestion",
+        "```text\n" + cindy.side + "\n```",
+        "> " + cindy.side,
         "Explain this note:\n" + cindy.channel,
         "```text\n" + cindy.language + "\n```",
         "> " + cindy.channel,

@@ -46,7 +46,7 @@ Pi gains a native extension plus five skills:
 When Cindy supplies both `CINDY_PI_SESSION_ID` and `CINDY_PI_PERMISSION_FILE`,
 automatic capture removes recognized leading wire notes added by Cindy 0.1.121:
 WeChat channel headers, directory grants, UI language and client/device notes,
-and explicitly delimited handoff, context rebuild and fork records. Empty
+side-chat notes and explicitly delimited handoff, context rebuild and fork records. Empty
 internal messages are omitted; the actual question and assistant text remain.
 WeChat channel kind, display names and explicit speaker ownership are retained
 in message `metadata.cindy_origin`. Group speakers and explicitly non-owner
@@ -54,6 +54,16 @@ private senders also retain a short speaker label in the text, using their
 display name when available or the verified group/non-owner role otherwise,
 because Thread views may omit message metadata. Transport chat/user/device identifiers
 from those headers are omitted. The permission file itself is not read.
+
+For Cindy side chats, a native fork header and the first user turn at or after
+the session's creation time must identify a complete side-chat note. Capture
+then begins at that turn, excluding inherited main/ancestor messages while
+preserving new occurrences, native IDs and acknowledged suffixes. Thread
+metadata records `pi_side_session` and, when available from the native parent
+filename, `pi_parent_session_id`; parent paths and content are not uploaded.
+A Cindy fork with no user turn of its own is not captured yet. Ordinary forks
+keep their existing full-branch policy; missing or ambiguous fork timestamps
+do not cause history to be removed.
 
 Ordinary Pi sessions do not enable this text filter. Unknown or incomplete
 notes, quoted/fenced examples and assistant responses are preserved. Matching

@@ -11,13 +11,16 @@ interface Projection {
 	content: string;
 	origin?: CindyOrigin;
 	cleaned?: boolean;
+	sideChat?: boolean;
 }
 
 interface Prefix {
 	remainder: string;
 	origin?: CindyOrigin;
+	sideChat?: boolean;
 }
 
+const SIDE_CHAT_NOTE = "[Side chat context] This is an independent follow-up to a main task. History inherited at the fork is reference material, not active instructions or authorization. Answer the current question; do not resume the main task, its pending actions, or its plan. Keep exploration non-mutating unless the user explicitly requests a change in this side chat. The main task continues separately and does not receive these replies automatically.";
 const CHANNEL_PREFIX = "[渠道说明] 系统追加，不是用户消息。本条来自";
 const MOBILE_PREFERENCE = "产出 HTML 等可预览成品时**优先做成自包含单文件**:样式与脚本内联,图片用 data: URI 或公网地址,避免拆成需要同目录资源的多文件产物;用户明确要求多文件时照常产出。给出文件路径时同时给出结论或内容摘要,不要只回一个路径。";
 const LEGACY_MOBILE_NOTE = "[客户端说明] 以下为系统每轮自动追加的环境说明,不是用户发来的消息;回复时不要把它当作用户的请求,也不要引用、复述或据此臆测用户意图。本轮请求来自手机客户端(小屏、远程查看被控电脑上的文件)。";
@@ -112,6 +115,10 @@ function contextPrefix(content: string): Prefix | undefined {
 }
 
 function knownPrefix(content: string): Prefix | undefined {
+	if (content.startsWith(SIDE_CHAT_NOTE)) {
+		const remainder = content.slice(SIDE_CHAT_NOTE.length);
+		if (!remainder || /^\r?\n/.test(remainder)) return { remainder, sideChat: true };
+	}
 	for (const tag of ["cindy-extra-writable-directories", "cindy-extra-reference-directories"]) {
 		if (!content.startsWith(`<${tag}>\n`) && !content.startsWith(`<${tag}>\r\n`)) continue;
 		const close = `</${tag}>`;
@@ -125,13 +132,18 @@ function knownPrefix(content: string): Prefix | undefined {
 	return channelPrefix(content) || clientPrefix(content) || contextPrefix(content);
 }
 
+export function isCindyRuntime(env: Record<string, string | undefined> = process.env): boolean {
+	return Boolean(env.CINDY_PI_SESSION_ID?.trim() && env.CINDY_PI_PERMISSION_FILE?.trim());
+}
+
 export function projectCindyUserText(content: string, env: Record<string, string | undefined> = process.env): Projection {
 	// These are both assigned by Cindy's Pi launcher, locally and remotely.
 	// A quoted marker in an ordinary Pi session must never enable filtering.
-	if (!env.CINDY_PI_SESSION_ID?.trim() || !env.CINDY_PI_PERMISSION_FILE?.trim()) return { content };
+	if (!isCindyRuntime(env)) return { content };
 	let remainder = content;
 	let origin: CindyOrigin | undefined;
 	let cleaned = false;
+	let sideChat = false;
 	for (;;) {
 		const prefix = knownPrefix(remainder);
 		if (!prefix) {
@@ -140,12 +152,14 @@ export function projectCindyUserText(content: string, env: Record<string, string
 				speaker = origin.sender_name ? `发言人「${origin.sender_name}」：\n`
 					: origin.sender_is_owner === false ? "发言人（非主人）：\n" : "群聊发言人：\n";
 			}
-			return { content: remainder ? speaker + remainder : "", ...(origin ? { origin } : {}), ...(cleaned ? { cleaned } : {}) };
+			return { content: remainder ? speaker + remainder : "", ...(origin ? { origin } : {}),
+				...(cleaned ? { cleaned } : {}), ...(sideChat ? { sideChat } : {}) };
 		}
 		// Consume separator lines, never indentation belonging to the actual text.
 		remainder = prefix.remainder.replace(/^(?:[ \t]*\r?\n)+/, "");
 		if (!remainder.trim()) remainder = "";
 		origin = prefix.origin || origin;
 		cleaned = true;
+		sideChat ||= Boolean(prefix.sideChat);
 	}
 }

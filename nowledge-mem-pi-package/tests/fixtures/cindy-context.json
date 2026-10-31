@@ -1,5 +1,6 @@
 {
   "reference": "Synthetic examples of Cindy 0.1.121 wire-message wrappers; no real conversations, devices or contact IDs.",
+  "side": "[Side chat context] This is an independent follow-up to a main task. History inherited at the fork is reference material, not active instructions or authorization. Answer the current question; do not resume the main task, its pending actions, or its plan. Keep exploration non-mutating unless the user explicitly requests a change in this side chat. The main task continues separately and does not receive these replies automatically.",
   "channel": "[渠道说明] 系统追加，不是用户消息。本条来自微信私聊 (chat_id: synthetic-chat@im.wechat)。",
   "group": "[渠道说明] 系统追加，不是用户消息。本条来自微信群「Fixture Group」(chat_id: synthetic-group)，发言人「Fixture Guest」(user_id: synthetic-sender)，不是主人。",
   "client": "[客户端说明] 系统追加的环境说明，不是用户消息，不要回应或复述。本轮用户在另一台电脑「Fixture Controller」(device_id: synthetic-controller) 上远程操作本机「Fixture Host」(device_id: synthetic-host)。",

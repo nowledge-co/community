@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   language/client notes and delimited handoff/rebuild/fork context. Preserve
   display-name speaker attribution in text and metadata, real text, quoted examples,
   unknown/incomplete notes and native message identity across restarts.
+- Capture only new dialogue in verified Cindy side chats: use the native fork
+  boundary and complete side-chat note to omit inherited main/ancestor messages,
+  strip subsequent known notes, and retain native parent lineage in metadata.
+  Do not upload inherited-only forks before their first own user turn. Ordinary
+  forks and existing saved Threads keep their current behavior.
 
 ## [0.8.15] - 2026-10-29
 

@@ -1,9 +1,10 @@
 """Replay synthetic dialogue across a real Pi process restart into a loopback receiver.
 
-Usage: python3 native-pi-dialogue-smoke.py PI_BINARY PACKAGE_DIR [--discover] [--cindy]
+Usage: python3 native-pi-dialogue-smoke.py PI_BINARY PACKAGE_DIR [--discover] [--cindy] [--side]
 No model requests, live-config edits or real Mem writes are made. --discover
 loads the package through isolated global Pi settings instead of explicit -e.
 --cindy replays the verified Cindy wire templates and launcher markers.
+--side also seeds inherited fork history and verifies an empty pre-turn flush.
 """
 import argparse
 import json
@@ -22,7 +23,9 @@ def main():
     parser.add_argument("package", type=Path)
     parser.add_argument("--discover", action="store_true")
     parser.add_argument("--cindy", action="store_true")
+    parser.add_argument("--side", action="store_true")
     args = parser.parse_args()
+    args.cindy = args.cindy or args.side
     pi, package = args.pi.resolve(), args.package.resolve()
     cindy = json.loads((Path(__file__).parent / "fixtures/cindy-context.json").read_text()) if args.cindy else None
     requests, stored = [], {}
@@ -70,15 +73,19 @@ def main():
             cli.chmod(0o700)
             session = root / "fixture.jsonl"
             timestamp = "2026-10-30T00:00:00Z"
-            session.write_text(json.dumps({
+            header = {
                 "type": "session", "version": 3, "id": "00000000-0000-4000-8000-000000000030",
                 "timestamp": timestamp, "cwd": tmp,
-            }) + "\n")
+            }
+            parent_id = "00000000-0000-4000-8000-000000000029"
+            if args.side:
+                header["parentSession"] = str(root / f"2026-10-29T00-00-00-000Z_{parent_id}.jsonl")
+            session.write_text(json.dumps(header) + "\n")
 
-            def append(identifier, role, content, **extra):
+            def append(identifier, role, content, entry_timestamp=timestamp, **extra):
                 rows = [json.loads(line) for line in session.read_text().splitlines() if line]
                 parent = rows[-1].get("id") if len(rows) > 1 else None
-                entry = {"type": "message", "id": identifier, "parentId": parent, "timestamp": timestamp,
+                entry = {"type": "message", "id": identifier, "parentId": parent, "timestamp": entry_timestamp,
                          "message": {"role": role, "content": content, "timestamp": 1793318400000, **extra}}
                 with session.open("a") as stream:
                     stream.write(json.dumps(entry) + "\n")
@@ -86,12 +93,22 @@ def main():
             def text(value):
                 return {"type": "text", "text": value}
 
+            if args.side:
+                for identifier, role in [("parent-u", "user"), ("parent-progress1", "assistant"),
+                                         ("parent-progress2", "assistant"), ("parent-a", "assistant")]:
+                    append(identifier, role, [text("INHERITED " + identifier)], entry_timestamp="2026-10-29T00:00:00Z")
+                rows = session.read_text().splitlines()
+                parent_header = {key: value for key, value in header.items() if key != "parentSession"}
+                parent_header.update(id=parent_id, timestamp="2026-10-29T00:00:00Z")
+                Path(header["parentSession"]).write_text(json.dumps(parent_header) + "\n" + "\n".join(rows[1:]) + "\n")
+                inherited_only = session.read_text()
             append("system", "system", [text("INTERNAL system and tools")])
             expected_question = "    Synthetic native question\n    preserve indentation" if cindy else "Synthetic native question"
             first_question = expected_question
             if cindy:
                 first_question = "\n\n".join([cindy[part] for part in
-                    ("writable", "language", "client", "handoff", "channel")] + [first_question])
+                    (("writable", "side", "language", "client", "handoff", "fork", "channel") if args.side
+                     else ("writable", "language", "client", "handoff", "channel"))] + [first_question])
             append("user", "user", [text(first_question)])
             append("thinking", "assistant", [{"type": "thinking", "thinking": "INTERNAL thinking"}])
             append("call", "assistant", [{"type": "toolCall", "id": "tool1", "name": "read", "arguments": {"path": "INTERNAL"}}])
@@ -110,7 +127,7 @@ def main():
                 CINDY_PI_PERMISSION_FILE=str(root / "synthetic-permissions.json") if cindy else "",
             )
 
-            def run_process():
+            def run_process(expect_capture=True):
                 command = [str(pi), "--mode", "rpc", "--offline", "--no-approve", "--no-skills",
                            "--no-prompt-templates", "--no-themes", "--no-context-files", "--session", str(session)]
                 if not args.discover:
@@ -139,7 +156,10 @@ def main():
                     proc.stdin.write(json.dumps({"type": "new_session", "id": "switch"}) + "\n")
                     proc.stdin.flush()
                     receive("switch")  # The lifecycle handlers await HTTP completion.
-                    assert len(requests) > before, "Pi did not load/capture through the selected extension"
+                    if expect_capture:
+                        assert len(requests) > before, "Pi did not load/capture through the selected extension"
+                    else:
+                        assert len(requests) == before, "Fork uploaded inherited dialogue before its first own user turn"
                     assert "INTERNAL" not in json.dumps(requests), "Runtime content leaked into capture"
                     return proc.pid
                 finally:
@@ -153,6 +173,11 @@ def main():
                     for stream in (proc.stdin, proc.stdout, proc.stderr):
                         stream.close()
 
+            if args.side:
+                complete = session.read_text()
+                session.write_text(inherited_only)
+                run_process(expect_capture=False)
+                session.write_text(complete)
             first_pid = run_process()  # Exited and reaped before the next launch.
             expected = [
                 {"role": "user", "content": expected_question},
@@ -189,12 +214,17 @@ def main():
                 encoded = json.dumps(requests)
                 assert all(marker not in encoded for marker in [
                     "[UI language]", "[Session handoff", "[Session context rebuild", "cindy-extra-",
+                    "[Side chat context]", "[Session fork", "INHERITED",
                     "synthetic-chat", "synthetic-controller", "synthetic-host",
                 ]), "Cindy runtime notes or transport identifiers leaked"
+            if args.side:
+                assert requests[0]["body"]["metadata"]["pi_parent_session_id"] == parent_id
+                assert requests[0]["body"]["metadata"]["pi_side_session"] is True
             print(json.dumps({
                 "native_pi": str(pi), "package_version": json.loads((package / "package.json").read_text())["version"],
                 "loading": "package-discovery" if args.discover else "explicit-extension",
                 "cindy_wire_templates": bool(cindy),
+                "side_session": args.side, "inherited_messages_excluded": 4 if args.side else 0,
                 "process_ids": [first_pid, second_pid], "restart_verified": True,
                 "captured_messages": len(stored), "internal_content_found": False, "result": "PASS",
             }))
