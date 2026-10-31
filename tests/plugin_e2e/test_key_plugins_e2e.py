@@ -811,14 +811,14 @@ def test_key_plugin_static_contracts_are_declared():
     omp_pkg = _read_json(OMP_PLUGIN / "package.json")
     omp_extension = (OMP_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     omp_agent = (OMP_PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
-    assert omp_pkg["version"] == "0.1.3"
-    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.10"
+    assert omp_pkg["version"] == "0.1.4"
+    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.15"
     assert "./extensions/nowledge-mem.ts" in omp_pkg["omp"]["extensions"]
     assert "./skills" in omp_pkg["omp"]["skills"]
     assert "pi" not in omp_pkg
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "omp"' in omp_extension
     assert 'process.env.NMEM_PLUGIN_HOST_LABEL = "OMP"' in omp_extension
-    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.3"' in omp_extension
+    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.4"' in omp_extension
     assert 'import("nowledge-mem-pi/extensions/nowledge-mem.ts")' in omp_extension
     assert "nmem --json context --source-app omp" in omp_agent
     assert "source_app=omp" in omp_agent
@@ -1714,7 +1714,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "step update npm:nowledge-mem-step-code"
     )
     assert "save-thread" in by_id["step-code"]["skills"]
-    assert by_id["omp"]["version"] == "0.1.3"
+    assert by_id["omp"]["version"] == "0.1.4"
     assert by_id["omp"]["directory"] == "nowledge-mem-omp-plugin"
     assert by_id["omp"]["transport"] == "plugin+cli"
     assert by_id["omp"]["capabilities"]["autoRecall"] is True

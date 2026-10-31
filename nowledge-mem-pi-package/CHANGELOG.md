@@ -23,6 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   display-name speaker attribution as metadata, real text, quoted examples,
   unknown/incomplete notes and native message identity across restarts.
 
+## [0.8.15] - 2026-10-29
+
+### Fixed
+
+- Project OMP automatic capture to human dialogue: omit agent-attributed user
+  injections, tool calls/results, reasoning, expanded skill bodies, and internal
+  summaries. Match the default Codex import: preserve complete human text,
+  commentary/final replies, user-invoked skill drafts and attachment captions;
+  omit image/file payloads and synthetic placeholders.
+- Keep native message identities and acknowledged suffix capture. Previously
+  stored threads and the separate CLI history importer are not rewritten.
+- Pi and Step Code retain their existing capture policies.
+
 ## [0.8.14] - 2026-10-17
 
 - Refresh the embedded core 0.2.0 content manifest for Alma adoption; runtime behavior is unchanged.

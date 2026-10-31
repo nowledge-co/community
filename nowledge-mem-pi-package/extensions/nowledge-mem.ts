@@ -384,8 +384,75 @@ function piEntryToMessage(entry: JsonObject, index: number, ambient: JsonObject)
 	};
 }
 
+function ompDialogueContent(content: unknown): string {
+	if (typeof content === "string") return content;
+	const parts = Array.isArray(content) ? content : [content];
+	return parts.map((part) => {
+		if (typeof part === "string") return part;
+		if (!part || typeof part !== "object") return "";
+		// An allowlist prevents reasoning, tool calls and future internal blocks
+		// from becoming transcript text through partToText's generic fallback.
+		const type = (part as JsonObject).type;
+		return type === "text" ? partToText(part) : "";
+	}).filter(Boolean).join("\n");
+}
+
+function ompEntryToMessage(entry: JsonObject, index: number, ambient: JsonObject): ThreadMessage | undefined {
+	const value = entry.type === "message" ? entry.message : entry.type === "custom_message" ? entry : undefined;
+	if (!value || typeof value !== "object") return undefined;
+	const msg = value as JsonObject;
+	const custom = entry.type === "custom_message" || msg.role === "custom";
+	let role: "user" | "assistant";
+	let content: string;
+	if (custom) {
+		// display=true also applies to advisor/async-result injections. Only
+		// explicit user attribution identifies a user-authored custom prompt.
+		if (msg.attribution !== "user") return undefined;
+		role = "user";
+		if (msg.customType === "skill-prompt") {
+			// OMP stores the expanded SKILL.md in content, but the submitted
+			// /skill: draft in details.prompt (older sessions have name + args).
+			const details = msg.details && typeof msg.details === "object" ? msg.details as JsonObject : {};
+			const name = stringValue(details.name);
+			content = stringValue(details.prompt) || (name ? `/skill:${name} ${stringValue(details.args) || ""}`.trim() : "");
+		} else if (msg.customType === "image-attachment") {
+			return undefined;
+		} else {
+			content = ompDialogueContent(msg.content);
+		}
+	} else {
+		if (msg.role !== "user" && msg.role !== "assistant") return undefined;
+		// Legacy user messages predate attribution; current OMP also records
+		// internal continuations as role=user, attribution=agent.
+		if (msg.role === "user" && msg.attribution !== undefined && msg.attribution !== "user") return undefined;
+		role = msg.role;
+		content = ompDialogueContent(msg.content);
+	}
+	// Match default Codex import: preserve complete human text, without the
+	// legacy per-message cap or synthetic image/file placeholders.
+	content = content.trim();
+	if (!content) return undefined;
+	return {
+		role,
+		content,
+		timestamp: stringValue(entry.timestamp),
+		metadata: {
+			external_id: `omp-entry-${stringValue(entry.id) || index}`,
+			pi_entry_id: stringValue(entry.id),
+			pi_entry_type: entry.type,
+			...(entry.type === "message" ? { pi_message_role: stringValue(msg.role) } : {}),
+			...(custom ? {
+				pi_custom_type: stringValue(msg.customType),
+				pi_custom_display: typeof msg.display === "boolean" ? msg.display : undefined,
+			} : {}),
+			...ambient,
+		},
+	};
+}
+
 function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): ThreadMessage | undefined {
 	if (sourceApp() === "pi") return piEntryToMessage(entry, index, ambient);
+	if (sourceApp() === "omp") return ompEntryToMessage(entry, index, ambient);
 	if (entry.type === "message") {
 		const message = entry.message;
 		if (!message || typeof message !== "object") return undefined;
