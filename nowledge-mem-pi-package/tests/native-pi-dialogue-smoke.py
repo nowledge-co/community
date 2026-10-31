@@ -7,6 +7,7 @@ loads the package through isolated global Pi settings instead of explicit -e.
 --side also seeds inherited fork history and verifies an empty pre-turn flush.
 """
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
@@ -97,6 +98,13 @@ def main():
                 for identifier, role in [("parent-u", "user"), ("parent-progress1", "assistant"),
                                          ("parent-progress2", "assistant"), ("parent-a", "assistant")]:
                     append(identifier, role, [text("INHERITED " + identifier)], entry_timestamp="2026-10-29T00:00:00Z")
+                target = {"thread_id": "synthetic-parent-thread", "thread_storage_id": "synthetic-parent-storage",
+                          "space_id": "fixture-only", "connection_id": "fixture-connection"}
+                locator = base64.urlsafe_b64encode(json.dumps(target).encode()).decode().rstrip("=")
+                with session.open("a") as stream:
+                    stream.write(json.dumps({"type": "custom", "id": "parent-binding", "parentId": "parent-a",
+                        "timestamp": "2026-10-29T00:00:00Z", "customType": "nowledge-mem-thread-resume-v1",
+                        "data": {"locator": locator}}) + "\n")
                 rows = session.read_text().splitlines()
                 parent_header = {key: value for key, value in header.items() if key != "parentSession"}
                 parent_header.update(id=parent_id, timestamp="2026-10-29T00:00:00Z")
@@ -215,6 +223,7 @@ def main():
                 assert all(marker not in encoded for marker in [
                     "[UI language]", "[Session handoff", "[Session context rebuild", "cindy-extra-",
                     "[Side chat context]", "[Session fork", "INHERITED",
+                    "nowledge-mem-thread-resume-v1", "synthetic-parent-thread",
                     "synthetic-chat", "synthetic-controller", "synthetic-host",
                 ]), "Cindy runtime notes or transport identifiers leaked"
             if args.side:

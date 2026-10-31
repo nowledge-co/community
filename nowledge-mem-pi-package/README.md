@@ -65,6 +65,11 @@ A Cindy fork with no user turn of its own is not captured yet. Ordinary forks
 keep their existing full-branch policy; missing or ambiguous fork timestamps
 do not cause history to be removed.
 
+Cindy forks also ignore continuation markers copied from an ancestor, including
+before their first user turn. Such a marker cannot bind the child to the
+parent's selected Mem Thread. A child's own saved marker and explicit Thread
+continuation still use the existing verification and fresh-session checks.
+
 Ordinary Pi sessions do not enable this text filter. Unknown or incomplete
 notes, quoted/fenced examples and assistant responses are preserved. Matching
 is limited to complete known templates at the start of a user message, not

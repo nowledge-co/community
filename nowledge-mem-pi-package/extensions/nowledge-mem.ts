@@ -523,13 +523,18 @@ function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): 
 	return undefined;
 }
 
+function cindyFork(header: unknown): { createdAt: number; parentSession: string } | undefined {
+	if (!isCindyRuntime() || !header || typeof header !== "object") return undefined;
+	const session = header as JsonObject;
+	if (typeof session.parentSession !== "string" || !session.parentSession.trim()) return undefined;
+	const created = typeof session.timestamp === "string" ? Date.parse(session.timestamp) : NaN;
+	return Number.isFinite(created) ? { createdAt: created, parentSession: session.parentSession } : undefined;
+}
+
 function cindySideScope(entries: JsonObject[], header: unknown): { start: number; metadata: JsonObject } {
 	const unchanged = { start: 0, metadata: {} };
-	if (!isCindyRuntime() || !header || typeof header !== "object") return unchanged;
-	const session = header as JsonObject;
-	if (typeof session.parentSession !== "string" || !session.parentSession.trim()) return unchanged;
-	const created = typeof session.timestamp === "string" ? Date.parse(session.timestamp) : NaN;
-	if (!Number.isFinite(created)) return unchanged;
+	const fork = cindyFork(header);
+	if (!fork) return unchanged;
 	for (let index = 0; index < entries.length; index++) {
 		const entry = entries[index];
 		const msg = entry.type === "message" ? entry.message as JsonObject | undefined : undefined;
@@ -537,10 +542,10 @@ function cindySideScope(entries: JsonObject[], header: unknown): { start: number
 		const timestamp = typeof entry.timestamp === "string" ? Date.parse(entry.timestamp) : NaN;
 		// Without a trustworthy fork boundary, retain the existing projection.
 		if (!Number.isFinite(timestamp)) return unchanged;
-		if (timestamp < created) continue;
+		if (timestamp < fork.createdAt) continue;
 		// Inherited side notes in a nested fork cannot establish this session's scope.
 		if (!projectCindyUserText(piRawText(msg.content)).sideChat) return unchanged;
-		const parent = session.parentSession.match(/_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i)?.[1];
+		const parent = fork.parentSession.match(/_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i)?.[1];
 		return { start: index, metadata: { pi_side_session: true, ...(parent ? { pi_parent_session_id: parent } : {}) } };
 	}
 	// A Cindy fork has no dialogue of its own before the first local user turn.
@@ -1086,8 +1091,16 @@ export default function nowledgeMemPi(pi: ExtensionAPI) {
 		if (sourceApp() !== "pi") return;
 		const id = sessionId(ctx);
 		try {
-			const manager = ctx.sessionManager as unknown as { getEntries: () => JsonObject[] };
-			const saved = manager.getEntries().find((entry) => entry.type === "custom" && entry.customType === RESUME_ENTRY);
+			const manager = ctx.sessionManager as unknown as { getEntries: () => JsonObject[]; getHeader?: () => unknown };
+			const fork = cindyFork(manager.getHeader?.());
+			const markers = manager.getEntries().filter((entry) => entry.type === "custom" && entry.customType === RESUME_ENTRY);
+			const saved = markers.find((entry) => !fork
+				|| (typeof entry.timestamp === "string" && Date.parse(entry.timestamp) >= fork.createdAt));
+			if (fork && markers.length && !saved && !locator) {
+				// An ancestor's copied locator (or its cached resolution) cannot bind this child.
+				resumeStates.set(id, {});
+				return;
+			}
 			const savedLocator = saved?.data && typeof saved.data === "object" ? (saved.data as JsonObject).locator : undefined;
 			const effectiveLocator = locator ?? (typeof savedLocator === "string" ? savedLocator : undefined);
 			const nativeKey = createHash("sha256").update(JSON.stringify(["pi", id])).digest("hex");

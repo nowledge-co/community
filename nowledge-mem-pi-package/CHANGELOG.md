@@ -26,7 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   boundary and complete side-chat note to omit inherited main/ancestor messages,
   strip subsequent known notes, and retain native parent lineage in metadata.
   Do not upload inherited-only forks before their first own user turn. Ordinary
-  forks and existing saved Threads keep their current behavior.
+  fork capture and existing saved Threads keep their current behavior.
+- Do not inherit a selected Mem Thread binding from copied Cindy fork metadata,
+  including before the first own user turn. Retain the child's own saved
+  continuation markers and the existing fresh-session verification.
 
 ## [0.8.15] - 2026-10-29
 

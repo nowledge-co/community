@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import extension from "../extensions/nowledge-mem.ts";
+import { RESUME_ENTRY } from "../extensions/thread-resume.ts";
 
 const timestamp = "2026-10-29T00:00:00.000Z";
 const cindy = JSON.parse(readFileSync(new URL("./fixtures/cindy-context.json", import.meta.url), "utf8"));
@@ -26,7 +28,7 @@ function capture(t, entries, source = "pi", runtime = {}, header) {
         NMEM_PLUGIN_SOURCE_APP: source, NMEM_PLUGIN_HOST_LABEL: source === "pi" ? "Pi" : "Step Code",
         NMEM_API_URL: "http://127.0.0.1:14242", NMEM_API_KEY: "fixture-only",
         NMEM_SPACE: "dialogue-fixture", NMEM_SPACE_ID: "dialogue-fixture",
-        NMEM_CLI_CONFIG_DIR: root, NMEM_CLI_PATH: join(root, "missing-nmem"),
+        NMEM_CLI_CONFIG_DIR: root, NMEM_CLI_PATH: join(root, process.platform === "win32" ? "missing-nmem.cmd" : "missing-nmem"),
         NMEM_AGENT_ID: "fixture-agent", NMEM_HOST_AGENT_ID: "fixture-host",
         CINDY_PI_SESSION_ID: "", CINDY_PI_PERMISSION_FILE: "", ...runtime,
     };
@@ -67,7 +69,8 @@ function capture(t, entries, source = "pi", runtime = {}, header) {
             rmSync(root, { recursive: true, force: true });
         }
     });
-    return { requests, nativeId, notices, input: (value) => handlers.get("input")({ text: value }, ctx), flush: async () => {
+    return { requests, nativeId, root, cli: overrides.NMEM_CLI_PATH, notices,
+        input: (value) => handlers.get("input")({ text: value }, ctx), flush: async () => {
         await handlers.get("input")({ text: "Fixture input" }, ctx);
         await handlers.get("session_before_compact")({}, ctx);
     } };
@@ -83,6 +86,60 @@ const inherited = () => [message("parent-u", "user", "Repeated question"),
     message("parent-progress2", "assistant", "INHERITED progress two"),
     message("parent-a", "assistant", "INHERITED main answer")];
 const sideQuestion = (question) => [cindy.side, cindy.language, cindy.fork, question].join("\n\n");
+const parentTarget = { thread_id: "parent-selected", thread_storage_id: "parent-storage", space_id: "", connection_id: "fixture-connection" };
+const resumeMarker = (id, target, timestamp) => ({ type: "custom", id, timestamp, customType: RESUME_ENTRY,
+    data: { locator: Buffer.from(JSON.stringify(target)).toString("base64url") } });
+
+function writeBindingCli(fixture) {
+    const log = join(fixture.root, "cli-calls.jsonl");
+    const script = join(fixture.root, "binding-cli.cjs");
+    const body = `const fs = require('node:fs');
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + '\\n');
+const index = args.indexOf('--locator');
+const target = index < 0 ? ${JSON.stringify(parentTarget)} : JSON.parse(Buffer.from(args[index + 1], 'base64url'));
+console.log(JSON.stringify({ binding: { binding_id: 'binding-' + target.thread_id, source: 'pi',
+native_session_id: ${JSON.stringify(fixture.nativeId)}, target }, context: { context_text: 'Synthetic selected context' } }));
+`;
+    writeFileSync(script, body);
+    writeFileSync(fixture.cli, process.platform === "win32"
+        ? `@"${process.execPath}" "${script}" %*\r\n` : `#!${process.execPath}\n${body}`);
+    chmodSync(fixture.cli, 0o700);
+    return log;
+}
+
+test("A Cindy fork cannot inherit a selected Thread binding before or after its first side turn", async (t) => {
+    const entries = [...inherited(), resumeMarker("parent-resume", parentTarget, timestamp)];
+    const fixture = capture(t, entries, "pi", cindyRuntime, forkHeader);
+    const log = writeBindingCli(fixture);
+    // Even a previously persisted child binding must not resurrect an ancestor locator.
+    const key = createHash("sha256").update(JSON.stringify(["pi", fixture.nativeId])).digest("hex");
+    mkdirSync(join(fixture.root, "thread-resume"));
+    writeFileSync(join(fixture.root, "thread-resume", `${key}.json`), "{}");
+    assert.equal((await fixture.input("Before the first own user turn")).action, "continue");
+    assert.equal(existsSync(log), false, "copied markers must not bootstrap a binding for the child");
+    entries.push(ownMessage("u", "user", sideQuestion("Side question")), ownMessage("a", "assistant", "Side answer"));
+    await fixture.flush();
+    assert.equal(existsSync(log), false);
+    assert.ok(fixture.requests[0].url.endsWith("/threads"));
+    assert.equal(fixture.requests[0].body.thread_id, `pi-${fixture.nativeId}`);
+    assert.equal(fixture.requests[0].body.metadata.pi_parent_session_id, parentId);
+    assert.deepEqual(fixture.requests[0].body.messages.map((m) => m.content), ["Side question", "Side answer"]);
+});
+
+test("A Cindy child retains its own explicit Thread binding rather than an inherited marker", async (t) => {
+    const childTarget = { ...parentTarget, thread_id: "child-selected", thread_storage_id: "child-storage" };
+    const entries = [...inherited(), resumeMarker("parent-resume", parentTarget, timestamp),
+        resumeMarker("child-resume", childTarget, forkTime), ownMessage("u", "user", sideQuestion("Side question")),
+        ownMessage("a", "assistant", "Side answer")];
+    const fixture = capture(t, entries, "pi", cindyRuntime, forkHeader);
+    const log = writeBindingCli(fixture);
+    await fixture.flush();
+    assert.equal(existsSync(log), true);
+    assert.ok(fixture.requests[0].url.endsWith("/threads/resume/append"));
+    assert.equal(fixture.requests[0].body.binding_id, "binding-child-selected");
+    assert.deepEqual(fixture.requests[0].body.messages.map((m) => m.content), ["Side question", "Side answer"]);
+});
 
 test("Cindy side chats capture only new occurrences, with clean prompts and parent lineage", async (t) => {
     const entries = [...inherited(), ownMessage("side-u1", "user", sideQuestion("Repeated question")),
