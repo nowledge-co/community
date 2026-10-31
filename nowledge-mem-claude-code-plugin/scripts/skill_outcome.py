@@ -9,6 +9,9 @@ text, so normal conversation cannot create false skill outcome records.
 from __future__ import annotations
 
 import json
+import os
+import sys
+import time
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -36,35 +39,46 @@ _CALL_ID_KEYS = (
 )
 
 
-def load_json_records(path: str | None) -> list[Any]:
-    if not path:
-        return []
-    transcript = Path(path).expanduser()
-    try:
-        raw = transcript.read_text(encoding="utf-8")
-    except OSError:
-        return []
+# Optional telemetry must not scale its live heap with session history.
+MAX_RECORD_BYTES = 2 * 1024 * 1024
+MAX_TRACKED_REFS = 4096
+MAX_REF_CHARS = 512
+SCAN_BUDGET_SECONDS = 4.0
 
-    records: list[Any] = []
-    for line in raw.splitlines():
-        text = line.strip()
-        if not text or text[0] not in "[{":
+
+class _ScanLimit(Exception):
+    pass
+
+
+def load_json_records(handle, end: int, check) -> Iterable[Any]:
+    """Read a fixed prefix twice without retaining unrelated records.
+
+    Pretty JSON remains supported only within the same single-record budget.
+    A record that exceeds the budget aborts optional telemetry, never capture.
+    """
+    handle.seek(0)
+    any_records = False
+    while handle.tell() < end:
+        check()
+        raw = handle.readline(min(MAX_RECORD_BYTES + 1, end - handle.tell()))
+        if len(raw) > MAX_RECORD_BYTES:
+            raise _ScanLimit("record size limit")
+        text = raw.strip()
+        if not text or text[:1] not in (b"[", b"{"):
             continue
         try:
-            records.append(json.loads(text))
-        except json.JSONDecodeError:
+            record = json.loads(text)
+        except (ValueError, RecursionError):
             continue
-    if records:
-        return records
-
-    text = raw.strip()
-    if text and text[0] in "[{":
+        any_records = True
+        yield record
+    if not any_records and end <= MAX_RECORD_BYTES:
+        check()
+        handle.seek(0)
         try:
-            parsed = json.loads(text)
-        except json.JSONDecodeError:
-            return []
-        return parsed if isinstance(parsed, list) else [parsed]
-    return []
+            yield json.loads(handle.read(end))
+        except (ValueError, RecursionError):
+            return
 
 
 def extract_skill_outcomes(records: Iterable[Any]) -> list[SkillOutcome]:
@@ -91,8 +105,65 @@ def extract_skill_outcomes(records: Iterable[Any]) -> list[SkillOutcome]:
     return _dedupe(found)
 
 
-def extract_skill_outcomes_from_file(path: str | None) -> list[SkillOutcome]:
-    return extract_skill_outcomes(load_json_records(path))
+def extract_skill_outcomes_from_file(path: str | None, heartbeat=None) -> list[SkillOutcome]:
+    if not path:
+        return []
+    deadline = time.monotonic() + SCAN_BUDGET_SECONDS
+    last_heartbeat = 0.0
+
+    def check():
+        nonlocal last_heartbeat
+        now = time.monotonic()
+        if now >= deadline:
+            raise _ScanLimit("scan time limit")
+        if heartbeat is not None and now - last_heartbeat >= 1.0:
+            heartbeat()
+            last_heartbeat = now
+
+    def bounded_ref(value):
+        if len(value) > MAX_REF_CHARS:
+            raise _ScanLimit("reference size limit")
+        return value
+
+    call_ids: set[str] = set()
+    found: dict[SkillOutcome, None] = {}
+
+    def collect(node):
+        for skill_id, version in _extract_skill_refs(_result_payload(node)):
+            found[(bounded_ref(skill_id), bounded_ref(version))] = None
+            if len(found) > MAX_TRACKED_REFS:
+                raise _ScanLimit("outcome count limit")
+
+    try:
+        with Path(path).expanduser().open("rb") as handle:
+            before = os.fstat(handle.fileno())
+            for record in load_json_records(handle, before.st_size, check):
+                for node in _walk(record):
+                    check()
+                    if isinstance(node, dict) and _is_find_skills_node(node):
+                        call_id = _call_id(node)
+                        if call_id:
+                            call_ids.add(bounded_ref(call_id))
+                            if len(call_ids) > MAX_TRACKED_REFS:
+                                raise _ScanLimit("call count limit")
+                        collect(node)
+            if call_ids:
+                for record in load_json_records(handle, before.st_size, check):
+                    for node in _walk(record):
+                        check()
+                        if isinstance(node, dict) and _call_id(node) in call_ids:
+                            collect(node)
+            after = os.fstat(handle.fileno())
+            if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+                raise _ScanLimit("transcript changed during scan")
+            check()
+    except OSError:
+        return []
+    except (_ScanLimit, RecursionError) as exc:
+        reason = str(exc) if isinstance(exc, _ScanLimit) else "nesting limit"
+        print(f"nowledge-mem: optional skill outcomes skipped: {reason}", file=sys.stderr)
+        return []
+    return list(found)
 
 
 def build_outcome_args(

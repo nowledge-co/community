@@ -151,6 +151,38 @@ and Windows/macOS/Linux launch paths the host supports. Verify the resulting
 Thread in Mem, not just the hook process exit status. Keep a compatible
 `nmem t capture` path until the minimum CLI is actually shipped.
 
+### Optional skill telemetry and background worker custody
+
+File-backed skill-outcome extraction must not retain transcript history. Claude
+Code/Grok and Codex scan a fixed file prefix twice, retaining only structured
+`find_skills` call IDs and deduplicated Skill/version references. Results may
+precede calls. Each record (or pretty JSON document) is limited to 2 MiB,
+references to 512 characters, retained call IDs/outcomes to 4,096 each, and a
+scan to four seconds. An exceeded limit or changed file discards the optional
+outcomes with a content-free diagnostic; it never changes acknowledged Thread
+capture. Very large individual records therefore omit telemetry for that scan.
+Hermes consumes an already supplied in-memory message list and does not invoke
+the file loader; its provider contract is unchanged.
+
+Claude/Grok additionally budgets eight seconds for extraction plus all outcome
+report commands, heartbeating during the scan and between commands. Scheduling
+lease timestamps alone cannot prove worker exclusion: a stable, never-unlinked
+per-session execution file holds an OS lock across queue consumption, capture,
+parsing and reporting (flock on POSIX, byte-range lock on Windows). Contenders
+must leave queued payloads intact; OS process death releases custody. The final
+pending-queue check follows lock release so a launched successor can drain it.
+Lease tokens preserve scheduling and stale-release fencing, not execution
+ownership. Existing workers from an older installed version do not take this
+lock: restart host sessions after updating before claiming mixed-version
+exclusion. No server rollout or database migration is required.
+
+Regression evidence lives in
+`nowledge-mem-claude-code-plugin/tests/test_outcome_resources.py`, including a
+real child process paused inside capture, stale lease contention, forced owned
+child death, recovery, allocation bounds and structured-result parity. Live
+Claude/Grok reporter-host acceptance remains separate from these synthetic
+contract tests.
+
 ## Space-aware execution
 
 Spaces are optional. Treat them as ambient context, not required setup.
