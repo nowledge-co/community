@@ -44,6 +44,7 @@ function capture(t, entries, source = "pi", runtime = {}, header) {
             : { thread: { thread_id: body.thread_id, message_count: remoteCount } });
     };
     const handlers = new Map();
+    const notices = [];
     const nativeId = `dialogue-fixture-${++session}`;
     const ctx = {
         sessionManager: {
@@ -52,6 +53,7 @@ function capture(t, entries, source = "pi", runtime = {}, header) {
             getCwd: () => root,
         },
         hasUI: false,
+        ui: { notify: (message) => notices.push(message) },
     };
     extension({ on: (event, handler) => handlers.set(event, handler) });
     t.after(async () => {
@@ -65,7 +67,7 @@ function capture(t, entries, source = "pi", runtime = {}, header) {
             rmSync(root, { recursive: true, force: true });
         }
     });
-    return { requests, nativeId, flush: async () => {
+    return { requests, nativeId, notices, input: (value) => handlers.get("input")({ text: value }, ctx), flush: async () => {
         await handlers.get("input")({ text: "Fixture input" }, ctx);
         await handlers.get("session_before_compact")({}, ctx);
     } };
@@ -116,6 +118,16 @@ test("Cindy fork shutdown before its first own user turn cannot upload inherited
     entries.push(ownMessage("side-u", "user", sideQuestion("New question")), ownMessage("side-a", "assistant", "Answer"));
     await flush();
     assert.deepEqual(requests[0].body.messages.map((m) => m.content), ["New question", "Answer"]);
+});
+
+test("An inherited-only Cindy fork remains ineligible for fresh-session Thread continuation", async (t) => {
+    const { input, notices, requests } = capture(t, inherited(), "pi", cindyRuntime, forkHeader);
+    const target = { thread_id: "selected", thread_storage_id: "storage", space_id: "", connection_id: "connection" };
+    const locator = Buffer.from(JSON.stringify(target)).toString("base64url");
+    const result = await input(`NMEM_THREAD_RESUME_V1:${locator}\n\nContinue`);
+    assert.equal(result.action, "handled");
+    assert.match(notices[0], /Start a new Pi session/);
+    assert.equal(requests.length, 0);
 });
 
 test("Nested Cindy sides start at their own marker rather than an inherited side marker", async (t) => {

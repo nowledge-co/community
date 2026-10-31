@@ -547,7 +547,7 @@ function cindySideScope(entries: JsonObject[], header: unknown): { start: number
 	return { start: entries.length, metadata: {} };
 }
 
-function buildTranscript(ctx: ExtensionContext): { messages: ThreadMessage[]; metadata: JsonObject } {
+function buildTranscript(ctx: ExtensionContext): { messages: ThreadMessage[]; metadata: JsonObject; hasExistingDialogue: boolean } {
 	const config = resolveConfig();
 	const ambient: JsonObject = {
 		source_app: sourceApp(),
@@ -561,8 +561,10 @@ function buildTranscript(ctx: ExtensionContext): { messages: ThreadMessage[]; me
 	};
 	const entries = typeof manager.getBranch === "function" ? manager.getBranch() : manager.getEntries?.() || [];
 	const scope = sourceApp() === "pi" ? cindySideScope(entries, manager.getHeader?.()) : { start: 0, metadata: {} };
-	return { messages: entries.slice(scope.start).map((entry, index) => entryToMessage(entry, index + scope.start, ambient))
-		.filter((msg): msg is ThreadMessage => !!msg), metadata: scope.metadata };
+	const projected = entries.map((entry, index) => entryToMessage(entry, index, ambient));
+	return { messages: projected.slice(scope.start).filter((msg): msg is ThreadMessage => !!msg), metadata: scope.metadata,
+		// Export filtering must not make inherited dialogue eligible for a fresh-session binding.
+		hasExistingDialogue: projected.some((msg) => msg?.role === "user" || msg?.role === "assistant") };
 }
 
 function sessionId(ctx: ExtensionContext): string {
@@ -1092,7 +1094,7 @@ export default function nowledgeMemPi(pi: ExtensionAPI) {
 			const configDir = process.env.NMEM_CLI_CONFIG_DIR || join(homedir(), ".nowledge-mem");
 			const required = Boolean(effectiveLocator) || Boolean(resumeStates.get(id)?.reply)
 				|| existsSync(join(configDir, "thread-resume", `${nativeKey}.json`));
-			if (locator && !saved && buildTranscript(ctx).messages.some((message) => message.role === "assistant" || message.role === "user")) {
+			if (locator && !saved && buildTranscript(ctx).hasExistingDialogue) {
 				throw new Error("Start a new Pi session before continuing a selected Mem Thread.");
 			}
 			const result = await spawnNmem(resumeBootstrapArgs(id, effectiveLocator), 30_000);
