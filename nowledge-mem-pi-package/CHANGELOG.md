@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Defer automatic Thread sync for a Cindy branch containing a complete
+  ambiguous scheduled-run or partner-handoff shape. The native session is
+  retained intact; the whole branch, including subsequent messages, remains
+  deferred because its mixed text cannot safely be attributed. Literal user
+  input matching the same shape also defers. Other unknown or incomplete text
+  remains subject to the existing projection; markers do not verify identity.
+
 ## [0.8.16] - 2026-10-30
 
 ### Fixed

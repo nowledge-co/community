@@ -105,6 +105,7 @@ type StartupContextEntry = {
 const syncStates = new Map<string, SyncState>();
 const startupContextCache = new Map<string, StartupContextEntry>();
 const startupContextWarnings = new Set<string>();
+const ambiguousCindyWarnings = new Set<string>();
 const resumeStates = new Map<string, { reply?: ResumeReply; error?: string }>();
 const WINDOWS_CMD_ENV_EXPANSION_RE = /%[A-Za-z_][A-Za-z0-9_]*%/;
 
@@ -386,6 +387,7 @@ function piEntryToMessage(entry: JsonObject, index: number, ambient: JsonObject)
 			pi_entry_id: stringValue(entry.id),
 			pi_entry_type: entry.type,
 			pi_message_role: msg.role,
+			...(cindy?.ambiguous ? { cindy_ambiguous_envelope: true } : {}),
 			...(cindy?.origin ? { cindy_origin: cindy.origin } : {}),
 			...ambient,
 		},
@@ -611,6 +613,16 @@ function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | 
 	const resume = resumeStates.get(sessionId(ctx));
 	if (sourceApp() === "pi" && (!resume || resume.error)) return undefined;
 	const { messages, metadata } = buildTranscript(ctx);
+	if (messages.some((msg) => msg.metadata.cindy_ambiguous_envelope === true)) {
+		const id = sessionId(ctx);
+		const warning = "Thread sync deferred: a Cindy message may contain mixed or literal template text whose authorship cannot be separated. The native session is unchanged; later messages in this branch are also deferred.";
+		if (!ambiguousCindyWarnings.has(id)) {
+			ambiguousCindyWarnings.add(id);
+			if (ctx.hasUI) ctx.ui.notify(warning, "warning");
+			else console.warn(`[nowledge-mem] ${warning}`);
+		}
+		return undefined;
+	}
 	if (!shouldSync(messages)) return undefined;
 
 	const config = resolveConfig();

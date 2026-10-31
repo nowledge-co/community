@@ -12,6 +12,7 @@ interface Projection {
 	origin?: CindyOrigin;
 	cleaned?: boolean;
 	sideChat?: boolean;
+	ambiguous?: boolean;
 }
 
 interface Prefix {
@@ -54,6 +55,28 @@ const CONTEXT_NOTES: Record<string, string[]> = {
 		...HANDOFF_ENDS, ...REBUILD_ENDS,
 	],
 };
+
+// These observed combinations have no verified delimiters separating every
+// speaker. They might also be literal user input. Detect only complete shapes
+// outside fenced code; do not remove any part or assert its provenance.
+function ambiguousEnvelope(content: string): boolean {
+	const lines: string[] = [];
+	let fence: string | undefined;
+	for (const line of content.split(/\r?\n/)) {
+		const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+		if (marker) {
+			if (!fence) fence = marker[1];
+			else if (marker[1][0] === fence[0] && marker[1].length >= fence.length && !marker[2].trim()) fence = undefined;
+			continue;
+		}
+		if (!fence) lines.push(line);
+	}
+	const has = (prefix: string) => lines.some((line) => line.startsWith(prefix));
+	return (lines[0] === "主人开启了自动跟进；这一轮由宿主的任务事件唤醒，不是主人刚说的话。"
+		&& has("[Scheduled run context]") && has("[Routine checkpoint]") && has("[Silent scheduled run]"))
+		|| (lines[0]?.startsWith("[Task delivery]") && has("[UI language]")
+			&& has("[消息来源]") && has("[Session fork · internal context]") && has("[任务来源]"));
+}
 
 /** IDs are transport context, not dialogue. Keep only names and explicit ownership. */
 function sourceName(raw: string, key: "chat_id" | "user_id" | "device_id"): string | undefined | false {
@@ -145,6 +168,9 @@ export function projectCindyUserText(content: string, env: Record<string, string
 	let cleaned = false;
 	let sideChat = false;
 	for (;;) {
+		// Return the original, including any earlier known prefix. A template
+		// pasted verbatim by a user is indistinguishable from a host envelope.
+		if (ambiguousEnvelope(remainder)) return { content, ambiguous: true };
 		const prefix = knownPrefix(remainder);
 		if (!prefix) {
 			let speaker = "";

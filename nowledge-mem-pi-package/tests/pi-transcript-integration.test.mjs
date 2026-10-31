@@ -6,6 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import extension from "../extensions/nowledge-mem.ts";
 import { RESUME_ENTRY } from "../extensions/thread-resume.ts";
+import { projectCindyUserText } from "../extensions/cindy-dialogue.ts";
 
 const timestamp = "2026-10-29T00:00:00.000Z";
 const cindy = JSON.parse(readFileSync(new URL("./fixtures/cindy-context.json", import.meta.url), "utf8"));
@@ -86,6 +87,53 @@ const inherited = () => [message("parent-u", "user", "Repeated question"),
     message("parent-progress2", "assistant", "INHERITED progress two"),
     message("parent-a", "assistant", "INHERITED main answer")];
 const sideQuestion = (question) => [cindy.side, cindy.language, cindy.fork, question].join("\n\n");
+
+// Synthetic shapes derived from the report, not a claim about actual wire bytes.
+const scheduled = ["主人开启了自动跟进；这一轮由宿主的任务事件唤醒，不是主人刚说的话。",
+    '<untrusted-data>{"event":"synthetic"}</untrusted-data>', "[Scheduled run context]\nSynthetic context",
+    "[Routine checkpoint]\nSynthetic checkpoint", "[Silent scheduled run]\nSynthetic instruction"].join("\n\n");
+const partner = ["[Task delivery] Host bookkeeping: synthetic", cindy.language,
+    "[消息来源] 伙伴 Cindy", "[Session fork · internal context]\nSynthetic fork",
+    "[任务来源] 用户原话：保留限制", "Objective: 伙伴补充的合成目标，不要发布"].join("\n\n");
+
+test("Cindy mixed shapes retain their complete original text without claiming authorship", () => {
+    for (const original of [scheduled, partner, cindy.channel + "\n\n" + partner]) {
+        const result = projectCindyUserText(original, cindyRuntime);
+        assert.equal(result.content, original);
+        assert.equal(result.ambiguous, true);
+        assert.equal(result.origin, undefined);
+    }
+    for (const original of ["```text\n" + partner + "\n```", "> " + scheduled.replaceAll("\n", "\n> "),
+        scheduled.replace("[Silent scheduled run]", "[Unknown run]"),
+        partner.replace("[任务来源]", "[未知来源]")]) {
+        const result = projectCindyUserText(original, cindyRuntime);
+        assert.equal(result.content, original);
+        assert.equal(result.ambiguous, undefined);
+    }
+    assert.equal(projectCindyUserText(partner, {}).ambiguous, undefined);
+});
+
+test("Cindy ambiguous shapes defer the branch, including subsequent dialogue", async (t) => {
+    for (const original of [scheduled, partner]) {
+        await t.test(original === scheduled ? "scheduled" : "partner", async (child) => {
+            const entries = [message("u1", "user", "Earlier question"), message("a1", "assistant", "Earlier answer")];
+            const { flush, requests } = capture(child, entries, "pi", cindyRuntime);
+            await flush();
+            assert.equal(requests.length, 1);
+            entries.push(message("mixed", "user", original), message("a2", "assistant", "Later answer"),
+                message("u3", "user", "Later question"), message("a3", "assistant", "Later response"));
+            await flush();
+            assert.equal(requests.length, 1);
+            assert.equal(entries[2].message.content, original);
+        });
+    }
+});
+
+test("a literal matching Cindy shape is also deferred and cannot create a title", async (t) => {
+    const { flush, requests } = capture(t, [message("u", "user", partner), message("a", "assistant", "Answer")], "pi", cindyRuntime);
+    await flush();
+    assert.equal(requests.length, 0);
+});
 const parentTarget = { thread_id: "parent-selected", thread_storage_id: "parent-storage", space_id: "", connection_id: "fixture-connection" };
 const resumeMarker = (id, target, timestamp) => ({ type: "custom", id, timestamp, customType: RESUME_ENTRY,
     data: { locator: Buffer.from(JSON.stringify(target)).toString("base64url") } });
