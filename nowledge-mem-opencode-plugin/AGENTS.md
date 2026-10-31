@@ -1,5 +1,12 @@
 # Nowledge Mem for OpenCode
 
+The automatic guidance below applies to the default `sessionContext: "automatic"`
+option. With `sessionContext: "off"`, do not initiate a context or recall read
+from this plugin's guidance; use its read tools only when explicitly requested
+for the task. Tools, read-before-save rules and capture remain available, so
+this setting is not a promise that no personal Mem data can reach the model.
+See the README for disabling the whole plugin when that boundary is required.
+
 You have Nowledge Mem tools registered as `nowledge_mem_*` for cross-tool knowledge management. Use them proactively.
 
 ## Context Bundle And Working Memory

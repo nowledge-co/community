@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.7] - 2026-11-01
+
+- Add the project/server `sessionContext: "off"` option to omit automatic context guidance without disabling explicit tools or capture. The default remains `automatic`.
+- Document that this is a guidance preference, not a permission or personal-data isolation boundary, and how OpenCode v2 can disable the whole plugin.
+
 
 ## [0.4.6] - 2026-10-17
 
