@@ -135,8 +135,11 @@ export function projectCindyUserText(content: string, env: Record<string, string
 	for (;;) {
 		const prefix = knownPrefix(remainder);
 		if (!prefix) {
-			const speaker = origin?.sender_name && (origin.chat_kind === "group" || origin.sender_is_owner === false)
-				? `发言人「${origin.sender_name}」：\n` : "";
+			let speaker = "";
+			if (origin && (origin.chat_kind === "group" || origin.sender_is_owner === false)) {
+				speaker = origin.sender_name ? `发言人「${origin.sender_name}」：\n`
+					: origin.sender_is_owner === false ? "发言人（非主人）：\n" : "群聊发言人：\n";
+			}
 			return { content: remainder ? speaker + remainder : "", ...(origin ? { origin } : {}), ...(cleaned ? { cleaned } : {}) };
 		}
 		// Consume separator lines, never indentation belonging to the actual text.

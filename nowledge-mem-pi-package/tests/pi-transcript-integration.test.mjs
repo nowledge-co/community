@@ -200,12 +200,17 @@ test("Cindy stripping preserves an indented code block in one or separate text p
 test("Cindy explicit ownership and empty channel-only messages keep correct attribution", async (t) => {
     const owner = cindy.channel.slice(0, -1) + "，发言人是主人。";
     const guest = cindy.channel.slice(0, -1) + "，发言人「Fixture Guest」(user_id: synthetic-sender)，不是主人。";
+    const anonymous = cindy.channel.slice(0, -1) + "，发言人不是主人。";
+    const anonymousGroup = cindy.group.replace("「Fixture Guest」", "").replace("，不是主人", "");
     const { flush, requests } = capture(t, [message("u1", "user", owner + "\n\nHello"),
         message("a1", "assistant", "Answer"), message("internal", "user", cindy.group),
-        message("u2", "user", guest + "\n\nHello again"), message("a2", "assistant", "Answer")], "pi", cindyRuntime);
+        message("u2", "user", guest + "\n\nHello again"), message("a2", "assistant", "Answer"),
+        message("u3", "user", anonymous + "\n\nAnonymous question"), message("a3", "assistant", "Answer"),
+        message("u4", "user", anonymousGroup + "\n\nGroup question"), message("a4", "assistant", "Answer")], "pi", cindyRuntime);
     await flush();
     const rows = requests[0].body.messages;
-    assert.deepEqual(rows.map((m) => m.content), ["Hello", "Answer", "发言人「Fixture Guest」：\nHello again", "Answer"]);
+    assert.deepEqual(rows.map((m) => m.content), ["Hello", "Answer", "发言人「Fixture Guest」：\nHello again", "Answer",
+        "发言人（非主人）：\nAnonymous question", "Answer", "群聊发言人：\nGroup question", "Answer"]);
     assert.equal(rows[0].metadata.cindy_origin.sender_is_owner, true);
     assert.equal(rows[2].metadata.cindy_origin.sender_is_owner, false);
 });
