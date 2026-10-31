@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and internal summaries. Keep native IDs, routing and acknowledged deltas.
 - Other hosts and the separate CLI history importer retain their existing
   behavior. Existing saved Threads are not rewritten or cleaned.
+- Remove complete recognized Cindy wire notes from user text only when Cindy's
+  Pi launcher markers are present: WeChat transport headers, directory grants,
+  language/client notes and delimited handoff/rebuild/fork context. Preserve
+  display-name speaker attribution as metadata, real text, quoted examples,
+  unknown/incomplete notes and native message identity across restarts.
 
 ## [0.8.14] - 2026-10-17
 

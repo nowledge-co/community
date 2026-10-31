@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { basename, join, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { RESUME_ENTRY, parseResumePrompt, requireResumeReply, resumeBootstrapArgs, type ResumeReply } from "./thread-resume.ts";
+import { projectCindyUserText } from "./cindy-dialogue.ts";
 
 import {
 	isCheckpointConflictResponse,
@@ -358,11 +359,13 @@ function piEntryToMessage(entry: JsonObject, index: number, ambient: JsonObject)
 	const parts = Array.isArray(msg.content) ? msg.content : [msg.content];
 	// Like the default Codex/OMP projection, capture human text only. An
 	// allowlist keeps tool calls, reasoning and future internal blocks out.
-	const content = parts.map((part) => {
+	const rawContent = parts.map((part) => {
 		if (typeof part === "string") return part;
 		if (!part || typeof part !== "object" || (part as JsonObject).type !== "text") return "";
 		return partToText(part);
 	}).filter(Boolean).join("\n").trim();
+	const cindy = msg.role === "user" ? projectCindyUserText(rawContent) : undefined;
+	const content = cindy?.content ?? rawContent;
 	// Preserve complete dialogue, without synthetic attachment placeholders
 	// or the legacy 20k cap. Captions remain normal text blocks.
 	if (!content) return undefined;
@@ -375,6 +378,7 @@ function piEntryToMessage(entry: JsonObject, index: number, ambient: JsonObject)
 			pi_entry_id: stringValue(entry.id),
 			pi_entry_type: entry.type,
 			pi_message_role: msg.role,
+			...(cindy?.origin ? { cindy_origin: cindy.origin } : {}),
 			...ambient,
 		},
 	};

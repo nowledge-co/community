@@ -1,8 +1,9 @@
 """Replay synthetic dialogue across a real Pi process restart into a loopback receiver.
 
-Usage: python3 native-pi-dialogue-smoke.py PI_BINARY PACKAGE_DIR [--discover]
+Usage: python3 native-pi-dialogue-smoke.py PI_BINARY PACKAGE_DIR [--discover] [--cindy]
 No model requests, live-config edits or real Mem writes are made. --discover
 loads the package through isolated global Pi settings instead of explicit -e.
+--cindy replays the verified Cindy wire templates and launcher markers.
 """
 import argparse
 import json
@@ -20,8 +21,10 @@ def main():
     parser.add_argument("pi", type=Path)
     parser.add_argument("package", type=Path)
     parser.add_argument("--discover", action="store_true")
+    parser.add_argument("--cindy", action="store_true")
     args = parser.parse_args()
     pi, package = args.pi.resolve(), args.package.resolve()
+    cindy = json.loads((Path(__file__).parent / "fixtures/cindy-context.json").read_text()) if args.cindy else None
     requests, stored = [], {}
 
     class Receiver(BaseHTTPRequestHandler):
@@ -84,18 +87,26 @@ def main():
                 return {"type": "text", "text": value}
 
             append("system", "system", [text("INTERNAL system and tools")])
-            append("user", "user", [text("Synthetic native question")])
+            first_question = "Synthetic native question"
+            if cindy:
+                first_question = "\n\n".join([cindy[part] for part in
+                    ("writable", "language", "client", "handoff", "channel")] + [first_question])
+            append("user", "user", [text(first_question)])
             append("thinking", "assistant", [{"type": "thinking", "thinking": "INTERNAL thinking"}])
             append("call", "assistant", [{"type": "toolCall", "id": "tool1", "name": "read", "arguments": {"path": "INTERNAL"}}])
             append("result", "toolResult", [text("INTERNAL tool result")], toolCallId="tool1", toolName="read", isError=False)
             append("final", "assistant", [text("Synthetic native answer"), {"type": "thinking", "thinking": "INTERNAL mixed thinking"}])
             append("custom", "custom", "INTERNAL injected context", customType="fixture-context", display=True)
+            if cindy:
+                append("internal-user", "user", [text(cindy["language"])])
             env = dict(
                 os.environ, PI_CODING_AGENT_DIR=str(agent), PI_OFFLINE="1", NMEM_PLUGIN_SOURCE_APP="pi",
                 NMEM_PLUGIN_DEBUG="1", NMEM_API_URL=f"http://127.0.0.1:{server.server_port}",
                 NMEM_API_KEY="fixture-only", NMEM_SPACE="fixture-only", NMEM_SPACE_ID="fixture-only",
                 NMEM_AGENT_ID="fixture-agent", NMEM_HOST_AGENT_ID="fixture-host",
                 NMEM_CLI_CONFIG_DIR=tmp, NMEM_CLI_PATH=str(cli),
+                CINDY_PI_SESSION_ID="synthetic-cindy-task" if cindy else "",
+                CINDY_PI_PERMISSION_FILE=str(root / "synthetic-permissions.json") if cindy else "",
             )
 
             def run_process():
@@ -151,7 +162,10 @@ def main():
                 return [{"role": message["role"], "content": message["content"]} for message in stored.values()]
 
             assert dialogue() == expected, dialogue()
-            append("user2", "user", [text("Synthetic question after restart")])
+            second_question = "Synthetic question after restart"
+            if cindy:
+                second_question = cindy["rebuild"] + "\n\n" + cindy["channel"] + "\n\n" + second_question
+            append("user2", "user", [text(second_question)])
             append("call2", "assistant", [{"type": "toolCall", "id": "tool2", "name": "read", "arguments": {"path": "INTERNAL after restart"}}])
             append("result2", "toolResult", [text("INTERNAL output after restart")], toolCallId="tool2", toolName="read", isError=False)
             append("final2", "assistant", [
@@ -167,9 +181,19 @@ def main():
             ]
             assert dialogue() == expected, dialogue()
             assert list(stored) == ["pi-entry-user", "pi-entry-final", "pi-entry-user2", "pi-entry-final2"]
+            if cindy:
+                for message in stored.values():
+                    if message["role"] == "user":
+                        assert message["metadata"]["cindy_origin"] == {"channel": "wechat", "chat_kind": "direct"}
+                encoded = json.dumps(requests)
+                assert all(marker not in encoded for marker in [
+                    "[UI language]", "[Session handoff", "[Session context rebuild", "cindy-extra-",
+                    "synthetic-chat", "synthetic-controller", "synthetic-host",
+                ]), "Cindy runtime notes or transport identifiers leaked"
             print(json.dumps({
                 "native_pi": str(pi), "package_version": json.loads((package / "package.json").read_text())["version"],
                 "loading": "package-discovery" if args.discover else "explicit-extension",
+                "cindy_wire_templates": bool(cindy),
                 "process_ids": [first_pid, second_pid], "restart_verified": True,
                 "captured_messages": len(stored), "internal_content_found": False, "result": "PASS",
             }))

@@ -6,6 +6,11 @@ import test from "node:test";
 import extension from "../extensions/nowledge-mem.ts";
 
 const timestamp = "2026-10-29T00:00:00.000Z";
+const cindy = JSON.parse(readFileSync(new URL("./fixtures/cindy-context.json", import.meta.url), "utf8"));
+const cindyRuntime = {
+    CINDY_PI_SESSION_ID: "synthetic-cindy-task",
+    CINDY_PI_PERMISSION_FILE: "/synthetic/cindy-permissions.json",
+};
 let session = 0;
 const text = (value) => ({ type: "text", text: value });
 const message = (id, role, content, extra = {}) => ({
@@ -15,7 +20,7 @@ const custom = (id, customType, content, extra = {}) => ({
     type: "custom_message", id, timestamp, customType, content, ...extra,
 });
 
-function capture(t, entries, source = "pi") {
+function capture(t, entries, source = "pi", runtime = {}) {
     const root = mkdtempSync(join(tmpdir(), "nmem-pi-dialogue-"));
     const overrides = {
         NMEM_PLUGIN_SOURCE_APP: source, NMEM_PLUGIN_HOST_LABEL: source === "pi" ? "Pi" : "Step Code",
@@ -23,6 +28,7 @@ function capture(t, entries, source = "pi") {
         NMEM_SPACE: "dialogue-fixture", NMEM_SPACE_ID: "dialogue-fixture",
         NMEM_CLI_CONFIG_DIR: root, NMEM_CLI_PATH: join(root, "missing-nmem"),
         NMEM_AGENT_ID: "fixture-agent", NMEM_HOST_AGENT_ID: "fixture-host",
+        CINDY_PI_SESSION_ID: "", CINDY_PI_PERMISSION_FILE: "", ...runtime,
     };
     const previous = Object.fromEntries(Object.keys(overrides).map((key) => [key, process.env[key]]));
     Object.assign(process.env, overrides);
@@ -149,4 +155,133 @@ test("Step Code keeps its existing capture policy", async (t) => {
         message("result", "toolResult", [text("Tool output")])], "step-code");
     await flush();
     assert.deepEqual(requests[0].body.messages.map((m) => m.content), ["Question", "Answer\n[Tool: read]", "Tool output"]);
+});
+
+test("Cindy channel, permission, language, client and handoff wrappers leave the actual question", async (t) => {
+    const question = "Check the fixture directory\n\nKeep this second paragraph.";
+    const wrapped = [cindy.referenceDirectories, cindy.writable, cindy.language, cindy.client,
+        cindy.handoff, cindy.channel, question].join("\n\n");
+    const { flush, requests } = capture(t, [message("u", "user", [text(wrapped)]),
+        message("a", "assistant", "The fixture is correct")], "pi", cindyRuntime);
+    await flush();
+    const body = requests[0].body;
+    assert.deepEqual(body.messages.map((m) => m.content), [question, "The fixture is correct"]);
+    assert.equal(body.title, question);
+    assert.equal(body.messages[0].metadata.external_id, "pi-entry-u");
+    assert.equal(body.messages[0].timestamp, timestamp);
+    assert.deepEqual(body.messages[0].metadata.cindy_origin, { channel: "wechat", chat_kind: "direct" });
+    assert.ok(!JSON.stringify(body).includes("synthetic-chat"));
+    assert.ok(!JSON.stringify(body).includes("synthetic-controller"));
+});
+
+test("Cindy group attribution survives without transport identifiers", async (t) => {
+    const { flush, requests } = capture(t, [message("u", "user", cindy.group + "\n\nHello"),
+        message("a", "assistant", "Hello back")], "pi", cindyRuntime);
+    await flush();
+    const msg = requests[0].body.messages[0];
+    assert.equal(msg.content, "Hello");
+    assert.deepEqual(msg.metadata.cindy_origin, {
+        channel: "wechat", chat_kind: "group", chat_name: "Fixture Group",
+        sender_name: "Fixture Guest", sender_is_owner: false,
+    });
+    assert.ok(!JSON.stringify(msg).includes("synthetic-sender"));
+    assert.ok(!JSON.stringify(msg).includes("synthetic-group"));
+});
+
+test("Cindy current and legacy mobile notes are removed only as complete templates", async (t) => {
+    const mobile = cindy.client.replace("另一台电脑", "手机") + cindy.mobilePreference;
+    const legacy = "[客户端说明] 以下为系统每轮自动追加的环境说明,不是用户发来的消息;回复时不要把它当作用户的请求,也不要引用、复述或据此臆测用户意图。本轮请求来自手机客户端(小屏、远程查看被控电脑上的文件)。" + cindy.mobilePreference;
+    const unknown = cindy.client.replace("另一台电脑", "手机") + "This is an unknown trailer.";
+    const { flush, requests } = capture(t, [message("u1", "user", mobile + "\n\nFirst question"),
+        message("a1", "assistant", "Answer"), message("u2", "user", legacy + "\n\nSecond question"),
+        message("a2", "assistant", "Answer"), message("u3", "user", unknown + "\n\nThird question"),
+        message("a3", "assistant", "Answer")], "pi", cindyRuntime);
+    await flush();
+    assert.deepEqual(requests[0].body.messages.map((m) => m.content),
+        ["First question", "Answer", "Second question", "Answer", unknown + "\n\nThird question", "Answer"]);
+});
+
+test("Cindy rebuild/fork and legacy handoff boundaries preserve new input", async (t) => {
+    const variants = [cindy.rebuild, cindy.fork,
+        cindy.handoff.replace("user's", "user’s"),
+        cindy.handoff.replace("== End of handoff note; the user's new message follows ==",
+            "== 交接说明结束,以下是用户的新消息 ==")];
+    const entries = variants.flatMap((note, i) => [message(`u${i}`, "user", note + "\r\n\r\nQuestion " + i),
+        message(`a${i}`, "assistant", "Answer " + i)]);
+    const { flush, requests } = capture(t, entries, "pi", cindyRuntime);
+    await flush();
+    assert.deepEqual(requests[0].body.messages.map((m) => m.content),
+        variants.flatMap((_, i) => ["Question " + i, "Answer " + i]));
+});
+
+test("Cindy internal-only user rows do not create deltas; repeated human questions retain their IDs", async (t) => {
+    const entries = [message("u1", "user", cindy.channel + "\n\nQuestion"), message("a1", "assistant", "Answer")];
+    const { flush, requests } = capture(t, entries, "pi", cindyRuntime);
+    await flush();
+    entries.push(message("internal", "user", [text(cindy.language), text(cindy.writable), text(cindy.handoff)]));
+    await flush();
+    assert.equal(requests.length, 1);
+    entries.push(message("u2", "user", cindy.channel + "\n\nQuestion"), message("a2", "assistant", "Answer"));
+    await flush();
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].body.expected_message_count, 2);
+    assert.deepEqual(requests[1].body.messages.map((m) => [m.content, m.metadata.external_id]),
+        [["Question", "pi-entry-u2"], ["Answer", "pi-entry-a2"]]);
+});
+
+test("ordinary Pi and incomplete Cindy runtime markers never strip user text", async (t) => {
+    const original = cindy.channel + "\n\nQuestion";
+    const { flush, requests } = capture(t, [message("u", "user", original), message("a", "assistant", "Answer")],
+        "pi", { CINDY_PI_SESSION_ID: cindyRuntime.CINDY_PI_SESSION_ID });
+    await flush();
+    assert.equal(requests[0].body.messages[0].content, original);
+    assert.equal(requests[0].body.messages[0].metadata.cindy_origin, undefined);
+});
+
+test("Cindy quotations, code blocks, assistant text and incomplete/unknown wrappers remain verbatim", async (t) => {
+    const originals = [
+        "Explain this note:\n" + cindy.channel,
+        "```text\n" + cindy.language + "\n```",
+        "> " + cindy.channel,
+        "<cindy-extra-writable-directories>\nNo closing tag\nQuestion",
+        "[Session handoff · internal context]\nNo terminator\nQuestion",
+        "[UI language] A user-written discussion of language settings\nQuestion",
+        "[渠道说明] 用户写的说明\nQuestion",
+        cindy.channel.replace("微信私聊", "Unknown Channel") + "\n\nQuestion",
+        "constructor",
+        "__proto__",
+        "toString\nThis is an ordinary question.",
+    ];
+    const entries = originals.flatMap((original, i) => [message(`u${i}`, "user", original),
+        message(`a${i}`, "assistant", cindy.channel)]);
+    const { flush, requests } = capture(t, entries, "pi", cindyRuntime);
+    await flush();
+    assert.deepEqual(requests[0].body.messages.map((m) => m.content), originals.flatMap((x) => [x, cindy.channel]));
+});
+
+test("Cindy handoff terminators quoted inside code are not mistaken for the wrapper boundary", async (t) => {
+    const note = "[Session handoff · internal context]\n```text\n" +
+        "== End of handoff note; the user's new message follows ==\n```\nSynthetic history\n" +
+        "== End of handoff note; the user's new message follows ==";
+    const { flush, requests } = capture(t, [message("u", "user", note + "\n\nQuestion"),
+        message("a", "assistant", "Answer")], "pi", cindyRuntime);
+    await flush();
+    assert.equal(requests[0].body.messages[0].content, "Question");
+});
+
+test("Cindy wrappers do not truncate long captions or invent attachment placeholders", async (t) => {
+    const caption = "Question " + "u".repeat(21000);
+    const answer = "Answer " + "a".repeat(21000);
+    const { flush, requests } = capture(t, [message("u", "user", [text(cindy.language), text(cindy.channel),
+        text(caption), { type: "image", data: "fixture-only" }]), message("a", "assistant", answer)], "pi", cindyRuntime);
+    await flush();
+    assert.deepEqual(requests[0].body.messages.map((m) => m.content), [caption, answer]);
+});
+
+test("Step Code retains Cindy-labelled text even when launched with Cindy variables", async (t) => {
+    const original = cindy.channel + "\n\nQuestion";
+    const { flush, requests } = capture(t, [message("u", "user", original), message("a", "assistant", "Answer")],
+        "step-code", cindyRuntime);
+    await flush();
+    assert.equal(requests[0].body.messages[0].content, original);
 });

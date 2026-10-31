@@ -41,6 +41,23 @@ Pi gains a native extension plus five skills:
 | `save-thread` | Creates a curated handoff summary when you explicitly want one |
 | `status` | Checks Nowledge Mem server connectivity |
 
+## Cindy-hosted Pi sessions
+
+When Cindy supplies both `CINDY_PI_SESSION_ID` and `CINDY_PI_PERMISSION_FILE`,
+automatic capture removes recognized leading wire notes added by Cindy 0.1.121:
+WeChat channel headers, directory grants, UI language and client/device notes,
+and explicitly delimited handoff, context rebuild and fork records. Empty
+internal messages are omitted; the actual question and assistant text remain.
+WeChat channel kind, display names and explicit speaker ownership are retained
+in message `metadata.cindy_origin`; transport chat/user/device identifiers from
+those headers are omitted. The permission file itself is not read.
+
+Ordinary Pi sessions do not enable this text filter. Unknown or incomplete
+notes, quoted/fenced examples and assistant responses are preserved. Matching
+is limited to complete known templates at the start of a user message, not
+keywords throughout the conversation. Existing saved Threads and the separate
+CLI history importer are not rewritten by this filter.
+
 ## Prerequisites
 
 1. **Nowledge Mem** desktop app running, or a remote server.

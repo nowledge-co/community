@@ -1305,7 +1305,7 @@
       "threadSave": {
         "method": "plugin-capture",
         "historicalCommand": "nmem t sync --from pi",
-        "note": "The Pi extension injects startup Context Bundle or Working Memory and syncs completed session branches. Thread resume v1 binds a fresh Pi session to an exact existing Mem Thread and blocks startup if verified context is unavailable. nmem t sync --from pi resolves the same binding for history imports."
+        "note": "The Pi extension syncs complete human dialogue from completed session branches, excluding tool activity, reasoning and internal summaries. In a verified Cindy Pi runtime it removes recognized host-injected channel, client, language, directory and handoff wrappers while preserving actual user text and display-name speaker attribution. Thread resume v1 binds a fresh Pi session to an exact existing Mem Thread and blocks startup if verified context is unavailable. Existing Threads and the separate nmem t sync --from pi history importer are not rewritten by this automatic-capture filter."
       },
       "autonomy": {
         "bootstrap": "guided",
