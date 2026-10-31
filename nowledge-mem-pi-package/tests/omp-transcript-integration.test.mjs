@@ -196,6 +196,29 @@ test("an OMP branch containing only injected users and tool activity is not a co
     assert.equal(requests.length, 0);
 });
 
+test("OMP uses native attribution rather than message text to project synthetic relays", async (t) => {
+    // OMP v18.14.0 documents sendUserMessage's user/agent attribution and
+    // explicitly uses agent for generated or relayed text:
+    // https://github.com/can1357/oh-my-pi/blob/31147f9d1a76608549821c3759f8487b4d66c72d/docs/extensions.md
+    // Missing attribution is a compatibility case, not evidence of authorship.
+    const identical = "Synthetic relay: retain the task constraint";
+    const { flush, requests } = capture(t, [
+        message("agent", "user", identical, { attribution: "agent" }),
+        message("user", "user", identical, { attribution: "user" }),
+        message("legacy", "user", "Synthetic legacy text"),
+        message("unknown", "user", "Synthetic unknown attribution", { attribution: "other" }),
+        message("reply", "assistant", "Synthetic response"),
+    ]);
+    await flush();
+    assert.equal(requests[0].body.title, identical);
+    assert.deepEqual(requests[0].body.messages.map(({ role, content, metadata }) =>
+        [role, content, metadata.external_id]), [
+        ["user", identical, "omp-entry-user"],
+        ["user", "Synthetic legacy text", "omp-entry-legacy"],
+        ["assistant", "Synthetic response", "omp-entry-reply"],
+    ]);
+});
+
 test("Step Code keeps its existing capture policy", async (t) => {
     const { flush, requests } = capture(t, [
         message("u", "user", "Question"), message("a", "assistant", [text("Answer"), { type: "toolCall", name: "read" }]),
