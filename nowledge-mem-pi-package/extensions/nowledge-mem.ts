@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { basename, join, win32 as pathWin32 } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { RESUME_ENTRY, parseResumePrompt, requireResumeReply, resumeBootstrapArgs, type ResumeReply } from "./thread-resume.ts";
+import { isCindyRuntime, projectCindyUserText } from "./cindy-dialogue.ts";
 
 import {
 	isCheckpointConflictResponse,
@@ -23,7 +24,7 @@ import { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 export { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.14";
+const DEFAULT_PLUGIN_VERSION = "0.8.16";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -104,6 +105,7 @@ type StartupContextEntry = {
 const syncStates = new Map<string, SyncState>();
 const startupContextCache = new Map<string, StartupContextEntry>();
 const startupContextWarnings = new Set<string>();
+const ambiguousCindyWarnings = new Set<string>();
 const resumeStates = new Map<string, { reply?: ResumeReply; error?: string }>();
 const WINDOWS_CMD_ENV_EXPANSION_RE = /%[A-Za-z_][A-Za-z0-9_]*%/;
 
@@ -351,7 +353,116 @@ function normalizeRole(role: unknown): "user" | "assistant" | "system" | undefin
 	return undefined;
 }
 
+function piTextParts(content: unknown): unknown[] {
+	const parts = Array.isArray(content) ? content : [content];
+	return parts.filter((part) => typeof part === "string"
+		|| (part && typeof part === "object" && (part as JsonObject).type === "text"));
+}
+
+function piRawText(content: unknown): string {
+	return piTextParts(content).map((part) => {
+		if (typeof part === "string") return part;
+		const value = part as JsonObject;
+		return typeof value.text === "string" ? value.text : typeof value.content === "string" ? value.content : "";
+	}).filter(Boolean).join("\n");
+}
+
+function piEntryToMessage(entry: JsonObject, index: number, ambient: JsonObject): ThreadMessage | undefined {
+	if (entry.type !== "message" || !entry.message || typeof entry.message !== "object") return undefined;
+	const msg = entry.message as JsonObject;
+	if (msg.role !== "user" && msg.role !== "assistant") return undefined;
+	// Like the default Codex/OMP projection, capture human text only. An
+	// allowlist keeps tool calls, reasoning and future internal blocks out.
+	const cindy = msg.role === "user" ? projectCindyUserText(piRawText(msg.content)) : undefined;
+	const content = cindy?.cleaned ? cindy.content : piTextParts(msg.content).map(partToText).filter(Boolean).join("\n").trim();
+	// Preserve complete dialogue, without synthetic attachment placeholders
+	// or the legacy 20k cap. Captions remain normal text blocks.
+	if (!content) return undefined;
+	return {
+		role: msg.role,
+		content,
+		timestamp: stringValue(entry.timestamp),
+		metadata: {
+			external_id: `pi-entry-${stringValue(entry.id) || index}`,
+			pi_entry_id: stringValue(entry.id),
+			pi_entry_type: entry.type,
+			pi_message_role: msg.role,
+			...(cindy?.ambiguous ? { cindy_ambiguous_envelope: true } : {}),
+			...(cindy?.origin ? { cindy_origin: cindy.origin } : {}),
+			...ambient,
+		},
+	};
+}
+
+function ompDialogueContent(content: unknown): string {
+	if (typeof content === "string") return content;
+	const parts = Array.isArray(content) ? content : [content];
+	return parts.map((part) => {
+		if (typeof part === "string") return part;
+		if (!part || typeof part !== "object") return "";
+		// An allowlist prevents reasoning, tool calls and future internal blocks
+		// from becoming transcript text through partToText's generic fallback.
+		const type = (part as JsonObject).type;
+		return type === "text" ? partToText(part) : "";
+	}).filter(Boolean).join("\n");
+}
+
+function ompEntryToMessage(entry: JsonObject, index: number, ambient: JsonObject): ThreadMessage | undefined {
+	const value = entry.type === "message" ? entry.message : entry.type === "custom_message" ? entry : undefined;
+	if (!value || typeof value !== "object") return undefined;
+	const msg = value as JsonObject;
+	const custom = entry.type === "custom_message" || msg.role === "custom";
+	let role: "user" | "assistant";
+	let content: string;
+	if (custom) {
+		// display=true also applies to advisor/async-result injections. Only
+		// explicit user attribution identifies a user-authored custom prompt.
+		if (msg.attribution !== "user") return undefined;
+		role = "user";
+		if (msg.customType === "skill-prompt") {
+			// OMP stores the expanded SKILL.md in content, but the submitted
+			// /skill: draft in details.prompt (older sessions have name + args).
+			const details = msg.details && typeof msg.details === "object" ? msg.details as JsonObject : {};
+			const name = stringValue(details.name);
+			content = stringValue(details.prompt) || (name ? `/skill:${name} ${stringValue(details.args) || ""}`.trim() : "");
+		} else if (msg.customType === "image-attachment") {
+			return undefined;
+		} else {
+			content = ompDialogueContent(msg.content);
+		}
+	} else {
+		if (msg.role !== "user" && msg.role !== "assistant") return undefined;
+		// Legacy user messages predate attribution; current OMP also records
+		// internal continuations as role=user, attribution=agent.
+		if (msg.role === "user" && msg.attribution !== undefined && msg.attribution !== "user") return undefined;
+		role = msg.role;
+		content = ompDialogueContent(msg.content);
+	}
+	// Match default Codex import: preserve complete human text, without the
+	// legacy per-message cap or synthetic image/file placeholders.
+	content = content.trim();
+	if (!content) return undefined;
+	return {
+		role,
+		content,
+		timestamp: stringValue(entry.timestamp),
+		metadata: {
+			external_id: `omp-entry-${stringValue(entry.id) || index}`,
+			pi_entry_id: stringValue(entry.id),
+			pi_entry_type: entry.type,
+			...(entry.type === "message" ? { pi_message_role: stringValue(msg.role) } : {}),
+			...(custom ? {
+				pi_custom_type: stringValue(msg.customType),
+				pi_custom_display: typeof msg.display === "boolean" ? msg.display : undefined,
+			} : {}),
+			...ambient,
+		},
+	};
+}
+
 function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): ThreadMessage | undefined {
+	if (sourceApp() === "pi") return piEntryToMessage(entry, index, ambient);
+	if (sourceApp() === "omp") return ompEntryToMessage(entry, index, ambient);
 	if (entry.type === "message") {
 		const message = entry.message;
 		if (!message || typeof message !== "object") return undefined;
@@ -414,7 +525,36 @@ function entryToMessage(entry: JsonObject, index: number, ambient: JsonObject): 
 	return undefined;
 }
 
-function buildMessages(ctx: ExtensionContext): ThreadMessage[] {
+function cindyFork(header: unknown): { createdAt: number; parentSession: string } | undefined {
+	if (!isCindyRuntime() || !header || typeof header !== "object") return undefined;
+	const session = header as JsonObject;
+	if (typeof session.parentSession !== "string" || !session.parentSession.trim()) return undefined;
+	const created = typeof session.timestamp === "string" ? Date.parse(session.timestamp) : NaN;
+	return Number.isFinite(created) ? { createdAt: created, parentSession: session.parentSession } : undefined;
+}
+
+function cindySideScope(entries: JsonObject[], header: unknown): { start: number; metadata: JsonObject } {
+	const unchanged = { start: 0, metadata: {} };
+	const fork = cindyFork(header);
+	if (!fork) return unchanged;
+	for (let index = 0; index < entries.length; index++) {
+		const entry = entries[index];
+		const msg = entry.type === "message" ? entry.message as JsonObject | undefined : undefined;
+		if (msg?.role !== "user") continue;
+		const timestamp = typeof entry.timestamp === "string" ? Date.parse(entry.timestamp) : NaN;
+		// Without a trustworthy fork boundary, retain the existing projection.
+		if (!Number.isFinite(timestamp)) return unchanged;
+		if (timestamp < fork.createdAt) continue;
+		// Inherited side notes in a nested fork cannot establish this session's scope.
+		if (!projectCindyUserText(piRawText(msg.content)).sideChat) return unchanged;
+		const parent = fork.parentSession.match(/_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i)?.[1];
+		return { start: index, metadata: { pi_side_session: true, ...(parent ? { pi_parent_session_id: parent } : {}) } };
+	}
+	// A Cindy fork has no dialogue of its own before the first local user turn.
+	return { start: entries.length, metadata: {} };
+}
+
+function buildTranscript(ctx: ExtensionContext): { messages: ThreadMessage[]; metadata: JsonObject; hasExistingDialogue: boolean } {
 	const config = resolveConfig();
 	const ambient: JsonObject = {
 		source_app: sourceApp(),
@@ -424,9 +564,14 @@ function buildMessages(ctx: ExtensionContext): ThreadMessage[] {
 	const manager = ctx.sessionManager as unknown as {
 		getBranch?: () => JsonObject[];
 		getEntries?: () => JsonObject[];
+		getHeader?: () => unknown;
 	};
 	const entries = typeof manager.getBranch === "function" ? manager.getBranch() : manager.getEntries?.() || [];
-	return entries.map((entry, index) => entryToMessage(entry, index, ambient)).filter((msg): msg is ThreadMessage => !!msg);
+	const scope = sourceApp() === "pi" ? cindySideScope(entries, manager.getHeader?.()) : { start: 0, metadata: {} };
+	const projected = entries.map((entry, index) => entryToMessage(entry, index, ambient));
+	return { messages: projected.slice(scope.start).filter((msg): msg is ThreadMessage => !!msg), metadata: scope.metadata,
+		// Export filtering must not make inherited dialogue eligible for a fresh-session binding.
+		hasExistingDialogue: projected.some((msg) => msg?.role === "user" || msg?.role === "assistant") };
 }
 
 function sessionId(ctx: ExtensionContext): string {
@@ -467,7 +612,17 @@ function shouldSync(messages: ThreadMessage[]): boolean {
 function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | undefined {
 	const resume = resumeStates.get(sessionId(ctx));
 	if (sourceApp() === "pi" && (!resume || resume.error)) return undefined;
-	const messages = buildMessages(ctx);
+	const { messages, metadata } = buildTranscript(ctx);
+	if (messages.some((msg) => msg.metadata.cindy_ambiguous_envelope === true)) {
+		const id = sessionId(ctx);
+		const warning = "Thread sync deferred: a Cindy message may contain mixed or literal template text whose authorship cannot be separated. The native session is unchanged; later messages in this branch are also deferred.";
+		if (!ambiguousCindyWarnings.has(id)) {
+			ambiguousCindyWarnings.add(id);
+			if (ctx.hasUI) ctx.ui.notify(warning, "warning");
+			else console.warn(`[nowledge-mem] ${warning}`);
+		}
+		return undefined;
+	}
 	if (!shouldSync(messages)) return undefined;
 
 	const config = resolveConfig();
@@ -485,6 +640,7 @@ function buildSyncPayload(ctx: ExtensionContext, reason: string): SyncPayload | 
 		project: manager.getCwd?.(),
 		tool_version: pluginVersion(),
 		metadata: {
+			...metadata,
 			pi_session_id: id,
 			pi_session_file: manager.getSessionFile?.(),
 			sync_reason: reason,
@@ -947,15 +1103,23 @@ export default function nowledgeMemPi(pi: ExtensionAPI) {
 		if (sourceApp() !== "pi") return;
 		const id = sessionId(ctx);
 		try {
-			const manager = ctx.sessionManager as unknown as { getEntries: () => JsonObject[] };
-			const saved = manager.getEntries().find((entry) => entry.type === "custom" && entry.customType === RESUME_ENTRY);
+			const manager = ctx.sessionManager as unknown as { getEntries: () => JsonObject[]; getHeader?: () => unknown };
+			const fork = cindyFork(manager.getHeader?.());
+			const markers = manager.getEntries().filter((entry) => entry.type === "custom" && entry.customType === RESUME_ENTRY);
+			const saved = markers.find((entry) => !fork
+				|| (typeof entry.timestamp === "string" && Date.parse(entry.timestamp) >= fork.createdAt));
+			if (fork && markers.length && !saved && !locator) {
+				// An ancestor's copied locator (or its cached resolution) cannot bind this child.
+				resumeStates.set(id, {});
+				return;
+			}
 			const savedLocator = saved?.data && typeof saved.data === "object" ? (saved.data as JsonObject).locator : undefined;
 			const effectiveLocator = locator ?? (typeof savedLocator === "string" ? savedLocator : undefined);
 			const nativeKey = createHash("sha256").update(JSON.stringify(["pi", id])).digest("hex");
 			const configDir = process.env.NMEM_CLI_CONFIG_DIR || join(homedir(), ".nowledge-mem");
 			const required = Boolean(effectiveLocator) || Boolean(resumeStates.get(id)?.reply)
 				|| existsSync(join(configDir, "thread-resume", `${nativeKey}.json`));
-			if (locator && !saved && buildMessages(ctx).some((message) => message.role === "assistant" || message.role === "user")) {
+			if (locator && !saved && buildTranscript(ctx).hasExistingDialogue) {
 				throw new Error("Start a new Pi session before continuing a selected Mem Thread.");
 			}
 			const result = await spawnNmem(resumeBootstrapArgs(id, effectiveLocator), 30_000);

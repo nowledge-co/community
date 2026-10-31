@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Defer automatic Thread sync for a Cindy branch containing a complete
+  ambiguous scheduled-run or partner-handoff shape. The native session is
+  retained intact; the whole branch, including subsequent messages, remains
+  deferred because its mixed text cannot safely be attributed. Literal user
+  input matching the same shape also defers. Other unknown or incomplete text
+  remains subject to the existing projection; markers do not verify identity.
+
+## [0.8.16] - 2026-10-30
+
+### Fixed
+
+- Align Pi automatic capture with the human-text policy in OMP PR #782:
+  preserve user/assistant text, commentary, attachment captions and complete long
+  messages; exclude tool calls/results, thinking, shell output, custom context
+  and internal summaries. Keep native IDs, routing and acknowledged deltas.
+- Other hosts and the separate CLI history importer retain their existing
+  behavior. Existing saved Threads are not rewritten or cleaned.
+- Remove complete recognized Cindy wire notes from user text only when Cindy's
+  Pi launcher markers are present: WeChat transport headers, directory grants,
+  language/client notes and delimited handoff/rebuild/fork context. Preserve
+  display-name speaker attribution in text and metadata, real text, quoted examples,
+  unknown/incomplete notes and native message identity across restarts.
+- Capture only new dialogue in verified Cindy side chats: use the native fork
+  boundary and complete side-chat note to omit inherited main/ancestor messages,
+  strip subsequent known notes, and retain native parent lineage in metadata.
+  Do not upload inherited-only forks before their first own user turn. Ordinary
+  fork capture and existing saved Threads keep their current behavior.
+- Do not inherit a selected Mem Thread binding from copied Cindy fork metadata,
+  including before the first own user turn. Retain the child's own saved
+  continuation markers and the existing fresh-session verification.
+
+## [0.8.15] - 2026-10-29
+
+### Fixed
+
+- Project OMP automatic capture to human dialogue: omit agent-attributed user
+  injections, tool calls/results, reasoning, expanded skill bodies, and internal
+  summaries. Match the default Codex import: preserve complete human text,
+  commentary/final replies, user-invoked skill drafts and attachment captions;
+  omit image/file payloads and synthetic placeholders.
+- Keep native message identities and acknowledged suffix capture. Previously
+  stored threads and the separate CLI history importer are not rewritten.
+- Pi and Step Code retain their existing capture policies.
+
 ## [0.8.14] - 2026-10-17
 
 - Refresh the embedded core 0.2.0 content manifest for Alma adoption; runtime behavior is unchanged.
