@@ -87,7 +87,8 @@ def main():
                 return {"type": "text", "text": value}
 
             append("system", "system", [text("INTERNAL system and tools")])
-            first_question = "Synthetic native question"
+            expected_question = "    Synthetic native question\n    preserve indentation" if cindy else "Synthetic native question"
+            first_question = expected_question
             if cindy:
                 first_question = "\n\n".join([cindy[part] for part in
                     ("writable", "language", "client", "handoff", "channel")] + [first_question])
@@ -154,7 +155,7 @@ def main():
 
             first_pid = run_process()  # Exited and reaped before the next launch.
             expected = [
-                {"role": "user", "content": "Synthetic native question"},
+                {"role": "user", "content": expected_question},
                 {"role": "assistant", "content": "Synthetic native answer"},
             ]
 

@@ -359,13 +359,15 @@ function piEntryToMessage(entry: JsonObject, index: number, ambient: JsonObject)
 	const parts = Array.isArray(msg.content) ? msg.content : [msg.content];
 	// Like the default Codex/OMP projection, capture human text only. An
 	// allowlist keeps tool calls, reasoning and future internal blocks out.
-	const rawContent = parts.map((part) => {
+	const textParts = parts.filter((part) => typeof part === "string"
+		|| (part && typeof part === "object" && (part as JsonObject).type === "text"));
+	const rawContent = textParts.map((part) => {
 		if (typeof part === "string") return part;
-		if (!part || typeof part !== "object" || (part as JsonObject).type !== "text") return "";
-		return partToText(part);
-	}).filter(Boolean).join("\n").trim();
+		const value = part as JsonObject;
+		return typeof value.text === "string" ? value.text : typeof value.content === "string" ? value.content : "";
+	}).filter(Boolean).join("\n");
 	const cindy = msg.role === "user" ? projectCindyUserText(rawContent) : undefined;
-	const content = cindy?.content ?? rawContent;
+	const content = cindy?.cleaned ? cindy.content : textParts.map(partToText).filter(Boolean).join("\n").trim();
 	// Preserve complete dialogue, without synthetic attachment placeholders
 	// or the legacy 20k cap. Captions remain normal text blocks.
 	if (!content) return undefined;

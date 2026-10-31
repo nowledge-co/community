@@ -49,8 +49,10 @@ WeChat channel headers, directory grants, UI language and client/device notes,
 and explicitly delimited handoff, context rebuild and fork records. Empty
 internal messages are omitted; the actual question and assistant text remain.
 WeChat channel kind, display names and explicit speaker ownership are retained
-in message `metadata.cindy_origin`; transport chat/user/device identifiers from
-those headers are omitted. The permission file itself is not read.
+in message `metadata.cindy_origin`. Named group speakers and explicitly
+non-owner private senders also retain a short speaker label in the text, because
+Thread views may omit message metadata. Transport chat/user/device identifiers
+from those headers are omitted. The permission file itself is not read.
 
 Ordinary Pi sessions do not enable this text filter. Unknown or incomplete
 notes, quoted/fenced examples and assistant responses are preserved. Matching

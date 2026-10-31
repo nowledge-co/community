@@ -179,13 +179,35 @@ test("Cindy group attribution survives without transport identifiers", async (t)
         message("a", "assistant", "Hello back")], "pi", cindyRuntime);
     await flush();
     const msg = requests[0].body.messages[0];
-    assert.equal(msg.content, "Hello");
+    assert.equal(msg.content, "发言人「Fixture Guest」：\nHello");
     assert.deepEqual(msg.metadata.cindy_origin, {
         channel: "wechat", chat_kind: "group", chat_name: "Fixture Group",
         sender_name: "Fixture Guest", sender_is_owner: false,
     });
     assert.ok(!JSON.stringify(msg).includes("synthetic-sender"));
     assert.ok(!JSON.stringify(msg).includes("synthetic-group"));
+});
+
+test("Cindy stripping preserves an indented code block in one or separate text parts", async (t) => {
+    const code = "    const x = 1;\n    return x;";
+    const { flush, requests } = capture(t, [message("u1", "user", cindy.channel + "\n\n" + code),
+        message("a1", "assistant", "Answer"), message("u2", "user", [text(cindy.language), text(code)]),
+        message("a2", "assistant", "Answer")], "pi", cindyRuntime);
+    await flush();
+    assert.deepEqual(requests[0].body.messages.map((m) => m.content), [code, "Answer", code, "Answer"]);
+});
+
+test("Cindy explicit ownership and empty channel-only messages keep correct attribution", async (t) => {
+    const owner = cindy.channel.slice(0, -1) + "，发言人是主人。";
+    const guest = cindy.channel.slice(0, -1) + "，发言人「Fixture Guest」(user_id: synthetic-sender)，不是主人。";
+    const { flush, requests } = capture(t, [message("u1", "user", owner + "\n\nHello"),
+        message("a1", "assistant", "Answer"), message("internal", "user", cindy.group),
+        message("u2", "user", guest + "\n\nHello again"), message("a2", "assistant", "Answer")], "pi", cindyRuntime);
+    await flush();
+    const rows = requests[0].body.messages;
+    assert.deepEqual(rows.map((m) => m.content), ["Hello", "Answer", "发言人「Fixture Guest」：\nHello again", "Answer"]);
+    assert.equal(rows[0].metadata.cindy_origin.sender_is_owner, true);
+    assert.equal(rows[2].metadata.cindy_origin.sender_is_owner, false);
 });
 
 test("Cindy current and legacy mobile notes are removed only as complete templates", async (t) => {
@@ -248,6 +270,8 @@ test("Cindy quotations, code blocks, assistant text and incomplete/unknown wrapp
         "[UI language] A user-written discussion of language settings\nQuestion",
         "[渠道说明] 用户写的说明\nQuestion",
         cindy.channel.replace("微信私聊", "Unknown Channel") + "\n\nQuestion",
+        "[渠道说明] 系统追加，不是用户消息。本条来自微信私聊。\n\nQuestion",
+        "[客户端说明] 系统追加的环境说明，不是用户消息，不要回应或复述。本轮用户在另一台电脑 上远程操作本机。\n\nQuestion",
         "constructor",
         "__proto__",
         "toString\nThis is an ordinary question.",

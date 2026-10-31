@@ -10,6 +10,7 @@ interface CindyOrigin {
 interface Projection {
 	content: string;
 	origin?: CindyOrigin;
+	cleaned?: boolean;
 }
 
 interface Prefix {
@@ -53,8 +54,8 @@ const CONTEXT_NOTES: Record<string, string[]> = {
 
 /** IDs are transport context, not dialogue. Keep only names and explicit ownership. */
 function sourceName(raw: string, key: "chat_id" | "user_id" | "device_id"): string | undefined | false {
-	const match = raw.trim().match(new RegExp(`^(?:「([^「」\\r\\n]+)」)?(?: ?\\(${key}: [^()\\r\\n]+\\))?$`));
-	return match ? match[1] : false;
+	const match = raw.trim().match(new RegExp(`^(?:「([^「」\\r\\n]+)」)?(?: ?\\(${key}: ([^()\\r\\n]+)\\))?$`));
+	return match && (match[1]?.trim() || match[2]?.trim()) ? match[1] : false;
 }
 
 function clientPrefix(content: string): Prefix | undefined {
@@ -83,7 +84,8 @@ function channelPrefix(content: string): Prefix | undefined {
 	if (refs.length === 2) {
 		const ownership = refs[1].match(/(?:，)?(不是主人|是主人)$/);
 		const sender = ownership ? refs[1].slice(0, ownership.index) : refs[1];
-		const senderName = sourceName(sender, "user_id");
+		// Cindy also emits an ownership-only speaker, without a name or ID.
+		const senderName = !sender.trim() && ownership ? undefined : sourceName(sender, "user_id");
 		if (senderName === false) return undefined;
 		if (senderName) origin.sender_name = senderName;
 		if (ownership) origin.sender_is_owner = ownership[1] === "是主人";
@@ -129,10 +131,18 @@ export function projectCindyUserText(content: string, env: Record<string, string
 	if (!env.CINDY_PI_SESSION_ID?.trim() || !env.CINDY_PI_PERMISSION_FILE?.trim()) return { content };
 	let remainder = content;
 	let origin: CindyOrigin | undefined;
+	let cleaned = false;
 	for (;;) {
 		const prefix = knownPrefix(remainder);
-		if (!prefix) return { content: remainder, ...(origin ? { origin } : {}) };
-		remainder = prefix.remainder.trimStart();
+		if (!prefix) {
+			const speaker = origin?.sender_name && (origin.chat_kind === "group" || origin.sender_is_owner === false)
+				? `发言人「${origin.sender_name}」：\n` : "";
+			return { content: remainder ? speaker + remainder : "", ...(origin ? { origin } : {}), ...(cleaned ? { cleaned } : {}) };
+		}
+		// Consume separator lines, never indentation belonging to the actual text.
+		remainder = prefix.remainder.replace(/^(?:[ \t]*\r?\n)+/, "");
+		if (!remainder.trim()) remainder = "";
 		origin = prefix.origin || origin;
+		cleaned = true;
 	}
 }

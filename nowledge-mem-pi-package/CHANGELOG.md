@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove complete recognized Cindy wire notes from user text only when Cindy's
   Pi launcher markers are present: WeChat transport headers, directory grants,
   language/client notes and delimited handoff/rebuild/fork context. Preserve
-  display-name speaker attribution as metadata, real text, quoted examples,
+  display-name speaker attribution in text and metadata, real text, quoted examples,
   unknown/incomplete notes and native message identity across restarts.
 
 ## [0.8.15] - 2026-10-29
