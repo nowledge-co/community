@@ -10,7 +10,7 @@ This file is a practical continuation guide for future agent sessions working on
 - Shared sync logic: checked-in ESM at `generated/plugin-core`; regenerate from the Community root rather than editing it.
 - Memory backend: direct HTTP to Nowledge Mem API (default `http://127.0.0.1:14242`). CLI (`nmem`) is only used for diagnostic in the status tool.
 
-## Current Implementation (v0.7.8)
+## Current Implementation (v0.7.9)
 
 - Registers 13 tools. Prior releases were observed installed and activated in Alma; that evidence does not qualify this candidate's live host acceptance.
 - Thread sync uses three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
@@ -61,7 +61,7 @@ Registered IDs (plugin-qualified at runtime as `nowledge-mem.<id>`):
 ## Hooks
 
 - `chat.message.willSend`: reread canonical stored records + recall injection
-- `chat.message.didReceive`: reread canonical stored records + start 7s idle timer
+- `chat.message.didReceive`: reread canonical stored records + start 7s idle timer; missing events are recovered by bounded pending-turn rereads
 - `thread.activated`: flush previous thread immediately on switch
 - Quit hooks (`app.willQuit`, `app.will-quit`, `app.beforeQuit`, `app.before-quit`): safety net flush
 
@@ -129,12 +129,12 @@ open -a Alma
 
 ## Alma Hook Availability
 
-All three hooks used by live sync are confirmed working in Alma (verified v0.6.15):
+All three hooks were observed in Alma with plugin v0.6.15; that historical observation does not guarantee every event on every provider. Alma 0.4.337 reportedly omits `didReceive` when usage is absent:
 - `chat.message.willSend` — fires before user message is sent. Input: `{threadId, content, model, providerId}`.
 - `chat.message.didReceive` — fires after AI response. Input: `{threadId, response: {content, usage?}, pricing?}`.
 - `thread.activated` — fires on thread switch. Input: `{threadId, title?}`.
 
-**Key pattern**: Read stored records with stable IDs and outer `createdAt` timestamps via `context.chat.getMessages()`. If a read returns no records, later activity and the idle reread retry capture. Never substitute hook input or transformed recall output for stored text. Persist the capture cutoff and IDs so restart and eviction cannot duplicate older messages.
+**Key pattern**: Read stored records with stable IDs and outer `createdAt` timestamps via `context.chat.getMessages()`. If a read returns no records, later activity and bounded idle rereads retry capture. Pending turns back off from 7 seconds to a maximum 30-second interval, stop after 10 minutes with a warning, and retain the outbox for later activity. The first `willSend` also tracks the last captured ID so storage visibility delayed beyond the initial read does not end recovery early. Never substitute hook input or transformed recall output for stored text. Persist the capture cutoff and IDs so restart and eviction cannot duplicate older messages.
 
 ## Known Limitations
 
