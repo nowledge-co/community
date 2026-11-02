@@ -35,6 +35,10 @@ function validRecord(record) {
 		!record.destinationKey.endsWith("\0") ||
 		!validMessages(record.messages) ||
 		(record.captureSince !== undefined && (!Number.isFinite(record.captureSince) || record.captureSince < 0)) ||
+		(record.captureRetryUntil !== undefined && (!Number.isSafeInteger(record.captureRetryUntil) || record.captureRetryUntil < 0)) ||
+		(record.captureAfter !== undefined &&
+			(record.captureAfter !== (record.messages.at(-1)?.external_id ?? null) ||
+				(record.captureAfter !== null && (typeof record.captureAfter !== "string" || !record.captureAfter)))) ||
 		!Number.isInteger(record.savedCount) ||
 		record.savedCount < 0 ||
 		record.savedCount > record.messages.length ||
@@ -115,6 +119,8 @@ export function openSyncOutbox(storagePath, logger) {
 				nowledgeThreadId,
 				attempt,
 				captureSince,
+				captureAfter,
+				captureRetryUntil,
 			} = buffer;
 			const record = {
 				threadId,
@@ -126,6 +132,8 @@ export function openSyncOutbox(storagePath, logger) {
 				nowledgeThreadId,
 				attempt,
 				captureSince,
+				captureAfter: captureAfter !== undefined && captureAfter === (messages.at(-1)?.external_id ?? null) ? captureAfter : undefined,
+				captureRetryUntil,
 			};
 			const next = records.filter(
 				(entry) =>
