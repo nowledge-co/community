@@ -1786,7 +1786,7 @@ export async function activate(context) {
 				inFlight: undefined,
 				timer: null,
 				...recovered,
-				captureAfter: recovered?.messages.length === 0 ? null : undefined,
+				captureAfter: recovered?.captureAfter ?? (recovered?.messages.length === 0 ? null : undefined),
 				recovered: Boolean(recovered),
 			});
 		}
@@ -1852,6 +1852,8 @@ export async function activate(context) {
 			activeThreadId = threadId;
 			const buf = ensureBuffer(threadId);
 			buf.captureAfter = buf.messages.at(-1)?.external_id ?? null;
+			buf.captureSince ??= captureStartedAt;
+			outbox.save(threadId, buf);
 		}
 		await captureRecords(threadId);
 
@@ -1978,7 +1980,7 @@ export async function activate(context) {
 	});
 
 	for (const record of outbox.records(destinationLane())) {
-		drainingBuffers.set(record.threadId, { ...record, captureAfter: record.messages.length === 0 ? null : undefined, recovered: true, flushing: false, pending: false, inFlight: undefined, timer: null });
+		drainingBuffers.set(record.threadId, { ...record, captureAfter: record.captureAfter ?? (record.messages.length === 0 ? null : undefined), recovered: true, flushing: false, pending: false, inFlight: undefined, timer: null });
 	}
 	if (autoCapture) {
 		for (const threadId of drainingBuffers.keys()) resetIdleTimer(threadId);

@@ -134,7 +134,7 @@ All three hooks were observed in Alma with plugin v0.6.15; that historical obser
 - `chat.message.didReceive` — fires after AI response. Input: `{threadId, response: {content, usage?}, pricing?}`.
 - `thread.activated` — fires on thread switch. Input: `{threadId, title?}`.
 
-**Key pattern**: Read stored records with stable IDs and outer `createdAt` timestamps via `context.chat.getMessages()`. If a read returns no records, later activity and bounded idle rereads retry capture. Pending turns back off from 7 seconds to a maximum 30-second interval, stop after 10 minutes with a warning, and retain the outbox for later activity. The first `willSend` also tracks the last captured ID so storage visibility delayed beyond the initial read does not end recovery early. Never substitute hook input or transformed recall output for stored text. Persist the capture cutoff and IDs so restart and eviction cannot duplicate older messages.
+**Key pattern**: Read stored records with stable IDs and outer `createdAt` timestamps via `context.chat.getMessages()`. If a read returns no records, later activity and bounded idle rereads retry capture. Pending turns back off from 7 seconds to a maximum 30-second interval, stop after 10 minutes with a warning, and retain the outbox for later activity. `willSend` journals the last captured ID and cutoff before the host read so storage visibility delayed beyond the initial read or across restart does not end recovery early. Completed records omit the optional waiting anchor. Never substitute hook input or transformed recall output for stored text. Persist the capture cutoff and IDs so restart and eviction cannot duplicate older messages.
 
 ## Known Limitations
 

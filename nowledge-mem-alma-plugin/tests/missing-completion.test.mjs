@@ -8,6 +8,42 @@ async function advance(t, milliseconds) {
 	await setImmediate();
 }
 
+for (const pending of [true, false]) {
+	test(`missing completion: restart ${pending ? "retains an invisible next turn" : "stops after a completed checkpoint"}`, async (t) => {
+		const state = await fixture(t);
+		t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() });
+		t.after(() => t.mock.timers.reset());
+		const first = await state.start({ recordsDriven: true });
+		state.persist("thread", "user", "first question", "u1");
+		state.persist("thread", "assistant", "first answer", "a1");
+		await first.events.get("thread.activated")({ threadId: "thread" });
+		await first.flush();
+		if (pending) await first.events.get("chat.message.willSend")({ threadId: "thread", content: "invisible second question" });
+		await first.plugin.dispose();
+		let reads = 0;
+		const restarted = await state.start({ recordsDriven: true, context: { chat: {
+			getMessages: async (threadId) => {
+				if (threadId === "thread") reads += 1;
+				return structuredClone(state.histories.get(threadId) ?? []);
+			},
+		} } });
+		await advance(t, 7_000);
+		if (pending) {
+			state.persist("thread", "user", "second question", "u2");
+			state.persist("thread", "assistant", "second answer", "a2");
+		}
+		await advance(t, 14_000);
+		if (pending) {
+			await assert.doesNotReject(state.waitForRequest((call) => call.body.messages.some(({ external_id }) => external_id === "a2")), "pending invisible turns must survive restart after an acknowledged prefix");
+			await restarted.quit();
+			assert.deepEqual([...state.remote.values()].flat().map(({ external_id }) => external_id), ["u1", "a1", "u2", "a2"]);
+		} else {
+			assert.equal(reads, 1, "completed checkpoints must not enter background retry loops");
+			assert.equal(state.calls.length, 2);
+		}
+	});
+}
+
 for (const reenable of [false, true]) {
 	test(`missing completion: a pending switch retires after disable${reenable ? " then enable" : ""}`, async (t) => {
 		const state = await fixture(t);
