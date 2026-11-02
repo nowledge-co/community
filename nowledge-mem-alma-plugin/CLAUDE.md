@@ -19,7 +19,7 @@ This file is a practical continuation guide for future agent sessions working on
 - Captured text comes only from canonical `context.chat.getMessages()` records; hooks coordinate rereads and recall, never supply fallback saved text.
 - Titles resolved at flush time via `context.chat.getThread()` with 4-strategy fallback.
 - Hook registration: `context.events ?? context.hooks` (canonical API first).
-- Thread buffer LRU eviction at 20 entries.
+- Thread buffer LRU eviction at 20 entries; pending capture remains in draining buffers with its timer. Background and completion-event reads do not select a thread. Capture setting changes retire both reads and timers from the old generation.
 - Main unresolved UX issue is often chat tool allowlist/routing (session-level),
   not plugin registration.
 - Tool contracts were normalized in recent passes:

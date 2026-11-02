@@ -6,7 +6,9 @@
 
 - Recover pending turns when Alma omits the assistant completion event, including replies stored after the initial seven-second idle read.
 - Back off canonical-message rereads to at most once every 30 seconds for a ten-minute window, then retain pending data with a warning for the next activity.
-- Stop obsolete idle work after capture is disabled, disposal, or destination changes; preserve stored IDs, complete turns, outbox and acknowledgement checks.
+- Retain pending capture across thread switches, buffer eviction, initial read timeouts and restart, including empty canonical checkpoints.
+- Retire old reads and timers across automatic-capture setting changes; preserve stored IDs, complete turns, outbox and acknowledgement checks.
+- Keep selection and saved titles attached to their owning thread when older replies arrive in the background.
 
 ## [0.7.8] - 2026-10-17
 
