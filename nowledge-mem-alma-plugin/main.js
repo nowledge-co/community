@@ -1504,6 +1504,7 @@ export async function activate(context) {
 	const threadBuffers = new Map();
 	const drainingBuffers = new Map();
 	let activeThreadId = null;
+	let selectionEpoch = 0;
 	let syncScope = createSyncScope();
 	let lifecycleRun;
 	let lifecycleFinished = false;
@@ -1847,6 +1848,7 @@ export async function activate(context) {
 		const { threadId, currentContent } = payload;
 
 		if (autoCapture && !disposed && threadId) {
+			selectionEpoch += 1;
 			activeThreadId = threadId;
 			const buf = ensureBuffer(threadId);
 			buf.captureAfter = buf.messages.at(-1)?.external_id ?? null;
@@ -1902,16 +1904,22 @@ export async function activate(context) {
 		if (!autoCapture || disposed) return;
 		resumeSync();
 		const scope = syncScope;
+		const epoch = captureEpoch;
+		const selection = ++selectionEpoch;
+		const activationClient = client;
+		const isCurrent = () => autoCapture && !disposed && epoch === captureEpoch &&
+			selection === selectionEpoch && activationClient === client &&
+			scope === syncScope && !scope.controller.signal.aborted;
 		const newThreadId = input?.threadId;
 		logger.debug?.(`nowledge-mem: thread.activated fired, threadId=${newThreadId}`);
 		// Flush the previous thread (await to avoid race with new thread's hooks)
 		if (activeThreadId && activeThreadId !== newThreadId) {
 			const previousThreadId = activeThreadId;
 			await captureRecords(previousThreadId, false);
-			if (disposed || scope !== syncScope || scope.controller.signal.aborted) return;
+			if (!isCurrent()) return;
 			await flushThread(previousThreadId);
 		}
-		if (disposed || scope !== syncScope || scope.controller.signal.aborted) return;
+		if (!isCurrent()) return;
 		if (newThreadId) {
 			activeThreadId = newThreadId;
 			await captureRecords(newThreadId);

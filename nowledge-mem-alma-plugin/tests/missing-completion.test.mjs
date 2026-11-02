@@ -8,6 +8,55 @@ async function advance(t, milliseconds) {
 	await setImmediate();
 }
 
+for (const reenable of [false, true]) {
+	test(`missing completion: a pending switch retires after disable${reenable ? " then enable" : ""}`, async (t) => {
+		const state = await fixture(t);
+		let reads = 0;
+		let release;
+		const host = await state.start({ recordsDriven: true, context: { chat: {
+			getMessages: async (threadId) => {
+				if (++reads === 2) await new Promise((resolve) => { release = resolve; });
+				return structuredClone(state.histories.get(threadId) ?? []);
+			},
+		} } });
+		state.persist("thread", "user", "question", "user-id");
+		state.persist("thread", "assistant", "answer", "assistant-id");
+		await host.events.get("chat.message.willSend")({ threadId: "thread", content: "question" });
+		const switching = host.flush();
+		await setImmediate();
+		assert.equal(reads, 2);
+		host.change({ "nowledgeMem.autoCapture": false });
+		if (reenable) host.change({ "nowledgeMem.autoCapture": true });
+		release();
+		await switching;
+		assert.equal(state.calls.length, 0, "an obsolete switch must not start persistence");
+		assert.equal(reads, 2, "an obsolete switch must not select or read its new thread");
+	});
+}
+
+test("missing completion: the latest thread selection wins over an older pending switch", async (t) => {
+	const state = await fixture(t);
+	let reads = 0;
+	let release;
+	const host = await state.start({ recordsDriven: true, context: { chat: {
+		getMessages: async (threadId) => {
+			if (++reads === 2) await new Promise((resolve) => { release = resolve; });
+			return structuredClone(state.histories.get(threadId) ?? []);
+		},
+	} } });
+	state.persist("old", "user", "old question", "old-user");
+	await host.events.get("chat.message.willSend")({ threadId: "old", content: "old question" });
+	const olderSwitch = host.events.get("thread.activated")({ threadId: "superseded" });
+	await setImmediate();
+	state.persist("selected", "user", "selected question", "selected-user");
+	await host.events.get("thread.activated")({ threadId: "selected" });
+	release();
+	await olderSwitch;
+	state.persist("selected", "assistant", "selected answer", "selected-assistant");
+	await host.events.get("thread.activated")({ threadId: "next" });
+	assert.deepEqual([...state.remote.values()].flat().map(({ external_id }) => external_id), ["selected-user", "selected-assistant"]);
+});
+
 test("missing completion: switching away retains the next turn after an acknowledged prefix", async (t) => {
 	const state = await fixture(t);
 	t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() });
