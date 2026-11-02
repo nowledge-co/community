@@ -1708,7 +1708,7 @@ export async function activate(context) {
 		}
 	};
 
-	const resetIdleTimer = (threadId, delayMs = 7_000, retryUntil = Date.now() + 600_000) => {
+	const resetIdleTimer = (threadId, delayMs, retryUntil) => {
 		const buf = threadBuffers.get(threadId) ?? drainingBuffers.get(threadId);
 		if (!buf) return;
 		if (buf.timer) clearTimeout(buf.timer);
@@ -1802,11 +1802,13 @@ export async function activate(context) {
 		const lane = destinationLane();
 		const epoch = captureEpoch;
 		const signal = AbortSignal.any([scope.controller.signal, captureController.signal, AbortSignal.timeout(2_000)]);
+		const retryUntil = schedule ? Date.now() + 600_000 : buf.captureRetryUntil;
 		buf.captureReads = (buf.captureReads ?? 0) + 1;
 		try {
-			if (buf.captureSince === undefined) {
-				outbox.save(threadId, { ...buf, captureSince: captureStartedAt });
-				buf.captureSince = captureStartedAt;
+			if (schedule || buf.captureSince === undefined) {
+				outbox.save(threadId, { ...buf, captureSince: buf.captureSince ?? captureStartedAt, captureRetryUntil: retryUntil });
+				buf.captureSince ??= captureStartedAt;
+				buf.captureRetryUntil = retryUntil;
 			}
 			signal.throwIfAborted();
 			if (!context.chat?.getMessages) throw new Error("chat.getMessages unavailable");
@@ -1837,7 +1839,7 @@ export async function activate(context) {
 			logger.error?.(`nowledge-mem: stored-message capture failed${signal.aborted ? " (cancelled or timed out)" : ""}; durable progress retained, retry on next activity`);
 		} finally {
 			buf.captureReads -= 1;
-			if (schedule && epoch === captureEpoch && autoCapture && !disposed && scope === syncScope && !scope.controller.signal.aborted && captureClient === client && (threadBuffers.get(threadId) ?? drainingBuffers.get(threadId)) === buf) resetIdleTimer(threadId);
+			if (schedule && epoch === captureEpoch && autoCapture && !disposed && scope === syncScope && !scope.controller.signal.aborted && captureClient === client && (threadBuffers.get(threadId) ?? drainingBuffers.get(threadId)) === buf) resetIdleTimer(threadId, 7_000, buf.captureRetryUntil ?? retryUntil);
 		}
 	};
 
@@ -1852,8 +1854,6 @@ export async function activate(context) {
 			activeThreadId = threadId;
 			const buf = ensureBuffer(threadId);
 			buf.captureAfter = buf.messages.at(-1)?.external_id ?? null;
-			buf.captureSince ??= captureStartedAt;
-			outbox.save(threadId, buf);
 		}
 		await captureRecords(threadId);
 
@@ -1983,7 +1983,7 @@ export async function activate(context) {
 		drainingBuffers.set(record.threadId, { ...record, captureAfter: record.captureAfter ?? (record.messages.length === 0 ? null : undefined), recovered: true, flushing: false, pending: false, inFlight: undefined, timer: null });
 	}
 	if (autoCapture) {
-		for (const threadId of drainingBuffers.keys()) resetIdleTimer(threadId);
+		for (const [threadId, buf] of drainingBuffers) resetIdleTimer(threadId, 7_000, buf.captureRetryUntil ?? 0);
 	}
 
 	const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
