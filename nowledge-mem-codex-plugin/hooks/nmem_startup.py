@@ -67,7 +67,7 @@ def memory_scope(*, find_nmem, read_json, validate_selection):
                 or space and space != exact or legacy is not None and legacy != exact
                 or os.environ.get("NMEM_HOST_AGENT_ID", "").strip()):
             return None
-        return {"name": name, "space_id": exact, "args": ["wm", "read", "--space-id", exact]}
+        return {"name": name, "context": selected, "space_id": exact, "args": ["wm", "read", "--space-id", exact]}
     if space:
         # A friendly selector and an opaque legacy ID cannot be equated locally.
         if not exact_space(space) or legacy is not None and legacy != space:
@@ -75,13 +75,23 @@ def memory_scope(*, find_nmem, read_json, validate_selection):
         return {"name": None, "space_id": space, "args": ["wm", "read", "--space", space]}
     if legacy is not None:
         return {"name": None, "space_id": legacy, "args": ["wm", "read", "--space-id", legacy]} if exact_space(legacy) else None
-    if any(os.environ.get(key) for key in ("NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")):
+    agent = os.environ.get("NMEM_AGENT_ID", "").strip()
+    if os.environ.get("NMEM_HOST_AGENT_ID", "").strip():
         return None
+    if agent:
+        if re.fullmatch(r"[a-z0-9][a-z0-9_.:-]{0,119}", agent) is None:
+            return None
+        nmem = find_nmem()
+        profile = read_json(nmem, ["agents", "show", agent], timeout_seconds=MAILBOX_TIMEOUT_SECONDS) if nmem else None
+        if not isinstance(profile, dict) or profile.get("id") != agent or not exact_space(profile.get("defaultSpaceId")):
+            return None
+        exact = profile["defaultSpaceId"]
+        return {"name": None, "space_id": exact, "args": ["wm", "read", "--space-id", exact]}
     # No identity selector: let the authenticated CLI connection resolve its lane.
     return {"name": None, "space_id": None, "args": ["wm", "read"]}
 
 
-def session_observation(payload: dict[str, Any], *, host: str, find_nmem, read_json, run_result, validate_selection) -> dict[str, Any]:
+def session_observation(payload: dict[str, Any], *, host: str, find_nmem, read_json, run_result, validate_selection, expected_context=None) -> dict[str, Any]:
     """Opt-in registration and verified capability; native correlation is not proof."""
     observation: dict[str, Any] = {"state": "unverified", "delivery_ready": False}
     name = os.environ.get("NMEM_AGENT_CONTEXT", "").strip()
@@ -112,6 +122,9 @@ def session_observation(payload: dict[str, Any], *, host: str, find_nmem, read_j
     if (not isinstance(selected, dict) or selected.get("name") != name
             or selected.get("configured") is not True or not validate_selection(selection)):
         return observation
+    if expected_context is not None and selected != expected_context:
+        observation.update(state="refused", reason="selection_changed")
+        return observation
     agent = selection["address"]["agent_id"]
     space = selection["scope"]["space_id"]
     configured_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
@@ -122,6 +135,21 @@ def session_observation(payload: dict[str, Any], *, host: str, find_nmem, read_j
             or legacy_space is not None and legacy_space != space
             or os.environ.get("NMEM_HOST_AGENT_ID", "").strip()):
         observation.update(state="refused", reason="Ambient identity or Space selectors conflict with the configured context.")
+        return observation
+    if payload["source"] in {"resume", "compact"}:
+        # Native Local/Cloud proof namespaces cannot be inferred from the URL.
+        # The CLI probe reads an existing unique original; it never prepares one.
+        result = run_result(nmem, ["--agent-context", name, "mailbox", "probe",
+                                   "--host", host, "--session-id", native, "--native-session"],
+                            timeout_seconds=MAILBOX_TIMEOUT_SECONDS)
+        observation["reason"] = "identity_restore_deferred"
+        if result is not None:
+            exit_code, reply = result
+            if (exit_code == 0 and reply.get("schema_version") == 1
+                    and reply.get("host") == host and reply.get("session_id") == native
+                    and reply.get("context") == name
+                    and reply.get("mailbox_kind") in {"local-session", "cloud-session"}):
+                observation.update(state="original_session", reason="original_session_preserved")
         return observation
     result = run_result(nmem, ["--agent-context", name, "mailbox", "session-bootstrap",
                                     "--host", host, "--session-id", native],
@@ -208,6 +236,13 @@ def render_session_context(observation: dict[str, Any], host: str) -> str:
                   "configuration changes or arbitrary commands. Do not substitute an identity-scoped inbox or "
                   "another session. Registration expires after 24 hours; resume "
                   "does not renew it. Identity or binding changes require explicit owner action.")
+    if observation.get("reason") in {"original_session_preserved", "identity_restore_deferred"}:
+        return ("## Nowledge Bridge original session\n\n"
+                + json.dumps(public, ensure_ascii=True, sort_keys=True)
+                + "\n\nStartup has not registered or replaced a mailbox. The read-only probe "
+                  "uses only existing original Local or Cloud credentials. Identity restoration "
+                  "is deferred to ordinary work; do not infer readiness, enroll an identity, "
+                  "or switch transport after an unavailable probe.")
     return ("## Nowledge Bridge session registration\n\n"
             + json.dumps(public, ensure_ascii=True, sort_keys=True)
             + "\n\nSession-addressed messaging is unavailable in this experimental adapter. "

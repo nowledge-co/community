@@ -57,6 +57,7 @@ class ContextRead(NamedTuple):
     content: str
     source: str
     reason: str = ""
+    scope: dict | None = None
 
 
 def is_grok_runtime() -> bool:
@@ -225,8 +226,9 @@ def load_context(total_timeout: float = TOTAL_TIMEOUT_SECONDS) -> ContextRead:
         ):
             if value := os.environ.get(env_name, "").strip():
                 context_args.extend([flag, value])
+        selected = None
         isolated_mailbox = (os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1"
-                            or bool(os.environ.get("NMEM_AGENT_CONTEXT", "").strip()))
+                            or any(os.environ.get(key) for key in ("NMEM_AGENT_CONTEXT", "NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")))
         if isolated_mailbox:
             selected = memory_scope(find_nmem=find_nmem, read_json=_mailbox_json,
                                     validate_selection=valid_selection)
@@ -258,7 +260,7 @@ def load_context(total_timeout: float = TOTAL_TIMEOUT_SECONDS) -> ContextRead:
             for key in ("rendered_markdown", "content"):
                 content = payload.get(key)
                 if isinstance(content, str) and content.strip():
-                    return ContextRead(content.strip(), source)
+                    return ContextRead(content.strip(), source, scope=selected)
             reason = (
                 "no_briefing"
                 if any(
@@ -268,7 +270,7 @@ def load_context(total_timeout: float = TOTAL_TIMEOUT_SECONDS) -> ContextRead:
                 else "invalid_response"
             )
     if (os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1"
-            or os.environ.get("NMEM_AGENT_CONTEXT", "").strip()):
+            or any(os.environ.get(key) for key in ("NMEM_AGENT_CONTEXT", "NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID"))):
         return ContextRead("", "", reason)
     if content := local_fallback():
         return ContextRead(content, "legacy Default-space briefing")
@@ -334,7 +336,8 @@ def main(
 
         observation = session_observation(payload, host="claude-code", find_nmem=find_nmem,
                                           read_json=bounded_read, run_result=bounded_result,
-                                          validate_selection=valid_selection)
+                                          validate_selection=valid_selection,
+                                          expected_context=result.scope.get("context") if result.scope else None)
         content += "\n\n" + render_session_context(observation, "claude-code")
     if compact:
         content += "\n\n" + COMPACT_GUIDANCE

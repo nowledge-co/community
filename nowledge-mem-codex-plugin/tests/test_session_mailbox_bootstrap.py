@@ -42,7 +42,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
         return observed, show, bootstrap
 
     def test_each_eligible_event_uses_exact_native_id_and_selected_executable(self):
-        for source in ("startup", "resume", "clear", "compact"):
+        for source in ("startup", "clear"):
             with self.subTest(source=source):
                 observed, show, bootstrap = self.observe({"source": source, "session_id": " native / 研发 "}, reply=self.reply(resumed=source != "startup"))
                 self.assertEqual(observed["state"], "active")
@@ -110,7 +110,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
         reply = self.reply()
         reply.update(delivery_ready=True,
                      receiving_capability={"protocol_version": 2, "receive_mode": "auto", "recovery_owner": "server"})
-        observed, _, _ = self.observe({"source": "resume", "session_id": native}, reply=reply)
+        observed, _, _ = self.observe({"source": "startup", "session_id": native}, reply=reply)
         self.assertEqual(observed.get("native_session_id"), native)
         rendered = HOOK._render_session_mailbox_context(observed)
         public = json.loads(next(line for line in rendered.splitlines() if line.startswith("{")))

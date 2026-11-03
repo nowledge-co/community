@@ -630,8 +630,10 @@ startup still loads Working Memory and reports registration `selection_required`
 The Agent can choose/refine its identity during later ordinary work under the
 existing account permissions. The startup hook does not create or edit profiles.
 
-Registration uses the host-provided exact session ID. Resume revalidates the
-original binding; it does not create a replacement identity after a failure.
+Registration uses the host-provided exact session ID on a fresh startup.
+Resume and compaction use only a read-only native probe of existing original
+Local or Cloud credentials; they do not bootstrap a different transport or
+create a replacement identity after a failure.
 Restoring identity associations for historical sessions is a separate capability.
 Only a validated receiving descriptor enables session messaging guidance.
 Mailbox registration does not enable polling or wake a stopped Agent.

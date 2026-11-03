@@ -190,10 +190,10 @@ def _mailbox_observation() -> dict[str, Any] | None:
     return observation
 
 
-def _session_mailbox_observation(payload: dict[str, Any]) -> dict[str, Any]:
+def _session_mailbox_observation(payload: dict[str, Any], expected_context=None) -> dict[str, Any]:
     return session_observation(payload, host="codex", find_nmem=_nmem_command,
                                read_json=_run_nmem_json, run_result=_run_nmem_result,
-                               validate_selection=_typed_selection)
+                               validate_selection=_typed_selection, expected_context=expected_context)
 
 
 def _render_session_mailbox_context(observation: dict[str, Any]) -> str:
@@ -246,6 +246,14 @@ def _load_startup_context(
     working_memory_args: list[str] | None = None,
     allow_file_fallback: bool = True,
 ) -> str:
+    if context_args is None and any(os.environ.get(key) for key in ("NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")):
+        scope = memory_scope(find_nmem=_nmem_command, read_json=_run_nmem_json,
+                             validate_selection=_typed_selection)
+        if scope is None:
+            return ""
+        context_args = []
+        working_memory_args = scope["args"]
+        allow_file_fallback = False
     nmem = _nmem_command()
     if nmem:
         deadline = time.monotonic() + total_timeout_seconds
@@ -426,7 +434,9 @@ def main(payload: dict[str, Any] | None = None) -> int:
     if event_name == "SessionStart":
         session_mode = os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1"
         named_context = bool(os.environ.get("NMEM_AGENT_CONTEXT", "").strip())
-        if not session_mode and not named_context and not pending_gate:
+        scope = None
+        explicit_identity = any(os.environ.get(key) for key in ("NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID"))
+        if not session_mode and not named_context and not pending_gate and not explicit_identity:
             startup_context = _load_startup_context()
         else:
             scope = memory_scope(find_nmem=_nmem_command, read_json=_run_nmem_json,
@@ -440,7 +450,7 @@ def main(payload: dict[str, Any] | None = None) -> int:
                 context_args=[], working_memory_args=scope["args"], allow_file_fallback=False,
             ) if permitted else ""
         # Optional mailbox startup never gates an independent memory read.
-        observation = _session_mailbox_observation(payload) if session_mode else _mailbox_observation()
+        observation = _session_mailbox_observation(payload, expected_context=scope.get("context") if scope else None) if session_mode else _mailbox_observation()
         if startup_context:
             context_parts.extend(["## Current Nowledge context", startup_context])
         if observation is not None:
@@ -449,18 +459,19 @@ def main(payload: dict[str, Any] | None = None) -> int:
     elif event_name == "SubagentStart":
         if pending_gate:
             started = time.monotonic()
-            observation = _mailbox_observation()
+            scope = memory_scope(find_nmem=_nmem_command, read_json=_run_nmem_json,
+                                 validate_selection=_typed_selection)
             _, pending = _read_pending()
             remaining = SUBAGENT_CONTEXT_TOTAL_TIMEOUT_SECONDS - (time.monotonic() - started)
-            if (observation is not None and observation["state"] == "usable" and pending is not None
+            if (scope is not None and scope["space_id"] is not None and pending is not None
                     and pending["context_reference"] is None
-                    and (pending["context_name"] is None or pending["context_name"] == observation["name"])
-                    and (pending["space_id"] is None or pending["space_id"] == observation["space_id"])
+                    and (pending["context_name"] is None or pending["context_name"] == scope["name"])
+                    and (pending["space_id"] is None or pending["space_id"] == scope["space_id"])
                     and remaining > 0):
                 startup_context = _load_startup_context(
                     total_timeout_seconds=remaining,
                     attempt_timeout_seconds=min(SUBAGENT_CONTEXT_ATTEMPT_TIMEOUT_SECONDS, remaining),
-                    context_args=[], working_memory_args=["wm", "read", "--space-id", observation["space_id"]],
+                    context_args=[], working_memory_args=scope["args"],
                     allow_file_fallback=False,
                 )
             else:
