@@ -72,6 +72,7 @@ for (const file of [
   "hooks/nmem-stop-save.py",
   "hooks/nmem-mailbox-stop.py",
   "hooks/nmem_mailbox_stop.py",
+  "hooks/nmem_startup.py",
   "hooks/skill_outcome.py",
   "scripts/install_hooks.py",
   "scripts/validate-plugin.mjs",

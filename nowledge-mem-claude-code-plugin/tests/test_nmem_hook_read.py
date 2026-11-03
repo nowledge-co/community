@@ -29,7 +29,10 @@ def _write_fake_nmem(
             else ""
         )
         + ("if 'context' in sys.argv[1:]:\n    sys.exit(2)\n" if fail_context else "")
-        + f"print(json.dumps({response!r}))\n",
+        + "if sys.argv[2:4] == ['agents', 'show']:\n"
+        + "    print(json.dumps({'id': sys.argv[4], 'defaultSpaceId': 'default', 'hostAgentId': 'lody:reviewer'}))\n"
+        + "else:\n"
+        + f"    print(json.dumps({response!r}))\n",
         encoding="utf-8",
     )
     if os.name == "nt":
@@ -139,7 +142,7 @@ def test_raw_context_is_utf8_even_with_a_windows_pipe_encoding(tmp_path):
     assert result.stdout.strip() == content, result.stderr
 
 
-def test_read_hook_passes_agent_identity_env_to_context_bundle(tmp_path):
+def test_read_hook_resolves_existing_identity_without_context_ensure(tmp_path):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls.log"
@@ -159,16 +162,8 @@ def test_read_hook_passes_agent_identity_env_to_context_bundle(tmp_path):
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "reviewer context", result.stderr
     assert _calls(calls) == [
-        [
-            "--json",
-            "context",
-            "--source-app",
-            "claude-code",
-            "--agent-id",
-            "reviewer",
-            "--host-agent-id",
-            "lody:reviewer",
-        ]
+        ["--json", "agents", "show", "reviewer"],
+        ["--json", "wm", "read", "--space-id", "default"],
     ]
 
 

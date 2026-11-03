@@ -36,19 +36,19 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
 
     def observe(self, payload=None, reply=None, selected=None):
         with mock.patch.object(HOOK, "_nmem_command", return_value="/pinned/nmem"), \
-             mock.patch.object(HOOK, "_run_nmem_json", return_value=self.selected() if selected is None else selected) as show, \
+             mock.patch.object(HOOK, "_run_nmem_json", side_effect=lambda nmem, args, **kwargs: ({"schema_version": 1, "host": "codex", "session_id": (payload or {}).get("session_id", "native-exact"), "context": "reviewer", "mailbox_kind": "local-session"} if "probe" in args else self.selected() if selected is None else selected)) as show, \
              mock.patch.object(HOOK, "_run_nmem_result", return_value=(0, self.reply() if reply is None else reply)) as bootstrap:
             observed = HOOK._session_mailbox_observation(payload or {"source": "startup", "session_id": "native-exact"})
         return observed, show, bootstrap
 
     def test_each_eligible_event_uses_exact_native_id_and_selected_executable(self):
-        for source in ("startup", "resume", "clear", "compact"):
+        for source in ("startup", "clear"):
             with self.subTest(source=source):
                 observed, show, bootstrap = self.observe({"source": source, "session_id": " native / 研发 "}, reply=self.reply(resumed=source != "startup"))
                 self.assertEqual(observed["state"], "active")
                 self.assertIs(observed["delivery_ready"], False)
                 self.assertEqual(bootstrap.call_args.args, ("/pinned/nmem", ["--agent-context", "reviewer", "mailbox", "session-bootstrap", "--host", "codex", "--session-id", " native / 研发 "]))
-                self.assertEqual(show.call_args.args[1], ["agents", "context", "show", "--name", "reviewer"])
+                self.assertEqual(show.call_args_list[0].args[1], ["agents", "context", "show", "--name", "reviewer"])
                 self.assertLessEqual(bootstrap.call_args.kwargs["timeout_seconds"], 3)
 
     def test_invalid_native_events_never_dispatch_or_guess_another_session(self):
@@ -110,7 +110,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
         reply = self.reply()
         reply.update(delivery_ready=True,
                      receiving_capability={"protocol_version": 2, "receive_mode": "auto", "recovery_owner": "server"})
-        observed, _, _ = self.observe({"source": "resume", "session_id": native}, reply=reply)
+        observed, _, _ = self.observe({"source": "startup", "session_id": native}, reply=reply)
         self.assertEqual(observed.get("native_session_id"), native)
         rendered = HOOK._render_session_mailbox_context(observed)
         public = json.loads(next(line for line in rendered.splitlines() if line.startswith("{")))
@@ -213,6 +213,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
              mock.patch.object(HOOK, "_pending_startup", return_value=(False, "")), \
              mock.patch.object(HOOK, "_session_mailbox_observation", return_value={"state": "active", "delivery_ready": False, "name": "reviewer", "space_id": "default"}) as session, \
              mock.patch.object(HOOK, "_mailbox_observation", return_value=None) as legacy, \
+             mock.patch.object(HOOK, "memory_scope", return_value={"name": "reviewer", "space_id": "default", "args": ["wm", "read", "--space-id", "default"]}), \
              mock.patch.object(HOOK, "_load_startup_context", return_value="") as load, \
              mock.patch.object(HOOK.sys, "stdout", output):
             self.assertEqual(HOOK.main({"hook_event_name": event, "source": "startup", "session_id": "native", "agent_type": "worker"}), 0)
