@@ -614,3 +614,24 @@ In WSL, this Stop check requires a Linux CLI. Windows `.cmd`, `.bat` and `.exe`
 CLIs are skipped because process cleanup across the two
 systems are unsupported. The hook never substitutes another executable for
 `NMEM_CLI_PATH`.
+
+### Independent startup memory and optional Bridge registration
+
+Working Memory does not require an Agent Identity or a running mailbox.
+With optional mailbox configuration, startup reads Working Memory first through
+its own authenticated memory endpoint. A named Agent Context supplies its exact
+Space through local configuration; it is not mailbox authority. Mailbox startup
+failure, refusal or timeout cannot suppress that independent read. An unresolved
+or conflicting explicit scope never falls back to another Space or legacy file.
+
+Set `NMEM_BRIDGE_SESSION_MAILBOX=1` to enable native-session registration when
+`NMEM_AGENT_CONTEXT` already names a configured context. Without an identity,
+startup still loads Working Memory and reports registration `selection_required`.
+The Agent can choose/refine its identity during later ordinary work under the
+existing account permissions. The startup hook does not create or edit profiles.
+
+Registration uses the host-provided exact session ID. Resume revalidates the
+original binding; it does not create a replacement identity after a failure.
+Restoring identity associations for historical sessions is a separate capability.
+Only a validated receiving descriptor enables session messaging guidance.
+Mailbox registration does not enable polling or wake a stopped Agent.

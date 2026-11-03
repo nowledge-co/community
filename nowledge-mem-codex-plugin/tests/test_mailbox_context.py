@@ -108,7 +108,13 @@ class MailboxContextTests(unittest.TestCase):
                 context, _ = self.invoke(result=result)
                 self.assertNotIn("pre-completion", context)
                 self.assertNotIn('"agent_id": "b"', context)
-                self.load.assert_not_called()
+                if set(changes) <= {"state", "validation", "reason"}:
+                    self.load.assert_called_once_with(
+                        context_args=[], working_memory_args=["wm", "read", "--space-id", "default"],
+                        allow_file_fallback=False,
+                    )
+                else:
+                    self.load.assert_not_called()
 
     def test_mailbox_startup_never_runs_identity_ensure_context_command(self):
         result = subprocess.CompletedProcess([], 0, '{"content":"scoped briefing"}', "")

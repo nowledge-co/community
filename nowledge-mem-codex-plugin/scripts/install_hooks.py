@@ -151,6 +151,7 @@ def install_runtime_hook() -> None:
     for source_name, installed_name in (
         ("nmem-mailbox-stop.py", "nowledge-mem-mailbox-stop.py"),
         ("nmem_mailbox_stop.py", "nmem_mailbox_stop.py"),
+        ("nmem_startup.py", "nmem_startup.py"),
     ):
         source = PLUGIN_ROOT / "hooks" / source_name
         if not source.is_file():

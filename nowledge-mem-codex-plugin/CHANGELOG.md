@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.46] - Unreleased
+
+- Load read-only Working Memory independently of optional mailbox availability;
+  an Agent Identity is not required for an unconfigured connection's memory read.
+- Keep named-context Space selection separate from mailbox delivery admission.
+  Startup does not edit identity profiles; refine them during ordinary work.
+- Share the exact native-session bootstrap validator across Codex and Claude Code.
+  Claude Code can opt in with `NMEM_BRIDGE_SESSION_MAILBOX=1`; registration alone
+  grants no receiving capability. Resume reuses the original native session.
+
 ## [0.1.45] - Unreleased
 
 - Stream optional skill-outcome scans with bounded record size, reference state and time instead of retaining the full transcript.

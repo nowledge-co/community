@@ -14,6 +14,11 @@ import time
 from pathlib import Path
 from typing import NamedTuple
 
+_SCRIPT_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+from nmem_startup import memory_scope, session_observation, render_session_context, valid_selection
+
 TOTAL_TIMEOUT_SECONDS = 10.0
 ATTEMPT_TIMEOUT_SECONDS = 7.0
 MAX_RESPONSE_BYTES = 64 * 1024
@@ -125,7 +130,7 @@ def command_args(nmem: str, args: list[str]) -> list[str] | str:
     return [nmem, *args]
 
 
-def read_json(nmem: str, args: list[str], timeout: float) -> tuple[dict, str]:
+def read_json(nmem: str, args: list[str], timeout: float, *, allow_failure: bool = False) -> tuple[dict, str]:
     kwargs = {}
     if sys.platform == "win32":
         kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
@@ -144,7 +149,7 @@ def read_json(nmem: str, args: list[str], timeout: float) -> tuple[dict, str]:
         return {}, "timeout"
     except OSError:
         return {}, "cli_unavailable"
-    if result.returncode != 0:
+    if result.returncode != 0 and not allow_failure:
         return {}, "cli_error"
     if len(result.stdout.encode("utf-8")) > MAX_RESPONSE_BYTES:
         return {}, "response_too_large"
@@ -159,8 +164,20 @@ def read_json(nmem: str, args: list[str], timeout: float) -> tuple[dict, str]:
         or payload.get("error")
         or payload.get("error_code")
     ):
-        return {}, "cli_error"
+        return (payload if allow_failure else {}), "cli_error"
+    if result.returncode != 0:
+        return payload, "cli_error"
     return payload, ""
+
+
+def _mailbox_json(nmem, args, *, timeout_seconds):
+    payload, error = read_json(nmem, args, timeout_seconds)
+    return payload if not error else None
+
+
+def _mailbox_result(nmem, args, *, timeout_seconds):
+    payload, error = read_json(nmem, args, timeout_seconds, allow_failure=True)
+    return (1 if error else 0, payload) if payload else None
 
 
 def space_args() -> list[str]:
@@ -197,6 +214,7 @@ def local_fallback() -> str:
 
 def load_context(total_timeout: float = TOTAL_TIMEOUT_SECONDS) -> ContextRead:
     reason = "cli_unavailable"
+    deadline = time.monotonic() + total_timeout
     nmem = find_nmem()
     if nmem:
         scope = space_args()
@@ -207,14 +225,22 @@ def load_context(total_timeout: float = TOTAL_TIMEOUT_SECONDS) -> ContextRead:
         ):
             if value := os.environ.get(env_name, "").strip():
                 context_args.extend([flag, value])
-        attempts = [(context_args + scope, "Context Bundle")]
+        isolated_mailbox = (os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1"
+                            or bool(os.environ.get("NMEM_AGENT_CONTEXT", "").strip()))
+        if isolated_mailbox:
+            selected = memory_scope(find_nmem=find_nmem, read_json=_mailbox_json,
+                                    validate_selection=valid_selection)
+            if selected is None:
+                return ContextRead("", "", "scope_unresolved")
+            attempts = [(selected["args"], "Working Memory")]
+        else:
+            attempts = [(context_args + scope, "Context Bundle")]
         # Without a resolved lane, an identity-owned context cannot fall back
         # to an anonymous default-space Working Memory read.
-        if scope or not any(
+        if not isolated_mailbox and (scope or not any(
             os.environ.get(key) for key in ("NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")
-        ):
+        )):
             attempts.append((["wm", "read", *scope], "Working Memory"))
-        deadline = time.monotonic() + total_timeout
         for args, source in attempts:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
@@ -241,6 +267,9 @@ def load_context(total_timeout: float = TOTAL_TIMEOUT_SECONDS) -> ContextRead:
                 )
                 else "invalid_response"
             )
+    if (os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1"
+            or os.environ.get("NMEM_AGENT_CONTEXT", "").strip()):
+        return ContextRead("", "", reason)
     if content := local_fallback():
         return ContextRead(content, "legacy Default-space briefing")
     return ContextRead("", "", reason)
@@ -272,6 +301,7 @@ def main(
     if event == "UserPromptSubmit":
         write_response(event, PROMPT_GUIDANCE.strip())
         return 0
+    deadline = time.monotonic() + timeout
     result = load_context(timeout)
     if raw:
         if result.content:
@@ -285,6 +315,27 @@ def main(
         message = "[Nowledge Mem] No startup briefing available. Targeted search remains available."
     else:
         message = f"[Nowledge Mem] Startup context unavailable ({result.reason}). Check /nowledge-mem:status."
+    if os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1":
+        # Registration is optional and follows the independent memory read.
+        try:
+            raw_payload = sys.stdin.read(256 * 1024 + 1)
+            payload = json.loads(raw_payload) if len(raw_payload.encode("utf-8")) <= 256 * 1024 else {}
+            if not isinstance(payload, dict):
+                payload = {}
+        except (ValueError, OSError):
+            payload = {}
+        def bounded_read(nmem, args, *, timeout_seconds):
+            remaining = deadline - time.monotonic()
+            return _mailbox_json(nmem, args, timeout_seconds=min(timeout_seconds, remaining)) if remaining > 0 else None
+
+        def bounded_result(nmem, args, *, timeout_seconds):
+            remaining = deadline - time.monotonic()
+            return _mailbox_result(nmem, args, timeout_seconds=min(timeout_seconds, remaining)) if remaining > 0 else None
+
+        observation = session_observation(payload, host="claude-code", find_nmem=find_nmem,
+                                          read_json=bounded_read, run_result=bounded_result,
+                                          validate_selection=valid_selection)
+        content += "\n\n" + render_session_context(observation, "claude-code")
     if compact:
         content += "\n\n" + COMPACT_GUIDANCE
     write_response(event, content, message)

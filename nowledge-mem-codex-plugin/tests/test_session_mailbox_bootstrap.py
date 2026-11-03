@@ -213,6 +213,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
              mock.patch.object(HOOK, "_pending_startup", return_value=(False, "")), \
              mock.patch.object(HOOK, "_session_mailbox_observation", return_value={"state": "active", "delivery_ready": False, "name": "reviewer", "space_id": "default"}) as session, \
              mock.patch.object(HOOK, "_mailbox_observation", return_value=None) as legacy, \
+             mock.patch.object(HOOK, "memory_scope", return_value={"name": "reviewer", "space_id": "default", "args": ["wm", "read", "--space-id", "default"]}), \
              mock.patch.object(HOOK, "_load_startup_context", return_value="") as load, \
              mock.patch.object(HOOK.sys, "stdout", output):
             self.assertEqual(HOOK.main({"hook_event_name": event, "source": "startup", "session_id": "native", "agent_type": "worker"}), 0)

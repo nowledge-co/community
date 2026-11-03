@@ -283,7 +283,7 @@ In Claude Code, when `NMEM_AGENT_CONTEXT` names an approved Agent Context, Stop
 uses one `nmem mailbox probe` call and can remind the Agent once to inspect new pending mail. The check is read-only:
 it does not receive, acknowledge or execute messages. Recursive Stop and failed
 checks end normally, and an unchanged pending state is not repeated in the same
-host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. Set `NMEM_BRIDGE_SESSION_MAILBOX=1` only for an already registered native session.
+host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. With `NMEM_BRIDGE_SESSION_MAILBOX=1`, SessionStart attempts registration for a configured context before this Stop probe can use the native session.
 The probe uses the actual Codex or Claude Code host ID and checks its original
 Local or Cloud mailbox. Incomplete scans are reported as incomplete. Unsupported
 CLI/server versions and missing or ambiguous original credentials quietly skip
@@ -295,3 +295,24 @@ In WSL, this Stop check requires a Linux CLI. Windows `.cmd`, `.bat` and `.exe`
 CLIs are skipped because process cleanup across the two
 systems are unsupported. The hook never substitutes another executable for
 `NMEM_CLI_PATH`.
+
+### Independent startup memory and optional Bridge registration
+
+Working Memory does not require an Agent Identity or a running mailbox.
+With optional mailbox configuration, startup reads Working Memory first through
+its own authenticated memory endpoint. A named Agent Context supplies its exact
+Space through local configuration; it is not mailbox authority. Mailbox startup
+failure, refusal or timeout cannot suppress that independent read. An unresolved
+or conflicting explicit scope never falls back to another Space or legacy file.
+
+Set `NMEM_BRIDGE_SESSION_MAILBOX=1` to enable native-session registration when
+`NMEM_AGENT_CONTEXT` already names a configured context. Without an identity,
+startup still loads Working Memory and reports registration `selection_required`.
+The Agent can choose/refine its identity during later ordinary work under the
+existing account permissions. The startup hook does not create or edit profiles.
+
+Registration uses the host-provided exact session ID. Resume revalidates the
+original binding; it does not create a replacement identity after a failure.
+Restoring identity associations for historical sessions is a separate capability.
+Only a validated receiving descriptor enables session messaging guidance.
+Mailbox registration does not enable polling or wake a stopped Agent.
