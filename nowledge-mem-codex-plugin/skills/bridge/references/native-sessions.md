@@ -26,6 +26,14 @@ contact artifact; retain authentication/proof material with its existing CLI
 owner, never in that artifact. Report what preparation actually established:
 registration alone does not prove receiving availability, delivery or work.
 
+Before presenting a usable receiving entry or proceeding to native messaging,
+honor the installed client's supported receiving contract and current readiness
+outcome. Missing, unsupported or unconfirmed receiving support remains a specific
+blocker or unknown; preserve the registration without claiming readiness. Do not
+infer support from an active registration or one readiness boolean. Follow an
+older Cloud client's documented contract rather than imposing a newer Local
+descriptor on it. Each operation still performs its own current admission.
+
 Give the person a short confirmation and a usable returned contact artifact
 for the initiating session. The integration handles its serialization; do not
 ask the person to write an address file, repair JSON or copy credentials. Do not
