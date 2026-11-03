@@ -29,6 +29,12 @@ connection, identity and Space. Availability depends on the client, backend and
 authorization; this plugin does not grant communication access or wake stopped
 agents. Existing knowledge and capture connections remain separate.
 
+For a particular running session, ask it to prepare this session to receive.
+The skill keeps native-session contacts separate from long-lived Agent inboxes;
+the receiver prepares its own entry before the sender or task is known.
+Supported client capabilities and authorization still apply. Packaged guidance
+does not establish that an installed two-session journey has been verified.
+
 ## Historical imports from isolated Codex homes
 
 If `nmem t sync --from codex --all-projects` reports that Codex session

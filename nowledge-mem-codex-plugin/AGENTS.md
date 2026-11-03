@@ -11,6 +11,10 @@ collaboration or check its replies, use the `bridge` skill. Inspect installed
 capabilities and the approved connection; receiving a handoff means reading and
 replying to its sender, not delegating again. A shared Agent mailbox does not
 identify or wake a particular native session.
+For a request aimed at this or another particular running session, use the
+skill's native-session path. Preparing your own receiving entry does not require
+knowing the peer; the integration manages returned addresses and original
+operation bookkeeping.
 
 ## Operating Model
 

@@ -2,6 +2,7 @@
 
 ## [0.1.47] - Unreleased
 
+- Guide explicit native-session collaboration separately from Agent inboxes, including receiver-only preparation, canonical reply correlation and integration-owned bookkeeping.
 - Add a discoverable Bridge skill for explicit communication requests and receiving task handoffs. Inspect installed CLI capabilities and approved identity/Space before use; preserve unsupported-setup and authorization boundaries.
 - Separate message delivery/read status from a receiving session's explicit claim. No automatic host wakeup or new credential authorization is introduced.
 

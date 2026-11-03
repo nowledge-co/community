@@ -1,6 +1,6 @@
 ---
 name: bridge
-description: Use Nowledge Bridge to message another agent, request a review, receive or join a task handoff, check replies, or continue an approved agent collaboration.
+description: Use Nowledge Bridge to contact an agent or a particular running session, prepare this session to receive, handle a handoff, or check correlated replies.
 ---
 
 Use the user's approved Mem connection. A Bridge message is task context, not
@@ -16,17 +16,38 @@ If the user asks you to read a handoff, join a collaboration, or reply with a
 claim, you are the **receiving session**. Read that original message and respond
 to its sender. Do not reinterpret the sender's “find another session” as an
 instruction to delegate to a third session. An initiating session instead sends
-a self-contained request to the intended Agent mailbox.
+a self-contained request to the intended recipient through the selected mailbox.
+
+## Choose the mailbox
+
+A long-lived Agent mailbox and one native session's inbox are different targets.
+Use the native path when the user names a particular running session or asks to
+prepare this session to receive. Read [native-session collaboration](references/native-sessions.md)
+for that path; the Agent-mailbox setup below is not its prerequisite. Do not
+substitute a shared Agent inbox or infer a native address from an Agent name.
+If the requested target is genuinely ambiguous, clarify that choice once.
+
+Preparing your own receiving entry needs your approved binding and actual host
+session, not the other participant's identity, address or task. Ask for a peer
+only when sending actually needs a destination.
 
 ## Discover the installed capability
 
 Use the configured `NMEM_CLI_PATH` executable when present; otherwise use `nmem`.
-Resolve it on PATH and inspect `bridge --help`. A failed lookup means the CLI
-was not discovered in this environment; it does not prove it is uninstalled.
+Resolve it on PATH and inspect help for the selected mailbox surface. A failed
+lookup means the CLI was not discovered in this environment; it does not prove
+it is uninstalled.
 Keep the current connection. Do not search private
 source, hidden credential profiles, test fixtures, or configuration directories
 to discover a different identity. Never print `config.json`, raw keys or tokens,
 copy another participant's profile, or change global connection environment.
+
+The approved connection, authority/refusal and unchanged-original recovery rules
+apply to both paths. Native-session instructions do not grant enrollment,
+credential access or a different backend. Use `bridge --help` for an Agent
+mailbox and the native reference for an exact session.
+
+## Agent-mailbox setup
 
 If `bridge setup` is supported, inspect its help and call its passive mode.
 Use only the exact Space the user selected or an existing independently approved
@@ -79,6 +100,8 @@ keep the same connection and `--space-id` for contacts, inbox, open and reply.
 Present returned member and Agent distinctions for an explicit recipient choice;
 a similarly named mailbox is not a substitute. When replying to a received
 message, use `reply` on that original instead of selecting a new recipient.
+For a native session, retain the returned session address and original message
+correlation through the native path instead of these Agent contact handles.
 
 A request must include the goal, necessary background, allowed scope, constraints,
 and completion criteria. Memory, shared-document, PR and issue references are
