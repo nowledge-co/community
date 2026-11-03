@@ -8,7 +8,8 @@
   Startup does not edit identity profiles; refine them during ordinary work.
 - Share the exact native-session bootstrap validator across Codex and Claude Code.
   Claude Code can opt in with `NMEM_BRIDGE_SESSION_MAILBOX=1`; registration alone
-  grants no receiving capability. Resume only probes the original native session without preparing credentials.
+  grants no receiving capability. Resume only probes the original native session
+  without preparing credentials. First registration stays an explicit ordinary-turn action.
 
 ## [0.1.45] - Unreleased
 
