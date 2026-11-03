@@ -34,7 +34,7 @@ case "${NMEM_SPACE:-${NMEM_SPACE_ID:-default}}" in
   default|"") ;;
   *) exit 0 ;;
 esac
-if [ -n "${NMEM_AGENT_ID:-}${NMEM_HOST_AGENT_ID:-}${NMEM_APP_DATA:-}${NMEM_APP_CONFIG_DIR:-}${NMEM_CLI_CONFIG_DIR:-}" ]; then
+if [ -n "${NMEM_AGENT_CONTEXT:-}${NMEM_AGENT_ID:-}${NMEM_HOST_AGENT_ID:-}${NMEM_APP_DATA:-}${NMEM_APP_CONFIG_DIR:-}${NMEM_CLI_CONFIG_DIR:-}" ]; then
   exit 0
 fi
 [ -n "${NMEM_AI_NOW_HOME-$HOME/ai-now}" ] || exit 0

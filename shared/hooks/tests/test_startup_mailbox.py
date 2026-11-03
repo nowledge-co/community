@@ -3,6 +3,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -15,7 +16,13 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class StartupMailboxTests(unittest.TestCase):
-    def invoke(self, host, *, named=True, failure="disabled", source="startup", conflict=False, native=True, mutate=None, switch=False, identity=None, explicit_space=None, event="SessionStart", pending_reference=None, original_kind=None):
+    def invoke(
+        self, host, *, named=True, failure="disabled", source="startup",
+        conflict=False, native=True, mutate=None, switch=False, identity=None,
+        explicit_space=None, event="SessionStart", pending_reference=None,
+        original_kind=None, pending=True, memory_available=True, cli_available=True,
+        selection_available=True, agent_type="researcher",
+    ):
         folder = ROOT / ("nowledge-mem-codex-plugin/hooks" if host == "codex" else "nowledge-mem-claude-code-plugin/scripts")
         script = folder / ("nmem-context.py" if host == "codex" else "nmem-hook-context.py")
         selection = {"scope": {"store_id": "store", "store_incarnation": "incarnation", "workspace_id": None, "space_id": "team-space"},
@@ -29,6 +36,8 @@ class StartupMailboxTests(unittest.TestCase):
             args = argv[2:]
             calls.append(args)
             if args[:3] == ["agents", "context", "show"]:
+                if not selection_available:
+                    return subprocess.CompletedProcess(argv, 1, '{}', "")
                 shows += 1
                 current = json.loads(json.dumps(selection))
                 if switch and shows > 1:
@@ -52,12 +61,15 @@ class StartupMailboxTests(unittest.TestCase):
             elif "mailbox" in args:
                 return subprocess.CompletedProcess(argv, 1, '{"error_code":"mailbox_delivery_unavailable"}', "")
             elif args[:2] == ["wm", "read"]:
+                if not memory_available:
+                    return subprocess.CompletedProcess(argv, 1, '{}', "")
                 reply = {"exists": True, "content": "independent working memory"}
             else:
                 return subprocess.CompletedProcess(argv, 1, '{}', "")
             return subprocess.CompletedProcess(argv, 0, json.dumps(reply), "")
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
-            env = {"CODEX_HOME": directory, "NMEM_BRIDGE_SESSION_MAILBOX": "1" if native else "0", "NMEM_AI_NOW_HOME": ""}
+            (Path(directory) / "memory.md").write_text("legacy Default briefing", encoding="utf-8")
+            env = {"CODEX_HOME": directory, "NMEM_BRIDGE_SESSION_MAILBOX": "1" if native else "0", "NMEM_AI_NOW_HOME": directory}
             if named:
                 env["NMEM_AGENT_CONTEXT"] = "reviewer"
             if identity:
@@ -72,14 +84,14 @@ class StartupMailboxTests(unittest.TestCase):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             stack.enter_context(mock.patch.object(module.subprocess, "run", side_effect=run))
-            stack.enter_context(mock.patch.object(module, "_nmem_command" if host == "codex" else "find_nmem", return_value="/pinned/nmem"))
-            payload = {"hook_event_name": event, "source": source, "session_id": "exact-native", "agent_type": "researcher"}
+            stack.enter_context(mock.patch.object(module, "_nmem_command" if host == "codex" else "find_nmem", return_value="/pinned/nmem" if cli_available else None))
+            payload = {"hook_event_name": event, "source": source, "session_id": "exact-native", "agent_type": agent_type}
             stack.enter_context(mock.patch.object(sys, "stdin", io.StringIO(json.dumps(payload))))
             output = stack.enter_context(mock.patch.object(sys, "stdout", io.StringIO()))
             if host == "codex":
                 stack.enter_context(mock.patch.object(module, "_resume_context", return_value=("", False)))
                 if event == "SubagentStart":
-                    stack.enter_context(mock.patch.object(module, "_pending_startup", return_value=(True, "")))
+                    stack.enter_context(mock.patch.object(module, "_pending_startup", return_value=(pending, "")))
                     stack.enter_context(mock.patch.object(module, "_read_pending", return_value=("present", {"context_reference": pending_reference, "context_name": "reviewer", "space_id": "team-space"})))
                 self.assertEqual(module.main(payload), 0)
             else:
@@ -168,6 +180,43 @@ class StartupMailboxTests(unittest.TestCase):
         self.assertNotIn("independent working memory", context)
         self.assertFalse(any(args[:2] == ["wm", "read"] for args in calls))
 
+    def test_named_subagent_without_pending_uses_only_exact_space_memory(self):
+        for role in ("planner", "researcher"):
+            for native in (False, True):
+                with self.subTest(role=role, native=native):
+                    context, calls = self.invoke(
+                        "codex", event="SubagentStart", pending=False,
+                        native=native, agent_type=role,
+                    )
+                    self.assertIn("independent working memory", context)
+                    self.assertNotIn("legacy Default briefing", context)
+                    self.assertEqual(calls, [
+                        ["agents", "context", "show", "--name", "reviewer"],
+                        ["wm", "read", "--space-id", "team-space"],
+                    ])
+
+    def test_named_subagent_without_pending_never_falls_back_on_failure(self):
+        cases = [
+            {"conflict": True},
+            {"mutate": lambda selection: selection["scope"].pop("store_id")},
+            {"selection_available": False},
+            {"memory_available": False},
+            {"cli_available": False},
+        ]
+        for case in cases:
+            with self.subTest(case=case):
+                context, calls = self.invoke(
+                    "codex", event="SubagentStart", pending=False, native=False, **case,
+                )
+                self.assertNotIn("independent working memory", context)
+                self.assertNotIn("legacy Default briefing", context)
+                expected = [] if case.get("cli_available") is False else [
+                    ["agents", "context", "show", "--name", "reviewer"],
+                ]
+                if case.get("memory_available") is False:
+                    expected.append(["wm", "read", "--space-id", "team-space"])
+                self.assertEqual(calls, expected)
+
     def test_unknown_original_never_authorizes_first_registration(self):
         for host in ("codex", "claude-code"):
             for source in ("startup", "clear", "resume", "compact"):
@@ -233,6 +282,59 @@ class StartupMailboxTests(unittest.TestCase):
                     self.assertIn(["--agent-context", "reviewer", "mailbox", "session-bootstrap", "--host", host, "--session-id", "exact-native"], calls)
                     self.assertIn('"native_session_id": "exact-native"', context)
                     self.assertNotIn("--host " + ("codex" if host == "claude-code" else "claude-code"), context)
+
+
+@unittest.skipUnless(shutil.which("sh"), "sh is required for shell fallback contracts")
+class NamedContextShellFallbackTests(unittest.TestCase):
+    def invoke(self, entrypoint, named):
+        plugin = ROOT / "nowledge-mem-claude-code-plugin"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            # Shell builtins keep this fixture independent of Python and native DLLs.
+            cat = bin_dir / "cat"
+            cat.write_text(
+                '#!/bin/sh\nwhile IFS= read -r line; do printf \'%s\\n\' "$line"; done < "$1"\n',
+                encoding="utf-8",
+            )
+            cat.chmod(0o755)
+            (root / "memory.md").write_text("legacy Default briefing\n", encoding="utf-8")
+            env = {
+                key: value for key, value in os.environ.items()
+                if not key.startswith(("NMEM_", "GROK_", "CLAUDE_"))
+            }
+            env.update(
+                PATH=bin_dir.as_posix(), HOME=root.as_posix(),
+                NMEM_AI_NOW_HOME=root.as_posix(),
+                CLAUDE_PLUGIN_ROOT=(root / "missing-plugin").as_posix(),
+            )
+            if named:
+                env["NMEM_AGENT_CONTEXT"] = "reviewer"
+            shell = shutil.which("sh")
+            if entrypoint == "raw":
+                command = [shell, str(plugin / "scripts/nmem-hook-read.sh")]
+            else:
+                hooks = json.loads((plugin / "hooks/hooks.json").read_text(encoding="utf-8"))
+                index = 0 if entrypoint == "missing-startup" else 1
+                hook = hooks["hooks"]["SessionStart"][index]["hooks"][0]
+                command = [shell, "-c", hook["command"]]
+            result = subprocess.run(
+                command, env=env, capture_output=True, text=True,
+                encoding="utf-8", timeout=5, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return result.stdout
+
+    def test_named_context_blocks_shell_only_default_file_reads(self):
+        for entrypoint in ("raw", "missing-startup", "missing-compact"):
+            with self.subTest(entrypoint=entrypoint):
+                self.assertNotIn("legacy Default briefing", self.invoke(entrypoint, named=True))
+
+    def test_unconfigured_default_keeps_shell_file_compatibility(self):
+        for entrypoint in ("raw", "missing-startup", "missing-compact"):
+            with self.subTest(entrypoint=entrypoint):
+                self.assertIn("legacy Default briefing", self.invoke(entrypoint, named=False))
 
 
 if __name__ == "__main__":

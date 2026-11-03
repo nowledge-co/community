@@ -6,6 +6,8 @@
   an Agent Identity is not required for an unconfigured connection's memory read.
 - Keep named-context Space selection separate from mailbox delivery admission.
   Startup does not edit identity profiles; refine them during ordinary work.
+- Preserve the named context's exact Space for selected subagents without
+  pending maintenance; unresolved selectors never fall back to Default memory.
 - Share the exact native-session bootstrap validator across Codex and Claude Code.
   Claude Code can opt in with `NMEM_BRIDGE_SESSION_MAILBOX=1`; registration alone
   grants no receiving capability. Resume only probes the original native session

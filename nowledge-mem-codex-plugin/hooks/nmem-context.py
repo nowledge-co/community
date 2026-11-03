@@ -250,7 +250,10 @@ def _load_startup_context(
     allow_file_fallback: bool = True,
 ) -> str:
     deadline = time.monotonic() + total_timeout_seconds
-    if context_args is None and any(os.environ.get(key) for key in ("NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")):
+    if context_args is None and any(
+        os.environ.get(key)
+        for key in ("NMEM_AGENT_CONTEXT", "NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")
+    ):
         scope = memory_scope(find_nmem=_nmem_command, read_json=_run_nmem_json,
                              validate_selection=_typed_selection,
                              timeout_seconds=max(0.001, min(MAILBOX_TIMEOUT_SECONDS, deadline - time.monotonic())))
