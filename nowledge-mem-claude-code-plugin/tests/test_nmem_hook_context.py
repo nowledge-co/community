@@ -146,13 +146,7 @@ def test_identity_only_failure_does_not_read_anonymous_working_memory(
         result = module.load_context()
     assert not result.content
     read.assert_called_once()
-    assert read.call_args.args[1] == [
-        "context",
-        "--source-app",
-        "claude-code",
-        "--agent-id",
-        "reviewer",
-    ]
+    assert read.call_args.args[1] == ["agents", "show", "reviewer"]
 
 
 def test_scoped_working_memory_fallback_succeeds(module, monkeypatch):

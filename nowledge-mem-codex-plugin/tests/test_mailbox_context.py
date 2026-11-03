@@ -197,10 +197,11 @@ class MailboxContextTests(unittest.TestCase):
                                           "NMEM_SPACE_ID": space}):
             self.assertTrue(nmem_pending.retain_stop({"hook_event_name": "Stop", "stop_hook_active": False,
                                                       "turn_id": "turn-large-scope"}))
-            with mock.patch.object(HOOK, "_load_startup_context") as load, \
+            with mock.patch.object(HOOK, "_load_startup_context", return_value="scoped briefing") as load, \
                  mock.patch.object(HOOK, "_write_hook_response") as write:
                 self.assertEqual(HOOK.main({"hook_event_name": "SubagentStart", "agent_type": "planner"}), 0)
-            load.assert_not_called()
+            load.assert_called_once()
+            self.assertEqual(load.call_args.kwargs["working_memory_args"], ["wm", "read", "--space-id", space])
             rendered = write.call_args.args[1]
             self.assertLessEqual(len(rendered.encode("utf-8")), HOOK.SUBAGENT_CONTEXT_MAX_BYTES)
             raw = rendered.split("Untrusted control reference:\n", 1)[1].split("\n", 1)[0]

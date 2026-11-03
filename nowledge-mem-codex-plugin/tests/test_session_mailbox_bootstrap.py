@@ -36,7 +36,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
 
     def observe(self, payload=None, reply=None, selected=None):
         with mock.patch.object(HOOK, "_nmem_command", return_value="/pinned/nmem"), \
-             mock.patch.object(HOOK, "_run_nmem_json", return_value=self.selected() if selected is None else selected) as show, \
+             mock.patch.object(HOOK, "_run_nmem_json", side_effect=lambda nmem, args, **kwargs: ({"schema_version": 1, "host": "codex", "session_id": (payload or {}).get("session_id", "native-exact"), "context": "reviewer", "mailbox_kind": "local-session"} if "probe" in args else self.selected() if selected is None else selected)) as show, \
              mock.patch.object(HOOK, "_run_nmem_result", return_value=(0, self.reply() if reply is None else reply)) as bootstrap:
             observed = HOOK._session_mailbox_observation(payload or {"source": "startup", "session_id": "native-exact"})
         return observed, show, bootstrap
@@ -48,7 +48,7 @@ class SessionMailboxBootstrapTests(unittest.TestCase):
                 self.assertEqual(observed["state"], "active")
                 self.assertIs(observed["delivery_ready"], False)
                 self.assertEqual(bootstrap.call_args.args, ("/pinned/nmem", ["--agent-context", "reviewer", "mailbox", "session-bootstrap", "--host", "codex", "--session-id", " native / 研发 "]))
-                self.assertEqual(show.call_args.args[1], ["agents", "context", "show", "--name", "reviewer"])
+                self.assertEqual(show.call_args_list[0].args[1], ["agents", "context", "show", "--name", "reviewer"])
                 self.assertLessEqual(bootstrap.call_args.kwargs["timeout_seconds"], 3)
 
     def test_invalid_native_events_never_dispatch_or_guess_another_session(self):

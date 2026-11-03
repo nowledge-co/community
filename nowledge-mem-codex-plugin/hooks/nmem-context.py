@@ -78,7 +78,10 @@ Context Bundle already contains it."""
 
 
 def _nmem_command() -> str | None:
-    return _find_nmem_command()
+    try:
+        return _find_nmem_command()
+    except (OSError, RuntimeError):
+        return None
 
 
 def _read_hook_input() -> dict[str, Any]:
@@ -246,9 +249,11 @@ def _load_startup_context(
     working_memory_args: list[str] | None = None,
     allow_file_fallback: bool = True,
 ) -> str:
+    deadline = time.monotonic() + total_timeout_seconds
     if context_args is None and any(os.environ.get(key) for key in ("NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")):
         scope = memory_scope(find_nmem=_nmem_command, read_json=_run_nmem_json,
-                             validate_selection=_typed_selection)
+                             validate_selection=_typed_selection,
+                             timeout_seconds=max(0.001, min(MAILBOX_TIMEOUT_SECONDS, deadline - time.monotonic())))
         if scope is None:
             return ""
         context_args = []
@@ -256,7 +261,6 @@ def _load_startup_context(
         allow_file_fallback = False
     nmem = _nmem_command()
     if nmem:
-        deadline = time.monotonic() + total_timeout_seconds
         for args in (context_args if context_args is not None else _context_args(), working_memory_args if working_memory_args is not None else _working_memory_args()):
             if not args:
                 continue

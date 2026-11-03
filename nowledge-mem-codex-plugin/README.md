@@ -630,10 +630,12 @@ startup still loads Working Memory and reports registration `selection_required`
 The Agent can choose/refine its identity during later ordinary work under the
 existing account permissions. The startup hook does not create or edit profiles.
 
-Registration uses the host-provided exact session ID on a fresh startup.
-Resume and compaction use only a read-only native probe of existing original
-Local or Cloud credentials; they do not bootstrap a different transport or
-create a replacement identity after a failure.
+Every lifecycle event first probes existing original credentials using the
+host-provided exact session ID. Only a verified original Local session can be
+revalidated through Local bootstrap. Cloud sessions, resume and compaction
+remain read-only. An unavailable or ambiguous original never permits creating
+new credentials. First registration requires an explicit ordinary-turn CLI
+operation; startup cannot infer that no original exists from a probe failure.
 Restoring identity associations for historical sessions is a separate capability.
 Only a validated receiving descriptor enables session messaging guidance.
 Mailbox registration does not enable polling or wake a stopped Agent.

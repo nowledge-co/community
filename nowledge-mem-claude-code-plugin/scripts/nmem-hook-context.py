@@ -231,7 +231,8 @@ def load_context(total_timeout: float = TOTAL_TIMEOUT_SECONDS) -> ContextRead:
                             or any(os.environ.get(key) for key in ("NMEM_AGENT_CONTEXT", "NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")))
         if isolated_mailbox:
             selected = memory_scope(find_nmem=find_nmem, read_json=_mailbox_json,
-                                    validate_selection=valid_selection)
+                                    validate_selection=valid_selection,
+                                    timeout_seconds=max(0.001, min(3.0, deadline - time.monotonic())))
             if selected is None:
                 return ContextRead("", "", "scope_unresolved")
             attempts = [(selected["args"], "Working Memory")]

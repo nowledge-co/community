@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class StartupMailboxTests(unittest.TestCase):
-    def invoke(self, host, *, named=True, failure="disabled", source="startup", conflict=False, native=True, mutate=None, switch=False, identity=None, explicit_space=None, event="SessionStart", pending_reference=None):
+    def invoke(self, host, *, named=True, failure="disabled", source="startup", conflict=False, native=True, mutate=None, switch=False, identity=None, explicit_space=None, event="SessionStart", pending_reference=None, original_kind=None):
         folder = ROOT / ("nowledge-mem-codex-plugin/hooks" if host == "codex" else "nowledge-mem-claude-code-plugin/scripts")
         script = folder / ("nmem-context.py" if host == "codex" else "nmem-hook-context.py")
         selection = {"scope": {"store_id": "store", "store_incarnation": "incarnation", "workspace_id": None, "space_id": "team-space"},
@@ -44,7 +44,9 @@ class StartupMailboxTests(unittest.TestCase):
                          "registration": {"address": {"schema_version": 2, "scope": selection["scope"], "agent": selection["address"], "session_id": "opaque", "registration_id": "registration", "mailbox_id": "mailbox", "binding_generation": 1},
                                           "state": "active", "registered_at": 10, "observed_at": 11, "lease_expires_at": 20, "closed_at": None}}
             elif "probe" in args:
-                reply = {"schema_version": 1, "host": host, "session_id": "exact-native", "context": "reviewer", "mailbox_kind": "cloud-session"}
+                if original_kind == "unavailable":
+                    return subprocess.CompletedProcess(argv, 1, '{}', "")
+                reply = {"schema_version": 1, "host": host, "session_id": "exact-native", "context": "reviewer", "mailbox_kind": original_kind or ("cloud-session" if source in {"resume", "compact"} else "local-session")}
             elif args[:2] == ["agents", "show"]:
                 return subprocess.CompletedProcess(argv, 1, '{}', "")
             elif "mailbox" in args:
@@ -136,9 +138,9 @@ class StartupMailboxTests(unittest.TestCase):
 
     def test_resume_preserves_existing_cloud_transport_without_bootstrap(self):
         for host in ("codex", "claude-code"):
-            for source in ("resume", "compact"):
+            for source in ("startup", "clear", "resume", "compact"):
                 with self.subTest(host=host, source=source):
-                    context, calls = self.invoke(host, source=source)
+                    context, calls = self.invoke(host, source=source, original_kind="cloud-session")
                     self.assertIn("independent working memory", context)
                     self.assertIn("original_session_preserved", context)
                     self.assertFalse(any("session-bootstrap" in args or "cloud-session-bootstrap" in args for args in calls))
@@ -165,6 +167,45 @@ class StartupMailboxTests(unittest.TestCase):
         context, calls = self.invoke("codex", native=False, event="SubagentStart", pending_reference={"original": "pending"})
         self.assertNotIn("independent working memory", context)
         self.assertFalse(any(args[:2] == ["wm", "read"] for args in calls))
+
+    def test_unknown_original_never_authorizes_first_registration(self):
+        for host in ("codex", "claude-code"):
+            for source in ("startup", "clear", "resume", "compact"):
+                with self.subTest(host=host, source=source):
+                    context, calls = self.invoke(host, source=source, original_kind="unavailable")
+                    self.assertIn("independent working memory", context)
+                    self.assertIn("original_session_unverified", context)
+                    self.assertFalse(any("session-bootstrap" in args for args in calls))
+
+    def test_identity_resolution_and_memory_share_the_loader_deadline(self):
+        for host in ("codex", "claude-code"):
+            with self.subTest(host=host), ExitStack() as stack:
+                folder = ROOT / ("nowledge-mem-codex-plugin/hooks" if host == "codex" else "nowledge-mem-claude-code-plugin/scripts")
+                script = folder / ("nmem-context.py" if host == "codex" else "nmem-hook-context.py")
+                stack.enter_context(mock.patch.dict(os.environ, {"NMEM_AGENT_ID": "reviewer"}, clear=True))
+                stack.enter_context(mock.patch.object(sys, "path", [str(folder), *sys.path]))
+                spec = importlib.util.spec_from_file_location("deadline_" + host, script)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                stack.enter_context(mock.patch.object(module, "_nmem_command" if host == "codex" else "find_nmem", return_value="/pinned/nmem"))
+                clock = [0.0]
+                timeouts = []
+                def run(argv, **kwargs):
+                    timeouts.append(kwargs["timeout"])
+                    if argv[2:4] == ["agents", "show"]:
+                        clock[0] += 3.0
+                        reply = {"id": "reviewer", "defaultSpaceId": "team-space"}
+                    else:
+                        self.assertEqual(argv[2:], ["wm", "read", "--space-id", "team-space"])
+                        reply = {"content": "bounded memory"}
+                    return subprocess.CompletedProcess(argv, 0, json.dumps(reply), "")
+                stack.enter_context(mock.patch.object(module.time, "monotonic", side_effect=lambda: clock[0]))
+                stack.enter_context(mock.patch.object(module.subprocess, "run", side_effect=run))
+                if host == "codex":
+                    self.assertEqual(module._load_startup_context(total_timeout_seconds=4, attempt_timeout_seconds=3), "bounded memory")
+                else:
+                    self.assertEqual(module.load_context(4).content, "bounded memory")
+                self.assertEqual(timeouts, [3.0, 1.0])
 
     def test_no_identity_still_reads_working_memory_without_enrollment(self):
         for host in ("codex", "claude-code"):
