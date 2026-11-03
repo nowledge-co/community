@@ -21,6 +21,14 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 - Codex lifecycle hooks for startup context, bounded subagent bootstrap, per-prompt memory routing, and automatic transcript capture
 - project `AGENTS.md` for repo-specific follow-through
 
+## Bridge communication
+
+Ask Codex to use Nowledge Bridge to contact another agent or receive a task
+handoff. The bundled `bridge` skill checks the installed client and your approved
+connection, identity and Space. Availability depends on the client, backend and
+authorization; this plugin does not grant communication access or wake stopped
+agents. Existing knowledge and capture connections remain separate.
+
 ## Historical imports from isolated Codex homes
 
 If `nmem t sync --from codex --all-projects` reports that Codex session

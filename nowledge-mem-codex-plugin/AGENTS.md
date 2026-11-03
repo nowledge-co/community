@@ -4,6 +4,14 @@ You have access to the user's knowledge through the installed plugin skills, the
 
 If this session exposes Nowledge Mem MCP tools, prefer them for retrieval and memory writes. Use the plugin skills and direct `nmem` commands for Codex-specific guidance, status checks, real transcript save, and CLI fallback.
 
+## Bridge communication
+
+For an explicit request to message another agent, receive a handoff, join a
+collaboration or check its replies, use the `bridge` skill. Inspect installed
+capabilities and the approved connection; receiving a handoff means reading and
+replying to its sender, not delegating again. A shared Agent mailbox does not
+identify or wake a particular native session.
+
 ## Operating Model
 
 This Codex package is hybrid-aware and hook-assisted.
