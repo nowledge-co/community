@@ -332,7 +332,7 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.31"
+    assert claude_manifest["version"] == "0.7.32"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -398,7 +398,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.45"
+    assert codex_manifest["version"] == "0.1.46"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -931,8 +931,8 @@ def test_key_plugin_static_contracts_are_declared():
     alma_pkg = _read_json(ALMA_PLUGIN / "package.json")
     alma_skill = ALMA_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md"
     alma_source = (ALMA_PLUGIN / "main.js").read_text(encoding="utf-8")
-    assert alma_manifest["version"] == "0.7.8"
-    assert alma_pkg["version"] == "0.7.8"
+    assert alma_manifest["version"] == "0.7.9"
+    assert alma_pkg["version"] == "0.7.9"
     assert alma_skill.exists()
     assert "nowledge_mem_context_bundle" in alma_skill.read_text(encoding="utf-8")
     assert "nowledge_mem_context_bundle" in alma_source
@@ -1689,7 +1689,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert connector["threadSave"]["historicalCommand"] == (
             f"nmem t sync --from {connector_id}"
         )
-    assert by_id["alma"]["version"] == "0.7.8"
+    assert by_id["alma"]["version"] == "0.7.9"
     assert by_id["alma"]["skills"] == ["nowledge-mem"]
     assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
     assert by_id["bub"]["version"] == "0.7.5"
@@ -1733,7 +1733,7 @@ def test_alma_plugin_static_contract_is_self_contained():
     manifest = _read_json(ALMA_PLUGIN / "manifest.json")
     registry = _read_json(COMMUNITY_ROOT / "integrations.json")
     integration = next(item for item in registry["integrations"] if item["id"] == "alma")
-    assert package["version"] == manifest["version"] == integration["version"] == "0.7.8"
+    assert package["version"] == manifest["version"] == integration["version"] == "0.7.9"
     assert package["main"] == manifest["main"] == "main.js"
     generated = ALMA_PLUGIN / "generated" / "plugin-core"
     core_manifest = _read_json(generated / "manifest.json")

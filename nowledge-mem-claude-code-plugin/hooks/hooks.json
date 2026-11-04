@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; if [ -f \"$SCRIPT\" ]; then sh \"$SCRIPT\" --hook; else [ -z \"${GROK_SESSION_ID:-}${GROK_HOOK_EVENT:-}${GROK_WORKSPACE_ROOT:-}${GROK_PLUGIN_ROOT:-}${NMEM_AGENT_ID:-}${NMEM_HOST_AGENT_ID:-}${NMEM_APP_DATA:-}${NMEM_APP_CONFIG_DIR:-}${NMEM_CLI_CONFIG_DIR:-}\" ] && { [ -z \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" ] || [ \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" = default ]; } && [ -n \"${NMEM_AI_NOW_HOME-$HOME/ai-now}\" ] && cat \"${NMEM_AI_NOW_HOME-$HOME/ai-now}/memory.md\" 2>/dev/null || true; fi",
+            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; if [ -f \"$SCRIPT\" ]; then sh \"$SCRIPT\" --hook; else [ -z \"${GROK_SESSION_ID:-}${GROK_HOOK_EVENT:-}${GROK_WORKSPACE_ROOT:-}${GROK_PLUGIN_ROOT:-}${NMEM_AGENT_CONTEXT:-}${NMEM_AGENT_ID:-}${NMEM_HOST_AGENT_ID:-}${NMEM_APP_DATA:-}${NMEM_APP_CONFIG_DIR:-}${NMEM_CLI_CONFIG_DIR:-}\" ] && { [ -z \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" ] || [ \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" = default ]; } && [ -n \"${NMEM_AI_NOW_HOME-$HOME/ai-now}\" ] && cat \"${NMEM_AI_NOW_HOME-$HOME/ai-now}/memory.md\" 2>/dev/null || true; fi",
             "statusMessage": "Loading Nowledge Mem context...",
             "timeout": 12
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; if [ -f \"$SCRIPT\" ]; then sh \"$SCRIPT\" --hook --compact; else [ -z \"${GROK_SESSION_ID:-}${GROK_HOOK_EVENT:-}${GROK_WORKSPACE_ROOT:-}${GROK_PLUGIN_ROOT:-}${NMEM_AGENT_ID:-}${NMEM_HOST_AGENT_ID:-}${NMEM_APP_DATA:-}${NMEM_APP_CONFIG_DIR:-}${NMEM_CLI_CONFIG_DIR:-}\" ] && { [ -z \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" ] || [ \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" = default ]; } && [ -n \"${NMEM_AI_NOW_HOME-$HOME/ai-now}\" ] && cat \"${NMEM_AI_NOW_HOME-$HOME/ai-now}/memory.md\" 2>/dev/null || true; printf '\\nContext was compacted. Save durable insights before continuing.\\n'; fi",
+            "command": "ROOT=\"${GROK_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; SCRIPT=\"$ROOT/scripts/nmem-hook-read.sh\"; if [ -f \"$SCRIPT\" ]; then sh \"$SCRIPT\" --hook --compact; else [ -z \"${GROK_SESSION_ID:-}${GROK_HOOK_EVENT:-}${GROK_WORKSPACE_ROOT:-}${GROK_PLUGIN_ROOT:-}${NMEM_AGENT_CONTEXT:-}${NMEM_AGENT_ID:-}${NMEM_HOST_AGENT_ID:-}${NMEM_APP_DATA:-}${NMEM_APP_CONFIG_DIR:-}${NMEM_CLI_CONFIG_DIR:-}\" ] && { [ -z \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" ] || [ \"${NMEM_SPACE:-${NMEM_SPACE_ID:-}}\" = default ]; } && [ -n \"${NMEM_AI_NOW_HOME-$HOME/ai-now}\" ] && cat \"${NMEM_AI_NOW_HOME-$HOME/ai-now}/memory.md\" 2>/dev/null || true; printf '\\nContext was compacted. Save durable insights before continuing.\\n'; fi",
             "statusMessage": "Restoring Nowledge Mem context...",
             "timeout": 12
           }

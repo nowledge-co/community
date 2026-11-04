@@ -70,38 +70,32 @@ Keep each host's CLI config directory and endpoint isolated. Do not copy a
 parent's context into a child. The SubagentStart hook does not inject mailbox
 admission; independent SessionStart events require separately approved config.
 
-The SessionStart/resume hook makes one bounded read-only live status check. Only
-`usable` plus `live` installs mailbox instructions and reads Working Memory
-using that exact Space ID. This opt-in path does not automatically load Context
-Bundle because the current CLI may ensure an agent profile during that call.
-Non-live or conflicting
-configuration emits a small diagnostic instead, without changing identities or
-loading a default identity as a substitute. If `NMEM_AGENT_ID`, `NMEM_SPACE` or
-the legacy `NMEM_SPACE_ID`
-is also set, it must match the validated canonical selector; aliases or Space
-names not verified by this check require explicit configuration reconciliation.
-The default mailbox guidance path never selects, recovers, enrolls, claims,
-acknowledges or sends mail. The separate experimental session adapter below
-registers an already selected identity and admits session guidance only after
-validating the current backend capability.
+Working Memory uses the independently configured Space even when the mailbox
+status check is unavailable. Only a `usable` plus `live` status installs legacy
+mailbox instructions. Named-context memory reads do not invoke create-capable
+Context Bundle or fall back to another Space. Conflicting selectors produce a
+small diagnostic without changing identities. The default mailbox guidance
+path never selects, recovers, enrolls, claims, acknowledges or sends mail.
 
 #### Experimental session mailboxes
 
-With a CLI and local backend that explicitly support `mailbox session-bootstrap`,
-set `NMEM_BRIDGE_SESSION_MAILBOX=1` alongside your approved
-`NMEM_AGENT_CONTEXT`. This is off by default. The SessionStart hook first checks
-the saved selection, then registers or inspects the mailbox belonging to the
-exact native session supplied by Codex. Startup, resume, clear and compact for
-the same native session keep that original binding. A genuinely new session
-has a separate mailbox; missing proof or failed validation does not silently
-replace the original one. SubagentStart and UserPromptSubmit do not register.
-Registration expires after 24 hours. Resume checks the original registration
-and does not renew it.
+With a CLI and backend supporting the native read-only probe, set
+`NMEM_BRIDGE_SESSION_MAILBOX=1` to inspect an existing session. This is off by
+default. A configured `NMEM_AGENT_CONTEXT` is needed for mailbox operations,
+but not for ordinary Working Memory loading.
+
+Every eligible event first probes the exact host-provided native session.
+Cloud originals, resume and compaction remain read-only. Startup/clear can
+revalidate only a verified existing Local registration through bootstrap;
+unknown or ambiguous originals never authorize new credentials. First
+registration is an explicit ordinary-turn CLI action. SubagentStart and
+UserPromptSubmit do not register. Historical identity restoration is separate;
+no startup hook creates or edits profile fields.
 
 A current compatible CLI reports `delivery_ready: true` only after validating
 the supported session capability and the complete original registered scope.
 The ready hook supplies the exact native session correlation as JSON data so
-the model can inspect this session's inbox at startup, resume and ordinary task
+the model can inspect this session's inbox at startup and ordinary task
 boundaries. To receive a bounded body batch, use the compatible CLI's existing
 session command in its default automatic mode:
 
@@ -614,3 +608,28 @@ In WSL, this Stop check requires a Linux CLI. Windows `.cmd`, `.bat` and `.exe`
 CLIs are skipped because process cleanup across the two
 systems are unsupported. The hook never substitutes another executable for
 `NMEM_CLI_PATH`.
+
+### Independent startup memory and optional Bridge registration
+
+Working Memory does not require an Agent Identity or a running mailbox.
+With optional mailbox configuration, startup reads Working Memory first through
+its own authenticated memory endpoint. A named Agent Context supplies its exact
+Space through local configuration; it is not mailbox authority. Mailbox startup
+failure, refusal or timeout cannot suppress that independent read. An unresolved
+or conflicting explicit scope never falls back to another Space or legacy file.
+
+Set `NMEM_BRIDGE_SESSION_MAILBOX=1` to enable existing-session inspection and
+Local registration revalidation when `NMEM_AGENT_CONTEXT` names a configured context. Without an identity,
+startup still loads Working Memory and reports registration `selection_required`.
+The Agent can choose/refine its identity during later ordinary work under the
+existing account permissions. The startup hook does not create or edit profiles.
+
+Every lifecycle event first probes existing original credentials using the
+host-provided exact session ID. Only a verified original Local session can be
+revalidated through Local bootstrap. Cloud sessions, resume and compaction
+remain read-only. An unavailable or ambiguous original never permits creating
+new credentials. First registration requires an explicit ordinary-turn CLI
+operation; startup cannot infer that no original exists from a probe failure.
+Restoring identity associations for historical sessions is a separate capability.
+Only a validated receiving descriptor enables session messaging guidance.
+Mailbox registration does not enable polling or wake a stopped Agent.

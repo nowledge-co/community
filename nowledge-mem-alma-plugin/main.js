@@ -661,6 +661,8 @@ export async function activate(context) {
 	let apiKey = getSetting(context.settings, "nowledgeMem.apiKey", "") || "";
 	let ambientSpace = resolveAmbientSpace(context.settings, logger);
 	const threadSyncTimeoutMs = resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS);
+	let captureController = new AbortController();
+	let captureEpoch = 0;
 	let resetDestinationCursors = () => {};
 	let client = new NowledgeMemClient(logger, {
 		apiUrl,
@@ -716,7 +718,13 @@ export async function activate(context) {
 					);
 				}
 				recallPolicy = resolveRecallPolicy(context.settings, logger);
-				autoCapture = Boolean(getSetting(context.settings, "nowledgeMem.autoCapture", true));
+				const nextAutoCapture = Boolean(getSetting(context.settings, "nowledgeMem.autoCapture", true));
+				if (nextAutoCapture !== autoCapture) {
+					captureEpoch += 1;
+					captureController.abort(new Error("Automatic capture setting changed"));
+					captureController = new AbortController();
+					autoCapture = nextAutoCapture;
+				}
 				maxRecallResults = clamp(
 					Number(getSetting(context.settings, "nowledgeMem.maxRecallResults", 5)) || 5, 1, 20,
 				);
@@ -1492,11 +1500,11 @@ export async function activate(context) {
 	//   destinationKey: string, nowledgeThreadId: string|null,
 	//   flushing: boolean, pending: boolean, inFlight: Promise|undefined, timer: number|null }
 	const captureStartedAt = Date.now();
-	let captureController = new AbortController();
 	const MAX_THREAD_BUFFERS = 20;
 	const threadBuffers = new Map();
 	const drainingBuffers = new Map();
 	let activeThreadId = null;
+	let selectionEpoch = 0;
 	let syncScope = createSyncScope();
 	let lifecycleRun;
 	let lifecycleFinished = false;
@@ -1549,7 +1557,7 @@ export async function activate(context) {
 			if (chat?.getActiveThread) {
 				try {
 					const t = await withAbort(chat.getActiveThread(), signal);
-					if (t?.title && typeof t.title === "string" && t.title.trim()) return t.title.trim();
+					if (t?.id === threadId && typeof t.title === "string" && t.title.trim()) return t.title.trim();
 				} catch (_) {}
 			}
 			signal.throwIfAborted();
@@ -1573,6 +1581,11 @@ export async function activate(context) {
 	const stableThreadId = (almaThreadId) =>
 		`alma-${createHash("sha1").update(String(almaThreadId)).digest("hex").slice(0, 12)}`;
 
+	const awaitingStoredReply = (buf) =>
+		buf.messages.at(-1)?.role === "user" ||
+		(buf.captureAfter !== undefined &&
+			buf.captureAfter === (buf.messages.at(-1)?.external_id ?? null));
+
 	/** Flush a thread buffer to Nowledge Mem if it has new messages. */
 	const flushThread = async (threadId) => {
 		const scope = syncScope;
@@ -1591,7 +1604,7 @@ export async function activate(context) {
 
 		const run = (async () => {
 		// Cancel this buffer's idle timer
-		if (buf.timer) { clearTimeout(buf.timer); buf.timer = null; }
+		if (buf.timer && !awaitingStoredReply(buf)) { clearTimeout(buf.timer); buf.timer = null; }
 
 		// Ensure stable thread ID (survives plugin restarts and LRU eviction)
 		if (!buf.nowledgeThreadId) buf.nowledgeThreadId = stableThreadId(threadId);
@@ -1690,21 +1703,45 @@ export async function activate(context) {
 		buf.inFlight = run;
 		await run;
 		if (buf.inFlight === run) buf.inFlight = undefined;
-		if (drainingBuffers.get(threadId) === buf && !buf.flushing && !buf.captureReads && buf.savedCount === buf.messages.length) {
+		if (drainingBuffers.get(threadId) === buf && !buf.flushing && !buf.captureReads && !awaitingStoredReply(buf) && buf.savedCount === buf.messages.length) {
 			drainingBuffers.delete(threadId);
 		}
 	};
 
-	const resetIdleTimer = (threadId) => {
+	const resetIdleTimer = (threadId, delayMs, retryUntil) => {
 		const buf = threadBuffers.get(threadId) ?? drainingBuffers.get(threadId);
 		if (!buf) return;
 		if (buf.timer) clearTimeout(buf.timer);
-		buf.timer = setTimeout(() => {
+		buf.captureRetryUntil = retryUntil;
+		const epoch = captureEpoch;
+		buf.timer = setTimeout(async () => {
 			buf.timer = null;
-			if (disposed || (syncScope.controller.signal.aborted && !syncScope.quitCancelled)) return;
+			if (epoch !== captureEpoch || !autoCapture || disposed || (syncScope.controller.signal.aborted && !syncScope.quitCancelled)) return;
 			resumeSync();
-			captureRecords(threadId, false).then(() => flushThread(threadId)).catch((err) => logger.error?.(`nowledge-mem: idle sync failed: ${err.message}`));
-		}, 7_000);
+			const scope = syncScope;
+			const captureClient = client;
+			const isCurrent = () =>
+				epoch === captureEpoch && autoCapture && !disposed &&
+				scope === syncScope && !scope.controller.signal.aborted &&
+				captureClient === client &&
+				(threadBuffers.get(threadId) ?? drainingBuffers.get(threadId)) === buf;
+			try {
+				if (!isCurrent()) return;
+				await captureRecords(threadId, false);
+				if (!isCurrent()) return;
+				await flushThread(threadId);
+			} catch (err) {
+				logger.error?.(`nowledge-mem: idle sync failed: ${err.message}`);
+			} finally {
+				// Some Alma providers omit didReceive. Keep reading a pending turn,
+				// including a user not yet visible during willSend, without a busy loop.
+				if (awaitingStoredReply(buf) && !buf.timer && isCurrent()) {
+					const remaining = buf.captureRetryUntil - Date.now();
+					if (remaining > 0) resetIdleTimer(threadId, Math.min(delayMs * 2, 30_000, remaining), buf.captureRetryUntil);
+					else logger.warn?.("nowledge-mem: no complete stored reply after idle capture retries; pending messages retained, retry on next activity");
+				}
+			}
+		}, delayMs);
 		buf.timer.unref?.();
 	};
 
@@ -1728,10 +1765,12 @@ export async function activate(context) {
 				const oldest = threadBuffers.keys().next().value;
 				const evicted = threadBuffers.get(oldest);
 				threadBuffers.delete(oldest);
-				if (evicted?.timer) { clearTimeout(evicted.timer); evicted.timer = null; }
-				if (evicted && (evicted.flushing || evicted.captureReads || evicted.messages.length > evicted.savedCount)) {
+				if (evicted && (evicted.flushing || evicted.captureReads || awaitingStoredReply(evicted) || evicted.messages.length > evicted.savedCount)) {
 					drainingBuffers.set(oldest, evicted);
 					flushThread(oldest).catch(() => {});
+				} else if (evicted?.timer) {
+					clearTimeout(evicted.timer);
+					evicted.timer = null;
 				}
 			}
 			const recovered = outbox.records(destinationLane()).find((record) => record.threadId === threadId);
@@ -1747,6 +1786,7 @@ export async function activate(context) {
 				inFlight: undefined,
 				timer: null,
 				...recovered,
+				captureAfter: recovered?.captureAfter ?? (recovered?.messages.length === 0 ? null : undefined),
 				recovered: Boolean(recovered),
 			});
 		}
@@ -1756,23 +1796,25 @@ export async function activate(context) {
 
 	const captureRecords = async (threadId, schedule = true) => {
 		if (!autoCapture || disposed || !threadId || syncScope.controller.signal.aborted) return;
-		const buf = ensureBuffer(threadId);
+		const buf = schedule ? ensureBuffer(threadId) : (threadBuffers.get(threadId) ?? drainingBuffers.get(threadId) ?? ensureBuffer(threadId));
 		const scope = syncScope;
 		const captureClient = client;
 		const lane = destinationLane();
+		const epoch = captureEpoch;
 		const signal = AbortSignal.any([scope.controller.signal, captureController.signal, AbortSignal.timeout(2_000)]);
-		activeThreadId = threadId;
+		const retryUntil = schedule ? Date.now() + 600_000 : buf.captureRetryUntil;
 		buf.captureReads = (buf.captureReads ?? 0) + 1;
 		try {
-			if (buf.captureSince === undefined) {
-				outbox.save(threadId, { ...buf, captureSince: captureStartedAt });
-				buf.captureSince = captureStartedAt;
+			if (schedule || buf.captureSince === undefined) {
+				outbox.save(threadId, { ...buf, captureSince: buf.captureSince ?? captureStartedAt, captureRetryUntil: retryUntil });
+				buf.captureSince ??= captureStartedAt;
+				buf.captureRetryUntil = retryUntil;
 			}
 			signal.throwIfAborted();
 			if (!context.chat?.getMessages) throw new Error("chat.getMessages unavailable");
 			const records = await withAbort(context.chat.getMessages(threadId), signal);
 			signal.throwIfAborted();
-			if (disposed || scope !== syncScope || captureClient !== client || lane !== destinationLane() || (threadBuffers.get(threadId) ?? drainingBuffers.get(threadId)) !== buf) return;
+			if (!autoCapture || disposed || scope !== syncScope || captureClient !== client || lane !== destinationLane() || (threadBuffers.get(threadId) ?? drainingBuffers.get(threadId)) !== buf) return;
 			if (!Array.isArray(records)) throw new Error("chat.getMessages did not return records");
 			const seen = new Set(buf.messages.map((message) => message.external_id));
 			const messages = buf.messages.slice();
@@ -1797,7 +1839,7 @@ export async function activate(context) {
 			logger.error?.(`nowledge-mem: stored-message capture failed${signal.aborted ? " (cancelled or timed out)" : ""}; durable progress retained, retry on next activity`);
 		} finally {
 			buf.captureReads -= 1;
-			if (schedule && !disposed && scope === syncScope && !signal.aborted && captureClient === client && (threadBuffers.get(threadId) ?? drainingBuffers.get(threadId)) === buf) resetIdleTimer(threadId);
+			if (schedule && epoch === captureEpoch && autoCapture && !disposed && scope === syncScope && !scope.controller.signal.aborted && captureClient === client && (threadBuffers.get(threadId) ?? drainingBuffers.get(threadId)) === buf) resetIdleTimer(threadId, 7_000, buf.captureRetryUntil ?? retryUntil);
 		}
 	};
 
@@ -1807,6 +1849,12 @@ export async function activate(context) {
 		const payload = normalizeWillSendPayload(first, second);
 		const { threadId, currentContent } = payload;
 
+		if (autoCapture && !disposed && threadId) {
+			selectionEpoch += 1;
+			activeThreadId = threadId;
+			const buf = ensureBuffer(threadId);
+			buf.captureAfter = buf.messages.at(-1)?.external_id ?? null;
+		}
 		await captureRecords(threadId);
 
 		// Recall injection
@@ -1858,17 +1906,26 @@ export async function activate(context) {
 		if (!autoCapture || disposed) return;
 		resumeSync();
 		const scope = syncScope;
+		const epoch = captureEpoch;
+		const selection = ++selectionEpoch;
+		const activationClient = client;
+		const isCurrent = () => autoCapture && !disposed && epoch === captureEpoch &&
+			selection === selectionEpoch && activationClient === client &&
+			scope === syncScope && !scope.controller.signal.aborted;
 		const newThreadId = input?.threadId;
 		logger.debug?.(`nowledge-mem: thread.activated fired, threadId=${newThreadId}`);
 		// Flush the previous thread (await to avoid race with new thread's hooks)
 		if (activeThreadId && activeThreadId !== newThreadId) {
 			const previousThreadId = activeThreadId;
 			await captureRecords(previousThreadId, false);
-			if (disposed || scope !== syncScope || scope.controller.signal.aborted) return;
+			if (!isCurrent()) return;
 			await flushThread(previousThreadId);
 		}
-		if (disposed || scope !== syncScope || scope.controller.signal.aborted) return;
-		if (newThreadId) await captureRecords(newThreadId);
+		if (!isCurrent()) return;
+		if (newThreadId) {
+			activeThreadId = newThreadId;
+			await captureRecords(newThreadId);
+		}
 	});
 
 	// --- Quit hooks as safety net ---
@@ -1923,10 +1980,10 @@ export async function activate(context) {
 	});
 
 	for (const record of outbox.records(destinationLane())) {
-		drainingBuffers.set(record.threadId, { ...record, recovered: true, flushing: false, pending: false, inFlight: undefined, timer: null });
+		drainingBuffers.set(record.threadId, { ...record, captureAfter: record.captureAfter ?? (record.messages.length === 0 ? null : undefined), recovered: true, flushing: false, pending: false, inFlight: undefined, timer: null });
 	}
 	if (autoCapture) {
-		for (const threadId of drainingBuffers.keys()) resetIdleTimer(threadId);
+		for (const [threadId, buf] of drainingBuffers) resetIdleTimer(threadId, 7_000, buf.captureRetryUntil ?? 0);
 	}
 
 	const remoteMode = apiUrl && apiUrl !== "http://127.0.0.1:14242";
