@@ -23,6 +23,17 @@ def exact_space(value):
     return True
 
 
+def canonical_agent_profile_id(value):
+    """Mirror the native CLI profile-key normalization and ASCII grammar."""
+    if not isinstance(value, str):
+        return None
+    canonical = "-".join(value.strip().lower().split())
+    if (not canonical or len(canonical.encode("utf-8")) > 120
+            or re.fullmatch(r"[a-z0-9][a-z0-9_.:-]*", canonical) is None):
+        return None
+    return canonical
+
+
 def valid_selection(selection):
     if not isinstance(selection, dict) or set(selection) != {"scope", "address"}:
         return False
@@ -41,7 +52,7 @@ def valid_selection(selection):
             and 0 < address["attachment_generation"] < (1 << 53))
 
 
-def memory_scope(*, find_nmem, read_json, validate_selection, timeout_seconds=MAILBOX_TIMEOUT_SECONDS):
+def memory_scope(*, find_nmem, read_json, validate_selection, source_app=None, timeout_seconds=MAILBOX_TIMEOUT_SECONDS):
     """Resolve selectors independently; the memory endpoint enforces access.
 
     A named local selector is not mailbox authority. It can select a read-only
@@ -68,6 +79,30 @@ def memory_scope(*, find_nmem, read_json, validate_selection, timeout_seconds=MA
                 or os.environ.get("NMEM_HOST_AGENT_ID", "").strip()):
             return None
         return {"name": name, "context": selected, "space_id": exact, "args": ["wm", "read", "--space-id", exact]}
+    agent = os.environ.get("NMEM_AGENT_ID", "").strip()
+    alias = os.environ.get("NMEM_HOST_AGENT_ID", "").strip()
+    if (source_app in {"codex", "claude-code"}
+            and agent and not alias and os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") != "1"
+            and not space and legacy is None):
+        canonical_agent = canonical_agent_profile_id(os.environ.get("NMEM_AGENT_ID", ""))
+        if canonical_agent is None:
+            return None
+        nmem = find_nmem()
+        profile = read_json(nmem, ["agents", "show", canonical_agent], timeout_seconds=timeout_seconds) if nmem else None
+        if (not isinstance(profile, dict) or profile.get("id") != canonical_agent
+                or not exact_space(profile.get("defaultSpaceId"))):
+            return None
+        # This slice handles only the profile-owned default Space. Explicit
+        # selectors keep their existing Working Memory behavior below.
+        exact = profile["defaultSpaceId"]
+        return {
+            "name": None,
+            "space_id": exact,
+            "agent_id": canonical_agent,
+            "bundle_args": ["context", "--agent-id", canonical_agent, "--space-id", exact, "--no-ensure"]
+            + (["--source-app", source_app] if source_app else []),
+            "args": ["wm", "read", "--space-id", exact],
+        }
     if space:
         # A friendly selector and an opaque legacy ID cannot be equated locally.
         if not exact_space(space) or legacy is not None and legacy != space:
@@ -75,8 +110,6 @@ def memory_scope(*, find_nmem, read_json, validate_selection, timeout_seconds=MA
         return {"name": None, "space_id": space, "args": ["wm", "read", "--space", space]}
     if legacy is not None:
         return {"name": None, "space_id": legacy, "args": ["wm", "read", "--space-id", legacy]} if exact_space(legacy) else None
-    agent = os.environ.get("NMEM_AGENT_ID", "").strip()
-    alias = os.environ.get("NMEM_HOST_AGENT_ID", "").strip()
     if alias and not agent:
         return None
     if agent:
@@ -90,6 +123,25 @@ def memory_scope(*, find_nmem, read_json, validate_selection, timeout_seconds=MA
         return {"name": None, "space_id": exact, "args": ["wm", "read", "--space-id", exact]}
     # No identity selector: let the authenticated CLI connection resolve its lane.
     return {"name": None, "space_id": None, "args": ["wm", "read"]}
+
+
+def valid_context_bundle(payload, *, agent_id, space_id):
+    """Accept only stored-profile source tags verified in Local and Cloud APIs."""
+    if not isinstance(payload, dict):
+        return False
+    profile = payload.get("agent_profile")
+    active_space = payload.get("active_space")
+    return (
+        isinstance(profile, dict)
+        and profile.get("agent_id") == agent_id
+        and isinstance(profile.get("source"), str)
+        and profile.get("source") in {
+            "app-settings:agentProfiles",
+            "workspace-settings:agentProfiles",
+        }
+        and isinstance(active_space, dict)
+        and active_space.get("primary_space_id") == space_id
+    )
 
 
 def session_observation(payload: dict[str, Any], *, host: str, find_nmem, read_json, run_result, validate_selection, expected_context=None) -> dict[str, Any]:

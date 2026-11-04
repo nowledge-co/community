@@ -25,7 +25,7 @@ from nmem_runtime import windows_no_window_kwargs as _windows_no_window_kwargs
 from nmem_pending import pending_startup as _pending_startup
 from nmem_stop_maintenance import _typed_selection
 from nmem_pending import read_pending as _read_pending
-from nmem_startup import memory_scope, session_observation, render_session_context
+from nmem_startup import memory_scope, session_observation, render_session_context, valid_context_bundle
 
 
 CONTEXT_TOTAL_TIMEOUT_SECONDS = 10.0
@@ -250,33 +250,38 @@ def _load_startup_context(
     allow_file_fallback: bool = True,
 ) -> str:
     deadline = time.monotonic() + total_timeout_seconds
+    scope = None
     if context_args is None and any(
         os.environ.get(key)
         for key in ("NMEM_AGENT_CONTEXT", "NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")
     ):
         scope = memory_scope(find_nmem=_nmem_command, read_json=_run_nmem_json,
                              validate_selection=_typed_selection,
+                             source_app="codex",
                              timeout_seconds=max(0.001, min(MAILBOX_TIMEOUT_SECONDS, deadline - time.monotonic())))
         if scope is None:
             return ""
-        context_args = []
+        context_args = scope.get("bundle_args", [])
         working_memory_args = scope["args"]
         allow_file_fallback = False
     nmem = _nmem_command()
     if nmem:
-        for args in (context_args if context_args is not None else _context_args(), working_memory_args if working_memory_args is not None else _working_memory_args()):
+        attempts = [context_args if context_args is not None else _context_args(), working_memory_args if working_memory_args is not None else _working_memory_args()]
+        for index, args in enumerate(attempts):
             if not args:
                 continue
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
-            rendered = _rendered_context(
-                _run_nmem_json(
+            payload = _run_nmem_json(
                     nmem,
                     args,
                     timeout_seconds=min(attempt_timeout_seconds, remaining),
                 )
-            )
+            if scope and "bundle_args" in scope and index == 0 and payload is not None:
+                if not valid_context_bundle(payload, agent_id=scope["agent_id"], space_id=scope["space_id"]):
+                    return ""
+            rendered = _rendered_context(payload)
             if rendered:
                 return rendered
 
@@ -442,8 +447,7 @@ def main(payload: dict[str, Any] | None = None) -> int:
         session_mode = os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1"
         named_context = bool(os.environ.get("NMEM_AGENT_CONTEXT", "").strip())
         scope = None
-        explicit_identity = any(os.environ.get(key) for key in ("NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID"))
-        if not session_mode and not named_context and not pending_gate and not explicit_identity:
+        if not session_mode and not named_context and not pending_gate:
             startup_context = _load_startup_context()
         else:
             scope = memory_scope(find_nmem=_nmem_command, read_json=_run_nmem_json,

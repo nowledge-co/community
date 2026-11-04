@@ -19,9 +19,10 @@ class StartupMailboxTests(unittest.TestCase):
     def invoke(
         self, host, *, named=True, failure="disabled", source="startup",
         conflict=False, native=True, mutate=None, switch=False, identity=None,
-        explicit_space=None, event="SessionStart", pending_reference=None,
+        explicit_space=None, legacy_space=None, host_agent_id=None, mailbox_opt_in=False,
+        event="SessionStart", pending_reference=None,
         original_kind=None, pending=True, memory_available=True, cli_available=True,
-        selection_available=True, agent_type="researcher",
+        selection_available=True, agent_type="researcher", bundle_mode="old_cli",
     ):
         folder = ROOT / ("nowledge-mem-codex-plugin/hooks" if host == "codex" else "nowledge-mem-claude-code-plugin/scripts")
         script = folder / ("nmem-context.py" if host == "codex" else "nmem-hook-context.py")
@@ -35,7 +36,32 @@ class StartupMailboxTests(unittest.TestCase):
             nonlocal shows
             args = argv[2:]
             calls.append(args)
-            if args[:3] == ["agents", "context", "show"]:
+            if args[:1] == ["context"]:
+                requested_agent = args[args.index("--agent-id") + 1]
+                requested_space = args[args.index("--space-id") + 1]
+                if bundle_mode == "old_cli":
+                    return subprocess.CompletedProcess(argv, 2, "", "error: unexpected argument '--no-ensure'")
+                if bundle_mode == "unavailable":
+                    return subprocess.CompletedProcess(argv, 1, '{"error":"service_unavailable"}', "")
+                if bundle_mode == "derived":
+                    reply = {"agent_profile": {"agent_id": requested_agent, "source": "derived:default"},
+                             "active_space": {"primary_space_id": requested_space}, "rendered_markdown": "must not leak"}
+                elif bundle_mode == "workspace_stored":
+                    reply = {"agent_profile": {"agent_id": requested_agent, "source": "workspace-settings:agentProfiles"},
+                             "active_space": {"primary_space_id": requested_space}, "rendered_markdown": "profile briefing"}
+                elif bundle_mode == "wrong_agent":
+                    reply = {"agent_profile": {"agent_id": "other-agent", "source": "app-settings:agentProfiles"},
+                             "active_space": {"primary_space_id": requested_space}, "rendered_markdown": "must not leak"}
+                elif bundle_mode == "mismatch":
+                    reply = {"agent_profile": {"agent_id": requested_agent, "source": "app-settings:agentProfiles"},
+                             "active_space": {"primary_space_id": "other-space"}, "rendered_markdown": "must not leak"}
+                elif bundle_mode in {"unknown_source", "malformed_source"}:
+                    reply = {"agent_profile": {"agent_id": requested_agent, "source": {} if bundle_mode == "malformed_source" else "unverified-source"},
+                             "active_space": {"primary_space_id": requested_space}, "rendered_markdown": "must not leak"}
+                else:
+                    reply = {"agent_profile": {"agent_id": requested_agent, "source": "app-settings:agentProfiles"},
+                             "active_space": {"primary_space_id": requested_space}, "rendered_markdown": "profile briefing"}
+            elif args[:3] == ["agents", "context", "show"]:
                 if not selection_available:
                     return subprocess.CompletedProcess(argv, 1, '{}', "")
                 shows += 1
@@ -57,7 +83,12 @@ class StartupMailboxTests(unittest.TestCase):
                     return subprocess.CompletedProcess(argv, 1, '{}', "")
                 reply = {"schema_version": 1, "host": host, "session_id": "exact-native", "context": "reviewer", "mailbox_kind": original_kind or ("cloud-session" if source in {"resume", "compact"} else "local-session")}
             elif args[:2] == ["agents", "show"]:
-                return subprocess.CompletedProcess(argv, 1, '{}', "")
+                if args[2:] in (["reviewer"], ["review-er"]):
+                    reply = {"id": args[2], "defaultSpaceId": "team-space"}
+                    if host_agent_id:
+                        reply["hostAgentId"] = host_agent_id
+                else:
+                    return subprocess.CompletedProcess(argv, 1, '{}', "")
             elif "mailbox" in args:
                 return subprocess.CompletedProcess(argv, 1, '{"error_code":"mailbox_delivery_unavailable"}', "")
             elif args[:2] == ["wm", "read"]:
@@ -69,13 +100,17 @@ class StartupMailboxTests(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0, json.dumps(reply), "")
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             (Path(directory) / "memory.md").write_text("legacy Default briefing", encoding="utf-8")
-            env = {"CODEX_HOME": directory, "NMEM_BRIDGE_SESSION_MAILBOX": "1" if native else "0", "NMEM_AI_NOW_HOME": directory}
+            env = {"CODEX_HOME": directory, "NMEM_BRIDGE_SESSION_MAILBOX": "1" if native or mailbox_opt_in else "0", "NMEM_AI_NOW_HOME": directory}
             if named:
                 env["NMEM_AGENT_CONTEXT"] = "reviewer"
             if identity:
                 env["NMEM_AGENT_ID"] = identity
             if explicit_space:
                 env["NMEM_SPACE"] = explicit_space
+            if legacy_space is not None:
+                env["NMEM_SPACE_ID"] = legacy_space
+            if host_agent_id:
+                env["NMEM_HOST_AGENT_ID"] = host_agent_id
             if conflict:
                 env["NMEM_SPACE"] = "different-space"
             stack.enter_context(mock.patch.dict(os.environ, env, clear=True))
@@ -171,6 +206,72 @@ class StartupMailboxTests(unittest.TestCase):
                         self.assertNotIn("independent working memory", context)
                         self.assertEqual(calls, [["agents", "show", "not-created"]])
 
+    def test_ordinary_identity_context_bundle_reads_verified_local_and_cloud_profiles(self):
+        for host in ("codex", "claude-code"):
+            for bundle_mode in ("stored", "workspace_stored"):
+                with self.subTest(host=host, source=bundle_mode):
+                    context, calls = self.invoke(host, named=False, native=False, identity="reviewer", bundle_mode=bundle_mode)
+                    self.assertIn("profile briefing", context)
+                    bundle = next(args for args in calls if args[:1] == ["context"])
+                    self.assertEqual(bundle, ["context", "--agent-id", "reviewer", "--space-id", "team-space", "--no-ensure", "--source-app", "codex" if host == "codex" else "claude-code"])
+                    self.assertEqual(calls, [["agents", "show", "reviewer"], bundle])
+
+    def test_ordinary_identity_uses_native_canonical_profile_id(self):
+        for host in ("codex", "claude-code"):
+            with self.subTest(host=host):
+                context, calls = self.invoke(host, named=False, native=False, identity="  ReView er  ", bundle_mode="stored")
+                self.assertIn("profile briefing", context)
+                self.assertIn(["agents", "show", "review-er"], calls)
+                self.assertIn(["context", "--agent-id", "review-er", "--space-id", "team-space",
+                               "--no-ensure", "--source-app", "codex" if host == "codex" else "claude-code"], calls)
+
+    def test_ordinary_identity_rejects_unproven_successful_bundles(self):
+        for host in ("codex", "claude-code"):
+            for bad_bundle in ("derived", "mismatch", "wrong_agent", "unknown_source", "malformed_source"):
+                with self.subTest(host=host, bundle=bad_bundle):
+                    context, calls = self.invoke(host, named=False, native=False, identity="reviewer", bundle_mode=bad_bundle)
+                    self.assertNotIn("## Current Nowledge context", context)
+                    self.assertNotIn("must not leak", context)
+                    self.assertNotIn("independent working memory", context)
+                    self.assertFalse(any(args[:2] == ["wm", "read"] for args in calls))
+
+    def test_identity_context_fallbacks_preserve_mailbox_and_selector_compatibility(self):
+        for host in ("codex", "claude-code"):
+            with self.subTest(host=host, bundle="old CLI fallback"):
+                context, calls = self.invoke(host, named=False, native=False, identity="reviewer", bundle_mode="old_cli")
+                self.assertIn("independent working memory", context)
+                self.assertIn(["wm", "read", "--space-id", "team-space"], calls)
+                bundle_calls = [args for args in calls if args[:1] == ["context"]]
+                self.assertEqual(len(bundle_calls), 1)
+                self.assertIn("--no-ensure", bundle_calls[0])
+                self.assertIn("--source-app", bundle_calls[0])
+            with self.subTest(host=host, bundle="unavailable bundle keeps the verified Working Memory lane"):
+                context, calls = self.invoke(host, named=False, native=False, identity="reviewer", bundle_mode="unavailable")
+                self.assertIn("independent working memory", context)
+                self.assertEqual(calls, [["agents", "show", "reviewer"],
+                    ["context", "--agent-id", "reviewer", "--space-id", "team-space", "--no-ensure", "--source-app", host],
+                    ["wm", "read", "--space-id", "team-space"]])
+            with self.subTest(host=host, bundle="friendly Space selector preserves old Working Memory path"):
+                _, calls = self.invoke(host, named=False, native=False, identity="reviewer",
+                                       explicit_space="selected-space", bundle_mode="old_cli")
+                self.assertIn(["wm", "read", "--space", "selected-space"], calls)
+                self.assertFalse(any(args[:1] == ["context"] for args in calls))
+            with self.subTest(host=host, bundle="legacy Space ID preserves old Working Memory path"):
+                _, calls = self.invoke(host, named=False, native=False, identity="reviewer",
+                                       legacy_space="legacy-space", bundle_mode="stored")
+                self.assertIn(["wm", "read", "--space-id", "legacy-space"], calls)
+                self.assertFalse(any(args[:1] == ["context"] for args in calls))
+            with self.subTest(host=host, bundle="explicit mailbox opt-in keeps Working Memory only"):
+                _, calls = self.invoke(host, named=False, native=False, mailbox_opt_in=True,
+                                       identity="reviewer", bundle_mode="stored")
+                self.assertIn(["wm", "read", "--space-id", "team-space"], calls)
+                self.assertFalse(any(args[:1] == ["context"] for args in calls))
+            with self.subTest(host=host, bundle="host alias preserves existing Working Memory path"):
+                _, calls = self.invoke(host, named=False, native=False, identity="reviewer",
+                                       host_agent_id="host-1", bundle_mode="stored")
+                self.assertIn(["wm", "read", "--space-id", "team-space"], calls)
+                self.assertFalse(any(args[:1] == ["context"] for args in calls))
+
     def test_selected_pending_subagent_memory_does_not_require_a_mailbox(self):
         context, calls = self.invoke("codex", native=False, event="SubagentStart")
         self.assertIn("independent working memory", context)
@@ -231,7 +332,7 @@ class StartupMailboxTests(unittest.TestCase):
             with self.subTest(host=host), ExitStack() as stack:
                 folder = ROOT / ("nowledge-mem-codex-plugin/hooks" if host == "codex" else "nowledge-mem-claude-code-plugin/scripts")
                 script = folder / ("nmem-context.py" if host == "codex" else "nmem-hook-context.py")
-                stack.enter_context(mock.patch.dict(os.environ, {"NMEM_AGENT_ID": "reviewer"}, clear=True))
+                stack.enter_context(mock.patch.dict(os.environ, {"NMEM_AGENT_ID": "reviewer", "NMEM_BRIDGE_SESSION_MAILBOX": "1"}, clear=True))
                 stack.enter_context(mock.patch.object(sys, "path", [str(folder), *sys.path]))
                 spec = importlib.util.spec_from_file_location("deadline_" + host, script)
                 module = importlib.util.module_from_spec(spec)
@@ -255,6 +356,39 @@ class StartupMailboxTests(unittest.TestCase):
                 else:
                     self.assertEqual(module.load_context(4).content, "bounded memory")
                 self.assertEqual(timeouts, [3.0, 1.0])
+
+    def test_ordinary_context_attempt_uses_only_the_remaining_loader_deadline(self):
+        for host in ("codex", "claude-code"):
+            with self.subTest(host=host), ExitStack() as stack:
+                folder = ROOT / ("nowledge-mem-codex-plugin/hooks" if host == "codex" else "nowledge-mem-claude-code-plugin/scripts")
+                script = folder / ("nmem-context.py" if host == "codex" else "nmem-hook-context.py")
+                stack.enter_context(mock.patch.dict(os.environ, {"NMEM_AGENT_ID": "reviewer"}, clear=True))
+                stack.enter_context(mock.patch.object(sys, "path", [str(folder), *sys.path]))
+                spec = importlib.util.spec_from_file_location("ordinary_deadline_" + host, script)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                stack.enter_context(mock.patch.object(module, "_nmem_command" if host == "codex" else "find_nmem", return_value="/pinned/nmem"))
+                clock, timeouts, calls = [0.0], [], []
+                def run(argv, **kwargs):
+                    args = argv[2:]
+                    calls.append(args)
+                    timeouts.append(kwargs["timeout"])
+                    if args == ["agents", "show", "reviewer"]:
+                        clock[0] += 3.0
+                        return subprocess.CompletedProcess(argv, 0, json.dumps({"id": "reviewer", "defaultSpaceId": "team-space"}), "")
+                    self.assertEqual(args, ["context", "--agent-id", "reviewer", "--space-id", "team-space", "--no-ensure", "--source-app", host])
+                    clock[0] += kwargs["timeout"]
+                    raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+                stack.enter_context(mock.patch.object(module.time, "monotonic", side_effect=lambda: clock[0]))
+                stack.enter_context(mock.patch.object(module.subprocess, "run", side_effect=run))
+                if host == "codex":
+                    context = module._load_startup_context(total_timeout_seconds=4, attempt_timeout_seconds=3)
+                else:
+                    context = module.load_context(4).content
+                self.assertEqual(context, "")
+                self.assertEqual(timeouts, [3.0, 1.0])
+                self.assertEqual(len(calls), 2)
+                self.assertFalse(any(args[:2] == ["wm", "read"] for args in calls))
 
     def test_no_identity_still_reads_working_memory_without_enrollment(self):
         for host in ("codex", "claude-code"):

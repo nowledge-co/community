@@ -17,7 +17,7 @@ from typing import NamedTuple
 _SCRIPT_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
-from nmem_startup import memory_scope, session_observation, render_session_context, valid_selection
+from nmem_startup import memory_scope, session_observation, render_session_context, valid_context_bundle, valid_selection
 
 TOTAL_TIMEOUT_SECONDS = 10.0
 ATTEMPT_TIMEOUT_SECONDS = 7.0
@@ -232,19 +232,24 @@ def load_context(total_timeout: float = TOTAL_TIMEOUT_SECONDS) -> ContextRead:
         if isolated_mailbox:
             selected = memory_scope(find_nmem=find_nmem, read_json=_mailbox_json,
                                     validate_selection=valid_selection,
+                                    source_app="claude-code",
                                     timeout_seconds=max(0.001, min(3.0, deadline - time.monotonic())))
             if selected is None:
                 return ContextRead("", "", "scope_unresolved")
-            attempts = [(selected["args"], "Working Memory")]
+            if "bundle_args" in selected:
+                attempts = [(selected["bundle_args"], "Context Bundle", selected)]
+                attempts.append((selected["args"], "Working Memory", None))
+            else:
+                attempts = [(selected["args"], "Working Memory", None)]
         else:
-            attempts = [(context_args + scope, "Context Bundle")]
+            attempts = [(context_args + scope, "Context Bundle", None)]
         # Without a resolved lane, an identity-owned context cannot fall back
         # to an anonymous default-space Working Memory read.
         if not isolated_mailbox and (scope or not any(
             os.environ.get(key) for key in ("NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID")
         )):
-            attempts.append((["wm", "read", *scope], "Working Memory"))
-        for args, source in attempts:
+            attempts.append((["wm", "read", *scope], "Working Memory", None))
+        for args, source, expected_bundle in attempts:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 reason = "timeout"
@@ -255,6 +260,10 @@ def load_context(total_timeout: float = TOTAL_TIMEOUT_SECONDS) -> ContextRead:
             if error:
                 reason = error
                 continue
+            if expected_bundle and not valid_context_bundle(
+                payload, agent_id=expected_bundle["agent_id"], space_id=expected_bundle["space_id"]
+            ):
+                return ContextRead("", "", "bundle_scope_mismatch")
             if payload.get("exists") is False:
                 reason = "no_briefing"
                 continue
