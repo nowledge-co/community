@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject selected-Thread continuation after native image-only or other non-text
+  turns, independently of text export. Preserve the fresh-session exception for
+  recognized text-only Cindy notes and keep attachment bytes out of capture.
+
 - Align Pi automatic capture with the human-text policy in OMP PR #782:
   preserve user/assistant text, commentary, attachment captions and complete long
   messages; exclude tool calls/results, thinking, shell output, custom context

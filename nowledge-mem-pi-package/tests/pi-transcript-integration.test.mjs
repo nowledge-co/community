@@ -58,7 +58,8 @@ function capture(t, entries, source = "pi", runtime = {}, header) {
         hasUI: false,
         ui: { notify: (message) => notices.push(message) },
     };
-    extension({ on: (event, handler) => handlers.set(event, handler) });
+    extension({ on: (event, handler) => handlers.set(event, handler),
+        appendEntry: (customType, data) => entries.push({ type: "custom", customType, data }) });
     t.after(async () => {
         try { await handlers.get("session_shutdown")({}, ctx); }
         finally {
@@ -555,4 +556,59 @@ test("Step Code retains Cindy-labelled text even when launched with Cindy variab
         "step-code", cindyRuntime);
     await flush();
     assert.equal(requests[0].body.messages[0].content, original);
+});
+
+
+test("Native prior turns block selected-Thread admission independently of export text", async (t) => {
+    const image = { type: "image", mimeType: "image/png", data: "PRIVATE_IMAGE_BYTES" };
+    const cases = [
+        ["ordinary image only", [message("prior", "user", [image])], {}, undefined],
+        ["Cindy image only", [message("prior", "user", [image])], cindyRuntime, undefined],
+        ["Cindy note plus image", [message("prior", "user", [text(cindy.language), image])], cindyRuntime, undefined],
+        ["inherited image before side scope", [message("prior", "user", [image])], cindyRuntime, forkHeader],
+        ["assistant without text", [message("prior", "assistant", [{ type: "thinking", thinking: "private" }])], {}, undefined],
+        ["empty user turn", [message("prior", "user", [])], {}, undefined],
+        ["unknown attachment", [message("prior", "user", [{ type: "file", data: "PRIVATE_FILE" }])], {}, undefined],
+        ["incomplete internal note", [message("prior", "user", "[UI language] incomplete")], cindyRuntime, undefined],
+    ];
+    for (const [name, entries, runtime, header] of cases) {
+        await t.test(name, async (child) => {
+            const fixture = capture(child, entries, "pi", runtime, header);
+            const original = structuredClone(entries);
+            const log = writeBindingCli(fixture);
+            const locator = Buffer.from(JSON.stringify(parentTarget)).toString("base64url");
+            const result = await fixture.input(`NMEM_THREAD_RESUME_V1:${locator}\n\nContinue`);
+            assert.equal(result.action, "handled");
+            assert.match(fixture.notices[0], /Start a new Pi session/);
+            assert.equal(existsSync(log), false, "must not dispatch binding bootstrap");
+            assert.equal(entries.filter((e) => e.customType === RESUME_ENTRY).length, 0);
+            assert.deepEqual(entries, original);
+            rmSync(fixture.cli);
+            entries.push(ownMessage("u", "user", header ? sideQuestion("New caption") : "New caption"),
+                ownMessage("a", "assistant", "New answer"));
+            await fixture.flush();
+            assert.equal(fixture.requests.length, 1);
+            assert.ok(!JSON.stringify(fixture.requests).includes("PRIVATE_"));
+            assert.ok(!fixture.requests[0].url.includes("/resume/"));
+        });
+    }
+});
+
+test("Fresh sessions and recognized text-only Cindy notes still admit selected Threads", async (t) => {
+    for (const [name, entries, runtime] of [
+        ["empty", [], {}],
+        ["internal notes only", [message("note", "user", [text(cindy.language), text(cindy.writable)])], cindyRuntime],
+        ["custom context", [custom("context", "internal", "Injected context")], {}],
+    ]) {
+        await t.test(name, async (child) => {
+            const fixture = capture(child, entries, "pi", runtime);
+            const log = writeBindingCli(fixture);
+            const locator = Buffer.from(JSON.stringify(parentTarget)).toString("base64url");
+            const result = await fixture.input(`NMEM_THREAD_RESUME_V1:${locator}\n\nContinue`);
+            assert.equal(result.action, "transform");
+            assert.equal(result.text, "Continue");
+            assert.equal(readFileSync(log, "utf8").trim().split("\n").length, 1);
+            assert.equal(entries.filter((e) => e.customType === RESUME_ENTRY).length, 1);
+        });
+    }
 });

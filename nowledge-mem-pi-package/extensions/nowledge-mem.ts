@@ -554,6 +554,23 @@ function cindySideScope(entries: JsonObject[], header: unknown): { start: number
 	return { start: entries.length, metadata: {} };
 }
 
+// Session use is a native-history property, not a property of exportable text.
+// Only a fully recognized, text-only Cindy host note can be ignored here.
+function piEntryUsesSession(entry: JsonObject): boolean {
+	if (entry.type !== "message" || !entry.message || typeof entry.message !== "object") return false;
+	const msg = entry.message as JsonObject;
+	if (msg.role === "assistant") return true;
+	if (msg.role !== "user") return false;
+	const parts = Array.isArray(msg.content) ? msg.content : [msg.content];
+	const textOnly = parts.length > 0 && parts.every((part) => typeof part === "string"
+		|| (part && typeof part === "object" && (part as JsonObject).type === "text"));
+	if (textOnly) {
+		const note = projectCindyUserText(piRawText(msg.content));
+		if (note.cleaned && !note.content.trim()) return false;
+	}
+	return true;
+}
+
 function buildTranscript(ctx: ExtensionContext): { messages: ThreadMessage[]; metadata: JsonObject; hasExistingDialogue: boolean } {
 	const config = resolveConfig();
 	const ambient: JsonObject = {
@@ -571,7 +588,8 @@ function buildTranscript(ctx: ExtensionContext): { messages: ThreadMessage[]; me
 	const projected = entries.map((entry, index) => entryToMessage(entry, index, ambient));
 	return { messages: projected.slice(scope.start).filter((msg): msg is ThreadMessage => !!msg), metadata: scope.metadata,
 		// Export filtering must not make inherited dialogue eligible for a fresh-session binding.
-		hasExistingDialogue: projected.some((msg) => msg?.role === "user" || msg?.role === "assistant") };
+		hasExistingDialogue: sourceApp() === "pi" ? entries.some(piEntryUsesSession)
+			: projected.some((msg) => msg?.role === "user" || msg?.role === "assistant") };
 }
 
 function sessionId(ctx: ExtensionContext): string {
