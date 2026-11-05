@@ -86,3 +86,9 @@ Do not distill routine work. If the user wouldn't miss it when it's gone, it sho
 
 - [Documentation](https://mem.nowledge.co/docs/integrations/omp)
 - [Troubleshooting](https://mem.nowledge.co/docs/troubleshooting)
+
+## Where It Lands
+
+In a Team workspace, a save with no named Space goes to your personal space ("Only me"). Read the destination Mem reports (`nmem m add` prints `Saved to <Space> (<id>)`; `memory_add` returns `space_label` and `share_hint`) instead of assuming who can see it.
+
+To share, save with `--space "<name>"` (or `space_id`), using a name from `nmem spaces list` or `list_spaces`. Use a shared Space only when the user named it; never choose one from a repo, folder, or prompt text.
