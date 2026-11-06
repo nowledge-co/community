@@ -13,6 +13,40 @@ from typing import Any
 MAILBOX_TIMEOUT_SECONDS = 3.0
 
 
+def _native_session_id(payload):
+    native = payload.get("session_id", payload.get("sessionId"))
+    try:
+        valid = isinstance(native, str) and 0 < len(native.encode("utf-8")) <= 1024 and "\0" not in native
+    except UnicodeError:
+        valid = False
+    if (not valid or "session_id" in payload and "sessionId" in payload
+            and payload["session_id"] != payload["sessionId"]):
+        return None
+    return native
+
+
+def render_host_session_context(payload: dict[str, Any], host: str) -> str:
+    sources = {"startup", "resume", "clear", "compact", "fork"}
+    if (host not in {"codex", "claude-code"}
+            or payload.get("hook_event_name", "SessionStart") != "SessionStart"
+            or not isinstance(payload.get("source"), str)
+            or payload["source"] not in sources):
+        return ""
+    native = _native_session_id(payload)
+    if native is None:
+        return ""
+    public = {"host":host, "native_session_id":native,
+              "host_args":[f"--host={host}", f"--session-id={native}"]}
+    return ("## Nowledge Bridge host session\n\n"
+            + json.dumps(public, ensure_ascii=True, sort_keys=True)
+            + "\n\nThis is host correlation only, not an Agent identity, mailbox registration, "
+              "permission or delivery readiness. For an explicit collaboration request, use "
+              "the packaged bridge skill, the existing approved Context and these literal host_args. "
+              "No mailbox flag is required to observe this host data. Do not invent a Context "
+              "or register another identity if the approved binding is missing. "
+              "This observation makes no backend request and does not receive or acknowledge mail.")
+
+
 def exact_space(value):
     if not isinstance(value, str) or "\0" in value:
         return False
@@ -103,13 +137,8 @@ def session_observation(payload: dict[str, Any], *, host: str, find_nmem, read_j
     if not isinstance(payload.get("source"), str) or payload["source"] not in {"startup", "resume", "clear", "compact"}:
         observation.update(state="refused", reason="This lifecycle source cannot register a session.")
         return observation
-    native = payload.get("session_id", payload.get("sessionId"))
-    try:
-        valid_native = isinstance(native, str) and 0 < len(native.encode("utf-8")) <= 1024 and "\0" not in native
-    except UnicodeError:
-        valid_native = False
-    if (not valid_native or "session_id" in payload and "sessionId" in payload
-            and payload["session_id"] != payload["sessionId"]):
+    native = _native_session_id(payload)
+    if native is None:
         observation.update(state="refused", reason="The host did not provide one valid exact native session ID.")
         return observation
     nmem = find_nmem()

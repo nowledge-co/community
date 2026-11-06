@@ -17,7 +17,7 @@ from typing import NamedTuple
 _SCRIPT_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
-from nmem_startup import memory_scope, session_observation, render_session_context, valid_selection
+from nmem_startup import memory_scope, session_observation, render_session_context, valid_selection, render_host_session_context
 
 TOTAL_TIMEOUT_SECONDS = 10.0
 ATTEMPT_TIMEOUT_SECONDS = 7.0
@@ -318,15 +318,17 @@ def main(
         message = "[Nowledge Mem] No startup briefing available. Targeted search remains available."
     else:
         message = f"[Nowledge Mem] Startup context unavailable ({result.reason}). Check /nowledge-mem:status."
+    try:
+        raw_payload = "" if sys.stdin.isatty() else sys.stdin.read(256 * 1024 + 1)
+        payload = json.loads(raw_payload) if len(raw_payload.encode("utf-8")) <= 256 * 1024 else {}
+        if not isinstance(payload, dict):
+            payload = {}
+    except (ValueError, OSError):
+        payload = {}
+    if host_context := render_host_session_context(payload, "claude-code"):
+        content += "\n\n" + host_context
     if os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1":
         # Registration is optional and follows the independent memory read.
-        try:
-            raw_payload = sys.stdin.read(256 * 1024 + 1)
-            payload = json.loads(raw_payload) if len(raw_payload.encode("utf-8")) <= 256 * 1024 else {}
-            if not isinstance(payload, dict):
-                payload = {}
-        except (ValueError, OSError):
-            payload = {}
         def bounded_read(nmem, args, *, timeout_seconds):
             remaining = deadline - time.monotonic()
             return _mailbox_json(nmem, args, timeout_seconds=min(timeout_seconds, remaining)) if remaining > 0 else None

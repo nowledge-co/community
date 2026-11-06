@@ -651,3 +651,8 @@ operation; startup cannot infer that no original exists from a probe failure.
 Restoring identity associations for historical sessions is a separate capability.
 Only a validated receiving descriptor enables session messaging guidance.
 Mailbox registration does not enable polling or wake a stopped Agent.
+
+SessionStart provides the real host/session correlation even with optional
+mailbox inspection off. This read-only data grants no communication authority;
+reuse an existing approved Context during an explicit Bridge request. Optional
+mailbox probing and first registration retain their separate controls.

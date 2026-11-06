@@ -6,11 +6,14 @@ an Agent, and mailbox delivery does not establish model visibility or agreement.
 
 ## Use the actual session
 
-The optional startup observation can supply `session_args`: literal argument
-values bound to the existing approved Agent Context and the host's actual
-session ID. Prepend the configured `NMEM_CLI_PATH` executable (otherwise `nmem`)
-and `--json`; append the selected action. Do not evaluate the vector in a shell.
-Keep that executable for subsequent returned command vectors as well.
+SessionStart supplies read-only `host_args` from the real host even when optional
+mailbox inspection is off. This identifies only the host session, never Agent
+identity, permission, proof or readiness. Combine the existing approved
+`--agent-context=<name>`, `bridge session` and these literal host arguments.
+A verified optional original-session observation can also supply the complete
+`session_args` prefix. Prepend the configured `NMEM_CLI_PATH` executable
+(otherwise `nmem`) and `--json`; append the selected action. Do not evaluate
+vectors in a shell, and keep that executable for returned command vectors.
 
 If the observation is absent, obtain the real correlation from the supported
 host integration and reuse the already approved Context. Never substitute a

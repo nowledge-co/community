@@ -335,3 +335,8 @@ and does not claim delivery readiness. During ordinary work, prepare verifies
 the containing backend; recovery observes the same server-owned original
 before offering execution. Missing client support, denied access and unknown
 results stay explicit. No notification, polling or host wakeup is added.
+
+SessionStart provides the real host/session correlation even with optional
+mailbox inspection off. This read-only data grants no communication authority;
+reuse an existing approved Context during an explicit Bridge request. Optional
+mailbox probing and first registration retain their separate controls.

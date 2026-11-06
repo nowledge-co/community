@@ -34,6 +34,20 @@ plugin declares that minimum version or retains an older-CLI fallback.
 
 ---
 
+## Read-only native host correlation
+
+The canonical `shared/hooks/nmem_startup.py` is packaged in both dedicated
+plugins through the same sync owner. SessionStart may expose only the host's
+actual session ID and literal `host_args`, independently of optional mailbox
+inspection and without a backend call. Malformed/ambiguous IDs and other events
+are omitted. Correlation grants no Agent identity, approved Context, private
+proof, registration or readiness. Codex subagent events must not borrow the
+parent's session ID. A documented fork source exposes only its new
+native correlation; it does not inherit the parent's original operation or proof.
+Optional mailbox admission and Memory scope remain with
+their existing owners; Claude raw context and prompt-only events do not read a
+new hook payload.
+
 ## Shared mailbox Stop helper
 
 The canonical helper is `shared/hooks/nmem_mailbox_stop.py`. Run
@@ -51,9 +65,10 @@ context/destination/Space and existing proof admission, including the final
 context readback. Python validates the content-free result and one approved
 inspection argument vector, then coordinates duplicate reminders. Native mode
 uses the actual host/session ID and never falls back to a compatibility inbox.
-Unsupported CLI/server capabilities quietly finish Stop. Native Cloud guidance
-is a Receive prefix: the normal turn must append a fresh recorded operation ID;
-Receive automatically ACKs, while the hook itself never runs it.
+Unsupported CLI/server capabilities quietly finish Stop. Native Cloud guidance points to the qualified `bridge session` flow, whose CLI
+owns original IDs and automatic Receive acceptance. The validated advanced
+Receive prefix remains diagnostic data; the hook never executes it. Unsupported
+modern clients do not gain a fallback Receive authorization.
 
 ---
 
@@ -481,3 +496,9 @@ names affect all of them:
 | `nmem plugins check` CLI | Direct `httpx.get()` — fetches from GitHub, caches to `~/.nowledge-mem/` | `id`, `name`, `version` for update awareness |
 | `check-integration` npx skill | Reads detection hints at skill invocation time | `install.command`, `install.docsUrl`, detection hints |
 | Website `integrations.ts` | Manually synced (not auto-fetched) | All fields for the integrations showcase page |
+
+Host input references checked on 2026-11-06: [Codex hooks](https://learn.chatgpt.com/docs/hooks)
+and [Claude Code SessionStart](https://code.claude.com/docs/en/hooks#sessionstart).
+Both expose the current native `session_id`; subagent events do not establish a
+new independent session mailbox. The hook still needs the host's existing trust
+and enablement settings; this package does not change them.

@@ -17,6 +17,45 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class StartupMailboxTests(unittest.TestCase):
+    def test_host_correlation_rejects_ambiguous_or_malformed_identity_data(self):
+        spec = importlib.util.spec_from_file_location("host_correlation_test", ROOT / "shared/hooks/nmem_startup.py")
+        helper = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helper)
+        valid = {"hook_event_name":"SessionStart", "source":"startup", "session_id":"actual-session"}
+        changes = [{"sessionId":"different-session"}, {"session_id":""}, {"session_id":"bad\0id"},
+                   {"session_id":"x" * 1025}, {"session_id":False}, {"session_id":"\ud800"},
+                   {"source":[]}, {"source":"unknown"}, {"hook_event_name":"SubagentStart"},
+                   {"hook_event_name":"UserPromptSubmit"}]
+        for host in ("codex", "claude-code"):
+            for change in changes:
+                with self.subTest(host=host, change=repr(change)):
+                    self.assertEqual(helper.render_host_session_context(valid | change, host), "")
+            data = valid | {"session_id":"-actual$(never-run)", "proof":"private-secret"}
+            rendered = helper.render_host_session_context(data,host)
+            value = json.loads(rendered.split("\n\n")[1])
+            self.assertEqual(value["host_args"][-1], "--session-id=-actual$(never-run)")
+            self.assertNotIn("private-secret", rendered)
+
+    def test_default_startup_exposes_host_correlation_without_enabling_a_mailbox(self):
+        for host in ("codex", "claude-code"):
+            sources = ("startup", "resume", "compact", "clear", "fork")
+            for source in sources:
+                for named in (True, False):
+                    with self.subTest(host=host, source=source, named=named):
+                        package = "nowledge-mem-codex-plugin" if host == "codex" else "nowledge-mem-claude-code-plugin"
+                        hooks = json.loads((ROOT / package / "hooks/hooks.json").read_text())
+                        self.assertTrue(any(re.search(group.get("matcher", ".*"), source)
+                                            for group in hooks["hooks"]["SessionStart"]),
+                                        "the host must actually admit this lifecycle source")
+                        context, calls = self.invoke(host, native=False, named=named, source=source)
+                        self.assertIn("independent working memory", context)
+                        section = context.split("## Nowledge Bridge host session\n\n", 1)[1]
+                        observation = json.loads(section.split("\n\n", 1)[0])
+                        self.assertEqual(observation, {"host":host,"native_session_id":"exact-native",
+                            "host_args":[f"--host={host}","--session-id=exact-native"]})
+                        self.assertFalse(any("probe" in args or "session-bootstrap" in args
+                                             or "prepare" in args or "claim" in args for args in calls))
+
     def test_native_bridge_skill_survives_standalone_codex_and_claude_packaging(self):
         registry = json.loads((ROOT / "integrations.json").read_text(encoding="utf-8"))
         for identity, directory, manifest_path in [
