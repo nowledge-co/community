@@ -30,6 +30,10 @@ authorization; this plugin does not grant communication access or wake stopped
 agents. Existing knowledge and capture connections remain separate.
 
 For a particular running session, ask it to prepare this session to receive.
+On a qualified Cloud connection, the skill uses `bridge session` convenience
+commands and the host's exact session arguments. Startup only observes an
+existing Cloud session; ordinary work verifies preparation or inspects the
+server-owned original. No intent files or local operation journal are needed.
 The skill keeps native-session contacts separate from long-lived Agent inboxes;
 the receiver prepares its own entry before the sender or task is known.
 Supported client capabilities and authorization still apply. Packaged guidance

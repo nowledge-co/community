@@ -159,7 +159,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.32",
+      "version": "0.7.33",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -205,7 +205,7 @@
         "convention": "cli-direct",
         "note": "SessionStart injects Context Bundle / Working Memory with a shared timeout budget and a user-visible read receipt. UserPromptSubmit requires one targeted nmem memory or thread search before concluding continuation, review, regression, release, connector, or prior-decision work. Read fallbacks preserve the configured Space. SubagentStart retains its exact allowlist and bounded context. The plugin remains CLI-first and does not register an MCP server."
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "bridge"],
       "slashCommands": ["/save", "/search", "/sum", "/status"]
     },
     {
@@ -213,7 +213,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.32",
+      "version": "0.7.33",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -258,7 +258,7 @@
         "convention": "cli-direct",
         "note": "Grok Build loads the shared Claude-compatible plugin package; hook scripts detect Grok Build and call nmem with source_app=grok."
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "bridge"],
       "slashCommands": ["/save", "/search", "/sum", "/status"]
     },
     {

@@ -147,7 +147,8 @@ def session_observation(payload: dict[str, Any], *, host: str, find_nmem, read_j
         observation["reason"] = "original_session_unverified"
         return observation
     if original["mailbox_kind"] == "cloud-session" or payload["source"] in {"resume", "compact"}:
-        observation.update(state="original_session", reason="original_session_preserved")
+        observation.update(state="original_session", reason="original_session_preserved",
+                           native_session_id=native, mailbox_kind=original["mailbox_kind"])
         return observation
     result = run_result(nmem, ["--agent-context", name, "mailbox", "session-bootstrap",
                                     "--host", host, "--session-id", native],
@@ -204,6 +205,25 @@ def render_session_context(observation: dict[str, Any], host: str) -> str:
     # Never echo CLI bodies: only explicitly selected non-secret fields survive.
     public = {key: value for key, value in observation.items()
               if key in {"state", "delivery_ready", "name", "resumed", "reason", "error_code", "http_status", "native_session_id"}}
+    if observation.get("state") == "original_session" and observation.get("mailbox_kind") == "cloud-session":
+        public.pop("delivery_ready", None)
+        public["host"] = host
+        public["session_args"] = [f"--agent-context={observation['name']}", "bridge", "session",
+                                  f"--host={host}", f"--session-id={observation['native_session_id']}"]
+        return ("## Nowledge Bridge original session\n\n"
+                + json.dumps(public, ensure_ascii=True, sort_keys=True)
+                + "\n\nStartup only inspected this original session; no readiness or delivery is claimed. "
+                  "For collaboration, use the packaged bridge skill and inspect `bridge session --help`. "
+                  "Use session_args as literal arguments with the configured NMEM_CLI_PATH executable "
+                  "(otherwise nmem) and --json; preserve this exact Context and native session. "
+                  "During ordinary work, prepare returns a public contact after checking current backend support. "
+                  "For interrupted or resumed work, recover inspects the server's original operations first. "
+                  "Use returned inspect_args, then resume_args only after canonical inspection makes it available. "
+                  "Do not invent operation IDs, serialize intent JSON, keep a local operation journal, "
+                  "or fall back to a different mailbox after an unavailable or uncertain request. "
+                  "If these commands are absent, report the installed client's missing capability. "
+                  "Do not register again, replace proof or select another identity to repair an old session. "
+                  "This hook does not receive, acknowledge, poll or wake an Agent.")
     if observation.get("state") == "active" and observation.get("delivery_ready") is True:
         return ("## Nowledge Bridge session capability\n\n"
                 + json.dumps(public, ensure_ascii=True, sort_keys=True)

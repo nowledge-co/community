@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.33] - Unreleased
+
+- Use native Bridge session commands with host-supplied argument data, public contacts and server-owned original recovery; failures require inspection before resume.
+- Add the packaged Bridge skill for communication requests and exact-session handoffs.
+
 ## [0.7.32] - Unreleased
 
 - Load read-only Working Memory independently of optional mailbox availability;
