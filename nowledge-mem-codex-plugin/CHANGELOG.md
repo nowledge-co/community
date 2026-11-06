@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.48] - Unreleased
+
+- Use plugin-bundled hooks on modern Codex and remove our previous host-level Stop registrations during setup, preserving unrelated hooks and the fallback runtime files.
+- Enable hook state only for explicitly configured, enabled Nowledge plugin sources; do not invent a local installation or overwrite hook trust.
+- Explain that changed plugin contents can pause capture until the user reviews the installed plugin source in `/hooks`.
+- Require a version increase in CI for every change inside the installed Codex plugin directory, including skills, documentation and tests.
+
 ## [0.1.47] - Unreleased
 
 - Continue bounded contact searches across contact pages and Space batches; report unfinished or unavailable coverage instead of a false no-match.

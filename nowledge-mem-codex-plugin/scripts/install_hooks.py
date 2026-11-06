@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -52,11 +53,6 @@ PLUGIN_HOOK_STATE_KEYS = (
     "nowledge-mem@nowledge-community:hooks/hooks.json:user_prompt_submit:0:0",
     "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0",
     "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:1",
-    "nowledge-mem@local:hooks/hooks.json:session_start:0:0",
-    "nowledge-mem@local:hooks/hooks.json:subagent_start:0:0",
-    "nowledge-mem@local:hooks/hooks.json:user_prompt_submit:0:0",
-    "nowledge-mem@local:hooks/hooks.json:stop:0:0",
-    "nowledge-mem@local:hooks/hooks.json:stop:0:1",
 )
 MCP_MANAGED_BEGIN = "# BEGIN Nowledge Mem MCP (managed by nowledge-mem-codex-plugin)"
 MCP_MANAGED_END = "# END Nowledge Mem MCP"
@@ -175,10 +171,29 @@ def _is_nowledge_hook(hook: object) -> bool:
     if not isinstance(hook, dict):
         return False
     command = hook.get("command")
-    return isinstance(command, str) and any(marker in command for marker in NOWLEDGE_HOOK_MARKERS)
+    if not isinstance(command, str):
+        return False
+    try:
+        arguments = shlex.split(command, posix=False)
+    except ValueError:
+        return False
+    if not arguments:
+        return False
+    executable = arguments[0].strip("\"'").replace("\\", "/").rsplit("/", 1)[-1]
+    if (executable not in NOWLEDGE_HOOK_MARKERS
+            and not re.fullmatch(r"(?:python(?:\d+(?:\.\d+)*)?|py)(?:\.exe)?", executable, re.I)):
+        return False
+    return any(
+        argument.strip("\"'").replace("\\", "/").rsplit("/", 1)[-1]
+        in NOWLEDGE_HOOK_MARKERS
+        for argument in arguments
+    )
 
 
-def merge_hooks_json() -> None:
+def merge_hooks_json(*, include_fallback: bool = True) -> None:
+    if not include_fallback:
+        remove_legacy_stop_hooks()
+        return
     hooks_doc = load_json(GLOBAL_HOOKS_FILE)
     if GLOBAL_HOOKS_FILE.exists():
         backup = GLOBAL_HOOKS_FILE.with_suffix(".json.bak")
@@ -217,6 +232,42 @@ def merge_hooks_json() -> None:
     save_json(GLOBAL_HOOKS_FILE, hooks_doc)
 
 
+def remove_legacy_stop_hooks() -> None:
+    """Retire only our old registrations, preserving unrelated or invalid input."""
+    if not GLOBAL_HOOKS_FILE.exists():
+        return
+    try:
+        original = GLOBAL_HOOKS_FILE.read_text(encoding="utf-8")
+        hooks_doc = json.loads(original)
+    except (OSError, UnicodeError, ValueError):
+        print("warning: legacy hook cleanup skipped; inspect invalid hooks.json manually", file=sys.stderr)
+        return
+    hooks = hooks_doc.get("hooks") if isinstance(hooks_doc, dict) else None
+    stop = hooks.get("Stop") if isinstance(hooks, dict) else None
+    if not isinstance(stop, list):
+        return
+    cleaned = []
+    changed = False
+    for entry in stop:
+        handlers = entry.get("hooks") if isinstance(entry, dict) else None
+        if not isinstance(handlers, list):
+            cleaned.append(entry)
+            continue
+        retained = [handler for handler in handlers if not _is_nowledge_hook(handler)]
+        if len(retained) == len(handlers):
+            cleaned.append(entry)
+            continue
+        changed = True
+        if retained:
+            cleaned.append(dict(entry, hooks=retained))
+    if changed:
+        backup = GLOBAL_HOOKS_FILE.with_suffix(".json.bak")
+        if not backup.exists():
+            shutil.copy2(GLOBAL_HOOKS_FILE, backup)
+        hooks["Stop"] = cleaned
+        save_json(GLOBAL_HOOKS_FILE, hooks_doc)
+
+
 def _parse_codex_toml(text: str) -> dict:
     """Use an actual TOML parser, including when setup runs on older Python."""
     try:
@@ -227,14 +278,17 @@ def _parse_codex_toml(text: str) -> dict:
         return tomllib.loads(text)
 
     # Isolated interpreter mode ignores user-site/PYTHONPATH injection. Config
-    # travels on stdin; only the two advisory sections return, never API keys.
+    # travels on stdin; only advisory fields and plugin enablement return.
     reader = (
         "import sys,json\n"
         "try: import tomllib\n"
         "except ImportError: sys.exit(3)\n"
         "try: config=tomllib.loads(sys.stdin.read())\n"
         "except tomllib.TOMLDecodeError: sys.exit(2)\n"
-        "json.dump({k:config.get(k) for k in ('features','memories')},sys.stdout,default=str)\n"
+        "result={k:config.get(k) for k in ('features','memories')}\n"
+        "plugins=config.get('plugins',{})\n"
+        "result['plugins']={k:{'enabled':v.get('enabled')} for k,v in plugins.items() if isinstance(v,dict)} if isinstance(plugins,dict) else {}\n"
+        "json.dump(result,sys.stdout,default=str)\n"
     )
     commands = []
     for name in ("python3.14", "python3.13", "python3.12", "python3.11", "python3", "python"):
@@ -260,7 +314,8 @@ def _parse_codex_toml(text: str) -> dict:
                 parsed = json.loads(result.stdout)
             except (ValueError, TypeError):
                 continue
-            if isinstance(parsed, dict) and set(parsed) == {"features", "memories"}:
+            if (isinstance(parsed, dict) and {"features", "memories"} <= set(parsed)
+                    and set(parsed) <= {"features", "memories", "plugins"}):
                 return parsed
     raise SystemExit(
         "error: setup requires a Python 3.11 or newer TOML parser. "
@@ -490,12 +545,21 @@ def ensure_nowledge_plugin_hook_state_enabled() -> None:
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
     _validate_toml_if_possible(text)
+    configured = _parse_codex_toml(text).get("plugins", {})
+    selected = {
+        name for name, options in configured.items()
+        if name.startswith("nowledge-mem@") and isinstance(options, dict)
+        and options.get("enabled") is True
+    } if isinstance(configured, dict) else set()
 
     lines = text.splitlines()
-    for key in PLUGIN_HOOK_STATE_KEYS:
-        lines = _ensure_enabled_key(lines, _hook_state_section_header(key))
+    for source in sorted(selected):
+        for key in PLUGIN_HOOK_STATE_KEYS:
+            suffix = key.split(":", 1)[1]
+            lines = _ensure_enabled_key(lines, _hook_state_section_header(f"{source}:{suffix}"))
 
-    _write_codex_config_lines(lines, restrict_permissions=False)
+    if selected:
+        _write_codex_config_lines(lines, restrict_permissions=False)
 
 
 def _load_codex_mcp_payload() -> dict | None:
@@ -722,9 +786,9 @@ def main() -> int:
     # Refuse invalid input or an unavailable parser before copying any runtime
     # hook, creating hook state, or editing the user's configuration.
     _validate_toml_if_possible(CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else "")
-    install_runtime_hook()
-    merge_hooks_json()
     plugin_hooks_required = codex_requires_legacy_plugin_hooks_gate()
+    install_runtime_hook()
+    merge_hooks_json(include_fallback=plugin_hooks_required)
     ensure_codex_hooks_enabled(plugin_hooks_required=plugin_hooks_required)
     ensure_nowledge_plugin_hook_state_enabled()
     mcp_config_installed = install_codex_mcp_config()
@@ -734,15 +798,20 @@ def main() -> int:
     print(f"- runtime hook: {INSTALLED_HOOK}")
     print(f"- skill outcome extractor: {INSTALLED_SKILL_OUTCOME}")
     print(f"- cross-platform runtime helper: {INSTALLED_NMEM_RUNTIME}")
-    print(f"- hooks config: {GLOBAL_HOOKS_FILE}")
+    if plugin_hooks_required:
+        print(f"- legacy Stop fallback registered in: {GLOBAL_HOOKS_FILE}")
+    else:
+        print("- using plugin-bundled hooks; no host-level Stop registration added")
     if plugin_hooks_required:
         print(f"- hook and legacy plugin-hook feature flags ensured in: {CONFIG_FILE}")
     else:
         print(f"- hook feature flag ensured in: {CONFIG_FILE}")
-    print(f"- plugin startup, subagent, routing, and Stop hooks enabled in: {CONFIG_FILE}")
+    print(f"- hook state enabled only for configured, enabled Nowledge plugin sources in: {CONFIG_FILE}")
     if mcp_config_installed:
         print(f"- authenticated MCP config ensured in: {CONFIG_FILE}")
     print("- restart Codex and trust the new or changed Nowledge Mem hooks when prompted")
+    print("- hook approval is not verified by setup; enabled does not mean trusted")
+    print("- 'plugin contents changed; hook approval required' pauses capture: review the installed plugin source in /hooks")
     return 0
 
 

@@ -1519,6 +1519,68 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn("statusMessage", stop[1]["hooks"][0])
         self.assertNotIn("/old/nmem-stop-save.py", json.dumps(stop))
 
+    def test_modern_cleanup_preserves_other_handlers_and_is_idempotent(self):
+        self.module.GLOBAL_HOOKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        other = {"type": "command", "command": "echo 'nmem-stop-save.py'"}
+        original = {"description": "User hooks", "hooks": {
+            "SessionStart": [{"hooks": [other]}],
+            "Stop": [{"matcher": ".*", "label": "Mixed", "hooks": [
+                {"type": "command", "command": 'python "/old/nmem-stop-save.py" --event stop'},
+                other,
+            ]}],
+        }}
+        self.module.GLOBAL_HOOKS_FILE.write_text(json.dumps(original), encoding="utf-8")
+        self.module.merge_hooks_json(include_fallback=False)
+        expected = json.loads(json.dumps(original))
+        expected["hooks"]["Stop"][0]["hooks"] = [other]
+        self.assertEqual(self.module.load_json(self.module.GLOBAL_HOOKS_FILE), expected)
+        first = self.module.GLOBAL_HOOKS_FILE.read_bytes()
+        self.module.merge_hooks_json(include_fallback=False)
+        self.assertEqual(self.module.GLOBAL_HOOKS_FILE.read_bytes(), first)
+        self.assertEqual(json.loads(self.module.GLOBAL_HOOKS_FILE.with_suffix(".json.bak").read_text()), original)
+
+    def test_modern_cleanup_does_not_create_or_replace_unknown_configuration(self):
+        self.module.merge_hooks_json(include_fallback=False)
+        self.assertFalse(self.module.GLOBAL_HOOKS_FILE.exists())
+        self.module.GLOBAL_HOOKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        for original in ("{invalid-json", "[]", '{"hooks":{"Stop":"unknown"}}'):
+            with self.subTest(original=original):
+                self.module.GLOBAL_HOOKS_FILE.write_text(original, encoding="utf-8")
+                self.module.merge_hooks_json(include_fallback=False)
+                self.assertEqual(self.module.GLOBAL_HOOKS_FILE.read_text(), original)
+
+    def test_cleanup_recognizes_script_arguments_without_matching_mentions(self):
+        for command, expected in (
+            (r'"C:\Program Files\Python\python.exe" "C:\Users\A B\hooks\nowledge-mem-stop-save.py"', True),
+            (r'py -3 "C:\Users\A B\hooks\nowledge-mem-mailbox-stop.py"', True),
+            ('python /old/nmem-stop-save.py.backup', False),
+            ('echo /old/nmem-stop-save.py', False),
+            ('python "unterminated', False),
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.module._is_nowledge_hook({"command": command}), expected)
+
+    def test_main_uses_one_hook_source_and_keeps_fallback_runtime(self):
+        for legacy in (False, True):
+            with self.subTest(legacy=legacy):
+                self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+                self.module.CONFIG_FILE.write_text(
+                    '[plugins."nowledge-mem@nowledge-community"]\nenabled = true\n', encoding="utf-8"
+                )
+                self.module.merge_hooks_json()
+                output = io.StringIO()
+                with mock.patch.object(self.module, "codex_requires_legacy_plugin_hooks_gate", return_value=legacy), \
+                     mock.patch.object(self.module, "install_codex_mcp_config", return_value=False), \
+                     mock.patch.object(self.module.sys, "stdout", output):
+                    self.assertEqual(self.module.main(), 0)
+                stop = self.module.load_json(self.module.GLOBAL_HOOKS_FILE)["hooks"]["Stop"]
+                self.assertEqual(sum(len(group["hooks"]) for group in stop), 2 if legacy else 0)
+                self.assertTrue(self.module.INSTALLED_HOOK.is_file())
+                self.assertTrue((self.module.HOOKS_DIR / "nowledge-mem-mailbox-stop.py").is_file())
+                self.assertIn("enabled does not mean trusted", output.getvalue())
+                self.assertIn("hook approval required", output.getvalue())
+                self.assertNotIn("trusted_hash", self.module.CONFIG_FILE.read_text())
+
     def test_feature_writer_preserves_table_text_inside_multiline_strings(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         for delimiter in ('"' * 3, "'" * 3):
@@ -1545,7 +1607,7 @@ class InstallHookTests(unittest.TestCase):
                                 + self.module.MCP_MANAGED_BEGIN + '\n'
                                 + '[mcp_servers.nowledge-mem]\ncommand = "example"\n'
                                 + self.module.MCP_MANAGED_END + '\n' + delimiter + '\n')
-                original = instructions + header + '\nenabled = false\n'
+                original = instructions + header + '\nenabled = false\n' + '[plugins."nowledge-mem@nowledge-community"]\nenabled = true\n'
                 self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
                 self.module.ensure_nowledge_plugin_hook_state_enabled()
                 updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
@@ -1586,7 +1648,7 @@ class InstallHookTests(unittest.TestCase):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         key = self.module.PLUGIN_HOOK_STATE_KEYS[0]
         header = '["hooks" . state . ' + json.dumps(key) + '] # existing state'
-        original = header + '\n"enabled" = false\n'
+        original = header + '\n"enabled" = false\n' + '[plugins."nowledge-mem@nowledge-community"]\nenabled = true\n'
         self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
         self.module.ensure_nowledge_plugin_hook_state_enabled()
         updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
@@ -1809,6 +1871,9 @@ class InstallHookTests(unittest.TestCase):
                     "hooks = true",
                     "plugin_hooks = true",
                     "",
+                    '[plugins."nowledge-mem@nowledge-community"]',
+                    "enabled = true",
+                    "",
                     '[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"]',
                     "enabled = false",
                     'trusted_hash = "user-approved-command-hash"',
@@ -1826,19 +1891,10 @@ class InstallHookTests(unittest.TestCase):
             'enabled = true\ntrusted_hash = "user-approved-command-hash"',
             updated,
         )
-        self.assertIn(
-            '[hooks.state."nowledge-mem@local:hooks/hooks.json:stop:0:0"]\n'
-            "enabled = true",
-            updated,
-        )
+        self.assertNotIn("nowledge-mem@local", updated)
         for event_name in ("session_start", "subagent_start", "user_prompt_submit"):
             self.assertIn(
                 f'[hooks.state."nowledge-mem@nowledge-community:hooks/hooks.json:{event_name}:0:0"]\n'
-                "enabled = true",
-                updated,
-            )
-            self.assertIn(
-                f'[hooks.state."nowledge-mem@local:hooks/hooks.json:{event_name}:0:0"]\n'
                 "enabled = true",
                 updated,
             )
@@ -1846,8 +1902,27 @@ class InstallHookTests(unittest.TestCase):
         self.module.ensure_nowledge_plugin_hook_state_enabled()
         rerun = self.module.CONFIG_FILE.read_text(encoding="utf-8")
         self.assertEqual(rerun.count("nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0"), 1)
-        self.assertEqual(rerun.count("nowledge-mem@local:hooks/hooks.json:stop:0:0"), 1)
+        self.assertNotIn("nowledge-mem@local", rerun)
         self.assertEqual(rerun.count("trusted_hash"), 1)
+
+    def test_hook_state_tracks_only_explicitly_enabled_plugin_sources(self):
+        for source, enabled in (("local", True), ("company", True), ("local", False)):
+            with self.subTest(source=source, enabled=enabled):
+                self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+                original = f'[plugins."nowledge-mem@{source}"]\nenabled = {str(enabled).lower()}\n'
+                self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+                self.module.ensure_nowledge_plugin_hook_state_enabled()
+                updated = self.module.CONFIG_FILE.read_text()
+                if enabled:
+                    self.assertIn(f'[hooks.state."nowledge-mem@{source}:', updated)
+                    self.assertNotIn('[hooks.state."nowledge-mem@nowledge-community:', updated)
+                else:
+                    self.assertEqual(updated, original)
+
+        original = "[features]\nhooks = true\n"
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        self.module.ensure_nowledge_plugin_hook_state_enabled()
+        self.assertEqual(self.module.CONFIG_FILE.read_text(), original)
 
     def test_memory_coexistence_guidance_warns_without_mutating_config(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)

@@ -80,6 +80,15 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
+      - name: Require a version for every Codex bundle change
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
+          python scripts/check_codex_bundle_version.py "$BASE_SHA" "$HEAD_SHA"
       - name: Validate shared mailbox helpers
         run: python shared/hooks/sync.py
       - name: Test passive mailbox Stop adapters

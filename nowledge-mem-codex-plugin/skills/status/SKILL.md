@@ -14,6 +14,14 @@ nmem --json status
 ## Interpretation
 
 - If healthy, report briefly (mode, server version, memory count) and continue.
+- A healthy Mem server does not prove automatic Codex capture is running. If
+  threads stopped appearing, inspect `/hooks` in the active Codex host. The
+  installed Nowledge plugin source must be enabled and trusted. After an update,
+  `plugin contents changed; hook approval required` means capture is paused
+  until the user reviews that source again. Setup cannot grant hook trust, and
+  a blocked Stop hook cannot report its own failure. Run the installed setup
+  after upgrading to migrate old duplicate host registrations, then restart
+  Codex. Do not change another hook's state or approve hooks on the user's behalf.
 - If unreachable, suggest checking:
   1. **Local mode**: Is the Nowledge Mem desktop app running?
   2. **Remote mode**: Is `~/.nowledge-mem/config.json` configured correctly?
