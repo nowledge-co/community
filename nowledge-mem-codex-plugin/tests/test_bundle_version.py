@@ -46,8 +46,10 @@ class BundleVersionTests(unittest.TestCase):
                 target = self.bundle / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text("Changed content\n", encoding="utf-8")
+                head = self.commit()
                 with self.assertRaisesRegex(ValueError, "without a version increase"):
-                    GUARD.check_versions(self.base, self.commit(), self.root)
+                    GUARD.check_versions(self.base, head, self.root)
+                self.base = head
 
     def test_version_increase_admits_bundle_changes(self):
         (self.bundle / "README.md").write_text("Changed content\n", encoding="utf-8")
@@ -62,6 +64,32 @@ class BundleVersionTests(unittest.TestCase):
     def test_unrelated_changes_need_no_codex_version(self):
         (self.root / "other.txt").write_text("Unrelated content\n", encoding="utf-8")
         GUARD.check_versions(self.base, self.commit(), self.root)
+
+    def test_divergent_base_bundle_change_does_not_charge_unrelated_stale_pr(self):
+        common = self.base
+        self.git("checkout", "--quiet", "-b", "base-update")
+        self.write_version("0.1.48")
+        (self.bundle / "README.md").write_text("Base bundle update\n", encoding="utf-8")
+        current_base = self.commit()
+        self.git("checkout", "--quiet", "-b", "stale-pr", common)
+        (self.root / "other.txt").write_text("Unrelated PR change\n", encoding="utf-8")
+        stale_head = self.commit()
+
+        GUARD.check_versions(current_base, stale_head, self.root)
+
+    def test_divergent_stale_pr_bundle_change_must_beat_current_base_version(self):
+        common = self.base
+        self.git("checkout", "--quiet", "-b", "base-update")
+        self.write_version("0.1.48")
+        (self.bundle / "README.md").write_text("Base bundle update\n", encoding="utf-8")
+        current_base = self.commit()
+        self.git("checkout", "--quiet", "-b", "stale-pr", common)
+        self.write_version("0.1.48")
+        (self.bundle / "README.md").write_text("Different PR bundle update\n", encoding="utf-8")
+        stale_head = self.commit()
+
+        with self.assertRaisesRegex(ValueError, "without a version increase"):
+            GUARD.check_versions(current_base, stale_head, self.root)
 
 
 if __name__ == "__main__":

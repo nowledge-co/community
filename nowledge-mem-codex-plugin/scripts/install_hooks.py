@@ -332,6 +332,36 @@ def _validate_toml_if_possible(text: str) -> None:
         ) from error
 
 
+def _enabled_nowledge_plugin_sources(config: dict) -> list[str]:
+    plugins = config.get("plugins")
+    if not isinstance(plugins, dict):
+        return []
+    return sorted(
+        name for name, options in plugins.items()
+        if name.startswith("nowledge-mem@") and isinstance(options, dict)
+        and options.get("enabled") is True
+    )
+
+
+def _require_single_nowledge_plugin_source(config: dict) -> str:
+    selected = _enabled_nowledge_plugin_sources(config)
+    if len(selected) == 1:
+        return selected[0]
+    if not selected:
+        raise SystemExit(
+            "error: setup requires exactly one enabled Nowledge plugin source. "
+            "Enable [plugins.\"nowledge-mem@nowledge-community\"] with "
+            "enabled = true (or enable the intended repo-local source), then rerun setup. "
+            "Existing host-level hooks were left unchanged."
+        )
+    raise SystemExit(
+        "error: setup found multiple enabled Nowledge plugin sources: "
+        + ", ".join(selected)
+        + ". Disable all but the intended source, then rerun setup. "
+        "Existing host-level hooks were left unchanged."
+    )
+
+
 def _toml_structural_lines(lines: list[str]) -> set[int]:
     """Exclude multiline string contents from table/key/comment editing."""
     structural = set()
@@ -541,25 +571,19 @@ def _ensure_enabled_key(lines: list[str], section_header: str) -> list[str]:
     return lines
 
 
-def ensure_nowledge_plugin_hook_state_enabled() -> None:
+def ensure_nowledge_plugin_hook_state_enabled() -> str:
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
     _validate_toml_if_possible(text)
-    configured = _parse_codex_toml(text).get("plugins", {})
-    selected = {
-        name for name, options in configured.items()
-        if name.startswith("nowledge-mem@") and isinstance(options, dict)
-        and options.get("enabled") is True
-    } if isinstance(configured, dict) else set()
+    selected = _require_single_nowledge_plugin_source(_parse_codex_toml(text))
 
     lines = text.splitlines()
-    for source in sorted(selected):
-        for key in PLUGIN_HOOK_STATE_KEYS:
-            suffix = key.split(":", 1)[1]
-            lines = _ensure_enabled_key(lines, _hook_state_section_header(f"{source}:{suffix}"))
+    for key in PLUGIN_HOOK_STATE_KEYS:
+        suffix = key.split(":", 1)[1]
+        lines = _ensure_enabled_key(lines, _hook_state_section_header(f"{selected}:{suffix}"))
 
-    if selected:
-        _write_codex_config_lines(lines, restrict_permissions=False)
+    _write_codex_config_lines(lines, restrict_permissions=False)
+    return selected
 
 
 def _load_codex_mcp_payload() -> dict | None:
@@ -785,13 +809,18 @@ def print_codex_memory_coexistence_guidance() -> None:
 def main() -> int:
     # Refuse invalid input or an unavailable parser before copying any runtime
     # hook, creating hook state, or editing the user's configuration.
-    _validate_toml_if_possible(CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else "")
+    config_text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
+    _validate_toml_if_possible(config_text)
+    selected_source = _require_single_nowledge_plugin_source(_parse_codex_toml(config_text))
     plugin_hooks_required = codex_requires_legacy_plugin_hooks_gate()
-    install_runtime_hook()
-    merge_hooks_json(include_fallback=plugin_hooks_required)
+    # Complete every config rewrite before retiring a working legacy fallback.
+    # If a valid but unsupported TOML shape cannot be rewritten, setup exits
+    # while the existing host-level hook remains byte-for-byte intact.
     ensure_codex_hooks_enabled(plugin_hooks_required=plugin_hooks_required)
-    ensure_nowledge_plugin_hook_state_enabled()
+    selected_source = ensure_nowledge_plugin_hook_state_enabled()
+    install_runtime_hook()
     mcp_config_installed = install_codex_mcp_config()
+    merge_hooks_json(include_fallback=plugin_hooks_required)
     print_codex_memory_coexistence_guidance()
 
     print("Installed Nowledge Mem Codex lifecycle hooks")
@@ -806,7 +835,8 @@ def main() -> int:
         print(f"- hook and legacy plugin-hook feature flags ensured in: {CONFIG_FILE}")
     else:
         print(f"- hook feature flag ensured in: {CONFIG_FILE}")
-    print(f"- hook state enabled only for configured, enabled Nowledge plugin sources in: {CONFIG_FILE}")
+    print(f"- active plugin hook source: {selected_source}")
+    print(f"- hook state enabled only for that source in: {CONFIG_FILE}")
     if mcp_config_installed:
         print(f"- authenticated MCP config ensured in: {CONFIG_FILE}")
     print("- restart Codex and trust the new or changed Nowledge Mem hooks when prompted")

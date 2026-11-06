@@ -3,7 +3,7 @@
 ## [0.1.48] - Unreleased
 
 - Use plugin-bundled hooks on modern Codex and remove our previous host-level Stop registrations during setup, preserving unrelated hooks and the fallback runtime files.
-- Enable hook state only for explicitly configured, enabled Nowledge plugin sources; do not invent a local installation or overwrite hook trust.
+- Require exactly one explicitly configured, enabled Nowledge plugin source before changing hook state or retiring a working fallback; name conflicting sources without inventing a local installation or overwriting hook trust.
 - Explain that changed plugin contents can pause capture until the user reviews the installed plugin source in `/hooks`.
 - Require a version increase in CI for every change inside the installed Codex plugin directory, including skills, documentation and tests.
 

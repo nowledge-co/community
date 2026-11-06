@@ -16,8 +16,11 @@ def check_versions(base: str, head: str, root: Path = ROOT) -> None:
     for revision in (base, head):
         if not re.fullmatch(r"[0-9a-f]{40}", revision):
             raise ValueError("Bundle checks require full commit SHAs")
+    merge_base = subprocess.check_output(
+        ["git", "merge-base", base, head], cwd=root, text=True
+    ).strip()
     changed = subprocess.check_output(
-        ["git", "diff", "--name-only", base, head, "--", BUNDLE], cwd=root
+        ["git", "diff", "--name-only", merge_base, head, "--", BUNDLE], cwd=root
     )
     if not changed:
         return

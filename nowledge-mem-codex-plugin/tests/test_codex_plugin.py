@@ -1579,7 +1579,47 @@ class InstallHookTests(unittest.TestCase):
                 self.assertTrue((self.module.HOOKS_DIR / "nowledge-mem-mailbox-stop.py").is_file())
                 self.assertIn("enabled does not mean trusted", output.getvalue())
                 self.assertIn("hook approval required", output.getvalue())
+                self.assertIn("active plugin hook source: nowledge-mem@nowledge-community", output.getvalue())
                 self.assertNotIn("trusted_hash", self.module.CONFIG_FILE.read_text())
+
+    def test_main_rejects_missing_or_multiple_plugin_sources_before_writes(self):
+        cases = (
+            ("[features]\nhooks = true\n", "exactly one enabled"),
+            ('[plugins."nowledge-mem@local"]\nenabled = false\n', "exactly one enabled"),
+            ('[plugins."nowledge-mem@local"]\nenabled = true\n'
+             '[plugins."nowledge-mem@nowledge-community"]\nenabled = true\n', "multiple enabled"),
+        )
+        for original, message in cases:
+            with self.subTest(message=message):
+                self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+                self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+                old_hooks = '{"hooks":{"Stop":[{"hooks":[{"command":"python /old/nmem-stop-save.py"}]}]}}'
+                self.module.GLOBAL_HOOKS_FILE.write_text(old_hooks, encoding="utf-8")
+                with mock.patch.object(self.module, "install_runtime_hook") as runtime, \
+                     mock.patch.object(self.module, "merge_hooks_json") as hooks:
+                    with self.assertRaisesRegex(SystemExit, message):
+                        self.module.main()
+                runtime.assert_not_called()
+                hooks.assert_not_called()
+                self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+                self.assertEqual(self.module.GLOBAL_HOOKS_FILE.read_text(encoding="utf-8"), old_hooks)
+
+    def test_main_preserves_legacy_fallback_when_valid_config_cannot_be_rewritten(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        original = ('features = { hooks = false }\n'
+                    '[plugins."nowledge-mem@nowledge-community"]\nenabled = true\n')
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        old_hooks = '{"hooks":{"Stop":[{"hooks":[{"command":"python /old/nmem-stop-save.py"}]}]}}'
+        self.module.GLOBAL_HOOKS_FILE.write_text(old_hooks, encoding="utf-8")
+        with mock.patch.object(self.module, "codex_requires_legacy_plugin_hooks_gate", return_value=False), \
+             mock.patch.object(self.module, "install_runtime_hook") as runtime, \
+             mock.patch.object(self.module, "merge_hooks_json") as hooks:
+            with self.assertRaises(SystemExit):
+                self.module.main()
+        runtime.assert_not_called()
+        hooks.assert_not_called()
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+        self.assertEqual(self.module.GLOBAL_HOOKS_FILE.read_text(encoding="utf-8"), old_hooks)
 
     def test_feature_writer_preserves_table_text_inside_multiline_strings(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -1911,17 +1951,20 @@ class InstallHookTests(unittest.TestCase):
                 self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
                 original = f'[plugins."nowledge-mem@{source}"]\nenabled = {str(enabled).lower()}\n'
                 self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
-                self.module.ensure_nowledge_plugin_hook_state_enabled()
-                updated = self.module.CONFIG_FILE.read_text()
                 if enabled:
+                    self.module.ensure_nowledge_plugin_hook_state_enabled()
+                    updated = self.module.CONFIG_FILE.read_text()
                     self.assertIn(f'[hooks.state."nowledge-mem@{source}:', updated)
                     self.assertNotIn('[hooks.state."nowledge-mem@nowledge-community:', updated)
                 else:
-                    self.assertEqual(updated, original)
+                    with self.assertRaisesRegex(SystemExit, "exactly one enabled"):
+                        self.module.ensure_nowledge_plugin_hook_state_enabled()
+                    self.assertEqual(self.module.CONFIG_FILE.read_text(), original)
 
         original = "[features]\nhooks = true\n"
         self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
-        self.module.ensure_nowledge_plugin_hook_state_enabled()
+        with self.assertRaisesRegex(SystemExit, "exactly one enabled"):
+            self.module.ensure_nowledge_plugin_hook_state_enabled()
         self.assertEqual(self.module.CONFIG_FILE.read_text(), original)
 
     def test_memory_coexistence_guidance_warns_without_mutating_config(self):
