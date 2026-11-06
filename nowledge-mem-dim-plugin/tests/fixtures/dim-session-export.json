@@ -1,0 +1,182 @@
+{
+ "sessionId": "11111111-2222-3333-4444-555555555555",
+ "branchId": "main",
+ "through": 13,
+ "events": [
+  {
+   "id": "fixture-1",
+   "sequence": 1,
+   "create_at": 1761000000000,
+   "type": "input",
+   "name": "message",
+   "data": {
+    "blocks": [
+     {
+      "type": "raw",
+      "text": "<dim-state source=\"dim/environment/context\">workspace</dim-state>"
+     }
+    ]
+   }
+  },
+  {
+   "id": "fixture-2",
+   "sequence": 2,
+   "create_at": 1761000001000,
+   "type": "input",
+   "name": "message",
+   "data": {
+    "user": {
+     "content": [
+      {
+       "type": "text",
+       "text": "Summarize the release notes."
+      },
+      {
+       "type": "text",
+       "text": "<dim-hooks kind=\"prompt-submit\">routing guidance</dim-hooks>"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "fixture-3",
+   "sequence": 3,
+   "create_at": 1761000002000,
+   "type": "turn",
+   "name": "start",
+   "data": {
+    "turn_id": "turn-1"
+   }
+  },
+  {
+   "id": "fixture-4",
+   "sequence": 4,
+   "create_at": 1761000002500,
+   "type": "step",
+   "name": "model-start",
+   "data": {
+    "turn_id": "turn-1",
+    "request_id": "request-tool"
+   }
+  },
+  {
+   "id": "fixture-5",
+   "sequence": 5,
+   "create_at": 1761000002600,
+   "type": "step",
+   "name": "thinking",
+   "data": {
+    "turn_id": "turn-1",
+    "request_id": "request-tool",
+    "delta": "internal reasoning"
+   }
+  },
+  {
+   "id": "fixture-6",
+   "sequence": 6,
+   "create_at": 1761000003000,
+   "type": "step",
+   "name": "text",
+   "data": {
+    "turn_id": "turn-1",
+    "request_id": "request-tool",
+    "delta": "Checking the files."
+   }
+  },
+  {
+   "id": "fixture-7",
+   "sequence": 7,
+   "create_at": 1761000004000,
+   "type": "step",
+   "name": "tool-use",
+   "data": {
+    "turn_id": "turn-1",
+    "request_id": "request-tool",
+    "call": {
+     "id": "call-1",
+     "name": "read",
+     "input": {}
+    }
+   }
+  },
+  {
+   "id": "fixture-8",
+   "sequence": 8,
+   "create_at": 1761000005000,
+   "type": "step",
+   "name": "tool-call",
+   "data": {
+    "turn_id": "turn-1",
+    "request_id": "request-tool",
+    "calls": [
+     {
+      "id": "call-1",
+      "name": "read",
+      "input": {}
+     }
+    ]
+   }
+  },
+  {
+   "id": "fixture-9",
+   "sequence": 9,
+   "create_at": 1761000005500,
+   "type": "step",
+   "name": "model-start",
+   "data": {
+    "turn_id": "turn-1",
+    "request_id": "request-reply"
+   }
+  },
+  {
+   "id": "fixture-10",
+   "sequence": 10,
+   "create_at": 1761000006000,
+   "type": "step",
+   "name": "text",
+   "data": {
+    "turn_id": "turn-1",
+    "request_id": "request-reply",
+    "delta": "Here is the summary."
+   }
+  },
+  {
+   "id": "fixture-11",
+   "sequence": 11,
+   "create_at": 1761000007000,
+   "type": "step",
+   "name": "text",
+   "data": {
+    "turn_id": "turn-1",
+    "request_id": "request-reply",
+    "delta": " It is short."
+   }
+  },
+  {
+   "id": "fixture-12",
+   "sequence": 12,
+   "create_at": 1761000007500,
+   "type": "step",
+   "name": "model-output-end",
+   "data": {
+    "turn_id": "turn-1",
+    "request_id": "request-reply",
+    "status": "completed",
+    "finish_reason": "end_turn"
+   }
+  },
+  {
+   "id": "fixture-13",
+   "sequence": 13,
+   "create_at": 1761000008000,
+   "type": "turn",
+   "name": "end",
+   "data": {
+    "turn_id": "turn-1",
+    "status": "completed",
+    "reason": "end_turn"
+   }
+  }
+ ]
+}
