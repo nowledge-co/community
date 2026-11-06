@@ -1621,6 +1621,24 @@ class InstallHookTests(unittest.TestCase):
         self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
         self.assertEqual(self.module.GLOBAL_HOOKS_FILE.read_text(encoding="utf-8"), old_hooks)
 
+    def test_main_preflights_feature_and_hook_state_writes_as_one_transaction(self):
+        self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        original = ('hooks = { state = {} }\n'
+                    '[features]\nhooks = false\n'
+                    '[plugins."nowledge-mem@nowledge-community"]\nenabled = true\n')
+        self.module.CONFIG_FILE.write_text(original, encoding="utf-8")
+        old_hooks = '{"hooks":{"Stop":[{"hooks":[{"command":"python /old/nmem-stop-save.py"}]}]}}'
+        self.module.GLOBAL_HOOKS_FILE.write_text(old_hooks, encoding="utf-8")
+        with mock.patch.object(self.module, "codex_requires_legacy_plugin_hooks_gate", return_value=False), \
+             mock.patch.object(self.module, "install_runtime_hook") as runtime, \
+             mock.patch.object(self.module, "merge_hooks_json") as hooks:
+            with self.assertRaises(SystemExit):
+                self.module.main()
+        runtime.assert_not_called()
+        hooks.assert_not_called()
+        self.assertEqual(self.module.CONFIG_FILE.read_text(encoding="utf-8"), original)
+        self.assertEqual(self.module.GLOBAL_HOOKS_FILE.read_text(encoding="utf-8"), old_hooks)
+
     def test_feature_writer_preserves_table_text_inside_multiline_strings(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         for delimiter in ('"' * 3, "'" * 3):

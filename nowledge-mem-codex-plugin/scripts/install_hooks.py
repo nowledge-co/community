@@ -486,9 +486,11 @@ def codex_requires_legacy_plugin_hooks_gate() -> bool:
     return True
 
 
-def ensure_codex_hooks_enabled(*, plugin_hooks_required: bool = True) -> None:
-    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
+def _codex_hooks_enabled_lines(
+    text: str,
+    *,
+    plugin_hooks_required: bool,
+) -> list[str]:
     _validate_toml_if_possible(text)
 
     lines = text.splitlines()
@@ -540,6 +542,17 @@ def ensure_codex_hooks_enabled(*, plugin_hooks_required: bool = True) -> None:
             for line in reversed(missing_feature_lines):
                 lines.insert(insert_at, line)
 
+    return lines
+
+
+def ensure_codex_hooks_enabled(*, plugin_hooks_required: bool = True) -> None:
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
+    lines = _codex_hooks_enabled_lines(
+        text,
+        plugin_hooks_required=plugin_hooks_required,
+    )
+
     _write_codex_config_lines(lines, restrict_permissions=False)
 
 
@@ -571,16 +584,20 @@ def _ensure_enabled_key(lines: list[str], section_header: str) -> list[str]:
     return lines
 
 
+def _nowledge_plugin_hook_state_lines(lines: list[str], selected: str) -> list[str]:
+    for key in PLUGIN_HOOK_STATE_KEYS:
+        suffix = key.split(":", 1)[1]
+        lines = _ensure_enabled_key(lines, _hook_state_section_header(f"{selected}:{suffix}"))
+    return lines
+
+
 def ensure_nowledge_plugin_hook_state_enabled() -> str:
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""
     _validate_toml_if_possible(text)
     selected = _require_single_nowledge_plugin_source(_parse_codex_toml(text))
 
-    lines = text.splitlines()
-    for key in PLUGIN_HOOK_STATE_KEYS:
-        suffix = key.split(":", 1)[1]
-        lines = _ensure_enabled_key(lines, _hook_state_section_header(f"{selected}:{suffix}"))
+    lines = _nowledge_plugin_hook_state_lines(text.splitlines(), selected)
 
     _write_codex_config_lines(lines, restrict_permissions=False)
     return selected
@@ -685,9 +702,7 @@ def _write_codex_config_lines(
     *,
     restrict_permissions: bool,
 ) -> None:
-    updated = "\n".join(lines)
-    if updated and not updated.endswith("\n"):
-        updated += "\n"
+    updated = _render_codex_config_lines(lines)
     _validate_toml_if_possible(updated)
     if restrict_permissions:
         try:
@@ -714,6 +729,13 @@ def _write_codex_config_lines(
                 f"warning: could not restrict permissions on {CONFIG_FILE}: {error}",
                 file=sys.stderr,
             )
+
+
+def _render_codex_config_lines(lines: list[str]) -> str:
+    updated = "\n".join(lines)
+    if updated and not updated.endswith("\n"):
+        updated += "\n"
+    return updated
 
 
 def _install_mcp_config_from_payload(payload: dict) -> bool:
@@ -813,12 +835,17 @@ def main() -> int:
     _validate_toml_if_possible(config_text)
     selected_source = _require_single_nowledge_plugin_source(_parse_codex_toml(config_text))
     plugin_hooks_required = codex_requires_legacy_plugin_hooks_gate()
-    # Complete every config rewrite before retiring a working legacy fallback.
+    # Compose and validate every capture-config change before the first write.
     # If a valid but unsupported TOML shape cannot be rewritten, setup exits
-    # while the existing host-level hook remains byte-for-byte intact.
-    ensure_codex_hooks_enabled(plugin_hooks_required=plugin_hooks_required)
-    selected_source = ensure_nowledge_plugin_hook_state_enabled()
+    # while both config and the existing host-level hook remain byte-for-byte intact.
+    config_lines = _codex_hooks_enabled_lines(
+        config_text,
+        plugin_hooks_required=plugin_hooks_required,
+    )
+    config_lines = _nowledge_plugin_hook_state_lines(config_lines, selected_source)
+    _validate_toml_if_possible(_render_codex_config_lines(config_lines))
     install_runtime_hook()
+    _write_codex_config_lines(config_lines, restrict_permissions=False)
     mcp_config_installed = install_codex_mcp_config()
     merge_hooks_json(include_fallback=plugin_hooks_required)
     print_codex_memory_coexistence_guidance()
