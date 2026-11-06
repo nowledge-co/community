@@ -9,7 +9,7 @@
     "designDoc": "https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md",
     "appliesTo": [
       "claude-code", "grok", "grok-bot", "codex-cli", "cursor", "gemini-cli", "google-antigravity", "copilot-cli", "cherry-studio",
-      "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "step-code", "opencode", "craft-agent", "workbuddy", "codebuddy", "dimagent",
+      "openclaw", "hermes", "ekko", "droid", "alma", "bub", "pi", "step-code", "opencode", "craft-agent", "workbuddy", "codebuddy", "dimagent", "dim",
       "kimi-code", "kimi-work", "zcode", "deepseek-harness", "mimo-code", "omp", "claude-desktop", "proma",
       "raft", "lody", "multica", "cumora", "paseo", "openhands", "langgraph", "mirasim", "cindy", "amp", "agent-plugins", "mcp-direct",
       "chatgpt-cloud", "claude-cloud"
@@ -706,6 +706,66 @@
         "note": "The package reuses shared Nowledge Mem skills and local MCP defaults. Hooks never export transcript content or create threads directly; nmem owns source-specific parsing and durable queueing."
       },
       "skills": ["working-memory", "search-memory", "distill-memory", "explore-graph", "status"],
+      "slashCommands": []
+    },
+    {
+      "id": "dim",
+      "name": "Dim",
+      "category": "coding",
+      "type": "plugin",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-dim-plugin",
+      "transport": "mcp+hook+cli",
+      "capabilities": {
+        "workingMemory": true,
+        "search": true,
+        "distill": true,
+        "autoRecall": true,
+        "autoCapture": true,
+        "graphExploration": true,
+        "status": true
+      },
+      "threadSave": {
+        "method": "hook+cli-import",
+        "runtime": "dim",
+        "command": "nmem t import --file <thread.json> --source dim --id dim-<session-id>",
+        "note": "The Stop hook reads the Session through Dim's own `session export --format json`, keeps operator input and completed assistant reply text only, and imports with the checkpointed-delta contract (--expected-message-count; one full re-import on checkpoint_conflict). A Collaboration member Session is captured under its own id and its operator turn is the unwrapped <dim-agent-message> task. It runs only the executable Dim's CLI maintains for the daemon (<DIMCODE_HOME>/rust/dimcode-server) or an explicit NMEM_DIM_BIN, never a command from PATH."
+      },
+      "autonomy": {
+        "bootstrap": "automatic",
+        "recall": "automatic",
+        "distill": "guided",
+        "threads": "automatic-capture",
+        "bestResultRequires": [
+          "Clone nowledge-co/community and install the package directory with dima plugin install (or dimcode plugin install from a source build)",
+          "Keep nmem on PATH or set NMEM_CLI_PATH",
+          "Requires Dim v0.1.0-alpha.20 or newer",
+          "Restart Dim or reload the plugin after an update",
+          "Verify one short Dim session appears under nmem t list --source dim"
+        ]
+      },
+      "install": {
+        "command": "dima plugin install ./community/nowledge-mem-dim-plugin",
+        "updateCommand": "git -C community pull && dima plugin reload nowledge-mem",
+        "configRequired": "Clone nowledge-co/community first: Dim installs a plugin from a local directory and cannot install a repository subdirectory from a Git URL. Then run dima plugin install ./community/nowledge-mem-dim-plugin (or dimcode plugin install with a source build), keep nmem on PATH or set NMEM_CLI_PATH, and start a new Dim Session. Requires Dim v0.1.0-alpha.20 or newer.",
+        "detectionHint": "Running inside Dim; DIM_SESSION_ID is set and DIMCODE_HOME names its product home",
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Dim. Clone the community repository if needed, install the package directory with dima plugin install, verify with nmem status and the Context Bundle or Working Memory check, then complete one short Dim session and confirm nmem t list --source dim shows the captured thread.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Dim 安装或更新 Nowledge Mem。需要时克隆 community 仓库，用 dima plugin install 安装插件目录；用 nmem status 和 Context Bundle 或 Working Memory 检查验证，然后完成一次短 Dim 会话，并确认 nmem t list --source dim 能看到捕获的线程。"
+        },
+        "docsUrl": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-dim-plugin#readme"
+      },
+      "toolNaming": {
+        "convention": "host-generated",
+        "note": "Dim names MCP tools mcp_<label>_<digest>, so the package's skills refer to Mem tools by description and use the nmem CLI for exact calls."
+      },
+      "skills": [
+        "read-working-memory",
+        "search-memory",
+        "distill-memory",
+        "explore-graph",
+        "status"
+      ],
       "slashCommands": []
     },
     {

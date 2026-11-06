@@ -43,7 +43,7 @@ BENCH_PACKAGE = COMMUNITY_ROOT / "nowledge-mem-bench"
 ALMA_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-alma-plugin"
 AMP_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-amp-plugin"
 DEEPSEEK_HARNESS_PLUGIN = COMMUNITY_ROOT / "nowledge-mem-deepseek-harness-plugin"
-KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi"}
+KEY_HOSTS = {"claude", "codex", "openclaw", "hermes", "opencode", "pi", "dim"}
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -1620,6 +1620,25 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem:status",
         "nowledge-mem:sync-now",
         "nowledge-mem:import-history",
+    ]
+    assert by_id["dim"]["version"] == "0.1.0"
+    assert by_id["dim"]["directory"] == "nowledge-mem-dim-plugin"
+    assert by_id["dim"]["transport"] == "mcp+hook+cli"
+    assert by_id["dim"]["capabilities"]["autoCapture"] is True
+    assert by_id["dim"]["capabilities"]["autoRecall"] is True
+    assert by_id["dim"]["threadSave"]["method"] == "hook+cli-import"
+    assert by_id["dim"]["threadSave"]["runtime"] == "dim"
+    assert by_id["dim"]["threadSave"]["command"].startswith("nmem t import")
+    assert "--source dim" in by_id["dim"]["threadSave"]["command"]
+    assert by_id["dim"]["autonomy"]["threads"] == "automatic-capture"
+    assert by_id["dim"]["install"]["command"].startswith("dima plugin install")
+    assert "dim" in connect["appliesTo"]
+    assert by_id["dim"]["skills"] == [
+        "read-working-memory",
+        "search-memory",
+        "distill-memory",
+        "explore-graph",
+        "status",
     ]
     assert by_id["kimi-work"]["version"] == "0.1.0"
     assert by_id["kimi-work"]["directory"] == "nowledge-mem-kimi-work-connector"
