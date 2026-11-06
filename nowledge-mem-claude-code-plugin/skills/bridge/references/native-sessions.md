@@ -33,7 +33,13 @@ The CLI owns registration, proof and recovery-capability verification. Read the
 actual result: `state: prepared` and verified delivery readiness are prerequisites
 for describing a usable entry. Registration alone is insufficient. If any part
 fails or is unconfirmed, preserve the original session and explain the supported
-next step. Do not recreate proof for an old resumed session.
+next step. A `preparation_incomplete` failure can retain confirmed registration
+while recovery remains unverified; this is not a usable receiving entry. Honor
+known access refusals first. Its `inspect_args` only checks the same session's
+originals; after that succeeds, explicitly prepare the same session again with
+its retained proof. Older clients may return only an error: missing partial
+metadata is not evidence that registration never happened. Do not recreate
+proof for an old resumed session.
 
 Share the returned public `contact` as data. It contains no credential and is not
 an invitation URL. Preparing the receiver does not require the peer's identity,

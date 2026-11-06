@@ -103,6 +103,23 @@ message, use `reply` on that original instead of selecting a new recipient.
 For a native session, retain the returned session address and original message
 correlation through the native path instead of these Agent contact handles.
 
+For contact discovery, one response is a bounded page, not a complete directory.
+Use top-level `next_args` for the selected Space's next contact page. An
+all-Spaces result instead carries per-Space continuation in `spaces[].next_args`
+and the next Space batch in `spaces_next_args`; these advance different scans.
+Follow only the CLI-returned vectors as literal process arguments, using the
+same executable, API connection, approved Context when selected and original
+query. Preserve the returned exact Space; never reconstruct or interchange
+cursors. This read-only search grants no new identity or sending authority.
+
+Continue only as needed to identify the intended recipient within a finite
+search budget. Stop for confirmation when the choice is ambiguous. A first page
+with no match is not absence while a continuation remains; an unavailable Space
+or exhausted budget means coverage is incomplete. Report what remains instead
+of claiming nobody exists, retrying forever or choosing a similar name. Keep
+known access refusals distinct from transient/unknown failures. If more results are indicated but an older client supplies no supported
+continuation, report that capability limitation; never guess a cursor. Send only after the recipient and its Space are confirmed.
+
 A request must include the goal, necessary background, allowed scope, constraints,
 and completion criteria. Memory, shared-document, PR and issue references are
 optional supplements within the recipient's reach. CRDT documents may carry

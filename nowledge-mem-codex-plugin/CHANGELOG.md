@@ -2,6 +2,7 @@
 
 ## [0.1.47] - Unreleased
 
+- Continue bounded contact searches across contact pages and Space batches; report unfinished or unavailable coverage instead of a false no-match.
 - Expose read-only host correlation on SessionStart independently of the optional mailbox flag; malformed or ambiguous session data grants no capability.
 - Use native Bridge session commands with host-supplied argument data, public contacts and server-owned original recovery; failures require inspection before resume.
 

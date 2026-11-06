@@ -502,3 +502,16 @@ and [Claude Code SessionStart](https://code.claude.com/docs/en/hooks#sessionstar
 Both expose the current native `session_id`; subagent events do not establish a
 new independent session mailbox. The hook still needs the host's existing trust
 and enablement settings; this package does not change them.
+
+### Bounded Bridge contact discovery
+
+The 2026-11-06 owner-selected follow-up to
+https://github.com/nowledge-co/community/issues/799 teaches existing contact
+continuations in both standalone Bridge skills. A selected Space's top-level
+`next_args`, an all-Spaces result's `spaces[].next_args` and
+`spaces_next_args` advance distinct bounded scans. Preserve returned argument
+data, the connection, selected Context, query and exact Space; cursors confer
+no authority. Partial/unavailable coverage or an exhausted finite budget must
+not become a global no-match claim or automatic recipient choice. Existing
+backend admission and explicit recipient confirmation remain authoritative.
+This is guidance only; installed-model first-use acceptance remains open.
