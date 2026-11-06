@@ -280,8 +280,9 @@ class MailboxStopTests(unittest.TestCase):
                 self.assertEqual(response["decision"], "block")
                 self.assertIn('"--host", "' + self.host + '"', response["reason"])
                 if kind == "cloud-session":
-                    self.assertIn("--operation-id", response["reason"])
-                    self.assertIn("automatically ACKs", response["reason"])
+                    self.assertIn("do not append an invented --operation-id", response["reason"])
+                    self.assertIn("automatic mailbox acceptance", response["reason"])
+                    self.assertIn("Inspect uncertain originals first", response["reason"])
         self.assertEqual(len(self.calls), 2)
 
     def test_incomplete_observation_remains_explicit_with_or_without_pending(self):
