@@ -243,6 +243,15 @@ When a host supports multiple ways to choose a lane, prefer one clear precedence
 
 Humans should usually work with the visible space name. Only storage and compatibility surfaces need the hidden key.
 
+### Team workspaces (Spaces as rooms)
+
+On Mem Cloud Team workspaces a Space is a room: the audience, the write destination and the Bridge address all follow from it. Plugins should not hide that.
+
+- A write with no explicit Space lands in the member's personal space ("Only me"). `nmem m add` (0.10.114+) prints `Saved to <label> (<id>)`; `--json` adds `space_id`, `space` and `share_hint`. Cloud MCP `memory_add` returns `space_label` and `share_hint`. Surface the destination; do not assume it.
+- An explicit `default` is deprecated there and lands in the personal space with a note; name a shared Space instead.
+- `nmem spaces list` and Cloud MCP `list_spaces` give the exact IDs and kinds a member can name. `nmem bridge` and `nmem mailbox cloud` take `--space <name>` or `--space-id <id>`; `nmem bridge contacts --query <name> --all-spaces` finds a person across readable Spaces. A refusal lists candidate Spaces (`selection_needed`, `space_not_yours`); candidates are suggestions, never an automatic choice.
+- The app's "Everything I can see" is a read view, not a save target.
+
 ---
 
 ## Tool Naming

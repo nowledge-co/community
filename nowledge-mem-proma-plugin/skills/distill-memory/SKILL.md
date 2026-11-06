@@ -59,3 +59,9 @@ nmem --json m add "JWT refresh failures came from clock skew." \
 2. Include enough context for your future self (or another AI) to understand 3 months later
 3. Don't save trivialities — "we used port 3000" doesn't belong unless the choice of port was significant
 4. Built-in `mcp__mem__add_memory` is for session-level notes; use nmem for cross-session durability
+
+## Where It Lands
+
+In a Team workspace, a save with no named Space goes to your personal space ("Only me"). Read the destination Mem reports (`nmem m add` prints `Saved to <Space> (<id>)`; `memory_add` returns `space_label` and `share_hint`) instead of assuming who can see it.
+
+To share, save with `--space "<name>"` (or `space_id`), using a name from `nmem spaces list` or `list_spaces`. Use a shared Space only when the user named it; never choose one from a repo, folder, or prompt text.

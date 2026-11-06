@@ -33,3 +33,9 @@ Use structured saves when possible: `--unit-type` (`fact`, `preference`, `decisi
 ## Native Connector
 
 These skills work in any agent via CLI. For auto-recall, auto-capture, and graph tools, check if your agent has a native Nowledge Mem connector — run the `check-integration` skill or see https://mem.nowledge.co/docs/integrations
+
+## Where It Lands
+
+In a Team workspace, a save with no named Space goes to your personal space ("Only me"). Read the destination Mem reports (`nmem m add` prints `Saved to <Space> (<id>)`; `memory_add` returns `space_label` and `share_hint`) instead of assuming who can see it.
+
+To share, save with `--space "<name>"` (or `space_id`), using a name from `nmem spaces list` or `list_spaces`. Use a shared Space only when the user named it; never choose one from a repo, folder, or prompt text.

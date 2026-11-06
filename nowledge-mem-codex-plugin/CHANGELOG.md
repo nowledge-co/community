@@ -18,6 +18,9 @@
   Claude Code can opt in with `NMEM_BRIDGE_SESSION_MAILBOX=1`; registration alone
   grants no receiving capability. Resume only probes the original native session
   without preparing credentials. First registration stays an explicit ordinary-turn action.
+- `distill-memory` now says where a Team save lands: with no named Space it goes to
+  your personal space ("Only me"), Mem reports the destination, and sharing means
+  saving with `--space`. Guidance only; no runtime change.
 
 ## [0.1.45] - Unreleased
 

@@ -71,3 +71,9 @@ nmem --json m update <memory-id> --content "Updated rationale: ..."
 - Use `memory_add` (`nmem m add`) when the insight is genuinely new.
 - Use `memory_update` / `memory_supersede` (`nmem m update`) when refining, correcting, or replacing an existing memory.
 - Prefer adding meaningful labels (`architecture`, `decision`, `openhands`, `convention`) to assist subsequent graph discovery.
+
+## Where It Lands
+
+In a Team workspace, a save with no named Space goes to your personal space ("Only me"). Read the destination Mem reports (`nmem m add` prints `Saved to <Space> (<id>)`; `memory_add` returns `space_label` and `share_hint`) instead of assuming who can see it.
+
+To share, save with `--space "<name>"` (or `space_id`), using a name from `nmem spaces list` or `list_spaces`. Use a shared Space only when the user named it; never choose one from a repo, folder, or prompt text.
