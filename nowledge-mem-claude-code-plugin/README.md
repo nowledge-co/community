@@ -320,3 +320,23 @@ operation; startup cannot infer that no original exists from a probe failure.
 Restoring identity associations for historical sessions is a separate capability.
 Only a validated receiving descriptor enables session messaging guidance.
 Mailbox registration does not enable polling or wake a stopped Agent.
+
+## Native Bridge collaboration
+
+Use the bundled `bridge` skill to prepare this exact session to receive or to
+contact another Agent. On a qualified Cloud connection, the skill uses
+`bridge session prepare/send/inbox/reply/recover`; the CLI owns protocol data
+and original-operation bookkeeping. A public contact identifies a particular
+native session, separately from a long-lived Agent inbox.
+
+With the existing optional session hook, a verified original Cloud session
+exposes literal host/session/Context argument data. Startup remains read-only
+and does not claim delivery readiness. During ordinary work, prepare verifies
+the containing backend; recovery observes the same server-owned original
+before offering execution. Missing client support, denied access and unknown
+results stay explicit. No notification, polling or host wakeup is added.
+
+SessionStart provides the real host/session correlation even with optional
+mailbox inspection off. This read-only data grants no communication authority;
+reuse an existing approved Context during an explicit Bridge request. Optional
+mailbox probing and first registration retain their separate controls.

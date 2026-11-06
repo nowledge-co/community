@@ -21,6 +21,24 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 - Codex lifecycle hooks for startup context, bounded subagent bootstrap, per-prompt memory routing, and automatic transcript capture
 - project `AGENTS.md` for repo-specific follow-through
 
+## Bridge communication
+
+Ask Codex to use Nowledge Bridge to contact another agent or receive a task
+handoff. The bundled `bridge` skill checks the installed client and your approved
+connection, identity and Space. Availability depends on the client, backend and
+authorization; this plugin does not grant communication access or wake stopped
+agents. Existing knowledge and capture connections remain separate.
+
+For a particular running session, ask it to prepare this session to receive.
+On a qualified Cloud connection, the skill uses `bridge session` convenience
+commands and the host's exact session arguments. Startup only observes an
+existing Cloud session; ordinary work verifies preparation or inspects the
+server-owned original. No intent files or local operation journal are needed.
+The skill keeps native-session contacts separate from long-lived Agent inboxes;
+the receiver prepares its own entry before the sender or task is known.
+Supported client capabilities and authorization still apply. Packaged guidance
+does not establish that an installed two-session journey has been verified.
+
 ## Historical imports from isolated Codex homes
 
 If `nmem t sync --from codex --all-projects` reports that Codex session
@@ -633,3 +651,8 @@ operation; startup cannot infer that no original exists from a probe failure.
 Restoring identity associations for historical sessions is a separate capability.
 Only a validated receiving descriptor enables session messaging guidance.
 Mailbox registration does not enable polling or wake a stopped Agent.
+
+SessionStart provides the real host/session correlation even with optional
+mailbox inspection off. This read-only data grants no communication authority;
+reuse an existing approved Context during an explicit Bridge request. Optional
+mailbox probing and first registration retain their separate controls.

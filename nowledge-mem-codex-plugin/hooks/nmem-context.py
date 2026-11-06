@@ -25,7 +25,7 @@ from nmem_runtime import windows_no_window_kwargs as _windows_no_window_kwargs
 from nmem_pending import pending_startup as _pending_startup
 from nmem_stop_maintenance import _typed_selection
 from nmem_pending import read_pending as _read_pending
-from nmem_startup import memory_scope, session_observation, render_session_context
+from nmem_startup import memory_scope, session_observation, render_session_context, render_host_session_context
 
 
 CONTEXT_TOTAL_TIMEOUT_SECONDS = 10.0
@@ -439,6 +439,8 @@ def main(payload: dict[str, Any] | None = None) -> int:
         # existing 4 KiB child budget cannot truncate its safe reference JSON.
         context_parts.insert(0, pending_hint)
     if event_name == "SessionStart":
+        if host_context := render_host_session_context(payload, "codex"):
+            context_parts.append(host_context)
         session_mode = os.environ.get("NMEM_BRIDGE_SESSION_MAILBOX") == "1"
         named_context = bool(os.environ.get("NMEM_AGENT_CONTEXT", "").strip())
         scope = None

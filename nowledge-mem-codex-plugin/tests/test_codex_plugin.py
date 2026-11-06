@@ -842,7 +842,7 @@ class PackagedHookConfigTests(unittest.TestCase):
             set(hooks),
             {"SessionStart", "SubagentStart", "UserPromptSubmit", "Stop"},
         )
-        self.assertEqual(hooks["SessionStart"][0]["matcher"], "startup|resume|clear|compact")
+        self.assertEqual(hooks["SessionStart"][0]["matcher"], "startup|resume|clear|compact|fork")
         self.assertEqual(hooks["SubagentStart"][0]["matcher"], ".*")
         for event_name in ("SessionStart", "SubagentStart", "UserPromptSubmit"):
             hook = hooks[event_name][0]["hooks"][0]

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.47] - Unreleased
+
+- Continue bounded contact searches across contact pages and Space batches; report unfinished or unavailable coverage instead of a false no-match.
+- Expose read-only host correlation on SessionStart independently of the optional mailbox flag; malformed or ambiguous session data grants no capability.
+- Use native Bridge session commands with host-supplied argument data, public contacts and server-owned original recovery; failures require inspection before resume.
+
+- Guide explicit native-session collaboration separately from Agent inboxes, including receiver-only preparation, canonical reply correlation and integration-owned bookkeeping.
+- Add a discoverable Bridge skill for explicit communication requests and receiving task handoffs. Inspect installed CLI capabilities and approved identity/Space before use; preserve unsupported-setup and authorization boundaries.
+- Separate message delivery/read status from a receiving session's explicit claim. No automatic host wakeup or new credential authorization is introduced.
+
 ## [0.1.46] - Unreleased
 
 - Load read-only Working Memory independently of optional mailbox availability;
