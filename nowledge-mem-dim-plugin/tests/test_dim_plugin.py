@@ -73,7 +73,9 @@ class ManifestTests(unittest.TestCase):
             self.assertIn(script, handler["command"])
             self.assertIn("$DIM_PLUGIN_ROOT", handler["command"])
             self.assertIn("run-hook.ps1", handler["commandWindows"])
-            self.assertIn("%DIM_PLUGIN_ROOT%", handler["commandWindows"])
+            self.assertIn("DIM_PLUGIN_ROOT", handler["commandWindows"])
+            self.assertIn("powershell.exe", handler["commandWindows"])
+            self.assertNotIn("cmd /", handler["commandWindows"])
         self.assertIn('" context', session_start["command"])
         self.assertIn('" prompt', prompt["command"])
         self.assertIn('" capture', stop["command"])
@@ -1090,8 +1092,82 @@ class LauncherAndDocsTests(unittest.TestCase):
         for text in (posix, powershell):
             self.assertIn("nmem_hook.py", text)
             self.assertIn("nmem_capture.py", text)
-        mode = (SCRIPTS / "run-hook.sh").stat().st_mode
-        self.assertTrue(mode & stat.S_IXUSR)
+        if os.name != "nt":
+            # A Windows checkout does not carry the POSIX executable bit; the
+            # Windows hook command calls run-hook.ps1 through powershell.exe.
+            mode = (SCRIPTS / "run-hook.sh").stat().st_mode
+            self.assertTrue(mode & stat.S_IXUSR)
+
+    @unittest.skipUnless(os.name == "nt", "PowerShell launcher")
+    def test_powershell_launcher_prints_the_prompt_guidance(self):
+        completed = subprocess.run(
+            [
+                "powershell", "-NoLogo", "-NoProfile", "-NonInteractive",
+                "-ExecutionPolicy", "Bypass", "-File",
+                str(SCRIPTS / "run-hook.ps1"), "prompt",
+            ],
+            input="",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=60,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn(nmem_hook.PROMPT_GUIDANCE, completed.stdout)
+
+    @unittest.skipUnless(os.name == "nt", "PowerShell launcher")
+    def test_powershell_launcher_dispatches_capture_to_the_capture_script(self):
+        root = Path(tempfile.mkdtemp(dir=ISOLATED_TMP))
+        env = os.environ.copy()
+        for name in ("TMPDIR", "TEMP", "TMP"):
+            env[name] = str(root)
+        env.pop("DIMCODE_HOME", None)
+        completed = subprocess.run(
+            [
+                "powershell", "-NoLogo", "-NoProfile", "-NonInteractive",
+                "-ExecutionPolicy", "Bypass", "-File",
+                str(SCRIPTS / "run-hook.ps1"), "capture",
+            ],
+            input=json.dumps({"hook_event_name": "Stop", "session_id": "s-ps"}),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+            timeout=60,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        log = root / "nowledge-mem" / "dim-capture" / "nowledge-mem-dim-hook.log"
+        self.assertTrue(log.exists(), completed.stderr)
+        self.assertIn('"reason": "no_home"', log.read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(os.name == "nt", "Windows command line")
+    def test_manifest_windows_command_runs_under_cmd_and_powershell(self):
+        handlers = load(PACKAGE / "hooks.json")["hooks"]
+        command = handlers["UserPromptSubmit"][0]["hooks"][0]["commandWindows"]
+        env = os.environ.copy()
+        env["DIM_PLUGIN_ROOT"] = str(PACKAGE)
+        invocations = [
+            ("cmd", 'cmd /d /s /c "' + command + '"'),
+            (
+                "powershell",
+                [
+                    "powershell", "-NoLogo", "-NoProfile", "-NonInteractive",
+                    "-Command", command,
+                ],
+            ),
+        ]
+        for name, invocation in invocations:
+            completed = subprocess.run(
+                invocation,
+                input="",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env,
+                timeout=60,
+            )
+            self.assertEqual(completed.returncode, 0, (name, completed.stderr))
+            self.assertIn("hookSpecificOutput", completed.stdout, name)
 
     def test_readme_documents_the_executable_rule(self):
         readme = (PACKAGE / "README.md").read_text(encoding="utf-8")

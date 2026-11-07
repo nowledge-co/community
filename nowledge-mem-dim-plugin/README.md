@@ -195,6 +195,12 @@ client configuration. This package deliberately sends no credential header.
 
 ## Platforms
 
-Hooks run on macOS, Linux, and Windows. The package starts Python from absolute
-`PATH` directories only; on Windows it uses Windows PowerShell 5.1. If no trusted
-Python exists, the hooks exit 0 and Dim continues.
+Hooks run on macOS, Linux, and Windows. Dim runs the Windows hook command
+through its execution shell, which is PowerShell in a default install; the
+package ships a command line that runs under both PowerShell and cmd. The
+command resolves `powershell.exe` through `PATH` under PowerShell (pwsh and
+Windows PowerShell) and under Git Bash; under a cmd execution shell, cmd
+searches the Session's working directory before `PATH`, so a `powershell.exe`
+placed there would win. `run-hook.ps1` starts Python from absolute `PATH`
+directories only, using Windows PowerShell 5.1. If no trusted Python exists,
+the hooks exit 0 and Dim continues.
