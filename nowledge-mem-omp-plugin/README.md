@@ -6,7 +6,7 @@ Cross-tool memory for OMP. Your decisions, preferences, and procedures persist a
 
 OMP gains a native extension plus five skills:
 
-- Completed OMP conversations sync into Nowledge Mem as searchable threads
+- Human dialogue from completed OMP conversations syncs as searchable Mem threads
 - Context Bundle or Working Memory is injected at startup when available
 - Search, thread lookup, and distillation stay available through skills and the `nmem` CLI
 - Remote Mem works through shared `nmem` client config or `NMEM_API_URL` / `NMEM_API_KEY`
@@ -48,6 +48,20 @@ nmem t list --source omp -n 5
 
 To confirm startup context injection, start a new OMP session and ask what Nowledge Mem context was provided. OMP should reference the injected Context Bundle or Working Memory without needing to run the `read-working-memory` skill again.
 
+## What Automatic Capture Saves
+
+Automatic capture follows the default Codex import's human-text projection:
+complete user input and assistant text, including progress commentary, final
+replies, and user-invoked `/skill:` drafts. Attachment captions are retained;
+image/file payloads and synthetic placeholders are omitted. It excludes agent-attributed user
+injections, tool calls and results, reasoning, expanded skill bodies, and
+internal branch/compaction summaries. This uses OMP's message attribution and
+content types rather than stripping text that a user might have quoted. Human
+messages are not shortened by the legacy 20,000-character cap.
+
+Native thread/message identities and acknowledged suffix sync are preserved.
+An update does not remove or rewrite noise already stored in existing threads.
+
 ## Import Older OMP Sessions
 
 The extension keeps new OMP conversations synced automatically. To backfill sessions that happened before you installed the package, preview and then import:
@@ -57,7 +71,7 @@ nmem t sync --from omp --limit 20
 nmem t sync --from omp --apply
 ```
 
-This command reads local OMP JSONL sessions from the OMP machine and uploads normalized threads through the configured Mem API. It is safe to rerun.
+This command reads local OMP JSONL sessions from the OMP machine and uploads normalized threads through the configured Mem API. The CLI history importer has its own projection rules; the plugin's automatic-capture filter does not change this command. Inspect the preview before applying an import.
 
 ## Customize without editing the package
 

@@ -1,0 +1,16 @@
+{
+  "reference": {
+    "cli": "nmem 0.10.110",
+    "command": "nmem --json t sync --from codex --session-dir <synthetic-fixture-directory> --all-projects --apply",
+    "fixture": "codex-human-dialogue.jsonl",
+    "evidence": "Observed default-import write payload with a loopback receiver; this fixture asserts text projection, not persistence acknowledgements. Long user/assistant text of 21020/21022 characters was also observed without truncation."
+  },
+  "messages": [
+    { "role": "user", "content": "Synthetic human question" },
+    { "role": "assistant", "content": "I will check the change" },
+    { "role": "assistant", "content": "Synthetic assistant answer" },
+    { "role": "user", "content": "/skill:review fixture" },
+    { "role": "user", "content": "Look at these" },
+    { "role": "assistant", "content": "I reviewed the attachments" }
+  ]
+}

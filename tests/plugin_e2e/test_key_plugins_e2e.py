@@ -398,7 +398,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.47"
+    assert codex_manifest["version"] == "0.1.48"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -530,7 +530,7 @@ def test_key_plugin_static_contracts_are_declared():
     opencode_pkg = _read_json(OPENCODE_PLUGIN / "package.json")
     opencode_source = (OPENCODE_PLUGIN / "src" / "index.ts").read_text(encoding="utf-8")
     assert opencode_pkg["name"] == "opencode-nowledge-mem"
-    assert opencode_pkg["version"] == "0.4.6"
+    assert opencode_pkg["version"] == "0.4.7"
     assert registry_by_id["opencode"]["version"] == opencode_pkg["version"]
     assert registry_by_id["opencode"]["capabilities"]["autoCapture"] is True
     assert registry_by_id["opencode"]["autonomy"]["threads"] == "automatic-capture"
@@ -740,7 +740,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.14"
+    assert pi_pkg["version"] == "0.8.16"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "scripts/sync-history.mjs"
@@ -811,14 +811,14 @@ def test_key_plugin_static_contracts_are_declared():
     omp_pkg = _read_json(OMP_PLUGIN / "package.json")
     omp_extension = (OMP_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     omp_agent = (OMP_PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
-    assert omp_pkg["version"] == "0.1.3"
-    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.10"
+    assert omp_pkg["version"] == "0.1.4"
+    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.15"
     assert "./extensions/nowledge-mem.ts" in omp_pkg["omp"]["extensions"]
     assert "./skills" in omp_pkg["omp"]["skills"]
     assert "pi" not in omp_pkg
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "omp"' in omp_extension
     assert 'process.env.NMEM_PLUGIN_HOST_LABEL = "OMP"' in omp_extension
-    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.3"' in omp_extension
+    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.4"' in omp_extension
     assert 'import("nowledge-mem-pi/extensions/nowledge-mem.ts")' in omp_extension
     assert "nmem --json context --source-app omp" in omp_agent
     assert "source_app=omp" in omp_agent
@@ -1555,9 +1555,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["droid"]["version"] == "0.1.2"
     assert by_id["openclaw"]["version"] == "0.8.39"
     assert by_id["proma"]["version"] == "0.1.5"
-    assert by_id["opencode"]["version"] == "0.4.6"
+    assert by_id["opencode"]["version"] == "0.4.7"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
-    assert by_id["pi"]["version"] == "0.8.14"
+    assert by_id["pi"]["version"] == "0.8.16"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["grok-bot"]["version"] is None
@@ -1733,7 +1733,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "step update npm:nowledge-mem-step-code"
     )
     assert "save-thread" in by_id["step-code"]["skills"]
-    assert by_id["omp"]["version"] == "0.1.3"
+    assert by_id["omp"]["version"] == "0.1.4"
     assert by_id["omp"]["directory"] == "nowledge-mem-omp-plugin"
     assert by_id["omp"]["transport"] == "plugin+cli"
     assert by_id["omp"]["capabilities"]["autoRecall"] is True
@@ -1938,7 +1938,7 @@ def test_opencode_thread_sync_timeout_contract():
     readme = (OPENCODE_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (OPENCODE_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pkg["version"] == "0.4.6"
+    assert pkg["version"] == "0.4.7"
     assert opencode_registry["version"] == pkg["version"]
     assert 'from "./generated/plugin-core/index.js"' in timeout_source
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in source
@@ -2423,7 +2423,7 @@ def test_pi_thread_sync_timeout_contract():
     readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pi_pkg["version"] == "0.8.14"
+    assert pi_pkg["version"] == "0.8.16"
     assert pi_registry["version"] == pi_pkg["version"]
     assert 'from "./generated/plugin-core/index.js"' in extension
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension
@@ -2742,24 +2742,13 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
     source_codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).expanduser()
-    for name in ("auth.json", "config.toml", "installation_id", "version.json"):
+    for name in ("auth.json", "installation_id", "version.json"):
         source_file = source_codex_home / name
         if source_file.exists():
             shutil.copy2(source_file, codex_home / name)
     codex_env = e2e_context.env.copy()
     codex_env["CODEX_HOME"] = str(codex_home)
     legacy_plugin_hooks = _codex_requires_legacy_plugin_hooks(codex_env)
-    if not legacy_plugin_hooks and (codex_home / "config.toml").exists():
-        # Exercise a clean modern install. The installer deliberately preserves
-        # an old removed key when a user's existing config still contains it.
-        config_lines = (codex_home / "config.toml").read_text(encoding="utf-8").splitlines()
-        config_lines = [
-            line for line in config_lines if not line.strip().startswith("plugin_hooks =")
-        ]
-        (codex_home / "config.toml").write_text(
-            "\n".join(config_lines) + "\n",
-            encoding="utf-8",
-        )
 
     (workspace / ".agents" / "plugins").mkdir(parents=True)
     shutil.copytree(
@@ -2815,7 +2804,7 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
         assert "plugin_hooks = true" in codex_config
     else:
         assert "plugin_hooks = true" not in codex_config
-    assert "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0" in codex_config
+    assert "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0" not in codex_config
     assert "nowledge-mem@local:hooks/hooks.json:stop:0:0" in codex_config
 
     prompt = (

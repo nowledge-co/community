@@ -24,6 +24,11 @@ The copied handoff contains no API key or conversation transcript. Native
 Pi gains a native extension plus five skills:
 
 - Completed Pi conversations sync into Nowledge Mem as searchable threads
+- Automatic capture keeps user/assistant text, including commentary, attachment
+  captions and full long messages. Tool activity, thinking, shell output, custom
+  extension context and internal summaries are excluded. Binary attachments are
+  not uploaded or replaced with synthetic placeholders. Previously stored Threads
+  and the separate `nmem t sync --from pi` history importer are unchanged.
 - Context Bundle or Working Memory is injected at Pi startup when available
 - Search, thread lookup, and distillation stay available through skills and the `nmem` CLI
 - Remote Mem works through `~/.nowledge-mem/config.json` or `NMEM_API_URL` / `NMEM_API_KEY`
@@ -35,6 +40,41 @@ Pi gains a native extension plus five skills:
 | `distill-memory` | Saves decisions, insights, and procedures as durable memories |
 | `save-thread` | Creates a curated handoff summary when you explicitly want one |
 | `status` | Checks Nowledge Mem server connectivity |
+
+## Cindy-hosted Pi sessions
+
+When Cindy supplies both `CINDY_PI_SESSION_ID` and `CINDY_PI_PERMISSION_FILE`,
+automatic capture removes recognized leading wire notes added by Cindy 0.1.121:
+WeChat channel headers, directory grants, UI language and client/device notes,
+side-chat notes and explicitly delimited handoff, context rebuild and fork records. Empty
+internal messages are omitted; the actual question and assistant text remain.
+WeChat channel kind, display names and explicit speaker ownership are retained
+in message `metadata.cindy_origin`. Group speakers and explicitly non-owner
+private senders also retain a short speaker label in the text, using their
+display name when available or the verified group/non-owner role otherwise,
+because Thread views may omit message metadata. Transport chat/user/device identifiers
+from those headers are omitted. The permission file itself is not read.
+
+For Cindy side chats, a native fork header and the first user turn at or after
+the session's creation time must identify a complete side-chat note. Capture
+then begins at that turn, excluding inherited main/ancestor messages while
+preserving new occurrences, native IDs and acknowledged suffixes. Thread
+metadata records `pi_side_session` and, when available from the native parent
+filename, `pi_parent_session_id`; parent paths and content are not uploaded.
+A Cindy fork with no user turn of its own is not captured yet. Ordinary forks
+keep their existing full-branch policy; missing or ambiguous fork timestamps
+do not cause history to be removed.
+
+Cindy forks also ignore continuation markers copied from an ancestor, including
+before their first user turn. Such a marker cannot bind the child to the
+parent's selected Mem Thread. A child's own saved marker and explicit Thread
+continuation still use the existing verification and fresh-session checks.
+
+Ordinary Pi sessions do not enable this text filter. Unknown or incomplete
+notes, quoted/fenced examples and assistant responses are preserved. Matching
+is limited to complete known templates at the start of a user message, not
+keywords throughout the conversation. Existing saved Threads and the separate
+CLI history importer are not rewritten by this filter.
 
 ## Prerequisites
 

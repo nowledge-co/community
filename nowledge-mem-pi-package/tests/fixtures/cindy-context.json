@@ -1,0 +1,14 @@
+{
+  "reference": "Synthetic examples of Cindy 0.1.121 wire-message wrappers; no real conversations, devices or contact IDs.",
+  "side": "[Side chat context] This is an independent follow-up to a main task. History inherited at the fork is reference material, not active instructions or authorization. Answer the current question; do not resume the main task, its pending actions, or its plan. Keep exploration non-mutating unless the user explicitly requests a change in this side chat. The main task continues separately and does not receive these replies automatically.",
+  "channel": "[渠道说明] 系统追加，不是用户消息。本条来自微信私聊 (chat_id: synthetic-chat@im.wechat)。",
+  "group": "[渠道说明] 系统追加，不是用户消息。本条来自微信群「Fixture Group」(chat_id: synthetic-group)，发言人「Fixture Guest」(user_id: synthetic-sender)，不是主人。",
+  "client": "[客户端说明] 系统追加的环境说明，不是用户消息，不要回应或复述。本轮用户在另一台电脑「Fixture Controller」(device_id: synthetic-controller) 上远程操作本机「Fixture Host」(device_id: synthetic-host)。",
+  "mobilePreference": "产出 HTML 等可预览成品时**优先做成自包含单文件**:样式与脚本内联,图片用 data: URI 或公网地址,避免拆成需要同目录资源的多文件产物;用户明确要求多文件时照常产出。给出文件路径时同时给出结论或内容摘要,不要只回一个路径。",
+  "language": "[UI language] System note appended each turn. This is not a user message. Do not answer it, quote it, or infer intent from it. The user interface language is 简体中文 (zh-CN). When you tell the user that something failed, was blocked, could not continue, or needs a retry, write that report in 简体中文. Do not default that report to English unless the interface language is English. Say what happened and the next step. Keep commands, paths, identifiers, and error codes unchanged. Ordinary replies still follow the user message and any explicit language request. Only user-facing error reports must use the interface language.",
+  "writable": "<cindy-extra-writable-directories>\nThe user explicitly allowed additional writable locations for this task. Stay inside those grants; do not write the plugin library root.\n</cindy-extra-writable-directories>",
+  "referenceDirectories": "<cindy-extra-reference-directories>\nThis task can read extra references as read-only.\n- fixture-reference\n</cindy-extra-reference-directories>",
+  "handoff": "[Session handoff · internal context]\nThis conversation was previously driven by another engine.\n== Retrieving earlier verbatim history (use when needed) ==\nSynthetic history index\n== End of handoff note; the user's new message follows ==",
+  "rebuild": "[Session context rebuild · internal context]\nSynthetic rebuilt context\n== End of rebuild note; the user's new message follows ==",
+  "fork": "[Session fork · internal context]\nSynthetic fork origin\n== End of fork note; the user's new message follows =="
+}
