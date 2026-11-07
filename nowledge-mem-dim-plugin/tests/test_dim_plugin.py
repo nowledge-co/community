@@ -253,6 +253,32 @@ class MessageTests(unittest.TestCase):
         events = [user_input(1, "Question"), text_step(2, "Answer")]
         self.assertEqual(nmem_capture.build_messages(events, "leader", "s"), [])
 
+    def test_whitespace_only_deltas_between_text_events_are_kept(self):
+        events = [
+            user_input(1, "Question"),
+            text_step(2, "Hello", request_id="request-1"),
+            text_step(3, " ", request_id="request-1"),
+            text_step(4, "world", request_id="request-1"),
+            text_step(5, "\n", request_id="request-1"),
+            text_step(6, "Next", request_id="request-1"),
+            turn_end(7),
+        ]
+        messages = nmem_capture.build_messages(events, "leader", "s")
+        self.assertEqual(
+            [(message["role"], message["content"]) for message in messages],
+            [("user", "Question"), ("assistant", "Hello world\nNext")],
+        )
+
+    def test_a_reply_that_is_only_whitespace_is_still_empty(self):
+        events = [
+            user_input(1, "Question"),
+            text_step(2, " ", request_id="request-1"),
+            text_step(3, "\n", request_id="request-1"),
+            turn_end(4),
+        ]
+        messages = nmem_capture.build_messages(events, "leader", "s")
+        self.assertEqual([message["content"] for message in messages], ["Question"])
+
     def test_failed_and_cancelled_turns_keep_input_but_not_text(self):
         for status in ("failed", "cancelled"):
             events = [

@@ -185,7 +185,7 @@ def build_messages(events: List[Any], role: str, session_id: str) -> List[Dict[s
                 )
         elif kind == "step" and name == "text":
             request_id, delta = data.get("request_id"), data.get("delta")
-            if not isinstance(request_id, str) or not isinstance(delta, str) or not delta.strip():
+            if not isinstance(request_id, str) or not isinstance(delta, str) or not delta:
                 continue
             if outcomes.get(data.get("turn_id")) != "completed":
                 continue
