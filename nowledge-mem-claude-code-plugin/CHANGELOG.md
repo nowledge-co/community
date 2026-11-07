@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.34] - Unreleased
+
+- For ordinary portable IDs without explicit Space or mailbox selectors,
+  validate startup Context Bundles against the stored profile and its pinned
+  default Space. On unavailable or older CLIs, fall back only to that Space's
+  Working Memory.
+- Full bundles require a CLI build supporting `context --no-ensure`; published
+  CLI 0.10.113 does not support this option. Explicit Space, host-alias, named
+  context and mailbox paths retain their existing Working Memory behavior.
 ## [0.7.33] - Unreleased
 
 - Continue bounded contact searches across contact pages and Space batches; report unfinished or unavailable coverage instead of a false no-match.

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.49] - Unreleased
+
+- For ordinary portable IDs without explicit Space or mailbox selectors,
+  validate startup Context Bundles against the stored profile and its pinned
+  default Space. On unavailable or older CLIs, fall back only to that Space's
+  Working Memory.
+- Full bundles require a CLI build supporting `context --no-ensure`; published
+  CLI 0.10.113 does not support this option. Explicit Space, host-alias, named
+  context and mailbox paths retain their existing Working Memory behavior.
 ## [0.1.48] - Unreleased
 
 - Use plugin-bundled hooks on modern Codex and remove our previous host-level Stop registrations during setup, preserving unrelated hooks and the fallback runtime files.
