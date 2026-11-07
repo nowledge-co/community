@@ -283,7 +283,7 @@ In Claude Code, when `NMEM_AGENT_CONTEXT` names an approved Agent Context, Stop
 uses one `nmem mailbox probe` call and can remind the Agent once to inspect new pending mail. The check is read-only:
 it does not receive, acknowledge or execute messages. Recursive Stop and failed
 checks end normally, and an unchanged pending state is not repeated in the same
-host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. Set `NMEM_BRIDGE_SESSION_MAILBOX=1` only for an already registered native session.
+host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. With `NMEM_BRIDGE_SESSION_MAILBOX=1`, SessionStart inspects the original session and may revalidate an existing Local registration before this Stop probe can use the native session.
 The probe uses the actual Codex or Claude Code host ID and checks its original
 Local or Cloud mailbox. Incomplete scans are reported as incomplete. Unsupported
 CLI/server versions and missing or ambiguous original credentials quietly skip
@@ -295,3 +295,48 @@ In WSL, this Stop check requires a Linux CLI. Windows `.cmd`, `.bat` and `.exe`
 CLIs are skipped because process cleanup across the two
 systems are unsupported. The hook never substitutes another executable for
 `NMEM_CLI_PATH`.
+
+### Independent startup memory and optional Bridge registration
+
+Working Memory does not require an Agent Identity or a running mailbox.
+With optional mailbox configuration, startup reads Working Memory first through
+its own authenticated memory endpoint. A named Agent Context supplies its exact
+Space through local configuration; it is not mailbox authority. Mailbox startup
+failure, refusal or timeout cannot suppress that independent read. An unresolved
+or conflicting explicit scope never falls back to another Space or legacy file.
+
+Set `NMEM_BRIDGE_SESSION_MAILBOX=1` to enable existing-session inspection and
+Local registration revalidation when `NMEM_AGENT_CONTEXT` names a configured context. Without an identity,
+startup still loads Working Memory and reports registration `selection_required`.
+The Agent can choose/refine its identity during later ordinary work under the
+existing account permissions. The startup hook does not create or edit profiles.
+
+Every lifecycle event first probes existing original credentials using the
+host-provided exact session ID. Only a verified original Local session can be
+revalidated through Local bootstrap. Cloud sessions, resume and compaction
+remain read-only. An unavailable or ambiguous original never permits creating
+new credentials. First registration requires an explicit ordinary-turn CLI
+operation; startup cannot infer that no original exists from a probe failure.
+Restoring identity associations for historical sessions is a separate capability.
+Only a validated receiving descriptor enables session messaging guidance.
+Mailbox registration does not enable polling or wake a stopped Agent.
+
+## Native Bridge collaboration
+
+Use the bundled `bridge` skill to prepare this exact session to receive or to
+contact another Agent. On a qualified Cloud connection, the skill uses
+`bridge session prepare/send/inbox/reply/recover`; the CLI owns protocol data
+and original-operation bookkeeping. A public contact identifies a particular
+native session, separately from a long-lived Agent inbox.
+
+With the existing optional session hook, a verified original Cloud session
+exposes literal host/session/Context argument data. Startup remains read-only
+and does not claim delivery readiness. During ordinary work, prepare verifies
+the containing backend; recovery observes the same server-owned original
+before offering execution. Missing client support, denied access and unknown
+results stay explicit. No notification, polling or host wakeup is added.
+
+SessionStart provides the real host/session correlation even with optional
+mailbox inspection off. This read-only data grants no communication authority;
+reuse an existing approved Context during an explicit Bridge request. Optional
+mailbox probing and first registration retain their separate controls.

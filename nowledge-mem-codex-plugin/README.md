@@ -21,6 +21,24 @@ The full bootstrap is Context Bundle when available, with Working Memory as the 
 - Codex lifecycle hooks for startup context, bounded subagent bootstrap, per-prompt memory routing, and automatic transcript capture
 - project `AGENTS.md` for repo-specific follow-through
 
+## Bridge communication
+
+Ask Codex to use Nowledge Bridge to contact another agent or receive a task
+handoff. The bundled `bridge` skill checks the installed client and your approved
+connection, identity and Space. Availability depends on the client, backend and
+authorization; this plugin does not grant communication access or wake stopped
+agents. Existing knowledge and capture connections remain separate.
+
+For a particular running session, ask it to prepare this session to receive.
+On a qualified Cloud connection, the skill uses `bridge session` convenience
+commands and the host's exact session arguments. Startup only observes an
+existing Cloud session; ordinary work verifies preparation or inspects the
+server-owned original. No intent files or local operation journal are needed.
+The skill keeps native-session contacts separate from long-lived Agent inboxes;
+the receiver prepares its own entry before the sender or task is known.
+Supported client capabilities and authorization still apply. Packaged guidance
+does not establish that an installed two-session journey has been verified.
+
 ## Historical imports from isolated Codex homes
 
 If `nmem t sync --from codex --all-projects` reports that Codex session
@@ -70,38 +88,32 @@ Keep each host's CLI config directory and endpoint isolated. Do not copy a
 parent's context into a child. The SubagentStart hook does not inject mailbox
 admission; independent SessionStart events require separately approved config.
 
-The SessionStart/resume hook makes one bounded read-only live status check. Only
-`usable` plus `live` installs mailbox instructions and reads Working Memory
-using that exact Space ID. This opt-in path does not automatically load Context
-Bundle because the current CLI may ensure an agent profile during that call.
-Non-live or conflicting
-configuration emits a small diagnostic instead, without changing identities or
-loading a default identity as a substitute. If `NMEM_AGENT_ID`, `NMEM_SPACE` or
-the legacy `NMEM_SPACE_ID`
-is also set, it must match the validated canonical selector; aliases or Space
-names not verified by this check require explicit configuration reconciliation.
-The default mailbox guidance path never selects, recovers, enrolls, claims,
-acknowledges or sends mail. The separate experimental session adapter below
-registers an already selected identity and admits session guidance only after
-validating the current backend capability.
+Working Memory uses the independently configured Space even when the mailbox
+status check is unavailable. Only a `usable` plus `live` status installs legacy
+mailbox instructions. Named-context memory reads do not invoke create-capable
+Context Bundle or fall back to another Space. Conflicting selectors produce a
+small diagnostic without changing identities. The default mailbox guidance
+path never selects, recovers, enrolls, claims, acknowledges or sends mail.
 
 #### Experimental session mailboxes
 
-With a CLI and local backend that explicitly support `mailbox session-bootstrap`,
-set `NMEM_BRIDGE_SESSION_MAILBOX=1` alongside your approved
-`NMEM_AGENT_CONTEXT`. This is off by default. The SessionStart hook first checks
-the saved selection, then registers or inspects the mailbox belonging to the
-exact native session supplied by Codex. Startup, resume, clear and compact for
-the same native session keep that original binding. A genuinely new session
-has a separate mailbox; missing proof or failed validation does not silently
-replace the original one. SubagentStart and UserPromptSubmit do not register.
-Registration expires after 24 hours. Resume checks the original registration
-and does not renew it.
+With a CLI and backend supporting the native read-only probe, set
+`NMEM_BRIDGE_SESSION_MAILBOX=1` to inspect an existing session. This is off by
+default. A configured `NMEM_AGENT_CONTEXT` is needed for mailbox operations,
+but not for ordinary Working Memory loading.
+
+Every eligible event first probes the exact host-provided native session.
+Cloud originals, resume and compaction remain read-only. Startup/clear can
+revalidate only a verified existing Local registration through bootstrap;
+unknown or ambiguous originals never authorize new credentials. First
+registration is an explicit ordinary-turn CLI action. SubagentStart and
+UserPromptSubmit do not register. Historical identity restoration is separate;
+no startup hook creates or edits profile fields.
 
 A current compatible CLI reports `delivery_ready: true` only after validating
 the supported session capability and the complete original registered scope.
 The ready hook supplies the exact native session correlation as JSON data so
-the model can inspect this session's inbox at startup, resume and ordinary task
+the model can inspect this session's inbox at startup and ordinary task
 boundaries. To receive a bounded body batch, use the compatible CLI's existing
 session command in its default automatic mode:
 
@@ -305,7 +317,7 @@ if ($null -eq $HookSetup) {
 
 Setup needs a Python 3.11 or newer TOML parser. If the setup command uses an older Python, it looks for a supported interpreter on `PATH` (or through the Windows Python launcher). If none is available, setup stops before installing hooks or changing configuration. Run setup with Python 3.11 or newer to continue. Invalid existing TOML is refused rather than rewritten.
 
-This enables Codex lifecycle hooks, adds the legacy plugin-hook gate only on hosts that still expose it, keeps the Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks enabled in `/hooks`, then installs a small host-level Stop fallback for Codex builds that still need `~/.codex/hooks.json`. SessionStart injects Context Bundle automatically. SubagentStart uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` role allowlist, which defaults to `planner,code-reviewer,architect,researcher`: selected roles receive a bounded snapshot, `explorer` receives no Mem prompt, and other roles receive retrieval routing without a context read. Setting the variable replaces this default, and an empty value disables full Context Bundle injection. UserPromptSubmit keeps cross-tool and exact-history work routed to Nowledge search, and Stop shells out to `nmem t save --from codex`; the explicit profile-maintenance opt-in above records a pending maintenance item and lets Stop finish normally. On hosts with an enabled and trusted SessionStart hook, every eligible startup displays the unresolved item. The model must explicitly confirm any create or update operation. Local mode and remote Mem mode use the same `nmem` client configuration. If both bundled and host-level Stop hooks are visible, the hook runtime suppresses duplicate saves for the same transcript state and uses the original turn to admit one pending item. Repeated startup reminders do not create a new item or operation.
+Setup requires exactly one explicitly configured, enabled Nowledge plugin source. If both a shared marketplace source and a repo-local source are enabled, disable the unintended source before rerunning setup; setup names the conflicting sources and leaves existing host-level hooks unchanged. Modern hosts then use the bundled hooks only: setup removes our older host-level Stop registrations while preserving unrelated hooks and fallback runtime files. Hosts that still require the legacy plugin-hook gate retain the host-level Stop fallback. SessionStart injects Context Bundle automatically. SubagentStart uses the exact, case-sensitive `NMEM_SUBAGENT_CONTEXT_TYPES` role allowlist, which defaults to `planner,code-reviewer,architect,researcher`: selected roles receive a bounded snapshot, `explorer` receives no Mem prompt, and other roles receive retrieval routing without a context read. Setting the variable replaces this default, and an empty value disables full Context Bundle injection. UserPromptSubmit keeps cross-tool and exact-history work routed to Nowledge search, and Stop shells out to `nmem t save --from codex`; the explicit profile-maintenance opt-in above records a pending maintenance item and lets Stop finish normally. On hosts with an enabled and trusted SessionStart hook, every eligible startup displays the unresolved item. The model must explicitly confirm any create or update operation. Local mode and remote Mem mode use the same `nmem` client configuration. If both bundled and host-level Stop hooks are visible, the hook runtime suppresses duplicate saves for the same transcript state and uses the original turn to admit one pending item. Repeated startup reminders do not create a new item or operation.
 
 Codex reports `agent_type` as the spawned agent's role, not its task name. Current built-in roles are `default`, `explorer`, and `worker`; use those role values, or the names of custom roles, when overriding `NMEM_SUBAGENT_CONTEXT_TYPES`.
 With stock roles, the default policy therefore performs no full Context Bundle
@@ -320,6 +332,8 @@ its capture runtime and reports a setup error. The other lifecycle hooks still
 require Codex to provide the plugin root.
 
 Restart Codex after setup. Codex treats **enabled** and **trusted** as separate hook states: review and trust the four Nowledge Mem hooks when Codex prompts you. This confirmation is deliberately user-owned; the installer never bypasses Codex's hook security boundary.
+
+If Codex reports `plugin contents changed; hook approval required`, capture is paused until you review the installed plugin source in `/hooks`. A healthy `nmem status` does not establish hook trust. Setup cannot verify or approve it. The Codex bundle version changes whenever shipped contents change, including skills, docs and tests; a version bump does not avoid the required review. To control update timing, pin the marketplace to a reviewed full commit SHA with `ref` and deliberately advance that pin for the next plugin release.
 
 Raft can run a managed Codex worker on the same computer as your normal Codex sessions. The hook reads Codex's structured `session_meta.originator` for each transcript: normal Codex sessions still capture automatically, while `raft-daemon` rollouts are skipped because they contain Raft inbox/control traffic rather than the human-visible conversation. The legacy `slock-daemon` originator remains supported. Memory skills and MCP remain available inside the Raft worker.
 
@@ -564,8 +578,8 @@ to see its full capabilities.
 - **"Cannot connect to server"**: Run `nmem status`. For remote setups, check `~/.nowledge-mem/config.json`. See [Remote Access](https://mem.nowledge.co/docs/remote-access).
 - **Skills not appearing**: Restart Codex after installing. Verify the marketplace was added, `nowledge-mem@nowledge-community` was installed with `codex plugin add` or from `/plugins`, and `~/.codex/config.toml` has `[features] plugins = true`, `hooks = true`, and `[plugins."nowledge-mem@nowledge-community"] enabled = true`. Older Codex builds may also need `plugin_hooks = true`; rerun setup instead of guessing. If you intentionally use a repo-local marketplace source, use `[plugins."nowledge-mem@local"]`.
 - **Stop has no project context**: without an explicit transcript path, capture requires an absolute project directory other than a filesystem root. Missing or unresolved context quietly skips capture instead of queuing retries against `/` or a Windows root. Refresh the installed fallback with `scripts/install_hooks.py` after updating.
-- **Startup, subagent context, or Codex threads are not appearing automatically**: rerun `scripts/install_hooks.py` from the installed plugin folder, restart Codex, then review `/hooks`. The Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks must be both enabled and trusted. The setup script handles the removed-versus-legacy `plugin_hooks` gate automatically.
-- **Stop hook points to an older plugin cache path**: update the package, rerun `scripts/install_hooks.py`, then restart Codex. Already-running Codex sessions can keep the old plugin hook path in memory until restart; current packages prefer the stable host hook when it exists so future updates keep saving cleanly.
+- **Startup, subagent context, or Codex threads are not appearing automatically**: make sure exactly one `nowledge-mem@<source>` entry is enabled in `~/.codex/config.toml`, rerun `scripts/install_hooks.py` from that installed plugin folder, restart Codex, then review `/hooks`. The Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks must be both enabled and trusted. The setup script names the active source and handles the removed-versus-legacy `plugin_hooks` gate automatically.
+- **Stop hook points to an older plugin cache path**: update the package, rerun `scripts/install_hooks.py`, then restart Codex. Already-running Codex sessions can keep the old plugin hook path in memory until restart; current packages prefer the bundled runtime and use the stable host copy only when the bundled runtime is unavailable.
 - **`codex mcp list` shows `Not logged in`**: update `nmem` so it matches your Mem app/server, install the CLI config from the desktop app if you use local desktop Mem, then rerun `scripts/install_hooks.py`. You can also run `nmem config mcp show --host codex` and paste the generated TOML into `~/.codex/config.toml`. Do not use `codex mcp login nowledge-mem`; that command is for OAuth MCP servers, while Nowledge Mem's Codex path uses the URL and headers generated by `nmem`.
 - **Only `codex marketplace` exists, not `codex plugin marketplace`**: use `codex marketplace add nowledge-co/community`. This is a host-version difference, not a plugin issue.
 - **Marketplace update times out or fails with `early EOF`**: remove the old full-clone marketplace, then add it back with sparse checkout: `(codex plugin marketplace remove nowledge-community || codex marketplace remove nowledge-community || true) && codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin && codex plugin add nowledge-mem@nowledge-community`.
@@ -614,3 +628,33 @@ In WSL, this Stop check requires a Linux CLI. Windows `.cmd`, `.bat` and `.exe`
 CLIs are skipped because process cleanup across the two
 systems are unsupported. The hook never substitutes another executable for
 `NMEM_CLI_PATH`.
+
+### Independent startup memory and optional Bridge registration
+
+Working Memory does not require an Agent Identity or a running mailbox.
+With optional mailbox configuration, startup reads Working Memory first through
+its own authenticated memory endpoint. A named Agent Context supplies its exact
+Space through local configuration; it is not mailbox authority. Mailbox startup
+failure, refusal or timeout cannot suppress that independent read. An unresolved
+or conflicting explicit scope never falls back to another Space or legacy file.
+
+Set `NMEM_BRIDGE_SESSION_MAILBOX=1` to enable existing-session inspection and
+Local registration revalidation when `NMEM_AGENT_CONTEXT` names a configured context. Without an identity,
+startup still loads Working Memory and reports registration `selection_required`.
+The Agent can choose/refine its identity during later ordinary work under the
+existing account permissions. The startup hook does not create or edit profiles.
+
+Every lifecycle event first probes existing original credentials using the
+host-provided exact session ID. Only a verified original Local session can be
+revalidated through Local bootstrap. Cloud sessions, resume and compaction
+remain read-only. An unavailable or ambiguous original never permits creating
+new credentials. First registration requires an explicit ordinary-turn CLI
+operation; startup cannot infer that no original exists from a probe failure.
+Restoring identity associations for historical sessions is a separate capability.
+Only a validated receiving descriptor enables session messaging guidance.
+Mailbox registration does not enable polling or wake a stopped Agent.
+
+SessionStart provides the real host/session correlation even with optional
+mailbox inspection off. This read-only data grants no communication authority;
+reuse an existing approved Context during an explicit Bridge request. Optional
+mailbox probing and first registration retain their separate controls.

@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.7.33] - Unreleased
+
+- Continue bounded contact searches across contact pages and Space batches; report unfinished or unavailable coverage instead of a false no-match.
+- Expose read-only host correlation on SessionStart independently of the optional mailbox flag; malformed or ambiguous session data grants no capability.
+- Use native Bridge session commands with host-supplied argument data, public contacts and server-owned original recovery; failures require inspection before resume.
+- Add the packaged Bridge skill for communication requests and exact-session handoffs.
+
+## [0.7.32] - Unreleased
+
+- Load read-only Working Memory independently of optional mailbox availability;
+  an Agent Identity is not required for an unconfigured connection's memory read.
+- Keep named-context Space selection separate from mailbox delivery admission.
+  Startup does not edit identity profiles; refine them during ordinary work.
+- Refuse legacy Default memory in raw shell and missing-script fallbacks when
+  an explicit named context cannot be resolved.
+- Share the exact native-session bootstrap validator across Codex and Claude Code.
+  Claude Code can opt in with `NMEM_BRIDGE_SESSION_MAILBOX=1`; registration alone
+  grants no receiving capability. Resume only probes the original native session
+  without preparing credentials. First registration stays an explicit ordinary-turn action.
+- `distill-memory` now says where a Team save lands: with no named Space it goes to
+  your personal space ("Only me"), Mem reports the destination, and sharing means
+  saving with `--space`. Guidance only; no runtime change.
+
 All notable changes to the Nowledge Mem Claude Code plugin will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

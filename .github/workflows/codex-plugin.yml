@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/codex-plugin.yml"
+      - "scripts/check_codex_bundle_version.py"
       - "integrations.json"
       - "shared/hooks/**"
       - "nowledge-mem-codex-plugin/**"
@@ -32,6 +33,7 @@ on:
       - main
     paths:
       - ".github/workflows/codex-plugin.yml"
+      - "scripts/check_codex_bundle_version.py"
       - "integrations.json"
       - "shared/hooks/**"
       - "nowledge-mem-codex-plugin/**"
@@ -61,14 +63,17 @@ permissions:
 
 jobs:
   validate:
-    name: ${{ matrix.os }}
+    name: ${{ matrix.check_name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-24.04
-          - windows-latest
+        include:
+          # Retain check names while using an image that provides Python 3.9.
+          - os: ubuntu-24.04
+            check_name: ubuntu-latest
+          - os: windows-latest
+            check_name: windows-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -77,6 +82,15 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
+      - name: Require a version for every Codex bundle change
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          git fetch --no-tags --unshallow origin "$BASE_SHA" "$HEAD_SHA"
+          python scripts/check_codex_bundle_version.py "$BASE_SHA" "$HEAD_SHA"
       - name: Validate shared mailbox helpers
         run: python shared/hooks/sync.py
       - name: Test passive mailbox Stop adapters

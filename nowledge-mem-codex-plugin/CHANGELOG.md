@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.1.48] - Unreleased
+
+- Use plugin-bundled hooks on modern Codex and remove our previous host-level Stop registrations during setup, preserving unrelated hooks and the fallback runtime files.
+- Require exactly one explicitly configured, enabled Nowledge plugin source before changing hook state or retiring a working fallback; name conflicting sources without inventing a local installation or overwriting hook trust.
+- Explain that changed plugin contents can pause capture until the user reviews the installed plugin source in `/hooks`.
+- Require a version increase in CI for every change inside the installed Codex plugin directory, including skills, documentation and tests.
+
+## [0.1.47] - Unreleased
+
+- Continue bounded contact searches across contact pages and Space batches; report unfinished or unavailable coverage instead of a false no-match.
+- Expose read-only host correlation on SessionStart independently of the optional mailbox flag; malformed or ambiguous session data grants no capability.
+- Use native Bridge session commands with host-supplied argument data, public contacts and server-owned original recovery; failures require inspection before resume.
+
+- Guide explicit native-session collaboration separately from Agent inboxes, including receiver-only preparation, canonical reply correlation and integration-owned bookkeeping.
+- Add a discoverable Bridge skill for explicit communication requests and receiving task handoffs. Inspect installed CLI capabilities and approved identity/Space before use; preserve unsupported-setup and authorization boundaries.
+- Separate message delivery/read status from a receiving session's explicit claim. No automatic host wakeup or new credential authorization is introduced.
+
+## [0.1.46] - Unreleased
+
+- Load read-only Working Memory independently of optional mailbox availability;
+  an Agent Identity is not required for an unconfigured connection's memory read.
+- Keep named-context Space selection separate from mailbox delivery admission.
+  Startup does not edit identity profiles; refine them during ordinary work.
+- Preserve the named context's exact Space for selected subagents without
+  pending maintenance; unresolved selectors never fall back to Default memory.
+- Share the exact native-session bootstrap validator across Codex and Claude Code.
+  Claude Code can opt in with `NMEM_BRIDGE_SESSION_MAILBOX=1`; registration alone
+  grants no receiving capability. Resume only probes the original native session
+  without preparing credentials. First registration stays an explicit ordinary-turn action.
+- `distill-memory` now says where a Team save lands: with no named Space it goes to
+  your personal space ("Only me"), Mem reports the destination, and sharing means
+  saving with `--space`. Guidance only; no runtime change.
+
 ## [0.1.45] - Unreleased
 
 - Stream optional skill-outcome scans with bounded record size, reference state and time instead of retaining the full transcript.

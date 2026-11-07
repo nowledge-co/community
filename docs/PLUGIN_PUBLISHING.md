@@ -197,6 +197,14 @@ entry, including Claude Code/Grok's shared package, even for guidance-only
 changes. Git-backed packages and npx skills do not implicitly publish to npm;
 use their actual marketplace/Git install contract.
 
+The Codex PR workflow compares the complete installed plugin directory against
+the PR base and requires an increased package version for any change, including
+documentation and tests. All active metadata must still agree. A version bump
+does not preserve Codex hook trust when content changes: users must review the
+updated bundle. For a predictable update cadence, keep an approved full commit
+SHA in the marketplace's `ref` and advance it deliberately; do not use an app
+release tag as a substitute for the plugin's own version and reviewed source.
+
 Alma's marketplace ships from `yetone/alma-plugins`, not from this repository.
 After the community release is merged, synchronize the complete Nowledge Mem
 runtime/skills/docs package to `plugins/nowledge-mem` in that repository and

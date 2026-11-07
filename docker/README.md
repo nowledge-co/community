@@ -185,11 +185,11 @@ Earlier images did not bundle `cloudflared` and asked you to run a sidecar. That
 
 ## Authentication — the full picture
 
-The server enforces two independent things:
+Licensing and API authentication serve different purposes:
 
-- **A license** (`license.json`) — paid Pro tier vs Free. Free is capped at
-  20 memories; activate a license to lift the cap. License is a file, not a
-  network call, and persists in `./config/`.
+- **A license** (`license.json`) — a Mem Vault license unlocks unlimited
+  memories. The [Free plan](https://mem.nowledge.co/pricing) includes up to
+  50 memories. License information persists in `./config/`.
 - **An API key** (`remote-access.json`) — bearer-token auth on every non-public
   endpoint. The web UI uses the same key.
 
