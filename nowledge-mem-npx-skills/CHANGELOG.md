@@ -4,6 +4,8 @@ All notable changes to the Nowledge Mem npx Skills will be documented in this fi
 
 ## Unreleased
 
+- `distill-memory` now says where a Team save lands: with no named Space it goes to your personal space ("Only me"), Mem reports the destination, and sharing means saving with `--space`. Guidance only; no runtime change.
+
 ## [0.6.4] - 2026-10-13
 
 - Route WorkBuddy diagnostics to desktop marketplace installation, enable/reload and explicit MCP Trust; keep ordinary updates non-destructive.

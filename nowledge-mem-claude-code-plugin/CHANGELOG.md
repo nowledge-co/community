@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.33] - Unreleased
+## [0.7.34] - Unreleased
 
 - For ordinary portable IDs without explicit Space or mailbox selectors,
   validate startup Context Bundles against the stored profile and its pinned
@@ -9,6 +9,12 @@
 - Full bundles require a CLI build supporting `context --no-ensure`; published
   CLI 0.10.113 does not support this option. Explicit Space, host-alias, named
   context and mailbox paths retain their existing Working Memory behavior.
+## [0.7.33] - Unreleased
+
+- Continue bounded contact searches across contact pages and Space batches; report unfinished or unavailable coverage instead of a false no-match.
+- Expose read-only host correlation on SessionStart independently of the optional mailbox flag; malformed or ambiguous session data grants no capability.
+- Use native Bridge session commands with host-supplied argument data, public contacts and server-owned original recovery; failures require inspection before resume.
+- Add the packaged Bridge skill for communication requests and exact-session handoffs.
 
 ## [0.7.32] - Unreleased
 
@@ -22,6 +28,9 @@
   Claude Code can opt in with `NMEM_BRIDGE_SESSION_MAILBOX=1`; registration alone
   grants no receiving capability. Resume only probes the original native session
   without preparing credentials. First registration stays an explicit ordinary-turn action.
+- `distill-memory` now says where a Team save lands: with no named Space it goes to
+  your personal space ("Only me"), Mem reports the destination, and sharing means
+  saving with `--space`. Guidance only; no runtime change.
 
 All notable changes to the Nowledge Mem Claude Code plugin will be documented in this file.
 

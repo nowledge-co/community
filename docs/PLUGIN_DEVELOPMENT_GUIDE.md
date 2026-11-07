@@ -34,6 +34,20 @@ plugin declares that minimum version or retains an older-CLI fallback.
 
 ---
 
+## Read-only native host correlation
+
+The canonical `shared/hooks/nmem_startup.py` is packaged in both dedicated
+plugins through the same sync owner. SessionStart may expose only the host's
+actual session ID and literal `host_args`, independently of optional mailbox
+inspection and without a backend call. Malformed/ambiguous IDs and other events
+are omitted. Correlation grants no Agent identity, approved Context, private
+proof, registration or readiness. Codex subagent events must not borrow the
+parent's session ID. A documented fork source exposes only its new
+native correlation; it does not inherit the parent's original operation or proof.
+Optional mailbox admission and Memory scope remain with
+their existing owners; Claude raw context and prompt-only events do not read a
+new hook payload.
+
 ## Shared mailbox Stop helper
 
 The canonical helper is `shared/hooks/nmem_mailbox_stop.py`. Run
@@ -51,9 +65,10 @@ context/destination/Space and existing proof admission, including the final
 context readback. Python validates the content-free result and one approved
 inspection argument vector, then coordinates duplicate reminders. Native mode
 uses the actual host/session ID and never falls back to a compatibility inbox.
-Unsupported CLI/server capabilities quietly finish Stop. Native Cloud guidance
-is a Receive prefix: the normal turn must append a fresh recorded operation ID;
-Receive automatically ACKs, while the hook itself never runs it.
+Unsupported CLI/server capabilities quietly finish Stop. Native Cloud guidance points to the qualified `bridge session` flow, whose CLI
+owns original IDs and automatic Receive acceptance. The validated advanced
+Receive prefix remains diagnostic data; the hook never executes it. Unsupported
+modern clients do not gain a fallback Receive authorization.
 
 ---
 
@@ -242,6 +257,15 @@ When a host supports multiple ways to choose a lane, prefer one clear precedence
 4. `Default`
 
 Humans should usually work with the visible space name. Only storage and compatibility surfaces need the hidden key.
+
+### Team workspaces (Spaces as rooms)
+
+On Mem Cloud Team workspaces a Space is a room: the audience, the write destination and the Bridge address all follow from it. Plugins should not hide that.
+
+- A write with no explicit Space lands in the member's personal space ("Only me"). `nmem m add` (0.10.114+) prints `Saved to <label> (<id>)`; `--json` adds `space_id`, `space` and `share_hint`. Cloud MCP `memory_add` returns `space_label` and `share_hint`. Surface the destination; do not assume it.
+- An explicit `default` is deprecated there and lands in the personal space with a note; name a shared Space instead.
+- `nmem spaces list` and Cloud MCP `list_spaces` give the exact IDs and kinds a member can name. `nmem bridge` and `nmem mailbox cloud` take `--space <name>` or `--space-id <id>`; `nmem bridge contacts --query <name> --all-spaces` finds a person across readable Spaces. A refusal lists candidate Spaces (`selection_needed`, `space_not_yours`); candidates are suggestions, never an automatic choice.
+- The app's "Everything I can see" is a read view, not a save target.
 
 ---
 
@@ -472,3 +496,22 @@ names affect all of them:
 | `nmem plugins check` CLI | Direct `httpx.get()` — fetches from GitHub, caches to `~/.nowledge-mem/` | `id`, `name`, `version` for update awareness |
 | `check-integration` npx skill | Reads detection hints at skill invocation time | `install.command`, `install.docsUrl`, detection hints |
 | Website `integrations.ts` | Manually synced (not auto-fetched) | All fields for the integrations showcase page |
+
+Host input references checked on 2026-11-06: [Codex hooks](https://learn.chatgpt.com/docs/hooks)
+and [Claude Code SessionStart](https://code.claude.com/docs/en/hooks#sessionstart).
+Both expose the current native `session_id`; subagent events do not establish a
+new independent session mailbox. The hook still needs the host's existing trust
+and enablement settings; this package does not change them.
+
+### Bounded Bridge contact discovery
+
+The 2026-11-06 owner-selected follow-up to
+https://github.com/nowledge-co/community/issues/799 teaches existing contact
+continuations in both standalone Bridge skills. A selected Space's top-level
+`next_args`, an all-Spaces result's `spaces[].next_args` and
+`spaces_next_args` advance distinct bounded scans. Preserve returned argument
+data, the connection, selected Context, query and exact Space; cursors confer
+no authority. Partial/unavailable coverage or an exhausted finite budget must
+not become a global no-match claim or automatic recipient choice. Existing
+backend admission and explicit recipient confirmation remain authoritative.
+This is guidance only; installed-model first-use acceptance remains open.

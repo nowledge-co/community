@@ -159,7 +159,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.33",
+      "version": "0.7.34",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -203,9 +203,9 @@
       },
       "toolNaming": {
         "convention": "cli-direct",
-        "note": "SessionStart injects Context Bundle / Working Memory with a shared timeout budget and a user-visible read receipt. UserPromptSubmit requires one targeted nmem memory or thread search before concluding continuation, review, regression, release, connector, or prior-decision work. Read fallbacks preserve the configured Space. SubagentStart retains its exact allowlist and bounded context. The plugin remains CLI-first and does not register an MCP server."
+        "note": "SessionStart injects Context Bundle / Working Memory with a shared timeout budget and a user-visible read receipt. UserPromptSubmit requires one targeted nmem memory or thread search before concluding continuation, review, regression, release, connector, or prior-decision work. Read fallbacks preserve the configured Space. SubagentStart retains its exact allowlist and bounded context. The plugin remains CLI-first and does not register an MCP server. Bridge contact searches follow bounded per-Space and cross-Space continuation arguments without treating an incomplete search as no match."
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "bridge"],
       "slashCommands": ["/save", "/search", "/sum", "/status"]
     },
     {
@@ -213,7 +213,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.33",
+      "version": "0.7.34",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -258,7 +258,7 @@
         "convention": "cli-direct",
         "note": "Grok Build loads the shared Claude-compatible plugin package; hook scripts detect Grok Build and call nmem with source_app=grok."
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "bridge"],
       "slashCommands": ["/save", "/search", "/sum", "/status"]
     },
     {
@@ -597,7 +597,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.47",
+      "version": "0.1.49",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -651,9 +651,9 @@
       },
       "toolNaming": {
         "convention": "hybrid-cli+mcp",
-        "note": "SessionStart injects the Nowledge Context Bundle when safe; a pending identity confirmation suppresses create-capable context bootstrap. SubagentStart uses an exact Codex role allowlist: selected context-heavy roles receive a bounded snapshot, explorer is a no-op by default, and other roles receive targeted retrieval guidance without a context read. UserPromptSubmit keeps cross-tool/exact-history work routed to Nowledge even when Codex local Memory is enabled. The search-memory skill routes bounded Normal, Deep, and one-hop Progressive graph retrieval, and non-empty Memory results get a focused graph through the inline MCP App or standalone fallback. Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. Thread retrieval searches first and reads at most one targeted message slice per question; it never walks offsets to reconstruct a conversation or raises content limits to work around slow reads. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and skips Raft-managed execution traces by structured session originator without affecting normal Codex sessions on the same computer. Optional identity/profile work is saved as pending at normal Stop, with bounded read-only reminders on every eligible start. Confirmation and owner operations occur in an ordinary model turn; reminders alone never create or update a profile. The save-thread skill remains the explicit fallback."
+        "note": "SessionStart injects the Nowledge Context Bundle when safe; a pending identity confirmation suppresses create-capable context bootstrap. SubagentStart uses an exact Codex role allowlist: selected context-heavy roles receive a bounded snapshot, explorer is a no-op by default, and other roles receive targeted retrieval guidance without a context read. UserPromptSubmit keeps cross-tool/exact-history work routed to Nowledge even when Codex local Memory is enabled. The search-memory skill routes bounded Normal, Deep, and one-hop Progressive graph retrieval, and non-empty Memory results get a focused graph through the inline MCP App or standalone fallback. Prefer MCP tools for retrieval and memory writes; the package bundles the local server while user config can override it. Thread retrieval searches first and reads at most one targeted message slice per question; it never walks offsets to reconstruct a conversation or raises content limits to work around slow reads. The Stop hook captures real Codex transcripts through nmem, guards duplicate hook sources for the same transcript state, and skips Raft-managed execution traces by structured session originator without affecting normal Codex sessions on the same computer. Optional identity/profile work is saved as pending at normal Stop, with bounded read-only reminders on every eligible start. Confirmation and owner operations occur in an ordinary model turn; reminders alone never create or update a profile. The save-thread skill remains the explicit fallback. Explicit Bridge requests distinguish long-lived Agent mailboxes from exact native sessions. A receiving session prepares its own inbox before a peer is known; the integration retains canonical addresses and original-operation bookkeeping. Contact discovery follows bounded per-Space and cross-Space continuation arguments and keeps unavailable or unfinished coverage explicit."
       },
-      "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "explore-graph", "status"],
+      "skills": ["working-memory", "search-memory", "save-thread", "distill-memory", "explore-graph", "status", "bridge"],
       "slashCommands": []
     },
     {
