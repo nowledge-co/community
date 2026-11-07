@@ -457,9 +457,12 @@ def build_stop_response(
             ):
                 return {}
         cloud_guidance = (
-            "This Cloud Receive vector is a prefix: append --operation-id with a fresh "
-            "recorded ID before its first normal-turn attempt. Receive automatically ACKs. "
-            "After an uncertain result, retain the same ID and unchanged intent. "
+            "For this Cloud session, use the packaged bridge skill and verify the installed "
+            "bridge session commands. Its inbox command owns fresh request IDs and automatic "
+            "mailbox acceptance. The advanced Receive vector above is diagnostic data: do not "
+            "append an invented --operation-id to execute it. Inspect uncertain originals first "
+            "and use canonical returned resume arguments only when available. Missing modern "
+            "support is a client limitation, not permission for a fallback Receive. "
             if kind == "cloud-session"
             else ""
         )
@@ -471,12 +474,16 @@ def build_stop_response(
             observation = "Your selected Nowledge Bridge mailbox has pending messages. "
         if result["scan_incomplete"]:
             observation += "The bounded mailbox check was incomplete. "
+        inspection = (
+            "use the packaged Bridge native-session flow during ordinary work. Advanced diagnostic prefix: "
+            if kind == "cloud-session" else
+            "inspect it using the approved mailbox tools or the configured nmem executable with this argument vector: "
+        )
         return {
             "decision": "block",
             "reason": (
                 observation + "Before finishing, "
-                "inspect it using the approved mailbox tools or the configured nmem executable "
-                "with this argument vector: "
+                + inspection
                 + json.dumps(args, ensure_ascii=True)
                 + ". "
                 "Honor NMEM_CLI_PATH when configured; do not substitute another executable. "

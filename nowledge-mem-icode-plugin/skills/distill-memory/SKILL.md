@@ -28,3 +28,9 @@ Keep titles short and content specific; include exact names, versions, and
 paths when they matter. Record the source of the knowledge when it came from
 real files or commands, and set a claim status other than asserted only when
 the fact is genuinely unverified.
+
+## Where It Lands
+
+In a Team workspace, a save with no named Space goes to your personal space ("Only me"). Read the destination Mem reports (`nmem m add` prints `Saved to <Space> (<id>)`; `memory_add` returns `space_label` and `share_hint`) instead of assuming who can see it.
+
+To share, save with `--space "<name>"` (or `space_id`), using a name from `nmem spaces list` or `list_spaces`. Use a shared Space only when the user named it; never choose one from a repo, folder, or prompt text.

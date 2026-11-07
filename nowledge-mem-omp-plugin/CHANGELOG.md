@@ -11,6 +11,7 @@
   image/file payloads and synthetic placeholders.
 - Require Pi 0.8.15 or newer for the OMP-specific projection. Native identities,
   acknowledged deltas, and startup context injection remain unchanged.
+- `distill-memory` now says where a Team save lands: with no named Space it goes to your personal space ("Only me"), Mem reports the destination, and sharing means saving with `--space`. Guidance only; no runtime change.
 
 ## [0.1.3] - 2026-10-11
 

@@ -5,6 +5,10 @@ All notable changes to the Nowledge Mem Copilot CLI plugin will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- `distill-memory` now says where a Team save lands: with no named Space it goes to your personal space ("Only me"), Mem reports the destination, and sharing means saving with `--space`. Guidance only; no runtime change.
+
 ## [0.1.6] - 2026-10-17
 
 ### Fixed
