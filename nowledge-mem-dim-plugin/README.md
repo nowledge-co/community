@@ -127,22 +127,25 @@ is the first line of the first operator message.
 ## State and diagnostics
 
 Capture state and logs live under the system temporary directory, in
-`nowledge-mem/dim-capture-<uid>` on macOS and Linux (per-user `%TEMP%` keeps
-`nowledge-mem/dim-capture` on Windows), keyed by a digest of `DIMCODE_HOME` and
-the Session id. On POSIX the package creates that directory mode 0700 and then
-verifies it is a real directory owned by the current user with no group or
-other access; if the check fails, capture writes nothing, not even the
-diagnostic log. State supports `O_NOFOLLOW` where the platform provides it, so
-a planted symlink is never followed. State holds the local position (how many
-Session messages Mem has acknowledged), Mem's reported Thread count, and a
-digest of the acknowledged messages — never conversation text. The position
-bounds each delta and the digest check; Mem's count is the expected total for
-the next checkpoint, and the two differ after a full re-import into a Thread
-that kept earlier versions of changed messages. The import file is written
-mode 0600 under the same root and removed after use. The diagnostic log
-(`nowledge-mem-dim-hook.log`) is mode 0600, bounded at 64 KiB, and records only
-hook names, statuses, and durations; it never contains prompts, replies, keys,
-or tokens.
+`nowledge-mem/dim-capture-<uid>` on macOS and Linux, and in the per-user
+`%TEMP%` under `nowledge-mem\dim-capture` on Windows, keyed by a digest of
+`DIMCODE_HOME` and the Session id. On POSIX the package creates that directory
+mode 0700 and then verifies it is a real directory owned by the current user
+with no group or other access; if the check fails, capture writes nothing, not
+even the diagnostic log. On Windows the directory sits under the per-user
+`%TEMP%`, and that location is the protection: the package creates its own
+folder there and does not inspect ownership, ACLs or mode. `O_NOFOLLOW` is
+POSIX-only, so a planted symlink is refused there but is followed on Windows.
+State holds the local position (how many Session messages Mem has
+acknowledged), Mem's reported Thread count, and a digest of the acknowledged
+messages — never conversation text. The position bounds each delta and the
+digest check; Mem's count is the expected total for the next checkpoint, and
+the two differ after a full re-import into a Thread that kept earlier versions
+of changed messages. The import file is written mode 0600 on POSIX under the
+same root and removed after use. The diagnostic log
+(`nowledge-mem-dim-hook.log`) is mode 0600 on POSIX, bounded at 64 KiB, and
+records only hook names, statuses, and durations; it never contains prompts,
+replies, keys, or tokens.
 
 ## MCP
 

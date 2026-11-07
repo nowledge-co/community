@@ -46,6 +46,35 @@ def write_executable(path, text):
     return path
 
 
+def dim_link_name():
+    return "dimcode-server.exe" if os.name == "nt" else "dimcode-server"
+
+
+def write_fake_executable(path, body):
+    """A fake Dim/Mem CLI as a real executable on this platform.
+
+    Windows cannot start a shebang script, so it gets a real console `.exe`:
+    pip's distlib launcher (t64.exe/t32.exe) followed by a shebang for this
+    interpreter and a zipapp whose `__main__.py` is `body`. That is the same
+    format pip writes for console scripts; pip is present in the CI Python.
+    """
+    if os.name != "nt":
+        return write_executable(path, "#!" + sys.executable + "\n" + body)
+    import struct
+    import zipfile
+    from io import BytesIO
+    from pip._vendor.distlib import scripts
+
+    bits = "64" if struct.calcsize("P") * 8 == 64 else "32"
+    launcher = scripts.WRAPPERS["t%s.exe" % bits]
+    shebang = b"#!" + str(sys.executable).encode("utf-8") + b"\n"
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("__main__.py", body)
+    path.write_bytes(launcher + shebang + buffer.getvalue())
+    return path
+
+
 class ManifestTests(unittest.TestCase):
     def test_manifest_names_only_dim_fields_and_real_paths(self):
         manifest = load(PACKAGE / "dim-plugin.json")
@@ -167,8 +196,10 @@ class ExecutableTests(unittest.TestCase):
                 os.environ[key] = value
 
     def test_prefers_the_users_explicit_override(self):
-        link = write_executable(self.home / "rust" / "dimcode-server", "#!/bin/sh\n")
-        override = write_executable(self.root / "my-dim", "#!/bin/sh\n")
+        link = write_fake_executable(self.home / "rust" / dim_link_name(), "pass\n")
+        override = write_fake_executable(
+            self.root / ("my-dim.exe" if os.name == "nt" else "my-dim"), "pass\n"
+        )
         os.environ["NMEM_DIM_BIN"] = str(override)
         self.assertEqual(nmem_common.dim_binary(str(self.home)), str(override))
         os.environ["NMEM_DIM_BIN"] = str(self.root / "missing")
@@ -177,7 +208,7 @@ class ExecutableTests(unittest.TestCase):
 
     def test_uses_the_links_the_cli_maintains_for_the_daemon(self):
         os.environ.pop("NMEM_DIM_BIN", None)
-        link = write_executable(self.home / "rust" / "dimcode-server", "#!/bin/sh\n")
+        link = write_fake_executable(self.home / "rust" / dim_link_name(), "pass\n")
         self.assertEqual(nmem_common.dim_binary(str(self.home)), str(link))
 
     def test_never_searches_path(self):
@@ -470,8 +501,7 @@ class LockTests(unittest.TestCase):
         self.assertFalse((self.root / (key + ".pending")).exists())
 
 
-FAKE_DIM = """#!/usr/bin/env python3
-import os, sys
+FAKE_DIM = """import os, sys
 sys.stdout.write(open(os.environ["TEST_EXPORT"], encoding="utf-8").read())
 """
 
@@ -520,8 +550,10 @@ class CaptureProcessTests(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp(dir=ISOLATED_TMP))
         self.home = self.root / "dimhome"
         (self.home / "rust").mkdir(parents=True)
-        write_executable(self.home / "rust" / "dimcode-server", FAKE_DIM)
-        self.nmem = write_executable(self.root / "nmem", FAKE_NMEM)
+        self.dim = write_fake_executable(self.home / "rust" / dim_link_name(), FAKE_DIM)
+        self.nmem = write_fake_executable(
+            self.root / ("nmem.exe" if os.name == "nt" else "nmem"), FAKE_NMEM
+        )
         self.export_path = self.root / "export.json"
         self.export_path.write_bytes((FIXTURES / "dim-session-export.json").read_bytes())
         self.log = self.root / "nmem.jsonl"
@@ -593,10 +625,11 @@ class CaptureProcessTests(unittest.TestCase):
         self.assertIn('"status": "imported"', log_text)
         self.assertNotIn("Summarize the release notes", log_text)
         self.assertNotIn("Here is the summary", log_text)
-        self.assertEqual(stat.S_IMODE(log_path.stat().st_mode), 0o600)
+        if os.name != "nt":
+            self.assertEqual(stat.S_IMODE(log_path.stat().st_mode), 0o600)
         self.assertEqual(
             {path.relative_to(self.home) for path in self.home.rglob("*")},
-            {Path("rust"), Path("rust/dimcode-server")},
+            {Path("rust"), Path("rust") / dim_link_name()},
         )
 
     def test_unchanged_conversation_is_not_imported_again(self):
@@ -869,6 +902,7 @@ class CaptureProcessTests(unittest.TestCase):
         self.assertEqual(len(calls[0]["messages"]), 2)
         self.assertEqual(set(self.state()), {"position", "digest", "count"})
 
+    @unittest.skipIf(os.name == "nt", "POSIX O_NOFOLLOW; Windows follows the link")
     def test_a_symlinked_import_file_is_not_followed(self):
         root = self.state_root_path()
         root.mkdir(parents=True, mode=0o700)
@@ -881,6 +915,7 @@ class CaptureProcessTests(unittest.TestCase):
         self.assertEqual(self.calls(), [])
         self.assertEqual(target.read_text(encoding="utf-8"), "original")
 
+    @unittest.skipIf(os.name == "nt", "POSIX ownership and mode; %TEMP% is per user")
     def test_a_loose_state_directory_skips_without_writing(self):
         root = self.state_root_path()
         root.mkdir(parents=True)
@@ -929,6 +964,7 @@ class StateRootSecurityTests(unittest.TestCase):
     def path(self):
         return self.tmp / "nowledge-mem" / nmem_common.state_dirname()
 
+    @unittest.skipIf(os.name == "nt", "POSIX ownership and mode")
     def test_a_loose_state_directory_is_rejected(self):
         path = self.path()
         path.mkdir(parents=True)
@@ -937,6 +973,7 @@ class StateRootSecurityTests(unittest.TestCase):
             self.assertIsNone(nmem_common.state_root())
         self.assertEqual(list(path.iterdir()), [])
 
+    @unittest.skipIf(os.name == "nt", "POSIX ownership and mode")
     def test_a_directory_owned_by_someone_else_is_rejected(self):
         with mock.patch.object(nmem_common.tempfile, "gettempdir", return_value=str(self.tmp)):
             self.assertIsNotNone(nmem_common.state_root())
@@ -944,6 +981,17 @@ class StateRootSecurityTests(unittest.TestCase):
                 nmem_common.os, "getuid", return_value=os.getuid() + 1
             ):
                 self.assertIsNone(nmem_common.state_root())
+
+    @unittest.skipUnless(os.name == "nt", "Windows state root")
+    def test_windows_uses_the_per_user_temp_directory_without_mode_checks(self):
+        # Windows has no POSIX owner/mode check in state_root(): the package
+        # relies on %TEMP% being per user and creates its own subdirectory
+        # there. It does not inspect ACLs, so a loose directory is accepted.
+        path = self.path()
+        path.mkdir(parents=True)
+        path.chmod(0o755)
+        with mock.patch.object(nmem_common.tempfile, "gettempdir", return_value=str(self.tmp)):
+            self.assertEqual(nmem_common.state_root(), path)
 
     @unittest.skipIf(os.name == "nt", "POSIX symlink semantics")
     def test_a_symlinked_root_is_rejected(self):
