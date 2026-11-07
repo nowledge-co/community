@@ -1,0 +1,34 @@
+name: Dim plugin
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/dim-plugin.yml"
+      - "integrations.json"
+      - "nowledge-mem-dim-plugin/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/dim-plugin.yml"
+      - "integrations.json"
+      - "nowledge-mem-dim-plugin/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Dim (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+      - name: Test Dim plugin manifest, hooks, capture, launchers and skills
+        run: python -m unittest discover -s nowledge-mem-dim-plugin/tests -v

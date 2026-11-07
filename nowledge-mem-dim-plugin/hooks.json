@@ -1,0 +1,43 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"$DIM_PLUGIN_ROOT/scripts/run-hook.sh\" context",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"& (Join-Path ([Environment]::GetEnvironmentVariable('DIM_PLUGIN_ROOT')) 'scripts\\run-hook.ps1') context\"",
+            "timeout": 12
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"$DIM_PLUGIN_ROOT/scripts/run-hook.sh\" prompt",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"& (Join-Path ([Environment]::GetEnvironmentVariable('DIM_PLUGIN_ROOT')) 'scripts\\run-hook.ps1') prompt\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh \"$DIM_PLUGIN_ROOT/scripts/run-hook.sh\" capture",
+            "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"& (Join-Path ([Environment]::GetEnvironmentVariable('DIM_PLUGIN_ROOT')) 'scripts\\run-hook.ps1') capture\"",
+            "timeout": 60,
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

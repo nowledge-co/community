@@ -15,6 +15,7 @@ PACKAGES = {
     "cursor": ("nowledge-mem-cursor-plugin", ".cursor-plugin/plugin.json"),
     "devin": ("nowledge-mem-devin-plugin", ".devin-plugin/plugin.json"),
     "dimagent": ("nowledge-mem-dimagent-plugin", ".codex-plugin/plugin.json"),
+    "dim": ("nowledge-mem-dim-plugin", None),
     "droid": ("nowledge-mem-droid-plugin", ".factory-plugin/plugin.json"),
     "npx-skills": ("nowledge-mem-npx-skills", None),
     "omp": ("nowledge-mem-omp-plugin", "package.json"),

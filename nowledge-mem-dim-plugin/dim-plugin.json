@@ -1,0 +1,7 @@
+{
+  "name": "nowledge-mem",
+  "description": "Nowledge Mem connection: Working Memory at session start, routing guidance on every prompt, Mem MCP tools, skills, and automatic Thread capture.",
+  "skills": "skills",
+  "mcp": "mcp.json",
+  "hooks": "hooks.json"
+}

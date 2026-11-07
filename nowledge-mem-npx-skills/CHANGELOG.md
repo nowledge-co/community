@@ -2,8 +2,9 @@
 
 All notable changes to the Nowledge Mem npx Skills will be documented in this file.
 
-## Unreleased
+## [0.6.5] - Unreleased
 
+- Add Dim to the `check-integration` host table with its product-home detection and local-directory install command.
 - `distill-memory` now says where a Team save lands: with no named Space it goes to your personal space ("Only me"), Mem reports the destination, and sharing means saving with `--space`. Guidance only; no runtime change.
 
 ## [0.6.4] - 2026-10-13
