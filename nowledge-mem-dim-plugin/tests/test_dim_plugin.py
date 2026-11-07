@@ -11,6 +11,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -600,6 +601,146 @@ class CaptureProcessTests(unittest.TestCase):
         self.assertEqual(self.run_capture().returncode, 0)
         self.assertEqual(self.run_capture().returncode, 0)
         self.assertEqual(len(self.calls()), 1)
+
+    def test_a_stop_that_loses_the_lock_race_is_still_captured(self):
+        event = {
+            "hook_event_name": "Stop",
+            "session_id": "s-capture",
+            "collaboration_role": "leader",
+        }
+        entered = threading.Event()
+        release = threading.Event()
+        outcome = {}
+        failures = []
+
+        def handoff():
+            entered.set()
+            release.wait(30)
+
+        def owner():
+            try:
+                outcome["status"] = nmem_capture.main()
+            except BaseException as error:  # noqa: BLE001 - surfaced below
+                failures.append(error)
+
+        old_tempdir = tempfile.tempdir
+        tempfile.tempdir = str(self.root / "tmp")
+        try:
+            with mock.patch.object(nmem_capture, "_handoff_boundary", handoff), \
+                    mock.patch.object(nmem_common, "read_event", return_value=event), \
+                    mock.patch.dict(os.environ, self.env):
+                thread = threading.Thread(target=owner)
+                thread.start()
+                self.assertTrue(entered.wait(30), "capture did not reach the handoff point")
+                # The losing Stop: the owner still holds the lock, so this
+                # process marks pending and exits without touching the export.
+                # Its turn only appears in the export the owner reads next.
+                self.append_turn("Second question.", "Second answer.")
+                competitor = subprocess.run(
+                    [sys.executable, "-I", str(SCRIPTS / "nmem_capture.py")],
+                    input=json.dumps(event),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    env=self.env,
+                    timeout=60,
+                )
+                release.set()
+                thread.join(60)
+        finally:
+            tempfile.tempdir = old_tempdir
+            release.set()
+
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(failures, [])
+        self.assertEqual(outcome.get("status"), 0)
+        self.assertEqual(competitor.returncode, 0, competitor.stderr)
+        calls = self.calls()
+        self.assertEqual(len(calls), 2)
+        argv = calls[1]["argv"]
+        self.assertEqual(argv[argv.index("--expected-message-count") + 1], "2")
+        self.assertEqual(
+            [(message["role"], message["content"]) for message in calls[1]["messages"]],
+            [("user", "Second question."), ("assistant", "Second answer.")],
+        )
+        self.assertEqual(self.state()["position"], 4)
+        log_lines = [
+            json.loads(line)
+            for line in (self.state_root_path() / "nowledge-mem-dim-hook.log")
+            .read_text()
+            .splitlines()
+        ]
+        self.assertIn("locked", [entry.get("status") for entry in log_lines])
+        self.assertEqual(log_lines[-1]["status"], "imported")
+        self.assertEqual(log_lines[-1]["runs"], 2)
+
+    def test_a_lost_reacquire_hands_off_without_capturing_again(self):
+        event = {
+            "hook_event_name": "Stop",
+            "session_id": "s-capture",
+            "collaboration_role": "leader",
+        }
+        key = nmem_common.session_key(str(self.home), "s-capture")
+        state_root = self.state_root_path()
+        outcome = {}
+        failures = []
+        captures = []
+        acquires = {"count": 0}
+        real_capture_once = nmem_capture.capture_once
+        real_acquire_lock = nmem_capture.acquire_lock
+
+        def handoff():
+            # The losing Stop writes its marker while the owner holds the lock.
+            nmem_capture.mark_pending(state_root, key)
+
+        def competitor_holds_the_lock(root, lock_key):
+            acquires["count"] += 1
+            if acquires["count"] == 1:
+                return real_acquire_lock(root, lock_key)
+            # A competing Stop took the lock between the release and the
+            # reacquire, and owns the pending work now.
+            (Path(root) / (lock_key + ".lock")).write_text(
+                json.dumps({"pid": 424242}), encoding="utf-8"
+            )
+            return None
+
+        def counting_capture(*args, **kwargs):
+            captures.append(1)
+            return real_capture_once(*args, **kwargs)
+
+        def owner():
+            try:
+                outcome["status"] = nmem_capture.main()
+            except BaseException as error:  # noqa: BLE001 - surfaced below
+                failures.append(error)
+
+        old_tempdir = tempfile.tempdir
+        tempfile.tempdir = str(self.root / "tmp")
+        try:
+            with mock.patch.object(nmem_capture, "_handoff_boundary", handoff), \
+                    mock.patch.object(
+                        nmem_capture, "acquire_lock", competitor_holds_the_lock
+                    ), \
+                    mock.patch.object(nmem_capture, "capture_once", counting_capture), \
+                    mock.patch.object(nmem_common, "read_event", return_value=event), \
+                    mock.patch.dict(os.environ, self.env):
+                owner()
+        finally:
+            tempfile.tempdir = old_tempdir
+
+        self.assertEqual(failures, [])
+        self.assertEqual(outcome.get("status"), 0)
+        self.assertEqual(len(captures), 1)
+        self.assertEqual(len(self.calls()), 1)
+        holder = json.loads((state_root / (key + ".lock")).read_text())
+        self.assertEqual(holder["pid"], 424242)
+        self.assertTrue((state_root / (key + ".pending")).exists())
+        log_lines = [
+            json.loads(line)
+            for line in (state_root / "nowledge-mem-dim-hook.log").read_text().splitlines()
+        ]
+        self.assertEqual(log_lines[-1]["status"], "handed_off")
+        self.assertEqual(log_lines[-1]["runs"], 1)
 
     def test_new_messages_are_appended_with_a_checkpoint(self):
         self.assertEqual(self.run_capture().returncode, 0)

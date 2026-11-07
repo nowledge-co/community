@@ -388,6 +388,14 @@ def clear_pending(root: Path, key: str) -> None:
         pass
 
 
+def _handoff_boundary() -> None:
+    """The point where the owner is about to release the lock.
+
+    A test replaces this with a barrier to put a second Stop's pending marker
+    in exactly the window between the owner's last check and its release.
+    """
+
+
 def export_session(
     binary: str, home: str, session_id: str, timeout: float
 ) -> Tuple[Optional[List[Any]], str]:
@@ -562,7 +570,7 @@ def main() -> int:
         # not even a diagnostic line.
         return 0
     key = nmem_common.session_key(home, session_id)
-    lock = acquire_lock(root, key)
+    lock: Optional[Path] = acquire_lock(root, key)
     if lock is None:
         mark_pending(root, key)
         nmem_common.log({"hook": "capture", "status": "locked"})
@@ -576,13 +584,38 @@ def main() -> int:
             runs += 1
             clear_pending(root, key)
             status = capture_once(binary, home, session_id, role, key, root, deadline)
+            if pending_path(root, key).exists():
+                continue
+            _handoff_boundary()
+            # Release first, then look again: a Stop that failed to take the
+            # lock finishes by writing `.pending`, and it may do so between
+            # the check above and this release. Releasing before the final
+            # check closes that window.
+            try:
+                lock.unlink()
+            except OSError:
+                pass
+            lock = None
             if not pending_path(root, key).exists():
                 break
+            # That Stop left its turn uncaptured. Take the lock again if it
+            # is free; if another process already holds it, that process owns
+            # the pending work. Both paths stay inside the run and time budget.
+            if time.monotonic() >= deadline:
+                break
+            lock = acquire_lock(root, key)
+            if lock is None:
+                # Another process took the lock before this one could take it
+                # back; that process owns the pending work, so this process
+                # must not run without the lock.
+                status = "handed_off"
+                break
     finally:
-        try:
-            lock.unlink()
-        except OSError:
-            pass
+        if lock is not None:
+            try:
+                lock.unlink()
+            except OSError:
+                pass
     nmem_common.log(
         {
             "hook": "capture",
