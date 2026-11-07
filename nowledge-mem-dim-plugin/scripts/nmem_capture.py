@@ -396,6 +396,14 @@ def _handoff_boundary() -> None:
     """
 
 
+def _producer_boundary() -> None:
+    """The point where a Stop that failed the lock is about to publish.
+
+    A test replaces this with a barrier to delay the pending marker until the
+    owner has released the lock and finished its final check.
+    """
+
+
 def export_session(
     binary: str, home: str, session_id: str, timeout: float
 ) -> Tuple[Optional[List[Any]], str]:
@@ -572,9 +580,15 @@ def main() -> int:
     key = nmem_common.session_key(home, session_id)
     lock: Optional[Path] = acquire_lock(root, key)
     if lock is None:
+        _producer_boundary()
         mark_pending(root, key)
-        nmem_common.log({"hook": "capture", "status": "locked"})
-        return 0
+        # The producer half of the handoff: publish the marker, then try once
+        # to become the consumer. The owner may have released and finished its
+        # final check before the marker existed, so the lock can be free now.
+        lock = acquire_lock(root, key)
+        if lock is None:
+            nmem_common.log({"hook": "capture", "status": "locked"})
+            return 0
     started = time.monotonic()
     deadline = started + TOTAL_BUDGET_SECONDS
     status = "not_run"
@@ -587,10 +601,11 @@ def main() -> int:
             if pending_path(root, key).exists():
                 continue
             _handoff_boundary()
-            # Release first, then look again: a Stop that failed to take the
-            # lock finishes by writing `.pending`, and it may do so between
-            # the check above and this release. Releasing before the final
-            # check closes that window.
+            # The consumer half of the handoff: release first, then look
+            # again. The losing Stop publishes `.pending` before it retries
+            # the lock, so its marker can appear between the check above and
+            # this release. Releasing before the final check lets either
+            # process take the free lock and drain the marker.
             try:
                 lock.unlink()
             except OSError:

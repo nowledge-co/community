@@ -777,6 +777,121 @@ class CaptureProcessTests(unittest.TestCase):
         self.assertEqual(log_lines[-1]["status"], "handed_off")
         self.assertEqual(log_lines[-1]["runs"], 1)
 
+    def test_a_delayed_producer_drains_the_final_turn(self):
+        event = {
+            "hook_event_name": "Stop",
+            "session_id": "s-capture",
+            "collaboration_role": "leader",
+        }
+        key = nmem_common.session_key(str(self.home), "s-capture")
+        state_root = self.state_root_path()
+        lock_path = state_root / (key + ".lock")
+        pending = state_root / (key + ".pending")
+        owner_at_handoff = threading.Event()
+        producer_ready = threading.Event()
+        owner_exited = threading.Event()
+        threads = {}
+        failures = []
+        outcomes = {}
+        real_acquire_lock = nmem_capture.acquire_lock
+        producer_acquires = {"count": 0}
+
+        def handoff():
+            # Only the owner blocks here; the producer calls the same hook
+            # later, when it drains its own marker.
+            if threading.current_thread() is threads["owner"]:
+                owner_at_handoff.set()
+                producer_ready.wait(30)
+
+        def producer_boundary():
+            # The delayed producer: it failed the lock, and its marker is
+            # held back until the owner has released and exited.
+            producer_ready.set()
+            owner_exited.wait(30)
+
+        def acquire(root, lock_key):
+            if threading.current_thread() is threads.get("producer"):
+                producer_acquires["count"] += 1
+                if producer_acquires["count"] == 1:
+                    # The owner holds the lock.
+                    return None
+            return real_acquire_lock(root, lock_key)
+
+        def run(name):
+            try:
+                outcomes[name] = nmem_capture.main()
+            except BaseException as error:  # noqa: BLE001 - surfaced below
+                failures.append(error)
+            finally:
+                if name == "owner":
+                    owner_exited.set()
+
+        old_tempdir = tempfile.tempdir
+        tempfile.tempdir = str(self.root / "tmp")
+        try:
+            with mock.patch.object(nmem_capture, "_handoff_boundary", handoff), \
+                    mock.patch.object(
+                        nmem_capture, "_producer_boundary", producer_boundary
+                    ), \
+                    mock.patch.object(nmem_capture, "acquire_lock", acquire), \
+                    mock.patch.object(nmem_common, "read_event", return_value=event), \
+                    mock.patch.dict(os.environ, self.env):
+                threads["owner"] = threading.Thread(target=run, args=("owner",))
+                threads["owner"].start()
+                self.assertTrue(
+                    owner_at_handoff.wait(30), "the owner never reached the handoff"
+                )
+                # The owner has read the first turn and still holds the lock;
+                # this turn is what neither process has imported yet.
+                self.append_turn("Second question.", "Second answer.")
+                threads["producer"] = threading.Thread(target=run, args=("producer",))
+                threads["producer"].start()
+                threads["owner"].join(60)
+                threads["producer"].join(60)
+        finally:
+            tempfile.tempdir = old_tempdir
+
+        self.assertFalse(threads["owner"].is_alive())
+        self.assertFalse(threads["producer"].is_alive())
+        self.assertEqual(failures, [])
+        self.assertEqual(outcomes, {"owner": 0, "producer": 0})
+        calls = self.calls()
+        state_path = state_root / (key + ".json")
+        saved = json.loads(state_path.read_text()) if state_path.exists() else {}
+        self.assertFalse(
+            pending.exists(),
+            "marker not drained: imports=%d, position=%s, expected=4, lock=%s"
+            % (len(calls), saved.get("position"), lock_path.exists()),
+        )
+        self.assertFalse(lock_path.exists())
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(
+            [(message["role"], message["content"]) for message in calls[0]["messages"]],
+            [
+                ("user", "Summarize the release notes."),
+                ("assistant", "Here is the summary. It is short."),
+            ],
+        )
+        argv = calls[1]["argv"]
+        self.assertEqual(argv[argv.index("--expected-message-count") + 1], "2")
+        self.assertEqual(
+            [(message["role"], message["content"]) for message in calls[1]["messages"]],
+            [("user", "Second question."), ("assistant", "Second answer.")],
+        )
+        state = self.state()
+        self.assertEqual(state["position"], 4)
+        self.assertEqual(state["count"], 4)
+        log_lines = [
+            json.loads(line)
+            for line in (state_root / "nowledge-mem-dim-hook.log")
+            .read_text()
+            .splitlines()
+        ]
+        self.assertEqual(
+            [entry["status"] for entry in log_lines], ["imported", "imported"]
+        )
+        self.assertEqual(log_lines[-1]["runs"], 1)
+
     def test_new_messages_are_appended_with_a_checkpoint(self):
         self.assertEqual(self.run_capture().returncode, 0)
         self.append_turn("Second question.", "Second answer.")
