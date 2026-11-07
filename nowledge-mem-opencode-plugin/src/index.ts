@@ -182,6 +182,13 @@ function spaceToolProperties() {
 export default Plugin.define({
   id: "nowledge-mem",
   async setup(ctx) {
+    const sessionContext = ctx.options?.sessionContext === undefined
+      ? "automatic"
+      : ctx.options.sessionContext
+    if (sessionContext !== "automatic" && sessionContext !== "off") {
+      throw new Error("Nowledge Mem sessionContext must be 'automatic' or 'off'")
+    }
+    const automaticContext = sessionContext === "automatic"
     const directory = ctx.location.directory
     const runNmemCli = createNmemCliRunner(undefined)
 
@@ -627,8 +634,9 @@ export default Plugin.define({
     await ctx.tool.transform((editor) => {
       editor.add({
         name: "nowledge_mem_context_bundle",
-        description:
-          "Read Nowledge Mem's startup Context Bundle: owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Call this near session start when behavior, identity, or scope matters.",
+        description: automaticContext
+          ? "Read Nowledge Mem's startup Context Bundle: owner identity, resolved AI Identity, active scope, active rules, Working Memory, and KFS paths. Call this near session start when behavior, identity, or scope matters."
+          : "Read Context Bundle only when explicitly requested for this task. It can include personal owner identity, AI Identity, scope, rules, Working Memory, and KFS paths. Automatic context guidance is off; this tool still returns saved context.",
         input: {
           type: "object",
           properties: {
@@ -648,8 +656,9 @@ export default Plugin.define({
 
       editor.add({
         name: "nowledge_mem_working_memory",
-        description:
-          "Read today's lightweight Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Use nowledge_mem_context_bundle for full startup identity/scope/rules context.",
+        description: automaticContext
+          ? "Read today's lightweight Working Memory briefing from Nowledge Mem: current focus areas, priorities, recent decisions, and open questions across all your AI tools. Use nowledge_mem_context_bundle for full startup identity/scope/rules context."
+          : "Read Working Memory only when explicitly requested for this task. The briefing can include personal priorities, activity, and decisions; automatic context guidance is off.",
         input: {
           type: "object",
           properties: {
@@ -665,8 +674,9 @@ export default Plugin.define({
 
       editor.add({
         name: "nowledge_mem_search",
-        description:
-          "Search the user's knowledge graph for past decisions, procedures, learnings, and context. Returns results from memories saved across all tools (Claude Code, Cursor, Gemini, ChatGPT, etc.). Search proactively when work connects to prior context.",
+        description: automaticContext
+          ? "Search the user's knowledge graph for past decisions, procedures, learnings, and context. Returns results from memories saved across all tools (Claude Code, Cursor, Gemini, ChatGPT, etc.). Search proactively when work connects to prior context."
+          : "Search saved memories only when explicitly requested for this task. Results can include personal information from other sessions and tools; automatic context guidance is off.",
         input: {
           type: "object",
           properties: {
@@ -773,8 +783,9 @@ export default Plugin.define({
 
       editor.add({
         name: "nowledge_mem_thread_search",
-        description:
-          "Search past conversations from any tool (Claude Code, ChatGPT, Cursor, etc.). Use when the user asks about a prior discussion or exact conversation history.",
+        description: automaticContext
+          ? "Search past conversations from any tool (Claude Code, ChatGPT, Cursor, etc.). Use when the user asks about a prior discussion or exact conversation history."
+          : "Search saved conversations only when explicitly requested for this task. Results can include personal conversation history; automatic context guidance is off.",
         input: {
           type: "object",
           properties: {
@@ -875,9 +886,11 @@ export default Plugin.define({
 
     // --- v2 session hooks (replace the v1 returned hook map) ---
 
-    await ctx.session.hook("context", (event) => {
-      event.system.push({ type: "text", text: BEHAVIORAL_GUIDANCE })
-    })
+    if (automaticContext) {
+      await ctx.session.hook("context", (event) => {
+        event.system.push({ type: "text", text: BEHAVIORAL_GUIDANCE })
+      })
+    }
 
     await ctx.session.hook("compaction", async (event) => {
       const sessionID = String(event.sessionID ?? "")

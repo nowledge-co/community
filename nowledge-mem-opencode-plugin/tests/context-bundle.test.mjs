@@ -10,7 +10,7 @@ import plugin from "../src/index.ts"
 const contextArgs = ["--json", "context", "--source-app", "opencode", "--space-id", "Case-A"]
 const workingMemoryArgs = ["--json", "wm", "read", "--space-id", "Case-A"]
 
-async function runContext(t, payload, { exitCode = 0, env = {} } = {}) {
+async function runContext(t, payload, { exitCode = 0, env = {}, pluginOptions = {} } = {}) {
   const root = mkdtempSync(join(tmpdir(), "nmem-context-contract-"))
   const argsPath = join(root, "args.jsonl")
   const fixture = join(root, "nmem-fixture.mjs")
@@ -65,7 +65,7 @@ async function runContext(t, payload, { exitCode = 0, env = {} } = {}) {
     const tools = []
     const ctx = {
       location: { directory: root, project: { id: "synthetic-context-project" } },
-      options: {},
+      options: pluginOptions,
       tool: {
         transform: async callback => {
           callback({ add: tool => tools.push(tool) })
@@ -115,6 +115,16 @@ const full = {
   compiled_hash: "a".repeat(64),
   rendered_markdown: "Synthetic priority\nKeep owner instructions\nKeep agent instructions",
 }
+
+test("session context choice: explicit bundle and fallback remain available with off", async t => {
+  const pluginOptions = { sessionContext: "off" }
+  const normal = await runContext(t, JSON.stringify(full), { pluginOptions })
+  assert.deepEqual(JSON.parse(normal.result.content).owner_profile, full.owner_profile)
+  assert.deepEqual(normal.args, [contextArgs])
+  const fallback = await runContext(t, "fixture", { exitCode: 1, pluginOptions })
+  assert.equal(fallback.result.content, "Fixture Working Memory fallback")
+  assert.deepEqual(fallback.args, [contextArgs, workingMemoryArgs])
+})
 
 test("registered Context tool removes only duplicate Markdown and retains exact CLI scope", async t => {
   const { result, args } = await runContext(t, JSON.stringify(full))

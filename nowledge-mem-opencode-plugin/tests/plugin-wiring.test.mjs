@@ -2,15 +2,18 @@ import assert from "node:assert/strict"
 import http from "node:http"
 import test from "node:test"
 import { setImmediate as nextTurn } from "node:timers/promises"
+import { mkdtempSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 
 import plugin from "../src/index.ts"
 
-function createFakeContext({ sessionContext, events = [] } = {}) {
+function createFakeContext({ sessionContext, events = [], options = {} } = {}) {
   const tools = []
   const hooks = new Map()
   const ctx = {
     location: { directory: "/tmp/nowledge-project", project: { id: "project-1" } },
-    options: {},
+    options,
     tool: {
       transform: async (callback) => {
         callback({ add: (tool) => tools.push(tool) })
@@ -50,6 +53,102 @@ async function withEnv(vars, run) {
     }
   }
 }
+
+async function withContextChoiceProfile(run) {
+  const root = mkdtempSync(join(tmpdir(), "nmem-context-choice-"))
+  try {
+    return await withEnv({
+      HOME: root, USERPROFILE: root, NMEM_API_URL: "http://127.0.0.1:1",
+      NMEM_API_KEY: "synthetic-context-choice", NMEM_SPACE: undefined,
+      NMEM_SPACE_ID: undefined, NMEM_AGENT_ID: undefined, NMEM_HOST_AGENT_ID: undefined,
+    }, run)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
+test("session context choice: default and explicit automatic retain guidance", async () => {
+  await withContextChoiceProfile(async () => {
+    const outputs = []
+    for (const options of [{}, { sessionContext: "automatic" }]) {
+      const { ctx, tools, hooks } = createFakeContext({ options })
+      const cleanup = await plugin.setup(ctx)
+      try {
+        const event = { system: [] }
+        await hooks.get("context")(event)
+        assert.match(event.system[0].text, /At session start/)
+        assert.match(event.system[0].text, /Use them proactively/)
+        outputs.push({ system: event.system, descriptions: tools.map(tool => tool.description) })
+      } finally { await cleanup() }
+    }
+    assert.deepEqual(outputs[0], outputs[1])
+  })
+})
+
+test("session context choice: off omits automatic guidance and preserves tools", async () => {
+  await withContextChoiceProfile(async () => {
+    let reads = 0
+    const { ctx, tools, hooks } = createFakeContext({ options: { sessionContext: "off" },
+      sessionContext: async () => { reads++; return [] } })
+    const cleanup = await plugin.setup(ctx)
+    try {
+      assert.equal(hooks.has("context"), false, "sessionContext off must not register automatic context guidance")
+      assert.equal(reads, 0)
+      assert.equal(tools.length, 9)
+      assert.equal(typeof hooks.get("compaction"), "function")
+      for (const name of ["context_bundle", "working_memory", "search", "thread_search"]) {
+        const tool = tools.find(tool => tool.name === `nowledge_mem_${name}`)
+        assert.equal(typeof tool.execute, "function")
+        assert.match(tool.description, /only when explicitly requested/)
+        assert.doesNotMatch(tool.description, /proactively|near session start|full startup/)
+      }
+    } finally { await cleanup() }
+  })
+})
+
+test("session context choice: invalid values fail before registration", async () => {
+  await withContextChoiceProfile(async () => {
+    for (const sessionContext of [null, false, "", "manual", "OFF", []]) {
+      const { ctx, tools, hooks } = createFakeContext({ options: { sessionContext } })
+      await assert.rejects(plugin.setup(ctx), /sessionContext must be 'automatic' or 'off'/)
+      assert.deepEqual(tools, [])
+      assert.equal(hooks.size, 0)
+    }
+  })
+})
+
+test("session context choice: off keeps capture governed by its own switch", async t => {
+  await withContextChoiceProfile(async () => {
+    const requests = []
+    t.mock.method(globalThis, "fetch", async (url, init) => {
+      assert.equal(url, "http://127.0.0.1:1/threads")
+      const body = JSON.parse(init.body)
+      requests.push(body)
+      return Response.json({ thread: { thread_id: body.thread_id, message_count: body.messages.length } })
+    })
+    for (const enabled of [true, false]) {
+      let reads = 0
+      requests.length = 0
+      await withEnv({ NMEM_OPENCODE_AUTO_SYNC: String(enabled) }, async () => {
+        const { ctx, hooks } = createFakeContext({ options: { sessionContext: "off" },
+          sessionContext: async () => {
+            reads++
+            return [{ type: "user", id: "u1", text: "Synthetic public work", time: { created: 1 } },
+              { type: "assistant", id: "a1", content: [{ type: "text", text: "Synthetic answer" }], time: { created: 2 } }]
+          } })
+        const cleanup = await plugin.setup(ctx)
+        try {
+          const event = { sessionID: `context-choice-${enabled}`, system: [] }
+          await hooks.get("compaction")(event)
+          assert.deepEqual(event.system, [])
+          assert.equal(reads, enabled ? 1 : 0)
+          assert.equal(requests.length, enabled ? 1 : 0)
+          if (enabled) assert.equal(requests[0].messages.length, 2)
+        } finally { await cleanup() }
+      })
+    }
+  })
+})
 
 test("registers every Nowledge Mem tool through the v2 tool transform", async () => {
   const { ctx, tools } = createFakeContext()

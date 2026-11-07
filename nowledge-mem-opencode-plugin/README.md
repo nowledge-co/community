@@ -88,9 +88,61 @@ To pin an OpenCode 2 release, merge this entry into the global config:
 
 ```json title="~/.config/opencode/opencode.json"
 {
-  "plugins": ["opencode-nowledge-mem@0.4.6"]
+  "plugins": ["opencode-nowledge-mem@0.4.7"]
 }
 ```
+
+## Choose automatic context guidance
+
+Plugin 0.4.7 adds a server/project option. The default is `automatic`: the
+plugin adds its usual context and recall guidance. To omit that guidance,
+configure the plugin entry with `sessionContext: "off"`:
+
+```json
+{
+  "plugins": [
+    {
+      "package": "opencode-nowledge-mem@0.4.7",
+      "options": { "sessionContext": "off" }
+    }
+  ]
+}
+```
+
+Edit the entry that loads this plugin in the relevant OpenCode server/project
+configuration. The effective configuration must contain a single active
+declaration of this plugin, including global, project and auto-discovered
+entries. Adding a second project entry does not override a global entry's
+options: OpenCode rejects duplicate server plugin IDs. Move or update the
+existing declaration rather than adding a duplicate. This option belongs to
+the loaded server/project plugin instance, not an individual Desktop tab.
+Keep the version pin: older plugin versions do not implement this option.
+Only `automatic` and `off` are accepted. The choice takes effect when OpenCode
+loads the plugin. It does not change an already assembled conversation.
+
+With `off`, the plugin omits its context hook guidance and gives the context,
+Working Memory and search tools manual-use descriptions. All tools remain
+available. Explicit reads, fallback reads and read-before-save workflows can
+still return personal context. This option does not filter data or enforce
+access permissions, and it does not change other plugins, MCP connections,
+project instructions or previously loaded context.
+
+Capture remains independent: `NMEM_OPENCODE_AUTO_SYNC=false` disables automatic
+transcript capture, while `sessionContext` controls guidance. A Space is a
+routing choice, not a filter for the global profile.
+
+If the model must receive no Mem content, disable the whole plugin in the
+configuration used by its OpenCode server and check other Mem connections.
+OpenCode 2 supports the plugin's ID in its ordered `plugins` controls:
+
+```json
+{ "plugins": ["-nowledge-mem"] }
+```
+
+Check the effective configuration and start a fresh session: plugin lists from
+global and project configs are combined, and later entries can re-enable an ID.
+OpenCode Desktop's plugin UI switch disables only the desktop UI, not the server
+plugin. See [OpenCode's plugin controls](https://opencode.ai/v2/docs/plugins/).
 
 ## Tools
 
