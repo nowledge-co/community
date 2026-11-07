@@ -74,7 +74,10 @@ the Thread. The first Stop creates the Thread; later Stops append only the new
 messages with a checkpoint (`--expected-message-count`). A checkpoint conflict,
 or a changed prefix in what was already imported, causes one full re-import.
 Concurrent Stops for the same Session coordinate through a lock and a pending
-marker, so two imports never run at once and the last turn is never dropped.
+marker, so imports are serialized. A Stop that loses the lock publishes its
+marker and retries ownership in case the previous owner has already exited.
+Pending work is coalesced within the capture budget (at most three exports per
+invocation); a timeout or exhausted budget can leave work for the next Stop.
 Capture reads the Session only up to the last `turn/end`, so a turn that is
 still running is left for a later Stop.
 

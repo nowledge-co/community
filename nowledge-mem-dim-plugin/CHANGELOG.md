@@ -15,3 +15,5 @@
   existing Thread still leaves later Stops sending only the new messages.
 - Support Collaboration member Sessions as their own Threads.
 - Support Windows through `commandWindows` and a PowerShell launcher.
+- Close both pending-marker handoff windows: a Stop delayed before publishing
+  its marker retries ownership instead of leaving the final turn uncaptured.

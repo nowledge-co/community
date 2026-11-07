@@ -573,8 +573,13 @@ def main() -> int:
     lock: Optional[Path] = acquire_lock(root, key)
     if lock is None:
         mark_pending(root, key)
-        nmem_common.log({"hook": "capture", "status": "locked"})
-        return 0
+        # The owner may have exited after we observed its lock but before
+        # our pending marker became visible. Publish first, then compete for
+        # ownership again: either a live owner sees the marker or we drain it.
+        lock = acquire_lock(root, key)
+        if lock is None:
+            nmem_common.log({"hook": "capture", "status": "locked"})
+            return 0
     started = time.monotonic()
     deadline = started + TOTAL_BUDGET_SECONDS
     status = "not_run"
@@ -590,7 +595,8 @@ def main() -> int:
             # Release first, then look again: a Stop that failed to take the
             # lock finishes by writing `.pending`, and it may do so between
             # the check above and this release. Releasing before the final
-            # check closes that window.
+            # check closes that window. A delayed producer also retries the
+            # lock after publishing, so it cannot leave ownerless work here.
             try:
                 lock.unlink()
             except OSError:

@@ -321,6 +321,8 @@ def run_capped(
                 state["total"] += len(chunk)
         except (OSError, ValueError):
             return
+        finally:
+            process.stdout.close()
 
     thread = threading.Thread(target=reader, daemon=True)
     thread.start()

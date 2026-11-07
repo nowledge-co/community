@@ -14,6 +14,7 @@ import tempfile
 import threading
 import time
 import unittest
+from io import BytesIO
 from pathlib import Path
 from unittest import mock
 
@@ -709,6 +710,76 @@ class CaptureProcessTests(unittest.TestCase):
         self.assertEqual(log_lines[-1]["status"], "imported")
         self.assertEqual(log_lines[-1]["runs"], 2)
 
+    def test_a_delayed_pending_producer_captures_after_the_owner_exits(self):
+        event = {"hook_event_name": "Stop", "session_id": "s-capture"}
+        owner_at_boundary = threading.Event()
+        release_owner = threading.Event()
+        producer_at_marker = threading.Event()
+        release_producer = threading.Event()
+        failures = []
+        real_mark_pending = nmem_capture.mark_pending
+
+        def handoff():
+            owner_at_boundary.set()
+            if not release_owner.wait(30):
+                raise AssertionError("owner was not released")
+
+        def delayed_marker(root, key):
+            # The losing Stop has observed the held lock, but has not yet
+            # published its pending marker. Let the owner finish completely.
+            producer_at_marker.set()
+            if not release_producer.wait(30):
+                raise AssertionError("producer was not released")
+            real_mark_pending(root, key)
+
+        def invoke():
+            try:
+                self.assertEqual(nmem_capture.main(), 0)
+            except BaseException as error:
+                failures.append(error)
+
+        owner = threading.Thread(target=invoke)
+        producer = threading.Thread(target=invoke)
+        old_tempdir = tempfile.tempdir
+        tempfile.tempdir = str(self.root / "tmp")
+        try:
+            with mock.patch.object(nmem_capture, "_handoff_boundary", handoff), \
+                    mock.patch.object(nmem_capture, "mark_pending", delayed_marker), \
+                    mock.patch.object(nmem_common, "read_event", return_value=event), \
+                    mock.patch.dict(os.environ, self.env):
+                try:
+                    owner.start()
+                    self.assertTrue(owner_at_boundary.wait(30))
+                    self.append_turn("Second question.", "Second answer.")
+                    producer.start()
+                    self.assertTrue(producer_at_marker.wait(30))
+                    release_owner.set()
+                    owner.join(30)
+                    self.assertFalse(owner.is_alive())
+                    release_producer.set()
+                    producer.join(30)
+                    self.assertFalse(producer.is_alive())
+                finally:
+                    release_owner.set()
+                    release_producer.set()
+                    for thread in (owner, producer):
+                        if thread.ident is not None:
+                            thread.join(30)
+        finally:
+            tempfile.tempdir = old_tempdir
+
+        self.assertEqual(failures, [])
+        calls = self.calls()
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(
+            [(message["role"], message["content"]) for message in calls[1]["messages"]],
+            [("user", "Second question."), ("assistant", "Second answer.")],
+        )
+        self.assertEqual(self.state()["position"], 4)
+        key = nmem_common.session_key(str(self.home), "s-capture")
+        self.assertFalse((self.state_root_path() / (key + ".pending")).exists())
+        self.assertFalse((self.state_root_path() / (key + ".lock")).exists())
+
     def test_a_lost_reacquire_hands_off_without_capturing_again(self):
         event = {
             "hook_event_name": "Stop",
@@ -1005,6 +1076,15 @@ class StateRootSecurityTests(unittest.TestCase):
 
 
 class RunCappedTests(unittest.TestCase):
+    def test_a_completed_export_closes_its_stdout_pipe(self):
+        process = mock.Mock()
+        process.stdout = BytesIO(b'{"events":[]}')
+        process.returncode = 0
+        with mock.patch.object(nmem_common.subprocess, "Popen", return_value=process):
+            data, reason = nmem_common.run_capped("test-dim", [], 1.0, 1024)
+        self.assertEqual((data, reason), (b'{"events":[]}', ""))
+        self.assertTrue(process.stdout.closed)
+
     def test_a_live_reader_is_a_timeout_not_a_partial_success(self):
         root = Path(tempfile.mkdtemp(dir=ISOLATED_TMP))
         child = root / "child.py"
