@@ -398,7 +398,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.47"
+    assert codex_manifest["version"] == "0.1.48"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -2723,24 +2723,13 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
     source_codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).expanduser()
-    for name in ("auth.json", "config.toml", "installation_id", "version.json"):
+    for name in ("auth.json", "installation_id", "version.json"):
         source_file = source_codex_home / name
         if source_file.exists():
             shutil.copy2(source_file, codex_home / name)
     codex_env = e2e_context.env.copy()
     codex_env["CODEX_HOME"] = str(codex_home)
     legacy_plugin_hooks = _codex_requires_legacy_plugin_hooks(codex_env)
-    if not legacy_plugin_hooks and (codex_home / "config.toml").exists():
-        # Exercise a clean modern install. The installer deliberately preserves
-        # an old removed key when a user's existing config still contains it.
-        config_lines = (codex_home / "config.toml").read_text(encoding="utf-8").splitlines()
-        config_lines = [
-            line for line in config_lines if not line.strip().startswith("plugin_hooks =")
-        ]
-        (codex_home / "config.toml").write_text(
-            "\n".join(config_lines) + "\n",
-            encoding="utf-8",
-        )
 
     (workspace / ".agents" / "plugins").mkdir(parents=True)
     shutil.copytree(
@@ -2796,7 +2785,7 @@ def test_codex_live_stop_hook_thread_capture(e2e_context: E2EContext, tmp_path: 
         assert "plugin_hooks = true" in codex_config
     else:
         assert "plugin_hooks = true" not in codex_config
-    assert "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0" in codex_config
+    assert "nowledge-mem@nowledge-community:hooks/hooks.json:stop:0:0" not in codex_config
     assert "nowledge-mem@local:hooks/hooks.json:stop:0:0" in codex_config
 
     prompt = (
