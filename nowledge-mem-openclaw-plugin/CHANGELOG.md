@@ -2,10 +2,11 @@
 
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
-## Unreleased
+## [0.8.40] - Unreleased
 
 ### Changed
 
+- Mark fallback save dates explicitly rather than presenting them as event dates; verify conflicting evidence against its sources.
 - Recalled knowledge is packed by a 6,000-character budget with whole memories instead of 250-character snippets, and each item is dated with when the event happened or when its source conversation took place.
 - `maxContextResults` now defaults to 10 candidates; the budget, not the count, bounds what is injected.
 

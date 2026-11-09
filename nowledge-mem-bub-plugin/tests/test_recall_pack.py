@@ -32,3 +32,12 @@ def test_block_respects_budget_and_admits_smaller_items():
 
 def test_empty_recall_injects_nothing():
     assert recall_pack.format_recalled([]) == ""
+
+
+def test_save_dates_are_not_represented_as_event_dates():
+    block = recall_pack.format_recalled([
+        {"title": "Schedule", "content": "The event date is unknown.", "created_at": "2026-11-07T00:00:00Z"},
+    ])
+    assert "[saved:2026-11-07]" in block
+    assert "[2026-11-07]" not in block
+    assert "a save date does not establish when an event happened" in block

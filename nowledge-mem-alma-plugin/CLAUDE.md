@@ -10,7 +10,7 @@ This file is a practical continuation guide for future agent sessions working on
 - Shared sync logic: checked-in ESM at `generated/plugin-core`; regenerate from the Community root rather than editing it.
 - Memory backend: direct HTTP to Nowledge Mem API (default `http://127.0.0.1:14242`). CLI (`nmem`) is only used for diagnostic in the status tool.
 
-## Current Implementation (v0.7.9)
+## Current Implementation (v0.7.10)
 
 - Registers 13 tools. Prior releases were observed installed and activated in Alma; that evidence does not qualify this candidate's live host acceptance.
 - Thread sync uses three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).

@@ -1192,7 +1192,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.39",
+      "version": "0.8.40",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1249,7 +1249,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.9",
+      "version": "0.7.10",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {
@@ -1299,7 +1299,7 @@
       "name": "Bub",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.5",
+      "version": "0.7.6",
       "directory": "nowledge-mem-bub-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1454,7 +1454,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.24",
+      "version": "0.5.25",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
@@ -1844,7 +1844,7 @@
       "name": "DeepSeek Harness",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "directory": "nowledge-mem-deepseek-harness-plugin",
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
       "transport": "dsh-bundle+mcp+cli",

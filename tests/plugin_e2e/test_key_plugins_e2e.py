@@ -476,8 +476,8 @@ def test_key_plugin_static_contracts_are_declared():
     openclaw_spawn_env = (OPENCLAW_PLUGIN / "src" / "spawn-env.js").read_text(encoding="utf-8")
     openclaw_context_tool = (OPENCLAW_PLUGIN / "src" / "tools" / "context.js").read_text(encoding="utf-8")
     schema = openclaw_manifest["configSchema"]["properties"]
-    assert openclaw_manifest["version"] == "0.8.39"
-    assert openclaw_pkg["version"] == "0.8.39"
+    assert openclaw_manifest["version"] == "0.8.40"
+    assert openclaw_pkg["version"] == "0.8.40"
     assert openclaw_manifest["kind"] == ["memory", "context-engine"]
     assert openclaw_manifest["contracts"]["tools"] == [
         "memory_search",
@@ -513,7 +513,7 @@ def test_key_plugin_static_contracts_are_declared():
         if line.startswith("version:")
     )
     assert "name: nowledge-mem" in hermes_manifest
-    assert "version: 0.5.24" in hermes_manifest
+    assert "version: 0.5.25" in hermes_manifest
     assert registry_by_id["hermes"]["version"] == hermes_version
     for hook in (
         "prefetch",
@@ -931,8 +931,8 @@ def test_key_plugin_static_contracts_are_declared():
     alma_pkg = _read_json(ALMA_PLUGIN / "package.json")
     alma_skill = ALMA_PLUGIN / "skills" / "nowledge-mem" / "SKILL.md"
     alma_source = (ALMA_PLUGIN / "main.js").read_text(encoding="utf-8")
-    assert alma_manifest["version"] == "0.7.9"
-    assert alma_pkg["version"] == "0.7.9"
+    assert alma_manifest["version"] == "0.7.10"
+    assert alma_pkg["version"] == "0.7.10"
     assert alma_skill.exists()
     assert "nowledge_mem_context_bundle" in alma_skill.read_text(encoding="utf-8")
     assert "nowledge_mem_context_bundle" in alma_source
@@ -1553,7 +1553,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
     assert by_id["droid"]["version"] == "0.1.2"
-    assert by_id["openclaw"]["version"] == "0.8.39"
+    assert by_id["openclaw"]["version"] == "0.8.40"
     assert by_id["proma"]["version"] == "0.1.5"
     assert by_id["opencode"]["version"] == "0.4.7"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
@@ -1678,7 +1678,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.1.7"
+    assert dsh["version"] == "0.1.8"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1708,10 +1708,10 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         assert connector["threadSave"]["historicalCommand"] == (
             f"nmem t sync --from {connector_id}"
         )
-    assert by_id["alma"]["version"] == "0.7.9"
+    assert by_id["alma"]["version"] == "0.7.10"
     assert by_id["alma"]["skills"] == ["nowledge-mem"]
     assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
-    assert by_id["bub"]["version"] == "0.7.5"
+    assert by_id["bub"]["version"] == "0.7.6"
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
@@ -1752,7 +1752,7 @@ def test_alma_plugin_static_contract_is_self_contained():
     manifest = _read_json(ALMA_PLUGIN / "manifest.json")
     registry = _read_json(COMMUNITY_ROOT / "integrations.json")
     integration = next(item for item in registry["integrations"] if item["id"] == "alma")
-    assert package["version"] == manifest["version"] == integration["version"] == "0.7.9"
+    assert package["version"] == manifest["version"] == integration["version"] == "0.7.10"
     assert package["main"] == manifest["main"] == "main.js"
     generated = ALMA_PLUGIN / "generated" / "plugin-core"
     core_manifest = _read_json(generated / "manifest.json")
@@ -1791,7 +1791,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.1.7"
+    assert pkg["version"] == "0.1.8"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
@@ -2143,7 +2143,7 @@ def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
     bub_tools = (
         BUB_PLUGIN / "src" / "nowledge_mem_bub" / "tools.py"
     ).read_text(encoding="utf-8")
-    assert 'version = "0.7.5"' in bub_pyproject
+    assert 'version = "0.7.6"' in bub_pyproject
     assert "CREATE_NO_WINDOW" in bub_client
     assert "unit_type: str | None = Field(" in bub_tools
     assert "unit_type: str = Field(" not in bub_tools

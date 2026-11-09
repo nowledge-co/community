@@ -16,6 +16,13 @@ const memory = (title, content, extra = {}) => ({
 	...extra,
 });
 
+test("save dates do not become event dates", () => {
+	const block = buildRecalledKnowledgeBlock([memory("Schedule", "The event date is unknown.", { createdAt: "2026-11-07T00:00:00Z" })]);
+	assert.match(block, /\[saved:2026-11-07\]/);
+	assert.doesNotMatch(block, /\[2026-11-07\]/);
+	assert.match(block, /a save date does not establish when an event happened/);
+});
+
 test("a fact deep in a long memory is not cut away", () => {
 	const content = `${"背景说明。".repeat(70)}发件域名是 play-chain.com。`;
 	const block = buildRecalledKnowledgeBlock([memory("可疑招聘邮件", content)]);

@@ -6,6 +6,13 @@ import { buildMemoryContextBlock } from "../main.js";
 
 const memory = (title, content, extra = {}) => ({ title, content, score: 0.8, ...extra });
 
+test("save dates are identified separately from event dates", () => {
+	const block = buildMemoryContextBlock(null, [memory("Schedule", "The event date is unknown.", { createdAt: "2026-11-07T00:00:00Z" })]);
+	assert.match(block, /\[saved:2026-11-07\]/);
+	assert.doesNotMatch(block, /\[2026-11-07\]/);
+	assert.match(block, /a save date does not establish when an event happened/);
+});
+
 test("a fact deep in a long memory survives and items are dated", () => {
 	const content = `${"背景说明。".repeat(60)}发件域名是 play-chain.com。`;
 	const block = buildMemoryContextBlock(null, [

@@ -178,6 +178,23 @@ Plugin-mode Context Bundle reads, Working Memory fallback, searches, saves, and 
 
 Legacy `NMEM_SPACE_ID` still works, but `NMEM_SPACE` is the preferred human-facing contract when the provider config does not already choose a lane.
 
+### Per-turn recall cost
+
+The provider reads memories and matching conversation excerpts concurrently,
+with an eight-second limit per read. Startup health, Context Bundle and Working
+Memory fallback share one eight-second budget. General tool calls still use the
+configured `timeout`.
+
+In the same `nowledge-mem.json`, `recall_memory_budget_chars` defaults to 6000
+and `recall_thread_budget_chars` defaults to 2400. Lower either to reduce the
+injected text; zero skips that read entirely. Values above the defaults are
+capped. The budgets count packed item lines, excluding fixed headings. For
+example, use 3000 and 0 for a smaller memory pack with no conversation excerpts.
+
+Event and source-conversation dates are shown directly. A `saved:` or `activity:`
+date describes record freshness, so it cannot establish how long ago an event
+happened. Missing evidence remains unknown; conflicts require source verification.
+
 Those settings choose the ambient lane only. Shared spaces, default retrieval, and agent guidance still come from Mem's own space profile, so Hermes does not need a second memory-container model on top.
 
 ## Verify
@@ -207,7 +224,7 @@ Use `SOUL.md` for your own durable memory preferences and `HERMES.md` for repo-s
 - **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`. If sessions were missed before an update, run `nmem t sync --from hermes --apply` once from the Hermes machine to import local history.
 - **Installed file differs from community/main**: Re-run the setup command and restart Hermes. The installer overwrites stale plugin runtime files and prints the installed version plus thread endpoint so you can verify the copy Hermes will load.
 - **Tool call fails immediately at 0.0s**: Update to v0.5.6 or later. Earlier builds had two separate failure modes: v0.5.3 and below could reject Hermes list-shaped tool arguments for labels or bulk IDs, and v0.5.4 could still advertise `nmem_*` tools before Hermes had actually indexed them for dispatch.
-- **Slow responses**: Default timeout is 30 seconds. Increase in `nowledge-mem.json` for remote setups.
+- **Slow responses**: General tool calls default to 30 seconds and use `timeout` in `nowledge-mem.json`. Startup and recall have separate eight-second bounds. Lower the recall budgets to reduce per-turn context cost.
 
 ## Update
 
@@ -220,7 +237,7 @@ bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/now
 After updating, the script prints the version and endpoint from the files it actually wrote:
 
 ```text
-Installed version: 0.5.24
+Installed version: 0.5.25
 Thread import endpoint: /threads/import
 ```
 

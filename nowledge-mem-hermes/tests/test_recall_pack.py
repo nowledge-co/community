@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -95,6 +96,54 @@ class RecallPackTests(unittest.TestCase):
         self.assertEqual(Provider._format_prefetch({"memories": []}, {"threads": []}), "")
         self.assertEqual(Provider._format_prefetch(None, None), "")
 
+    def test_save_time_is_not_presented_as_an_event_time(self):
+        block = Provider._format_prefetch({"memories": [
+            _memory("Schedule", "The exam date has not been confirmed.", created_at="2026-11-07T00:00:00Z"),
+        ]})
+        self.assertIn("[saved:2026-11-07]", block)
+        self.assertNotIn("[2026-11-07]", block)
+        self.assertIn("do not establish when an event happened", block)
+        self.assertNotIn("prefer the newest", block)
+
+    def test_count_only_thread_results_do_not_break_memory_recall(self):
+        block = Provider._format_prefetch(
+            {"memories": [_memory("Fact", "A verified fact.")]},
+            {"threads": [{"title": "Legacy result", "matched_messages": 2}]},
+        )
+        self.assertIn("A verified fact.", block)
+        self.assertNotIn("### Conversation excerpts", block)
+
+    def test_a_smaller_budget_packs_only_whole_items_that_fit(self):
+        block = Provider._format_prefetch(
+            {"memories": [_memory("Large", "x" * 500), _memory("Small", "The answer is 42.")]},
+            memory_budget_chars=80,
+        )
+        self.assertNotIn("Large", block)
+        self.assertIn("The answer is 42.", block)
+        self.assertLessEqual(len(block.split("### Memories\n")[1]), 80)
+
+    def test_zero_budgets_skip_the_disabled_reads(self):
+        instance = Provider()
+        instance._client = mock.Mock()
+        instance._recall_memory_budget = 0
+        instance._recall_thread_budget = 0
+        self.assertEqual(instance.prefetch("Which facts do we know?"), "")
+        instance._client.search.assert_not_called()
+        instance._client.thread_search.assert_not_called()
+
+        instance._recall_memory_budget = 80
+        instance._client.search.return_value = {"memories": [_memory("Fact", "Known value.")]}
+        self.assertIn("Known value.", instance.prefetch("Which facts do we know?"))
+        instance._client.thread_search.assert_not_called()
+
+    def test_budget_configuration_cannot_exceed_the_default_ceiling(self):
+        self.assertEqual(Provider._recall_budget("120", 6000), 120)
+        self.assertEqual(Provider._recall_budget(0, 6000), 0)
+        self.assertEqual(Provider._recall_budget(-1, 6000), 0)
+        self.assertEqual(Provider._recall_budget(9000, 6000), 6000)
+        for value in (None, True, "invalid", float("inf")):
+            self.assertEqual(Provider._recall_budget(value, 6000), 6000)
+
     def test_short_chinese_question_triggers_recall(self):
         self.assertTrue(Provider._is_recall_query("我的软考是哪天考的？"))
         self.assertTrue(Provider._is_recall_query("软考哪天考"))
@@ -124,16 +173,19 @@ class RecallPackTests(unittest.TestCase):
 
     def test_session_start_reads_are_bounded(self):
         seen = {}
+        clock = [0.0]
 
         class _Client:
             def __init__(self, timeout, space=None):
                 pass
 
             def health(self):
+                clock[0] += 2.0
                 return True
 
             def context_bundle(self, **kwargs):
                 seen["context_bundle"] = kwargs.get("timeout")
+                clock[0] += 4.0
                 return {}
 
             def working_memory(self, **kwargs):
@@ -144,12 +196,32 @@ class RecallPackTests(unittest.TestCase):
         try:
             provider.NowledgeMemClient = _Client
             instance = Provider()
-            instance._load_config = lambda _home: {}
-            instance.initialize("session-1", hermes_home="", platform="cli")
+            instance._load_config = lambda _home: {"recall_memory_budget_chars": 300, "recall_thread_budget_chars": 0}
+            with mock.patch.object(provider.time, "monotonic", side_effect=lambda: clock[0]):
+                instance.initialize("session-1", hermes_home="", platform="cli")
         finally:
             provider.NowledgeMemClient = original
-        self.assertEqual(seen["context_bundle"], provider.STARTUP_TIMEOUT_SECONDS)
-        self.assertEqual(seen["working_memory"], provider.STARTUP_TIMEOUT_SECONDS)
+        self.assertEqual(seen["context_bundle"], 6.0)
+        self.assertEqual(seen["working_memory"], 2.0)
+        self.assertEqual(instance._recall_memory_budget, 300)
+        self.assertEqual(instance._recall_thread_budget, 0)
+
+    def test_an_exhausted_startup_budget_does_not_start_a_fallback(self):
+        clock = [0.0]
+        client = mock.Mock()
+        client.health.return_value = True
+
+        def exhaust(**kwargs):
+            clock[0] += kwargs["timeout"]
+            raise RuntimeError("timeout")
+
+        client.context_bundle.side_effect = exhaust
+        instance = Provider()
+        instance._load_config = lambda _home: {}
+        with mock.patch.object(provider, "NowledgeMemClient", return_value=client), \
+             mock.patch.object(provider.time, "monotonic", side_effect=lambda: clock[0]):
+            instance.initialize("session-1", hermes_home="", platform="cli")
+        client.working_memory.assert_not_called()
 
     def test_configured_cli_path_wins_over_path(self):
         import os
@@ -173,6 +245,17 @@ class RecallPackTests(unittest.TestCase):
                     os.environ.pop("NMEM_CLI_PATH", None)
                 else:
                     os.environ["NMEM_CLI_PATH"] = previous
+
+    def test_a_missing_explicit_cli_does_not_fall_back_to_another_binary(self):
+        import os
+        import tempfile
+
+        client_module = sys.modules["nowledge_mem_hermes.client"]
+        with tempfile.TemporaryDirectory() as root, \
+             mock.patch.dict(os.environ, {"NMEM_CLI_PATH": str(Path(root) / "missing")}), \
+             mock.patch.object(client_module.shutil, "which", return_value="/old/nmem") as which:
+            self.assertIsNone(client_module._resolve_nmem())
+            which.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -47,9 +47,12 @@ def _resolve_nmem() -> Optional[str]:
     for env_name in ("NMEM_CLI_PATH", "NMEM_BIN", "NMEM_CLI"):
         configured = os.environ.get(env_name)
         if configured and configured.strip():
-            path = os.path.expanduser(configured.strip())
+            path = os.path.expandvars(os.path.expanduser(configured.strip()))
             if os.path.isfile(path) and os.access(path, os.X_OK):
                 return path
+            if not os.path.dirname(path) and not ntpath.dirname(path):
+                return shutil.which(path)
+            return None
 
     found = shutil.which("nmem")
     if found:
