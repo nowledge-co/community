@@ -18,6 +18,7 @@ from bub.envelope import content_of
 from loguru import logger
 
 from .client import NmemClient, NmemError
+from .recall_pack import RECALL_LIMIT, format_recalled
 
 # ---------------------------------------------------------------------------
 # Behavioural guidance injected into the system prompt.
@@ -105,22 +106,9 @@ class NowledgeMemPlugin:
                 f"<nowledge-mem-context>\n{bundle}\n</nowledge-mem-context>"
             )
 
-        if recalled:
-            lines: list[str] = []
-            for r in recalled:
-                title = r.get("title", "")
-                text = r.get("content", "")[:300]
-                mid = r.get("id", "")
-                thread = r.get("source_thread_id", "")
-                entry = f"- [{title}] {text}"
-                if mid:
-                    entry += f" (id: {mid})"
-                if thread:
-                    entry += f" (thread: {thread})"
-                lines.append(entry)
-            sections.append(
-                "<recalled-knowledge>\n" + "\n".join(lines) + "\n</recalled-knowledge>"
-            )
+        recalled_block = format_recalled(recalled)
+        if recalled_block:
+            sections.append(recalled_block)
 
         mem_context = "\n\n".join(sections)
         if not prompt:
@@ -170,7 +158,7 @@ class NowledgeMemPlugin:
         query = content_of(message)
         if query and len(query.strip()) > 3:
             try:
-                recalled = await self.client.search(query[:500], limit=5)
+                recalled = await self.client.search(query[:500], limit=RECALL_LIMIT)
             except Exception as exc:
                 logger.warning("recall search failed: {}", exc)
 

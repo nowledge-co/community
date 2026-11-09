@@ -110,7 +110,7 @@
 			},
 			"maxContextResults": {
 				"type": "integer",
-				"default": 5,
+				"default": 10,
 				"minimum": 1,
 				"maximum": 20,
 				"description": "Maximum memories to inject at prompt time (only used when sessionContext is enabled)"

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Each recalled memory now carries a `date=` with when the event happened or when its source conversation took place, and the recall block states today's date.
+
 ## 0.1.7
 
 - Captures human input and assistant reply text instead of the model execution

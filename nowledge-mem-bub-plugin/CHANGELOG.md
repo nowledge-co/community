@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Recalled memories are packed by a 6,000-character budget with whole memories instead of 300-character snippets, and each one is dated with when the event happened or when its source conversation took place.
+
 ## [0.7.5] - 2026-10-11
 
 ### Fixed

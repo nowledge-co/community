@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Relevant memories are packed by a 6,000-character budget with whole memories instead of 220-character snippets, and each one is dated with when the event happened or when its source conversation took place.
+- `maxRecallResults` now defaults to 10.
+
 ## [0.7.9] - 2026-11-02
 
 - Recover pending turns when Alma omits the assistant completion event, including replies stored after the initial seven-second idle read.

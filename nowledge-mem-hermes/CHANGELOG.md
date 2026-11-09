@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Per-turn recall now injects whole memories up to a 6,000-character budget instead of five memories cut to 300 characters, so the concrete detail a question asks for (a domain, a path, a port, a count) reaches the model.
+- Every recalled item is dated with when the event happened or when its source conversation took place, and the block states today's date, so "how long ago" questions can be answered.
+- Recall also includes up to three matching conversation excerpts, quoted around the match from the original message, when a past conversation holds the answer that no memory captured.
+- Short questions in Chinese and other scripts without spaces now trigger recall; the old ten-character rule skipped them.
+- Recall and session-start reads are bounded to 8 seconds each, so a busy Mem server costs a turn seconds instead of minutes.
+
 ## [0.5.24] - 2026-09-18
 
 ### Fixed
