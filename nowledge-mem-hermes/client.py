@@ -42,15 +42,20 @@ def _resolve_nmem() -> Optional[str]:
     that omits user install locations such as ``~/.local/bin`` and Homebrew, so
     keep a small executable fallback list before disabling the provider.
     """
+    # An explicitly configured executable wins over whatever ``nmem`` happens
+    # to be first on PATH: a stale PATH copy silently ran an older CLI.
+    for env_name in ("NMEM_CLI_PATH", "NMEM_BIN", "NMEM_CLI"):
+        configured = os.environ.get(env_name)
+        if configured and configured.strip():
+            path = os.path.expanduser(configured.strip())
+            if os.path.isfile(path) and os.access(path, os.X_OK):
+                return path
+
     found = shutil.which("nmem")
     if found:
         return found
 
     candidates: List[str] = []
-    for env_name in ("NMEM_CLI_PATH", "NMEM_BIN", "NMEM_CLI"):
-        configured = os.environ.get(env_name)
-        if configured and configured.strip():
-            candidates.append(os.path.expanduser(configured.strip()))
 
     if sys.platform == "darwin":
         candidates.extend(

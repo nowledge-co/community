@@ -9,6 +9,7 @@
 - Recall also includes up to three matching conversation excerpts, quoted around the match from the original message, when a past conversation holds the answer that no memory captured.
 - Short questions in Chinese and other scripts without spaces now trigger recall; the old ten-character rule skipped them.
 - Recall and session-start reads are bounded to 8 seconds each, so a busy Mem server costs a turn seconds instead of minutes.
+- An `nmem` executable set through `NMEM_CLI_PATH` now takes precedence over the first `nmem` on `PATH`, so a stale copy cannot silently serve older output.
 
 ## [0.5.24] - 2026-09-18
 

@@ -151,6 +151,29 @@ class RecallPackTests(unittest.TestCase):
         self.assertEqual(seen["context_bundle"], provider.STARTUP_TIMEOUT_SECONDS)
         self.assertEqual(seen["working_memory"], provider.STARTUP_TIMEOUT_SECONDS)
 
+    def test_configured_cli_path_wins_over_path(self):
+        import os
+        import stat
+        import tempfile
+
+        client_module = sys.modules["nowledge_mem_hermes.client"]
+        with tempfile.TemporaryDirectory() as root:
+            configured = Path(root) / "nmem-configured"
+            configured.write_text("#!/bin/sh\n")
+            configured.chmod(configured.stat().st_mode | stat.S_IXUSR)
+            previous = os.environ.get("NMEM_CLI_PATH")
+            original_which = client_module.shutil.which
+            try:
+                os.environ["NMEM_CLI_PATH"] = str(configured)
+                client_module.shutil.which = lambda _name: "/usr/local/bin/nmem"
+                self.assertEqual(client_module._resolve_nmem(), str(configured))
+            finally:
+                client_module.shutil.which = original_which
+                if previous is None:
+                    os.environ.pop("NMEM_CLI_PATH", None)
+                else:
+                    os.environ["NMEM_CLI_PATH"] = previous
+
 
 if __name__ == "__main__":
     unittest.main()
