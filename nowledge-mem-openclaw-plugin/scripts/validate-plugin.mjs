@@ -212,7 +212,7 @@ async function main() {
     sessionContext: { type: "boolean", default: false },
     sessionDigest: { type: "boolean", default: true },
     digestMinInterval: { type: "integer", default: 300, minimum: 0, maximum: 86400 },
-    maxContextResults: { type: "integer", default: 5, minimum: 1, maximum: 20 },
+    maxContextResults: { type: "integer", default: 10, minimum: 1, maximum: 20 },
     recallMinScore: { type: "integer", default: 0, minimum: 0, maximum: 100 },
     maxThreadMessageChars: { type: "integer", default: 800, minimum: 200, maximum: 20000 },
     captureExclude: { type: "array", default: [], itemsType: "string" },
