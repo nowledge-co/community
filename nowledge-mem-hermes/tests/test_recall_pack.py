@@ -24,12 +24,87 @@ def _memory(title, content, score=0.9, **extra):
     return {"title": title, "content": content, "score": score, "labels": [], **extra}
 
 
+def _thread_matches(*messages):
+    return {"threads": [{"title": "Deployment", "matched_messages": list(messages)}]}
+
+
 class RecallPackTests(unittest.TestCase):
     def test_long_memory_is_not_cut_to_three_hundred_characters(self):
         fact = "发件域名是 play-chain.com。"
         content = "背景说明。" * 70 + fact
         block = Provider._format_prefetch({"memories": [_memory("可疑招聘邮件", content)]})
         self.assertIn("play-chain.com", block)
+
+    def test_thread_passages_with_a_shared_prefix_keep_distinct_facts(self):
+        prefix = "For the production deployment configuration discussed in the release checklist, "
+        for new_date in ("2026-10-01", "2026-11-01"):
+            with self.subTest(new_date=new_date):
+                threads = _thread_matches(
+                    {"snippet": prefix + "the production port is 443.", "timestamp": "2026-10-01"},
+                    {"snippet": prefix + "the production port is now 8443.", "timestamp": new_date},
+                )
+                block = Provider._format_prefetch(None, threads)
+                self.assertIn("port is 443.", block)
+                self.assertIn("port is now 8443.", block)
+                self.assertIn("[2026-10-01]", block)
+                self.assertIn(f"[{new_date}]", block)
+
+    def test_memory_does_not_suppress_a_passage_with_a_shared_prefix(self):
+        prefix = "For the production deployment configuration discussed in the release checklist, "
+        memories = {"memories": [_memory("Port", prefix + "the port is 443.")]}
+        threads = _thread_matches({"snippet": prefix + "the port is now 8443."})
+        block = Provider._format_prefetch(memories, threads)
+        self.assertIn("the port is 443.", block)
+        self.assertIn("the port is now 8443.", block)
+
+    def test_identical_text_at_different_dates_remains_visible(self):
+        text = "The release was approved."
+        for source in ("memory", "thread"):
+            with self.subTest(source=source):
+                old_message = {"snippet": text, "timestamp": "2026-10-01"}
+                new_message = {"snippet": text, "timestamp": "2026-11-01"}
+                memories = (
+                    {"memories": [_memory("Approval", text, event_start="2026-10-01")]}
+                    if source == "memory" else None
+                )
+                threads = _thread_matches(
+                    *([old_message] if source == "thread" else []), new_message,
+                )
+                block = Provider._format_prefetch(memories, threads)
+                self.assertIn("[2026-10-01]", block)
+                self.assertIn("[2026-11-01]", block)
+                self.assertEqual(block.count(text), 2)
+
+    def test_complete_duplicate_evidence_is_normalized_before_truncation(self):
+        for source in ("memory", "thread"):
+            for text in ("The port is 443.", "Deployment context. " * 100):
+                with self.subTest(source=source, text_length=len(text)):
+                    message = {"snippet": text, "timestamp": "2026-10-01"}
+                    whitespace_variant = {
+                        "snippet": text.replace(" ", " \n "),
+                        "timestamp": "2026-10-01",
+                    }
+                    memories = (
+                        {"memories": [_memory("Port", text, event_start="2026-10-01")]}
+                        if source == "memory" else None
+                    )
+                    threads = _thread_matches(
+                        *([message] if source == "thread" else []), whitespace_variant,
+                    )
+                    block = Provider._format_prefetch(memories, threads)
+                    self.assertEqual(block.count("[2026-10-01]"), 1)
+                    if source == "memory":
+                        self.assertNotIn("### Conversation excerpts", block)
+
+    def test_an_unpacked_memory_does_not_suppress_a_matching_passage(self):
+        text = "The production port is 443."
+        block = Provider._format_prefetch(
+            {"memories": [_memory("Port", text)]},
+            _thread_matches({"snippet": text}),
+            memory_budget_chars=0,
+        )
+        self.assertIn("### Conversation excerpts", block)
+        self.assertIn(text, block)
 
     def test_items_carry_event_or_conversation_dates(self):
         block = Provider._format_prefetch(

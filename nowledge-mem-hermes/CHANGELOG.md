@@ -2,6 +2,10 @@
 
 ## [0.5.25] - Unreleased
 
+### Fixed
+
+- Recall deduplication now compares complete normalized text and evidence dates before display truncation, preserving distinct facts that share a prefix and repeated facts from different dates.
+
 ### Changed
 
 - Make memory and conversation-excerpt budgets configurable, including zero to skip a read; startup health and fallback reads share one eight-second deadline.

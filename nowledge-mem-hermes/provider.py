@@ -1165,7 +1165,7 @@ class NowledgeMemProvider(MemoryProvider):
         thread_budget_chars: int = RECALL_THREAD_BUDGET_CHARS,
     ) -> str:
         memory_lines: List[str] = []
-        seen_text: Set[str] = set()
+        seen_evidence: Set[tuple[str, str]] = set()
         if isinstance(result, dict):
             memories = result.get("memories", result.get("results", [])) or []
             used = 0
@@ -1177,11 +1177,14 @@ class NowledgeMemProvider(MemoryProvider):
                     continue
                 title = memory.get("title") or "Untitled"
                 content = (memory.get("content") or "").strip()
+                date = NowledgeMemProvider._recall_date(memory)
+                # Compare complete evidence before display truncation, keeping
+                # identical text from different dates as distinct evidence.
+                recall_key = (" ".join(content.split()), date)
                 if len(content) > RECALL_MEMORY_ITEM_CHARS:
                     content = content[:RECALL_MEMORY_ITEM_CHARS].rstrip() + "…"
                 labels = memory.get("labels") or []
                 label_str = f" [{', '.join(labels)}]" if labels else ""
-                date = NowledgeMemProvider._recall_date(memory)
                 date_str = f"[{date}] " if date else ""
                 line = f"- {date_str}**{title}**{label_str}: {content}"
                 # Whole items in rank order; skip one that would overflow and
@@ -1191,7 +1194,7 @@ class NowledgeMemProvider(MemoryProvider):
                     continue
                 used += size
                 memory_lines.append(line)
-                seen_text.add(content[:80])
+                seen_evidence.add(recall_key)
 
         passage_lines: List[str] = []
         if isinstance(threads, dict):
@@ -1207,11 +1210,14 @@ class NowledgeMemProvider(MemoryProvider):
                     if not isinstance(message, dict):
                         continue
                     snippet = " ".join(str(message.get("snippet") or "").split())
-                    if not snippet or snippet[:80] in seen_text:
+                    if not snippet:
+                        continue
+                    date = NowledgeMemProvider._recall_date(message) or NowledgeMemProvider._recall_date(thread)
+                    recall_key = (snippet, date)
+                    if recall_key in seen_evidence:
                         continue
                     if len(snippet) > RECALL_PASSAGE_CHARS:
                         snippet = snippet[:RECALL_PASSAGE_CHARS].rstrip() + "…"
-                    date = NowledgeMemProvider._recall_date(message) or NowledgeMemProvider._recall_date(thread)
                     date_str = f"[{date}] " if date else ""
                     role = message.get("role") or "message"
                     line = f"- {date_str}{title} ({role}): {snippet}"
@@ -1220,7 +1226,7 @@ class NowledgeMemProvider(MemoryProvider):
                         continue
                     used += size
                     passage_lines.append(line)
-                    seen_text.add(snippet[:80])
+                    seen_evidence.add(recall_key)
 
         if not memory_lines and not passage_lines:
             return ""
