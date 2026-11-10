@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.25] - Unreleased
+
+### Fixed
+
+- Normalize recalled Memory whitespace before display truncation so duplicate filtering cannot suppress the only visible copy of a fact that fits in a matching passage.
+- Recall deduplication now compares complete normalized text and evidence dates before display truncation, preserving distinct facts that share a prefix and repeated facts from different dates.
+
+### Changed
+
+- Make memory and conversation-excerpt budgets configurable, including zero to skip a read; startup health and fallback reads share one eight-second deadline.
+- Distinguish save/activity dates from occurrence dates, tolerate count-only legacy thread matches, and refuse an unavailable explicitly selected CLI instead of falling back to another executable.
+- Per-turn recall now injects whole memories up to a 6,000-character budget instead of five memories cut to 300 characters, so the concrete detail a question asks for (a domain, a path, a port, a count) reaches the model.
+- Every recalled item is dated with when the event happened or when its source conversation took place, and the block states today's date, so "how long ago" questions can be answered.
+- Recall also includes up to three matching conversation excerpts, quoted around the match from the original message, when a past conversation holds the answer that no memory captured.
+- Short questions in Chinese and other scripts without spaces now trigger recall; the old ten-character rule skipped them.
+- Recall and session-start reads are bounded to 8 seconds each, so a busy Mem server costs a turn seconds instead of minutes.
+- An `nmem` executable set through `NMEM_CLI_PATH` now takes precedence over the first `nmem` on `PATH`, so a stale copy cannot silently serve older output.
+
 ## [0.5.24] - 2026-09-18
 
 ### Fixed

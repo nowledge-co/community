@@ -461,6 +461,11 @@ export class NowledgeMemClient {
 			labels: Array.isArray(m.labels) ? m.labels : (m.label_ids ?? []),
 			eventStart: m.event_start ?? null,
 			eventEnd: m.event_end ?? null,
+			// When the source conversation took place. `createdAt` is only
+			// when Mem saved it (the import time for imported history).
+			sourceRecordedAt:
+				m.source_recorded_at_start ?? m.metadata?.source_recorded_at_start ?? null,
+			createdAt: m.created_at ?? null,
 			temporalContext: m.temporal_context ?? null,
 			// Thread provenance: links memory to the conversation it was distilled from.
 			// CLI returns `source_thread` (string), API returns `source_thread: {id, title}` (object).

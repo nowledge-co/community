@@ -82,6 +82,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install build twine
+      - name: Test Bub recall formatting
+        if: matrix.directory == 'nowledge-mem-bub-plugin'
+        run: |
+          python -m pip install pytest
+          python -m pytest nowledge-mem-bub-plugin/tests/test_recall_pack.py -q
       - name: Build and check wheel and sdist
         run: |
           python -m build "${{ matrix.directory }}" --outdir dist

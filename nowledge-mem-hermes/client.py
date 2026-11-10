@@ -42,15 +42,23 @@ def _resolve_nmem() -> Optional[str]:
     that omits user install locations such as ``~/.local/bin`` and Homebrew, so
     keep a small executable fallback list before disabling the provider.
     """
+    # An explicitly configured executable wins over whatever ``nmem`` happens
+    # to be first on PATH: a stale PATH copy silently ran an older CLI.
+    for env_name in ("NMEM_CLI_PATH", "NMEM_BIN", "NMEM_CLI"):
+        configured = os.environ.get(env_name)
+        if configured and configured.strip():
+            path = os.path.expandvars(os.path.expanduser(configured.strip()))
+            if os.path.isfile(path) and os.access(path, os.X_OK):
+                return path
+            if not os.path.dirname(path) and not ntpath.dirname(path):
+                return shutil.which(path)
+            return None
+
     found = shutil.which("nmem")
     if found:
         return found
 
     candidates: List[str] = []
-    for env_name in ("NMEM_CLI_PATH", "NMEM_BIN", "NMEM_CLI"):
-        configured = os.environ.get(env_name)
-        if configured and configured.strip():
-            candidates.append(os.path.expanduser(configured.strip()))
 
     if sys.platform == "darwin":
         candidates.extend(
@@ -258,15 +266,16 @@ class NowledgeMemClient:
         except Exception:
             return False
 
-    def working_memory(self) -> Dict[str, Any]:
+    def working_memory(self, *, timeout: Optional[float] = None) -> Dict[str, Any]:
         """Fetch the user's Working Memory briefing."""
-        return self._cli(["wm", "read"])
+        return self._cli(["wm", "read"], timeout=timeout)
 
     def context_bundle(
         self,
         *,
         source_app: Optional[str] = None,
         host_agent_id: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Fetch the full startup Context Bundle when supported by the CLI."""
         cmd = ["context"]
@@ -274,7 +283,7 @@ class NowledgeMemClient:
             cmd.extend(["--source-app", source_app])
         if host_agent_id:
             cmd.extend(["--host-agent-id", host_agent_id])
-        return self._cli(cmd)
+        return self._cli(cmd, timeout=timeout)
 
     def search(
         self,
@@ -284,6 +293,7 @@ class NowledgeMemClient:
         filter_labels: Optional[List[str]] = None,
         mode: Optional[str] = None,
         min_importance: Optional[float] = None,
+        timeout: Optional[float] = None,
     ) -> Any:
         """Search memories. CLI requires a query string."""
         if not query:
@@ -298,7 +308,7 @@ class NowledgeMemClient:
             cmd.extend(["--mode", "deep"])
         if min_importance is not None:
             cmd.extend(["--importance", str(min_importance)])
-        return self._cli(cmd)
+        return self._cli(cmd, timeout=timeout)
 
     def save(
         self,
@@ -363,6 +373,7 @@ class NowledgeMemClient:
         *,
         limit: int = 10,
         source: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> Any:
         """Search past conversations. CLI requires a query string."""
         if not query:
@@ -372,7 +383,7 @@ class NowledgeMemClient:
             cmd.extend(["-n", str(limit)])
         if source:
             cmd.extend(["--source", source])
-        return self._cli(cmd)
+        return self._cli(cmd, timeout=timeout)
 
     def thread_messages(
         self,
@@ -465,8 +476,12 @@ class NowledgeMemClient:
             return False
         return True
 
-    def _cli(self, args: List[str]) -> Any:
-        """Run ``nmem --json <args>`` and return parsed JSON."""
+    def _cli(self, args: List[str], *, timeout: Optional[float] = None) -> Any:
+        """Run ``nmem --json <args>`` and return parsed JSON.
+
+        ``timeout`` tightens the configured timeout for latency-bound callers
+        such as per-turn recall; it never extends it.
+        """
         exe = _resolve_nmem()
         if exe is None:
             raise RuntimeError(
@@ -482,7 +497,10 @@ class NowledgeMemClient:
             env["NMEM_SPACE"] = self._space
             env["NMEM_SPACE_ID"] = self._space
         try:
-            result = _run_nmem(cmd, timeout=self._timeout, env=env)
+            effective = float(self._timeout)
+            if timeout is not None:
+                effective = min(effective, float(timeout))
+            result = _run_nmem(cmd, timeout=effective, env=env)
         except FileNotFoundError:
             raise RuntimeError(
                 "nmem CLI not found. Install: pip install nmem-cli, "

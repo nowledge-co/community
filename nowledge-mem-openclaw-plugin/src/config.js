@@ -318,7 +318,8 @@ export function parseConfig(raw, logger) {
 			source: "pluginConfig",
 		},
 		{ value: mcrEnv, source: "env" },
-		{ value: 5, source: "default" },
+		// Ten candidates; the recalled-knowledge block packs them by budget.
+		{ value: 10, source: "default" },
 	);
 	const maxContextResults = Math.min(20, Math.max(1, Math.trunc(mcr.value)));
 	_sources.maxContextResults = mcr.source;

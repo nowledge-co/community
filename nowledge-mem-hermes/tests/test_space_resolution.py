@@ -91,7 +91,7 @@ class SpaceResolutionTests(unittest.TestCase):
             def health(self):
                 return True
 
-            def working_memory(self):
+            def working_memory(self, **_kwargs):
                 return {}
 
         original_client = provider.NowledgeMemClient

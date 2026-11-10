@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## [0.7.10] - Unreleased
+
+### Changed
+
+- Mark fallback save dates explicitly rather than presenting them as event dates; verify conflicting evidence against its sources.
+- Relevant memories are packed by a 6,000-character budget with whole memories instead of 220-character snippets, and each one is dated with when the event happened or when its source conversation took place.
+- `maxRecallResults` now defaults to 10.
 
 ## [0.7.9] - 2026-11-02
 

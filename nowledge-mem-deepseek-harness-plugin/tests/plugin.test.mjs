@@ -23,7 +23,9 @@ function shellResult(body) {
   }
 }
 
-function fixture(config = {}, api = 'execute') {
+function fixture(config = {}, api = 'execute', searchResponse = {
+  memories: [{ id: 'memory-1', title: 'Prior decision', content: 'Use bounded shell execution.' }],
+}) {
   const listeners = new Map()
   const requests = []
   const imports = []
@@ -41,9 +43,7 @@ function fixture(config = {}, api = 'execute') {
     requests.push(request)
     const result = async () => {
       if (request.command.includes(' context ')) return shellResult({ working_memory: 'Current project context' })
-      if (request.command.includes(' m search ')) return shellResult({
-        memories: [{ id: 'memory-1', title: 'Prior decision', content: 'Use bounded shell execution.' }],
-      })
+      if (request.command.includes(' m search ')) return shellResult(searchResponse)
       assert.match(request.command, / t import /u)
       assert.equal(flushes.at(-1), session)
       const file = request.command.match(/--file (?:'([^']+)'|(\S+))/u)
@@ -66,6 +66,21 @@ function fixture(config = {}, api = 'execute') {
   )
   return { session, requests, imports, warnings, importFinished: importFinished.promise, listeners, preStep }
 }
+
+test('recall preserves save-only date provenance through the search parser', async () => {
+  const host = fixture({ contextOnSessionStart: false }, 'execute', {
+    memories: [{
+      title: 'Deployment', content: 'The production port is 8443.',
+      created_at: '2026-11-01T08:30:00Z',
+    }],
+  })
+  const decision = await host.preStep([userMessage('review the release decision')])
+  assert.equal(host.requests.length, 1)
+  assert.match(host.requests[0].command, / m search /u)
+  const recall = decision.messages.find(message => message.source?.form === 'recall')
+  assert.ok(recall)
+  assert.match(recall.content[0].text, /date=saved:2026-11-01/u)
+})
 
 for (const api of ['execute', 'run']) {
   test(`${api} injects context and recall that pass native v4 user and inbox admission`, async () => {

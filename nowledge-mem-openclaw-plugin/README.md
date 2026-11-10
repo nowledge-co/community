@@ -465,7 +465,7 @@ OpenClaw does not currently have a separate user-owned instruction file in this 
 | `sessionContext` | boolean | `false` | Inject Context Bundle / Working Memory + relevant memories at prompt time |
 | `sessionDigest` | boolean | `true` | Thread capture + LLM distillation at session end |
 | `digestMinInterval` | integer | `300` | Minimum seconds between session digests for the same thread (0-86400) |
-| `maxContextResults` | integer | `5` | Max memories to inject at prompt time (1-20, only used when sessionContext is enabled) |
+| `maxContextResults` | integer | `10` | Max memories considered at prompt time (1-20, only used when sessionContext is enabled); they are packed by a 6,000-character budget with dates |
 | `recallMinScore` | integer | `0` | Min relevance score (0-100%) to include in auto-recall. 0 = include all |
 | `maxThreadMessageChars` | integer | `800` | Maximum characters preserved per captured OpenClaw thread message before truncation |
 | `corpusSupplement` | boolean | `false` | Register as a searchable corpus inside memory-core's recall and dreaming pipeline |

@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## [0.1.8] - Unreleased
+
+### Changed
+
+- Mark fallback save dates explicitly rather than presenting them as event dates; verify conflicting evidence against its sources.
+- Each recalled memory now carries a `date=` with when the event happened or when its source conversation took place, and the recall block states today's date.
 
 ## 0.1.7
 
