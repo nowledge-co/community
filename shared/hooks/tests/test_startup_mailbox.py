@@ -156,10 +156,23 @@ class StartupMailboxTests(unittest.TestCase):
                         selection["scope"]["space_id"] = space
                     context, calls = self.invoke(
                         host, named=True, native=False, automatic=True,
-                        explicit_space=space, legacy_space=space,
+                        explicit_space=space, legacy_space=space, identity="Reviewer",
                         mutate=literal_space, check_prepare_space_environment=True,
                         failure="ready",
                     )
+                    self.assertIn("independent working memory", context)
+                    memory = ["wm", "read", "--space-id", space]
+                    self.assertIn(memory, calls)
+                    self.assertLess(calls.index(memory), calls.index(["status"]))
+                    legacy_context, legacy_calls = self.invoke(
+                        host, named=True, native=True, explicit_space=space,
+                        legacy_space=space, identity="Reviewer", mutate=literal_space,
+                        original_kind="cloud-session", failure="ready",
+                    )
+                    self.assertIn("independent working memory", legacy_context)
+                    self.assertIn(memory, legacy_calls)
+                    self.assertTrue(any("probe" in args for args in legacy_calls))
+                    self.assertFalse(any("session-bootstrap" in args for args in legacy_calls))
                     section = context.split("## Nowledge Bridge automatic session\n\n", 1)[1]
                     self.assertTrue(json.loads(section.split("\n\n", 1)[0])["delivery_ready"])
 
