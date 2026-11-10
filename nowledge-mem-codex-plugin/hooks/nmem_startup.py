@@ -406,8 +406,7 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
         selected_space = selected["selection"]["scope"]["space_id"]
         requested_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
         if (requested_agent and canonical_agent_profile_id(requested_agent) != selected_agent
-                or os.environ.get("NMEM_HOST_AGENT_ID", "").strip()
-                or os.environ.get("NMEM_SPACE", "").strip() not in ("", selected_space)
+                or os.environ.get("NMEM_SPACE") not in (None, selected_space)
                 or os.environ.get("NMEM_SPACE_ID") not in (None, selected_space)):
             return observation
     args = ([f"--agent-context={name}"] if name else []) + [
@@ -438,7 +437,7 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
             or reply.get("state") != "prepared" or reply.get("host") != host
             or reply.get("native_session_id") != native
             or not isinstance(context, str) or re.fullmatch(r"[A-Za-z0-9_.:-]{1,120}", context) is None
-            or name and name != context or not validate_selection(selection)
+            or not validate_selection(selection)
             or not isinstance(registration, dict) or registration.get("state") != "active"
             or registration.get("closed_at") is not None or type(reply.get("resumed")) is not bool
             or type(reply.get("delivery_ready")) is not bool):
@@ -446,9 +445,17 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
     requested_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
     if requested_agent and canonical_agent_profile_id(requested_agent) != selection["address"]["agent_id"]:
         return observation
-    if expected_context is not None and (not isinstance(expected_context, dict)
-            or expected_context.get("name") != context or expected_context.get("selection") != selection):
-        return observation
+    if expected_context is not None:
+        if (not isinstance(expected_context, dict)
+                or expected_context.get("selection") != selection):
+            return observation
+        if expected_context.get("name") != context:
+            approved = reply.get("approved_context")
+            if (not isinstance(approved, dict)
+                    or approved.get("configured") is not True
+                    or any(approved.get(key) != expected_context.get(key)
+                           for key in ("name", "revision", "selection"))):
+                return observation
     address = registration.get("address")
     times = [registration.get(key) for key in ("registered_at", "observed_at", "lease_expires_at")]
     if (not isinstance(address, dict) or type(address.get("schema_version")) is not int

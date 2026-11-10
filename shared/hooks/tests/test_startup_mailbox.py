@@ -153,6 +153,32 @@ class StartupMailboxTests(unittest.TestCase):
             with mock.patch.dict(os.environ,{"NMEM_BRIDGE_SESSION_MAILBOX":"0"}):
                 self.assertFalse(observe(reply)["delivery_ready"])
 
+    def test_automatic_restored_context_requires_complete_approved_alias_projection(self):
+        spec = importlib.util.spec_from_file_location("automatic_alias_projection", ROOT / "shared/hooks/nmem_startup.py")
+        helper = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helper)
+        selection = {"scope": {"store_id": "store", "store_incarnation": "incarnation", "workspace_id": None, "space_id": "team-space"},
+                     "address": {"agent_id": "ducter", "identity_birth": "birth", "custodian_id": "member", "attachment_id": "attachment", "attachment_generation": 1}}
+        expected = {"name": "approved-alias", "configured": True, "selection": selection, "revision": "a" * 64}
+        address = {"schema_version": 2, "scope": selection["scope"], "agent": selection["address"], "session_id": "private-run",
+                   "registration_id": "registration", "mailbox_id": "mailbox", "binding_generation": 1}
+        reply = {"schema_version": 1, "state": "prepared", "host": "codex", "native_session_id": "actual",
+                 "context": "bridge-original", "selection": selection, "approved_context": expected,
+                 "resumed": True, "delivery_ready": True,
+                 "receiving_capability": {"protocol_version": 2, "receive_mode": "auto", "recovery_owner": "server"},
+                 "registration": {"address": address, "state": "active", "closed_at": None, "registered_at": 1, "observed_at": 2, "lease_expires_at": 3}}
+        payload = {"hook_event_name": "SessionStart", "source": "resume", "session_id": "actual"}
+        def observe(value):
+            return helper.automatic_session_observation(payload, host="codex", find_nmem=lambda: "nmem",
+                run_result=lambda *a, **kw: (0, value), validate_selection=helper.valid_selection, expected_context=expected)
+        with mock.patch.dict(os.environ, {"NMEM_AGENT_CONTEXT": "approved-alias"}, clear=True):
+            result = observe(reply)
+            self.assertTrue(result["delivery_ready"])
+            self.assertEqual(result["session_args"][0], "--agent-context=bridge-original")
+            for mutation in (None, expected | {"revision": "b" * 64}, expected | {"configured": False},
+                             expected | {"name": "other"}, expected | {"selection": None}):
+                self.assertFalse(observe(reply | {"approved_context": mutation})["delivery_ready"])
+
     def test_automatic_named_context_pins_revision_before_effects(self):
         spec=importlib.util.spec_from_file_location("automatic_context_pin",ROOT/"shared/hooks/nmem_startup.py")
         helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)

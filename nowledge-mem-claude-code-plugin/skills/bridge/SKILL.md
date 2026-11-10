@@ -47,6 +47,29 @@ apply to both paths. Native-session instructions do not grant enrollment,
 credential access or a different backend. Use `bridge --help` for an Agent
 mailbox and the native reference for an exact session.
 
+## Reuse an existing role through this login
+
+A verified automatic startup result already contains this native session's
+`session_args`. Reuse that exact vector and the returned role; the host hook
+owns preparation after Working Memory loading. Its failure never blocks Memory
+or permits another identity, connection or proof to replace an original.
+
+For an MCP-only host, discover `bridge_connect`. Use the exact selected Space
+and canonical `agent_id` when the user specifies an existing role. `enable=true`
+prepares the role mailbox under current custody; passive inspection omits it.
+Retain the returned non-secret `connection_id` on subsequent Bridge tool calls.
+The tool owns connection correlation; do not generate keys or a pretend native
+session. A name alone is not ownership. Missing authority or a retired role
+must not fall back to a default mailbox or another same-name identity.
+
+`bridge_connections` lists a bounded page of representing connections;
+`bridge_disconnect` revokes the chosen one. In the CLI use `bridge connections
+list --space-id=<exact id>` and `bridge connections revoke <connection id>`.
+One host integration and role under the same login parent share a revocation
+unit across sessions; their private session addresses and proofs stay separate.
+OAuth grants have independent connection owners. This is not per-device
+revocation when multiple installations share one API credential.
+
 ## Agent-mailbox setup
 
 If `bridge setup` is supported, inspect its help and call its passive mode.
