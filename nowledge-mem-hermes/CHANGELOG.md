@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Normalize recalled Memory whitespace before display truncation so duplicate filtering cannot suppress the only visible copy of a fact that fits in a matching passage.
 - Recall deduplication now compares complete normalized text and evidence dates before display truncation, preserving distinct facts that share a prefix and repeated facts from different dates.
 
 ### Changed

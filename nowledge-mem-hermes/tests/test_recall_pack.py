@@ -29,6 +29,15 @@ def _thread_matches(*messages):
 
 
 class RecallPackTests(unittest.TestCase):
+    def test_whitespace_heavy_memory_keeps_the_fact_in_its_matching_passage(self):
+        content = "Deployment context." + "\n " * 700 + "The production port is 8443."
+        block = Provider._format_prefetch(
+            {"memories": [_memory("Port", content, event_start="2026-11-01")]},
+            _thread_matches({"snippet": content, "timestamp": "2026-11-01"}),
+        )
+        self.assertIn("The production port is 8443.", block)
+        self.assertEqual(block.count("[2026-11-01]"), 1)
+
     def test_long_memory_is_not_cut_to_three_hundred_characters(self):
         fact = "发件域名是 play-chain.com。"
         content = "背景说明。" * 70 + fact

@@ -1176,11 +1176,11 @@ class NowledgeMemProvider(MemoryProvider):
                 if score < RECALL_MIN_SCORE:
                     continue
                 title = memory.get("title") or "Untitled"
-                content = (memory.get("content") or "").strip()
+                content = " ".join((memory.get("content") or "").split())
                 date = NowledgeMemProvider._recall_date(memory)
                 # Compare complete evidence before display truncation, keeping
                 # identical text from different dates as distinct evidence.
-                recall_key = (" ".join(content.split()), date)
+                recall_key = (content, date)
                 if len(content) > RECALL_MEMORY_ITEM_CHARS:
                     content = content[:RECALL_MEMORY_ITEM_CHARS].rstrip() + "…"
                 labels = memory.get("labels") or []
