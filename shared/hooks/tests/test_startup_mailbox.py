@@ -131,6 +131,7 @@ class StartupMailboxTests(unittest.TestCase):
                         context, calls = self.invoke(
                             host, named=True, native=False, automatic=True,
                             explicit_space=space, legacy_space=legacy, failure="ready",
+                            check_prepare_space_environment=True,
                         )
                         memory = ["wm", "read", "--space-id", "team-space"]
                         prepare = [
@@ -146,6 +147,34 @@ class StartupMailboxTests(unittest.TestCase):
                         observation = json.loads(section.split("\n\n", 1)[0])
                         self.assertTrue(observation["delivery_ready"])
                         self.assertEqual(observation["name"], "reviewer")
+
+    def test_automatic_named_context_preserves_matching_literal_space_id(self):
+        for host in ("codex", "claude-code"):
+            for space in (" team-space ", "", " \t "):
+                with self.subTest(host=host, space=space):
+                    def literal_space(selection):
+                        selection["scope"]["space_id"] = space
+                    context, calls = self.invoke(
+                        host, named=True, native=False, automatic=True,
+                        explicit_space=space, legacy_space=space, identity="Reviewer",
+                        mutate=literal_space, check_prepare_space_environment=True,
+                        failure="ready",
+                    )
+                    self.assertIn("independent working memory", context)
+                    memory = ["wm", "read", "--space-id", space]
+                    self.assertIn(memory, calls)
+                    self.assertLess(calls.index(memory), calls.index(["status"]))
+                    legacy_context, legacy_calls = self.invoke(
+                        host, named=True, native=True, explicit_space=space,
+                        legacy_space=space, identity="Reviewer", mutate=literal_space,
+                        original_kind="cloud-session", failure="ready",
+                    )
+                    self.assertIn("independent working memory", legacy_context)
+                    self.assertIn(memory, legacy_calls)
+                    self.assertTrue(any("probe" in args for args in legacy_calls))
+                    self.assertFalse(any("session-bootstrap" in args for args in legacy_calls))
+                    section = context.split("## Nowledge Bridge automatic session\n\n", 1)[1]
+                    self.assertTrue(json.loads(section.split("\n\n", 1)[0])["delivery_ready"])
 
     def test_automatic_named_context_refuses_conflicting_space_selectors(self):
         cases = (
@@ -289,6 +318,7 @@ class StartupMailboxTests(unittest.TestCase):
         self, host, *, named=True, failure="disabled", source="startup",
         conflict=False, native=True, mutate=None, switch=False, identity=None,
         explicit_space=None, legacy_space=None, host_agent_id=None, mailbox_opt_in=False,
+        check_prepare_space_environment=False,
         event="SessionStart", pending_reference=None,
         original_kind=None, pending=True, memory_available=True, cli_available=True,
         selection_available=True, agent_type="researcher", bundle_mode="old_cli", automatic=False, backend="cloud", legacy_mailbox_ready=False,
@@ -342,6 +372,16 @@ class StartupMailboxTests(unittest.TestCase):
                     current["scope"]["space_id"] = "other-space"
                 reply = {"name": "reviewer", "configured": True, "selection": current, "revision":"a" * 64}
             elif bridge_args[:2] == ["bridge", "session"]:
+                if check_prepare_space_environment:
+                    child_env = kwargs.get("env") or os.environ
+                    expected = (explicit_space if explicit_space == selection["scope"]["space_id"]
+                                else (explicit_space or "").strip() or None)
+                    self.assertEqual(child_env.get("NMEM_SPACE"), expected)
+                    self.assertEqual(child_env.get("NMEM_SPACE_ID"), legacy_space)
+                    self.assertEqual(os.environ.get("NMEM_SPACE"), explicit_space)
+                    self.assertEqual(child_env.get("NMEM_AGENT_CONTEXT"), "reviewer")
+                    raw_selector = child_env.get("NMEM_SPACE", child_env.get("NMEM_SPACE_ID"))
+                    self.assertIn(raw_selector, (None, selection["scope"]["space_id"]))
                 if failure == "exception":
                     raise RuntimeError("synthetic CLI adapter exception")
                 if failure == "malformed":

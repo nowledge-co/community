@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.36] - Unreleased
+
+- Pass the checked optional Space selector to automatic named-Context preparation without changing the host environment or the legacy exact Space ID. Preserve matching literal IDs and use the same named Agent/Space matching for independent Working Memory and session inspection.
+
 ## [0.7.35] - Unreleased
 
 - Treat an empty or whitespace-only `NMEM_SPACE` as unset during automatic preparation, and trim non-empty selectors while preserving exact named-Context and legacy Space constraints.

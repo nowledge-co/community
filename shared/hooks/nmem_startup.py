@@ -87,6 +87,12 @@ def valid_selection(selection):
             and 0 < address["attachment_generation"] < (1 << 53))
 
 
+def context_space_selector(selected_space):
+    """Keep an exact approved ID before normalizing an optional human selector."""
+    raw = os.environ.get("NMEM_SPACE")
+    return raw if raw == selected_space else (raw or "").strip() or None
+
+
 def memory_scope(*, find_nmem, read_json, validate_selection, source_app=None, timeout_seconds=MAILBOX_TIMEOUT_SECONDS):
     """Resolve selectors independently; the memory endpoint enforces access.
 
@@ -109,8 +115,9 @@ def memory_scope(*, find_nmem, read_json, validate_selection, source_app=None, t
         selection = selected["selection"]
         exact = selection["scope"]["space_id"]
         agent = os.environ.get("NMEM_AGENT_ID", "").strip()
-        if (agent and agent != selection["address"]["agent_id"]
-                or space and space != exact or legacy is not None and legacy != exact
+        selected_space = context_space_selector(exact)
+        if (agent and canonical_agent_profile_id(agent) != selection["address"]["agent_id"]
+                or selected_space is not None and selected_space != exact or legacy is not None and legacy != exact
                 or os.environ.get("NMEM_HOST_AGENT_ID", "").strip()):
             return None
         return {"name": name, "context": selected, "space_id": exact, "args": ["wm", "read", "--space-id", exact]}
@@ -211,10 +218,10 @@ def session_observation(payload: dict[str, Any], *, host: str, find_nmem, read_j
     agent = selection["address"]["agent_id"]
     space = selection["scope"]["space_id"]
     configured_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
-    configured_space = os.environ.get("NMEM_SPACE", "").strip()
+    configured_space = context_space_selector(space)
     legacy_space = os.environ.get("NMEM_SPACE_ID")
-    if (configured_agent and configured_agent != agent
-            or configured_space and configured_space != space
+    if (configured_agent and canonical_agent_profile_id(configured_agent) != agent
+            or configured_space is not None and configured_space != space
             or legacy_space is not None and legacy_space != space
             or os.environ.get("NMEM_HOST_AGENT_ID", "").strip()):
         observation.update(state="refused", reason="Ambient identity or Space selectors conflict with the configured context.")
@@ -406,9 +413,9 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
         selected_agent = selected["selection"]["address"]["agent_id"]
         selected_space = selected["selection"]["scope"]["space_id"]
         requested_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
-        requested_space = os.environ.get("NMEM_SPACE", "").strip()
+        requested_space = context_space_selector(selected_space)
         if (requested_agent and canonical_agent_profile_id(requested_agent) != selected_agent
-                or requested_space and requested_space != selected_space
+                or requested_space is not None and requested_space != selected_space
                 or os.environ.get("NMEM_SPACE_ID") not in (None, selected_space)):
             return observation
     args = ([f"--agent-context={name}"] if name else []) + [
@@ -429,7 +436,16 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
     remaining = deadline - time.monotonic()
     if remaining <= 0:
         return observation
-    result = run_result(nmem, args, timeout_seconds=remaining)
+    prepare_options = {}
+    if name:
+        # The CLI treats ambient IDs as exact; carry the hook's checked value.
+        child_env = os.environ.copy()
+        if requested_space is not None:
+            child_env["NMEM_SPACE"] = requested_space
+        else:
+            child_env.pop("NMEM_SPACE", None)
+        prepare_options["env"] = child_env
+    result = run_result(nmem, args, timeout_seconds=remaining, **prepare_options)
     if result is None:
         return observation
     exit_code, reply = result
