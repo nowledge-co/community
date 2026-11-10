@@ -23,7 +23,12 @@ class MailboxContextTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.environment = mock.patch.dict(os.environ, {"CODEX_HOME": self.directory.name}, clear=True)
+        # This suite protects the local mailbox adapter, independently of the
+        # default automatic native Bridge preparation mode.
+        self.environment = mock.patch.dict(os.environ, {
+            "CODEX_HOME": self.directory.name,
+            "NMEM_BRIDGE_SESSION_MAILBOX": "0",
+        }, clear=True)
         self.environment.start()
         self.addCleanup(self.environment.stop)
 
