@@ -143,6 +143,19 @@ class StartupMailboxTests(unittest.TestCase):
                         self.assertIn('"delivery_ready": true', context)
                     self.assertIn(["status"], calls)
 
+    def test_automatic_known_cloud_failure_never_uses_available_local_mailbox(self):
+        for failure in ("timeout", "malformed", "exception"):
+            with self.subTest(failure=failure):
+                context, calls = self.invoke("codex", named=True, native=False,
+                    automatic=None, backend="cloud", failure=failure, legacy_mailbox_ready=True)
+                self.assertIn("independent working memory", context)
+                self.assertIn(["status"], calls)
+                self.assertEqual(sum("prepare" in args for args in calls), 1)
+                self.assertFalse(any("mailbox" in args for args in calls))
+                self.assertNotIn("Local mailbox observation", context)
+                self.assertNotIn("pre-completion", context)
+                self.assertIn('"delivery_ready": false', context)
+
     def test_automatic_session_refuses_mismatched_or_unproven_readiness(self):
         spec=importlib.util.spec_from_file_location("automatic_bridge_test",ROOT/"shared/hooks/nmem_startup.py")
         helper=importlib.util.module_from_spec(spec)
@@ -233,7 +246,7 @@ class StartupMailboxTests(unittest.TestCase):
         explicit_space=None, legacy_space=None, host_agent_id=None, mailbox_opt_in=False,
         event="SessionStart", pending_reference=None,
         original_kind=None, pending=True, memory_available=True, cli_available=True,
-        selection_available=True, agent_type="researcher", bundle_mode="old_cli", automatic=False, backend="cloud",
+        selection_available=True, agent_type="researcher", bundle_mode="old_cli", automatic=False, backend="cloud", legacy_mailbox_ready=False,
     ):
         folder = ROOT / ("nowledge-mem-codex-plugin/hooks" if host == "codex" else "nowledge-mem-claude-code-plugin/scripts")
         script = folder / ("nmem-context.py" if host == "codex" else "nmem-hook-context.py")
@@ -247,6 +260,7 @@ class StartupMailboxTests(unittest.TestCase):
             nonlocal shows
             args = argv[2:]
             calls.append(args)
+            bridge_args = args[1:] if args and args[0].startswith("--agent-context=") else args
             if args == ["status"]:
                 reply = {"backend":backend}
             elif args[:1] == ["context"]:
@@ -282,7 +296,11 @@ class StartupMailboxTests(unittest.TestCase):
                 if switch and shows > 1:
                     current["scope"]["space_id"] = "other-space"
                 reply = {"name": "reviewer", "configured": True, "selection": current, "revision":"a" * 64}
-            elif args[:2] == ["bridge", "session"]:
+            elif bridge_args[:2] == ["bridge", "session"]:
+                if failure == "exception":
+                    raise RuntimeError("synthetic CLI adapter exception")
+                if failure == "malformed":
+                    return subprocess.CompletedProcess(argv, 0, "not-json", "")
                 if failure == "timeout":
                     raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
                 if failure != "ready":
@@ -316,7 +334,7 @@ class StartupMailboxTests(unittest.TestCase):
                 else:
                     return subprocess.CompletedProcess(argv, 1, '{}', "")
             elif "mailbox" in args:
-                if backend == "local" and args == ["--agent-context", "reviewer", "mailbox", "status"]:
+                if (backend == "local" or legacy_mailbox_ready) and args == ["--agent-context", "reviewer", "mailbox", "status"]:
                     reply = {"name":"reviewer","configured":True,"validation":"live","state":"usable","selection":selection}
                 else:
                     return subprocess.CompletedProcess(argv, 1, '{"error_code":"mailbox_delivery_unavailable"}', "")
