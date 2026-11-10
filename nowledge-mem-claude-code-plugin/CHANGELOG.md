@@ -2,6 +2,7 @@
 
 ## [0.7.35] - Unreleased
 
+- Treat an empty or whitespace-only `NMEM_SPACE` as unset during automatic preparation, and trim non-empty selectors while preserving exact named-Context and legacy Space constraints.
 - Confirm the actual Cloud backend before automatic native preparation; preserve existing Local mailbox observations and independent Working Memory without new user configuration.
 - Prepare the actual native Bridge session automatically when the backend admits the existing connection; preserve explicit opt-out and independent Working Memory loading.
 - Keep identity selection, private session proof and receiving readiness separate, and redact failed preparation output.

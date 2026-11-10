@@ -406,8 +406,9 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
         selected_agent = selected["selection"]["address"]["agent_id"]
         selected_space = selected["selection"]["scope"]["space_id"]
         requested_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
+        requested_space = os.environ.get("NMEM_SPACE", "").strip()
         if (requested_agent and canonical_agent_profile_id(requested_agent) != selected_agent
-                or os.environ.get("NMEM_SPACE") not in (None, selected_space)
+                or requested_space and requested_space != selected_space
                 or os.environ.get("NMEM_SPACE_ID") not in (None, selected_space)):
             return observation
     args = ([f"--agent-context={name}"] if name else []) + [

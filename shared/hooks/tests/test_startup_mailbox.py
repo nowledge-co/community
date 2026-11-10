@@ -123,6 +123,51 @@ class StartupMailboxTests(unittest.TestCase):
                         self.assertFalse(any(args[:2] in (["bridge","setup"],["agents","register"])
                                              for args in calls))
 
+    def test_automatic_named_context_normalizes_optional_space_selector(self):
+        for host in ("codex", "claude-code"):
+            for space in (None, "", " \t ", "team-space", " \tteam-space\n"):
+                for legacy in (None, "team-space"):
+                    with self.subTest(host=host, space=space, legacy=legacy):
+                        context, calls = self.invoke(
+                            host, named=True, native=False, automatic=True,
+                            explicit_space=space, legacy_space=legacy, failure="ready",
+                        )
+                        memory = ["wm", "read", "--space-id", "team-space"]
+                        prepare = [
+                            "--agent-context=reviewer", "bridge", "session",
+                            f"--host={host}", "--session-id=exact-native", "prepare",
+                            "--expected-context-revision=" + "a" * 64,
+                        ]
+                        self.assertIn("independent working memory", context)
+                        self.assertEqual(calls.count(prepare), 1)
+                        self.assertLess(calls.index(memory), calls.index(["status"]))
+                        self.assertLess(calls.index(["status"]), calls.index(prepare))
+                        section = context.split("## Nowledge Bridge automatic session\n\n", 1)[1]
+                        observation = json.loads(section.split("\n\n", 1)[0])
+                        self.assertTrue(observation["delivery_ready"])
+                        self.assertEqual(observation["name"], "reviewer")
+
+    def test_automatic_named_context_refuses_conflicting_space_selectors(self):
+        cases = (
+            {"explicit_space": "other-space"},
+            {"explicit_space": " other-space "},
+            {"legacy_space": "other-space"},
+            {"legacy_space": ""},
+            {"legacy_space": " team-space "},
+            {"explicit_space": " team-space ", "legacy_space": "other-space"},
+        )
+        for host in ("codex", "claude-code"):
+            for selectors in cases:
+                with self.subTest(host=host, selectors=selectors):
+                    context, calls = self.invoke(
+                        host, named=True, native=False, automatic=True,
+                        failure="ready", **selectors,
+                    )
+                    self.assertNotIn(["status"], calls)
+                    self.assertFalse(any("prepare" in args for args in calls))
+                    self.assertFalse(any(args[:2] == ["wm", "read"] for args in calls))
+                    self.assertNotIn('"delivery_ready": true', context)
+
     def test_automatic_backend_discovery_preserves_existing_local_mailbox(self):
         for host in ("codex", "claude-code"):
             for backend in ("local", "cloud", None, {}, False, "remote"):
@@ -307,7 +352,7 @@ class StartupMailboxTests(unittest.TestCase):
                     return subprocess.CompletedProcess(argv, 1, json.dumps({"http_status":503,
                         "error_code":"cloud_bridge_setup_unavailable","detail":"private-secret"}), "private-secret")
                 reply = {"schema_version":1,"state":"prepared","host":host,"native_session_id":"exact-native",
-                    "context":"automatic-reviewer","selection":selection,"resumed":source=="resume","delivery_ready":True,
+                    "context":"reviewer" if named else "automatic-reviewer","selection":selection,"resumed":source=="resume","delivery_ready":True,
                     "receiving_capability":{"protocol_version":2,"receive_mode":"auto","recovery_owner":"server"},
                     "registration":{"address":{"schema_version":2,"scope":selection["scope"],"agent":selection["address"],
                         "session_id":"allocated","registration_id":"registration","mailbox_id":"mailbox","binding_generation":1},
@@ -354,7 +399,7 @@ class StartupMailboxTests(unittest.TestCase):
                 env["NMEM_AGENT_CONTEXT"] = "reviewer"
             if identity:
                 env["NMEM_AGENT_ID"] = identity
-            if explicit_space:
+            if explicit_space is not None:
                 env["NMEM_SPACE"] = explicit_space
             if legacy_space is not None:
                 env["NMEM_SPACE_ID"] = legacy_space
