@@ -101,13 +101,91 @@ class StartupMailboxTests(unittest.TestCase):
                     self.assertFalse(any("session-bootstrap" in args or "prepare" in args
                                          or "claim" in args or "send" in args for args in calls))
 
+    def test_automatic_startup_runs_after_working_memory_without_manual_context(self):
+        for host in ("codex", "claude-code"):
+            for source in ("startup", "resume", "compact"):
+                for failure in ("ready", "timeout", "disabled"):
+                    with self.subTest(host=host, source=source, failure=failure):
+                        context, calls = self.invoke(host, named=False, native=False,
+                            automatic=True, source=source, failure=failure)
+                        self.assertIn("independent working memory", context)
+                        automatic = [i for i,args in enumerate(calls) if args[:2] == ["bridge","session"]]
+                        memory = [i for i,args in enumerate(calls) if args[:2] == ["wm","read"]]
+                        self.assertTrue(automatic)
+                        self.assertTrue(memory)
+                        self.assertLess(memory[0], automatic[0])
+                        command = calls[automatic[0]]
+                        self.assertEqual(command, ["bridge","session",f"--host={host}",
+                            "--session-id=exact-native","prepare"])
+                        observation = json.loads(context.split("## Nowledge Bridge automatic session\n\n",1)[1].split("\n\n",1)[0])
+                        self.assertEqual(observation["delivery_ready"], failure == "ready")
+                        self.assertNotIn("private-secret", context)
+                        self.assertFalse(any(args[:2] in (["bridge","setup"],["agents","register"])
+                                             for args in calls))
+
+    def test_automatic_session_refuses_mismatched_or_unproven_readiness(self):
+        spec=importlib.util.spec_from_file_location("automatic_bridge_test",ROOT/"shared/hooks/nmem_startup.py")
+        helper=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(helper)
+        selection={"scope":{"store_id":"store","store_incarnation":"incarnation","workspace_id":None,"space_id":"team-space"},
+            "address":{"agent_id":"ducter","identity_birth":"birth","custodian_id":"member","attachment_id":"attachment","attachment_generation":1}}
+        address={"schema_version":2,"scope":selection["scope"],"agent":selection["address"],
+            "session_id":"allocated","registration_id":"registration","mailbox_id":"mailbox","binding_generation":1}
+        reply={"schema_version":1,"state":"prepared","host":"codex","native_session_id":"actual", "context":"auto-context",
+            "selection":selection,"resumed":False,"delivery_ready":True,
+            "receiving_capability":{"protocol_version":2,"receive_mode":"auto","recovery_owner":"server"},
+            "registration":{"address":address,"state":"active","closed_at":None,"registered_at":1,"observed_at":2,"lease_expires_at":3},
+            "proof":"private-secret"}
+        payload={"hook_event_name":"SessionStart","source":"startup","session_id":"actual"}
+        def observe(value):
+            return helper.automatic_session_observation(payload,host="codex",find_nmem=lambda:"nmem",
+                run_result=lambda *a,**kw:(0,value),validate_selection=helper.valid_selection)
+        with mock.patch.dict(os.environ,{},clear=True):
+            self.assertTrue(observe(reply)["delivery_ready"])
+            self.assertNotIn("private-secret", helper.render_automatic_session_context(observe(reply)))
+            for change in ({"host":"claude-code"},{"native_session_id":"other"},{"schema_version":True},
+                           {"receiving_capability":None},{"delivery_ready":1},{"state":"active"},
+                           {"selection":None},{"context":"bad context"},{"error_code":"cloud_bridge_setup_connection_revoked"}):
+                with self.subTest(change=change):
+                    self.assertFalse(observe(reply | change)["delivery_ready"])
+            with mock.patch.dict(os.environ,{"NMEM_AGENT_ID":"other"}):
+                self.assertFalse(observe(reply)["delivery_ready"])
+            with mock.patch.dict(os.environ,{"NMEM_BRIDGE_SESSION_MAILBOX":"0"}):
+                self.assertFalse(observe(reply)["delivery_ready"])
+
+    def test_automatic_named_context_pins_revision_before_effects(self):
+        spec=importlib.util.spec_from_file_location("automatic_context_pin",ROOT/"shared/hooks/nmem_startup.py")
+        helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
+        selection={"scope":{"store_id":"store","store_incarnation":"incarnation","workspace_id":None,"space_id":"team-space"},
+            "address":{"agent_id":"ducter","identity_birth":"birth","custodian_id":"member","attachment_id":"attachment","attachment_generation":1}}
+        expected={"name":"ducter-context","configured":True,"selection":selection,"revision":"a"*64}
+        payload={"hook_event_name":"SessionStart","source":"startup","session_id":"actual"}
+        calls=[]
+        def prepare(nmem,args,**kwargs):
+            calls.append(args)
+            return 1,{"error_code":"cloud_bridge_setup_unavailable"}
+        with mock.patch.dict(os.environ,{"NMEM_AGENT_CONTEXT":"ducter-context","NMEM_AGENT_ID":"ducter"},clear=True):
+            helper.automatic_session_observation(payload,host="codex",find_nmem=lambda:"nmem",run_result=prepare,
+                validate_selection=helper.valid_selection,expected_context=expected)
+            self.assertEqual(calls,[["--agent-context=ducter-context","bridge","session","--host=codex",
+                "--session-id=actual","prepare","--expected-context-revision="+"a"*64]])
+            calls.clear()
+            for change in ({"revision":None},{"revision":"old"},{"configured":False},{"selection":None}):
+                helper.automatic_session_observation(payload,host="codex",find_nmem=lambda:"nmem",run_result=prepare,
+                    validate_selection=helper.valid_selection,expected_context=expected|change)
+                self.assertEqual(calls,[])
+            with mock.patch.dict(os.environ,{"NMEM_AGENT_ID":"another-role"}):
+                helper.automatic_session_observation(payload,host="codex",find_nmem=lambda:"nmem",run_result=prepare,
+                    validate_selection=helper.valid_selection,expected_context=expected)
+                self.assertEqual(calls,[])
+
     def invoke(
         self, host, *, named=True, failure="disabled", source="startup",
         conflict=False, native=True, mutate=None, switch=False, identity=None,
         explicit_space=None, legacy_space=None, host_agent_id=None, mailbox_opt_in=False,
         event="SessionStart", pending_reference=None,
         original_kind=None, pending=True, memory_available=True, cli_available=True,
-        selection_available=True, agent_type="researcher", bundle_mode="old_cli",
+        selection_available=True, agent_type="researcher", bundle_mode="old_cli", automatic=False,
     ):
         folder = ROOT / ("nowledge-mem-codex-plugin/hooks" if host == "codex" else "nowledge-mem-claude-code-plugin/scripts")
         script = folder / ("nmem-context.py" if host == "codex" else "nmem-hook-context.py")
@@ -154,6 +232,19 @@ class StartupMailboxTests(unittest.TestCase):
                 if switch and shows > 1:
                     current["scope"]["space_id"] = "other-space"
                 reply = {"name": "reviewer", "configured": True, "selection": current}
+            elif args[:2] == ["bridge", "session"]:
+                if failure == "timeout":
+                    raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+                if failure != "ready":
+                    return subprocess.CompletedProcess(argv, 1, json.dumps({"http_status":503,
+                        "error_code":"cloud_bridge_setup_unavailable","detail":"private-secret"}), "private-secret")
+                reply = {"schema_version":1,"state":"prepared","host":host,"native_session_id":"exact-native",
+                    "context":"automatic-reviewer","selection":selection,"resumed":source=="resume","delivery_ready":True,
+                    "receiving_capability":{"protocol_version":2,"receive_mode":"auto","recovery_owner":"server"},
+                    "registration":{"address":{"schema_version":2,"scope":selection["scope"],"agent":selection["address"],
+                        "session_id":"allocated","registration_id":"registration","mailbox_id":"mailbox","binding_generation":1},
+                        "state":"active","registered_at":1,"observed_at":2,"lease_expires_at":3,"closed_at":None},
+                    "proof":"private-secret"}
             elif "session-bootstrap" in args:
                 if failure == "timeout":
                     raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
@@ -185,7 +276,7 @@ class StartupMailboxTests(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0, json.dumps(reply), "")
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             (Path(directory) / "memory.md").write_text("legacy Default briefing", encoding="utf-8")
-            env = {"CODEX_HOME": directory, "NMEM_BRIDGE_SESSION_MAILBOX": "1" if native or mailbox_opt_in else "0", "NMEM_AI_NOW_HOME": directory}
+            env = {"CODEX_HOME": directory, "NMEM_BRIDGE_SESSION_MAILBOX": "auto" if automatic else ("1" if native or mailbox_opt_in else "0"), "NMEM_AI_NOW_HOME": directory}
             if named:
                 env["NMEM_AGENT_CONTEXT"] = "reviewer"
             if identity:

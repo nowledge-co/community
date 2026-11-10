@@ -25,7 +25,7 @@ from nmem_runtime import windows_no_window_kwargs as _windows_no_window_kwargs
 from nmem_pending import pending_startup as _pending_startup
 from nmem_stop_maintenance import _typed_selection
 from nmem_pending import read_pending as _read_pending
-from nmem_startup import memory_scope, session_observation, render_session_context, valid_context_bundle, render_host_session_context
+from nmem_startup import automatic_bridge_enabled, automatic_session_observation, render_automatic_session_context, memory_scope, session_observation, render_session_context, valid_context_bundle, render_host_session_context
 
 
 CONTEXT_TOTAL_TIMEOUT_SECONDS = 10.0
@@ -463,12 +463,18 @@ def main(payload: dict[str, Any] | None = None) -> int:
                 context_args=[], working_memory_args=scope["args"], allow_file_fallback=False,
             ) if permitted else ""
         # Optional mailbox startup never gates an independent memory read.
-        observation = _session_mailbox_observation(payload, expected_context=scope.get("context") if scope else None) if session_mode else _mailbox_observation()
+        observation = (_session_mailbox_observation(payload, expected_context=scope.get("context") if scope else None)
+                       if session_mode else (None if automatic_bridge_enabled() else _mailbox_observation()))
         if startup_context:
             context_parts.extend(["## Current Nowledge context", startup_context])
         if observation is not None:
             context_parts.append(_render_session_mailbox_context(observation) if session_mode
                                  else _render_mailbox_context(observation))
+        if automatic_bridge_enabled():
+            automatic = automatic_session_observation(payload, host="codex", find_nmem=_nmem_command,
+                run_result=_run_nmem_result, validate_selection=_typed_selection, read_json=_run_nmem_json,
+                expected_context=scope.get("context") if scope else None)
+            context_parts.append(render_automatic_session_context(automatic))
     elif event_name == "SubagentStart":
         if pending_gate:
             started = time.monotonic()
