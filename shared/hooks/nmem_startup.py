@@ -360,17 +360,18 @@ def automatic_bridge_enabled():
 
 
 def automatic_session_observation(payload, *, host, find_nmem, run_result, validate_selection, expected_context=None, read_json=None):
+    observation = {"state": "unverified", "delivery_ready": False}
     try:
         return _automatic_session_observation(payload, host=host, find_nmem=find_nmem,
             run_result=run_result, validate_selection=validate_selection,
-            expected_context=expected_context, read_json=read_json)
+            expected_context=expected_context, read_json=read_json, observation=observation)
     except Exception:
-        return {"state":"unverified", "delivery_ready":False, "reason":"preparation_unavailable"}
+        observation["reason"] = "preparation_unavailable"
+        return observation
 
 
-def _automatic_session_observation(payload, *, host, find_nmem, run_result, validate_selection, expected_context=None, read_json=None):
+def _automatic_session_observation(payload, *, host, find_nmem, run_result, validate_selection, observation, expected_context=None, read_json=None):
     """Invoke one CLI owner after memory loading; never perform message effects."""
-    observation = {"state": "unverified", "delivery_ready": False}
     deadline = time.monotonic() + MAILBOX_TIMEOUT_SECONDS
     if (not automatic_bridge_enabled() or host not in {"codex", "claude-code"}
             or payload.get("hook_event_name", "SessionStart") != "SessionStart"
@@ -413,6 +414,17 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
         "bridge", "session", f"--host={host}", f"--session-id={native}", "prepare"]
     if revision is not None:
         args.append(f"--expected-context-revision={revision}")
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        return observation
+    inspected = run_result(nmem, ["status"], timeout_seconds=remaining)
+    if (not isinstance(inspected, tuple) or len(inspected) != 2
+            or inspected[0] != 0 or not isinstance(inspected[1], dict)
+            or inspected[1].get("backend") not in ("local", "cloud")):
+        return observation
+    observation["backend"] = inspected[1]["backend"]
+    if observation["backend"] == "local":
+        return observation
     remaining = deadline - time.monotonic()
     if remaining <= 0:
         return observation
@@ -486,6 +498,8 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
 
 def render_automatic_session_context(observation):
     """Only the explicit observation allowlist crosses into model context."""
+    if observation.get("backend") == "local":
+        return ""
     public = {key: value for key, value in observation.items() if key in {
         "state", "name", "host", "native_session_id", "agent_id", "resumed",
         "delivery_ready", "session_args", "error_code", "http_status"}}

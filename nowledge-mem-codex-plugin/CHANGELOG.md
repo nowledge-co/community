@@ -2,6 +2,7 @@
 
 ## [0.1.50] - Unreleased
 
+- Confirm the actual Cloud backend before automatic native preparation; preserve existing Local mailbox observations and independent Working Memory without new user configuration.
 - Prepare the actual native Bridge session automatically when the backend admits the existing connection; preserve explicit opt-out and independent Working Memory loading.
 - Keep identity selection, private session proof and receiving readiness separate, and redact failed preparation output.
 

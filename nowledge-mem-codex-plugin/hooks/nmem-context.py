@@ -133,7 +133,7 @@ def _run_nmem_json(nmem: str, args: list[str], *, timeout_seconds: float) -> dic
     return result[1] if result is not None and result[0] == 0 else None
 
 
-def _mailbox_observation() -> dict[str, Any] | None:
+def _mailbox_observation(*, timeout_seconds=MAILBOX_TIMEOUT_SECONDS) -> dict[str, Any] | None:
     name = os.environ.get("NMEM_AGENT_CONTEXT", "").strip()
     if not name:
         return None
@@ -147,8 +147,8 @@ def _mailbox_observation() -> dict[str, Any] | None:
         nmem = _nmem_command()
         result = _run_nmem_result(
             nmem, ["--agent-context", name, "mailbox", "status"],
-            timeout_seconds=MAILBOX_TIMEOUT_SECONDS,
-        ) if nmem else None
+            timeout_seconds=timeout_seconds,
+        ) if nmem and timeout_seconds > 0 else None
         if result is None:
             observation["state"] = "unverified"
         else:
@@ -462,18 +462,23 @@ def main(payload: dict[str, Any] | None = None) -> int:
             startup_context = _load_startup_context(
                 context_args=[], working_memory_args=scope["args"], allow_file_fallback=False,
             ) if permitted else ""
-        # Optional mailbox startup never gates an independent memory read.
+        # Both optional paths follow memory. Only a verified Cloud backend can
+        # replace the existing read-only Local observation with preparation.
+        mailbox_deadline = time.monotonic() + MAILBOX_TIMEOUT_SECONDS
+        automatic = None
+        if automatic_bridge_enabled():
+            automatic = automatic_session_observation(payload, host="codex", find_nmem=_nmem_command,
+                run_result=_run_nmem_result, validate_selection=_typed_selection, read_json=_run_nmem_json,
+                expected_context=scope.get("context") if scope else None)
         observation = (_session_mailbox_observation(payload, expected_context=scope.get("context") if scope else None)
-                       if session_mode else (None if automatic_bridge_enabled() else _mailbox_observation()))
+                       if session_mode else (None if automatic and automatic.get("backend") == "cloud"
+                           else _mailbox_observation(timeout_seconds=max(0, mailbox_deadline - time.monotonic()))))
         if startup_context:
             context_parts.extend(["## Current Nowledge context", startup_context])
         if observation is not None:
             context_parts.append(_render_session_mailbox_context(observation) if session_mode
                                  else _render_mailbox_context(observation))
-        if automatic_bridge_enabled():
-            automatic = automatic_session_observation(payload, host="codex", find_nmem=_nmem_command,
-                run_result=_run_nmem_result, validate_selection=_typed_selection, read_json=_run_nmem_json,
-                expected_context=scope.get("context") if scope else None)
+        if automatic is not None:
             context_parts.append(render_automatic_session_context(automatic))
     elif event_name == "SubagentStart":
         if pending_gate:

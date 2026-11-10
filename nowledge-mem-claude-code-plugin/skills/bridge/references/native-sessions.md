@@ -99,3 +99,9 @@ Unknown, expired, erased or inaccessible outcomes stay explicit. Do not switch
 identity, Context, Space, API destination or proof to make recovery succeed.
 Use finite ordinary task boundaries for checking mail; no persistent polling,
 automatic wakeup or execution is implied.
+
+Automatic native preparation applies only when the configured CLI confirms a
+Cloud backend through its typed status response. Local connections keep their
+existing mailbox and Working Memory behavior; an absent or unknown backend does
+not authorize a Cloud preparation attempt. This passive check and preparation
+share the optional startup budget.
