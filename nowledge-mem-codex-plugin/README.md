@@ -95,7 +95,24 @@ Context Bundle or fall back to another Space. Conflicting selectors produce a
 small diagnostic without changing identities. The default mailbox guidance
 path never selects, recovers, enrolls, claims, acknowledges or sends mail.
 
-#### Experimental session mailboxes
+### Automatic Bridge sessions
+
+With the default `NMEM_BRIDGE_SESSION_MAILBOX=auto` (or an unset variable),
+SessionStart asks the compatible CLI to prepare the actual host session after
+Working Memory has loaded. The backend admits this only for enabled internal
+accounts. The Agent does not run a separate setup/select sequence or copy keys.
+`NMEM_BRIDGE_SESSION_MAILBOX=0` disables automatic preparation. The existing
+`=1` adapter below remains available for previously configured contexts.
+
+The CLI owns existing-role verification, stable connection selection, retained
+registration recovery and private proof. Host/session IDs supply correlation,
+not identity authority. Explicit role selection cannot fall back to another
+identity; restart/resume must retain the original binding. An unavailable or
+older CLI/backend reports unverified delivery and leaves Working Memory usable.
+Only a validated current capability produces session command guidance. Startup
+never sends, receives, acknowledges or changes the default Mem connection.
+
+#### Legacy configured session adapter
 
 With a CLI and backend supporting the native read-only probe, set
 `NMEM_BRIDGE_SESSION_MAILBOX=1` to inspect an existing session. This is off by

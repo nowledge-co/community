@@ -17,7 +17,7 @@ from typing import NamedTuple
 _SCRIPT_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
-from nmem_startup import memory_scope, session_observation, render_session_context, valid_context_bundle, valid_selection, render_host_session_context
+from nmem_startup import automatic_bridge_enabled, automatic_session_observation, render_automatic_session_context, memory_scope, session_observation, render_session_context, valid_context_bundle, valid_selection, render_host_session_context
 
 TOTAL_TIMEOUT_SECONDS = 10.0
 ATTEMPT_TIMEOUT_SECONDS = 7.0
@@ -351,6 +351,17 @@ def main(
                                           validate_selection=valid_selection,
                                           expected_context=result.scope.get("context") if result.scope else None)
         content += "\n\n" + render_session_context(observation, "claude-code")
+    if automatic_bridge_enabled():
+        def automatic_result(nmem, args, *, timeout_seconds):
+            remaining = deadline - time.monotonic()
+            return _mailbox_result(nmem, args, timeout_seconds=min(timeout_seconds, remaining)) if remaining > 0 else None
+        def automatic_read(nmem, args, *, timeout_seconds):
+            remaining = deadline - time.monotonic()
+            return _mailbox_json(nmem, args, timeout_seconds=min(timeout_seconds, remaining)) if remaining > 0 else None
+        automatic = automatic_session_observation(payload, host="claude-code", find_nmem=find_nmem,
+            run_result=automatic_result, validate_selection=valid_selection, read_json=automatic_read,
+            expected_context=result.scope.get("context") if result.scope else None)
+        content += "\n\n" + render_automatic_session_context(automatic)
     if compact:
         content += "\n\n" + COMPACT_GUIDANCE
     write_response(event, content, message)

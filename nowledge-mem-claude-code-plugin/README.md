@@ -305,6 +305,25 @@ Space through local configuration; it is not mailbox authority. Mailbox startup
 failure, refusal or timeout cannot suppress that independent read. An unresolved
 or conflicting explicit scope never falls back to another Space or legacy file.
 
+### Automatic Bridge sessions
+
+With the default `NMEM_BRIDGE_SESSION_MAILBOX=auto` (or an unset variable),
+SessionStart asks the compatible CLI to prepare the actual host session after
+Working Memory has loaded. The backend admits this only for enabled internal
+accounts. The Agent does not run a separate setup/select sequence or copy keys.
+`NMEM_BRIDGE_SESSION_MAILBOX=0` disables automatic preparation. The existing
+`=1` adapter below remains available for previously configured contexts.
+
+The CLI owns existing-role verification, stable connection selection, retained
+registration recovery and private proof. Host/session IDs supply correlation,
+not identity authority. Explicit role selection cannot fall back to another
+identity; restart/resume must retain the original binding. An unavailable or
+older CLI/backend reports unverified delivery and leaves Working Memory usable.
+Only a validated current capability produces session command guidance. Startup
+never sends, receives, acknowledges or changes the default Mem connection.
+
+#### Legacy configured session adapter
+
 Set `NMEM_BRIDGE_SESSION_MAILBOX=1` to enable existing-session inspection and
 Local registration revalidation when `NMEM_AGENT_CONTEXT` names a configured context. Without an identity,
 startup still loads Working Memory and reports registration `selection_required`.

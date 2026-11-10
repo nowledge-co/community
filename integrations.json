@@ -159,7 +159,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.34",
+      "version": "0.7.35",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -186,6 +186,7 @@
           "Install the native connector",
           "Keep nmem available on this machine",
           "Restart Claude Code after install or update",
+          "Bridge session preparation runs automatically with a compatible CLI/backend for internally admitted accounts; NMEM_BRIDGE_SESSION_MAILBOX=0 disables it. Working Memory remains independent when preparation fails",
           "With explicit NMEM_AGENT_CONTEXT, Stop calls the read-only nmem mailbox probe for the approved compatibility or opted-in native mailbox and may remind the model once about new pending mail; NMEM_NO_MAILBOX_NOTICE disables these reminders",
           "Keep the SubagentStart hook enabled; full context defaults to the exact Plan,code-reviewer,architect,researcher allowlist and NMEM_SUBAGENT_CONTEXT_TYPES can replace it",
           "Run nmem t sync --from claude-code --all-projects --apply only when you want to import older Claude Code sessions"
@@ -213,7 +214,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.34",
+      "version": "0.7.35",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -597,7 +598,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.49",
+      "version": "0.1.50",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -630,7 +631,7 @@
           "Restart Codex and trust the new or changed Nowledge Mem hooks when prompted; enabled and trusted are separate Codex security states",
           "If Codex local Memory is also enabled, turn off Allow memory generation from tool-assisted tasks so MCP and web results do not get copied into Codex's separate local memory store",
           "Use the bundled local MCP server, or use nmem config mcp show --host codex to override mcp_servers.nowledge-mem for remote Mem or authenticated localhost",
-          "Experimental session mailbox registration additionally requires NMEM_BRIDGE_SESSION_MAILBOX=1 and a compatible CLI/backend; eligible SessionStart events retain the exact native session binding. Messaging requires the server to confirm current receiving readiness, automatic ACK and server-owned recovery; the ready hook supplies the exact native correlation for scoped inbox discovery. Registration alone does not establish delivery or acceptance. After an uncertain Receive, recover the original operation; its receipt has no bodies. Read the original message IDs in the same context/session, or replay the original Claim with unchanged operation ID and intent; never create a replacement Claim",
+          "Bridge session preparation runs automatically with a compatible CLI/backend for internally admitted accounts; NMEM_BRIDGE_SESSION_MAILBOX=0 disables it. An actual host session selects a run and never authorizes an Agent identity; eligible SessionStart events retain the exact native session binding. Messaging requires the server to confirm current receiving readiness, automatic ACK and server-owned recovery; the ready hook supplies the exact native correlation for scoped inbox discovery. Registration alone does not establish delivery or acceptance. After an uncertain Receive, recover the original operation; its receipt has no bodies. Read the original message IDs in the same context/session, or replay the original Claim with unchanged operation ID and intent; never create a replacement Claim",
           "Optional local mailbox guidance requires explicit NMEM_AGENT_CONTEXT, a compatible CLI/backend and an independently approved context; when NMEM_CLI_PATH is set, both hooks and model-issued CLI calls must use that executable rather than another nmem from PATH; NMEM_AGENT_PROFILE_MAINTENANCE=1 saves pending profile work at Stop and allows repeated reminders on later starts. Read pending status with a verified Python 3 interpreter and JSON containing only action=status and the original item_id. The model must confirm any ordinary-turn update or create-only enrollment; the flag alone never authorizes identity creation, Rules edits, mailbox settlement or host control",
           "With explicit NMEM_AGENT_CONTEXT, Stop calls the read-only nmem mailbox probe for the approved compatibility or opted-in native mailbox and may remind the model once about new pending mail; NMEM_NO_MAILBOX_NOTICE disables these reminders",
           "Keep nmem available on this machine",
