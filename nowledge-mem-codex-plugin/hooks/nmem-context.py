@@ -105,6 +105,7 @@ def _run_nmem_result(
     args: list[str],
     *,
     timeout_seconds: float,
+    env: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, Any]] | None:
     try:
         proc = subprocess.run(
@@ -115,6 +116,7 @@ def _run_nmem_result(
             errors="replace",
             timeout=max(0.1, timeout_seconds),
             check=False,
+            env=env,
             **_windows_no_window_kwargs(),
         )
     except (OSError, subprocess.TimeoutExpired):

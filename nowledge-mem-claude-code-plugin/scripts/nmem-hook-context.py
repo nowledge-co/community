@@ -131,7 +131,14 @@ def command_args(nmem: str, args: list[str]) -> list[str] | str:
     return [nmem, *args]
 
 
-def read_json(nmem: str, args: list[str], timeout: float, *, allow_failure: bool = False) -> tuple[dict, str]:
+def read_json(
+    nmem: str,
+    args: list[str],
+    timeout: float,
+    *,
+    allow_failure: bool = False,
+    env: dict[str, str] | None = None,
+) -> tuple[dict, str]:
     kwargs = {}
     if sys.platform == "win32":
         kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
@@ -144,6 +151,7 @@ def read_json(nmem: str, args: list[str], timeout: float, *, allow_failure: bool
             errors="replace",
             timeout=timeout,
             check=False,
+            env=env,
             **kwargs,
         )
     except subprocess.TimeoutExpired:
@@ -176,8 +184,8 @@ def _mailbox_json(nmem, args, *, timeout_seconds):
     return payload if not error else None
 
 
-def _mailbox_result(nmem, args, *, timeout_seconds):
-    payload, error = read_json(nmem, args, timeout_seconds, allow_failure=True)
+def _mailbox_result(nmem, args, *, timeout_seconds, env=None):
+    payload, error = read_json(nmem, args, timeout_seconds, allow_failure=True, env=env)
     return (1 if error else 0, payload) if payload else None
 
 
@@ -352,9 +360,9 @@ def main(
                                           expected_context=result.scope.get("context") if result.scope else None)
         content += "\n\n" + render_session_context(observation, "claude-code")
     if automatic_bridge_enabled():
-        def automatic_result(nmem, args, *, timeout_seconds):
+        def automatic_result(nmem, args, *, timeout_seconds, env=None):
             remaining = deadline - time.monotonic()
-            return _mailbox_result(nmem, args, timeout_seconds=min(timeout_seconds, remaining)) if remaining > 0 else None
+            return _mailbox_result(nmem, args, timeout_seconds=min(timeout_seconds, remaining), env=env) if remaining > 0 else None
         def automatic_read(nmem, args, *, timeout_seconds):
             remaining = deadline - time.monotonic()
             return _mailbox_json(nmem, args, timeout_seconds=min(timeout_seconds, remaining)) if remaining > 0 else None

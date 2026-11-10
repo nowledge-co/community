@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.51] - Unreleased
+
+- Pass the normalized optional Space selector to automatic named-Context preparation without changing the host environment or the legacy exact Space ID.
+
 ## [0.1.50] - Unreleased
 
 - Treat an empty or whitespace-only `NMEM_SPACE` as unset during automatic preparation, and trim non-empty selectors while preserving exact named-Context and legacy Space constraints.

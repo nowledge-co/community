@@ -406,9 +406,11 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
         selected_agent = selected["selection"]["address"]["agent_id"]
         selected_space = selected["selection"]["scope"]["space_id"]
         requested_agent = os.environ.get("NMEM_AGENT_ID", "").strip()
-        requested_space = os.environ.get("NMEM_SPACE", "").strip()
+        raw_space = os.environ.get("NMEM_SPACE")
+        requested_space = (raw_space if raw_space == selected_space
+                           else (raw_space or "").strip() or None)
         if (requested_agent and canonical_agent_profile_id(requested_agent) != selected_agent
-                or requested_space and requested_space != selected_space
+                or requested_space is not None and requested_space != selected_space
                 or os.environ.get("NMEM_SPACE_ID") not in (None, selected_space)):
             return observation
     args = ([f"--agent-context={name}"] if name else []) + [
@@ -429,7 +431,16 @@ def _automatic_session_observation(payload, *, host, find_nmem, run_result, vali
     remaining = deadline - time.monotonic()
     if remaining <= 0:
         return observation
-    result = run_result(nmem, args, timeout_seconds=remaining)
+    prepare_options = {}
+    if name:
+        # The CLI treats ambient IDs as exact; carry the hook's checked value.
+        child_env = os.environ.copy()
+        if requested_space is not None:
+            child_env["NMEM_SPACE"] = requested_space
+        else:
+            child_env.pop("NMEM_SPACE", None)
+        prepare_options["env"] = child_env
+    result = run_result(nmem, args, timeout_seconds=remaining, **prepare_options)
     if result is None:
         return observation
     exit_code, reply = result
