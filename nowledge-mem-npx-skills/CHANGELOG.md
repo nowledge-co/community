@@ -2,6 +2,10 @@
 
 All notable changes to the Nowledge Mem npx Skills will be documented in this file.
 
+## [0.6.6] - Unreleased
+
+- Use the canonical Claude Code marketplace shorthand in the alternative installation guide.
+
 ## [0.6.5] - Unreleased
 
 - Add Dim to the `check-integration` host table with its product-home detection and local-directory install command.

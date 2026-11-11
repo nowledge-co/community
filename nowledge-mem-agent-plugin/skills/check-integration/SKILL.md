@@ -86,7 +86,7 @@ The canonical source for this table is `community/integrations.json`.
 
 | Agent | How to Detect | Connector setup | Docs |
 |-------|--------------|----------------------|------|
-| **Claude Code** | Running as Claude Code agent; `~/.claude/` exists | `claude plugin marketplace add https://github.com/nowledge-co/community && claude plugin install nowledge-mem@nowledge-community` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
+| **Claude Code** | Running as Claude Code agent; `~/.claude/` exists | `claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community` | [Guide](https://mem.nowledge.co/docs/integrations/claude-code) |
 | **Grok** | Running as Grok; `~/.grok/` exists | `grok plugin install nowledge-co/community#nowledge-mem-claude-code-plugin --trust` | [Guide](https://mem.nowledge.co/docs/integrations/grok) |
 | **Grok Bot** | Configuring a cloud-hosted Grok Bot; no local CLI installation is expected | Add a custom Nowledge Mem MCP connector in Grok Bot settings with a public HTTPS endpoint. If the Bot or team exposes a compatible Plugins setting, enable the shared package there for supported skills/hooks. Do not use localhost or `127.0.0.1`; automatic full-thread capture still requires a documented Bot transcript export or hook payload. | [Guide](https://mem.nowledge.co/docs/integrations/grok-bot) |
 | **OpenClaw** | Running as OpenClaw agent; `~/.openclaw/` exists | `openclaw plugins install clawhub:@nowledge/openclaw-nowledge-mem` | [Guide](https://mem.nowledge.co/docs/integrations/openclaw) |

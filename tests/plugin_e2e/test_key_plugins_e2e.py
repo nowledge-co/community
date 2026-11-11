@@ -332,7 +332,7 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.36"
+    assert claude_manifest["version"] == "0.7.37"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -370,11 +370,17 @@ def test_key_plugin_static_contracts_are_declared():
     assert set(agent_plugin_manifest) <= allowed_agent_plugin_manifest_keys
     assert agent_plugin_manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
     assert agent_plugin_manifest["name"] == "nowledge-mem"
-    assert agent_plugin_manifest["version"] == "0.1.4"
+    assert agent_plugin_manifest["version"] == "0.1.5"
     assert registry_by_id["agent-plugins"]["version"] == agent_plugin_manifest["version"]
     assert registry_by_id["agent-plugins"]["directory"] == AGENT_PLUGIN.name
     assert registry_by_id["agent-plugins"]["autonomy"]["threads"] == "handoff-only"
     assert registry_by_id["agent-plugins"]["capabilities"]["autoCapture"] is False
+    devin_manifest = _read_json(
+        COMMUNITY_ROOT / "nowledge-mem-devin-plugin" / ".devin-plugin" / "plugin.json"
+    )
+    assert devin_manifest["version"] == "0.1.5"
+    assert registry_by_id["devin"]["version"] == devin_manifest["version"]
+    assert registry_by_id["npx-skills"]["version"] == "0.6.6"
     assert set(agent_plugin_mcp) == {"$schema", "mcpServers"}
     assert agent_plugin_mcp["$schema"] == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
     assert agent_plugin_mcp["mcpServers"]["nowledge-mem"] == {
@@ -1753,6 +1759,132 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["omp"]["install"]["command"] == "omp plugin install nowledge-mem-omp"
     assert "save-thread" in by_id["omp"]["skills"]
     assert "nowledge_mem_context_bundle" in by_id["opencode"]["toolNaming"]["tools"]
+
+
+def test_claude_marketplace_commands_work_for_existing_registration(tmp_path: Path):
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    claude = next(item for item in registry["integrations"] if item["id"] == "claude-code")
+    install_command = claude["install"]["command"]
+    update_command = claude["install"]["updateCommand"]
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls_file = tmp_path / "claude-calls.jsonl"
+    fake_claude_script = bin_dir / "claude_fake.py"
+    fake_claude_script.write_text(
+        "\n".join(
+            [
+                "import json, os, sys",
+                "args = sys.argv[1:]",
+                "with open(os.environ['CLAUDE_FAKE_CALLS'], 'a', encoding='utf-8') as f:",
+                "    f.write(json.dumps(args) + '\\n')",
+                "if args[:3] == ['plugin', 'marketplace', 'add'] and args[3:] == ['https://github.com/nowledge-co/community']:",
+                "    print('marketplace already registered', file=sys.stderr)",
+                "    raise SystemExit(1)",
+                "if args[:3] == ['plugin', 'marketplace', 'update'] and os.environ.get('CLAUDE_FAIL_MARKETPLACE_UPDATE'):",
+                "    print('marketplace update failed', file=sys.stderr)",
+                "    raise SystemExit(1)",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    if os.name == "nt":
+        fake_claude = bin_dir / "claude.cmd"
+        fake_claude.write_text(
+            '@echo off\r\n"%CLAUDE_FAKE_PYTHON%" "%CLAUDE_FAKE_SCRIPT%" %*\r\n',
+            encoding="utf-8",
+        )
+    else:
+        fake_claude = bin_dir / "claude"
+        fake_claude.write_text(
+            '#!/bin/sh\nexec "$CLAUDE_FAKE_PYTHON" "$CLAUDE_FAKE_SCRIPT" "$@"\n',
+            encoding="utf-8",
+        )
+        fake_claude.chmod(0o755)
+    env = os.environ.copy()
+    env["CLAUDE_FAKE_CALLS"] = str(calls_file)
+    env["CLAUDE_FAKE_PYTHON"] = sys.executable
+    env["CLAUDE_FAKE_SCRIPT"] = str(fake_claude_script)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+
+    def run_claude_command(command: str):
+        shell_command = (
+            ["cmd.exe", "/d", "/s", "/c", command]
+            if os.name == "nt"
+            else ["bash", "-c", command]
+        )
+        return subprocess.run(
+            shell_command, env=env, text=True, capture_output=True, check=False, timeout=10
+        )
+
+    old_install = (
+        "claude plugin marketplace add https://github.com/nowledge-co/community "
+        "&& claude plugin install nowledge-mem@nowledge-community"
+    )
+    failed = run_claude_command(old_install)
+    assert failed.returncode != 0
+    assert "marketplace already registered" in failed.stderr
+    assert [json.loads(line) for line in calls_file.read_text().splitlines()] == [
+        ["plugin", "marketplace", "add", "https://github.com/nowledge-co/community"]
+    ]
+
+    installed = run_claude_command(install_command)
+    assert installed.returncode == 0, installed.stderr
+    updated = run_claude_command(update_command)
+    assert updated.returncode == 0, updated.stderr
+
+    calls = [json.loads(line) for line in calls_file.read_text().splitlines()]
+    assert calls[1:] == [
+        ["plugin", "marketplace", "add", "nowledge-co/community"],
+        ["plugin", "install", "nowledge-mem@nowledge-community"],
+        ["plugin", "marketplace", "update", "nowledge-community"],
+        ["plugin", "update", "nowledge-mem@nowledge-community"],
+    ]
+
+    calls_file.unlink()
+    env["CLAUDE_FAIL_MARKETPLACE_UPDATE"] = "1"
+    failed_update = run_claude_command(update_command)
+    assert failed_update.returncode != 0
+    assert "marketplace update failed" in failed_update.stderr
+    assert [json.loads(line) for line in calls_file.read_text().splitlines()] == [
+        ["plugin", "marketplace", "update", "nowledge-community"]
+    ]
+
+
+def test_claude_command_guidance_package_versions_match_registry():
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    by_id = {item["id"]: item for item in registry["integrations"]}
+    claude_manifest = _read_json(
+        COMMUNITY_ROOT / "nowledge-mem-claude-code-plugin" / ".claude-plugin" / "plugin.json"
+    )
+    claude_marketplace = _read_json(COMMUNITY_ROOT / ".claude-plugin" / "marketplace.json")
+    claude_listing = next(
+        item for item in claude_marketplace["plugins"] if item["name"] == "nowledge-mem"
+    )
+    assert claude_manifest["version"] == claude_listing["version"]
+    assert (
+        by_id["claude-code"]["version"]
+        == by_id["grok"]["version"]
+        == claude_manifest["version"]
+    )
+
+    agent_manifest = _read_json(COMMUNITY_ROOT / "nowledge-mem-agent-plugin" / "plugin.json")
+    assert agent_manifest["version"] == by_id["agent-plugins"]["version"]
+    devin_manifest = _read_json(
+        COMMUNITY_ROOT / "nowledge-mem-devin-plugin" / ".devin-plugin" / "plugin.json"
+    )
+    assert devin_manifest["version"] == by_id["devin"]["version"]
+    for integration_id, package_dir in (
+        ("claude-code", "nowledge-mem-claude-code-plugin"),
+        ("agent-plugins", "nowledge-mem-agent-plugin"),
+        ("devin", "nowledge-mem-devin-plugin"),
+        ("npx-skills", "nowledge-mem-npx-skills"),
+    ):
+        changelog = (COMMUNITY_ROOT / package_dir / "CHANGELOG.md").read_text()
+        latest_release = next(
+            line for line in changelog.splitlines() if line.startswith("## [")
+        )
+        assert latest_release.split("[", 1)[1].split("]", 1)[0] == by_id[integration_id]["version"]
 
 
 def test_alma_plugin_static_contract_is_self_contained():
