@@ -11,6 +11,8 @@ on:
       - "nowledge-mem-alma-plugin/**"
       - "nowledge-mem-omp-plugin/**"
       - "nowledge-mem-step-code/**"
+      - "nowledge-mem-claude-code-plugin/**"
+      - "tests/plugin_e2e/test_key_plugins_e2e.py"
       - "integrations.json"
       - ".gitattributes"
       - ".github/workflows/shared-plugin-core.yml"
@@ -25,6 +27,8 @@ on:
       - "nowledge-mem-alma-plugin/**"
       - "nowledge-mem-omp-plugin/**"
       - "nowledge-mem-step-code/**"
+      - "nowledge-mem-claude-code-plugin/**"
+      - "tests/plugin_e2e/test_key_plugins_e2e.py"
       - "integrations.json"
       - ".gitattributes"
       - ".github/workflows/shared-plugin-core.yml"
@@ -64,7 +68,7 @@ jobs:
       - name: Check affected integration metadata and adapter contracts
         run: >-
           python -m pytest tests/plugin_e2e/test_key_plugins_e2e.py -q
-          -k "opencode_plugin_static_contract or opencode_thread_sync_timeout_contract or amp_plugin_static_contract or pi_thread_sync_timeout_contract or alma_plugin_static_contract"
+          -k "opencode_plugin_static_contract or opencode_thread_sync_timeout_contract or amp_plugin_static_contract or pi_thread_sync_timeout_contract or alma_plugin_static_contract or claude_marketplace_commands_work_for_existing_registration or key_plugin_static_contracts_are_declared"
   amp:
     runs-on: ubuntu-latest
     steps:
