@@ -6,7 +6,7 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlsplit
 
 
 def _clean(value: object | None) -> str | None:
@@ -156,6 +156,14 @@ class NowledgeSettings:
             "X-Nmem-Tool-Set": self.tool_set,
             "X-Nowledge-Tool-Schema-Profile": self.schema_profile,
         }
+        declaration = parse_qs(urlsplit(self.mcp_url or "").query, keep_blank_values=True).get(
+            "space_protocol"
+        )
+        if declaration is not None:
+            if declaration != ["exact-v1"]:
+                raise ValueError("Unsupported or duplicate MCP Space protocol declaration")
+            # The MCP endpoint already declares it; two carriers are rejected.
+            headers.pop("X-Nmem-Space-Protocol")
         if identity.agent_id:
             headers["X-Nmem-Agent-Id"] = identity.agent_id
         if identity.host_agent_id:

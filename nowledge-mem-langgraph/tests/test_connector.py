@@ -30,6 +30,17 @@ class ProbeState(TypedDict):
     value: str
 
 
+def test_mcp_endpoint_protocol_does_not_duplicate_the_header_declaration() -> None:
+    settings = NowledgeSettings(mcp_url="https://mem.test/mcp?space_protocol=exact-v1")
+    assert "X-Nmem-Space-Protocol" not in settings.scoped_headers(NowledgeIdentity())
+    assert settings.auth_headers()["X-Nmem-Space-Protocol"] == "exact-v1"
+    for query in ("space_protocol=old", "space_protocol=exact-v1&space_protocol=exact-v1"):
+        with pytest.raises(ValueError, match="protocol"):
+            NowledgeSettings(mcp_url=f"https://mem.test/mcp?{query}").scoped_headers(
+                NowledgeIdentity()
+            )
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("space", ["", " 项目/ID "])
 async def test_sync_and_async_import_pass_exact_protocol_without_normalizing_ids(
