@@ -26,12 +26,14 @@ a plan based on this guide.
    Name it **Nowledge Mem**, describe it as “Recall decisions and deliberately
    save useful knowledge in my selected Mem workspace”, and enter that URL.
    Use Streamable HTTP, not legacy SSE.
-3. **Cloud:** choose **OAuth 2.0 → Dynamic discovery**, create a connection,
-   sign in to Mem, and review the actual workspace and requested permissions.
-   This is the protocol-compatible route; Microsoft's `resource` propagation,
-   refresh behavior and write-scope requests still need real-tenant validation.
-   Never broaden server defaults to make a client connect.
-   **App:** choose **API key → Header → Authorization** and supply
+3. **Cloud OAuth is currently blocked for Microsoft's documented DCR flow.**
+   Microsoft requires secret-bearing client registration; production discovery
+   checked 2026-11-11 advertises only `none`. Existing public-client PKCE works
+   for other hosts but is not proof of compatibility here. Do not create fake
+   client secrets or switch to anonymous auth. Use the API-key candidate route
+   if your chosen workspace supports it, or wait for the OAuth compatibility
+   release and actual tenant verification.
+   **App or an authorized Cloud API-key connection:** choose **API key → Header → Authorization** and supply
    `Bearer <your Mem API key>` in the connection's secret field. Do not put a key
    in the URL, agent instructions, manifest or chat. Do not select anonymous auth.
 4. Select **Add to agent**. Use the instructions below, test in Studio, then
@@ -57,7 +59,7 @@ Import it under **Custom connectors → New custom connector → Import OpenAPI*
 The generated wrapper declares Streamable MCP, `Authorization` header security
 and an internal required `space_protocol=exact-v1` query parameter. Enter the
 Bearer value only when creating the connection. It is an API-key import route;
-use the wizard for Cloud OAuth discovery. No generated file contains credentials
+use OAuth discovery only after the compatibility gate below is satisfied. No generated file contains credentials
 and the generator never contacts the supplied address. URL validation is only
 syntactic/public-address screening, not a DNS or reachability proof.
 
@@ -65,12 +67,12 @@ For a Microsoft 365 plugin using app-manifest `agentConnectors`:
 
 ```sh
 python3 nowledge-mem-m365-connector/configure.py \
-  --url 'https://cloud.nowledge.co/mcp' --format agent-connectors \
-  --reference-id '<Microsoft DCR configuration ID>'
+  --url 'https://your-fixed-domain.example/mcp' --format agent-connectors \
+  --auth-type ApiKeyPluginVault --reference-id '<Microsoft configuration ID>'
 ```
 
 This emits a **fragment**, not a complete installable app. Register the auth
-configuration in Microsoft Developer Portal first, merge into your existing
+configuration through Microsoft's tooling for the selected auth model first, merge into your existing
 app manifest (1.29+ for dynamic discovery), validate with Microsoft tooling,
 and test target-host support. `--auth-type ApiKeyPluginVault` is an alternative
 only where that host supports it. Cowork still needs a packaged tool-description
@@ -79,6 +81,47 @@ not claim Cowork readiness. Do not invent tool schemas or package an admin's
 broader toolset for ordinary users. Declarative-agent MCP actions use a
 different manifest and **do not support API-key auth**; do not paste this
 fragment into their plugin manifest.
+
+## Build the full app package
+
+After registering the app and authorization configuration in your Microsoft
+tenant, prepare a 192×192 color PNG and a 32×32 transparent white outline PNG.
+The generator checks PNG headers/dimensions; a human must review the artwork.
+It does not register the app, acquire credentials or grant tenant permissions.
+
+```sh
+python3 nowledge-mem-m365-connector/configure.py \
+  --url 'https://your-fixed-domain.example/mcp' --format app-manifest \
+  --auth-type ApiKeyPluginVault --reference-id '<Microsoft configuration ID>' \
+  --app-id '<registered app UUID>' \
+  --color-icon color.png --outline-icon outline.png --package nowledge-mem.zip
+```
+
+The ZIP contains the complete app manifest (v1.30) and both icons at its root.
+Existing output files are never overwritten. Validate it with Microsoft
+Developer Portal and upload/distribute through the tenant's supported custom
+app/connector flow. Schema-valid packages still require supported host rollout,
+user authentication, policy approval and native acceptance. This package is
+the `agentConnectors` surface, not a declarative-agent `RemoteMCPServer` action.
+Use Studio plus our instructions for the guided-agent path.
+
+For OAuth preparation, save the **public authorization-server metadata** from
+the same destination as `oauth-metadata.json` (never a token or client record):
+
+```sh
+python3 nowledge-mem-m365-connector/configure.py \
+  --url 'https://cloud.nowledge.co/mcp' --format oauth-check --metadata oauth-metadata.json
+```
+
+Current Cloud metadata yields `microsoft_dcr_candidate: false`. DCR fragment or
+package generation requires `--metadata` and refuses public-client-only
+metadata. Even a true result is only a necessary advertised-method check, not
+proof that a secret is issued, Microsoft's resource parameter is sent, or a
+tenant works. Register DCR with Agents Toolkit/the supported developer skill;
+Microsoft's DCR-specific documentation says the Teams Developer Portal does
+not yet create that auth config. No shared client secret is a workaround.
+
+See [SUPPORT_PLAN.md](SUPPORT_PLAN.md) for the full delivery and acceptance gates.
 
 ## Agent instructions
 
@@ -121,4 +164,5 @@ Official references checked 2026-11-11:
 - [Studio MCP wizard and custom connector schema](https://learn.microsoft.com/en-us/microsoft-copilot-studio/mcp-add-existing-server-to-agent)
 - [M365 app-manifest MCP configuration](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/configure-plugin-mcp-servers)
 - [Authentication models and their different API-key support](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/plugin-authentication)
+- [DCR requires client-secret issuance](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/plugin-authentication-dynamic-client-registration)
 - [Federated connectors, administration and Researcher restrictions](https://learn.microsoft.com/en-us/microsoft-365/copilot/connectors/federated-connectors-overview)

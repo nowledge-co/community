@@ -2,6 +2,10 @@
 import argparse
 import ipaddress
 import json
+from pathlib import Path
+import struct
+import uuid
+import zipfile
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 VERSION = "0.1.0"
@@ -48,27 +52,108 @@ def studio(value):
     }
 
 
-def fragment(value, auth_type, reference):
+def oauth_compatibility(metadata):
+    """A necessary DCR check, never proof of a Microsoft tenant handshake."""
+    if not isinstance(metadata, dict):
+        raise ValueError("Authorization-server metadata must be an object")
+    methods = metadata.get("token_endpoint_auth_methods_supported", [])
+    challenges = metadata.get("code_challenge_methods_supported", [])
+    if (not isinstance(methods, list) or not all(isinstance(m, str) for m in methods)
+            or not isinstance(challenges, list) or not all(isinstance(m, str) for m in challenges)):
+        raise ValueError("OAuth methods must be arrays of strings")
+    supported = [m for m in ("client_secret_post", "client_secret_basic") if m in methods]
+    return {"confidential_client_methods": supported,
+            "microsoft_dcr_candidate": bool(supported and metadata.get("registration_endpoint")
+                                             and "S256" in challenges),
+            "tenant_verified": False}
+
+
+def fragment(value, auth_type, reference, metadata=None):
     if auth_type not in {"DynamicClientRegistration", "ApiKeyPluginVault"}:
         raise ValueError("Unsupported authentication type")
     if not reference or any(c.isspace() for c in reference):
         raise ValueError("Supply the non-secret Microsoft authorization configuration ID")
+    if auth_type == "DynamicClientRegistration":
+        if not oauth_compatibility(metadata)["microsoft_dcr_candidate"]:
+            raise ValueError("Microsoft DCR needs secret-bearing client registration and S256; public-client-only OAuth is incompatible")
     return {"agentConnectors": [{"id": "nowledge-mem", "displayName": "Nowledge Mem",
         "description": "Recall and save knowledge within your authorized Mem workspace.",
         "toolSource": {"remoteMcpServer": {"mcpServerUrl": endpoint(value),
             "authorization": {"type": auth_type, "referenceId": reference}}}}]}
 
 
+def app_manifest(value, auth_type, reference, app_id, metadata=None):
+    app_id = str(uuid.UUID(app_id))
+    result = {
+        "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.30/MicrosoftTeams.schema.json",
+        "manifestVersion": "1.30", "version": VERSION, "id": app_id,
+        "developer": {"name": "Nowledge Labs", "websiteUrl": "https://mem.nowledge.co",
+                      "privacyUrl": "https://mem.nowledge.co/privacy", "termsOfUseUrl": "https://mem.nowledge.co/terms"},
+        "name": {"short": "Nowledge Mem", "full": "Nowledge Mem for Microsoft 365 Copilot"},
+        "description": {"short": "Recall and deliberately save knowledge in your Mem workspace.",
+                        "full": "Connect directly to your authorized Nowledge Mem workspace. Search prior knowledge and save useful decisions with your own credentials and consent. Tenant availability and permissions apply."},
+        "icons": {"color": "color.png", "outline": "outline.png"}, "accentColor": "#242424",
+        "validDomains": [urlsplit(endpoint(value)).hostname],
+    }
+    result.update(fragment(value, auth_type, reference, metadata))
+    return result
+
+
+def png(path, size):
+    with Path(path).open("rb") as source:
+        data = source.read(1024 * 1024 + 1)
+    if (len(data) > 1024 * 1024 or len(data) < 33 or data[:8] != b"\x89PNG\r\n\x1a\n"
+            or data[12:16] != b"IHDR" or struct.unpack(">II", data[16:24]) != (size, size)):
+        raise ValueError(f"Icon must be a PNG of {size}x{size}, at most 1 MiB")
+    return data
+
+
+def package(manifest, color, outline, destination):
+    # Validate all inputs before creating anything. Exclusive output preserves
+    # an existing artifact; no token/credential material is accepted here.
+    icons = {"color.png": png(color, 192), "outline.png": png(outline, 32)}
+    with zipfile.ZipFile(destination, "x", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("manifest.json", json.dumps(manifest, indent=2))
+        for name, data in icons.items():
+            archive.writestr(name, data)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True)
-    parser.add_argument("--format", choices=["studio", "agent-connectors"], default="studio")
+    parser.add_argument("--format", choices=["studio", "agent-connectors", "app-manifest", "oauth-check"], default="studio")
     parser.add_argument("--auth-type", choices=["DynamicClientRegistration", "ApiKeyPluginVault"], default="DynamicClientRegistration")
     parser.add_argument("--reference-id", help="Microsoft config ID, never a token or key")
+    parser.add_argument("--metadata", type=Path, help="Authorization-server discovery JSON, not client credentials")
+    parser.add_argument("--app-id", help="App UUID registered in Microsoft Developer Portal")
+    parser.add_argument("--package", type=Path, help="Create a new installable ZIP; never overwrite an existing artifact")
+    parser.add_argument("--color-icon", type=Path)
+    parser.add_argument("--outline-icon", type=Path)
     args = parser.parse_args()
     try:
-        result = studio(args.url) if args.format == "studio" else fragment(args.url, args.auth_type, args.reference_id)
-    except ValueError as error:
+        metadata = None
+        if args.metadata:
+            with args.metadata.open("rb") as source:
+                raw = source.read(1024 * 1024 + 1)
+            if len(raw) > 1024 * 1024:
+                raise ValueError("Discovery metadata exceeds 1 MiB")
+            metadata = json.loads(raw)
+        endpoint(args.url)
+        if args.format == "studio":
+            result = studio(args.url)
+        elif args.format == "oauth-check":
+            result = oauth_compatibility(metadata)
+        elif args.format == "app-manifest":
+            if not args.app_id:
+                raise ValueError("app-manifest requires --app-id")
+            result = app_manifest(args.url, args.auth_type, args.reference_id, args.app_id, metadata)
+        else:
+            result = fragment(args.url, args.auth_type, args.reference_id, metadata)
+        if args.package:
+            if args.format != "app-manifest" or not args.color_icon or not args.outline_icon:
+                raise ValueError("ZIP packaging requires app-manifest and both icon paths")
+            package(result, args.color_icon, args.outline_icon, args.package)
+    except (ValueError, OSError) as error:
         parser.error(str(error))
     print(json.dumps(result, indent=2))
 
