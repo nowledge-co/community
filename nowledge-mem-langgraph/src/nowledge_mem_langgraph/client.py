@@ -56,6 +56,7 @@ class NowledgeClient:
                 "/context/bundle",
                 params=self._params(resolved),
                 headers=self.settings.auth_headers(),
+                follow_redirects=False,
             )
         else:
             with httpx.Client(
@@ -65,6 +66,7 @@ class NowledgeClient:
                     "/context/bundle",
                     params=self._params(resolved),
                     headers=self.settings.auth_headers(),
+                    follow_redirects=False,
                 )
         response.raise_for_status()
         return response.json()
@@ -76,6 +78,7 @@ class NowledgeClient:
                 "/context/bundle",
                 params=self._params(resolved),
                 headers=self.settings.auth_headers(),
+                follow_redirects=False,
             )
         else:
             async with httpx.AsyncClient(
@@ -85,6 +88,7 @@ class NowledgeClient:
                     "/context/bundle",
                     params=self._params(resolved),
                     headers=self.settings.auth_headers(),
+                    follow_redirects=False,
                 )
         response.raise_for_status()
         return response.json()
@@ -123,7 +127,7 @@ class NowledgeClient:
             else normalize_messages(messages),
             "source": "langgraph",
             "space_id": identity.space_id,
-            "tool_version": "nowledge-mem-langgraph/0.1.2",
+            "tool_version": "nowledge-mem-langgraph/0.1.3",
             "metadata": metadata,
         }
         if expected_message_count is not None:
@@ -198,14 +202,20 @@ class NowledgeClient:
         )
         if self._client is not None:
             response = self._client.post(
-                "/threads/import", json=payload, headers=self.settings.auth_headers()
+                "/threads/import",
+                json=payload,
+                headers=self.settings.auth_headers(),
+                follow_redirects=False,
             )
         else:
             with httpx.Client(
                 base_url=self.settings.api_url, timeout=self.settings.timeout_seconds
             ) as client:
                 response = client.post(
-                    "/threads/import", json=payload, headers=self.settings.auth_headers()
+                    "/threads/import",
+                    json=payload,
+                    headers=self.settings.auth_headers(),
+                    follow_redirects=False,
                 )
         response.raise_for_status()
         data = response.json()
@@ -237,14 +247,20 @@ class NowledgeClient:
         )
         if self._async_client is not None:
             response = await self._async_client.post(
-                "/threads/import", json=payload, headers=self.settings.auth_headers()
+                "/threads/import",
+                json=payload,
+                headers=self.settings.auth_headers(),
+                follow_redirects=False,
             )
         else:
             async with httpx.AsyncClient(
                 base_url=self.settings.api_url, timeout=self.settings.timeout_seconds
             ) as client:
                 response = await client.post(
-                    "/threads/import", json=payload, headers=self.settings.auth_headers()
+                    "/threads/import",
+                    json=payload,
+                    headers=self.settings.auth_headers(),
+                    follow_redirects=False,
                 )
         response.raise_for_status()
         data = response.json()

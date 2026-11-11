@@ -218,7 +218,7 @@ Use `SOUL.md` for your own durable memory preferences and `HERMES.md` for repo-s
 ## Troubleshooting
 
 - **Memory tools work but Session sync reports `space_client_upgrade_required`**:
-  update/reinstall the plugin to 0.5.26 or later and restart Hermes. Transcript
+  update/reinstall the plugin to 0.5.27 or later and restart Hermes. Transcript
   synchronization uses its own HTTP connection, which must declare the exact
   Space protocol independently of the CLI and MCP connections. Keep your URL,
   credentials and selected Space. After updating, preview missed local history
@@ -246,7 +246,7 @@ bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/now
 After updating, the script prints the version and endpoint from the files it actually wrote:
 
 ```text
-Installed version: 0.5.26
+Installed version: 0.5.27
 Thread import endpoint: /threads/import
 ```
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.9] - 2026-11-12
+
+- Refuse HTTP redirects on transcript and Space-roster requests, preserving
+  the configured credential and conversation destination.
+
 ## [0.4.8] - 2026-11-12
 
 ### Fixed

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.18] - 2026-11-12
+
+- Refuse HTTP redirects in live and historical sync, including Space-roster
+  reads, so credentials and transcripts stay at the configured backend.
+
 ## [0.8.17] - 2026-11-12
 
 ### Fixed

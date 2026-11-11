@@ -137,12 +137,20 @@ def payload_value(payload: dict[str, Any], *keys: str) -> str | None:
     return None
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_urlopen = urllib.request.build_opener(_NoRedirect()).open
+
+
 def api_request(method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any] | None:
     url = f"{API_BASE}{path}"
     data = json.dumps(body).encode("utf-8") if body else None
     req = urllib.request.Request(url, data=data, headers=HEADERS, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+        with _urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
             raw = resp.read().decode("utf-8")
             return json.loads(raw) if raw.strip() else {}
     except urllib.error.HTTPError as exc:

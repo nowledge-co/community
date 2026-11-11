@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] - 2026-11-12
+
+- Disable redirects per authenticated HTTP request even when an injected
+  synchronous or asynchronous client enables redirect following by default.
+
 ## [0.1.2] - 2026-11-12
 
 ### Fixed

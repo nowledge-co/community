@@ -1,5 +1,10 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## [0.1.7] - 2026-11-12
+
+- Refuse HTTP redirects on authenticated API requests, preserving the configured
+  credential and transcript destination.
+
 ## [0.1.6] - 2026-11-12
 
 ### Fixed

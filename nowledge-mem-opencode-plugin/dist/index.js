@@ -492,6 +492,7 @@ var index_default = Plugin.define({
       const reference = stringToolValue(args.space);
       if (!reference) return void 0;
       const response = await fetch(`${apiUrl}/spaces`, {
+        redirect: "error",
         headers: { "X-Nmem-Space-Protocol": "exact-v1", ...apiKey ? { Authorization: `Bearer ${apiKey}` } : {} },
         signal: AbortSignal.timeout(3e4)
       });
@@ -511,11 +512,12 @@ var index_default = Plugin.define({
       const timeout = setTimeout(() => controller2.abort(), timeoutMs);
       try {
         const scopedBody = await exactSpaceBody(body, ambientSpaceId, async () => {
-          const response = await fetch(`${apiUrl}/spaces`, { headers, signal: controller2.signal });
+          const response = await fetch(`${apiUrl}/spaces`, { headers, signal: controller2.signal, redirect: "error" });
           if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
           return response.json();
         });
         const res = await fetch(`${apiUrl}${path}`, {
+          redirect: "error",
           method: "POST",
           headers,
           body: JSON.stringify(scopedBody),

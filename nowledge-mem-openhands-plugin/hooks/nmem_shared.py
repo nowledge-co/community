@@ -164,6 +164,14 @@ def _space_from_roster(roster: Any, reference: str) -> str | None:
     return matches[0]["id"] if len(matches) == 1 and isinstance(matches[0].get("id"), str) else None
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_urlopen = urllib.request.build_opener(_NoRedirect()).open
+
+
 def http_request(
     endpoint: str,
     method: str = "GET",
@@ -203,7 +211,7 @@ def http_request(
     url = f"{api_url}{endpoint}"
 
     headers = {
-        "User-Agent": "NowledgeMem-OpenHands/0.1.2",
+        "User-Agent": "NowledgeMem-OpenHands/0.1.3",
         "Accept": "application/json",
         **_make_auth_headers(api_key),
     }
@@ -215,7 +223,7 @@ def http_request(
 
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with _urlopen(req, timeout=timeout) as resp:
             reset_backend_unreachable()
             raw = resp.read().decode("utf-8")
             if not raw.strip():

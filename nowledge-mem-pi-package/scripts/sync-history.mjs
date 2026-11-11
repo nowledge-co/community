@@ -555,12 +555,12 @@ async function postJson(config, path, body) {
 		try {
 			const scoped = await exactSpaceBody(body, config.space, async () => {
 				const base = url.slice(0, -path.length);
-				const response = await fetch(`${base}/spaces`, { headers, signal: controller.signal });
+				const response = await fetch(`${base}/spaces`, { headers, signal: controller.signal, redirect: "error" });
 				if (!response.ok) throw Object.assign(new Error(`Space roster HTTP ${response.status}`), {status: response.status});
 				return response.json();
 			});
 			const requestBody = JSON.stringify(scoped);
-			const response = await fetch(url, { method: "POST", headers, body: requestBody, signal: controller.signal });
+			const response = await fetch(url, { method: "POST", headers, body: requestBody, signal: controller.signal, redirect: "error" });
 			const data = await response.json().catch(() => ({}));
 			last = { ok: response.ok, status: response.status, data };
 			if (response.ok) return last;

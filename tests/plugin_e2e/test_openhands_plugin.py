@@ -51,7 +51,7 @@ class TestOpenHandsPluginManifest:
         manifest_dot = json.loads((PLUGIN_DIR / ".plugin" / "plugin.json").read_text(encoding="utf-8"))
 
         assert manifest_dot["name"] == "nowledge-mem"
-        assert manifest_dot["version"] == "0.1.2"
+        assert manifest_dot["version"] == "0.1.3"
         for field in ("name", "version", "description", "author", "license", "keywords"):
             assert field in manifest_dot, f"Missing field: {field}"
         assert "openhands" in manifest_dot["keywords"]

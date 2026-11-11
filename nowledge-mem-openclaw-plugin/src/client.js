@@ -166,7 +166,7 @@ export class NowledgeMemClient {
 		try {
 			const headers = this.getApiHeaders();
 			const load = async () => {
-				const response = await fetch(`${this.getApiBaseUrl()}/spaces`, {headers, signal: controller.signal});
+				const response = await fetch(`${this.getApiBaseUrl()}/spaces`, {headers, signal: controller.signal, redirect: "error"});
 				if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
 				return response.json();
 			};
@@ -180,6 +180,7 @@ export class NowledgeMemClient {
 			const requestBody =
 				scopedBody === undefined ? undefined : JSON.stringify(scopedBody);
 			const response = await fetch(`${this.getApiBaseUrl()}${scopedPath}`, {
+				redirect: "error",
 				method,
 				headers: this.getApiHeaders(),
 				body: requestBody,
