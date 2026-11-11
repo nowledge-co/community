@@ -478,6 +478,9 @@ export class NowledgeMemClient {
 			sourceRecordedAt:
 				m.source_recorded_at_start ?? m.metadata?.source_recorded_at_start ?? null,
 			createdAt: m.created_at ?? null,
+			// Newer current Memories that updated this one (server
+			// `later_updates`, newest first), so recall can mark it outdated.
+			laterUpdates: Array.isArray(m.later_updates) ? m.later_updates : [],
 			temporalContext: m.temporal_context ?? null,
 			// Thread provenance: links memory to the conversation it was distilled from.
 			// CLI returns `source_thread` (string), API returns `source_thread: {id, title}` (object).
