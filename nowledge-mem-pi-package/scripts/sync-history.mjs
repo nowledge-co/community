@@ -566,7 +566,7 @@ async function postJson(config, path, body) {
 			if (response.ok) return last;
 			if (response.status !== 404 && response.status !== 405) return last;
 		} catch (error) {
-			last = { ok: false, status: 0, data: { error: error instanceof Error ? error.message : String(error) } };
+			last = { ok: false, status: Number.isInteger(error?.status) ? error.status : 0, data: { error: error instanceof Error ? error.message : String(error) } };
 			if (error?.status !== 404 && error?.status !== 405) return last;
 		} finally {
 			clearTimeout(timeout);

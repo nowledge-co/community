@@ -1280,8 +1280,8 @@ def test_kimi_work_installer_writes_managed_plugin_record(tmp_path: Path):
     assert record["originalSource"] == str(KIMI_WORK_CONNECTOR)
 
 
-@pytest.mark.parametrize("api_prefix", ["", "/remote-api"])
-def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path, api_prefix: str):
+@pytest.mark.parametrize(("api_prefix", "roster_status"), [("", 200), ("/remote-api", 200), ("/remote-api", 405)])
+def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path, api_prefix: str, roster_status: int):
     if shutil.which("node") is None:
         pytest.skip("Pi history sync script smoke requires node on PATH")
 
@@ -1375,7 +1375,7 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
                 self.send_response(404)
                 self.end_headers()
                 return
-            self.send_response(200)
+            self.send_response(roster_status)
             self.send_header("content-type", "application/json")
             self.end_headers()
             self.wfile.write(b'{"spaces":[{"id":"pi-history-space","name":"pi-history-space"}]}')
@@ -1414,13 +1414,16 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
     try:
         env = os.environ.copy()
         env["NMEM_API_URL"] = f"http://127.0.0.1:{server.server_address[1]}{api_prefix}"
+        env["NMEM_API_KEY"] = "synthetic-only"
         env["NMEM_SPACE"] = "pi-history-space"
         env["NMEM_AGENT_ID"] = "PiHistoryAgent"
         env["NMEM_HOST_AGENT_ID"] = "raft:PiHistoryAgent"
-        result = _run(
+        run = _run if roster_status == 200 else subprocess.run
+        result = run(
             ["node", str(script), "--session-dir", str(session_dir), "--json", "--apply"],
             env=env,
             timeout=30,
+            **({"capture_output": True, "text": True} if roster_status != 200 else {}),
         )
     finally:
         server.shutdown()
@@ -1428,6 +1431,12 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
         server.server_close()
 
     applied = json.loads(result.stdout)
+    if roster_status != 200:
+        assert result.returncode != 0
+        assert applied["summary"]["failed"] == 1
+        assert applied["sessions"][0]["status"] == roster_status
+        assert calls == []
+        return
     assert applied["summary"]["created"] == 0
     assert applied["summary"]["appended"] == 1
     assert applied["summary"]["failed"] == 0
