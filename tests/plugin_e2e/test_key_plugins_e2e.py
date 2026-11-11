@@ -1770,11 +1770,10 @@ def test_claude_marketplace_commands_work_for_existing_registration(tmp_path: Pa
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls_file = tmp_path / "claude-calls.jsonl"
-    fake_claude = bin_dir / "claude"
-    fake_claude.write_text(
+    fake_claude_script = bin_dir / "claude_fake.py"
+    fake_claude_script.write_text(
         "\n".join(
             [
-                "#!/usr/bin/env python3",
                 "import json, os, sys",
                 "args = sys.argv[1:]",
                 "with open(os.environ['CLAUDE_FAKE_CALLS'], 'a', encoding='utf-8') as f:",
@@ -1789,31 +1788,49 @@ def test_claude_marketplace_commands_work_for_existing_registration(tmp_path: Pa
         ),
         encoding="utf-8",
     )
-    fake_claude.chmod(0o755)
+    if os.name == "nt":
+        fake_claude = bin_dir / "claude.cmd"
+        fake_claude.write_text(
+            '@echo off\r\n"%CLAUDE_FAKE_PYTHON%" "%CLAUDE_FAKE_SCRIPT%" %*\r\n',
+            encoding="utf-8",
+        )
+    else:
+        fake_claude = bin_dir / "claude"
+        fake_claude.write_text(
+            '#!/bin/sh\nexec "$CLAUDE_FAKE_PYTHON" "$CLAUDE_FAKE_SCRIPT" "$@"\n',
+            encoding="utf-8",
+        )
+        fake_claude.chmod(0o755)
     env = os.environ.copy()
     env["CLAUDE_FAKE_CALLS"] = str(calls_file)
+    env["CLAUDE_FAKE_PYTHON"] = sys.executable
+    env["CLAUDE_FAKE_SCRIPT"] = str(fake_claude_script)
     env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+
+    def run_claude_command(command: str):
+        shell_command = (
+            ["cmd.exe", "/d", "/s", "/c", command]
+            if os.name == "nt"
+            else ["bash", "-c", command]
+        )
+        return subprocess.run(
+            shell_command, env=env, text=True, capture_output=True, check=False, timeout=10
+        )
 
     old_install = (
         "claude plugin marketplace add https://github.com/nowledge-co/community "
         "&& claude plugin install nowledge-mem@nowledge-community"
     )
-    failed = subprocess.run(
-        ["bash", "-c", old_install], env=env, text=True, capture_output=True, check=False, timeout=10
-    )
+    failed = run_claude_command(old_install)
     assert failed.returncode != 0
     assert "marketplace already registered" in failed.stderr
     assert [json.loads(line) for line in calls_file.read_text().splitlines()] == [
         ["plugin", "marketplace", "add", "https://github.com/nowledge-co/community"]
     ]
 
-    installed = subprocess.run(
-        ["bash", "-c", install_command], env=env, text=True, capture_output=True, check=False, timeout=10
-    )
+    installed = run_claude_command(install_command)
     assert installed.returncode == 0, installed.stderr
-    updated = subprocess.run(
-        ["bash", "-c", update_command], env=env, text=True, capture_output=True, check=False, timeout=10
-    )
+    updated = run_claude_command(update_command)
     assert updated.returncode == 0, updated.stderr
 
     calls = [json.loads(line) for line in calls_file.read_text().splitlines()]
@@ -1826,9 +1843,7 @@ def test_claude_marketplace_commands_work_for_existing_registration(tmp_path: Pa
 
     calls_file.unlink()
     env["CLAUDE_FAIL_MARKETPLACE_UPDATE"] = "1"
-    failed_update = subprocess.run(
-        ["bash", "-c", update_command], env=env, text=True, capture_output=True, check=False, timeout=10
-    )
+    failed_update = run_claude_command(update_command)
     assert failed_update.returncode != 0
     assert "marketplace update failed" in failed_update.stderr
     assert [json.loads(line) for line in calls_file.read_text().splitlines()] == [
