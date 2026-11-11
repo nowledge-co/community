@@ -419,7 +419,7 @@ class NowledgeMemClient:
         if source:
             payload["source"] = source
         if self._has_explicit_space and self._space:
-            payload["space_id"] = self._http_space()
+            payload["space_id"] = self._space
         return self._api_post("/threads/import", payload)
 
     def append_thread(self, thread_id: str, messages: List[Dict[str, Any]]) -> Any:
@@ -429,7 +429,7 @@ class NowledgeMemClient:
         path = f"/threads/{urlparse.quote(thread_id, safe='')}/append"
         payload: Dict[str, Any] = {"messages": messages, "deduplicate": True}
         if self._has_explicit_space and self._space:
-            payload["space_id"] = self._http_space()
+            payload["space_id"] = self._space
         return self._api_post(path, payload)
 
     def report_skill_outcome(
@@ -519,9 +519,17 @@ class NowledgeMemClient:
                 f"nmem returned non-JSON output: {output[:200]}"
             ) from error
 
-    def _http_space(self) -> str:
-        """Resolve human config through the same authenticated roster as the CLI."""
-        snapshot = self._cli(["spaces", "list"])
+    def _http_space(self, api_url: str, headers: Dict[str, str]) -> str:
+        """Resolve without passing a human name through exact-ID CLI defaults."""
+        url = f"{api_url}/spaces"
+        try:
+            snapshot = self._request_json(url, b"", headers, method="GET")
+        except RuntimeError as error:
+            cause = error.__cause__
+            retries = self._retry_urls(url)
+            if not isinstance(cause, urlerror.HTTPError) or cause.code not in (404, 405) or not retries:
+                raise
+            snapshot = self._request_json(retries[0], b"", headers, method="GET")
         spaces = snapshot.get("spaces") if isinstance(snapshot, dict) else None
         if not isinstance(spaces, list):
             raise RuntimeError("Space roster did not contain spaces")
@@ -542,12 +550,15 @@ class NowledgeMemClient:
         HTTP so long sessions are not serialized into a single argv token.
         """
         api_url = self._api_url().rstrip("/")
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json", "X-Nmem-Space-Protocol": "exact-v1"}
         api_key = self._api_key()
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
             headers["X-NMEM-API-Key"] = api_key
+
+        if self._has_explicit_space and self._space and "space_id" in payload:
+            payload = {**payload, "space_id": self._http_space(api_url, headers)}
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
         url = f"{api_url}{path}"
         try:
@@ -567,8 +578,10 @@ class NowledgeMemClient:
         url: str,
         body: bytes,
         headers: Dict[str, str],
+        *,
+        method: str = "POST",
     ) -> Any:
-        request = urlrequest.Request(url, data=body, headers=headers, method="POST")
+        request = urlrequest.Request(url, data=None if method == "GET" else body, headers=headers, method=method)
         try:
             with urlrequest.urlopen(request, timeout=self._timeout) as response:
                 raw = response.read().decode("utf-8")

@@ -6,7 +6,7 @@ Declaring it on the MCP connection or sending regular tools through a current
 CLI does not cover a plugin's separate HTTP transcript connection.
 
 Configured Space names/aliases must resolve through the same destination's
-authenticated `/spaces` roster (Hermes uses `nmem --json spaces list`). IDs win
+authenticated `/spaces` roster without an inherited Space selector. IDs win
 over display names; unknown or ambiguous references stop the write. Never
 slugify, create a Space, or retry without the selector. Resolve before sending
 conversation content. An omitted selector stays omitted for backend-owned

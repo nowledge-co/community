@@ -554,8 +554,9 @@ async function postJson(config, path, body) {
 		const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 		try {
 			const scoped = await exactSpaceBody(body, config.space, async () => {
-				const response = await fetch(`${config.apiUrl}/spaces`, { headers, signal: controller.signal });
-				if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
+				const base = url.slice(0, -path.length);
+				const response = await fetch(`${base}/spaces`, { headers, signal: controller.signal });
+				if (!response.ok) throw Object.assign(new Error(`Space roster HTTP ${response.status}`), {status: response.status});
 				return response.json();
 			});
 			const requestBody = JSON.stringify(scoped);
@@ -563,8 +564,10 @@ async function postJson(config, path, body) {
 			const data = await response.json().catch(() => ({}));
 			last = { ok: response.ok, status: response.status, data };
 			if (response.ok) return last;
+			if (response.status !== 404 && response.status !== 405) return last;
 		} catch (error) {
 			last = { ok: false, status: 0, data: { error: error instanceof Error ? error.message : String(error) } };
+			if (error?.status !== 404 && error?.status !== 405) return last;
 		} finally {
 			clearTimeout(timeout);
 		}

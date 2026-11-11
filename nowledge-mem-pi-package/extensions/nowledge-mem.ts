@@ -252,8 +252,9 @@ async function postJson(
 		const timeout = setTimeout(() => controller.abort(), THREAD_SYNC_TIMEOUT_MS);
 		try {
 			const scoped = path.startsWith("/threads/resume/") ? body : await exactSpaceBody(body, config.space, async () => {
-				const response = await fetch(`${config.apiUrl}/spaces`, { headers, signal: controller.signal });
-				if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
+				const base = url.slice(0, -path.length);
+				const response = await fetch(`${base}/spaces`, { headers, signal: controller.signal });
+				if (!response.ok) throw Object.assign(new Error(`Space roster HTTP ${response.status}`), {status: response.status});
 				return response.json();
 			});
 			const response = await fetch(url, {
@@ -267,6 +268,10 @@ async function postJson(
 			if (response.ok) return last;
 			if (!shouldTryRemoteApiFallback(response.status)) return last;
 		} catch (error) {
+			if (error instanceof Error && "status" in error && typeof error.status === "number" && shouldTryRemoteApiFallback(error.status)) {
+				last = {ok:false, status:error.status, data:{error:error.message}};
+				continue;
+			}
 			return {
 				ok: false,
 				status: 0,

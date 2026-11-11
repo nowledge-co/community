@@ -1280,7 +1280,8 @@ def test_kimi_work_installer_writes_managed_plugin_record(tmp_path: Path):
     assert record["originalSource"] == str(KIMI_WORK_CONNECTOR)
 
 
-def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path):
+@pytest.mark.parametrize("api_prefix", ["", "/remote-api"])
+def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path, api_prefix: str):
     if shutil.which("node") is None:
         pytest.skip("Pi history sync script smoke requires node on PATH")
 
@@ -1370,6 +1371,10 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             assert self.headers.get("X-Nmem-Space-Protocol") == "exact-v1"
+            if self.path.startswith("/remote-api/"):
+                self.send_response(404)
+                self.end_headers()
+                return
             self.send_response(200)
             self.send_header("content-type", "application/json")
             self.end_headers()
@@ -1378,6 +1383,10 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
         def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
             length = int(self.headers.get("content-length", "0"))
             body = self.rfile.read(length).decode("utf-8")
+            if self.path.startswith("/remote-api/"):
+                self.send_response(404)
+                self.end_headers()
+                return
             calls.append(
                 {
                     "path": self.path,
@@ -1404,7 +1413,7 @@ def test_pi_history_sync_script_previews_and_appends_idempotently(tmp_path: Path
     thread.start()
     try:
         env = os.environ.copy()
-        env["NMEM_API_URL"] = f"http://127.0.0.1:{server.server_address[1]}"
+        env["NMEM_API_URL"] = f"http://127.0.0.1:{server.server_address[1]}{api_prefix}"
         env["NMEM_SPACE"] = "pi-history-space"
         env["NMEM_AGENT_ID"] = "PiHistoryAgent"
         env["NMEM_HOST_AGENT_ID"] = "raft:PiHistoryAgent"

@@ -273,6 +273,11 @@ class SpaceResolutionTests(unittest.TestCase):
                 return b'{"success": true}'
 
         def _fake_urlopen(request, **_kwargs):
+            if request.get_method() == "GET":
+                class RosterResponse(_Response):
+                    def read(self):
+                        return b'{"spaces":[{"id":"research-id","name":"Research Agent"}]}'
+                return RosterResponse()
             captured["url"] = request.full_url
             captured["body"] = request.data.decode("utf-8")
             return _Response()
@@ -281,7 +286,6 @@ class SpaceResolutionTests(unittest.TestCase):
             client_module.subprocess.run = _bad_run
             client_module.urlrequest.urlopen = _fake_urlopen
             client = client_module.NowledgeMemClient(space="Research Agent")
-            client._cli = lambda args: {"spaces": [{"id": "research-id", "name": "Research Agent"}]}
             result = client.import_thread(
                 "hermes-session-1",
                 [{"role": "user", "content": "x" * 100_000}],
@@ -328,6 +332,11 @@ class SpaceResolutionTests(unittest.TestCase):
                 return b'{"success": true, "messages_added": 1}'
 
         def _fake_urlopen(request, **_kwargs):
+            if request.get_method() == "GET":
+                class RosterResponse(_Response):
+                    def read(self):
+                        return b'{"spaces":[{"id":"research-id","name":"Research Agent"}]}'
+                return RosterResponse()
             captured["url"] = request.full_url
             captured["body"] = request.data.decode("utf-8")
             return _Response()
@@ -336,7 +345,6 @@ class SpaceResolutionTests(unittest.TestCase):
             client_module.subprocess.run = _bad_run
             client_module.urlrequest.urlopen = _fake_urlopen
             client = client_module.NowledgeMemClient(space="Research Agent")
-            client._cli = lambda args: {"spaces": [{"id": "research-id", "name": "Research Agent"}]}
             result = client.append_thread(
                 "hermes/session 1",
                 [{"role": "assistant", "content": "y" * 100_000}],

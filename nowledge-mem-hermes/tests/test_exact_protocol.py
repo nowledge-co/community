@@ -10,7 +10,13 @@ from test_remote_credentials import client_module
 @pytest.fixture
 def endpoint():
     calls = []
+    roster = [{"id":" 项目/ID ", "name":"Work"}]
     class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            assert self.headers.get("X-Nmem-Space-Protocol") == "exact-v1"
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(json.dumps({"spaces":roster}).encode())
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             calls.append((self.path, body, self.headers))
@@ -26,7 +32,7 @@ def endpoint():
     worker = threading.Thread(target=server.serve_forever, daemon=True)
     worker.start()
     try:
-        yield f"http://127.0.0.1:{server.server_port}", calls
+        yield f"http://127.0.0.1:{server.server_port}", calls, roster
     finally:
         server.shutdown()
         server.server_close()
@@ -35,13 +41,11 @@ def endpoint():
 
 @pytest.mark.parametrize("reference", [None, "Work", " 项目/ID "])
 def test_import_and_append_declare_exact_protocol_and_preserve_space(endpoint, monkeypatch, reference):
-    url, calls = endpoint
+    url, calls, _ = endpoint
     client = client_module.NowledgeMemClient(space=reference)
     monkeypatch.setattr(client, "_api_url", lambda: url)
     monkeypatch.setattr(client, "_api_key", lambda: "synthetic-only")
-    monkeypatch.setattr(client, "_cli", lambda args: {"spaces": [
-        {"id": " 项目/ID ", "name": "Work"},
-    ]})
+    monkeypatch.setattr(client, "_cli", lambda *args, **kwargs: pytest.fail("roster must not inherit CLI scope"))
     assert client.import_thread("probe", [{"role":"user", "content":"synthetic"}])["success"]
     assert client.append_thread("probe", [{"role":"assistant", "content":"synthetic"}])["success"]
     assert len(calls) == 2
@@ -52,10 +56,11 @@ def test_import_and_append_declare_exact_protocol_and_preserve_space(endpoint, m
 
 
 def test_unknown_or_ambiguous_configured_space_does_not_send(endpoint, monkeypatch):
-    url, calls = endpoint
+    url, calls, roster = endpoint
+    roster[:] = [{"id":"a", "name":"Work"}, {"id":"b", "name":"Work"}]
     client = client_module.NowledgeMemClient(space="Work")
     monkeypatch.setattr(client, "_api_url", lambda: url)
-    monkeypatch.setattr(client, "_cli", lambda args: {"spaces": [{"id":"a", "name":"Work"}, {"id":"b", "name":"Work"}]})
+    monkeypatch.setattr(client, "_api_key", lambda: "synthetic-only")
     with pytest.raises(RuntimeError, match="ambiguous"):
         client.import_thread("probe", [{"role":"user", "content":"synthetic"}])
     assert calls == []
