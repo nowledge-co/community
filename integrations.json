@@ -120,7 +120,10 @@
       "autonomy": {"bootstrap": "guided", "recall": "guided", "threads": "explicit-save", "bestResultRequires": ["Copilot Studio agent and tenant administrator approval", "Direct public HTTPS MCP endpoint", "Per-user authentication and explicit Space/write acceptance", "Real tenant validation before production use"]},
       "install": {
         "detectionHint": "Microsoft 365 work/school Copilot, not consumer Copilot or GitHub Copilot CLI.",
-        "agentGuide": {"prompt": "Read https://mem.nowledge.co/SKILL.md and the Microsoft 365 connector README. Guide me through Copilot Studio remote MCP setup for my confirmed endpoint and per-user credentials. Do not claim marketplace installation or transcript capture."},
+        "agentGuide": {
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and the Microsoft 365 connector README. Guide me through Copilot Studio remote MCP setup for my confirmed endpoint and per-user credentials. Do not claim marketplace installation or transcript capture.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 Microsoft 365 连接套件 README。按我确认的 Mem 地址，指导我在 Copilot Studio 配置远程 MCP，并使用各用户自己的连接凭据。不要声称已经上架市场或支持自动对话同步。"
+        },
         "docsUrl": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-m365-connector#readme"
       },
       "skills": [], "slashCommands": [],
