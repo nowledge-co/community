@@ -6,6 +6,7 @@ on:
       - ".github/workflows/openhands-plugin.yml"
       - "nowledge-mem-openhands-plugin/**"
       - "tests/plugin_e2e/test_openhands_plugin.py"
+      - "tests/plugin_e2e/test_exact_session_protocol.py"
       - "tests/plugin_e2e/test_mcp_endpoint_contract.py"
   push:
     branches:
@@ -14,6 +15,7 @@ on:
       - ".github/workflows/openhands-plugin.yml"
       - "nowledge-mem-openhands-plugin/**"
       - "tests/plugin_e2e/test_openhands_plugin.py"
+      - "tests/plugin_e2e/test_exact_session_protocol.py"
       - "tests/plugin_e2e/test_mcp_endpoint_contract.py"
 
 permissions:
@@ -34,4 +36,4 @@ jobs:
       - name: Lint hooks and tests
         run: ruff check nowledge-mem-openhands-plugin/hooks tests/plugin_e2e/test_openhands_plugin.py
       - name: Test plugin, SDK load, and MCP URL contract
-        run: python -m pytest tests/plugin_e2e/test_openhands_plugin.py tests/plugin_e2e/test_mcp_endpoint_contract.py -q
+        run: python -m pytest tests/plugin_e2e/test_openhands_plugin.py tests/plugin_e2e/test_mcp_endpoint_contract.py tests/plugin_e2e/test_exact_session_protocol.py -q

@@ -1,4 +1,5 @@
 import { buildNmemSpawnEnv } from "./spawn-env.js";
+import { exactSpaceBody, resolveSpaceReference } from "./generated/plugin-core/index.js";
 import {
 	isCheckpointConflictResponse,
 	isCheckpointedAppendAck,
@@ -130,7 +131,7 @@ export class NowledgeMemClient {
 	}
 
 	getApiHeaders() {
-		const headers = { "content-type": "application/json" };
+		const headers = { "content-type": "application/json", "x-nmem-space-protocol": "exact-v1" };
 		if (this._apiKey) {
 			headers.authorization = `Bearer ${this._apiKey}`;
 			headers["x-nmem-api-key"] = this._apiKey;
@@ -162,9 +163,20 @@ export class NowledgeMemClient {
 	async apiJson(method, path, body, timeout = 30_000) {
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), timeout);
-		const scopedPath = this._withSpaceQuery(path);
-		const scopedBody = this._withSpaceBody(body);
 		try {
+			const headers = this.getApiHeaders();
+			const load = async () => {
+				const response = await fetch(`${this.getApiBaseUrl()}/spaces`, {headers, signal: controller.signal});
+				if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
+				return response.json();
+			};
+			const scopedBody = await exactSpaceBody(body, this._spaceRef, load);
+			let scopedPath = path;
+			if (this._spaceRef) {
+				const url = new URL(path, "http://scope.invalid");
+				if (!url.searchParams.has("space_id")) url.searchParams.set("space_id", typeof scopedBody?.space_id === "string" ? scopedBody.space_id : resolveSpaceReference(await load(), this._spaceRef));
+				scopedPath = url.pathname + url.search;
+			}
 			const requestBody =
 				scopedBody === undefined ? undefined : JSON.stringify(scopedBody);
 			const response = await fetch(`${this.getApiBaseUrl()}${scopedPath}`, {

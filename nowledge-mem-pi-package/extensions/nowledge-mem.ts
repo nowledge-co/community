@@ -20,11 +20,11 @@ import {
 	type AcknowledgedCursor,
 } from "./session-delta.ts";
 
-import { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
+import { exactSpaceBody, resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 export { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.16";
+const DEFAULT_PLUGIN_VERSION = "0.8.17";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -225,12 +225,11 @@ async function postJson(
 	body: JsonObject,
 	config = resolveConfig(),
 ): Promise<{ ok: boolean; status: number; data: unknown }> {
-	const headers: Record<string, string> = { "Content-Type": "application/json" };
+	const headers: Record<string, string> = { "Content-Type": "application/json", "X-Nmem-Space-Protocol": "exact-v1" };
 	if (config.apiKey) {
 		headers.Authorization = `Bearer ${config.apiKey}`;
 		headers["X-NMEM-API-Key"] = config.apiKey;
 	}
-	const requestBody = JSON.stringify(path.startsWith("/threads/resume/") ? body : withSpace(body, config.space));
 	let urls: string[];
 	try {
 		urls = [`${config.apiUrl}${path}`];
@@ -252,10 +251,16 @@ async function postJson(
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), THREAD_SYNC_TIMEOUT_MS);
 		try {
+			const scoped = path.startsWith("/threads/resume/") ? body : await exactSpaceBody(body, config.space, async () => {
+				const base = url.slice(0, -path.length);
+				const response = await fetch(`${base}/spaces`, { headers, signal: controller.signal });
+				if (!response.ok) throw Object.assign(new Error(`Space roster HTTP ${response.status}`), {status: response.status});
+				return response.json();
+			});
 			const response = await fetch(url, {
 				method: "POST",
 				headers,
-				body: requestBody,
+				body: JSON.stringify(scoped),
 				signal: controller.signal,
 			});
 			const data = await response.json().catch(() => ({}));
@@ -263,6 +268,10 @@ async function postJson(
 			if (response.ok) return last;
 			if (!shouldTryRemoteApiFallback(response.status)) return last;
 		} catch (error) {
+			if (error instanceof Error && "status" in error && typeof error.status === "number" && shouldTryRemoteApiFallback(error.status)) {
+				last = {ok:false, status:error.status, data:{error:error.message}};
+				continue;
+			}
 			return {
 				ok: false,
 				status: 0,

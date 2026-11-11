@@ -17,6 +17,11 @@ export async function fixture(t) {
 	let responseOverride;
 	let closed = 0;
 	const server = createServer(async (request, response) => {
+		if (request.url === "/spaces") {
+			response.writeHead(200, {"content-type":"application/json"});
+			response.end(JSON.stringify({spaces: [{id:"destination-b", name:"destination-b"}]}));
+			return;
+		}
 		let content = "";
 		for await (const chunk of request) content += chunk;
 		const body = JSON.parse(content);

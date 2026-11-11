@@ -60,6 +60,9 @@ def mem_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[MemServer]:
             self.wfile.write(data)
 
         def do_GET(self) -> None:
+            if self.headers.get("X-Nmem-Space-Protocol") != "exact-v1":
+                self.send_json(409, {"error_code": "space_client_upgrade_required"})
+                return
             path = urlsplit(self.path)
             if path.path == "/context/bundle":
                 query = parse_qs(path.query)
@@ -82,6 +85,9 @@ def mem_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[MemServer]:
 
         def do_POST(self) -> None:
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            if self.headers.get("X-Nmem-Space-Protocol") != "exact-v1":
+                self.send_json(409, {"error_code": "space_client_upgrade_required"})
+                return
             if self.path == "/threads/import":
                 state.imports.append(payload)
                 if state.responses:

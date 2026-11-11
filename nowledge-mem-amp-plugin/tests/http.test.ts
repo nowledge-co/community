@@ -71,11 +71,11 @@ describe("createNmemHttp", () => {
     expect(result).toEqual({ ok: true, status: 200, data: { id: "T-1" } })
     expect(captured[0]?.url).toBe("http://127.0.0.1:14242/threads")
     expect(captured[0]?.init.method).toBe("POST")
-    expect(captured[0]?.init.headers).toEqual({ "Content-Type": "application/json" })
+    expect(captured[0]?.init.headers).toEqual({ "Content-Type": "application/json", "X-Nmem-Space-Protocol": "exact-v1" })
   })
 
   it("adds auth headers when an API auth value is configured", async () => {
-    const { fetch, captured } = recordingFetch({ ok: true, status: 200, json: async () => null })
+    const { fetch, captured } = recordingFetch({ ok: true, status: 200, json: async () => ({spaces: [{id:"research-id", name:"Research"}]}) })
     const nmemApi = createNmemHttp(AUTHED_CONFIG, { fetch, createAbortController: realAbortController })
     await nmemApi("/threads", {})
 
@@ -85,10 +85,11 @@ describe("createNmemHttp", () => {
   })
 
   it("injects ambient space_id into the body", async () => {
-    const { fetch, captured } = recordingFetch({ ok: true, status: 200, json: async () => null })
+    const { fetch, captured } = recordingFetch({ ok: true, status: 200, json: async () => ({spaces: [{id:"research-id", name:"Research"}]}) })
     const nmemApi = createNmemHttp(SPACED_CONFIG, { fetch, createAbortController: realAbortController })
     await nmemApi("/threads", { messages: [] })
-    expect(captured[0]?.init.body).toBe(JSON.stringify({ messages: [], space_id: "Research" }))
+    expect(captured[0]?.url).toMatch(/\/spaces$/)
+    expect(captured[1]?.init.body).toBe(JSON.stringify({ messages: [], space_id: "research-id" }))
   })
 
   it("returns a normalised error for a non-ok status", async () => {

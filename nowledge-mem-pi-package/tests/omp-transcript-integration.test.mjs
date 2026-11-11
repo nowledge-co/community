@@ -30,6 +30,8 @@ function capture(t, entries, source = "omp") {
     const requests = [];
     let remoteCount = 0;
     globalThis.fetch = async (url, request) => {
+        assert.equal(request.headers["X-Nmem-Space-Protocol"], "exact-v1");
+        if (url.endsWith("/spaces")) return Response.json({spaces: [{id:"dialogue-fixture", name:"dialogue-fixture"}]});
         const body = JSON.parse(request.body);
         requests.push({ url, body });
         remoteCount += body.messages.length;

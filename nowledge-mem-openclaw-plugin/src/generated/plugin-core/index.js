@@ -78,14 +78,35 @@ function resolveThreadSyncTimeoutMs(raw) {
   }
   return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed));
 }
+
+// src/space.ts
+function resolveSpaceReference(snapshot, reference) {
+  const spaces = snapshot?.spaces;
+  if (!Array.isArray(spaces)) throw new Error("Space roster did not contain spaces");
+  const exact = spaces.filter((s) => s && (s.id === reference || s.key === reference));
+  const normalized = reference.trim().normalize("NFKC").toLowerCase();
+  const matches = exact.length ? exact : spaces.filter((s) => s && [s.name, ...Array.isArray(s.aliases) ? s.aliases : []].some((value) => typeof value === "string" && value.trim().normalize("NFKC").toLowerCase() === normalized));
+  if (matches.length !== 1 || typeof matches[0].id !== "string") {
+    throw new Error("Unknown or ambiguous configured Space; choose a Space from nmem spaces list");
+  }
+  return matches[0].id;
+}
+async function exactSpaceBody(body, reference, load) {
+  if (!reference || !body || typeof body !== "object" || Array.isArray(body)) return body;
+  const record2 = body;
+  if (Object.hasOwn(record2, "space_id")) return body;
+  return { ...record2, space_id: resolveSpaceReference(await load(), reference) };
+}
 export {
   appendAcknowledgedRemoteCount,
   createAcknowledgedRemoteCount,
+  exactSpaceBody,
   isCheckpointConflictResponse,
   isCheckpointedAppendAck,
   isThreadAppendAck,
   isThreadCreateAck,
   prefixFingerprint,
+  resolveSpaceReference,
   resolveThreadSyncTimeoutMs,
   selectAcknowledgedDelta,
   stableMessageFingerprint

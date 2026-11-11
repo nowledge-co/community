@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem-step-code",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Cross-tool memory for Step Code with startup context, settled-turn thread sync, and memory skills.",
   "keywords": ["pi-package", "step-code", "memory", "nowledge"],
   "author": "Nowledge Labs",
@@ -11,7 +11,7 @@
     "directory": "nowledge-mem-step-code"
   },
   "dependencies": {
-    "nowledge-mem-pi": "^0.8.10"
+    "nowledge-mem-pi": "^0.8.17"
   },
   "pi": {
     "extensions": ["./extensions/nowledge-mem.ts"],

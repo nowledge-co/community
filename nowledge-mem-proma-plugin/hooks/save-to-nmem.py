@@ -90,6 +90,7 @@ def _parse_allowed_workspaces(raw: str | None) -> set[str] | None:
 ALLOWED_WORKSPACE_DIRS = _parse_allowed_workspaces(os.environ.get("PROMA_ALLOWED_WORKSPACES"))
 
 HEADERS = {
+    "X-Nmem-Space-Protocol": "exact-v1",
     "Content-Type": "application/json",
     "APP": "Proma",
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.8] - 2026-11-12
+
+### Fixed
+
+- Declare the exact Space protocol on direct HTTP session synchronization so
+  workspaces using current Spaces can accept captured conversations.
+- Preserve the selected destination; do not fall back to an unscoped write
+  when a configured Space cannot be resolved.
+
 ## [0.4.7] - 2026-11-01
 
 - Add the project/server `sessionContext: "off"` option to omit automatic context guidance without disabling explicit tools or capture. The default remains `automatic`.

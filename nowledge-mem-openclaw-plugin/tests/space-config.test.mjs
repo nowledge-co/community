@@ -196,18 +196,18 @@ test("apiJson injects ambient space into fallback HTTP requests", async () => {
 		{ apiUrl: "http://127.0.0.1:14242", space: "Research Agent" },
 	);
 	try {
-		globalThis.fetch = async (url, init) => ({
+		globalThis.fetch = async (url, init) => url.endsWith("/spaces") ? Response.json({spaces:[{id:"research-id",name:"Research Agent"}]}) : ({
 			ok: true,
 			text: async () => JSON.stringify({ url, body: init?.body ?? null }),
 		});
 		const response = await client.apiJson("POST", "/memories/search", { q: "hello" });
 		assert.equal(
 			response.url,
-			"http://127.0.0.1:14242/memories/search?space_id=Research+Agent",
+			"http://127.0.0.1:14242/memories/search?space_id=research-id",
 		);
 		assert.deepEqual(JSON.parse(response.body), {
 			q: "hello",
-			space_id: "Research Agent",
+			space_id: "research-id",
 		});
 	} finally {
 		globalThis.fetch = previousFetch;
@@ -237,12 +237,12 @@ test("apiJson never places API keys in URL query strings", async () => {
 		};
 		await assert.rejects(
 			() => client.apiJson("POST", "/remote-api/threads", {}),
-			/forbidden/,
+			/Space roster HTTP 403/,
 		);
 		assert.equal(requests.length, 1);
 		assert.equal(
 			requests[0].url,
-			"https://mem.example.com/remote-api/threads?space_id=Research+Agent",
+			"https://mem.example.com/spaces",
 		);
 		assert.equal(requests[0].init.headers.authorization, "Bearer secret-token");
 		assert.equal(requests[0].init.headers["x-nmem-api-key"], "secret-token");

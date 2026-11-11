@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.3] - 2026-11-12
+
+### Fixed
+
+- Declare the exact Space protocol on direct HTTP session synchronization so
+  workspaces using current Spaces can accept captured conversations.
+- Preserve the selected destination; do not fall back to an unscoped write
+  when a configured Space cannot be resolved.
+
 ## Unreleased
 
 - `distill-memory` now says where a Team save lands: with no named Space it goes to your personal space ("Only me"), Mem reports the destination, and sharing means saving with `--space`. Guidance only; no runtime change.

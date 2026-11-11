@@ -143,12 +143,25 @@ def get_effective_config(cwd: str | Path | None = None) -> tuple[str, str | None
 
 
 def _make_auth_headers(api_key: str | None = None) -> dict[str, str]:
-    headers = {"APP": "OpenHands"}
+    headers = {"APP": "OpenHands", "X-Nmem-Space-Protocol": "exact-v1"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
         headers["X-NMEM-API-Key"] = api_key
         headers["X-MEM-API-Key"] = api_key
     return headers
+
+
+def _space_from_roster(roster: Any, reference: str) -> str | None:
+    spaces = roster.get("spaces", []) if isinstance(roster, dict) else []
+    if not isinstance(spaces, list):
+        return None
+    spaces = [s for s in spaces if isinstance(s, dict)]
+    exact = [s for s in spaces if reference in (s.get("id"), s.get("key"))]
+    matches = exact or [s for s in spaces if any(
+        isinstance(v, str) and v.strip().casefold() == reference.strip().casefold()
+        for v in [s.get("name"), *(s.get("aliases") or [])]
+    )]
+    return matches[0]["id"] if len(matches) == 1 and isinstance(matches[0].get("id"), str) else None
 
 
 def http_request(
@@ -164,10 +177,33 @@ def http_request(
         return None
 
     api_url, api_key = config if config is not None else get_effective_config(cwd)
+    metadata = body.get("metadata") if body and isinstance(body.get("metadata"), dict) else {}
+    # Config values are human references, while exact-v1 wire selectors are IDs.
+    # Resolve only from the same authenticated destination; never guess a slug.
+    if body and "space_id" not in body and (body.get("space") or metadata.get("space_id")):
+        reference = body.get("space") or metadata["space_id"]
+        roster = http_request("/spaces", timeout=timeout, cwd=cwd, config=(api_url, api_key))
+        space_id = _space_from_roster(roster, reference)
+        if space_id is None:
+            return None
+        body = {**body, "space_id": space_id}
+        body.pop("space", None)
+        if isinstance(body.get("metadata"), dict):
+            body["metadata"] = {**body["metadata"], "space_id": space_id}
+    parsed = urllib.parse.urlsplit(endpoint)
+    query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+    if "space" in query:
+        roster = http_request("/spaces", timeout=timeout, cwd=cwd, config=(api_url, api_key))
+        space_id = _space_from_roster(roster, query["space"][0])
+        if space_id is None:
+            return None
+        query.pop("space")
+        query["space_id"] = [space_id]
+        endpoint = urllib.parse.urlunsplit(parsed._replace(query=urllib.parse.urlencode(query, doseq=True)))
     url = f"{api_url}{endpoint}"
 
     headers = {
-        "User-Agent": "NowledgeMem-OpenHands/0.1.1",
+        "User-Agent": "NowledgeMem-OpenHands/0.1.2",
         "Accept": "application/json",
         **_make_auth_headers(api_key),
     }

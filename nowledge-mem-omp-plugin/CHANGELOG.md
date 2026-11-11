@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.5] - 2026-11-12
+
+### Fixed
+
+- Declare the exact Space protocol on direct HTTP session synchronization so
+  workspaces using current Spaces can accept captured conversations.
+- Preserve the selected destination; do not fall back to an unscoped write
+  when a configured Space cannot be resolved.
+
 ## [0.1.4] - 2026-10-29
 
 ### Fixed

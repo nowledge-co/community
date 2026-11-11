@@ -273,6 +273,11 @@ class SpaceResolutionTests(unittest.TestCase):
                 return b'{"success": true}'
 
         def _fake_urlopen(request, **_kwargs):
+            if request.get_method() == "GET":
+                class RosterResponse(_Response):
+                    def read(self):
+                        return b'{"spaces":[{"id":"research-id","name":"Research Agent"}]}'
+                return RosterResponse()
             captured["url"] = request.full_url
             captured["body"] = request.data.decode("utf-8")
             return _Response()
@@ -290,7 +295,7 @@ class SpaceResolutionTests(unittest.TestCase):
             self.assertEqual(result["success"], True)
             self.assertEqual(captured["url"], "http://mem.test/threads/import")
             self.assertEqual(payload["thread_id"], "hermes-session-1")
-            self.assertEqual(payload["metadata"]["space_id"], "Research Agent")
+            self.assertEqual(payload["space_id"], "research-id")
             self.assertEqual(payload["messages"][0]["content"], "x" * 100_000)
         finally:
             client_module.subprocess.run = original_run
@@ -327,6 +332,11 @@ class SpaceResolutionTests(unittest.TestCase):
                 return b'{"success": true, "messages_added": 1}'
 
         def _fake_urlopen(request, **_kwargs):
+            if request.get_method() == "GET":
+                class RosterResponse(_Response):
+                    def read(self):
+                        return b'{"spaces":[{"id":"research-id","name":"Research Agent"}]}'
+                return RosterResponse()
             captured["url"] = request.full_url
             captured["body"] = request.data.decode("utf-8")
             return _Response()
@@ -346,7 +356,7 @@ class SpaceResolutionTests(unittest.TestCase):
                 "http://mem.test/threads/hermes%2Fsession%201/append",
             )
             self.assertEqual(payload["messages"][0]["content"], "y" * 100_000)
-            self.assertEqual(payload["space_id"], "Research Agent")
+            self.assertEqual(payload["space_id"], "research-id")
         finally:
             client_module.subprocess.run = original_run
             client_module.urlrequest.urlopen = original_urlopen

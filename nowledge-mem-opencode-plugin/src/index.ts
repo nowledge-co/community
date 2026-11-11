@@ -2,6 +2,7 @@ import { Plugin } from "@opencode/plugin"
 import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { exactSpaceBody, resolveSpaceReference } from "./generated/plugin-core/index.js"
 
 import { createNmemCliRunner } from "./cli-runner.mjs"
 import {
@@ -306,8 +307,16 @@ export default Plugin.define({
       return space ? ["--space", space] : []
     }
 
-    function explicitSpaceForHttp(args: SpaceToolArgs): string | undefined {
-      return stringToolValue(args.space_id) || stringToolValue(args.space)
+    async function explicitSpaceForHttp(args: SpaceToolArgs): Promise<string | undefined> {
+      if (typeof args.space_id === "string") return args.space_id
+      const reference = stringToolValue(args.space)
+      if (!reference) return undefined
+      const response = await fetch(`${apiUrl}/spaces`, {
+        headers: {"X-Nmem-Space-Protocol":"exact-v1", ...(apiKey ? {Authorization:`Bearer ${apiKey}`} : {})},
+        signal: AbortSignal.timeout(30_000),
+      })
+      if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`)
+      return resolveSpaceReference(await response.json(), reference)
     }
 
     function withExplicitSpaceArg(cmd: string[], args: SpaceToolArgs): string[] {
@@ -319,7 +328,7 @@ export default Plugin.define({
       body: unknown,
       timeoutMs = 30_000,
     ): Promise<{ ok: boolean; status: number; data: any }> {
-      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      const headers: Record<string, string> = { "Content-Type": "application/json", "X-Nmem-Space-Protocol": "exact-v1" }
       if (apiKey) {
         headers["Authorization"] = `Bearer ${apiKey}`
         headers["X-NMEM-API-Key"] = apiKey
@@ -327,10 +336,15 @@ export default Plugin.define({
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), timeoutMs)
       try {
+        const scopedBody = await exactSpaceBody(body, ambientSpaceId, async () => {
+          const response = await fetch(`${apiUrl}/spaces`, { headers, signal: controller.signal })
+          if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`)
+          return response.json()
+        })
         const res = await fetch(`${apiUrl}${path}`, {
           method: "POST",
           headers,
-          body: JSON.stringify(withAmbientSpace(body)),
+          body: JSON.stringify(scopedBody),
           signal: controller.signal,
         })
         const data = await res.json().catch(() => null)
@@ -449,7 +463,7 @@ export default Plugin.define({
         return { skipped: true, reason: "incomplete_turn", session_id: session.sessionID }
       }
 
-      const state = syncStateFor(session.sessionID, options.spaceId || ambientSpaceId)
+      const state = syncStateFor(session.sessionID, options.spaceId ?? ambientSpaceId)
       const delta = selectAcknowledgedDelta(
         threadMessages,
         options.force ? undefined : state.acknowledged,
@@ -476,7 +490,7 @@ export default Plugin.define({
         source: "opencode",
         project: projectPath,
         workspace: projectPath,
-        ...(options.spaceId ? { space_id: options.spaceId } : {}),
+        ...(options.spaceId !== undefined ? { space_id: options.spaceId } : {}),
         metadata,
       }
       let res = state.created
@@ -498,7 +512,7 @@ export default Plugin.define({
             ...(state.acknowledged && !delta.reset
               ? { expected_message_count: state.acknowledged.remoteCount }
               : {}),
-            ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
+            ...(options.spaceId !== undefined ? { space_id: options.spaceId } : {}),
           },
           timeoutMs,
         )
@@ -513,7 +527,7 @@ export default Plugin.define({
             messages: threadMessages,
             deduplicate: true,
             idempotency_key: `opencode:reconcile:${session.sessionID}:${delta.next.prefixFingerprint}`,
-            ...(options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}),
+            ...(options.spaceId !== undefined ? { space_id: options.spaceId } : {}),
           },
           timeoutMs,
         )
@@ -829,7 +843,7 @@ export default Plugin.define({
               }, {
                 reason: "manual_tool",
                 summary: args.summary,
-                spaceId: explicitSpaceForHttp(args),
+                spaceId: await explicitSpaceForHttp(args),
                 force: true,
                 timeoutMs: 30_000,
               })),
