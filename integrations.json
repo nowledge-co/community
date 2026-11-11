@@ -107,6 +107,26 @@
       "slashCommands": []
     },
     {
+      "id": "microsoft-365-copilot",
+      "name": "Microsoft 365 Copilot",
+      "category": "cloud",
+      "type": "connector",
+      "version": "0.1.0",
+      "directory": "nowledge-mem-m365-connector",
+      "availability": "guided",
+      "transport": "mcp",
+      "capabilities": {"workingMemory": false, "search": false, "distill": false, "autoRecall": false, "autoCapture": false, "graphExploration": false, "status": false},
+      "threadSave": {"method": "manual", "note": "No native conversation export or lifecycle capture verified. Do not claim full transcript sync from model-visible context."},
+      "autonomy": {"bootstrap": "guided", "recall": "guided", "threads": "explicit-save", "bestResultRequires": ["Copilot Studio agent and tenant administrator approval", "Direct public HTTPS MCP endpoint", "Per-user authentication and explicit Space/write acceptance", "Real tenant validation before production use"]},
+      "install": {
+        "detectionHint": "Microsoft 365 work/school Copilot, not consumer Copilot or GitHub Copilot CLI.",
+        "agentGuide": {"prompt": "Read https://mem.nowledge.co/SKILL.md and the Microsoft 365 connector README. Guide me through Copilot Studio remote MCP setup for my confirmed endpoint and per-user credentials. Do not claim marketplace installation or transcript capture."},
+        "docsUrl": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-m365-connector#readme"
+      },
+      "skills": [], "slashCommands": [],
+      "toolNaming": {"convention": "mcp-backend", "note": "Discover actual tools and schemas from the authorized server; capability flags remain false pending tenant acceptance."}
+    },
+    {
       "id": "muse",
       "name": "Muse",
       "category": "cloud",
