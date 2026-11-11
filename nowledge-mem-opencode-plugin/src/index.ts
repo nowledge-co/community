@@ -463,7 +463,7 @@ export default Plugin.define({
         return { skipped: true, reason: "incomplete_turn", session_id: session.sessionID }
       }
 
-      const state = syncStateFor(session.sessionID, options.spaceId || ambientSpaceId)
+      const state = syncStateFor(session.sessionID, options.spaceId ?? ambientSpaceId)
       const delta = selectAcknowledgedDelta(
         threadMessages,
         options.force ? undefined : state.acknowledged,

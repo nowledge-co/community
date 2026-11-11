@@ -181,7 +181,7 @@ function normalizedTimestamp(raw) {
   }
 }
 function sessionSyncLaneKey(sessionId, apiUrl, apiKey, spaceId, agentId, hostAgentId) {
-  const destination = createHash2("sha256").update([apiUrl, apiKey ?? "", spaceId ?? "", agentId ?? "", hostAgentId ?? ""].join("\0")).digest("hex");
+  const destination = createHash2("sha256").update(JSON.stringify([apiUrl, apiKey ?? "", spaceId ?? null, agentId ?? "", hostAgentId ?? ""])).digest("hex");
   return `${destination}\0${sessionId}`;
 }
 function isThreadNotFoundResponse(status, data) {
@@ -605,7 +605,7 @@ var index_default = Plugin.define({
       if (!hasUser || !hasAssistant) {
         return { skipped: true, reason: "incomplete_turn", session_id: session.sessionID };
       }
-      const state = syncStateFor(session.sessionID, options.spaceId || ambientSpaceId);
+      const state = syncStateFor(session.sessionID, options.spaceId ?? ambientSpaceId);
       const delta = selectAcknowledgedDelta(
         threadMessages,
         options.force ? void 0 : state.acknowledged,

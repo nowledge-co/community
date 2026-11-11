@@ -485,3 +485,28 @@ test("save_thread reads ctx.session.context and returns a content payload", asyn
     await new Promise((resolve) => server.close(resolve))
   }
 })
+
+test("manual capture keeps an exact empty-ID Space separate from the configured lane", async (t) => {
+  const writes = []
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    if (url.endsWith("/spaces")) return Response.json({spaces:[{id:"work-id",name:"Work"}]})
+    const body = JSON.parse(init.body)
+    writes.push({url,body})
+    return Response.json({thread:{thread_id:body.thread_id,message_count:2}})
+  })
+  await withEnv({NMEM_API_URL:"http://mem.test",NMEM_SPACE:"Work"}, async () => {
+    const {ctx,tools} = createFakeContext({sessionContext:async () => [
+      {type:"user",id:"u",text:"probe"},
+      {type:"assistant",id:"a",content:[{type:"text",text:"reply"}]},
+    ]})
+    const cleanup = await plugin.setup(ctx)
+    try {
+      const save = tools.find(tool => tool.name === "nowledge_mem_save_thread")
+      assert.equal(JSON.parse((await save.execute({}, {sessionID:"same-native"})).content).success,true)
+      assert.equal(JSON.parse((await save.execute({space_id:""}, {sessionID:"same-native"})).content).success,true)
+      assert.equal(writes.length,2)
+      assert.ok(writes.every(request => request.url.endsWith("/threads")))
+      assert.deepEqual(writes.map(request => request.body.space_id),["work-id",""])
+    } finally { await cleanup() }
+  })
+})

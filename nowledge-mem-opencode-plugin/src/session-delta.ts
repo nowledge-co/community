@@ -40,7 +40,7 @@ export function sessionSyncLaneKey(
   hostAgentId: string | undefined,
 ): string {
   const destination = createHash("sha256")
-    .update([apiUrl, apiKey ?? "", spaceId ?? "", agentId ?? "", hostAgentId ?? ""].join("\0"))
+    .update(JSON.stringify([apiUrl, apiKey ?? "", spaceId ?? null, agentId ?? "", hostAgentId ?? ""]))
     .digest("hex")
   return `${destination}\0${sessionId}`
 }
