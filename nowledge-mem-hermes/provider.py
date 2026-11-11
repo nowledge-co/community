@@ -1169,7 +1169,8 @@ class NowledgeMemProvider(MemoryProvider):
     @staticmethod
     def _later_update_note(update: Dict[str, Any]) -> str:
         stated = str(update.get("stated_at") or "")[:10]
-        return f"updated later ({stated}): {update.get('title') or 'Untitled'}"
+        title = " ".join(str(update.get("title") or "").split()) or "Untitled"
+        return f"updated later ({stated}): {title}"
 
     @staticmethod
     def _newer_versions_to_append(
@@ -1208,6 +1209,11 @@ class NowledgeMemProvider(MemoryProvider):
                 # Compare complete evidence before display truncation, keeping
                 # identical text from different dates as distinct evidence.
                 recall_key = (content, date)
+                if recall_key in seen_evidence:
+                    # Identical evidence is already packed; count this hit as
+                    # present so its id is never appended as a newer version.
+                    packed_ids.add(str(memory.get("id") or ""))
+                    continue
                 if len(content) > RECALL_MEMORY_ITEM_CHARS:
                     content = content[:RECALL_MEMORY_ITEM_CHARS].rstrip() + "…"
                 labels = memory.get("labels") or []

@@ -86,3 +86,9 @@ def test_appended_newer_versions_are_newest_first():
     block = recall_pack.format_recalled([dict(_OLDER, later_updates=updates)])
     appended = [line for line in block.splitlines() if "newer version" in line]
     assert [line.split(": ")[1].split(" (")[0] for line in appended] == ["Update 09", "Update 05", "Update 03"]
+
+
+def test_update_titles_stay_on_one_line():
+    older = dict(_OLDER, later_updates=[dict(_UPDATE, title="Heartbeat\n\npaused")])
+    lines = recall_pack.format_recalled([older]).splitlines()
+    assert "  → updated later (2026-10-29): Heartbeat paused" in lines

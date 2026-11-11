@@ -212,7 +212,7 @@ function parseLaterUpdates(value) {
     if (typeof update !== 'object' || update === null || typeof update.memory_id !== 'string') return []
     return [{
       id: update.memory_id,
-      title: typeof update.title === 'string' && update.title !== '' ? update.title : 'Untitled',
+      title: typeof update.title === 'string' && update.title.trim() !== '' ? update.title.replace(/\s+/g, ' ').trim() : 'Untitled',
       statedAt: typeof update.stated_at === 'string' ? update.stated_at : '',
       excerpt: typeof update.excerpt === 'string' ? update.excerpt.replace(/\s+/g, ' ').trim() : '',
     }]

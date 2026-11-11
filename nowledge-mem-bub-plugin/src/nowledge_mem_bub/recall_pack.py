@@ -35,7 +35,8 @@ def later_updates(memory: dict) -> list[dict]:
 
 def later_update_note(update: dict) -> str:
     stated = str(update.get("stated_at") or "")[:10]
-    return f"updated later ({stated}): {update.get('title') or 'Untitled'}"
+    title = " ".join(str(update.get("title") or "").split()) or "Untitled"
+    return f"updated later ({stated}): {title}"
 
 
 def format_recalled(recalled: list) -> str:

@@ -242,6 +242,16 @@ class RecallPackTests(unittest.TestCase):
             "- updated later (2026-10-29): Heartbeat paused (newer version of a memory above)",
         )
 
+    def test_update_titles_stay_on_one_line_and_duplicate_hits_are_not_appended(self):
+        update = {"memory_id": "dup", "title": "Heartbeat\npaused", "stated_at": "2026-10-29"}
+        older = _memory("Heartbeat cron", "runs 0 6-20 * * *", id="cron", later_updates=[update])
+        packed = _memory("Copy", "paused since Oct 29", id="packed", event_start="2026-10-29")
+        duplicate = _memory("Copy", "paused  since\nOct 29", id="dup", event_start="2026-10-29")
+        block = Provider._format_prefetch({"memories": [older, packed, duplicate]})
+        self.assertIn("  → updated later (2026-10-29): Heartbeat paused\n", block)
+        self.assertNotIn("newer version of a memory above", block)
+        self.assertEqual(block.count("paused since Oct 29"), 1)
+
     def test_empty_inputs_inject_nothing(self):
         self.assertEqual(Provider._format_prefetch({"memories": []}, {"threads": []}), "")
         self.assertEqual(Provider._format_prefetch(None, None), "")

@@ -175,7 +175,10 @@ export function laterUpdates(memory) {
 /** `updated later (2026-10-29): <newer title>` */
 export function laterUpdateNote(update) {
 	const stated = String(update?.stated_at ?? "").slice(0, 10);
-	return `updated later (${stated}): ${escapeForPrompt(update?.title || "Untitled")}`;
+	const title = String(update?.title ?? "")
+		.replace(/\s+/g, " ")
+		.trim();
+	return `updated later (${stated}): ${escapeForPrompt(title || "Untitled")}`;
 }
 
 /**
