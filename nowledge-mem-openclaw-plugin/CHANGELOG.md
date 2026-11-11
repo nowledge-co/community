@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.42] - 2026-11-12
+
+### Fixed
+
+- Honor automatic-capture opt-out in the Context Engine before reading or
+  persisting a transcript; explicit memory tools remain available.
+- Check skip markers against the same resolved transcript that would be saved,
+  including session-file fallback when the host omits inline messages.
+- Bound and escape recalled metadata and keep compaction memory references
+  inside an explicitly untrusted evidence block.
+
 ## [0.8.41] - 2026-11-12
 
 ### Fixed
