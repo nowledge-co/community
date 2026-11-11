@@ -68,7 +68,7 @@ jobs:
       - name: Check affected integration metadata and adapter contracts
         run: >-
           python -m pytest tests/plugin_e2e/test_key_plugins_e2e.py -q
-          -k "opencode_plugin_static_contract or opencode_thread_sync_timeout_contract or amp_plugin_static_contract or pi_thread_sync_timeout_contract or alma_plugin_static_contract or claude_marketplace_commands_work_for_existing_registration or key_plugin_static_contracts_are_declared"
+          -k "opencode_plugin_static_contract or opencode_thread_sync_timeout_contract or amp_plugin_static_contract or pi_thread_sync_timeout_contract or alma_plugin_static_contract or claude_marketplace_commands_work_for_existing_registration or claude_command_guidance_package_versions_match_registry"
   amp:
     runs-on: ubuntu-latest
     steps:

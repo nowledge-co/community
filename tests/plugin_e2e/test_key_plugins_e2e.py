@@ -1836,6 +1836,32 @@ def test_claude_marketplace_commands_work_for_existing_registration(tmp_path: Pa
     ]
 
 
+def test_claude_command_guidance_package_versions_match_registry():
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    by_id = {item["id"]: item for item in registry["integrations"]}
+    claude_manifest = _read_json(
+        COMMUNITY_ROOT / "nowledge-mem-claude-code-plugin" / ".claude-plugin" / "plugin.json"
+    )
+    claude_marketplace = _read_json(COMMUNITY_ROOT / ".claude-plugin" / "marketplace.json")
+    claude_listing = next(
+        item for item in claude_marketplace["plugins"] if item["name"] == "nowledge-mem"
+    )
+    assert claude_manifest["version"] == claude_listing["version"] == "0.7.37"
+    assert (
+        by_id["claude-code"]["version"]
+        == by_id["grok"]["version"]
+        == claude_manifest["version"]
+    )
+
+    agent_manifest = _read_json(COMMUNITY_ROOT / "nowledge-mem-agent-plugin" / "plugin.json")
+    assert agent_manifest["version"] == by_id["agent-plugins"]["version"] == "0.1.5"
+    devin_manifest = _read_json(
+        COMMUNITY_ROOT / "nowledge-mem-devin-plugin" / ".devin-plugin" / "plugin.json"
+    )
+    assert devin_manifest["version"] == by_id["devin"]["version"] == "0.1.5"
+    assert by_id["npx-skills"]["version"] == "0.6.6"
+
+
 def test_alma_plugin_static_contract_is_self_contained():
     package = _read_json(ALMA_PLUGIN / "package.json")
     manifest = _read_json(ALMA_PLUGIN / "manifest.json")
