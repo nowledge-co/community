@@ -164,6 +164,35 @@ export function recallDate(memory) {
 	return "";
 }
 
+/** Newer current Memories that updated this one (server `later_updates`). */
+export function laterUpdates(memory) {
+	const updates = memory?.laterUpdates ?? memory?.later_updates;
+	return Array.isArray(updates)
+		? updates.filter((u) => u && typeof u === "object" && u.memory_id)
+		: [];
+}
+
+/** `updated later (2026-10-29): <newer title>` */
+export function laterUpdateNote(update) {
+	const stated = String(update?.stated_at ?? "").slice(0, 10);
+	return `updated later (${stated}): ${escapeForPrompt(update?.title || "Untitled")}`;
+}
+
+/**
+ * Newer versions of packed memories that are not themselves packed, newest
+ * first, once each.
+ */
+export function newerVersionsToAppend(updates, packedIds) {
+	const missing = new Map();
+	for (const update of updates) {
+		const id = String(update.memory_id);
+		if (!packedIds.has(id) && !missing.has(id)) missing.set(id, update);
+	}
+	return [...missing.values()].sort((a, b) =>
+		String(b.stated_at ?? "").localeCompare(String(a.stated_at ?? "")),
+	);
+}
+
 /**
  * Format recalled memories into an XML block for system prompt injection.
  *
@@ -179,6 +208,8 @@ export function buildRecalledKnowledgeBlock(
 ) {
 	const lines = [];
 	let used = 0;
+	const packedIds = new Set();
+	const updates = [];
 	for (const r of filtered) {
 		const title = r.title || "(untitled)";
 		const score = `${(Number(r.score ?? 0) * 100).toFixed(0)}%`;
@@ -189,11 +220,27 @@ export function buildRecalledKnowledgeBlock(
 		const matchHint = r.relevanceReason ? ` — ${r.relevanceReason}` : "";
 		const raw = String(r.content ?? "").trim();
 		const content =
-			raw.length > RECALL_ITEM_CHARS ? `${raw.slice(0, RECALL_ITEM_CHARS)}…` : raw;
+			raw.length > RECALL_ITEM_CHARS
+				? `${raw.slice(0, RECALL_ITEM_CHARS)}…`
+				: raw;
 		const date = recallDate(r);
 		const datePrefix = date ? `[${date}] ` : "";
-		const line = `${datePrefix}${title} (${score}${matchHint})${labels}: ${escapeForPrompt(content)}`;
+		const itemUpdates = laterUpdates(r);
+		const notes = itemUpdates
+			.map((u) => `\n   → ${laterUpdateNote(u)}`)
+			.join("");
+		const line = `${datePrefix}${title} (${score}${matchHint})${labels}: ${escapeForPrompt(content)}${notes}`;
 		// Skip an item that would overflow and keep trying smaller ones.
+		if (used + line.length > RECALL_BUDGET_CHARS) continue;
+		used += line.length;
+		lines.push(line);
+		if (r.id) packedIds.add(String(r.id));
+		updates.push(...itemUpdates);
+	}
+	// A newer version that updated a packed memory must be in the block too,
+	// so the agent can tell which statement is current.
+	for (const update of newerVersionsToAppend(updates, packedIds)) {
+		const line = `${laterUpdateNote(update)} (newer version of a memory above)`;
 		if (used + line.length > RECALL_BUDGET_CHARS) continue;
 		used += line.length;
 		lines.push(line);

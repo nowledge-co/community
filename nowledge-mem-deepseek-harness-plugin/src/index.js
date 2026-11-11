@@ -204,6 +204,24 @@ function recallDate(memory) {
   return undefined
 }
 
+// Newer current Memories that updated this one (server `later_updates`,
+// newest first), so recall can tell the agent which statement is current.
+function parseLaterUpdates(value) {
+  if (!Array.isArray(value)) return []
+  return value.flatMap(update => {
+    if (typeof update !== 'object' || update === null || typeof update.memory_id !== 'string') return []
+    return [{
+      id: update.memory_id,
+      title: typeof update.title === 'string' && update.title !== '' ? update.title : 'Untitled',
+      statedAt: typeof update.stated_at === 'string' ? update.stated_at : '',
+    }]
+  })
+}
+
+function laterUpdateNote(update) {
+  return `updated later (${update.statedAt.slice(0, 10)}): ${update.title}`
+}
+
 function parseSearchResponse(text) {
   try {
     const parsed = JSON.parse(text)
@@ -219,6 +237,7 @@ function parseSearchResponse(text) {
           source: typeof memory.source === 'string' ? memory.source : undefined,
           id: typeof memory.id === 'string' ? memory.id : undefined,
           date: recallDate(memory),
+          laterUpdates: parseLaterUpdates(memory.later_updates),
         }]
       }),
     }
@@ -244,10 +263,26 @@ export function renderRecallText(query, response, maxChars) {
         memory.importance === undefined ? undefined : `importance=${memory.importance.toFixed(2)}`,
         memory.date === undefined ? undefined : `date=${memory.date}`,
       ].filter(part => part !== undefined).join(' | ')
-      return `${heading}\n${memory.content ?? ''}`
+      const notes = (memory.laterUpdates ?? []).map(update => `\n→ ${laterUpdateNote(update)}`).join('')
+      return `${heading}\n${memory.content ?? ''}${notes}`
     }),
   ]
-  return boundText(lines.join('\n\n'), maxChars)
+  let text = lines.join('\n\n')
+  // A newer version that updated a recalled memory must be in the block too,
+  // newest first, when it fits the existing budget.
+  const recalled = new Set(memories.map(memory => memory.id).filter(id => id !== undefined))
+  const missing = new Map()
+  for (const update of memories.flatMap(memory => memory.laterUpdates ?? [])) {
+    if (!recalled.has(update.id) && !missing.has(update.id)) missing.set(update.id, update)
+  }
+  let index = memories.length
+  for (const update of [...missing.values()].sort((a, b) => b.statedAt.localeCompare(a.statedAt))) {
+    const line = `\n\n${index + 1}. ${laterUpdateNote(update)} (newer version of a memory above)`
+    if (text.length + line.length > maxChars) continue
+    text += line
+    index += 1
+  }
+  return boundText(text, maxChars)
 }
 
 function renderContextText(stdout, maxChars) {

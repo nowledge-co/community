@@ -1159,6 +1159,31 @@ class NowledgeMemProvider(MemoryProvider):
         return ""
 
     @staticmethod
+    def _later_updates(memory: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Newer current Memories that updated this one (server `later_updates`)."""
+        updates = memory.get("later_updates")
+        if not isinstance(updates, list):
+            return []
+        return [u for u in updates if isinstance(u, dict) and u.get("memory_id")]
+
+    @staticmethod
+    def _later_update_note(update: Dict[str, Any]) -> str:
+        stated = str(update.get("stated_at") or "")[:10]
+        return f"updated later ({stated}): {update.get('title') or 'Untitled'}"
+
+    @staticmethod
+    def _newer_versions_to_append(
+        updates: List[Dict[str, Any]], packed_ids: Set[str]
+    ) -> List[Dict[str, Any]]:
+        """Newer versions not already in the pack, newest first, once each."""
+        missing: Dict[str, Dict[str, Any]] = {}
+        for update in updates:
+            memory_id = str(update.get("memory_id"))
+            if memory_id not in packed_ids and memory_id not in missing:
+                missing[memory_id] = update
+        return sorted(missing.values(), key=lambda u: str(u.get("stated_at") or ""), reverse=True)
+
+    @staticmethod
     def _format_prefetch(
         result: Any, threads: Any = None, *,
         memory_budget_chars: int = RECALL_MEMORY_BUDGET_CHARS,
@@ -1169,6 +1194,8 @@ class NowledgeMemProvider(MemoryProvider):
         if isinstance(result, dict):
             memories = result.get("memories", result.get("results", [])) or []
             used = 0
+            packed_ids: Set[str] = set()
+            later_updates: List[Dict[str, Any]] = []
             for memory in memories[:RECALL_MEMORY_LIMIT]:
                 if not isinstance(memory, dict):
                     continue
@@ -1187,6 +1214,8 @@ class NowledgeMemProvider(MemoryProvider):
                 label_str = f" [{', '.join(labels)}]" if labels else ""
                 date_str = f"[{date}] " if date else ""
                 line = f"- {date_str}**{title}**{label_str}: {content}"
+                updates = NowledgeMemProvider._later_updates(memory)
+                line += "".join(f"\n  → {NowledgeMemProvider._later_update_note(u)}" for u in updates)
                 # Whole items in rank order; skip one that would overflow and
                 # keep trying smaller ones rather than truncating mid-fact.
                 size = len(line) + bool(memory_lines)
@@ -1195,6 +1224,18 @@ class NowledgeMemProvider(MemoryProvider):
                 used += size
                 memory_lines.append(line)
                 seen_evidence.add(recall_key)
+                packed_ids.add(str(memory.get("id") or ""))
+                later_updates.extend(updates)
+            # A newer version that updated a packed Memory must be in the
+            # pack too, so the agent sees which statement is current.
+            for update in NowledgeMemProvider._newer_versions_to_append(later_updates, packed_ids):
+                line = f"- {NowledgeMemProvider._later_update_note(update)} (newer version of a memory above)"
+                size = len(line) + bool(memory_lines)
+                if used + size > memory_budget_chars:
+                    continue
+                used += size
+                memory_lines.append(line)
+                packed_ids.add(str(update.get("memory_id")))
 
         passage_lines: List[str] = []
         if isinstance(threads, dict):

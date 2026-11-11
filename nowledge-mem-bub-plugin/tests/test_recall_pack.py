@@ -41,3 +41,43 @@ def test_save_dates_are_not_represented_as_event_dates():
     assert "[saved:2026-11-07]" in block
     assert "[2026-11-07]" not in block
     assert "a save date does not establish when an event happened" in block
+
+
+_UPDATE = {
+    "memory_id": "paused",
+    "title": "Heartbeat paused",
+    "relation": "enriches",
+    "stated_at": "2026-10-29T08:00:00+00:00",
+    "is_latest": True,
+}
+_OLDER = {
+    "id": "cron",
+    "title": "Heartbeat cron",
+    "content": "heartbeat task runs 0 6-20 * * *",
+    "source_recorded_at_start": "2026-10-01T09:00:00Z",
+    "later_updates": [_UPDATE],
+}
+
+
+def test_updated_memory_names_its_newer_version_and_appends_it():
+    lines = recall_pack.format_recalled([_OLDER]).splitlines()
+    cron = next(i for i, line in enumerate(lines) if "[Heartbeat cron]" in line)
+    assert lines[cron + 1] == "  → updated later (2026-10-29): Heartbeat paused"
+    assert lines[-2] == (
+        "- updated later (2026-10-29): Heartbeat paused "
+        "(newer version of a memory above; id: paused)"
+    )
+
+
+def test_newer_version_already_recalled_is_not_appended_twice():
+    newer = {"id": "paused", "title": "Heartbeat paused", "content": "paused since October 29"}
+    block = recall_pack.format_recalled([_OLDER, newer])
+    assert "newer version of a memory above" not in block
+    assert "[Heartbeat paused] paused since October 29" in block
+
+
+def test_appended_newer_versions_are_newest_first():
+    updates = [dict(_UPDATE, memory_id=f"n{d}", title=f"Update {d}", stated_at=f"2026-10-{d}") for d in ("03", "09", "05")]
+    block = recall_pack.format_recalled([dict(_OLDER, later_updates=updates)])
+    appended = [line for line in block.splitlines() if "newer version" in line]
+    assert [line.split(": ")[1].split(" (")[0] for line in appended] == ["Update 09", "Update 05", "Update 03"]
