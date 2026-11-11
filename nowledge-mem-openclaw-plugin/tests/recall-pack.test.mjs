@@ -90,6 +90,23 @@ test("an updated memory names its newer version and the newer one is appended", 
 	assert.doesNotMatch(both, /newer version of a memory above/);
 });
 
+test("an appended newer version carries its escaped excerpt", () => {
+	const older = memory("Heartbeat cron", "runs 0 6-20 * * *", {
+		id: "cron",
+		laterUpdates: [
+			{
+				...update("paused", "Heartbeat paused", "2026-10-29T08:00:00+00:00"),
+				excerpt: "paused <since>\n Oct 29",
+			},
+		],
+	});
+	const block = buildRecalledKnowledgeBlock([older]);
+	assert.match(
+		block,
+		/\(newer version of a memory above\): paused &lt;since&gt; Oct 29/,
+	);
+});
+
 test("appended newer versions are newest first", () => {
 	const older = memory("Old", "x".repeat(50), {
 		id: "old",

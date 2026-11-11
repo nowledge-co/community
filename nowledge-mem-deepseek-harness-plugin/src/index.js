@@ -214,6 +214,7 @@ function parseLaterUpdates(value) {
       id: update.memory_id,
       title: typeof update.title === 'string' && update.title !== '' ? update.title : 'Untitled',
       statedAt: typeof update.stated_at === 'string' ? update.stated_at : '',
+      excerpt: typeof update.excerpt === 'string' ? update.excerpt.replace(/\s+/g, ' ').trim() : '',
     }]
   })
 }
@@ -277,8 +278,11 @@ export function renderRecallText(query, response, maxChars) {
   }
   let index = memories.length
   for (const update of [...missing.values()].sort((a, b) => b.statedAt.localeCompare(a.statedAt))) {
-    const line = `\n\n${index + 1}. ${laterUpdateNote(update)} (newer version of a memory above)`
-    if (text.length + line.length > maxChars) continue
+    const base = `\n\n${index + 1}. ${laterUpdateNote(update)} (newer version of a memory above)`
+    // The excerpt carries the new value; drop it before the whole line.
+    const options = update.excerpt ? [`${base}: ${update.excerpt}`, base] : [base]
+    const line = options.find(candidate => text.length + candidate.length <= maxChars)
+    if (line === undefined) continue
     text += line
     index += 1
   }

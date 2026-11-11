@@ -1229,13 +1229,16 @@ class NowledgeMemProvider(MemoryProvider):
             # A newer version that updated a packed Memory must be in the
             # pack too, so the agent sees which statement is current.
             for update in NowledgeMemProvider._newer_versions_to_append(later_updates, packed_ids):
-                line = f"- {NowledgeMemProvider._later_update_note(update)} (newer version of a memory above)"
-                size = len(line) + bool(memory_lines)
-                if used + size > memory_budget_chars:
-                    continue
-                used += size
-                memory_lines.append(line)
-                packed_ids.add(str(update.get("memory_id")))
+                base = f"- {NowledgeMemProvider._later_update_note(update)} (newer version of a memory above)"
+                excerpt = " ".join(str(update.get("excerpt") or "").split())
+                # The excerpt carries the new value; drop it before the line.
+                for line in ([f"{base}: {excerpt}"] if excerpt else []) + [base]:
+                    size = len(line) + bool(memory_lines)
+                    if used + size <= memory_budget_chars:
+                        used += size
+                        memory_lines.append(line)
+                        packed_ids.add(str(update.get("memory_id")))
+                        break
 
         passage_lines: List[str] = []
         if isinstance(threads, dict):

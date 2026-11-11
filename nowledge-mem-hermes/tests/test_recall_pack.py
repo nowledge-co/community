@@ -223,6 +223,25 @@ class RecallPackTests(unittest.TestCase):
         none = Provider._format_prefetch({"memories": [older]}, memory_budget_chars=100)
         self.assertNotIn("Update", none)
 
+    def test_appended_newer_version_carries_its_excerpt_and_drops_it_before_itself(self):
+        update = {
+            "memory_id": "paused", "title": "Heartbeat paused",
+            "stated_at": "2026-10-29T08:00:00+00:00", "excerpt": "Heartbeat  task\npaused since Oct 29.",
+        }
+        older = _memory("Heartbeat cron", "runs 0 6-20 * * *", id="cron", later_updates=[update])
+        block = Provider._format_prefetch({"memories": [older]})
+        self.assertEqual(
+            block.splitlines()[-1],
+            "- updated later (2026-10-29): Heartbeat paused (newer version of a memory above): "
+            "Heartbeat task paused since Oct 29.",
+        )
+        full = len(Provider._format_prefetch({"memories": [older]}, memory_budget_chars=6000).split("### Memories\n")[1])
+        tight = Provider._format_prefetch({"memories": [older]}, memory_budget_chars=full - 5)
+        self.assertEqual(
+            tight.splitlines()[-1],
+            "- updated later (2026-10-29): Heartbeat paused (newer version of a memory above)",
+        )
+
     def test_empty_inputs_inject_nothing(self):
         self.assertEqual(Provider._format_prefetch({"memories": []}, {"threads": []}), "")
         self.assertEqual(Provider._format_prefetch(None, None), "")

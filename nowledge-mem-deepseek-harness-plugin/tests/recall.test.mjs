@@ -87,3 +87,17 @@ test('recall text marks an updated memory and appends its newer version within b
   const tight = render('heartbeat schedule', { memories: [older] }, render('heartbeat schedule', { memories: [{ ...older, laterUpdates: older.laterUpdates }] }, 8000).length - 10)
   assert.equal((tight.match(/newer version of a memory above/g) ?? []).length, 1)
 })
+
+test('an appended newer version carries its excerpt when it fits', async () => {
+  const { renderRecallText: render } = await import('../src/index.js')
+  const older = {
+    id: 'cron',
+    title: 'Heartbeat cron',
+    content: 'runs 0 6-20 * * *',
+    laterUpdates: [{ id: 'n', title: 'Heartbeat paused', statedAt: '2026-10-29', excerpt: 'paused since Oct 29' }],
+  }
+  const text = render('heartbeat', { memories: [older] }, 8000)
+  assert.match(text, /\(newer version of a memory above\): paused since Oct 29$/)
+  const tight = render('heartbeat', { memories: [older] }, text.length - 5)
+  assert.match(tight, /\(newer version of a memory above\)$/)
+})

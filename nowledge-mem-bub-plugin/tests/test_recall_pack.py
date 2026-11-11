@@ -76,6 +76,11 @@ def test_newer_version_already_recalled_is_not_appended_twice():
     assert "[Heartbeat paused] paused since October 29" in block
 
 
+def test_appended_newer_version_carries_its_excerpt():
+    older = dict(_OLDER, later_updates=[dict(_UPDATE, excerpt="paused   since\nOct 29")])
+    block = recall_pack.format_recalled([older])
+    assert "(newer version of a memory above; id: paused): paused since Oct 29" in block
+
 def test_appended_newer_versions_are_newest_first():
     updates = [dict(_UPDATE, memory_id=f"n{d}", title=f"Update {d}", stated_at=f"2026-10-{d}") for d in ("03", "09", "05")]
     block = recall_pack.format_recalled([dict(_OLDER, later_updates=updates)])

@@ -240,8 +240,16 @@ export function buildRecalledKnowledgeBlock(
 	// A newer version that updated a packed memory must be in the block too,
 	// so the agent can tell which statement is current.
 	for (const update of newerVersionsToAppend(updates, packedIds)) {
-		const line = `${laterUpdateNote(update)} (newer version of a memory above)`;
-		if (used + line.length > RECALL_BUDGET_CHARS) continue;
+		const base = `${laterUpdateNote(update)} (newer version of a memory above)`;
+		const excerpt = String(update.excerpt ?? "")
+			.replace(/\s+/g, " ")
+			.trim();
+		// The excerpt carries the new value; drop it before the whole line.
+		const options = excerpt
+			? [`${base}: ${escapeForPrompt(excerpt)}`, base]
+			: [base];
+		const line = options.find((l) => used + l.length <= RECALL_BUDGET_CHARS);
+		if (line === undefined) continue;
 		used += line.length;
 		lines.push(line);
 	}

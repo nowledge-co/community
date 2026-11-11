@@ -55,6 +55,17 @@ test("an updated memory names its newer version and the newer one is appended", 
 	assert.doesNotMatch(buildMemoryContextBlock(null, [older, newer]), /newer version of a memory above/);
 });
 
+test("an appended newer version carries its excerpt", () => {
+	const older = memory("Heartbeat cron", "runs 0 6-20 * * *", {
+		id: "cron",
+		laterUpdates: [{ ...update("paused", "Heartbeat paused", "2026-10-29"), excerpt: "paused\n since Oct 29" }],
+	});
+	assert.match(
+		buildMemoryContextBlock(null, [older]),
+		/2\. updated later \(2026-10-29\): Heartbeat paused \(newer version of a memory above\): paused since Oct 29/,
+	);
+});
+
 test("appended newer versions are newest first", () => {
 	const older = memory("Old", "x", {
 		id: "old",

@@ -690,8 +690,12 @@ export function buildMemoryContextBlock(workingMemory, results, options = {}) {
 			String(b.stated_at ?? "").localeCompare(String(a.stated_at ?? "")),
 		);
 		for (const update of appended) {
-			const line = `${laterUpdateNote(update)} (newer version of a memory above)`;
-			if (used + line.length > RECALL_BUDGET_CHARS) continue;
+			const base = `${laterUpdateNote(update)} (newer version of a memory above)`;
+			const excerpt = escapeForInline(update.excerpt, RECALL_ITEM_CHARS);
+			// The excerpt carries the new value; drop it before the whole line.
+			const options = excerpt ? [`${base}: ${excerpt}`, base] : [base];
+			const line = options.find((l) => used + l.length <= RECALL_BUDGET_CHARS);
+			if (line === undefined) continue;
 			used += line.length;
 			lines.push(`${lines.length + 1}. ${line}`);
 		}

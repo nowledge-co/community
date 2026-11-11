@@ -73,11 +73,14 @@ def format_recalled(recalled: list) -> str:
         if memory_id not in packed:
             missing.setdefault(memory_id, update)
     for update in sorted(missing.values(), key=lambda u: str(u.get("stated_at") or ""), reverse=True):
-        entry = f"- {later_update_note(update)} (newer version of a memory above; id: {update['memory_id']})"
-        if used + len(entry) > RECALL_BUDGET_CHARS:
-            continue
-        used += len(entry)
-        lines.append(entry)
+        base = f"- {later_update_note(update)} (newer version of a memory above; id: {update['memory_id']})"
+        excerpt = " ".join(str(update.get("excerpt") or "").split())
+        # The excerpt carries the new value; drop it before the whole entry.
+        for entry in ([f"{base}: {excerpt}"] if excerpt else []) + [base]:
+            if used + len(entry) <= RECALL_BUDGET_CHARS:
+                used += len(entry)
+                lines.append(entry)
+                break
     if not lines:
         return ""
     today = datetime.now().astimezone().date().isoformat()
