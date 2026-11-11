@@ -1846,7 +1846,7 @@ def test_claude_command_guidance_package_versions_match_registry():
     claude_listing = next(
         item for item in claude_marketplace["plugins"] if item["name"] == "nowledge-mem"
     )
-    assert claude_manifest["version"] == claude_listing["version"] == "0.7.37"
+    assert claude_manifest["version"] == claude_listing["version"]
     assert (
         by_id["claude-code"]["version"]
         == by_id["grok"]["version"]
@@ -1854,12 +1854,22 @@ def test_claude_command_guidance_package_versions_match_registry():
     )
 
     agent_manifest = _read_json(COMMUNITY_ROOT / "nowledge-mem-agent-plugin" / "plugin.json")
-    assert agent_manifest["version"] == by_id["agent-plugins"]["version"] == "0.1.5"
+    assert agent_manifest["version"] == by_id["agent-plugins"]["version"]
     devin_manifest = _read_json(
         COMMUNITY_ROOT / "nowledge-mem-devin-plugin" / ".devin-plugin" / "plugin.json"
     )
-    assert devin_manifest["version"] == by_id["devin"]["version"] == "0.1.5"
-    assert by_id["npx-skills"]["version"] == "0.6.6"
+    assert devin_manifest["version"] == by_id["devin"]["version"]
+    for integration_id, package_dir in (
+        ("claude-code", "nowledge-mem-claude-code-plugin"),
+        ("agent-plugins", "nowledge-mem-agent-plugin"),
+        ("devin", "nowledge-mem-devin-plugin"),
+        ("npx-skills", "nowledge-mem-npx-skills"),
+    ):
+        changelog = (COMMUNITY_ROOT / package_dir / "CHANGELOG.md").read_text()
+        latest_release = next(
+            line for line in changelog.splitlines() if line.startswith("## [")
+        )
+        assert latest_release.split("[", 1)[1].split("]", 1)[0] == by_id[integration_id]["version"]
 
 
 def test_alma_plugin_static_contract_is_self_contained():
