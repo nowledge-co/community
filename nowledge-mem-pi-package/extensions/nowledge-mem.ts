@@ -24,7 +24,7 @@ import { exactSpaceBody, resolveThreadSyncTimeoutMs } from "./generated/plugin-c
 export { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.17";
+const DEFAULT_PLUGIN_VERSION = "0.8.18";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -253,11 +253,12 @@ async function postJson(
 		try {
 			const scoped = path.startsWith("/threads/resume/") ? body : await exactSpaceBody(body, config.space, async () => {
 				const base = url.slice(0, -path.length);
-				const response = await fetch(`${base}/spaces`, { headers, signal: controller.signal });
+				const response = await fetch(`${base}/spaces`, { headers, signal: controller.signal, redirect: "error" });
 				if (!response.ok) throw Object.assign(new Error(`Space roster HTTP ${response.status}`), {status: response.status});
 				return response.json();
 			});
 			const response = await fetch(url, {
+				redirect: "error",
 				method: "POST",
 				headers,
 				body: JSON.stringify(scoped),

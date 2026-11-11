@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.3] - 2026-11-12
+
+- Refuse HTTP redirects on authenticated API and Space-roster requests.
+
 ## [0.1.2] - 2026-11-12
 
 ### Fixed

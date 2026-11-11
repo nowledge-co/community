@@ -74,11 +74,12 @@ export function createNmemHttp(config: ResolvedConfig, ports: HttpPorts): NmemHt
 
     try {
       const decoratedBody = await exactSpaceBody(body, config.ambientSpaceId, async () => {
-        const response = await ports.fetch(`${config.apiUrl}/spaces`, { headers, signal: controller.signal })
+        const response = await ports.fetch(`${config.apiUrl}/spaces`, { headers, signal: controller.signal, redirect: "error" })
         if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`)
         return response.json()
       })
       const response = await ports.fetch(url, {
+        redirect: "error",
         method: "POST",
         headers,
         body: JSON.stringify(decoratedBody),

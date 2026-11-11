@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.4] - 2026-11-12
+
+- Require Pi 0.8.18 with redirect-safe transcript and Space-roster requests.
+
 ## [0.1.3] - 2026-11-12
 
 ### Fixed

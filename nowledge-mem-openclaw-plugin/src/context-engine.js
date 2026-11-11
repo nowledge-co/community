@@ -40,7 +40,7 @@ import {
 	MAX_QUERY_LENGTH,
 	SHORT_QUERY_THRESHOLD,
 	buildRecalledKnowledgeBlock,
-	escapeForPrompt,
+	buildContextReference,
 } from "./hooks/recall.js";
 import { NOWLEDGE_MEM_PLUGIN_VERSION } from "./plugin-version.js";
 
@@ -246,7 +246,7 @@ export function createNowledgeMemContextEngineFactory(
 								? "nowledge-context-bundle"
 								: "working-memory";
 						sections.push(
-							`<${tag}>\n${escapeForPrompt(state.wm.content)}\n</${tag}>`,
+							buildContextReference(state.wm.content, tag),
 						);
 					}
 				} catch (err) {
@@ -287,7 +287,7 @@ export function createNowledgeMemContextEngineFactory(
 				if (childCtx) {
 					if (childCtx.wm?.available) {
 						sections.push(
-							`<parent-context>\n${escapeForPrompt(childCtx.wm.content)}\n</parent-context>`,
+							buildContextReference(childCtx.wm.content, "parent-context"),
 						);
 					}
 					if (childCtx.memories?.length > 0) {

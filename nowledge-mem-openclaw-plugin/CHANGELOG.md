@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.43] - 2026-11-12
+
+- Refuse HTTP redirects on authenticated API and Space-roster requests.
+- Mark persisted startup and parent context as reference data, not instructions
+  or permission to act, while retaining normal identity/context bootstrap.
+
 ## [0.8.42] - 2026-11-12
 
 ### Fixed

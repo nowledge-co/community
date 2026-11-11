@@ -30,6 +30,47 @@ class ProbeState(TypedDict):
     value: str
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["context", "thread"])
+async def test_injected_clients_cannot_enable_redirect_forwarding(operation: str) -> None:
+    for asynchronous in (False, True):
+        calls: list[httpx.Request] = []
+
+        def handle(request: httpx.Request, recorded=calls) -> httpx.Response:
+            recorded.append(request)
+            if request.url.host == "mem.test":
+                return httpx.Response(307, headers={"location": "https://outside.test/receive"})
+            return httpx.Response(
+                200, json={"success": True, "results": [{"success": True, "message_count": 2}]}
+            )
+
+        transport = httpx.MockTransport(handle)
+        with httpx.Client(
+            base_url="https://mem.test", transport=transport, follow_redirects=True
+        ) as sync:
+            async with httpx.AsyncClient(
+                base_url="https://mem.test", transport=transport, follow_redirects=True
+            ) as async_client:
+                client = NowledgeClient(client=sync, async_client=async_client)
+                with pytest.raises(httpx.HTTPStatusError):
+                    if operation == "context":
+                        if asynchronous:
+                            await client.acontext_bundle()
+                        else:
+                            client.context_bundle()
+                    elif asynchronous:
+                        await client.async_thread(
+                            thread_id="synthetic",
+                            messages=[HumanMessage("probe"), AIMessage("reply")],
+                        )
+                    else:
+                        client.sync_thread(
+                            thread_id="synthetic",
+                            messages=[HumanMessage("probe"), AIMessage("reply")],
+                        )
+        assert len(calls) == 1
+
+
 def test_mcp_endpoint_protocol_does_not_duplicate_the_header_declaration() -> None:
     settings = NowledgeSettings(mcp_url="https://mem.test/mcp?space_protocol=exact-v1")
     assert "X-Nmem-Space-Protocol" not in settings.scoped_headers(NowledgeIdentity())

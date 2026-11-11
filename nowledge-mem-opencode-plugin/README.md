@@ -88,13 +88,13 @@ To pin an OpenCode 2 release, merge this entry into the global config:
 
 ```json title="~/.config/opencode/opencode.json"
 {
-  "plugins": ["opencode-nowledge-mem@0.4.8"]
+  "plugins": ["opencode-nowledge-mem@0.4.9"]
 }
 ```
 
 ## Choose automatic context guidance
 
-Plugin 0.4.8 adds a server/project option. The default is `automatic`: the
+Plugin 0.4.9 adds a server/project option. The default is `automatic`: the
 plugin adds its usual context and recall guidance. To omit that guidance,
 configure the plugin entry with `sessionContext: "off"`:
 
@@ -102,7 +102,7 @@ configure the plugin entry with `sessionContext: "off"`:
 {
   "plugins": [
     {
-      "package": "opencode-nowledge-mem@0.4.8",
+      "package": "opencode-nowledge-mem@0.4.9",
       "options": { "sessionContext": "off" }
     }
   ]

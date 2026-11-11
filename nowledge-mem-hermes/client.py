@@ -230,6 +230,14 @@ def _run_nmem(
     return subprocess.run(command, **popen_kwargs)
 
 
+class _NoRedirect(urlrequest.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_urlopen = urlrequest.build_opener(_NoRedirect()).open
+
+
 class NowledgeMemClient:
     """Minimal client for ``nmem`` tools plus large transcript uploads.
 
@@ -583,7 +591,7 @@ class NowledgeMemClient:
     ) -> Any:
         request = urlrequest.Request(url, data=None if method == "GET" else body, headers=headers, method=method)
         try:
-            with urlrequest.urlopen(request, timeout=self._timeout) as response:
+            with _urlopen(request, timeout=self._timeout) as response:
                 raw = response.read().decode("utf-8")
         except urlerror.HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")

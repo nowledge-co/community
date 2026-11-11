@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.12] - 2026-11-12
+
+- Refuse HTTP redirects on authenticated requests and Space-roster reads,
+  keeping credentials and transcripts at the configured backend.
+
 ## [0.7.11] - 2026-11-12
 
 ### Fixed

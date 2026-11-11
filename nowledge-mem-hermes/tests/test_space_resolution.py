@@ -253,7 +253,7 @@ class SpaceResolutionTests(unittest.TestCase):
     def test_thread_import_posts_payload_without_subprocess_argv(self):
         captured: dict[str, object] = {}
         original_run = client_module.subprocess.run
-        original_urlopen = client_module.urlrequest.urlopen
+        original_urlopen = client_module._urlopen
         previous_url = os.environ.get("NMEM_API_URL")
         previous_key = os.environ.get("NMEM_API_KEY")
         os.environ["NMEM_API_URL"] = "http://mem.test"
@@ -284,7 +284,7 @@ class SpaceResolutionTests(unittest.TestCase):
 
         try:
             client_module.subprocess.run = _bad_run
-            client_module.urlrequest.urlopen = _fake_urlopen
+            client_module._urlopen = _fake_urlopen
             client = client_module.NowledgeMemClient(space="Research Agent")
             result = client.import_thread(
                 "hermes-session-1",
@@ -299,7 +299,7 @@ class SpaceResolutionTests(unittest.TestCase):
             self.assertEqual(payload["messages"][0]["content"], "x" * 100_000)
         finally:
             client_module.subprocess.run = original_run
-            client_module.urlrequest.urlopen = original_urlopen
+            client_module._urlopen = original_urlopen
             if previous_url is None:
                 os.environ.pop("NMEM_API_URL", None)
             else:
@@ -312,7 +312,7 @@ class SpaceResolutionTests(unittest.TestCase):
     def test_thread_append_posts_payload_without_subprocess_argv(self):
         captured: dict[str, object] = {}
         original_run = client_module.subprocess.run
-        original_urlopen = client_module.urlrequest.urlopen
+        original_urlopen = client_module._urlopen
         previous_url = os.environ.get("NMEM_API_URL")
         previous_key = os.environ.get("NMEM_API_KEY")
         os.environ["NMEM_API_URL"] = "http://mem.test"
@@ -343,7 +343,7 @@ class SpaceResolutionTests(unittest.TestCase):
 
         try:
             client_module.subprocess.run = _bad_run
-            client_module.urlrequest.urlopen = _fake_urlopen
+            client_module._urlopen = _fake_urlopen
             client = client_module.NowledgeMemClient(space="Research Agent")
             result = client.append_thread(
                 "hermes/session 1",
@@ -359,7 +359,7 @@ class SpaceResolutionTests(unittest.TestCase):
             self.assertEqual(payload["space_id"], "research-id")
         finally:
             client_module.subprocess.run = original_run
-            client_module.urlrequest.urlopen = original_urlopen
+            client_module._urlopen = original_urlopen
             if previous_url is None:
                 os.environ.pop("NMEM_API_URL", None)
             else:
@@ -372,7 +372,7 @@ class SpaceResolutionTests(unittest.TestCase):
     def test_thread_append_omits_space_id_when_no_space_configured(self):
         captured: dict[str, object] = {}
         original_run = client_module.subprocess.run
-        original_urlopen = client_module.urlrequest.urlopen
+        original_urlopen = client_module._urlopen
         previous_url = os.environ.get("NMEM_API_URL")
         previous_key = os.environ.get("NMEM_API_KEY")
         os.environ["NMEM_API_URL"] = "http://mem.test"
@@ -397,7 +397,7 @@ class SpaceResolutionTests(unittest.TestCase):
 
         try:
             client_module.subprocess.run = _bad_run
-            client_module.urlrequest.urlopen = _fake_urlopen
+            client_module._urlopen = _fake_urlopen
             client = client_module.NowledgeMemClient()
             result = client.append_thread(
                 "hermes/session 1",
@@ -408,7 +408,7 @@ class SpaceResolutionTests(unittest.TestCase):
             self.assertNotIn("space_id", payload)
         finally:
             client_module.subprocess.run = original_run
-            client_module.urlrequest.urlopen = original_urlopen
+            client_module._urlopen = original_urlopen
             if previous_url is None:
                 os.environ.pop("NMEM_API_URL", None)
             else:

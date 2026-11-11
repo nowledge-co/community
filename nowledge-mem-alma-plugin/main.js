@@ -207,7 +207,7 @@ export class NowledgeMemClient {
 		const timer = setTimeout(() => controller.abort(), timeout);
 		try {
 			const load = async () => {
-				const response = await fetch(new URL("/spaces", url), {headers: this._headers(), signal: controller.signal});
+				const response = await fetch(new URL("/spaces", url), {headers: this._headers(), signal: controller.signal, redirect: "error"});
 				if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
 				return response.json();
 			};
@@ -216,6 +216,7 @@ export class NowledgeMemClient {
 				url.searchParams.set("space_id", typeof resolvedBody?.space_id === "string" ? resolvedBody.space_id : resolveSpaceReference(await load(), this._spaceRef));
 			}
 			const resp = await fetch(url.href, {
+				redirect: "error",
 				method,
 				headers: this._headers(),
 				body: resolvedBody !== undefined ? JSON.stringify(resolvedBody) : undefined,
