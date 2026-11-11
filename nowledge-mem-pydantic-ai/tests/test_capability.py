@@ -317,7 +317,8 @@ async def test_rejected_structured_output_is_not_captured(mem_server: MemServer)
         # older SDKs use RetryPromptPart. Both must reach the next model request.
         assert any(
             isinstance(part, RetryPromptPart) or getattr(part, "outcome", None) == "retried"
-            for message in messages for part in message.parts
+            for message in messages
+            for part in message.parts
         )
         return ModelResponse(
             parts=[ToolCallPart(info.output_tools[0].name, {"number": 42}, "valid")]

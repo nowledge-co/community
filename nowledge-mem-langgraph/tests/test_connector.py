@@ -54,13 +54,17 @@ async def test_sync_and_async_import_pass_exact_protocol_without_normalizing_ids
             base_url="http://mem.test", transport=transport
         ) as async_client:
             client = NowledgeClient(client=sync, async_client=async_client)
-            kwargs = dict(
+            identity = NowledgeIdentity(space_id=space)
+            client.sync_thread(
                 thread_id="synthetic",
                 messages=[HumanMessage("probe"), AIMessage("reply")],
-                identity=NowledgeIdentity(space_id=space),
+                identity=identity,
             )
-            client.sync_thread(**kwargs)
-            await client.async_thread(**kwargs)
+            await client.async_thread(
+                thread_id="synthetic",
+                messages=[HumanMessage("probe"), AIMessage("reply")],
+                identity=identity,
+            )
     assert len(calls) == 2
     headers = NowledgeSettings().scoped_headers(NowledgeIdentity(space_id=space))
     from urllib.parse import quote
