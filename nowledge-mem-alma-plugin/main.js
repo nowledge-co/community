@@ -207,7 +207,7 @@ export class NowledgeMemClient {
 		const timer = setTimeout(() => controller.abort(), timeout);
 		try {
 			const load = async () => {
-				const response = await fetch(`${this._apiUrl}/spaces`, {headers: this._headers(), signal: controller.signal});
+				const response = await fetch(new URL("/spaces", url), {headers: this._headers(), signal: controller.signal});
 				if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
 				return response.json();
 			};
