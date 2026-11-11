@@ -176,6 +176,82 @@ class RecallPackTests(unittest.TestCase):
         self.assertIn("[2026-08-26] Fastmail 整理 (user)", block)
         self.assertIn("play-chain.com", block)
 
+    def test_an_updated_memory_names_its_newer_version_and_the_newer_one_is_packed(self):
+        update = {
+            "memory_id": "paused",
+            "title": "Heartbeat paused",
+            "relation": "enriches",
+            "stated_at": "2026-10-29T08:00:00+00:00",
+            "is_latest": True,
+        }
+        older = _memory(
+            "Heartbeat cron", "heartbeat task runs 0 6-20 * * *", id="cron",
+            source_recorded_at_start="2026-10-01", later_updates=[update],
+        )
+        block = Provider._format_prefetch({"memories": [older]})
+        lines = block.splitlines()
+        cron = next(i for i, line in enumerate(lines) if "Heartbeat cron" in line)
+        self.assertEqual(lines[cron + 1], "  → updated later (2026-10-29): Heartbeat paused")
+        # The newer Memory was not a hit, so it is appended after the hits.
+        self.assertEqual(
+            lines[-1],
+            "- updated later (2026-10-29): Heartbeat paused (newer version of a memory above)",
+        )
+
+        newer = _memory("Heartbeat paused", "paused since October 29", id="paused")
+        block = Provider._format_prefetch({"memories": [older, newer]})
+        self.assertNotIn("newer version of a memory above", block)
+        self.assertIn("**Heartbeat paused**: paused since October 29", block)
+
+    def test_appended_newer_versions_respect_the_budget_newest_first(self):
+        updates = [
+            {"memory_id": f"n{day}", "title": f"Update {day}", "stated_at": f"2026-10-{day}T00:00:00+00:00"}
+            for day in ("03", "09", "05")
+        ]
+        older = _memory("Old", "x" * 50, id="old", later_updates=updates)
+        block = Provider._format_prefetch({"memories": [older]})
+        appended = [line for line in block.splitlines() if "newer version" in line]
+        self.assertEqual([line.split(": ")[1].split(" (")[0] for line in appended],
+                         ["Update 09", "Update 05", "Update 03"])
+        # Room for one more line: the newest version wins it.
+        tight = Provider._format_prefetch({"memories": [older]}, memory_budget_chars=300)
+        appended = [line for line in tight.splitlines() if "newer version" in line]
+        self.assertEqual(len(appended), 1)
+        self.assertIn("Update 09", appended[0])
+        self.assertIn("**Old**", tight)
+        # The note lines are part of the item: nothing is appended without them.
+        none = Provider._format_prefetch({"memories": [older]}, memory_budget_chars=100)
+        self.assertNotIn("Update", none)
+
+    def test_appended_newer_version_carries_its_excerpt_and_drops_it_before_itself(self):
+        update = {
+            "memory_id": "paused", "title": "Heartbeat paused",
+            "stated_at": "2026-10-29T08:00:00+00:00", "excerpt": "Heartbeat  task\npaused since Oct 29.",
+        }
+        older = _memory("Heartbeat cron", "runs 0 6-20 * * *", id="cron", later_updates=[update])
+        block = Provider._format_prefetch({"memories": [older]})
+        self.assertEqual(
+            block.splitlines()[-1],
+            "- updated later (2026-10-29): Heartbeat paused (newer version of a memory above): "
+            "Heartbeat task paused since Oct 29.",
+        )
+        full = len(Provider._format_prefetch({"memories": [older]}, memory_budget_chars=6000).split("### Memories\n")[1])
+        tight = Provider._format_prefetch({"memories": [older]}, memory_budget_chars=full - 5)
+        self.assertEqual(
+            tight.splitlines()[-1],
+            "- updated later (2026-10-29): Heartbeat paused (newer version of a memory above)",
+        )
+
+    def test_update_titles_stay_on_one_line_and_duplicate_hits_are_not_appended(self):
+        update = {"memory_id": "dup", "title": "Heartbeat\npaused", "stated_at": "2026-10-29"}
+        older = _memory("Heartbeat cron", "runs 0 6-20 * * *", id="cron", later_updates=[update])
+        packed = _memory("Copy", "paused since Oct 29", id="packed", event_start="2026-10-29")
+        duplicate = _memory("Copy", "paused  since\nOct 29", id="dup", event_start="2026-10-29")
+        block = Provider._format_prefetch({"memories": [older, packed, duplicate]})
+        self.assertIn("  → updated later (2026-10-29): Heartbeat paused\n", block)
+        self.assertNotIn("newer version of a memory above", block)
+        self.assertEqual(block.count("paused since Oct 29"), 1)
+
     def test_empty_inputs_inject_nothing(self):
         self.assertEqual(Provider._format_prefetch({"memories": []}, {"threads": []}), "")
         self.assertEqual(Provider._format_prefetch(None, None), "")

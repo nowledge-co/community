@@ -17,7 +17,11 @@ const memory = (title, content, extra = {}) => ({
 });
 
 test("save dates do not become event dates", () => {
-	const block = buildRecalledKnowledgeBlock([memory("Schedule", "The event date is unknown.", { createdAt: "2026-11-07T00:00:00Z" })]);
+	const block = buildRecalledKnowledgeBlock([
+		memory("Schedule", "The event date is unknown.", {
+			createdAt: "2026-11-07T00:00:00Z",
+		}),
+	]);
 	assert.match(block, /\[saved:2026-11-07\]/);
 	assert.doesNotMatch(block, /\[2026-11-07\]/);
 	assert.match(block, /a save date does not establish when an event happened/);
@@ -51,4 +55,70 @@ test("the block stays within budget and still admits a smaller item", () => {
 	const body = block.split("\n").slice(3, -1).join("\n");
 	assert.ok(body.length <= RECALL_BUDGET_CHARS + 64, `body ${body.length}`);
 	assert.match(block, /small/);
+});
+
+const update = (memoryId, title, statedAt) => ({
+	memory_id: memoryId,
+	title,
+	relation: "enriches",
+	stated_at: statedAt,
+	is_latest: true,
+});
+
+test("an updated memory names its newer version and the newer one is appended", () => {
+	const older = memory("Heartbeat cron", "runs 0 6-20 * * *", {
+		id: "cron",
+		laterUpdates: [
+			update("paused", "Heartbeat paused", "2026-10-29T08:00:00+00:00"),
+		],
+	});
+	const lines = buildRecalledKnowledgeBlock([older]).split("\n");
+	const cron = lines.findIndex((line) => line.includes("Heartbeat cron"));
+	assert.equal(
+		lines[cron + 1],
+		"   → updated later (2026-10-29): Heartbeat paused",
+	);
+	assert.equal(
+		lines.at(-2),
+		"2. updated later (2026-10-29): Heartbeat paused (newer version of a memory above)",
+	);
+
+	const newer = memory("Heartbeat paused", "paused since October 29", {
+		id: "paused",
+	});
+	const both = buildRecalledKnowledgeBlock([older, newer]);
+	assert.doesNotMatch(both, /newer version of a memory above/);
+});
+
+test("an appended newer version carries its escaped excerpt", () => {
+	const older = memory("Heartbeat cron", "runs 0 6-20 * * *", {
+		id: "cron",
+		laterUpdates: [
+			{
+				...update("paused", "Heartbeat paused", "2026-10-29T08:00:00+00:00"),
+				excerpt: "paused <since>\n Oct 29",
+			},
+		],
+	});
+	const block = buildRecalledKnowledgeBlock([older]);
+	assert.match(
+		block,
+		/\(newer version of a memory above\): paused &lt;since&gt; Oct 29/,
+	);
+});
+
+test("appended newer versions are newest first", () => {
+	const older = memory("Old", "x".repeat(50), {
+		id: "old",
+		laterUpdates: ["03", "09", "05"].map((d) =>
+			update(`n${d}`, `Update ${d}`, `2026-10-${d}T00:00:00+00:00`),
+		),
+	});
+	const appended = buildRecalledKnowledgeBlock([older])
+		.split("\n")
+		.filter((line) => line.includes("newer version"));
+	assert.deepEqual(
+		appended.map((line) => line.match(/: (Update \d+)/)[1]),
+		["Update 09", "Update 05", "Update 03"],
+	);
 });

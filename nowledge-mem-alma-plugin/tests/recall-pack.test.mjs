@@ -32,3 +32,50 @@ test("memories are packed within the budget", () => {
 	assert.ok(section.length <= 6400, `section ${section.length}`);
 	assert.match(block, /small/);
 });
+
+const update = (memoryId, title, statedAt) => ({
+	memory_id: memoryId,
+	title,
+	relation: "enriches",
+	stated_at: statedAt,
+	is_latest: true,
+});
+
+test("an updated memory names its newer version and the newer one is appended", () => {
+	const older = memory("Heartbeat cron", "runs 0 6-20 * * *", {
+		id: "cron",
+		laterUpdates: [update("paused", "Heartbeat paused", "2026-10-29T08:00:00+00:00")],
+	});
+	const lines = buildMemoryContextBlock(null, [older]).split("\n");
+	const cron = lines.findIndex((line) => line.includes("Heartbeat cron"));
+	assert.equal(lines[cron + 1], "   → updated later (2026-10-29): Heartbeat paused");
+	assert.equal(lines[cron + 2], "2. updated later (2026-10-29): Heartbeat paused (newer version of a memory above)");
+
+	const newer = memory("Heartbeat paused", "paused since October 29", { id: "paused" });
+	assert.doesNotMatch(buildMemoryContextBlock(null, [older, newer]), /newer version of a memory above/);
+});
+
+test("an appended newer version carries its excerpt", () => {
+	const older = memory("Heartbeat cron", "runs 0 6-20 * * *", {
+		id: "cron",
+		laterUpdates: [{ ...update("paused", "Heartbeat paused", "2026-10-29"), excerpt: "paused\n since Oct 29" }],
+	});
+	assert.match(
+		buildMemoryContextBlock(null, [older]),
+		/2\. updated later \(2026-10-29\): Heartbeat paused \(newer version of a memory above\): paused since Oct 29/,
+	);
+});
+
+test("appended newer versions are newest first", () => {
+	const older = memory("Old", "x", {
+		id: "old",
+		laterUpdates: ["03", "09", "05"].map((d) => update(`n${d}`, `Update ${d}`, `2026-10-${d}`)),
+	});
+	const appended = buildMemoryContextBlock(null, [older])
+		.split("\n")
+		.filter((line) => line.includes("newer version"));
+	assert.deepEqual(
+		appended.map((line) => line.match(/: (Update \d+)/)[1]),
+		["Update 09", "Update 05", "Update 03"],
+	);
+});
