@@ -1525,6 +1525,14 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
             assert "先预览明确选择的本地数据库" in guide["promptZh"]
             assert "Never infer consent" in guide["prompt"]
             assert "MCP 接通不代表同意上传历史" in guide["promptZh"]
+        elif entry["id"] == "microsoft-365-copilot":
+            # Tenant setup must not require disclosing a personal briefing.
+            assert entry["availability"] == "guided"
+            assert not any(entry["capabilities"].values())
+            assert "Copilot Studio" in guide["prompt"]
+            assert "Copilot Studio" in guide["promptZh"]
+            assert "per-user credentials" in guide["prompt"]
+            assert "各用户自己的连接凭据" in guide["promptZh"]
         elif entry["id"] in {"muse", "dots", "grok-bot"}:
             # Hosted launchers delegate protocol and tool checks to the full skill.
             assert "/docs/integrations/" in guide["prompt"], entry["id"]
