@@ -45,7 +45,7 @@ class NowledgeClient:
             params["agent_id"] = identity.agent_id
         if identity.host_agent_id:
             params["host_agent_id"] = identity.host_agent_id
-        if identity.space_id:
+        if identity.space_id is not None:
             params["space_id"] = identity.space_id
         return params
 
@@ -123,7 +123,7 @@ class NowledgeClient:
             else normalize_messages(messages),
             "source": "langgraph",
             "space_id": identity.space_id,
-            "tool_version": "nowledge-mem-langgraph/0.1.1",
+            "tool_version": "nowledge-mem-langgraph/0.1.2",
             "metadata": metadata,
         }
         if expected_message_count is not None:
@@ -258,6 +258,8 @@ class NowledgeClient:
             "x-nmem-agent-id",
             "x-nmem-host-agent-id",
             "x-nmem-space-id",
+            "x-nmem-space-id-encoded",
+            "x-nmem-space-protocol",
         }
         headers = {
             key: value for key, value in headers.items() if key.lower() not in identity_headers

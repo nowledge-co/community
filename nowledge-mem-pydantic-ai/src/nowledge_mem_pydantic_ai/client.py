@@ -174,7 +174,7 @@ class NowledgeClient:
                 "thread_id": thread_id,
                 "title": messages[0]["content"][:80],
                 "source": "pydantic-ai",
-                "tool_version": "nowledge-mem-pydantic-ai/0.1.0",
+                "tool_version": "nowledge-mem-pydantic-ai/0.1.1",
                 "messages": messages[start:],
                 "metadata": {"source_app": "pydantic-ai", **identity.model_dump(exclude_none=True)},
             }

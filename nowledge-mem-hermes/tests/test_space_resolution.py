@@ -281,6 +281,7 @@ class SpaceResolutionTests(unittest.TestCase):
             client_module.subprocess.run = _bad_run
             client_module.urlrequest.urlopen = _fake_urlopen
             client = client_module.NowledgeMemClient(space="Research Agent")
+            client._cli = lambda args: {"spaces": [{"id": "research-id", "name": "Research Agent"}]}
             result = client.import_thread(
                 "hermes-session-1",
                 [{"role": "user", "content": "x" * 100_000}],
@@ -290,7 +291,7 @@ class SpaceResolutionTests(unittest.TestCase):
             self.assertEqual(result["success"], True)
             self.assertEqual(captured["url"], "http://mem.test/threads/import")
             self.assertEqual(payload["thread_id"], "hermes-session-1")
-            self.assertEqual(payload["metadata"]["space_id"], "Research Agent")
+            self.assertEqual(payload["space_id"], "research-id")
             self.assertEqual(payload["messages"][0]["content"], "x" * 100_000)
         finally:
             client_module.subprocess.run = original_run
@@ -335,6 +336,7 @@ class SpaceResolutionTests(unittest.TestCase):
             client_module.subprocess.run = _bad_run
             client_module.urlrequest.urlopen = _fake_urlopen
             client = client_module.NowledgeMemClient(space="Research Agent")
+            client._cli = lambda args: {"spaces": [{"id": "research-id", "name": "Research Agent"}]}
             result = client.append_thread(
                 "hermes/session 1",
                 [{"role": "assistant", "content": "y" * 100_000}],
@@ -346,7 +348,7 @@ class SpaceResolutionTests(unittest.TestCase):
                 "http://mem.test/threads/hermes%2Fsession%201/append",
             )
             self.assertEqual(payload["messages"][0]["content"], "y" * 100_000)
-            self.assertEqual(payload["space_id"], "Research Agent")
+            self.assertEqual(payload["space_id"], "research-id")
         finally:
             client_module.subprocess.run = original_run
             client_module.urlrequest.urlopen = original_urlopen

@@ -30,6 +30,45 @@ class ProbeState(TypedDict):
     value: str
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("space", ["", " 项目/ID "])
+async def test_sync_and_async_import_pass_exact_protocol_without_normalizing_ids(
+    space: str,
+) -> None:
+    calls = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        import json
+
+        calls.append(request)
+        if request.headers.get("X-Nmem-Space-Protocol") != "exact-v1":
+            return httpx.Response(409, json={"error_code": "space_client_upgrade_required"})
+        assert json.loads(request.content)["space_id"] == space
+        return httpx.Response(
+            200, json={"success": True, "results": [{"success": True, "message_count": 2}]}
+        )
+
+    transport = httpx.MockTransport(handle)
+    with httpx.Client(base_url="http://mem.test", transport=transport) as sync:
+        async with httpx.AsyncClient(
+            base_url="http://mem.test", transport=transport
+        ) as async_client:
+            client = NowledgeClient(client=sync, async_client=async_client)
+            kwargs = dict(
+                thread_id="synthetic",
+                messages=[HumanMessage("probe"), AIMessage("reply")],
+                identity=NowledgeIdentity(space_id=space),
+            )
+            client.sync_thread(**kwargs)
+            await client.async_thread(**kwargs)
+    assert len(calls) == 2
+    headers = NowledgeSettings().scoped_headers(NowledgeIdentity(space_id=space))
+    from urllib.parse import quote
+
+    assert headers["X-Nmem-Space-Id-Encoded"] == "percent-v1:" + quote(space, safe="")
+    assert "X-Nmem-Space-Id" not in headers
+
+
 def test_feedback_loop_guard_covers_external_agent_tool_contract() -> None:
     assert {
         "read_context_bundle",
@@ -138,7 +177,8 @@ async def test_mcp_interceptor_overrides_model_scope_and_keeps_auth_separate() -
         "X-Nowledge-Tool-Schema-Profile": "slim",
         "X-Nmem-Agent-Id": "trusted",
         "X-Nmem-Host-Agent-Id": "langgraph:support:assistant-v2",
-        "X-Nmem-Space-Id": "allowed",
+        "X-Nmem-Space-Protocol": "exact-v1",
+        "X-Nmem-Space-Id-Encoded": "percent-v1:allowed",
     }
 
 
@@ -183,9 +223,7 @@ def test_thread_payload_uses_thread_not_assistant_and_excludes_mem_tool_output()
             json={
                 "success": True,
                 "failed_count": 0,
-                "results": [
-                    {"success": True, "append_mode": "created", "message_count": 4}
-                ],
+                "results": [{"success": True, "append_mode": "created", "message_count": 4}],
             },
             request=request,
         )
@@ -333,9 +371,7 @@ def test_thread_sync_keeps_cursor_after_http_200_semantic_failure() -> None:
         if outcome == "failed":
             result = {
                 "failed_count": 0,
-                "results": [
-                    {"success": True, "append_mode": "checkpointed", "message_count": 4}
-                ],
+                "results": [{"success": True, "append_mode": "checkpointed", "message_count": 4}],
             }
         else:
             result = {

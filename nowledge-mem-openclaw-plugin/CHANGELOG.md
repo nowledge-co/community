@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.41] - 2026-11-12
+
+### Fixed
+
+- Declare the exact Space protocol on direct HTTP session synchronization so
+  workspaces using current Spaces can accept captured conversations.
+- Preserve the selected destination; do not fall back to an unscoped write
+  when a configured Space cannot be resolved.
+
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
 ## [0.8.40] - Unreleased

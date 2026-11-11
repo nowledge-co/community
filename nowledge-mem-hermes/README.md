@@ -217,6 +217,15 @@ Use `SOUL.md` for your own durable memory preferences and `HERMES.md` for repo-s
 
 ## Troubleshooting
 
+- **Memory tools work but Session sync reports `space_client_upgrade_required`**:
+  update/reinstall the plugin to 0.5.26 or later and restart Hermes. Transcript
+  synchronization uses its own HTTP connection, which must declare the exact
+  Space protocol independently of the CLI and MCP connections. Keep your URL,
+  credentials and selected Space. After updating, preview missed local history
+  with `nmem t sync --from hermes`, then use `--apply` if you want to import it.
+  A configured Space that is unknown or ambiguous stops capture rather than
+  falling back to another destination.
+
 - **"Nowledge Mem server not reachable"**: Verify the desktop app is running. Check with `nmem status`.
 - **"nmem CLI not found"**: Install with `pip install nmem-cli`, or enable CLI in the desktop app: Settings > Developer Tools.
 - **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. On older Hermes builds, rerun the setup command; it also places a compatibility copy under `~/.hermes/hermes-agent/plugins/memory/nowledge-mem/` when that runtime still discovers providers from the bundled memory directory. Restart Hermes after reinstalling.
@@ -237,7 +246,7 @@ bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/now
 After updating, the script prints the version and endpoint from the files it actually wrote:
 
 ```text
-Installed version: 0.5.25
+Installed version: 0.5.26
 Thread import endpoint: /threads/import
 ```
 

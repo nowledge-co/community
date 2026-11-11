@@ -6,77 +6,6 @@ import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:f
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-// src/cli-runner.mjs
-import { execFile } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-var MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
-function createNmemCliRunner(shell, execFileImpl = execFile, { platform = process.platform, readFileImpl = readFileSync, existsImpl = existsSync } = {}) {
-  if (typeof shell === "function") {
-    return async (args) => shell`nmem --json ${args}`.text();
-  }
-  let commandPromise;
-  const command = async () => {
-    if (platform !== "win32") return "nmem";
-    commandPromise ??= resolveWindowsNmemExecutable(execFileImpl, readFileImpl, existsImpl);
-    return commandPromise;
-  };
-  return async (args) => {
-    const executable = await command();
-    if (!executable) {
-      const error = new Error("nmem CLI executable was not found");
-      error.code = "ENOENT";
-      throw error;
-    }
-    return new Promise((resolve, reject) => {
-      execFileImpl(
-        executable,
-        ["--json", ...args],
-        { encoding: "utf8", maxBuffer: MAX_OUTPUT_BYTES },
-        (error, stdout, stderr) => {
-          if (error) {
-            error.stderr = String(stderr ?? "");
-            reject(error);
-            return;
-          }
-          resolve(String(stdout ?? ""));
-        }
-      );
-    });
-  };
-}
-function runExecFile(execFileImpl, file, args, options) {
-  return new Promise((resolve) => {
-    execFileImpl(file, args, options, (error, stdout, stderr) => {
-      resolve({ error, stdout: String(stdout ?? ""), stderr: String(stderr ?? "") });
-    });
-  });
-}
-async function resolveWindowsNmemExecutable(execFileImpl, readFileImpl, existsImpl) {
-  const whereOptions = { encoding: "utf8", maxBuffer: 64 * 1024 };
-  const direct = await runExecFile(execFileImpl, "where.exe", ["nmem.exe"], whereOptions);
-  if (!direct.error) {
-    const directPath = direct.stdout.split(/\r?\n/).map((line) => line.trim()).find((line) => line && existsImpl(line));
-    if (directPath) return directPath;
-  }
-  const wrapper = await runExecFile(execFileImpl, "where.exe", ["nmem.cmd"], whereOptions);
-  if (wrapper.error) return null;
-  for (const candidate of wrapper.stdout.split(/\r?\n/).map((line) => line.trim())) {
-    if (!candidate) continue;
-    let contents;
-    try {
-      contents = readFileImpl(candidate, "utf8");
-    } catch {
-      continue;
-    }
-    const match = contents.match(/^\s*"([^"\r\n]+\.exe)"\s+%\*\s*$/m);
-    if (match?.[1] && existsImpl(match[1])) return match[1];
-  }
-  return null;
-}
-
-// src/session-delta.ts
-import { createHash as createHash2 } from "node:crypto";
-
 // src/generated/plugin-core/index.js
 import { createHash } from "node:crypto";
 function stableMessageFingerprint(message) {
@@ -151,8 +80,94 @@ function resolveThreadSyncTimeoutMs(raw) {
   }
   return Math.min(MAX_THREAD_SYNC_TIMEOUT_MS, Math.max(MIN_THREAD_SYNC_TIMEOUT_MS, parsed));
 }
+function resolveSpaceReference(snapshot, reference) {
+  const spaces = snapshot?.spaces;
+  if (!Array.isArray(spaces)) throw new Error("Space roster did not contain spaces");
+  const exact = spaces.filter((s) => s && (s.id === reference || s.key === reference));
+  const normalized = reference.trim().normalize("NFKC").toLowerCase();
+  const matches = exact.length ? exact : spaces.filter((s) => s && [s.name, ...Array.isArray(s.aliases) ? s.aliases : []].some((value) => typeof value === "string" && value.trim().normalize("NFKC").toLowerCase() === normalized));
+  if (matches.length !== 1 || typeof matches[0].id !== "string") {
+    throw new Error("Unknown or ambiguous configured Space; choose a Space from nmem spaces list");
+  }
+  return matches[0].id;
+}
+async function exactSpaceBody(body, reference, load) {
+  if (!reference || !body || typeof body !== "object" || Array.isArray(body)) return body;
+  const record2 = body;
+  if (Object.hasOwn(record2, "space_id")) return body;
+  return { ...record2, space_id: resolveSpaceReference(await load(), reference) };
+}
+
+// src/cli-runner.mjs
+import { execFile } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+var MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
+function createNmemCliRunner(shell, execFileImpl = execFile, { platform = process.platform, readFileImpl = readFileSync, existsImpl = existsSync } = {}) {
+  if (typeof shell === "function") {
+    return async (args) => shell`nmem --json ${args}`.text();
+  }
+  let commandPromise;
+  const command = async () => {
+    if (platform !== "win32") return "nmem";
+    commandPromise ??= resolveWindowsNmemExecutable(execFileImpl, readFileImpl, existsImpl);
+    return commandPromise;
+  };
+  return async (args) => {
+    const executable = await command();
+    if (!executable) {
+      const error = new Error("nmem CLI executable was not found");
+      error.code = "ENOENT";
+      throw error;
+    }
+    return new Promise((resolve, reject) => {
+      execFileImpl(
+        executable,
+        ["--json", ...args],
+        { encoding: "utf8", maxBuffer: MAX_OUTPUT_BYTES },
+        (error, stdout, stderr) => {
+          if (error) {
+            error.stderr = String(stderr ?? "");
+            reject(error);
+            return;
+          }
+          resolve(String(stdout ?? ""));
+        }
+      );
+    });
+  };
+}
+function runExecFile(execFileImpl, file, args, options) {
+  return new Promise((resolve) => {
+    execFileImpl(file, args, options, (error, stdout, stderr) => {
+      resolve({ error, stdout: String(stdout ?? ""), stderr: String(stderr ?? "") });
+    });
+  });
+}
+async function resolveWindowsNmemExecutable(execFileImpl, readFileImpl, existsImpl) {
+  const whereOptions = { encoding: "utf8", maxBuffer: 64 * 1024 };
+  const direct = await runExecFile(execFileImpl, "where.exe", ["nmem.exe"], whereOptions);
+  if (!direct.error) {
+    const directPath = direct.stdout.split(/\r?\n/).map((line) => line.trim()).find((line) => line && existsImpl(line));
+    if (directPath) return directPath;
+  }
+  const wrapper = await runExecFile(execFileImpl, "where.exe", ["nmem.cmd"], whereOptions);
+  if (wrapper.error) return null;
+  for (const candidate of wrapper.stdout.split(/\r?\n/).map((line) => line.trim())) {
+    if (!candidate) continue;
+    let contents;
+    try {
+      contents = readFileImpl(candidate, "utf8");
+    } catch {
+      continue;
+    }
+    const match = contents.match(/^\s*"([^"\r\n]+\.exe)"\s+%\*\s*$/m);
+    if (match?.[1] && existsImpl(match[1])) return match[1];
+  }
+  return null;
+}
 
 // src/session-delta.ts
+import { createHash as createHash2 } from "node:crypto";
 function opencodeThreadId(sessionId) {
   return `opencode-${sessionId}`;
 }
@@ -472,14 +487,22 @@ var index_default = Plugin.define({
       const space = stringToolValue(args.space);
       return space ? ["--space", space] : [];
     }
-    function explicitSpaceForHttp(args) {
-      return stringToolValue(args.space_id) || stringToolValue(args.space);
+    async function explicitSpaceForHttp(args) {
+      if (typeof args.space_id === "string") return args.space_id;
+      const reference = stringToolValue(args.space);
+      if (!reference) return void 0;
+      const response = await fetch(`${apiUrl}/spaces`, {
+        headers: { "X-Nmem-Space-Protocol": "exact-v1", ...apiKey ? { Authorization: `Bearer ${apiKey}` } : {} },
+        signal: AbortSignal.timeout(3e4)
+      });
+      if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
+      return resolveSpaceReference(await response.json(), reference);
     }
     function withExplicitSpaceArg(cmd, args) {
       return [...cmd, ...explicitSpaceForCli(args)];
     }
     async function nmemApi(path, body, timeoutMs = 3e4) {
-      const headers = { "Content-Type": "application/json" };
+      const headers = { "Content-Type": "application/json", "X-Nmem-Space-Protocol": "exact-v1" };
       if (apiKey) {
         headers["Authorization"] = `Bearer ${apiKey}`;
         headers["X-NMEM-API-Key"] = apiKey;
@@ -487,10 +510,15 @@ var index_default = Plugin.define({
       const controller2 = new AbortController();
       const timeout = setTimeout(() => controller2.abort(), timeoutMs);
       try {
+        const scopedBody = await exactSpaceBody(body, ambientSpaceId, async () => {
+          const response = await fetch(`${apiUrl}/spaces`, { headers, signal: controller2.signal });
+          if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
+          return response.json();
+        });
         const res = await fetch(`${apiUrl}${path}`, {
           method: "POST",
           headers,
-          body: JSON.stringify(withAmbientSpace(body)),
+          body: JSON.stringify(scopedBody),
           signal: controller2.signal
         });
         const data = await res.json().catch(() => null);
@@ -598,7 +626,7 @@ var index_default = Plugin.define({
         source: "opencode",
         project: projectPath,
         workspace: projectPath,
-        ...options.spaceId ? { space_id: options.spaceId } : {},
+        ...options.spaceId !== void 0 ? { space_id: options.spaceId } : {},
         metadata
       };
       let res = state.created ? { ok: false, status: 409, data: null } : await nmemApi("/threads", createBody, timeoutMs);
@@ -615,7 +643,7 @@ var index_default = Plugin.define({
             deduplicate: true,
             idempotency_key: `opencode:live:${session.sessionID}:${delta.start}-${delta.end}:${delta.next.prefixFingerprint}`,
             ...state.acknowledged && !delta.reset ? { expected_message_count: state.acknowledged.remoteCount } : {},
-            ...options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}
+            ...options.spaceId !== void 0 ? { space_id: options.spaceId } : {}
           },
           timeoutMs
         );
@@ -629,7 +657,7 @@ var index_default = Plugin.define({
             messages: threadMessages,
             deduplicate: true,
             idempotency_key: `opencode:reconcile:${session.sessionID}:${delta.next.prefixFingerprint}`,
-            ...options.spaceId ? { space_id: options.spaceId } : ambientSpaceId ? { space_id: ambientSpaceId } : {}
+            ...options.spaceId !== void 0 ? { space_id: options.spaceId } : {}
           },
           timeoutMs
         );
@@ -903,7 +931,7 @@ var index_default = Plugin.define({
               }, {
                 reason: "manual_tool",
                 summary: args.summary,
-                spaceId: explicitSpaceForHttp(args),
+                spaceId: await explicitSpaceForHttp(args),
                 force: true,
                 timeoutMs: 3e4
               }))

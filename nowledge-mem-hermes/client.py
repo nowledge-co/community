@@ -241,7 +241,7 @@ class NowledgeMemClient:
     def __init__(self, timeout: int = 30, *, space: Optional[str] = None) -> None:
         self._timeout = timeout
         self._has_explicit_space = isinstance(space, str)
-        self._space = space.strip() if isinstance(space, str) else None
+        self._space = space if isinstance(space, str) else None
 
     @staticmethod
     def is_available() -> bool:
@@ -419,7 +419,7 @@ class NowledgeMemClient:
         if source:
             payload["source"] = source
         if self._has_explicit_space and self._space:
-            payload["metadata"] = {"space_id": self._space}
+            payload["space_id"] = self._http_space()
         return self._api_post("/threads/import", payload)
 
     def append_thread(self, thread_id: str, messages: List[Dict[str, Any]]) -> Any:
@@ -429,7 +429,7 @@ class NowledgeMemClient:
         path = f"/threads/{urlparse.quote(thread_id, safe='')}/append"
         payload: Dict[str, Any] = {"messages": messages, "deduplicate": True}
         if self._has_explicit_space and self._space:
-            payload["space_id"] = self._space
+            payload["space_id"] = self._http_space()
         return self._api_post(path, payload)
 
     def report_skill_outcome(
@@ -519,6 +519,22 @@ class NowledgeMemClient:
                 f"nmem returned non-JSON output: {output[:200]}"
             ) from error
 
+    def _http_space(self) -> str:
+        """Resolve human config through the same authenticated roster as the CLI."""
+        snapshot = self._cli(["spaces", "list"])
+        spaces = snapshot.get("spaces") if isinstance(snapshot, dict) else None
+        if not isinstance(spaces, list):
+            raise RuntimeError("Space roster did not contain spaces")
+        exact = [s for s in spaces if isinstance(s, dict) and self._space in (s.get("id"), s.get("key"))]
+        key = self._space.strip().casefold()
+        matches = exact or [s for s in spaces if isinstance(s, dict) and any(
+            isinstance(value, str) and value.strip().casefold() == key
+            for value in [s.get("name"), *(s.get("aliases") or [])]
+        )]
+        if len(matches) != 1 or not isinstance(matches[0].get("id"), str):
+            raise RuntimeError("Unknown or ambiguous configured Space; choose from nmem spaces list")
+        return matches[0]["id"]
+
     def _api_post(self, path: str, payload: Dict[str, Any]) -> Any:
         """POST JSON directly to Mem for large transcript payloads.
 
@@ -527,7 +543,7 @@ class NowledgeMemClient:
         """
         api_url = self._api_url().rstrip("/")
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", "X-Nmem-Space-Protocol": "exact-v1"}
         api_key = self._api_key()
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"

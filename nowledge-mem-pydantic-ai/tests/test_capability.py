@@ -68,7 +68,8 @@ async def test_tool_only_uses_server_schema_and_host_scope(mem_server: MemServer
         "agent_id": "host-agent",
     }
     for request in mem_server.requests:
-        assert request["headers"]["X-Nmem-Space-Id"] == "host-space"
+        assert request["headers"]["X-Nmem-Space-Id-Encoded"] == "percent-v1:host-space"
+        assert request["headers"]["X-Nmem-Space-Protocol"] == "exact-v1"
         assert request["headers"]["Authorization"] == "Bearer synthetic-token"
     assert not mem_server.imports
     assert not any(r["kind"] == "context" for r in mem_server.requests)
@@ -131,7 +132,8 @@ async def test_parallel_runs_resolve_identity_once_and_do_not_cross_scope(
     assert {r["query"]["space_id"][0] for r in contexts} == {"alpha", "beta"}
     for call in calls:
         assert (
-            call["payload"]["params"]["arguments"]["space_id"] == call["headers"]["X-Nmem-Space-Id"]
+            "percent-v1:" + call["payload"]["params"]["arguments"]["space_id"]
+            == call["headers"]["X-Nmem-Space-Id-Encoded"]
         )
 
 
@@ -311,7 +313,12 @@ async def test_rejected_structured_output_is_not_captured(mem_server: MemServer)
                     )
                 ]
             )
-        assert any(isinstance(p, RetryPromptPart) for p in messages[-1].parts)
+        # New SDKs represent output-validation retry as a retried ToolReturnPart;
+        # older SDKs use RetryPromptPart. Both must reach the next model request.
+        assert any(
+            isinstance(part, RetryPromptPart) or getattr(part, "outcome", None) == "retried"
+            for message in messages for part in message.parts
+        )
         return ModelResponse(
             parts=[ToolCallPart(info.output_tools[0].name, {"number": 42}, "valid")]
         )

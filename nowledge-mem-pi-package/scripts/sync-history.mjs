@@ -5,6 +5,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { exactSpaceBody } from "../extensions/generated/plugin-core/index.js";
 
 const SOURCE_APP = "pi";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
@@ -536,7 +537,7 @@ function remoteApiFallbackUrls(url) {
 }
 
 async function postJson(config, path, body) {
-	const headers = { "Content-Type": "application/json" };
+	const headers = { "Content-Type": "application/json", "X-Nmem-Space-Protocol": "exact-v1" };
 	if (config.apiKey) {
 		headers.Authorization = `Bearer ${config.apiKey}`;
 		headers["X-NMEM-API-Key"] = config.apiKey;
@@ -547,12 +548,17 @@ async function postJson(config, path, body) {
 	} catch {
 		return { ok: false, status: 0, data: { error: "Invalid API URL" } };
 	}
-	const requestBody = JSON.stringify(withSpace(body, config.space));
 	let last = { ok: false, status: 0, data: { error: "request was not sent" } };
 	for (const url of urls) {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 		try {
+			const scoped = await exactSpaceBody(body, config.space, async () => {
+				const response = await fetch(`${config.apiUrl}/spaces`, { headers, signal: controller.signal });
+				if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
+				return response.json();
+			});
+			const requestBody = JSON.stringify(scoped);
 			const response = await fetch(url, { method: "POST", headers, body: requestBody, signal: controller.signal });
 			const data = await response.json().catch(() => ({}));
 			last = { ok: response.ok, status: response.status, data };

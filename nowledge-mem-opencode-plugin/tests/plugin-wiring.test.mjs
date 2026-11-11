@@ -237,6 +237,8 @@ test("captures execution completion and deduplicates repeated and legacy events"
   const requests = []
   const reads = []
   t.mock.method(globalThis, "fetch", async (url, init) => {
+    assert.equal(init.headers["X-Nmem-Space-Protocol"], "exact-v1")
+    if (url.endsWith("/spaces")) return Response.json({spaces: [{id:"event-test-space", name:"event-test-space"}]})
     requests.push({ url, body: JSON.parse(init.body) })
     return Response.json({ thread: { thread_id: "opencode-ses_Completed", message_count: 2 } })
   })

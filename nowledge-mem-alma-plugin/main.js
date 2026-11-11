@@ -15,6 +15,7 @@ import {
 import { createSyncScope, withAbort } from "./sync-lifecycle.js";
 import { openSyncOutbox } from "./sync-outbox.js";
 import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout.js";
+import { exactSpaceBody, resolveSpaceReference } from "./generated/plugin-core/index.js";
 
 function clamp(value, min, max) {
 	return Math.min(max, Math.max(min, value));
@@ -167,7 +168,7 @@ export class NowledgeMemClient {
 
 	/** Build common headers. API key is passed via Authorization header, never logged. */
 	_headers() {
-		const h = { "Content-Type": "application/json", Accept: "application/json" };
+		const h = { "Content-Type": "application/json", Accept: "application/json", "X-Nmem-Space-Protocol": "exact-v1" };
 		if (this._apiKey) h.Authorization = `Bearer ${this._apiKey}`;
 		return h;
 	}
@@ -193,7 +194,7 @@ export class NowledgeMemClient {
 	/** Core async fetch with timeout. All data operations route through this. */
 	async _fetch(method, path, { body, params, timeout = 15_000, signal } = {}) {
 		const url = new URL(path, this._apiUrl);
-		const resolvedParams = this._withSpaceQuery(params);
+		const resolvedParams = { ...(params || {}) };
 		if (resolvedParams) {
 			for (const [k, v] of Object.entries(resolvedParams)) {
 				if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
@@ -204,8 +205,16 @@ export class NowledgeMemClient {
 		const abort = () => controller.abort(signal.reason);
 		signal?.addEventListener("abort", abort, { once: true });
 		const timer = setTimeout(() => controller.abort(), timeout);
-		const resolvedBody = this._withSpaceBody(body);
 		try {
+			const load = async () => {
+				const response = await fetch(`${this._apiUrl}/spaces`, {headers: this._headers(), signal: controller.signal});
+				if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`);
+				return response.json();
+			};
+			const resolvedBody = await exactSpaceBody(body, this._spaceRef, load);
+			if (this._spaceRef && !url.searchParams.has("space_id")) {
+				url.searchParams.set("space_id", typeof resolvedBody?.space_id === "string" ? resolvedBody.space_id : resolveSpaceReference(await load(), this._spaceRef));
+			}
 			const resp = await fetch(url.href, {
 				method,
 				headers: this._headers(),

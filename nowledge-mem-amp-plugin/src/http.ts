@@ -12,7 +12,7 @@
  */
 
 import type { ResolvedConfig } from "./config"
-import { withAmbientSpace } from "./identity"
+import { exactSpaceBody } from "./generated/plugin-core/index.js"
 
 /** Injectable ports required to build an HTTP client. */
 export interface HttpPorts {
@@ -68,12 +68,16 @@ export function createNmemHttp(config: ResolvedConfig, ports: HttpPorts): NmemHt
     timeoutMs: number = DEFAULT_TIMEOUT_MS,
   ): Promise<HttpResponse> {
     const url = `${config.apiUrl}${path}`
-    const decoratedBody = withAmbientSpace(body, config)
     const headers = buildHeaders(config)
     const controller = ports.createAbortController()
     const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
     try {
+      const decoratedBody = await exactSpaceBody(body, config.ambientSpaceId, async () => {
+        const response = await ports.fetch(`${config.apiUrl}/spaces`, { headers, signal: controller.signal })
+        if (!response.ok) throw new Error(`Space roster HTTP ${response.status}`)
+        return response.json()
+      })
       const response = await ports.fetch(url, {
         method: "POST",
         headers,
@@ -97,7 +101,7 @@ export function createNmemHttp(config: ResolvedConfig, ports: HttpPorts): NmemHt
  * @returns The header record for the POST request.
  */
 function buildHeaders(config: ResolvedConfig): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  const headers: Record<string, string> = { "Content-Type": "application/json", "X-Nmem-Space-Protocol": "exact-v1" }
   if (config.apiKey !== undefined) {
     headers.Authorization = `Bearer ${config.apiKey}`
     headers["X-NMEM-API-Key"] = config.apiKey

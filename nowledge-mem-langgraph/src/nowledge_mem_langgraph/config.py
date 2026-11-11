@@ -6,6 +6,7 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import quote
 
 
 def _clean(value: object | None) -> str | None:
@@ -43,7 +44,7 @@ class NowledgeIdentity:
         return NowledgeIdentity(
             agent_id=_clean(self.agent_id),
             host_agent_id=_clean(self.host_agent_id),
-            space_id=_clean(self.space_id),
+            space_id=self.space_id,
         )
 
 
@@ -118,7 +119,9 @@ class NowledgeSettings:
         nested = _nested_nowledge(context)
         runtime_agent = _clean(_read(nested, "agent_id")) if nested is not None else None
         runtime_host = _clean(_read(nested, "host_agent_id")) if nested is not None else None
-        runtime_space = _clean(_read(nested, "space_id")) if nested is not None else None
+        runtime_space = _read(nested, "space_id") if nested is not None else None
+        if runtime_space is not None and not isinstance(runtime_space, str):
+            raise ValueError("space_id must be an exact string ID")
 
         if runtime_agent is not None or runtime_host is not None:
             agent_id = runtime_agent
@@ -137,11 +140,14 @@ class NowledgeSettings:
         return NowledgeIdentity(
             agent_id=agent_id,
             host_agent_id=host_agent_id,
-            space_id=runtime_space or defaults.space_id,
+            space_id=runtime_space if runtime_space is not None else defaults.space_id,
         )
 
     def auth_headers(self) -> dict[str, str]:
-        return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        headers = {"X-Nmem-Space-Protocol": "exact-v1"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
     def scoped_headers(self, identity: NowledgeIdentity) -> dict[str, str]:
         headers = {
@@ -154,6 +160,6 @@ class NowledgeSettings:
             headers["X-Nmem-Agent-Id"] = identity.agent_id
         if identity.host_agent_id:
             headers["X-Nmem-Host-Agent-Id"] = identity.host_agent_id
-        if identity.space_id:
-            headers["X-Nmem-Space-Id"] = identity.space_id
+        if identity.space_id is not None:
+            headers["X-Nmem-Space-Id-Encoded"] = "percent-v1:" + quote(identity.space_id, safe="")
         return headers
