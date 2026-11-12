@@ -4,6 +4,10 @@
 
 ## 0.2.0
 
+- Explicitly forwards the configured Mem API key to nmem across the host's
+  credential scrub, restoring authenticated Cloud/remote CLI operations while
+  preserving pinned history credentials and intentional empty authentication.
+
 - Drains already queued turn capture during graceful unload so completed
   headless sessions are imported before the host exits; qualified with a real
   installed DSH launcher, tool turn and packed plugin.

@@ -120,6 +120,12 @@ export { shellQuote }
 
 function envFor(config, includeImportOrigin) {
   const env = { ...config.connectionEnv }
+  // DSH scrubs credential-shaped ambient variables before spawning commands.
+  // Opt in only the configured Mem key for this nmem invocation; a preview's
+  // pinned key (including deliberate empty auth) takes precedence.
+  if (env.NMEM_API_KEY === undefined && process.env.NMEM_API_KEY !== undefined) {
+    env.NMEM_API_KEY = process.env.NMEM_API_KEY
+  }
   if (includeImportOrigin) env.NMEM_IMPORT_ORIGIN = config.importOrigin
   if (config.spaceId !== undefined) env.NMEM_SPACE = config.spaceId
   if (config.agentId !== undefined) env.NMEM_AGENT_ID = config.agentId

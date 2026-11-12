@@ -49,6 +49,12 @@ export NMEM_MCP_URL="https://<workspace>/mcp"
 export NMEM_API_KEY="<mem-api-key>"
 ```
 
+DSH intentionally removes credential-shaped ambient variables from child
+processes. The plugin explicitly forwards `NMEM_API_KEY` only to its nmem calls,
+including a deliberately empty value; other provider secrets are not forwarded.
+Historical confirmation keeps its previewed connection key even if ambient
+configuration changes before apply. Keys never become CLI argument text.
+
 ## What It Does
 
 - Injects the Nowledge Mem Context Bundle once per DSH session through `agent/pre-step`.

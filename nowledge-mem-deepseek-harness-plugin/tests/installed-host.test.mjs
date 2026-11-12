@@ -46,6 +46,7 @@ test('installed DSH tool turn drains clean automatic capture before headless exi
       `#!${process.execPath}`,
       'import {readFileSync,appendFileSync} from "node:fs"',
       'const args=process.argv.slice(2)',
+      'if(process.env.NMEM_API_KEY!=="synthetic-required-key") { process.stderr.write("missing expected fixture authentication"); process.exit(1) }',
       'if(args[1]==="context") console.log(JSON.stringify({working_memory:"Synthetic injected context"}))',
       'else if(args[1]==="t" && args[2]==="import") {',
       'const payload=JSON.parse(readFileSync(args[args.indexOf("--file")+1],"utf8"))',
@@ -61,7 +62,7 @@ test('installed DSH tool turn drains clean automatic capture before headless exi
     model = await startMockLlmServer({ sequence: ['tool_call_success', 'reasoning_success'], successText: 'Synthetic final reply.', reasoningText: 'Synthetic private reasoning.', toolName: 'bash', toolArguments: JSON.stringify({ description: 'Print synthetic marker', command: "printf 'Synthetic tool-only marker'" }) })
     const result = await run([cli, 'headless', '--patch', patch, '--json', '--approval-policy', 'never', 'Synthetic installed-host question.'], {
       ...env, DEEPSEEK_API_KEY: 'synthetic-only', DEEPSEEK_BASE_URL: model.baseURL,
-      NMEM_API_URL: 'http://127.0.0.1:1', NMEM_MCP_URL: 'http://127.0.0.1:1/mcp', NMEM_API_KEY: '',
+      NMEM_API_URL: 'http://127.0.0.1:1', NMEM_MCP_URL: 'http://127.0.0.1:1/mcp', NMEM_API_KEY: 'synthetic-required-key',
       HTTP_PROXY: 'http://127.0.0.1:1', HTTPS_PROXY: 'http://127.0.0.1:1', NO_PROXY: '127.0.0.1,localhost', NODE_USE_ENV_PROXY: '1',
     })
     assert.equal(result.code, 0, result.stderr)

@@ -79,6 +79,40 @@ test('injection preserves host decision metadata', async () => {
   assert.equal(decision.startsRequestSeries, true)
 })
 
+test('nmem credential is explicitly forwarded across the host credential scrub', async () => {
+  const previous = process.env.NMEM_API_KEY
+  process.env.NMEM_API_KEY = 'synthetic-nmem-only-key'
+  try {
+    const probe = host()
+    await probe.step({ kind: 'enter', messages: [] })
+    assert.equal(probe.requests[0].env.NMEM_API_KEY, 'synthetic-nmem-only-key')
+    assert.equal(Object.hasOwn(probe.requests[0].env, 'AZURE_OPENAI_API_KEY'), false)
+    assert.doesNotMatch(probe.requests[0].command, /synthetic-nmem-only-key/u)
+  } finally {
+    if (previous === undefined) delete process.env.NMEM_API_KEY
+    else process.env.NMEM_API_KEY = previous
+  }
+})
+
+test('pinned connection key and explicit empty auth override the ambient key', async () => {
+  const previous = process.env.NMEM_API_KEY
+  process.env.NMEM_API_KEY = 'synthetic-ambient-key'
+  try {
+    for (const key of ['synthetic-pinned-key', '']) {
+      const ctx = { shell: { resolve: request => request, execute: async request => {
+        assert.equal(request.env.NMEM_API_KEY, key)
+        return { result: async () => ({ exitCode: 0, stdout: { text: '{"success":true,"results":[{"success":true,"message_count":1}]}' } }) }
+      } } }
+      const current = session([event(0, 'user/message', user('Synthetic pinned-auth question'))])
+      const result = await importSession(ctx, { ...importConfig, connectionEnv: { NMEM_API_KEY: key } }, current)
+      assert.equal(result.count, 1)
+    }
+  } finally {
+    if (previous === undefined) delete process.env.NMEM_API_KEY
+    else process.env.NMEM_API_KEY = previous
+  }
+})
+
 test('recall treats flag-like human input as one positional query', async () => {
   const probe = host({ contextOnSessionStart: false, recallOnPrompt: true })
   await probe.step({ kind: 'enter', messages: [user('-memory')] })
