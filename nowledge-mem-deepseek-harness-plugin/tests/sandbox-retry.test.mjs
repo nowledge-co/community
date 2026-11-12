@@ -209,7 +209,7 @@ test('does not fall back to run or resolve a privileged policy on non-sandbox re
 
   assert.equal(await runShellWithHostSandboxRetry(fixture.ctx, { command: 'nmem status' }, undefined, true), undefined)
   assert.equal(fixture.requests.length, 1)
-  assert.match(fixture.warnings.at(-1), /nmem shell call failed: Error: spawn failed/)
+  assert.match(fixture.warnings.at(-1), /nmem shell call failed: shell or host operation failed/)
 })
 
 test('warns when the host exposes neither supported shell API', async () => {

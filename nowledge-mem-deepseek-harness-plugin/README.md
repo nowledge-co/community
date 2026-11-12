@@ -29,7 +29,8 @@ nmem status
 nmem config mcp show --host deepseek-harness
 ```
 
-The adapter supports DSH 0.1.5-rc.2, 0.1.7-rc.1, 0.2.1-alpha.1, and 0.2.1-rc.2. It uses
+The adapter supports DSH 0.1.5-rc.2, 0.1.7-rc.1, 0.2.1-alpha.1,
+0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 and 0.2.2-rc.2. It uses
 `shell.execute(...).result()` on current hosts and retains the legacy
 `shell.run()` fallback. Injected messages use `source.kind: "plugin:nowledge-mem"`,
 matching DSH's v3-to-v4 migration; existing legacy snapshots are still recognized.
@@ -47,6 +48,12 @@ For Nowledge Cloud or another remote Mem, set:
 export NMEM_MCP_URL="https://<workspace>/mcp"
 export NMEM_API_KEY="<mem-api-key>"
 ```
+
+DSH intentionally removes credential-shaped ambient variables from child
+processes. The plugin explicitly forwards `NMEM_API_KEY` only to its nmem calls,
+including a deliberately empty value; other provider secrets are not forwarded.
+Historical confirmation keeps its previewed connection key even if ambient
+configuration changes before apply. Keys never become CLI argument text.
 
 ## What It Does
 
@@ -97,6 +104,15 @@ When the user asks to continue, remember, review previous work, ship a release, 
 nmem --json m search "<prompt>" -n 8
 ```
 
+The prompt is the text the user typed into that step: messages with
+`source.kind: "user"`, text blocks only. It decides whether recall runs and is
+the search query. Other user-role context entering the step (runtime context,
+background job notices, subagent reports, goal rounds, other plugins), tool
+results, reasoning and tool calls neither trigger recall nor join the query, so
+later steps of a tool-using turn do not search on tool output. English trigger
+keywords match whole words and their plural or verb forms (`mem` does not match
+"meme" or "member"); Chinese keywords match anywhere in the text.
+
 The model sees a bounded recall message with memory titles, source hints, scores, and content.
 
 ### MCP Tools
@@ -123,7 +139,77 @@ execution text: do not delete the Thread or change its identity to force a
 retry. Review a scoped cleanup/export with support first. New sessions can be
 used to verify the updated capture without touching old data.
 
+### Explicit Historical Backfill
+
+On a host with `commands` and `sessionQuery` (qualified on DSH 0.2.2-rc.2),
+the bundle adds a **human slash command**, not an agent tool:
+
+```text
+/mem-backfill list
+/mem-backfill preview <exact-space-id> <session-id> [another-session-id]
+/mem-backfill apply <token-from-preview>
+/mem-backfill cancel
+```
+
+Use `nmem --json spaces list` to find the intended Space ID in your configured
+destination. Listing is metadata-only, at most 50 IDs per page; use
+`/mem-backfill list 50` for the next page. Select 1–10 sessions explicitly.
+Only persisted, top-level sessions whose workspace directory matches the current
+session are eligible; live-only, private-marked, subagent and other-workspace
+sessions are refused. The host query service supplies this profile's logical,
+replay-validated history; the plugin never walks profile directories. If an ID
+or Space contains whitespace, use percent encoding (listing already returns
+copyable encoded session IDs).
+
+Preview shows the exact destination address, Space, selected IDs, titles and
+clean message counts, validates the exact Space ID against the authenticated
+roster, and writes no transcript. It uses the effective nmem CLI
+connection, including persisted client settings; App, Access Anywhere and Cloud
+all use that same CLI path. Check the address and Space before confirming.
+The one-use token belongs to this human command session, expires in ten minutes,
+and freezes the selected conversation snapshot and connection privately in
+memory. It is never a durable credential or an authorization bypass. Applying
+does not include activity added after preview, change the automatic capture's
+Space, or clean old noisy Threads. The normal Mem key and Space authorization
+still applies to every write. Restarting/unloading the plugin discards previews.
+
+Each selected session is limited to 100,000 observed events and 2 MiB of clean
+snapshot data. Only human input and assistant replies survive; tools, reasoning,
+injected context and stream payloads do not. Apply reports each session's
+acknowledgement or failure; native identities make a repeated preview/apply
+converge rather than create a second Thread. A changed/older polluted Thread may
+still conflict and is left for deliberate inspection. An interrupted command
+can have committed earlier sessions (or the last timed-out import); preview
+again to reconcile safely. Cancellation prevents starting remaining sessions,
+but cannot undo a server transaction already committed. Hosts lacking either
+optional service keep normal capture/recall; no filesystem fallback runs.
+
 ### Sandbox Compatibility Retry
+
+Import payloads are private temporary files under
+`$DSH_HOME/nowledge-mem/staging` (default `~/.dsh/nowledge-mem/staging`).
+Each attempt removes its payload in a `finally` block. Linux workspace-write
+sandboxes mount an empty `/tmp`; keep DSH_HOME outside `/tmp`, including symlink
+targets. A temporary DSH_HOME there is refused with a diagnostic rather than
+silently widening the sandbox. `nmem t import --stdin` accepts Markdown, not the
+structured JSON used for stable message IDs, so it is not an equivalent transport.
+
+Failed captures retain their last acknowledged checkpoint and retry on a later
+turn after exponential backoff (1 second, capped at 60 seconds). No background
+upload timer runs. Graceful plugin teardown drains already queued captures,
+including a completed headless turn; host forced-exit deadlines still apply.
+A checkpointed append may retry once with a full transcript;
+an initial full import is already reconciliation and is not immediately repeated.
+Persistent conflicts need inspection of the existing Thread, not deletion or a
+new identity. Warnings distinguish timeout, process failure, invalid JSON and
+semantic rejection without printing payloads or raw shell error messages.
+Startup-context failures use the same backoff range independently of capture.
+Invalid custom recall patterns fall back to the standard pattern with a warning.
+
+Normal DSH session IDs keep their old Thread IDs. Previously lossy IDs (spaces,
+slashes or other punctuation) now use `deepseek-harness-~<sha256>`; any old Thread
+created from a sanitized ID is left untouched for explicit review, never migrated
+or deleted automatically.
 
 The plugin does not retry a sandbox-unavailable `nmem` command with
 `danger-full-access` by default. An operator who explicitly accepts that wider
@@ -135,7 +221,7 @@ closed and logs why the retry was skipped.
 ## Known Limitations
 
 - DeepSeek Harness is in developer preview, so public package APIs may change.
-- Historical DSH sessions are not backfilled by this package yet; it captures new sessions while the plugin is active.
+- Historical capture requires the explicit preview/apply command above and the optional host services; no automatic bulk upload or old-data cleanup runs.
 - The DSH MCP bridge exposes tools only, so Nowledge Mem resources/prompts are not shown through MCP today.
 - Turn capture depends on the local `nmem` CLI being available in the DSH process environment.
 
@@ -159,6 +245,18 @@ user-message and inbox-splice rows using the official v4 admission validator.
 CLI responses and shell execution are deterministic test doubles; a live DSH
 and Mem smoke test is still required to verify an installed release.
 
+The dedicated installed-host CI lane additionally packs the plugin, installs it
+into an isolated DSH 0.2.2-rc.2 headless profile, runs a real bash tool turn
+against the official loopback mock model, and checks that clean transcript
+capture completes before host exit. That lane uses a fixture CLI receipt rather
+than a production Mem destination; separate App/Cloud qualification uses actual
+nmem and disposable backend stores. Neither test reads your regular DSH profile.
+
 GitHub Actions runs ESLint and tests on every pull request and push to `main`.
 The test matrix covers Ubuntu and Windows with Node.js 24 and DSH 0.1.7-rc.1,
-0.2.1-alpha.1, and 0.2.1-rc.2. It also checks the npm package contents with `npm pack --dry-run`.
+0.2.1-alpha.1, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 and 0.2.2-rc.2.
+It also checks the package contents with `npm pack --dry-run`; installation is
+from Git, not an independently published npm release.
+
+Thanks to BBleae (晴猫) for the PowerShell and human-only recall fixes (#19, #26,
+#27), and vizmoe for qualifying newer host previews (#24).

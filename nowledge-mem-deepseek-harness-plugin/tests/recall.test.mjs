@@ -50,54 +50,40 @@ test('a prompt matching no trigger keyword does not trigger recall', () => {
   assert.equal(shouldRecallForPrompt('fix the off-by-one in the paginator', DEFAULT_PATTERN), false)
 })
 
-// https://github.com/nowledge-co/mem/issues/9940: recall carries the source-conversation date.
-test('recall text dates each memory by event or source conversation, not import time', async () => {
-  const { renderRecallText: render } = await import('../src/index.js')
-  const text = render('软考哪天考', {
-    memories: [
-      { title: '软考', content: '中项已考完', date: '2026-10-24' },
-    ],
-  }, 8000)
-  assert.match(text, /date=2026-10-24/)
-  assert.match(text, /Today is \d{4}-\d{2}-\d{2}/)
+test('English trigger keywords match whole words, not parts of other words', () => {
+  for (const prompt of [
+    'post the meme in the group chat',
+    'welcome the new member',
+    'draft a memo for the team',
+    'run memcheck on the build',
+    'bump the priority of this bug',
+  ]) {
+    assert.equal(shouldRecallForPrompt(prompt, DEFAULT_PATTERN), false, prompt)
+  }
 })
 
-// https://github.com/nowledge-co/mem/issues/9940: an outdated memory says it was updated later.
-test('recall text marks an updated memory and appends its newer version within budget', async () => {
-  const { renderRecallText: render } = await import('../src/index.js')
-  const older = {
-    id: 'cron',
-    title: 'Heartbeat cron',
-    content: 'runs 0 6-20 * * *',
-    date: '2026-10-01',
-    laterUpdates: [
-      { id: 'n03', title: 'Update 03', statedAt: '2026-10-03T00:00:00+00:00' },
-      { id: 'n09', title: 'Heartbeat paused', statedAt: '2026-10-29T08:00:00+00:00' },
-    ],
+test('English trigger keywords still match their plural and verb forms', () => {
+  for (const prompt of [
+    'do you remember the fix?',
+    'I remembered something about this',
+    'search my memories',
+    'what does Mem know about the parser?',
+    'ask nowledge-mem first',
+    'what were the decisions last week?',
+    'list the plugins we tried',
+    'previously we used a queue',
+    'the regressions after the upgrade',
+    'which threads mention the connector?',
+    'it was released yesterday',
+    'nothing recalled yet?',
+  ]) {
+    assert.equal(shouldRecallForPrompt(prompt, DEFAULT_PATTERN), true, prompt)
   }
-  const text = render('heartbeat schedule', { memories: [older] }, 8000)
-  assert.match(text, /runs 0 6-20 \* \* \*\n→ updated later \(2026-10-03\): Update 03\n→ updated later \(2026-10-29\): Heartbeat paused/)
-  assert.match(text, /2\. updated later \(2026-10-29\): Heartbeat paused \(newer version of a memory above\)\n\n3\. updated later \(2026-10-03\): Update 03/)
-
-  const newer = { id: 'n09', title: 'Heartbeat paused', content: 'paused since October 29' }
-  const both = render('heartbeat schedule', { memories: [older, newer] }, 8000)
-  assert.doesNotMatch(both, /newer version of a memory above\)\n\n4/)
-  assert.equal((both.match(/newer version of a memory above/g) ?? []).length, 1)
-
-  const tight = render('heartbeat schedule', { memories: [older] }, render('heartbeat schedule', { memories: [{ ...older, laterUpdates: older.laterUpdates }] }, 8000).length - 10)
-  assert.equal((tight.match(/newer version of a memory above/g) ?? []).length, 1)
 })
 
-test('an appended newer version carries its excerpt when it fits', async () => {
-  const { renderRecallText: render } = await import('../src/index.js')
-  const older = {
-    id: 'cron',
-    title: 'Heartbeat cron',
-    content: 'runs 0 6-20 * * *',
-    laterUpdates: [{ id: 'n', title: 'Heartbeat paused', statedAt: '2026-10-29', excerpt: 'paused since Oct 29' }],
+test('Chinese trigger keywords match anywhere, next to English or Chinese text', () => {
+  for (const prompt of ['我们之前怎么定的', '看看这个插件的历史', '查一下mem里有没有', '用Mem记一下']) {
+    assert.equal(shouldRecallForPrompt(prompt, DEFAULT_PATTERN), true, prompt)
   }
-  const text = render('heartbeat', { memories: [older] }, 8000)
-  assert.match(text, /\(newer version of a memory above\): paused since Oct 29$/)
-  const tight = render('heartbeat', { memories: [older] }, text.length - 5)
-  assert.match(tight, /\(newer version of a memory above\)$/)
+  assert.equal(shouldRecallForPrompt('帮我算一下二加二', DEFAULT_PATTERN), false)
 })

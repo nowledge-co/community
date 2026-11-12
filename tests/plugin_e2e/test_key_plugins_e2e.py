@@ -1711,7 +1711,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.1.8"
+    assert dsh["version"] == "0.2.0"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1824,7 +1824,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.1.8"
+    assert pkg["version"] == "0.2.0"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
@@ -1862,7 +1862,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "export const inject = ['agents', 'sessions', 'shell']" in source
     assert "ctx.on('agent/pre-step'" in source
     assert "ctx.on('session/event'" in source
-    assert "event.type === 'turn/end'" in source
+    assert "event?.type === 'turn/end'" in source
     assert "SANDBOX_UNAVAILABLE" in sandbox_retry
     assert "isSandboxUnavailableError" in source
     assert "runShellWithHostSandboxRetry(" in source
@@ -1872,14 +1872,14 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "pre-step context injection failed" in source
     assert "turn-end transcript import failed" in source
     assert "'--json', 'context', '--source-app', config.sourceApp" in source
-    assert "'--json', 'm', 'search', query" in source
+    assert "'--json', 'm', 'search', '-n', String(config.recallLimit), '--', query" in source
     assert "NMEM_IMPORT_ORIGIN" in source
     assert "--source" in source and "deepseek-harness" in source
     assert "transcriptMessage(event)" in session_capture
     transcript = (DEEPSEEK_HARNESS_PLUGIN / "src" / "transcript.js").read_text(encoding="utf-8")
     assert "message?.source?.kind === 'user'" in transcript
-    assert "block.type === 'tool-call'" in transcript
-    assert "block.type === 'text'" in transcript
+    assert "block?.type === 'tool-call'" in transcript
+    assert "block?.type === 'text'" in transcript
     assert "dsh plugin --profile web add github:nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "nowledge-co/nowledge-mem-deepseek-harness" in readme
     assert "dsh-plugin" in readme
