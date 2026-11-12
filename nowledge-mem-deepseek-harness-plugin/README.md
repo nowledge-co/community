@@ -156,7 +156,8 @@ or Space contains whitespace, use percent encoding (listing already returns
 copyable encoded session IDs).
 
 Preview shows the exact destination address, Space, selected IDs, titles and
-clean message counts, and writes no transcript. It uses the effective nmem CLI
+clean message counts, validates the exact Space ID against the authenticated
+roster, and writes no transcript. It uses the effective nmem CLI
 connection, including persisted client settings; App, Access Anywhere and Cloud
 all use that same CLI path. Check the address and Space before confirming.
 The one-use token belongs to this human command session, expires in ten minutes,

@@ -452,7 +452,7 @@ export function apply(ctx, config = {}) {
   const resolved = resolveConfig(config)
   // Optional capabilities: older hosts retain automatic capture and recall.
   ctx.inject?.(['commands', 'sessionQuery'], child => {
-    child.commands.register(historyCommand(child, resolved, async signal => {
+    child.commands.register(historyCommand(child, resolved, async (signal, spaceId) => {
       const output = successfulStdout(await runNmem(child, resolved,
         ['--json', 'config', 'mcp', 'show', '--host', 'deepseek-harness'], signal, false,
       ))
@@ -462,7 +462,17 @@ export function apply(ctx, config = {}) {
       const headers = data.config?.mcpServers?.['nowledge-mem']?.headers
       const key = headers?.['X-NMEM-API-Key'] ?? headers?.Authorization?.replace(/^Bearer /u, '') ?? ''
       if (typeof key !== 'string' || (data.apiKeyConfigured === true && key === '')) throw new Error('cannot pin connection credentials')
-      return { url: data.apiUrl, env: { NMEM_API_URL: data.apiUrl, NMEM_API_KEY: key } }
+      const env = { NMEM_API_URL: data.apiUrl, NMEM_API_KEY: key }
+      const roster = JSON.parse(successfulStdout(await runNmem(child,
+        { ...resolved, spaceId: undefined, connectionEnv: { ...env, NMEM_SPACE: '' } },
+        ['--json', 'spaces', 'list'], signal, false,
+      )))
+      // Current Cloud CLI governance rows use space_id; App roster rows use id.
+      if (!Array.isArray(roster.spaces) || !roster.spaces.some(space =>
+        (space?.id ?? space?.space_id) === spaceId
+        && (space.state === undefined || space.state === 'active')
+      )) throw new Error('unknown exact Space ID')
+      return { url: data.apiUrl, env }
     }, importSession))
   })
   const contextFailures = new WeakMap()
