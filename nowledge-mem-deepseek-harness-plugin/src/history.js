@@ -100,11 +100,16 @@ export function historyCommand(ctx, config, resolveConnection, importSession, no
           const offset = args.length === 0 ? 0 : Number(args[0])
           if (args.length > 1 || !Number.isSafeInteger(offset) || offset < 0 || offset > 100_000) return { kind: 'error', text: USAGE }
           const page = allowed.slice(offset, offset + PAGE_SIZE)
-          return { kind: 'success', text: `${page.map(record => encodeURIComponent(record.header.id)).join('\n') || 'No eligible persisted sessions in this workspace.'}\nNext offset: ${offset + page.length}; total eligible: ${allowed.length}.` }
+          const empty = allowed.length === 0 ? 'No eligible persisted sessions in this workspace.' : 'End of list.'
+          const next = offset + page.length < allowed.length ? offset + page.length : 'none'
+          return { kind: 'success', text: `${page.map(record => encodeURIComponent(record.header.id)).join('\n') || empty}\nNext offset: ${next}; total eligible: ${allowed.length}.` }
         }
         if (action !== 'preview' || args.length < 2 || args.length > 11) return { kind: 'error', text: USAGE }
         forget(owner)
-        const [spaceId, ...ids] = args.map(value => decodeURIComponent(value))
+        let decoded
+        try { decoded = args.map(value => decodeURIComponent(value)) }
+        catch { return { kind: 'error', text: 'Invalid percent encoding in a Space or session ID; copy encoded IDs from list, then preview again.' } }
+        const [spaceId, ...ids] = decoded
         if (spaceId.length > 1024 || ids.some(id => id.length > 1024) || new Set(ids).size !== ids.length) return { kind: 'error', text: 'Use one explicit Space ID and 1–10 distinct session IDs (max 1024 characters each).' }
         const connection = await resolveConnection(signal, spaceId)
         signal.throwIfAborted()

@@ -48,6 +48,26 @@ test('listing is metadata-only and limited to persisted top-level workspace sess
   assert.equal(f.writes.length, 0)
 })
 
+test('an exhausted list page says end of list rather than no eligible sessions', async () => {
+  const f = fixture()
+  f.ctx.sessionQuery.listSessions = async () => Array.from({ length: 50 }, (_, i) => ({ persisted: true, header: { id: `old-${i}`, cwd: '/synthetic' } }))
+  const first = await f.run('list')
+  assert.match(first.text, /Next offset: none; total eligible: 50/u)
+  const exhausted = await f.run('list 50')
+  assert.match(exhausted.text, /End of list/u)
+  assert.doesNotMatch(exhausted.text, /No eligible persisted/u)
+})
+
+test('bad percent encoding is an input error without transcript reads or writes', async () => {
+  const f = fixture()
+  const result = await f.run('preview space old%')
+  assert.equal(result.kind, 'error')
+  assert.match(result.text, /percent encoding/u)
+  assert.doesNotMatch(result.text, /connection|host services/u)
+  assert.equal(f.reads.length, 0)
+  assert.equal(f.writes.length, 0)
+})
+
 test('preview is write-free, clean, frozen, scoped and one-use', async () => {
   const f = fixture()
   const preview = await f.run('preview exact%20space old')
