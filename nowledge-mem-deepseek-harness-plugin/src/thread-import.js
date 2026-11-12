@@ -53,7 +53,7 @@ export function buildThreadImportArgs({
     stableThreadId(sessionId),
     `--title=${payload.title}`,
   ]
-  if (spaceId !== undefined) args.push('--space-id', spaceId)
+  if (spaceId !== undefined) args.push(`--space-id=${spaceId}`)
   if (agentId !== undefined) args.push('--agent-id', agentId)
   if (expectedMessageCount === undefined) return args
 

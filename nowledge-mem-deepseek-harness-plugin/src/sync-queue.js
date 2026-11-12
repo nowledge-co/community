@@ -1,7 +1,10 @@
 /** Serialize capture per Session and retain only acknowledged checkpoints. */
 export function createSyncQueue(operation, onError, now = Date.now) {
   const cursors = new WeakMap(), tails = new WeakMap(), failures = new WeakMap()
-  return session => {
+  const pending = new Set()
+  let closed = false
+  const enqueue = session => {
+    if (closed) return Promise.resolve()
     const task = (tails.get(session) ?? Promise.resolve()).catch(() => undefined).then(async () => {
       const failure = failures.get(session)
       if (failure !== undefined && now() < failure.retryAt) return
@@ -23,6 +26,13 @@ export function createSyncQueue(operation, onError, now = Date.now) {
       }
     })
     tails.set(session, task)
+    pending.add(task)
+    void task.then(() => pending.delete(task), () => pending.delete(task))
     return task
   }
+  enqueue.close = async () => {
+    closed = true
+    await Promise.allSettled(pending)
+  }
+  return enqueue
 }

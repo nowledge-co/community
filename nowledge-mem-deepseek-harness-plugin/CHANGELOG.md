@@ -4,6 +4,12 @@
 
 ## 0.2.0
 
+- Drains already queued turn capture during graceful unload so completed
+  headless sessions are imported before the host exits; qualified with a real
+  installed DSH launcher, tool turn and packed plugin.
+- A cancelled pre-step does not delay healthy startup context on the next turn;
+  dash-prefixed exact Space IDs remain CLI option values.
+
 - Adds human-only `/mem-backfill`: metadata listing, explicit selected-session
   preview and one-use confirmation. No startup scan/upload; requires optional
   DSH commands/sessionQuery services (qualified on 0.2.2-rc.2).

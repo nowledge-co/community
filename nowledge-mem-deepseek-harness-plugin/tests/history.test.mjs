@@ -142,7 +142,7 @@ test('shell import pins connection and Space; replay and longer capture keep nat
   f.ctx.shell = { resolve: r => r, execute: async request => {
     assert.equal(request.env.NMEM_API_URL, 'https://synthetic.invalid/remote-api')
     assert.equal(request.env.NMEM_API_KEY, 'synthetic-secret')
-    assert.match(request.command, /--space-id space/u)
+    assert.match(request.command, /--space-id=space/u)
     ids.push(request.command.match(/--id (\S+)/u)[1])
     const match = request.command.match(/--file (?:'([^']+)'|(\S+))/u)
     const payload = JSON.parse(await readFile(match[1] ?? match[2], 'utf8'))

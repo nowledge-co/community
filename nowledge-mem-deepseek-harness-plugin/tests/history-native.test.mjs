@@ -39,7 +39,7 @@ test(`native 0.2.2-rc.2 command/query preview/apply with ${spaceField} roster`, 
           assert.equal(request.env.NMEM_SPACE, '')
           body = { spaces: [{ [spaceField]: 'exact-space' }] }
         } else {
-          assert.match(request.command, /--space-id exact-space/u)
+          assert.match(request.command, /--space-id=exact-space/u)
           assert.equal(request.env.NMEM_API_URL, 'http://127.0.0.1:1')
           const match = request.command.match(/--file (?:'([^']+)'|(\S+))/u)
           const payload = JSON.parse(await readFile(match[1] ?? match[2], 'utf8'))

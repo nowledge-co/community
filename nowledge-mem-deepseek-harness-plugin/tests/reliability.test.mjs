@@ -53,6 +53,26 @@ test('context failure backs off per session and reports a content-free diagnosti
   assert.equal(probe.warnings.length, 1)
 })
 
+test('cancelled pre-step does not back off a healthy context load on the next turn', async () => {
+  const listeners = new Map(), controller = new AbortController()
+  let calls = 0
+  const ctx = {
+    on: (name, listener) => listeners.set(name, listener),
+    shell: { resolve: r => r, execute: async () => ({ result: async () => {
+      calls++
+      if (calls === 1) { controller.abort(); return { exitCode: 0, aborted: true, stdout: { text: '' } } }
+      return { exitCode: 0, stdout: { text: '{"context":"synthetic"}' } }
+    } }) },
+  }
+  apply(ctx, { recallOnPrompt: false, syncOnTurnEnd: false })
+  const current = session([]), decision = { kind: 'enter', messages: [] }
+  const step = signal => listeners.get('agent/pre-step')({ agent: { session: current }, signal }, async () => decision)
+  assert.equal(await step(controller.signal), decision)
+  const next = await step(new AbortController().signal)
+  assert.equal(calls, 2)
+  assert.equal(next.messages.length, 1)
+})
+
 test('injection preserves host decision metadata', async () => {
   const probe = host({}, { exitCode: 0, signal: null, stdout: { text: '{"context":"synthetic"}' } })
   const decision = await probe.step({ kind: 'enter', startsRequestSeries: true, messages: [] })
@@ -126,4 +146,26 @@ test('queued turn-end failures back off rather than FULL-send on every notificat
   now = 2000
   await enqueue(current)
   assert.equal(requests.length, 2)
+})
+
+test('plugin teardown drains already queued turn capture before returning', async () => {
+  const listeners = new Map(), disposers = [], entered = Promise.withResolvers(), flush = Promise.withResolvers()
+  let imports = 0
+  const ctx = {
+    on: (name, listener) => listeners.set(name, listener),
+    effect: setup => disposers.push(setup()),
+    sessions: { flush: async () => { entered.resolve(); await flush.promise } },
+    shell: { resolve: request => request, execute: async () => {
+      imports++
+      return { result: async () => ({ exitCode: 0, stdout: { text: '{"success":true,"results":[{"success":true,"message_count":1}]}' } }) }
+    } },
+  }
+  apply(ctx, { contextOnSessionStart: false, recallOnPrompt: false })
+  const current = session([event(0, 'user/message', user('Synthetic shutdown question'))])
+  listeners.get('session/event')(current, { type: 'turn/end' })
+  await entered.promise
+  const disposing = Promise.all(disposers.map(dispose => dispose()))
+  flush.resolve()
+  await disposing
+  assert.equal(imports, 1)
 })

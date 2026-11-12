@@ -5,6 +5,12 @@ import {
   buildThreadImportArgs,
   sessionThreadTitle,
 } from '../src/thread-import.js'
+
+test('dash-prefixed exact Space ID stays one option value', () => {
+  const args = buildThreadImportArgs({ file: 'qa.json', sourceApp: 'deepseek-harness', sessionId: 'qa', payload: { title: 'Synthetic', messages: [] }, spaceId: '-exact-qa' })
+  assert.ok(args.includes('--space-id=-exact-qa'))
+  assert.equal(args.includes('-exact-qa'), false)
+})
 import { hasContextBundle } from '../src/context.js'
 import { flushBeforeImport } from '../src/session-flush.js'
 

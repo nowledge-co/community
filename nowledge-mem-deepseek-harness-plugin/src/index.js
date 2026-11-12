@@ -488,6 +488,7 @@ export function apply(ctx, config = {}) {
         if (failure === undefined || Date.now() >= failure.retryAt) {
           let contextMessage
           try { contextMessage = await loadContextMessage(ctx, resolved, signal, agent.session) } catch { /* retry below */ }
+          if (signal.aborted) return decision
           if (contextMessage !== undefined) {
             additions.push(contextMessage)
             contextFailures.delete(agent.session)
@@ -522,6 +523,7 @@ export function apply(ctx, config = {}) {
   }, () => {
     warn(ctx, 'nowledge-mem: turn-end transcript import failed; retaining checkpoint; ensure DSH_HOME is readable outside sandbox /tmp')
   })
+  ctx.effect?.(() => () => enqueueSync.close())
 
   if (resolved.syncOnTurnEnd) {
     ctx.on('session/event', (session, event) => {

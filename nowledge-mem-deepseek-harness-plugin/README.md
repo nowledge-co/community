@@ -190,7 +190,9 @@ structured JSON used for stable message IDs, so it is not an equivalent transpor
 
 Failed captures retain their last acknowledged checkpoint and retry on a later
 turn after exponential backoff (1 second, capped at 60 seconds). No background
-upload timer runs. A checkpointed append may retry once with a full transcript;
+upload timer runs. Graceful plugin teardown drains already queued captures,
+including a completed headless turn; host forced-exit deadlines still apply.
+A checkpointed append may retry once with a full transcript;
 an initial full import is already reconciliation and is not immediately repeated.
 Persistent conflicts need inspection of the existing Thread, not deletion or a
 new identity. Warnings distinguish timeout, process failure, invalid JSON and
@@ -236,6 +238,13 @@ and Session implementations and validate context and recall in both durable
 user-message and inbox-splice rows using the official v4 admission validator.
 CLI responses and shell execution are deterministic test doubles; a live DSH
 and Mem smoke test is still required to verify an installed release.
+
+The dedicated installed-host CI lane additionally packs the plugin, installs it
+into an isolated DSH 0.2.2-rc.2 headless profile, runs a real bash tool turn
+against the official loopback mock model, and checks that clean transcript
+capture completes before host exit. That lane uses a fixture CLI receipt rather
+than a production Mem destination; separate App/Cloud qualification uses actual
+nmem and disposable backend stores. Neither test reads your regular DSH profile.
 
 GitHub Actions runs ESLint and tests on every pull request and push to `main`.
 The test matrix covers Ubuntu and Windows with Node.js 24 and DSH 0.1.7-rc.1,
