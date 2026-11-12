@@ -1,12 +1,12 @@
 {
   "name": "nowledge-mem-deepseek-harness",
-  "version": "0.1.8",
-  "description": "Community DeepSeek Harness bundle for Nowledge Mem: Context Bundle, prompt-time recall, Mem MCP tools, and DSH thread capture.",
+  "version": "0.2.0",
+  "description": "One memory layer for every AI tool and agent, packaged for DeepSeek Harness with startup context, prompt-time recall, Mem MCP tools, and DSH thread capture.",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
     "lint": "eslint .",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --import ./tests/setup.mjs --test tests/*.test.mjs"
   },
   "exports": {
     ".": "./src/index.js",
@@ -59,11 +59,11 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.0 <5.0.0 || 4.0.5-alpha.1",
-    "@deepseek-ai/dsh-agent": ">=0.1.0-rc.5 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-llm": ">=0.0.1-rc.1 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-mcp-client": ">=0.0.1-rc.1 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-session": ">=0.0.1-rc.1 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2",
-    "@deepseek-ai/dsh-shell": ">=0.0.1-rc.5 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2"
+    "@deepseek-ai/dsh-agent": ">=0.1.0-rc.5 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.5 || 0.2.2-rc.1 || 0.2.2-rc.2",
+    "@deepseek-ai/dsh-llm": ">=0.0.1-rc.1 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.5 || 0.2.2-rc.1 || 0.2.2-rc.2",
+    "@deepseek-ai/dsh-mcp-client": ">=0.0.1-rc.1 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.5 || 0.2.2-rc.1 || 0.2.2-rc.2",
+    "@deepseek-ai/dsh-session": ">=0.0.1-rc.1 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.5 || 0.2.2-rc.1 || 0.2.2-rc.2",
+    "@deepseek-ai/dsh-shell": ">=0.0.1-rc.5 <0.2.0 || 0.1.5-rc.2 || 0.1.7-rc.1 || 0.2.1-alpha.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.5 || 0.2.2-rc.1 || 0.2.2-rc.2"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {

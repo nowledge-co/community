@@ -1,11 +1,47 @@
 # Changelog
 
-## [0.1.8] - Unreleased
+## Unreleased
 
-### Changed
+## 0.2.0
 
-- Mark fallback save dates explicitly rather than presenting them as event dates; verify conflicting evidence against its sources.
-- Each recalled memory now carries a `date=` with when the event happened or when its source conversation took place, and the recall block states today's date.
+- Adds human-only `/mem-backfill`: metadata listing, explicit selected-session
+  preview and one-use confirmation. No startup scan/upload; requires optional
+  DSH commands/sessionQuery services (qualified on 0.2.2-rc.2).
+- Pins the preview's CLI connection and exact Space for up to ten minutes;
+  preserves clean conversation projection and native identities, with bounded
+  selections, cancellation and per-session outcomes.
+- Serializes historical and automatic imports of the same DSH session within
+  the process; native reconciliation still guards concurrent external writers.
+
+## 0.1.9
+
+- Retains recalled event/source dates, explicit saved-date fallback and later
+  update evidence already shipped in the community mirror's 0.1.8 rendering.
+
+- Keeps capture running past malformed event data, missing content/source and
+  invalid timestamps. Safe existing session IDs stay stable; opaque IDs use a
+  collision-resistant namespace instead of collapsing after sanitization.
+- Stages private import files under DSH_HOME (default ~/.dsh), outside Linux's
+  sandbox-hidden /tmp, and removes each payload after its attempt.
+- Reports content-free import failure categories and backs off failed context
+  loads and turn captures. A checkpoint conflict can reconcile once; an initial
+  FULL conflict is diagnosed without rewriting existing Threads.
+- Preserves host decision fields such as startsRequestSeries during injection.
+- Falls back to default recall matching when the optional custom regex is invalid.
+- Admits DSH 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 and 0.2.2-rc.2 with an expanded
+  Windows/Linux test matrix; unknown previews remain excluded.
+
+- Prompt-time recall triggers and searches only on text the user typed
+  (`source.kind: "user"`). Runtime context, background job notices with their
+  output, subagent reports, goal rounds, other plugins' context, tool results
+  and reasoning no longer start a search or become its query.
+- English recall keywords match whole words and their plural or verb forms, so
+  `mem` no longer fires on "meme", "member" or "memo", nor `prior` on
+  "priority". Chinese keywords still match as substrings.
+- Quotes nmem arguments for PowerShell on Windows. Text with an apostrophe or a
+  curly quote no longer makes the search or the Thread import fail or get split.
+- Passes flag-like search queries after -- and titles as --title=value so
+  user text cannot become a CLI option.
 
 ## 0.1.7
 

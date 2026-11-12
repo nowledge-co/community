@@ -17,6 +17,8 @@ function userEvent(seq, content, source = { kind: 'user' }) {
 }
 
 function argumentValue(args, name) {
+  const inline = args.find(arg => arg.startsWith(`${name}=`))
+  if (inline !== undefined) return inline.slice(name.length + 1)
   const index = args.indexOf(name)
   return index < 0 ? undefined : args[index + 1]
 }

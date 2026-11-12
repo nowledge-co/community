@@ -7,15 +7,16 @@
  * after completed turns.
  */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
 import { DEFAULT_PROMPT_RECALL_PATTERN, shouldRecallForPrompt } from './recall.js'
 import { hasContextBundle } from './context.js'
-import { isPluginSource } from './message-source.js'
+import { isHumanInput } from './transcript.js'
+import { shellCommand, shellQuote } from './shell-quote.js'
 import { flushBeforeImport } from './session-flush.js'
 import {
   errorMessage,
@@ -25,6 +26,8 @@ import {
 } from './sandbox-retry.js'
 import { importResultAcknowledgement } from './session-delta.js'
 import { captureSession } from './session-capture.js'
+import { createSyncQueue } from './sync-queue.js'
+import { historyCommand } from './history.js'
 import {
   boundText,
   buildThreadImportArgs,
@@ -78,6 +81,10 @@ function requireSafeInteger(field, value, minimum) {
 }
 
 function resolveConfig(config = {}) {
+  let promptRecallPattern
+  let invalidRecallPattern = false
+  try { promptRecallPattern = new RegExp(config.promptRecallPattern ?? DEFAULT_PROMPT_RECALL_PATTERN, 'iu') }
+  catch { promptRecallPattern = new RegExp(DEFAULT_PROMPT_RECALL_PATTERN, 'iu'); invalidRecallPattern = true }
   const resolved = {
     cliPath: optionalString(config.cliPath) ?? DEFAULT_CLI_PATH,
     sourceApp: optionalString(config.sourceApp) ?? DEFAULT_SOURCE_APP,
@@ -86,7 +93,8 @@ function resolveConfig(config = {}) {
     recallOnPrompt: config.recallOnPrompt ?? true,
     syncOnTurnEnd: config.syncOnTurnEnd ?? true,
     allowDangerFullAccessRetry: config.allowDangerFullAccessRetry ?? false,
-    promptRecallPattern: new RegExp(config.promptRecallPattern ?? DEFAULT_PROMPT_RECALL_PATTERN, 'iu'),
+    promptRecallPattern,
+    invalidRecallPattern,
     recallLimit: config.recallLimit ?? DEFAULT_RECALL_LIMIT,
     maxPromptChars: config.maxPromptChars ?? DEFAULT_PROMPT_MAX_CHARS,
     maxContextChars: config.maxContextChars ?? DEFAULT_CONTEXT_MAX_CHARS,
@@ -108,13 +116,10 @@ function resolveConfig(config = {}) {
   return resolved
 }
 
-export function shellQuote(value) {
-  if (/^[A-Za-z0-9_./:=@%+-]+$/.test(value)) return value
-  return `'${value.replaceAll("'", "'\\''")}'`
-}
+export { shellQuote }
 
 function envFor(config, includeImportOrigin) {
-  const env = {}
+  const env = { ...config.connectionEnv }
   if (includeImportOrigin) env.NMEM_IMPORT_ORIGIN = config.importOrigin
   if (config.spaceId !== undefined) env.NMEM_SPACE = config.spaceId
   if (config.agentId !== undefined) env.NMEM_AGENT_ID = config.agentId
@@ -125,7 +130,7 @@ function envFor(config, includeImportOrigin) {
 export { isSandboxUnavailableError }
 
 async function runNmem(ctx, config, args, signal, includeImportOrigin, stdin, session) {
-  const command = [config.cliPath, ...args].map(shellQuote).join(' ')
+  const command = shellCommand(config.cliPath, args)
   const request = {
     command,
     timeoutMs: config.commandTimeoutMs,
@@ -144,12 +149,13 @@ async function runNmem(ctx, config, args, signal, includeImportOrigin, stdin, se
 
 function successfulStdout(result) {
   if (result === undefined) return undefined
-  if (result.exitCode !== 0 || result.signal !== null || result.timedOut || result.aborted) return undefined
-  const text = result.stdout.text.trim()
+  if (result.exitCode !== 0 || result.signal != null || result.timedOut || result.aborted) return undefined
+  const text = result.stdout?.text?.trim() ?? ''
   return text === '' ? undefined : text
 }
 
 function textFromBlock(block) {
+  if (!block || typeof block !== 'object') return ''
   switch (block.type) {
     case 'text':
       return block.text
@@ -167,21 +173,37 @@ function textFromBlock(block) {
 }
 
 export function blocksToText(blocks) {
+  if (typeof blocks === 'string') return blocks
+  if (!Array.isArray(blocks)) return ''
   return blocks
     .map(textFromBlock)
-    .filter(part => part.trim() !== '')
+    .filter(part => typeof part === 'string' && part.trim() !== '')
     .join('\n')
 }
 
-function messageText(message) {
-  return blocksToText(message.content)
+function typedText(message) {
+  if (typeof message.content === 'string') return message.content
+  if (!Array.isArray(message.content)) return ''
+  return message.content
+    .filter(block => block?.type === 'text' && typeof block.text === 'string')
+    .map(block => block.text)
+    .filter(text => text.trim() !== '')
+    .join('\n')
 }
 
+/**
+ * The recall prompt is what the user typed into this step, and it is both the
+ * trigger and the search query. The step's other messages are not: user-role
+ * context from the host and other plugins (runtime context, background job
+ * notices with command output, subagent reports, goal rounds), tool results,
+ * and model reasoning or tool calls. Any of them can contain a trigger word,
+ * and on later steps of a tool-using turn they are usually all that enters.
+ */
 function proposedPromptText(messages, maxChars) {
   const text = messages
-    .filter(message => !isPluginSource(message.source, name))
-    .map(messageText)
-    .filter(part => part.trim() !== '')
+    .filter(isHumanInput)
+    .map(typedText)
+    .filter(part => part !== '')
     .join('\n\n')
     .trim()
   return boundText(text, maxChars)
@@ -325,7 +347,7 @@ async function loadRecallMessage(ctx, config, query, signal, session) {
   const output = successfulStdout(await runNmem(
     ctx,
     config,
-    ['--json', 'm', 'search', query, '-n', String(config.recallLimit)],
+    ['--json', 'm', 'search', '-n', String(config.recallLimit), '--', query],
     signal,
     false,
     undefined,
@@ -343,7 +365,19 @@ export function buildThreadImportPayload(session, maxMessageChars, sourceApp = D
   }).deltaFrom(-1)?.payload
 }
 
-async function importSession(ctx, config, session, cursor) {
+const importLanes = new Map()
+
+export function importSession(ctx, config, session, cursor, signal) {
+  const id = String(session.header.id)
+  const previous = importLanes.get(id) ?? Promise.resolve()
+  const task = previous.catch(() => undefined).then(() => performImport(ctx, config, session, cursor, signal))
+  importLanes.set(id, task)
+  const retire = () => { if (importLanes.get(id) === task) importLanes.delete(id) }
+  void task.then(retire, retire)
+  return task
+}
+
+async function performImport(ctx, config, session, cursor, signal) {
   const capture = captureSession(session, {
     sourceApp: config.sourceApp,
     maxMessageChars: config.maxThreadMessageChars,
@@ -352,8 +386,17 @@ async function importSession(ctx, config, session, cursor) {
   const { sessionId, title } = capture
   let delta = capture.deltaFrom(cursor?.seq ?? -1)
   if (delta === undefined) return undefined
+  signal?.throwIfAborted()
   let payload = delta.payload
-  const staging = await mkdtemp(join(tmpdir(), 'dsh-nowledge-mem-'))
+  const stagingRoot = join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'nowledge-mem', 'staging')
+  await mkdir(stagingRoot, { recursive: true, mode: 0o700 })
+  // workspace-write bwrap overlays /tmp with an empty filesystem. Do not
+  // silently widen sandbox policy when an explicitly temporary DSH_HOME is used.
+  const physicalRoot = await realpath(stagingRoot)
+  if (process.platform === 'linux' && (physicalRoot === '/tmp' || physicalRoot.startsWith('/tmp/'))) {
+    throw new Error('transcript staging unavailable: move DSH_HOME outside /tmp for sandbox visibility')
+  }
+  const staging = await mkdtemp(join(stagingRoot, 'import-'))
   const file = join(staging, 'thread.json')
   try {
     const expectedMessageCount = cursor !== undefined && !delta.reset ? cursor.count : undefined
@@ -367,7 +410,7 @@ async function importSession(ctx, config, session, cursor) {
       expectedMessageCount,
     })
     await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
-    let result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
+    let result = await runNmem(ctx, config, importArgs, signal, true, undefined, session)
     let acknowledgement = importResultAcknowledgement(
       result,
       expectedMessageCount !== undefined,
@@ -386,10 +429,15 @@ async function importSession(ctx, config, session, cursor) {
         agentId: config.agentId,
       })
       await writeFile(file, JSON.stringify(payload), { mode: 0o600 })
-      result = await runNmem(ctx, config, importArgs, undefined, true, undefined, session)
+      signal?.throwIfAborted()
+      result = await runNmem(ctx, config, importArgs, signal, true, undefined, session)
       acknowledgement = importResultAcknowledgement(result, false)
     }
-    if (acknowledgement.status !== 'acknowledged') return undefined
+    if (acknowledgement.status !== 'acknowledged') {
+      const reason = acknowledgement.reason ?? 'full-reconciliation-conflict'
+      warn(ctx, `nowledge-mem: transcript import not acknowledged (${reason}); retaining checkpoint for retry`)
+      return { failed: true }
+    }
     return {
       seq: delta.acknowledgedSeq,
       count: acknowledgement.messageCount,
@@ -402,8 +450,23 @@ async function importSession(ctx, config, session, cursor) {
 
 export function apply(ctx, config = {}) {
   const resolved = resolveConfig(config)
-  const syncedCursor = new WeakMap()
-  const syncTail = new WeakMap()
+  // Optional capabilities: older hosts retain automatic capture and recall.
+  ctx.inject?.(['commands', 'sessionQuery'], child => {
+    child.commands.register(historyCommand(child, resolved, async signal => {
+      const output = successfulStdout(await runNmem(child, resolved,
+        ['--json', 'config', 'mcp', 'show', '--host', 'deepseek-harness'], signal, false,
+      ))
+      const data = JSON.parse(output)
+      const url = new URL(data.apiUrl)
+      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('unsafe connection URL')
+      const headers = data.config?.mcpServers?.['nowledge-mem']?.headers
+      const key = headers?.['X-NMEM-API-Key'] ?? headers?.Authorization?.replace(/^Bearer /u, '') ?? ''
+      if (typeof key !== 'string' || (data.apiKeyConfigured === true && key === '')) throw new Error('cannot pin connection credentials')
+      return { url: data.apiUrl, env: { NMEM_API_URL: data.apiUrl, NMEM_API_KEY: key } }
+    }, importSession))
+  })
+  const contextFailures = new WeakMap()
+  if (resolved.invalidRecallPattern) warn(ctx, 'nowledge-mem: invalid promptRecallPattern; using the default recall pattern')
 
   ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
     const decision = await next()
@@ -411,8 +474,19 @@ export function apply(ctx, config = {}) {
     try {
       const additions = []
       if (resolved.contextOnSessionStart && !hasContextBundle(agent.session, name)) {
-        const contextMessage = await loadContextMessage(ctx, resolved, signal, agent.session)
-        if (contextMessage !== undefined) additions.push(contextMessage)
+        const failure = contextFailures.get(agent.session)
+        if (failure === undefined || Date.now() >= failure.retryAt) {
+          let contextMessage
+          try { contextMessage = await loadContextMessage(ctx, resolved, signal, agent.session) } catch { /* retry below */ }
+          if (contextMessage !== undefined) {
+            additions.push(contextMessage)
+            contextFailures.delete(agent.session)
+          } else {
+            const attempts = Math.min((failure?.attempts ?? 0) + 1, 7)
+            contextFailures.set(agent.session, { attempts, retryAt: Date.now() + Math.min(1000 * 2 ** (attempts - 1), 60_000) })
+            warn(ctx, 'nowledge-mem: startup context unavailable; backing off before retry')
+          }
+        }
       }
       if (resolved.recallOnPrompt) {
         const query = proposedPromptText(decision.messages, resolved.maxPromptChars)
@@ -422,44 +496,26 @@ export function apply(ctx, config = {}) {
         }
       }
       if (additions.length === 0) return decision
-      return { kind: 'enter', messages: [...decision.messages, ...additions] }
-    } catch (error) {
-      warn(ctx, `nowledge-mem: pre-step context injection failed: ${errorMessage(error)}`)
+      return { ...decision, messages: [...decision.messages, ...additions] }
+    } catch {
+      warn(ctx, 'nowledge-mem: pre-step context injection failed; keeping the host decision')
       return decision
     }
   }, { prepend: true })
 
-  const enqueueSync = session => {
-    const previous = syncTail.get(session) ?? Promise.resolve()
-    const next = previous
-      .catch(() => undefined)
-      .then(async () => {
-        try {
-          // DSH persistence is write-behind. Make the session log durable before
-          // exporting its events, while keeping Mem capture fail-open if the
-          // host persistence backend is unavailable.
-          await flushBeforeImport(
-            ctx,
-            session,
-            error => warn(ctx, `nowledge-mem: DSH session flush failed before transcript import: ${errorMessage(error)}`),
-          )
-          const acknowledgedCursor = await importSession(
-            ctx,
-            resolved,
-            session,
-            syncedCursor.get(session),
-          )
-          if (acknowledgedCursor !== undefined) syncedCursor.set(session, acknowledgedCursor)
-        } catch (error) {
-          warn(ctx, `nowledge-mem: turn-end transcript import failed: ${errorMessage(error)}`)
-        }
-      })
-    syncTail.set(session, next)
-  }
+  const enqueueSync = createSyncQueue(async (session, cursor) => {
+    // DSH persistence is write-behind; keep capture fail-open on flush errors.
+    await flushBeforeImport(ctx, session, error => warn(ctx,
+      `nowledge-mem: DSH session flush failed before transcript import: ${errorMessage(error)}`,
+    ))
+    return await importSession(ctx, resolved, session, cursor)
+  }, () => {
+    warn(ctx, 'nowledge-mem: turn-end transcript import failed; retaining checkpoint; ensure DSH_HOME is readable outside sandbox /tmp')
+  })
 
   if (resolved.syncOnTurnEnd) {
     ctx.on('session/event', (session, event) => {
-      if (event.type === 'turn/end') void enqueueSync(session)
+      if (event?.type === 'turn/end') void enqueueSync(session)
     })
   }
 }
