@@ -23,7 +23,7 @@ jobs:
   publish:
     if: github.repository == 'nowledge-co/community' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     environment: clawhub
     permissions:
       contents: read
