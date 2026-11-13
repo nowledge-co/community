@@ -14,6 +14,7 @@ from test_remote_credentials import client_module
 def test_product_identity_survives_cloud_and_app_requests(monkeypatch, tmp_path, base_path, plugin):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("NMEM_API_KEY", "synthetic-only")
     calls = []
 
     class Handler(BaseHTTPRequestHandler):

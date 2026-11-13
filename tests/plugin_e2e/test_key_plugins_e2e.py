@@ -513,7 +513,7 @@ def test_key_plugin_static_contracts_are_declared():
         if line.startswith("version:")
     )
     assert "name: nowledge-mem" in hermes_manifest
-    assert "version: 0.5.27" in hermes_manifest
+    assert "version: 0.5.28" in hermes_manifest
     assert registry_by_id["hermes"]["version"] == hermes_version
     for hook in (
         "prefetch",
@@ -599,7 +599,7 @@ def test_key_plugin_static_contracts_are_declared():
     proma_hook = (PROMA_PLUGIN / "hooks" / "read-working-memory.py").read_text(encoding="utf-8")
     proma_save_hook = (PROMA_PLUGIN / "hooks" / "save-to-nmem.py").read_text(encoding="utf-8")
     proma_hooks = _read_json(PROMA_PLUGIN / "hooks" / "hooks.json")
-    assert proma_manifest["version"] == "0.1.7"
+    assert proma_manifest["version"] == "0.1.8"
     assert proma_hooks["installPath"] == "~/.proma/sdk-config/.claude/settings.json"
     assert proma_hooks["scriptInstallPath"] == "~/.proma/scripts/"
     assert "UserPromptSubmit" in proma_hooks["hooks"]
@@ -1587,7 +1587,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "save-thread" in by_id["cursor"]["skills"]
     assert by_id["droid"]["version"] == "0.1.2"
     assert by_id["openclaw"]["version"] == "0.8.43"
-    assert by_id["proma"]["version"] == "0.1.7"
+    assert by_id["proma"]["version"] == "0.1.8"
     assert by_id["opencode"]["version"] == "0.4.9"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
     assert by_id["pi"]["version"] == "0.8.18"
