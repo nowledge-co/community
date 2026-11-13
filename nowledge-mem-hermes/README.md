@@ -228,6 +228,7 @@ Use `SOUL.md` for your own durable memory preferences and `HERMES.md` for repo-s
 
 - **"Nowledge Mem server not reachable"**: Verify the desktop app is running. Check with `nmem status`.
 - **"nmem CLI not found"**: Install with `pip install nmem-cli`, or enable CLI in the desktop app: Settings > Developer Tools.
+- **"Mem API error 403: error code: 1010"**: Update/reinstall the provider to 0.5.28 or later and restart Hermes. Earlier versions sent Python's default HTTP identity, which Cloudflare can block before Mem checks your key. This affects both Cloud and App endpoints behind Access Anywhere; changing your subscription, Space or API key does not fix that edge refusal. If it persists after updating, share only the endpoint hostname, plugin version and Cloudflare Ray ID with support, never your key.
 - **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. On older Hermes builds, rerun the setup command; it also places a compatibility copy under `~/.hermes/hermes-agent/plugins/memory/nowledge-mem/` when that runtime still discovers providers from the bundled memory directory. Restart Hermes after reinstalling.
 - **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
 - **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`. If sessions were missed before an update, run `nmem t sync --from hermes --apply` once from the Hermes machine to import local history.
@@ -246,7 +247,7 @@ bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/now
 After updating, the script prints the version and endpoint from the files it actually wrote:
 
 ```text
-Installed version: 0.5.27
+Installed version: 0.5.28
 Thread import endpoint: /threads/import
 ```
 

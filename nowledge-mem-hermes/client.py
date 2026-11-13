@@ -558,7 +558,11 @@ class NowledgeMemClient:
         HTTP so long sessions are not serialized into a single argv token.
         """
         api_url = self._api_url().rstrip("/")
-        headers = {"Content-Type": "application/json", "X-Nmem-Space-Protocol": "exact-v1"}
+        headers = {
+            "Content-Type": "application/json",
+            "X-Nmem-Space-Protocol": "exact-v1",
+            "User-Agent": "NowledgeMem-Hermes/0.5.28",
+        }
         api_key = self._api_key()
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.28] - 2026-11-14
+
+- Identify roster, transcript import and append requests as NowledgeMem-Hermes instead of Python urllib. This avoids Cloudflare Browser Integrity Check 1010 on Cloud and Access Anywhere without impersonating a browser or changing server security rules.
+
 ## [0.5.27] - 2026-11-12
 
 - Refuse HTTP redirects for transcript and Space-roster requests so credentials

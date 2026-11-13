@@ -1478,7 +1478,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.27",
+      "version": "0.5.28",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
@@ -2196,7 +2196,7 @@
       "name": "Proma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "directory": "nowledge-mem-proma-plugin",
       "transport": "mcp",
       "capabilities": {

@@ -19,7 +19,7 @@ raw-ID header. This declaration does not grant authorization.
 
 | Producer | Transport and delivery |
 | --- | --- |
-| Hermes | Direct import/append; Git installer; 0.5.27 |
+| Hermes | Direct import/append; Git installer; 0.5.28 |
 | OpenClaw | REST create/append/read; npm + ClawHub; 0.8.43 |
 | Pi | Live and historical REST create/append; npm; 0.8.18 |
 | OMP / Step Code | Pi runtime wrappers; npm; 0.1.6 / 0.1.4 |
@@ -27,7 +27,7 @@ raw-ID header. This declaration does not grant authorization.
 | Amp | REST create/append; Git install; 0.1.9 |
 | Alma | REST create/append/read; folder + external marketplace; 0.7.12 |
 | OpenHands | REST import/recovery; Git install; 0.1.3 |
-| Proma | REST create/append; Git install; 0.1.7 |
+| Proma | REST create/append; Git install; 0.1.8 |
 | LangGraph | Sync/async REST import and MCP headers; PyPI; 0.1.3 |
 | Pydantic AI | REST import and MCP headers; source distribution; 0.1.1 |
 | Codex, Claude Code, Kimi, Dim, Cherry Studio, Bub | Transcript upload uses the CLI; no separate direct-HTTP capture factory found |

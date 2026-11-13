@@ -1,5 +1,9 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## [0.1.8] - 2026-11-14
+
+- Send a truthful versioned NowledgeMem-Proma User-Agent on direct HTTP fallback requests so Cloudflare does not mistake session sync for a default urllib client. Covers Cloud and Access Anywhere without changing authentication or server security rules.
+
 ## [0.1.7] - 2026-11-12
 
 - Refuse HTTP redirects on authenticated API requests, preserving the configured
