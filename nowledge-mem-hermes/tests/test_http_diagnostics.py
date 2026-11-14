@@ -454,3 +454,32 @@ def test_recursive_response_is_a_correlated_provider_warning(
     assert fields["cf_ray"] == RAY_ID and fields["request_id"] == REQUEST_ID
     assert fields["error_code"] is None
     assert instance._pending_message_batches[instance._session_id] == [messages[-1]]
+
+
+@pytest.mark.parametrize("append", [False, True])
+def test_integer_conversion_failure_is_a_correlated_provider_warning(backend, caplog, append):
+    state, _ = backend
+    instance = provider.NowledgeMemProvider()
+    instance._client = client_module.NowledgeMemClient()
+    instance._cron_skipped = False
+    instance._session_id = "synthetic-session-id"
+    messages = [{"role": "user", "content": PRIVATE}]
+    if append:
+        initial = [{"role": "user", "content": "synthetic-acknowledged-prefix"}]
+        state.update(status=200, body=b'{"success":true}')
+        instance.on_session_end(initial)
+        messages = initial + messages
+    state.update(
+        status=200,
+        body=b"9" * 5000,
+        headers=[("CF-Ray", RAY_ID), ("X-Nmem-Request-Id", REQUEST_ID)],
+    )
+    with caplog.at_level(logging.WARNING, logger=provider.__name__):
+        instance.on_session_end(messages)
+    record = next(record for record in caplog.records if "session " in record.getMessage())
+    fields = diagnostics(record.getMessage())
+    assert "9" * 50 not in record.getMessage()
+    assert fields["failure"] == "invalid_json"
+    assert fields["status"] == 200
+    assert fields["cf_ray"] == RAY_ID and fields["request_id"] == REQUEST_ID
+    assert instance._pending_message_batches[instance._session_id] == [messages[-1]]

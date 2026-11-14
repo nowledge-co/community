@@ -749,7 +749,7 @@ class NowledgeMemClient:
             return {}
         try:
             parsed = json.loads(raw)
-        except (json.JSONDecodeError, RecursionError) as error:
+        except (ValueError, RecursionError) as error:
             raise _http_failure(
                 url, method, "invalid_json", status=status, headers=response_headers,
             ) from error
