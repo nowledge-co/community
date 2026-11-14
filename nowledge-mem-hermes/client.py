@@ -723,7 +723,7 @@ class NowledgeMemClient:
                             edge_error_code = marker[1].decode("ascii")
                     try:
                         error_payload = json.loads(error_body)
-                    except (ValueError, UnicodeDecodeError):
+                    except (ValueError, RecursionError):
                         pass
             except (OSError, HTTPException):
                 pass
@@ -749,7 +749,7 @@ class NowledgeMemClient:
             return {}
         try:
             parsed = json.loads(raw)
-        except json.JSONDecodeError as error:
+        except (json.JSONDecodeError, RecursionError) as error:
             raise _http_failure(
                 url, method, "invalid_json", status=status, headers=response_headers,
             ) from error

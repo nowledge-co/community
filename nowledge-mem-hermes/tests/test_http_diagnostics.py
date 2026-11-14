@@ -411,3 +411,46 @@ def test_transcript_encoding_failure_is_a_safe_provider_warning(backend, caplog,
     assert fields["failure"] == "request"
     assert fields["status"] is None
     assert instance._pending_message_batches[instance._session_id] == [messages[-1]]
+
+
+@pytest.mark.parametrize("append", [False, True])
+@pytest.mark.parametrize("status", [200, 422])
+def test_recursive_response_is_a_correlated_provider_warning(
+    backend, monkeypatch, caplog, append, status
+):
+    state, _ = backend
+    instance = provider.NowledgeMemProvider()
+    instance._client = client_module.NowledgeMemClient()
+    instance._cron_skipped = False
+    instance._session_id = "synthetic-session-id"
+    messages = [{"role": "user", "content": PRIVATE}]
+    if append:
+        initial = [{"role": "user", "content": "synthetic-acknowledged-prefix"}]
+        state.update(status=200, body=b'{"success":true}')
+        instance.on_session_end(initial)
+        messages = initial + messages
+    body = b"[" * 1500 + json.dumps(PRIVATE).encode() + b"]" * 1500
+    assert len(body) <= 4096
+    decode = json.loads
+
+    def recursion_limited_decode(value, *args, **kwargs):
+        # Decoder recursion limits differ across supported Python versions.
+        if value in (body, body.decode()):
+            raise RecursionError(PRIVATE)
+        return decode(value, *args, **kwargs)
+
+    monkeypatch.setattr(client_module.json, "loads", recursion_limited_decode)
+    state.update(
+        status=status,
+        body=body,
+        headers=[("CF-Ray", RAY_ID), ("X-Nmem-Request-Id", REQUEST_ID)],
+    )
+    with caplog.at_level(logging.WARNING, logger=provider.__name__):
+        instance.on_session_end(messages)
+    record = next(record for record in caplog.records if "session " in record.getMessage())
+    fields = diagnostics(record.getMessage())
+    assert fields["failure"] == ("invalid_json" if status == 200 else "http")
+    assert fields["status"] == status
+    assert fields["cf_ray"] == RAY_ID and fields["request_id"] == REQUEST_ID
+    assert fields["error_code"] is None
+    assert instance._pending_message_batches[instance._session_id] == [messages[-1]]
