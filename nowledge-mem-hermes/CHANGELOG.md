@@ -3,7 +3,7 @@
 ## [0.5.29] - 2026-11-14
 
 - Preserve UTC time, plugin identity, HTTP method, route template, status and validated Cloudflare Ray / Mem Request IDs in direct HTTP failure diagnostics. A missing ID remains absent, including refusals before the application runs.
-- Exclude response bodies, raw transport exception text, query strings and dynamic thread IDs from HTTP failure summaries. Transcript import and append exception warnings no longer include the session ID; pending messages and recovery behavior are preserved.
+- Exclude response bodies, raw transport exception text, query strings and dynamic thread IDs from HTTP failure summaries and HTTP-200 negative-acknowledgement warnings. Retain known application error codes and boolean retryability. Pending messages and legacy already-exists recovery are preserved; typed already-exists receipts can also recover by append.
 
 ## [0.5.28] - 2026-11-14
 

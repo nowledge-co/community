@@ -34,6 +34,35 @@ DEFAULT_API_URL = "http://127.0.0.1:14242"
 CONFIG_PATH = os.path.expanduser("~/.nowledge-mem/config.json")
 _CMD_ENV_EXPANSION_RE = re.compile(r"%[A-Za-z_][A-Za-z0-9_]*%")
 PRODUCT_USER_AGENT = "NowledgeMem-Hermes/0.5.29"
+_KNOWN_ERROR_CODES = frozenset({
+    "space_client_upgrade_required", "checkpoint_conflict", "thread_already_exists",
+})
+
+
+class _HTTPResult(dict):
+    """Keep response-local support context outside the JSON payload."""
+
+    def __init__(self, payload: Dict[str, Any], failure: RuntimeError) -> None:
+        super().__init__(payload)
+        self.failure_summary = str(failure)
+
+
+def _application_error_fields(payload: Any) -> tuple[Optional[str], Optional[bool]]:
+    if not isinstance(payload, dict):
+        return None, None
+    candidate = payload
+    if candidate.get("error_code") is None and isinstance(payload.get("results"), list):
+        candidate = next(
+            (item for item in payload["results"]
+             if isinstance(item, dict) and item.get("success") is False),
+            payload,
+        )
+    code = candidate.get("error_code")
+    retryable = candidate.get("retryable")
+    return (
+        code if isinstance(code, str) and code in _KNOWN_ERROR_CODES else None,
+        retryable if isinstance(retryable, bool) else None,
+    )
 
 
 def _correlation_header(headers: Any, name: str, pattern: str) -> Optional[str]:
@@ -52,6 +81,7 @@ def _http_failure(
     status: Optional[int] = None,
     headers: Any = None,
     edge_error_code: Optional[str] = None,
+    payload: Any = None,
 ) -> RuntimeError:
     """Project only bounded support fields; response content is not log data."""
     path = urlparse.urlsplit(request.full_url).path
@@ -64,6 +94,7 @@ def _http_failure(
     else:
         route = "unknown"
     method = request.get_method()
+    error_code, retryable = _application_error_fields(payload)
     fields = {
         "time_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "plugin_version": PRODUCT_USER_AGENT.split("/", 1)[1],
@@ -78,6 +109,8 @@ def _http_failure(
             r"[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
         ),
         "edge_error_code": edge_error_code,
+        "error_code": error_code,
+        "retryable": retryable,
     }
     summary = f"Mem API error {status}" if failure == "http" else f"Mem API {failure} failure"
     return RuntimeError(f"{summary}; diagnostics={json.dumps(fields, separators=(',', ':'))}")
@@ -653,22 +686,26 @@ class NowledgeMemClient:
                 raw = response.read().decode("utf-8")
         except urlerror.HTTPError as error:
             edge_error_code = None
+            error_payload = None
             try:
-                # Retain only the edge's numeric marker, never arbitrary error text.
-                edge_body = error.read(65)
-                marker = (
-                    re.fullmatch(rb"\s*error code: ([0-9]{4,5})\s*", edge_body)
-                    if len(edge_body) < 65 else None
-                )
-                if marker:
-                    edge_error_code = marker[1].decode("ascii")
+                # Only complete, bounded error bodies can supply safe typed fields.
+                error_body = error.read(4097)
+                if len(error_body) <= 4096:
+                    if len(error_body) < 65:
+                        marker = re.fullmatch(rb"\s*error code: ([0-9]{4,5})\s*", error_body)
+                        if marker:
+                            edge_error_code = marker[1].decode("ascii")
+                    try:
+                        error_payload = json.loads(error_body)
+                    except (ValueError, UnicodeDecodeError):
+                        pass
             except (OSError, HTTPException):
                 pass
             finally:
                 error.close()
             raise _http_failure(
                 request, "http", status=error.code, headers=error.headers,
-                edge_error_code=edge_error_code,
+                edge_error_code=edge_error_code, payload=error_payload,
             ) from error
         except (urlerror.URLError, OSError, HTTPException) as error:
             raise _http_failure(
@@ -682,11 +719,16 @@ class NowledgeMemClient:
         if not raw.strip():
             return {}
         try:
-            return json.loads(raw)
+            parsed = json.loads(raw)
         except json.JSONDecodeError as error:
             raise _http_failure(
                 request, "invalid_json", status=status, headers=response_headers,
             ) from error
+        if isinstance(parsed, dict):
+            return _HTTPResult(parsed, _http_failure(
+                request, "application", status=status, headers=response_headers, payload=parsed,
+            ))
+        return parsed
 
     @staticmethod
     def _load_cli_config() -> Dict[str, Any]:

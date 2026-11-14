@@ -803,8 +803,7 @@ class NowledgeMemProvider(MemoryProvider):
                         return
                     self._remember_pending_messages(session_id, messages_to_write)
                     logger.warning(
-                        "Nowledge Mem session import did not succeed for %s: %s",
-                        session_id,
+                        "Nowledge Mem session import did not succeed: %s",
                         self._response_error(result),
                     )
                     return
@@ -1026,19 +1025,21 @@ class NowledgeMemProvider(MemoryProvider):
 
     @staticmethod
     def _thread_already_exists(result: Any) -> bool:
-        return "already exists" in NowledgeMemProvider._response_error(result).lower()
+        if not isinstance(result, dict):
+            return False
+        candidates = [result]
+        if isinstance(result.get("results"), list):
+            candidates.extend(item for item in result["results"] if isinstance(item, dict))
+        # Legacy receipts used prose; keep it internal and never infer a typed code.
+        return any(
+            item.get("error_code") == "thread_already_exists"
+            or "already exists" in str(item.get("error", "")).lower()
+            for item in candidates
+        )
 
     @staticmethod
     def _response_error(result: Any) -> str:
-        if not isinstance(result, dict):
-            return str(result)
-        errors: List[str] = []
-        if result.get("error"):
-            errors.append(str(result.get("error")))
-        for item in result.get("results") or []:
-            if isinstance(item, dict) and item.get("error"):
-                errors.append(str(item.get("error")))
-        return "; ".join(errors) or json.dumps(result, ensure_ascii=False)[:300]
+        return getattr(result, "failure_summary", "Mem API did not acknowledge the request")
 
     @staticmethod
     def _load_config(hermes_home: str) -> Dict[str, Any]:
