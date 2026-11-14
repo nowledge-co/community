@@ -249,6 +249,8 @@ def test_provider_warning_correlates_failure_and_retains_pending_messages(
         ("space_client_upgrade_required", False, "space_client_upgrade_required", False),
         ("checkpoint_conflict", True, "checkpoint_conflict", True),
         ("thread_already_exists", False, "thread_already_exists", False),
+        ("unregistered_write_space", False, None, False),
+        ("space_conflict", False, None, False),
         ("synthetic_private_content", "private", None, None),
         ("x" * 1000, 1, None, None),
     ],
@@ -296,3 +298,116 @@ def test_already_exists_negative_receipt_still_recovers_by_append(backend, typed
     ]
     assert instance._session_id not in instance._pending_message_batches
     assert not caplog.records
+
+
+@pytest.mark.parametrize(
+    "operation,status,code,code_field,retryable",
+    [
+        ("append", 400, "thread_not_found", "error_code", None),
+        ("append", 409, "checkpoint_conflict", "error_code", None),
+        ("append", 409, "thread_share_snapshot_immutable", "error_code", False),
+        ("append", 402, "team_subscription_lapsed", "code", False),
+        ("import", 200, "write_space_unavailable", "error_code", False),
+        ("import", 200, "personal_zone_owner_only", "error_code", False),
+        ("roster", 503, "team_state_busy", "error_code", True),
+    ],
+)
+def test_provider_warning_preserves_registered_rejection_cause(
+    backend, caplog, operation, status, code, code_field, retryable
+):
+    state, _ = backend
+    instance = provider.NowledgeMemProvider()
+    instance._client = client_module.NowledgeMemClient(
+        space="Work" if operation == "roster" else None,
+    )
+    instance._cron_skipped = False
+    instance._session_id = "synthetic-session-id"
+    messages = [{"role": "user", "content": PRIVATE}]
+    if operation == "append":
+        initial = [{"role": "user", "content": "synthetic-acknowledged-prefix"}]
+        state.update(status=200, body=b'{"success":true}')
+        instance.on_session_end(initial)
+        messages = initial + messages
+    rejection = {"success": False, code_field: code, "detail": PRIVATE}
+    if retryable is not None:
+        rejection["retryable"] = retryable
+    payload = {"success": False, "results": [rejection]} if status == 200 else rejection
+    state.update(status=status, body=json.dumps(payload).encode())
+    with caplog.at_level(logging.WARNING, logger=provider.__name__):
+        instance.on_session_end(messages)
+    record = next(record for record in caplog.records if "session " in record.getMessage())
+    fields = diagnostics(record.getMessage())
+    assert fields["error_code"] == code
+    assert fields["retryable"] is retryable
+    assert fields["status"] == status
+    assert fields["route"] == (
+        "/spaces" if operation == "roster"
+        else "/threads/{thread_id}/append" if operation == "append"
+        else "/threads/import"
+    )
+    assert instance._pending_message_batches[instance._session_id] == [messages[-1]]
+
+
+@pytest.mark.parametrize("operation", ["import", "append", "roster"])
+@pytest.mark.parametrize(
+    "misconfiguration",
+    ["missing_scheme", "unicode_path", "invalid_authority", "invalid_header"],
+)
+def test_request_preparation_failures_are_safe_provider_warnings(
+    backend, monkeypatch, caplog, operation, misconfiguration
+):
+    state, _ = backend
+    instance = provider.NowledgeMemProvider()
+    instance._client = client_module.NowledgeMemClient(
+        space="Work" if operation == "roster" else None,
+    )
+    instance._cron_skipped = False
+    instance._session_id = "synthetic-session-id"
+    messages = [{"role": "user", "content": PRIVATE}]
+    if operation == "append":
+        initial = [{"role": "user", "content": "synthetic-acknowledged-prefix"}]
+        state.update(status=200, body=b'{"success":true}')
+        instance.on_session_end(initial)
+        messages = initial + messages
+    if misconfiguration == "missing_scheme":
+        monkeypatch.setenv("NMEM_API_URL", "//example.invalid")
+    elif misconfiguration == "unicode_path":
+        monkeypatch.setenv(
+            "NMEM_API_URL", client_module.NowledgeMemClient._api_url() + "/\u2603" + PRIVATE,
+        )
+    elif misconfiguration == "invalid_authority":
+        monkeypatch.setenv(
+            "NMEM_API_URL", "http://synthetic-api-key@" + PRIVATE + "\uff0fexample.invalid",
+        )
+    else:
+        monkeypatch.setenv("NMEM_API_KEY", "synthetic-api-key\n" + PRIVATE)
+    with caplog.at_level(logging.WARNING, logger=provider.__name__):
+        instance.on_session_end(messages)
+    record = next(record for record in caplog.records if "session " in record.getMessage())
+    fields = diagnostics(record.getMessage())
+    assert fields["failure"] == "request"
+    assert fields["status"] is None
+    assert fields["request_id"] is None and fields["cf_ray"] is None
+    assert instance._pending_message_batches[instance._session_id] == [messages[-1]]
+
+
+@pytest.mark.parametrize("append", [False, True])
+def test_transcript_encoding_failure_is_a_safe_provider_warning(backend, caplog, append):
+    state, _ = backend
+    instance = provider.NowledgeMemProvider()
+    instance._client = client_module.NowledgeMemClient()
+    instance._cron_skipped = False
+    instance._session_id = "synthetic-session-id"
+    messages = [{"role": "user", "content": PRIVATE + "\ud800"}]
+    if append:
+        initial = [{"role": "user", "content": "synthetic-acknowledged-prefix"}]
+        state.update(status=200, body=b'{"success":true}')
+        instance.on_session_end(initial)
+        messages = initial + messages
+    with caplog.at_level(logging.WARNING, logger=provider.__name__):
+        instance.on_session_end(messages)
+    record = next(record for record in caplog.records if "session " in record.getMessage())
+    fields = diagnostics(record.getMessage())
+    assert fields["failure"] == "request"
+    assert fields["status"] is None
+    assert instance._pending_message_batches[instance._session_id] == [messages[-1]]

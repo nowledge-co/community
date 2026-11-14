@@ -34,8 +34,24 @@ DEFAULT_API_URL = "http://127.0.0.1:14242"
 CONFIG_PATH = os.path.expanduser("~/.nowledge-mem/config.json")
 _CMD_ENV_EXPANSION_RE = re.compile(r"%[A-Za-z_][A-Za-z0-9_]*%")
 PRODUCT_USER_AGENT = "NowledgeMem-Hermes/0.5.29"
+# Registered causes reachable from transcript capture and its admission boundaries.
+# Keep this finite: arbitrary server strings are not safe diagnostic fields.
 _KNOWN_ERROR_CODES = frozenset({
-    "space_client_upgrade_required", "checkpoint_conflict", "thread_already_exists",
+    "checkpoint_conflict", "thread_already_exists", "thread_not_found",
+    "write_space_unavailable", "personal_zone_owner_only",
+    "personal_audience_widening_refused", "workspace_write_role_required",
+    "local_backend_shutting_down", "local_graph_identity_recovery_required",
+    "local_graph_mirror_resolution_required", "local_graph_mirror_publication_required",
+    "team_caller_denied", "team_state_path_unavailable", "team_state_busy",
+    "team_state_lock_failed", "team_state_invalid", "team_state_unreadable",
+    "remote_access_not_configured", "remote_access_state_busy",
+    "remote_access_state_lock_failed", "remote_credential_revoked", "nas_bootstrap_claim_failed",
+    "write_destination_required", "thread_capture_authority_busy",
+    "thread_capture_authority_unavailable", "thread_share_snapshot_immutable",
+    "team_subscription_lapsed", "storage_admission_unavailable",
+    "workspace_deletion_frozen", "workspace_deletion_owner_required",
+    "workspace_deletion_storage_unavailable",
+    "space_client_upgrade_required", "unsupported_space_protocol",
 })
 
 
@@ -58,6 +74,9 @@ def _application_error_fields(payload: Any) -> tuple[Optional[str], Optional[boo
             payload,
         )
     code = candidate.get("error_code")
+    if code is None:
+        # Older admission responses use `code` for the same registered cause.
+        code = candidate.get("code")
     retryable = candidate.get("retryable")
     return (
         code if isinstance(code, str) and code in _KNOWN_ERROR_CODES else None,
@@ -75,7 +94,8 @@ def _correlation_header(headers: Any, name: str, pattern: str) -> Optional[str]:
 
 
 def _http_failure(
-    request: urlrequest.Request,
+    url: str,
+    method: str,
     failure: str,
     *,
     status: Optional[int] = None,
@@ -84,7 +104,10 @@ def _http_failure(
     payload: Any = None,
 ) -> RuntimeError:
     """Project only bounded support fields; response content is not log data."""
-    path = urlparse.urlsplit(request.full_url).path
+    try:
+        path = urlparse.urlsplit(url).path
+    except ValueError:
+        path = ""
     if path.startswith("/remote-api/"):
         path = path[len("/remote-api"):]
     if path in ("/spaces", "/threads/import"):
@@ -93,7 +116,6 @@ def _http_failure(
         route = "/threads/{thread_id}/append"
     else:
         route = "unknown"
-    method = request.get_method()
     error_code, retryable = _application_error_fields(payload)
     fields = {
         "time_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -653,9 +675,11 @@ class NowledgeMemClient:
 
         if self._has_explicit_space and self._space and "space_id" in payload:
             payload = {**payload, "space_id": self._http_space(api_url, headers)}
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-
         url = f"{api_url}{path}"
+        try:
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        except ValueError as error:
+            raise _http_failure(url, "POST", "request") from error
         try:
             return self._request_json(url, body, headers)
         except RuntimeError as first_error:
@@ -676,10 +700,12 @@ class NowledgeMemClient:
         *,
         method: str = "POST",
     ) -> Any:
-        request = urlrequest.Request(url, data=None if method == "GET" else body, headers=headers, method=method)
         response_headers = None
         status = None
         try:
+            request = urlrequest.Request(
+                url, data=None if method == "GET" else body, headers=headers, method=method,
+            )
             with _urlopen(request, timeout=self._timeout) as response:
                 response_headers = getattr(response, "headers", None)
                 status = getattr(response, "status", None)
@@ -704,17 +730,20 @@ class NowledgeMemClient:
             finally:
                 error.close()
             raise _http_failure(
-                request, "http", status=error.code, headers=error.headers,
+                url, method, "http", status=error.code, headers=error.headers,
                 edge_error_code=edge_error_code, payload=error_payload,
             ) from error
         except (urlerror.URLError, OSError, HTTPException) as error:
             raise _http_failure(
-                request, "transport", status=status, headers=response_headers,
+                url, method, "transport", status=status, headers=response_headers,
             ) from error
         except UnicodeDecodeError as error:
             raise _http_failure(
-                request, "invalid_encoding", status=status, headers=response_headers,
+                url, method, "invalid_encoding", status=status, headers=response_headers,
             ) from error
+        except ValueError as error:
+            # URL/header validation and request encoding errors can echo secrets.
+            raise _http_failure(url, method, "request") from error
 
         if not raw.strip():
             return {}
@@ -722,11 +751,11 @@ class NowledgeMemClient:
             parsed = json.loads(raw)
         except json.JSONDecodeError as error:
             raise _http_failure(
-                request, "invalid_json", status=status, headers=response_headers,
+                url, method, "invalid_json", status=status, headers=response_headers,
             ) from error
         if isinstance(parsed, dict):
             return _HTTPResult(parsed, _http_failure(
-                request, "application", status=status, headers=response_headers, payload=parsed,
+                url, method, "application", status=status, headers=response_headers, payload=parsed,
             ))
         return parsed
 
@@ -764,7 +793,10 @@ class NowledgeMemClient:
             if candidate not in urls:
                 urls.append(candidate)
 
-        parsed = urlparse.urlsplit(url)
+        try:
+            parsed = urlparse.urlsplit(url)
+        except ValueError:
+            return []
         path = parsed.path or ""
         if path == "/remote-api":
             stripped_path = "/"
