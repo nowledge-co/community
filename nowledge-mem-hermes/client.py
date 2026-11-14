@@ -21,6 +21,8 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
+from http.client import HTTPException
 from typing import Any, Dict, List, Optional
 from urllib import error as urlerror
 from urllib import parse as urlparse
@@ -31,6 +33,109 @@ logger = logging.getLogger(__name__)
 DEFAULT_API_URL = "http://127.0.0.1:14242"
 CONFIG_PATH = os.path.expanduser("~/.nowledge-mem/config.json")
 _CMD_ENV_EXPANSION_RE = re.compile(r"%[A-Za-z_][A-Za-z0-9_]*%")
+PRODUCT_USER_AGENT = "NowledgeMem-Hermes/0.5.29"
+# Registered causes reachable from transcript capture and its admission boundaries.
+# Keep this finite: arbitrary server strings are not safe diagnostic fields.
+_KNOWN_ERROR_CODES = frozenset({
+    "checkpoint_conflict", "thread_already_exists", "thread_not_found",
+    "write_space_unavailable", "personal_zone_owner_only",
+    "personal_audience_widening_refused", "workspace_write_role_required",
+    "local_backend_shutting_down", "local_graph_identity_recovery_required",
+    "local_graph_mirror_resolution_required", "local_graph_mirror_publication_required",
+    "team_caller_denied", "team_state_path_unavailable", "team_state_busy",
+    "team_state_lock_failed", "team_state_invalid", "team_state_unreadable",
+    "remote_access_not_configured", "remote_access_state_busy",
+    "remote_access_state_lock_failed", "remote_credential_revoked", "nas_bootstrap_claim_failed",
+    "write_destination_required", "thread_capture_authority_busy",
+    "thread_capture_authority_unavailable", "thread_share_snapshot_immutable",
+    "team_subscription_lapsed", "storage_admission_unavailable",
+    "workspace_deletion_frozen", "workspace_deletion_owner_required",
+    "workspace_deletion_storage_unavailable",
+    "space_client_upgrade_required", "unsupported_space_protocol",
+})
+
+
+class _HTTPResult(dict):
+    """Keep response-local support context outside the JSON payload."""
+
+    def __init__(self, payload: Dict[str, Any], failure: RuntimeError) -> None:
+        super().__init__(payload)
+        self.failure_summary = str(failure)
+
+
+def _application_error_fields(payload: Any) -> tuple[Optional[str], Optional[bool]]:
+    if not isinstance(payload, dict):
+        return None, None
+    candidate = payload
+    if candidate.get("error_code") is None and isinstance(payload.get("results"), list):
+        candidate = next(
+            (item for item in payload["results"]
+             if isinstance(item, dict) and item.get("success") is False),
+            payload,
+        )
+    code = candidate.get("error_code")
+    if code is None:
+        # Older admission responses use `code` for the same registered cause.
+        code = candidate.get("code")
+    retryable = candidate.get("retryable")
+    return (
+        code if isinstance(code, str) and code in _KNOWN_ERROR_CODES else None,
+        retryable if isinstance(retryable, bool) else None,
+    )
+
+
+def _correlation_header(headers: Any, name: str, pattern: str) -> Optional[str]:
+    if headers is None:
+        return None
+    values = headers.get_all(name, [])
+    if len(values) != 1 or re.fullmatch(pattern, values[0]) is None:
+        return None
+    return values[0]
+
+
+def _http_failure(
+    url: str,
+    method: str,
+    failure: str,
+    *,
+    status: Optional[int] = None,
+    headers: Any = None,
+    edge_error_code: Optional[str] = None,
+    payload: Any = None,
+) -> RuntimeError:
+    """Project only bounded support fields; response content is not log data."""
+    try:
+        path = urlparse.urlsplit(url).path
+    except ValueError:
+        path = ""
+    if path.startswith("/remote-api/"):
+        path = path[len("/remote-api"):]
+    if path in ("/spaces", "/threads/import"):
+        route = path
+    elif re.fullmatch(r"/threads/[^/]+/append", path):
+        route = "/threads/{thread_id}/append"
+    else:
+        route = "unknown"
+    error_code, retryable = _application_error_fields(payload)
+    fields = {
+        "time_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "plugin_version": PRODUCT_USER_AGENT.split("/", 1)[1],
+        "user_agent": PRODUCT_USER_AGENT,
+        "method": method if method in ("GET", "POST") else "other",
+        "route": route,
+        "failure": failure,
+        "status": status,
+        "cf_ray": _correlation_header(headers, "CF-Ray", r"[0-9a-f]{16}(?:-[A-Z]{3})?"),
+        "request_id": _correlation_header(
+            headers, "X-Nmem-Request-Id",
+            r"[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+        ),
+        "edge_error_code": edge_error_code,
+        "error_code": error_code,
+        "retryable": retryable,
+    }
+    summary = f"Mem API error {status}" if failure == "http" else f"Mem API {failure} failure"
+    return RuntimeError(f"{summary}; diagnostics={json.dumps(fields, separators=(',', ':'))}")
 
 
 def _resolve_nmem() -> Optional[str]:
@@ -561,7 +666,7 @@ class NowledgeMemClient:
         headers = {
             "Content-Type": "application/json",
             "X-Nmem-Space-Protocol": "exact-v1",
-            "User-Agent": "NowledgeMem-Hermes/0.5.28",
+            "User-Agent": PRODUCT_USER_AGENT,
         }
         api_key = self._api_key()
         if api_key:
@@ -570,9 +675,11 @@ class NowledgeMemClient:
 
         if self._has_explicit_space and self._space and "space_id" in payload:
             payload = {**payload, "space_id": self._http_space(api_url, headers)}
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-
         url = f"{api_url}{path}"
+        try:
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        except ValueError as error:
+            raise _http_failure(url, "POST", "request") from error
         try:
             return self._request_json(url, body, headers)
         except RuntimeError as first_error:
@@ -593,24 +700,64 @@ class NowledgeMemClient:
         *,
         method: str = "POST",
     ) -> Any:
-        request = urlrequest.Request(url, data=None if method == "GET" else body, headers=headers, method=method)
+        response_headers = None
+        status = None
         try:
+            request = urlrequest.Request(
+                url, data=None if method == "GET" else body, headers=headers, method=method,
+            )
             with _urlopen(request, timeout=self._timeout) as response:
+                response_headers = getattr(response, "headers", None)
+                status = getattr(response, "status", None)
                 raw = response.read().decode("utf-8")
         except urlerror.HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")
-            raise RuntimeError(
-                f"Mem API error {error.code}: {detail[:300]}"
+            edge_error_code = None
+            error_payload = None
+            try:
+                # Only complete, bounded error bodies can supply safe typed fields.
+                error_body = error.read(4097)
+                if len(error_body) <= 4096:
+                    if len(error_body) < 65:
+                        marker = re.fullmatch(rb"\s*error code: ([0-9]{4,5})\s*", error_body)
+                        if marker:
+                            edge_error_code = marker[1].decode("ascii")
+                    try:
+                        error_payload = json.loads(error_body)
+                    except (ValueError, RecursionError):
+                        pass
+            except (OSError, HTTPException):
+                pass
+            finally:
+                error.close()
+            raise _http_failure(
+                url, method, "http", status=error.code, headers=error.headers,
+                edge_error_code=edge_error_code, payload=error_payload,
             ) from error
-        except urlerror.URLError as error:
-            raise RuntimeError(f"Cannot connect to Mem API: {error}") from error
+        except (urlerror.URLError, OSError, HTTPException) as error:
+            raise _http_failure(
+                url, method, "transport", status=status, headers=response_headers,
+            ) from error
+        except UnicodeDecodeError as error:
+            raise _http_failure(
+                url, method, "invalid_encoding", status=status, headers=response_headers,
+            ) from error
+        except ValueError as error:
+            # URL/header validation and request encoding errors can echo secrets.
+            raise _http_failure(url, method, "request") from error
 
         if not raw.strip():
             return {}
         try:
-            return json.loads(raw)
-        except json.JSONDecodeError as error:
-            raise RuntimeError(f"Mem API returned non-JSON output: {raw[:200]}") from error
+            parsed = json.loads(raw)
+        except (ValueError, RecursionError) as error:
+            raise _http_failure(
+                url, method, "invalid_json", status=status, headers=response_headers,
+            ) from error
+        if isinstance(parsed, dict):
+            return _HTTPResult(parsed, _http_failure(
+                url, method, "application", status=status, headers=response_headers, payload=parsed,
+            ))
+        return parsed
 
     @staticmethod
     def _load_cli_config() -> Dict[str, Any]:
@@ -646,7 +793,10 @@ class NowledgeMemClient:
             if candidate not in urls:
                 urls.append(candidate)
 
-        parsed = urlparse.urlsplit(url)
+        try:
+            parsed = urlparse.urlsplit(url)
+        except ValueError:
+            return []
         path = parsed.path or ""
         if path == "/remote-api":
             stripped_path = "/"

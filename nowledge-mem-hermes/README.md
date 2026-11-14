@@ -229,6 +229,7 @@ Use `SOUL.md` for your own durable memory preferences and `HERMES.md` for repo-s
 - **"Nowledge Mem server not reachable"**: Verify the desktop app is running. Check with `nmem status`.
 - **"nmem CLI not found"**: Install with `pip install nmem-cli`, or enable CLI in the desktop app: Settings > Developer Tools.
 - **"Mem API error 403: error code: 1010"**: Update/reinstall the provider to 0.5.28 or later and restart Hermes. Earlier versions sent Python's default HTTP identity, which Cloudflare can block before Mem checks your key. This affects both Cloud and App endpoints behind Access Anywhere; changing your subscription, Space or API key does not fix that edge refusal. If it persists after updating, share only the endpoint hostname, plugin version and Cloudflare Ray ID with support, never your key.
+- **HTTP failure diagnostics (0.5.29+)**: Direct import, append and Space-roster failures include one `diagnostics={...}` object in the existing Hermes warning/error channel. It contains `time_utc`, `plugin_version`, `user_agent`, `method`, a fixed `route` template, `failure`, `status`, `cf_ray`, `request_id`, an optional numeric `edge_error_code`, a known `error_code` and boolean `retryable` when available. A finite catalogue covers registered Thread, Space, identity and storage-admission causes, including `thread_not_found` and `checkpoint_conflict`; unknown codes remain `null`. HTTP-200 negative acknowledgements retain the same safe summary. Invalid request configuration uses `failure: "request"` without echoing the URL or credential. IDs are accepted only in their expected formats; missing, malformed or duplicated IDs are `null`. An edge refusal may have a Ray ID but no Mem Request ID. Transport failures may have neither. Share this diagnostic object and the endpoint hostname with support; it excludes response bodies, API keys, full URLs, query strings and thread IDs. This is request correlation evidence, not a complete distributed trace or proof of a successful save. Update/reinstall and restart Hermes to load the new code.
 - **Tools not appearing (plugin)**: Confirm `memory.provider: "nowledge-mem"` in config.yaml and plugin files exist in `~/.hermes/plugins/nowledge-mem/`. On older Hermes builds, rerun the setup command; it also places a compatibility copy under `~/.hermes/hermes-agent/plugins/memory/nowledge-mem/` when that runtime still discovers providers from the bundled memory directory. Restart Hermes after reinstalling.
 - **Tools not appearing (MCP)**: Confirm `mcp_servers.nowledge-mem` block in config.yaml. Restart Hermes.
 - **Hermes recalls but never saves**: In MCP mode, behavioral guidance may be missing from SOUL.md. In plugin mode, the guidance is built-in; check that the plugin loaded with `hermes memory status`. If sessions were missed before an update, run `nmem t sync --from hermes --apply` once from the Hermes machine to import local history.
@@ -247,7 +248,7 @@ bash <(curl -sL https://raw.githubusercontent.com/nowledge-co/community/main/now
 After updating, the script prints the version and endpoint from the files it actually wrote:
 
 ```text
-Installed version: 0.5.28
+Installed version: 0.5.29
 Thread import endpoint: /threads/import
 ```
 
