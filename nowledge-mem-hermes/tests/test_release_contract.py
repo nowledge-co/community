@@ -16,7 +16,7 @@ def test_hermes_manifest_matches_registry_and_documented_release():
         (plugin.parent / "integrations.json").read_text(encoding="utf-8")
     )
     hermes = next(item for item in registry["integrations"] if item["id"] == "hermes")
-    assert version == "0.5.28"
+    assert version == "0.5.29"
     assert f"NowledgeMem-Hermes/{version}" in (plugin / "client.py").read_text(encoding="utf-8")
     assert hermes["version"] == version
     assert f"## [{version}]" in (plugin / "CHANGELOG.md").read_text(encoding="utf-8")

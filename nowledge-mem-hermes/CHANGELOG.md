@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.29] - 2026-11-14
+
+- Preserve UTC time, plugin identity, HTTP method, route template, status and validated Cloudflare Ray / Mem Request IDs in direct HTTP failure diagnostics. A missing ID remains absent, including refusals before the application runs.
+- Exclude response bodies, raw transport exception text, query strings and dynamic thread IDs from HTTP failure summaries. Transcript import and append exception warnings no longer include the session ID; pending messages and recovery behavior are preserved.
+
 ## [0.5.28] - 2026-11-14
 
 - Identify roster, transcript import and append requests as NowledgeMem-Hermes instead of Python urllib. This avoids Cloudflare Browser Integrity Check 1010 on Cloud and Access Anywhere without impersonating a browser or changing server security rules.

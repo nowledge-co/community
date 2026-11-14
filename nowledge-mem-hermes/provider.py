@@ -810,8 +810,7 @@ class NowledgeMemProvider(MemoryProvider):
                     return
             except Exception as error:
                 logger.warning(
-                    "Nowledge Mem session import failed for %s: %s",
-                    session_id,
+                    "Nowledge Mem session import failed: %s",
                     error,
                 )
                 self._remember_pending_messages(session_id, messages_to_write)
@@ -828,8 +827,7 @@ class NowledgeMemProvider(MemoryProvider):
             self._append_existing_thread(session_id, messages_to_write)
         except Exception as error:
             logger.warning(
-                "Nowledge Mem session append failed for %s: %s",
-                session_id,
+                "Nowledge Mem session append failed: %s",
                 error,
             )
             self._remember_pending_messages(session_id, messages_to_write)
