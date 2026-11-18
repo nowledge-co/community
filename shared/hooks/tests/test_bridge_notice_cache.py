@@ -17,6 +17,54 @@ NOTICE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(NOTICE)
 
 
+def capture_owned(command, *, env, payload):
+    process = subprocess.Popen(
+        command,
+        shell=isinstance(command, str),
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        stdout, stderr = process.communicate(payload, timeout=1)
+        return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+    except subprocess.TimeoutExpired:
+        # Retain the parent's process handle until its whole owned tree has
+        # terminated; do not leave a pipe-holding Python after cmd times out.
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=2,
+                check=False,
+            )
+        process.kill()
+        process.communicate(timeout=1)
+        raise
+
+
+def windows_launch_diagnostics(env):
+    code = "import sys; print(sys.executable, flush=True); print(sys.version, flush=True); print(len(sys.stdin.buffer.read()), flush=True)"
+    diagnostics = []
+    for command in (
+        [sys.executable, "-c", code],
+        subprocess.list2cmdline(["py", "-3", "-c", code]),
+        subprocess.list2cmdline(["python", "-c", code]),
+    ):
+        try:
+            result = capture_owned(command, env=env, payload="fixture")
+            diagnostics.append(
+                (command, result.returncode, result.stdout, result.stderr)
+            )
+        except subprocess.TimeoutExpired as error:
+            diagnostics.append((command, "timeout", error.stdout, error.stderr))
+    return diagnostics
+
+
 class CacheNoticeTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -456,21 +504,24 @@ class CacheNoticeTests(unittest.TestCase):
                         else ["/bin/sh", "-c", entry["command"]]
                     )
                     command = command or [sys.executable, str(ROOT / package / script)]
-                    result = subprocess.run(
-                        command,
-                        shell=isinstance(command, str),
-                        env=env,
-                        input=json.dumps(
-                            {
-                                "hook_event_name": event,
-                                "session_id": "actual-session",
-                                "stop_hook_active": False,
-                            }
-                        ),
-                        text=True,
-                        capture_output=True,
-                        timeout=1,
-                    )
+                    try:
+                        result = capture_owned(
+                            command,
+                            env=env,
+                            payload=json.dumps(
+                                {
+                                    "hook_event_name": event,
+                                    "session_id": "actual-session",
+                                    "stop_hook_active": False,
+                                }
+                            ),
+                        )
+                    except subprocess.TimeoutExpired as error:
+                        # Preserve the same deadline oracle and identify the actual
+                        # failing launch boundary without touching a real mailbox.
+                        self.fail(
+                            f"{package}/{kind}/{event}: configured launch exceeded 1s; stdout={error.stdout!r}; stderr={error.stderr!r}; controls={windows_launch_diagnostics(env) if os.name == 'nt' else []!r}"
+                        )
                     self.assertEqual(
                         result.returncode, 0, (package, kind, event, result.stderr)
                     )
