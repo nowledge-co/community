@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "Nowledge Mem Cloud",
     "shortDescription": "Memory that follows you across AI tools",
-    "longDescription": "Use a scoped Nowledge Mem Cloud connection to recall decisions, search threads and Library context, and save durable knowledge. Remote MCP does not import ChatGPT or Codex transcripts.",
+    "longDescription": "Use a scoped Nowledge Mem Cloud connection to recall decisions, search threads and artifacts, and save durable knowledge. Remote MCP does not import ChatGPT or Codex transcripts.",
     "developerName": "Nowledge Labs",
     "category": "Productivity",
     "capabilities": [

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.52] - Unreleased
+
+- Name saved documents Artifacts and the canonical artifact tools (`artifact_search`, `artifact_read`, `artifact_add`, `nmem artifacts`), each with the name older Mem servers and CLIs expose (`query_sources`, `read_source_content`, `library_add`, `nmem library`).
+
 ## [0.1.51] - Unreleased
 
 - Pass the checked optional Space selector to automatic named-Context preparation without changing the host environment or the legacy exact Space ID. Preserve matching literal IDs and use the same named Agent/Space matching for independent Working Memory and session inspection.

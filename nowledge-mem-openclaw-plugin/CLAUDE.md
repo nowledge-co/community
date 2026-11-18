@@ -18,7 +18,7 @@ Continuation guide for `community/nowledge-mem-openclaw-plugin`.
 Reflects Nowledge Mem's genuine v0.6 strengths:
 
 1. **Knowledge graph** - EVOLVES chains, entity relationships, typed memory connections
-2. **Source provenance** - Library ingests docs/URLs; `SOURCED_FROM` edges trace knowledge origin
+2. **Source provenance** - Artifacts holds saved docs/URLs; `SOURCED_FROM` edges trace knowledge origin
 3. **Structured types** - 8 unit types: `fact | preference | decision | plan | procedure | learning | context | event`
 4. **Working Memory** - daily evolving briefing; agents can patch sections without overwriting the whole document
 5. **Cross-AI continuity** - "Your AI tools forget. We remember. Everywhere."
