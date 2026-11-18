@@ -87,6 +87,11 @@ jobs:
         run: |
           python -m pip install pytest
           python -m pytest nowledge-mem-bub-plugin/tests/test_recall_pack.py -q
+      - name: Test LangGraph transcript protocol
+        if: matrix.directory == 'nowledge-mem-langgraph'
+        run: |
+          python -m pip install ./nowledge-mem-langgraph pytest pytest-asyncio
+          python -m pytest nowledge-mem-langgraph/tests -q
       - name: Build and check wheel and sdist
         run: |
           python -m build "${{ matrix.directory }}" --outdir dist

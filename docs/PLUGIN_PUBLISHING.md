@@ -145,7 +145,13 @@ rebuild as proof of what was uploaded.
 
 ClawHub OIDC publication must omit `--owner`: the registry derives the owner from
 the Trusted Publisher. Preview and readback still require owner `nowledge`.
-It also requires `source-commit` to equal the authorized workflow run SHA.
+Security checks can outlast ten minutes after an upload is accepted. The
+publisher waits up to 30 minutes, within a 60-minute job budget that reserves
+another 30 minutes for setup, tests, packing, upload and verification. A wait
+timeout does not prove that publication failed:
+retain the attempt ID and original receipt, read the existing attempt or version,
+and verify the published artifact before considering any upload retry.
+ClawHub also requires `source-commit` to equal the authorized workflow run SHA.
 Use the OIDC source ref (`refs/heads/main`) for `--source-ref`; do not put the
 commit SHA in that field.
 Unlike npm/PyPI, an older reviewed main ancestor is insufficient: review current

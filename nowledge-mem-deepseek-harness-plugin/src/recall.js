@@ -15,23 +15,30 @@
 // rather than trying to make an empty query search well.
 const CONTINUATION_ONLY_PATTERN = /^[\s\p{P}]*(?:continue|go on|keep going|carry on|继续|接着|繼續)[\s\p{P}]*$/iu
 
-export const DEFAULT_PROMPT_RECALL_PATTERN = [
-  'remember',
-  'memory',
+// English keywords are whole words, with the plural and verb forms a prompt
+// would use: as bare substrings, `mem` fired on "meme", "member" and "memo",
+// and `prior` on "priority". Chinese has no spaces between words, so Chinese
+// keywords stay substrings.
+const ENGLISH_PROMPT_RECALL_WORDS = [
+  'remember(?:s|ed|ing)?',
+  'memor(?:y|ies)',
   'mem',
   'nowledge',
-  'context',
-  'previous',
+  'contexts?',
+  'previous(?:ly)?',
   'prior',
-  'history',
-  'continue',
-  'recall',
-  'decision',
-  'release',
-  'regression',
-  'connector',
-  'plugin',
-  'thread',
+  'histor(?:y|ies)',
+  'continue[sd]?',
+  'recall(?:s|ed|ing)?',
+  'decisions?',
+  'release[sd]?',
+  'regressions?',
+  'connectors?',
+  'plugins?',
+  'threads?',
+]
+
+const CHINESE_PROMPT_RECALL_WORDS = [
   '记忆',
   '上下文',
   '继续',
@@ -42,6 +49,11 @@ export const DEFAULT_PROMPT_RECALL_PATTERN = [
   '回归',
   '插件',
   '连接器',
+]
+
+export const DEFAULT_PROMPT_RECALL_PATTERN = [
+  String.raw`\b(?:${ENGLISH_PROMPT_RECALL_WORDS.join('|')})\b`,
+  ...CHINESE_PROMPT_RECALL_WORDS,
 ].join('|')
 
 export function shouldRecallForPrompt(prompt, pattern) {

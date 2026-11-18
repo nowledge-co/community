@@ -144,14 +144,14 @@ test('never accepts other non-zero, interrupted, or empty process results', () =
   })
   assert.deepEqual(
     importResultAcknowledgement(processResult(1, success), true),
-    { status: 'failed' },
+    { status: 'failed', reason: 'nonzero-exit' },
   )
   assert.deepEqual(
     importResultAcknowledgement(processResult(0, success, { timedOut: true }), true),
-    { status: 'failed' },
+    { status: 'failed', reason: 'timeout' },
   )
   assert.deepEqual(
     importResultAcknowledgement(processResult(0, ''), true),
-    { status: 'failed' },
+    { status: 'failed', reason: 'empty-response' },
   )
 })

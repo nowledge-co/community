@@ -17,18 +17,18 @@ function buildThreadImportDelta(capture, acknowledgedSeq) {
       dsh_seq: event.seq,
       dsh_event_type: event.type,
       dsh_message_id: message.id,
-      dsh_source_kind: message.source.kind,
+      dsh_source_kind: message.source?.kind,
     }
     if (event.type === 'assistant/message') {
       metadata.dsh_turn = event.data.turn
       metadata.dsh_step = event.data.step
-      metadata.dsh_model_provider = event.data.message.source.provider
-      metadata.dsh_model = event.data.message.source.model
+      metadata.dsh_model_provider = message.source?.provider
+      metadata.dsh_model = message.source?.model
     }
     messages.push({
       role,
       content,
-      timestamp: new Date(event.time).toISOString(),
+      ...(Number.isFinite(new Date(event.time).getTime()) ? { timestamp: new Date(event.time).toISOString() } : {}),
       metadata,
     })
   }

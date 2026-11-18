@@ -1,5 +1,23 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## [0.1.8] - 2026-11-14
+
+- Send a truthful versioned NowledgeMem-Proma User-Agent on direct HTTP fallback requests so Cloudflare does not mistake session sync for a default urllib client. Covers Cloud and Access Anywhere without changing authentication or server security rules.
+
+## [0.1.7] - 2026-11-12
+
+- Refuse HTTP redirects on authenticated API requests, preserving the configured
+  credential and transcript destination.
+
+## [0.1.6] - 2026-11-12
+
+### Fixed
+
+- Declare the exact Space protocol on direct HTTP session synchronization so
+  workspaces using current Spaces can accept captured conversations.
+- Preserve the selected destination; do not fall back to an unscoped write
+  when a configured Space cannot be resolved.
+
 ## Unreleased
 
 - Lifecycle capture now durably enqueues the exact Proma session before parsing

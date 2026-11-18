@@ -1,8 +1,10 @@
 const SANDBOX_UNAVAILABLE_CODE = 'SANDBOX_UNAVAILABLE'
 
 export function errorMessage(error) {
-  if (error instanceof Error) return `${error.name}: ${error.message}`
-  return String(error)
+  // Host errors can embed the entire command, including query or credentials.
+  // Diagnostics identify the failure class without echoing untrusted details.
+  if (isSandboxUnavailableError(error)) return 'sandbox unavailable'
+  return 'shell or host operation failed'
 }
 
 export function warn(ctx, message) {
@@ -41,7 +43,8 @@ async function runShell(ctx, request) {
     return await execution.result()
   }
   if (typeof ctx.shell.run === 'function') return await ctx.shell.run(spec)
-  throw new TypeError('unsupported DSH shell contract; expected shell.execute() or legacy shell.run()')
+  warn(ctx, 'nowledge-mem: unsupported DSH shell contract; expected shell.execute() or legacy shell.run()')
+  return undefined
 }
 
 export async function runShellWithHostSandboxRetry(

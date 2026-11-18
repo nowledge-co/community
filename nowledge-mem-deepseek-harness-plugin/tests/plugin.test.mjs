@@ -23,9 +23,7 @@ function shellResult(body) {
   }
 }
 
-function fixture(config = {}, api = 'execute', searchResponse = {
-  memories: [{ id: 'memory-1', title: 'Prior decision', content: 'Use bounded shell execution.' }],
-}) {
+function fixture(config = {}, api = 'execute', searchResponse) {
   const listeners = new Map()
   const requests = []
   const imports = []
@@ -43,7 +41,9 @@ function fixture(config = {}, api = 'execute', searchResponse = {
     requests.push(request)
     const result = async () => {
       if (request.command.includes(' context ')) return shellResult({ working_memory: 'Current project context' })
-      if (request.command.includes(' m search ')) return shellResult(searchResponse)
+      if (request.command.includes(' m search ')) return shellResult(searchResponse ?? {
+        memories: [{ id: 'memory-1', title: 'Prior decision', content: 'Use bounded shell execution.' }],
+      })
       assert.match(request.command, / t import /u)
       assert.equal(flushes.at(-1), session)
       const file = request.command.match(/--file (?:'([^']+)'|(\S+))/u)
@@ -69,16 +69,10 @@ function fixture(config = {}, api = 'execute', searchResponse = {
 
 test('recall preserves save-only date provenance through the search parser', async () => {
   const host = fixture({ contextOnSessionStart: false }, 'execute', {
-    memories: [{
-      title: 'Deployment', content: 'The production port is 8443.',
-      created_at: '2026-11-01T08:30:00Z',
-    }],
+    memories: [{ title: 'Deployment', content: 'Synthetic value.', created_at: '2026-11-01T08:30:00Z' }],
   })
   const decision = await host.preStep([userMessage('review the release decision')])
-  assert.equal(host.requests.length, 1)
-  assert.match(host.requests[0].command, / m search /u)
   const recall = decision.messages.find(message => message.source?.form === 'recall')
-  assert.ok(recall)
   assert.match(recall.content[0].text, /date=saved:2026-11-01/u)
 })
 
@@ -155,10 +149,53 @@ for (const kind of ['plugin', 'plugin:nowledge-mem']) {
 
     await host.preStep([userMessage('review the release decision'), injected])
     assert.equal(host.requests.length, 1)
-    assert.match(host.requests[0].command, /m search 'review the release decision'/u)
+    assert.match(host.requests[0].command, /m search -n 8 -- 'review the release decision'/u)
     assert.doesNotMatch(host.requests[0].command, /irrelevant injected context/u)
   })
 }
+
+test('recall triggers and searches on what the user typed, not on host context or tool output', async () => {
+  const host = fixture({ contextOnSessionStart: false })
+  // Every one of these contains several default trigger words.
+  const runtimeContext = userMessage(
+    '<system-reminder>\nThe following information describes your current session. It replaces earlier versions of this context, including any retained in conversation summaries.\n</system-reminder>',
+    { kind: 'runtime-context' },
+  )
+  const jobNotice = userMessage(
+    'background job 3 (shell: npm test) finished with exit code 0. Output:\nok 1 - plugin keeps the previous thread history',
+    { kind: 'tool-jobs', form: 'notice', summary: 'npm test finished' },
+  )
+  const subagentReport = userMessage(
+    'Subagent "worker" finished. Its closing message:\nThe release regression is in the connector plugin.',
+    { kind: 'subagent-settled', form: 'notice', summary: 'worker finished' },
+  )
+  const toolResult = createToolResultMessage({
+    callId: 'call-1',
+    isError: false,
+    content: [{ type: 'text', text: 'memory: previous release decision for the plugin' }],
+  })
+  const assistantStep = createAssistantMessage({ source: { provider: 'deepseek', model: 'test' }, content: [
+    { type: 'reasoning', text: 'Recall the previous decision from memory.' },
+    { type: 'tool-call', id: 'call-2', name: 'shell', arguments: '{"command":"git log --grep=release"}' },
+  ] })
+
+  for (const messages of [
+    [runtimeContext],
+    [jobNotice],
+    [subagentReport],
+    [toolResult],
+    [assistantStep],
+    [userMessage('Calculate two plus two'), runtimeContext, jobNotice, toolResult],
+  ]) {
+    const decision = await host.preStep(messages)
+    assert.deepEqual(decision.messages, messages)
+  }
+  assert.deepEqual(host.requests.map(request => request.command), [])
+
+  await host.preStep([runtimeContext, userMessage('review the release decision'), jobNotice, toolResult])
+  assert.equal(host.requests.length, 1)
+  assert.match(host.requests[0].command, / m search -n 8 -- 'review the release decision'$/u)
+})
 
 test('turn-end imports a real host session without own injections or an injected title', { timeout: 2_000 }, async () => {
   const host = fixture()
@@ -223,12 +260,12 @@ test('peer ranges admit the tested host previews and preserve optional runtime p
   for (const [name, range] of Object.entries(manifest.peerDependencies)) {
     const versions = name === '@deepseek-ai/cordis'
       ? ['4.0.4', '4.0.5-alpha.1']
-      : ['0.1.5-rc.2', '0.1.7-rc.1', '0.2.1-alpha.1', '0.2.1-rc.2']
+      : ['0.1.5-rc.2', '0.1.7-rc.1', '0.2.1-alpha.1', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.5', '0.2.2-rc.1', '0.2.2-rc.2']
     for (const version of versions) assert.equal(satisfies(version, range), true, `${name}@${version}`)
     assert.equal(manifest.peerDependenciesMeta[name].optional, true)
     assert.equal(satisfies(name === '@deepseek-ai/cordis' ? '5.0.0' : '0.3.0', range), false)
     if (name !== '@deepseek-ai/cordis') {
-      assert.equal(satisfies('0.2.1-rc.3', range), false, `${name} must not admit untested previews`)
+      assert.equal(satisfies('0.2.2-rc.3', range), false, `${name} must not admit untested previews`)
       assert.equal(satisfies('0.2.1', range), false, `${name} must not admit untested GA`)
     }
   }

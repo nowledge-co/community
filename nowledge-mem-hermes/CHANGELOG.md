@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.5.29] - 2026-11-14
+
+- Preserve UTC time, plugin identity, HTTP method, route template, status and validated Cloudflare Ray / Mem Request IDs in direct HTTP failure diagnostics. A missing ID remains absent, including refusals before the application runs.
+- Exclude response bodies, raw transport exception text, query strings and dynamic thread IDs from HTTP failure summaries and HTTP-200 negative-acknowledgement warnings. Retain known application error codes and boolean retryability. Pending messages and legacy already-exists recovery are preserved; typed already-exists receipts can also recover by append.
+- Redact request-configuration and encoding failures, including malformed URLs and credentials, without losing the pending transcript batch.
+
+## [0.5.28] - 2026-11-14
+
+- Identify roster, transcript import and append requests as NowledgeMem-Hermes instead of Python urllib. This avoids Cloudflare Browser Integrity Check 1010 on Cloud and Access Anywhere without impersonating a browser or changing server security rules.
+
+## [0.5.27] - 2026-11-12
+
+- Refuse HTTP redirects for transcript and Space-roster requests so credentials
+  and conversation content stay at the configured backend.
+
+## [0.5.26] - 2026-11-12
+
+### Fixed
+
+- Declare the exact Space protocol on direct HTTP session synchronization so
+  workspaces using current Spaces can accept captured conversations.
+- Preserve the selected destination; do not fall back to an unscoped write
+  when a configured Space cannot be resolved.
+
 ## [0.5.25] - Unreleased
 
 ### Fixed

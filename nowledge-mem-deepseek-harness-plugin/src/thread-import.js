@@ -16,7 +16,7 @@ export function sessionThreadTitle(
 ) {
   if (typeof establishedTitle === 'string' && establishedTitle !== '') return establishedTitle
   for (const event of events) {
-    if (event.type !== 'user/message') continue
+    if (event?.type !== 'user/message') continue
     const message = event.data
     if (!isHumanInput(message)) continue
     const content = boundText(renderMessage(message).trim(), maxMessageChars)
@@ -28,7 +28,8 @@ export function sessionThreadTitle(
 
 export function stableThreadId(sessionId) {
   const safe = sessionId.replace(/[^A-Za-z0-9._-]+/gu, '-').replace(/^-+|-+$/gu, '')
-  return `deepseek-harness-${safe === '' ? 'session' : safe}`
+  const suffix = safe !== '' && safe === sessionId ? safe : `~${createHash('sha256').update(sessionId).digest('hex')}`
+  return `deepseek-harness-${suffix}`
 }
 
 export function buildThreadImportArgs({
@@ -50,10 +51,9 @@ export function buildThreadImportArgs({
     sourceApp,
     '--id',
     stableThreadId(sessionId),
-    '--title',
-    payload.title,
+    `--title=${payload.title}`,
   ]
-  if (spaceId !== undefined) args.push('--space-id', spaceId)
+  if (spaceId !== undefined) args.push(`--space-id=${spaceId}`)
   if (agentId !== undefined) args.push('--agent-id', agentId)
   if (expectedMessageCount === undefined) return args
 

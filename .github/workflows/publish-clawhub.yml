@@ -23,7 +23,7 @@ jobs:
   publish:
     if: github.repository == 'nowledge-co/community' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     environment: clawhub
     permissions:
       contents: read
@@ -95,7 +95,7 @@ jobs:
             --version "$RELEASE_VERSION" --tags latest --source-repo nowledge-co/community \
             --source-commit "$RELEASE_COMMIT" --source-ref "$AUTHORIZED_SOURCE_REF" \
             --source-path nowledge-mem-openclaw-plugin --changelog "$RELEASE_CHANGELOG" \
-            --wait --wait-timeout 600 --json > clawhub-published.json
+            --wait --wait-timeout 1800 --json > clawhub-published.json
       - name: Verify exact artifact and reviewed source
         run: |
           node shared/plugin-core/scripts/receipt.ts --verify openclaw clawhub-pack.json "$RELEASE_COMMIT"

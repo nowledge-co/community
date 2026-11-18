@@ -129,6 +129,11 @@ test("recreates the complete Thread after a 400 missing-thread response", async 
 })
 
 test("session checkpoints are isolated by destination lane", () => {
+  assert.notEqual(
+    sessionSyncLaneKey("session-1", "https://mem-a", "key-a", undefined),
+    sessionSyncLaneKey("session-1", "https://mem-a", "key-a", ""),
+    "omitted Space and the exact historical empty ID must have different checkpoints",
+  )
   const messages = [{ id: "a" }, { id: "b" }]
   const base = ["https://mem-a", "key-a", "space-a", "agent-a", "host-a"]
   const states = new Map()
