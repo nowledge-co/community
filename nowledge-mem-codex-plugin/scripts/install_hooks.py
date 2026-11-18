@@ -178,8 +178,11 @@ def _mailbox_hook_command() -> str:
     command = f"{_quote_for_hook_command(Path(sys.executable))} {_quote_for_hook_command(HOOKS_DIR / 'nowledge-mem-mailbox-stop.py')}"
     if os.name == "nt":
         return (
-            'if defined NMEM_CLI_CONFIG_DIR (if not exist "%NMEM_CLI_CONFIG_DIR%\\bridge-notices-v1\\enabled" exit /b 0) else (if not exist "%USERPROFILE%\\.nowledge-mem\\bridge-notices-v1\\enabled" exit /b 0) & '
+            'if defined NMEM_CLI_CONFIG_DIR (if exist "%NMEM_CLI_CONFIG_DIR%\\bridge-notices-v1\\enabled" ('
             + command
+            + ')) else (if exist "%USERPROFILE%\\.nowledge-mem\\bridge-notices-v1\\enabled" ('
+            + command
+            + "))"
         )
     return (
         '[ -f "${NMEM_CLI_CONFIG_DIR:-${HOME:-$USERPROFILE}/.nowledge-mem}/bridge-notices-v1/enabled" ] || exit 0; '

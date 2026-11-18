@@ -257,11 +257,9 @@ class CacheNoticeTests(unittest.TestCase):
         counter = self.root / "lifecycle.json"
         executable = self.root / "fake-nmem"
         executable.write_text(
-            "#!"
-            + sys.executable
-            + "\nimport json,sys\nfrom pathlib import Path\nwith Path("
-            + repr(str(counter))
-            + ").open('a') as output:\n    print(json.dumps(sys.argv[1:]),file=output)\n"
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" END >> "
+            + shlex.quote(str(counter))
+            + "\n"
         )
         executable.chmod(0o700)
         for package, script, host in [
@@ -291,17 +289,16 @@ class CacheNoticeTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
-                [json.loads(line) for line in counter.read_text().splitlines()],
+                counter.read_text().splitlines(),
                 [
-                    [
-                        "--json",
-                        "bridge",
-                        "notices",
-                        "unsubscribe",
-                        f"--host={host}",
-                        "--session-id=actual-session",
-                        "--ended",
-                    ]
+                    "--json",
+                    "bridge",
+                    "notices",
+                    "unsubscribe",
+                    f"--host={host}",
+                    "--session-id=actual-session",
+                    "--ended",
+                    "END",
                 ],
             )
 
@@ -325,6 +322,8 @@ class CacheNoticeTests(unittest.TestCase):
             for hook in group["hooks"]
             if "nowledge-mem-mailbox-stop.py" in hook.get("command", "")
         )
+        env.pop("PLUGIN_ROOT", None)
+        env["CODEX_HOME"] = str(installer.GLOBAL_HOOKS_FILE.parent)
         counter.unlink(missing_ok=True)
         subprocess.run(
             ["/bin/sh", "-c", command],
@@ -337,19 +336,17 @@ class CacheNoticeTests(unittest.TestCase):
             timeout=2,
             check=True,
         )
-        calls = [json.loads(line) for line in counter.read_text().splitlines()]
         self.assertEqual(
-            calls,
+            counter.read_text().splitlines(),
             [
-                [
-                    "--json",
-                    "bridge",
-                    "notices",
-                    "unsubscribe",
-                    "--host=codex",
-                    "--session-id=actual-session",
-                    "--ended",
-                ]
+                "--json",
+                "bridge",
+                "notices",
+                "unsubscribe",
+                "--host=codex",
+                "--session-id=actual-session",
+                "--ended",
+                "END",
             ],
         )
 
@@ -532,6 +529,56 @@ class CacheNoticeTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, "")
             self.assertFalse(counter.exists())
+
+    @unittest.skipUnless(os.name == "nt", "Native cmd.exe configured-path contract")
+    def test_windows_configured_paths_start_exactly_one_interpreter(self):
+        shims = self.root / "bin"
+        shims.mkdir()
+        counter = self.root / "interpreter-calls"
+        for name in ("py", "python", "python3"):
+            (shims / (name + ".cmd")).write_text(
+                '@echo started>>"%NMEM_TEST_INTERPRETER_CALLS%"\n@exit /b 0\n'
+            )
+        hooks = json.loads(
+            (ROOT / "nowledge-mem-codex-plugin/hooks/hooks.json").read_text()
+        )["hooks"]
+        profile = self.root / "profile with (parentheses)"
+        custom = self.root / "config with (parentheses)"
+        for config in (profile / ".nowledge-mem", custom):
+            state = config / "bridge-notices-v1"
+            state.mkdir(parents=True)
+            (state / "enabled").write_text("{}")
+            env = {
+                **os.environ,
+                "PATH": str(shims),
+                "USERPROFILE": str(profile),
+                "NMEM_TEST_INTERPRETER_CALLS": str(counter),
+            }
+            env.pop("NMEM_CLI_CONFIG_DIR", None)
+            if config == custom:
+                env["NMEM_CLI_CONFIG_DIR"] = str(custom)
+            for event in ("Stop", "UserPromptSubmit", "PostToolUse", "SessionEnd"):
+                counter.unlink(missing_ok=True)
+                entry = next(
+                    hook
+                    for group in hooks[event]
+                    for hook in group["hooks"]
+                    if "nmem-mailbox-stop.py" in hook.get("commandWindows", "")
+                )
+                result = subprocess.run(
+                    entry["commandWindows"],
+                    shell=True,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=2,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(
+                    counter.read_text().splitlines(),
+                    ["started"],
+                    (config, event, result.stderr),
+                )
 
     def test_installed_fallback_and_package_share_cached_token(self):
         path = ROOT / "nowledge-mem-codex-plugin/scripts/install_hooks.py"
