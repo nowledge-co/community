@@ -169,7 +169,7 @@ Search your knowledge base proactively when past insights would improve the resp
 3. If a memory result includes `source_thread`, inspect the original conversation once for the specific messages needed with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
 4. Prefer the smallest retrieval surface that answers the question — do not over-fetch.
 5. If initial results are weak or conceptual, try `--mode deep` for broader matching.
-6. When the answer lives in a document the user saved (a file, web page, or note in Artifacts), search artifacts instead of memories: `nmem --json artifacts search "<query>"`, then `nmem --json artifacts read <id>` for the one artifact you need. Over MCP, use `artifact_search` (older Mem: `query_sources`), then `artifact_read` (older Mem: `read_source_content`).
+6. When the answer lives in a document the user saved (a file, web page, or note in Artifacts), search artifacts instead of memories: `nmem --json artifacts search "<query>"`, then `nmem --json artifacts read <id>` for the one artifact you need (older `nmem`: `nmem --json library search` / `nmem --json library read`, which also work on newer releases). Over MCP, use `artifact_search` (older Mem: `query_sources`), then `artifact_read` (older Mem: `read_source_content`). If neither search tool is listed, use the CLI search above.
 
 ### Artifacts
 
@@ -178,7 +178,8 @@ notes, and generated reports. "Library" in the app means the Tree, Graph, and
 Wiki views, not documents.
 
 - Save a file or long content as an artifact with `artifact_add` (older Mem:
-  `library_add`) or `nmem artifacts add <path>`. Use a Memory, not an
+  `library_add`) or `nmem artifacts add <path>` (older `nmem`:
+  `nmem library add <path>`). Use a Memory, not an
   artifact, for a single durable decision or fact.
 - The CLI group is `nmem artifacts` (alias `artifact`). Older `nmem` releases
   only know `nmem library` (also `nmem sources`, `nmem lib`), and those names

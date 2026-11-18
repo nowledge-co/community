@@ -140,7 +140,7 @@ nmem --json t search "query" --limit 5
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
 
-For saved documents (files, web pages, notes in Artifacts), use `artifact_search` (older Mem: `query_sources`), then `artifact_read` (older Mem: `read_source_content`). Save a file or long content with `artifact_add` (older Mem: `library_add`). The CLI fallback is `nmem --json artifacts search "query"` and `nmem --json artifacts read <id>`; older `nmem` releases use `nmem library` for the same commands, and that name still works.
+For saved documents (files, web pages, notes in Artifacts), use `artifact_search` (older Mem: `query_sources`; if neither is listed, the CLI search below), then `artifact_read` (older Mem: `read_source_content`). Save a file or long content with `artifact_add` (older Mem: `library_add`). The CLI fallback is `nmem --json artifacts search "query"` and `nmem --json artifacts read <id>`; older `nmem` releases use `nmem library` for the same commands, and that name still works.
 
 ## Skills
 
