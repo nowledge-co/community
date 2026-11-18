@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.52] - Unreleased
+
+- Read Bridge arrival hints from protected local caches at UserPromptSubmit, PostToolUse and Stop; no mailbox network call runs inside these hooks.
+- Skip the interpreter before launch when Bridge is unconfigured. Close local subscriptions at SessionEnd.
+- Keep actual-session routing and independent per-token notification ledgers.
+
 ## [0.1.51] - Unreleased
 
 - Pass the checked optional Space selector to automatic named-Context preparation without changing the host environment or the legacy exact Space ID. Preserve matching literal IDs and use the same named Agent/Space matching for independent Working Memory and session inspection.
