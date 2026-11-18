@@ -8,7 +8,7 @@ Switch between Claude Code, Gemini, Cursor, and Codex without losing context. De
 
 - **Pick up where you left off.** A native SessionStart hook injects your Context Bundle automatically, with Working Memory as fallback, while SubagentStart selectively gives context-heavy roles a bounded context snapshot.
 - **Stronger retrieval on modern Codex.** The package bundles the local Nowledge Mem MCP server so Codex is more willing to search, inspect prior threads, and write memories proactively.
-- **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, sources, and artifacts as one tree.
+- **Path-first knowledge browsing.** The `mem_fs` MCP tool and `nmem fs` CLI expose memories, threads, wiki pages, working memory, activities, and artifacts (saved documents) as one tree.
 - **See retrieved memories in context.** Memory search automatically follows with a focused graph of the exact results: inline through MCP Apps when supported, or in the standalone Graph Explorer as a fallback.
 - **Insights stick around.** The package teaches Codex when to distill durable decisions and learnings, and MCP makes the memory-write path cheaper for the runtime to choose.
 - **Real session history.** Capture the full Codex transcript through a Stop hook, not just a summary. The Nowledge Mem Auto-Sync switch can pause lifecycle capture without disabling manual saves.

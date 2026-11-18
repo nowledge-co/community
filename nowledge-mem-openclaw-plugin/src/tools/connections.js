@@ -9,7 +9,7 @@
  * The graph contains:
  * - Memory nodes (knowledge units with 8 types)
  * - Entity nodes (people, technologies, projects)
- * - Source nodes (documents, URLs — the Library)
+ * - Source nodes (artifacts: saved documents and URLs)
  * - EVOLVES edges (how understanding grows over time: replaces, enriches, confirms, challenges)
  * - CRYSTALLIZED_FROM edges (crystal ← source memories it synthesized)
  * - SOURCED_FROM edges (memory ← document it was extracted from)

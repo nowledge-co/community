@@ -62,7 +62,7 @@ export function createTimelineTool(client, logger) {
 			"Returns a day-by-day feed grouped chronologically. Results include memoryIds so you can " +
 			"pass them directly to memory_get or nowledge_mem_connections for deeper exploration. " +
 			"Use event_type to filter: memory_created (saved knowledge), crystal_created (synthesized insights), " +
-			"insight_generated (agent observations), source_ingested (Library documents), " +
+			"insight_generated (agent observations), source_ingested (artifacts added), " +
 			"source_extracted (knowledge from docs), daily_briefing (morning briefings), url_captured. " +
 			"For exact date queries ('what was I doing last Tuesday?') use date_from + date_to (YYYY-MM-DD).",
 		parameters: {
