@@ -291,6 +291,9 @@ never call the mailbox network service. Without the local setup marker, the
 registered shell command exits before starting Python. PostToolUse reminders are
 limited to once per two minutes. Prompt, tool and Stop reminders share one model
 channel per binding, actual session and change token; recursive Stop exits.
+SessionEnd uses the active-subscription index as its gate, so it can release
+an ended consumer even after Bridge is disabled. When the last consumer ends,
+the CLI removes that index and future unconfigured sessions start no interpreter.
 SessionEnd removes only that actual session's active local subscriptions and
 retains bounded deduplication history for resume. The host command timeout is one second;
 the cache helper also bounds its own scan. `NMEM_NO_MAILBOX_NOTICE=1` disables

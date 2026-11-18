@@ -174,18 +174,21 @@ def _hook_command() -> str:
     return f"{_quote_for_hook_command(Path(sys.executable))} {_quote_for_hook_command(INSTALLED_HOOK)} --event stop"
 
 
-def _mailbox_hook_command() -> str:
+def _mailbox_hook_command(event: str = "Stop") -> str:
+    state_file = "subscriptions.json" if event == "SessionEnd" else "enabled"
     command = f"{_quote_for_hook_command(Path(sys.executable))} {_quote_for_hook_command(HOOKS_DIR / 'nowledge-mem-mailbox-stop.py')}"
     if os.name == "nt":
         return (
-            'if defined NMEM_CLI_CONFIG_DIR (if exist "%NMEM_CLI_CONFIG_DIR%\\bridge-notices-v1\\enabled" ('
+            f'if defined NMEM_CLI_CONFIG_DIR (if exist "%NMEM_CLI_CONFIG_DIR%\\bridge-notices-v1\\{state_file}" ('
             + command
-            + ')) else (if exist "%USERPROFILE%\\.nowledge-mem\\bridge-notices-v1\\enabled" ('
+            + f')) else (if exist "%USERPROFILE%\\.nowledge-mem\\bridge-notices-v1\\{state_file}" ('
             + command
             + "))"
         )
     return (
-        '[ -f "${NMEM_CLI_CONFIG_DIR:-${HOME:-$USERPROFILE}/.nowledge-mem}/bridge-notices-v1/enabled" ] || exit 0; '
+        '[ -f "${NMEM_CLI_CONFIG_DIR:-${HOME:-$USERPROFILE}/.nowledge-mem}/bridge-notices-v1/'
+        + state_file
+        + '" ] || exit 0; '
         + command
     )
 
@@ -281,7 +284,7 @@ def merge_hooks_json(*, include_fallback: bool = True) -> None:
                 "hooks": [
                     {
                         "type": "command",
-                        "command": _mailbox_hook_command(),
+                        "command": _mailbox_hook_command(event),
                         "timeout": 1,
                         "statusMessage": "Checking cached Nowledge Bridge arrivals...",
                     }

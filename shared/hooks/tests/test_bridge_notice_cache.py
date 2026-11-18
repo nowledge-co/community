@@ -398,6 +398,84 @@ class CacheNoticeTests(unittest.TestCase):
             ],
         )
 
+    @unittest.skipIf(os.name == "nt", "POSIX configured lifecycle launcher")
+    def test_disabled_bridge_keeps_only_the_ended_session_cleanup_gate(self):
+        counter = self.root / "disabled-end-calls"
+        executable = self.root / "fake-nmem"
+        executable.write_text(
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" END >> "
+            + shlex.quote(str(counter))
+            + "\n"
+        )
+        executable.chmod(0o700)
+        (self.directory / "enabled").unlink()
+        for package, marker, host in [
+            ("nowledge-mem-codex-plugin", "nmem-mailbox-stop.py", "codex"),
+            ("nowledge-mem-claude-code-plugin", "nmem-hook-mailbox.py", "claude-code"),
+        ]:
+            hooks = json.loads((ROOT / package / "hooks/hooks.json").read_text())[
+                "hooks"
+            ]
+            env = {
+                key: value
+                for key, value in os.environ.items()
+                if not key.startswith("GROK_")
+            }
+            env.update(
+                PLUGIN_ROOT=str(ROOT / package),
+                CLAUDE_PLUGIN_ROOT=str(ROOT / package),
+                NMEM_CLI_CONFIG_DIR=str(self.root),
+                NMEM_CLI_PATH=str(executable),
+            )
+            counter.unlink(missing_ok=True)
+            command = next(
+                hook["command"]
+                for group in hooks["SessionEnd"]
+                for hook in group["hooks"]
+                if marker in hook.get("command", "")
+            )
+            result = subprocess.run(
+                ["/bin/sh", "-c", command],
+                env=env,
+                input=json.dumps(
+                    {"hook_event_name": "SessionEnd", "session_id": "actual-session"}
+                ),
+                capture_output=True,
+                text=True,
+                timeout=1,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                counter.read_text().splitlines(),
+                [
+                    "--json",
+                    "bridge",
+                    "notices",
+                    "unsubscribe",
+                    f"--host={host}",
+                    "--session-id=actual-session",
+                    "--ended",
+                    "END",
+                ],
+            )
+            counter.unlink()
+            command = next(
+                hook["command"]
+                for group in hooks["Stop"]
+                for hook in group["hooks"]
+                if marker in hook.get("command", "")
+            )
+            result = subprocess.run(
+                ["/bin/sh", "-c", command],
+                env=env,
+                input="{}",
+                capture_output=True,
+                text=True,
+                timeout=1,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(counter.exists())
+
     @unittest.skipIf(
         os.name == "nt",
         "POSIX sentinel contract; Windows has a separate command regression",
@@ -599,6 +677,7 @@ class CacheNoticeTests(unittest.TestCase):
             state = config / "bridge-notices-v1"
             state.mkdir(parents=True)
             (state / "enabled").write_text("{}")
+            (state / "subscriptions.json").write_text("{}")
             env = {
                 **os.environ,
                 "PATH": str(shims),
