@@ -689,6 +689,8 @@ class CacheNoticeTests(unittest.TestCase):
                 env["NMEM_CLI_CONFIG_DIR"] = str(custom)
             for event in ("Stop", "UserPromptSubmit", "PostToolUse", "SessionEnd"):
                 counter.unlink(missing_ok=True)
+                if event == "SessionEnd":
+                    (state / "enabled").unlink()
                 entry = next(
                     hook
                     for group in hooks[event]

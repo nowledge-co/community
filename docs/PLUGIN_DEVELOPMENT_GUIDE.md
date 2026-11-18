@@ -263,7 +263,7 @@ Humans should usually work with the visible space name. Only storage and compati
 
 ### Team workspaces (Spaces as rooms)
 
-On Mem Cloud Team workspaces a Space is a room: the audience, the write destination and the Bridge address all follow from it. Plugins should not hide that.
+On Mem Cloud Team workspaces a Space is a room: it determines the audience and write destination. Compatible Bridge CLI versions address the Agent identity, stamp a send with the sender's current Space and retain the original message's Space for replies. Identity inboxes project only currently authorized Spaces; they grant no new access. Legacy exact-Space CLI and MCP contracts remain explicitly scoped. Plugins must preserve those scope and capability boundaries.
 
 - A write with no explicit Space lands in the member's personal space ("Only me"). `nmem m add` (0.10.114+) prints `Saved to <label> (<id>)`; `--json` adds `space_id`, `space` and `share_hint`. Cloud MCP `memory_add` returns `space_label` and `share_hint`. Surface the destination; do not assume it.
 - An explicit `default` is deprecated there and lands in the personal space with a note; name a shared Space instead.
