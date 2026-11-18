@@ -134,10 +134,92 @@ class CacheNoticeTests(unittest.TestCase):
         (self.directory / f"{broken}.json").write_text("broken")
         self.assertEqual(self.response()["decision"], "block")
 
+    def test_invalid_native_kind_does_not_hide_a_valid_identity_consumer(self):
+        broken = "0" * 64
+        (self.directory / "subscriptions.json").write_text(
+            json.dumps({broken: {**self.target, "native": True}, self.key: self.target})
+        )
+        (self.directory / f"{broken}.json").write_text(
+            json.dumps({**self.value, "mailbox_kind": []})
+        )
+        (self.directory / f"{broken}.json").chmod(0o600)
+        self.assertEqual(self.response()["decision"], "block")
+
+    def test_excessive_json_depth_does_not_hide_a_valid_consumer(self):
+        broken = "0" * 64
+        (self.directory / "subscriptions.json").write_text(
+            json.dumps({broken: self.target, self.key: self.target})
+        )
+        path = self.directory / f"{broken}.json"
+        path.write_text("[" * 2000 + "]" * 2000)
+        path.chmod(0o600)
+        self.assertEqual(self.response()["decision"], "block")
+
+    def test_configuration_fence_refuses_oversized_and_nonregular_files_before_open(
+        self,
+    ):
+        path = self.root / "config.json"
+        path.write_bytes(b"x" * (1024 * 1024 + 1))
+        with mock.patch.object(
+            NOTICE.os, "open", side_effect=AssertionError("must reject before opening")
+        ):
+            with self.assertRaises(ValueError):
+                NOTICE._configuration_fence(path)
+        path.unlink()
+        if os.name != "nt":
+            os.mkfifo(path)
+            with mock.patch.object(
+                NOTICE.os,
+                "open",
+                side_effect=AssertionError("must reject before opening"),
+            ):
+                with self.assertRaises(ValueError):
+                    NOTICE._configuration_fence(path)
+
+    def test_all_grok_runtime_markers_exclude_the_actual_claude_wrapper(self):
+        import time
+
+        self.target["host"] = self.value["host"] = "claude-code"
+        self.value.update(
+            saved_ms=int(time.time() * 1000),
+            expires_ms=int(time.time() * 1000) + 45_000,
+        )
+        self.save()
+        markers = {
+            "GROK_SESSION_ID": "grok-session",
+            "GROK_HOOK_EVENT": "Stop",
+            "GROK_WORKSPACE_ROOT": "workspace",
+            "GROK_PLUGIN_ROOT": "plugin",
+            "CLAUDE_PLUGIN_ROOT": "C:\\Users\\fixture\\.grok\\plugins\\mem",
+        }
+        script = ROOT / "nowledge-mem-claude-code-plugin/scripts/nmem-hook-mailbox.py"
+        for marker, value in markers.items():
+            env = {
+                key: value for key, value in os.environ.items() if key not in markers
+            }
+            env.update({marker: value, "NMEM_CLI_CONFIG_DIR": str(self.root)})
+            result = subprocess.run(
+                [sys.executable, str(script)],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "Stop",
+                        "stop_hook_active": False,
+                        "session_id": "actual-session",
+                    }
+                ),
+                env=env,
+                text=True,
+                capture_output=True,
+                timeout=1,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout), {}, marker)
+
     def test_post_tool_use_rate_limit_does_not_consume_the_next_token(self):
         self.assertIn(
             "additionalContext", self.response("PostToolUse")["hookSpecificOutput"]
         )
+
         self.value["change_token"] = "d" * 64
         self.save()
         self.assertEqual(self.response("PostToolUse"), {})
@@ -146,6 +228,129 @@ class CacheNoticeTests(unittest.TestCase):
         self.save()
         self.assertIn(
             "additionalContext", self.response("PostToolUse")["hookSpecificOutput"]
+        )
+
+    def test_native_session_guidance_keeps_local_and_cloud_separate(self):
+        for kind, verb in [("local-session", "mailbox"), ("cloud-session", "bridge")]:
+            with self.subTest(kind=kind):
+                self.target["native"] = True
+                self.value["mailbox_kind"] = kind
+                self.save()
+                response = self.response()
+                self.assertEqual(response["decision"], "block")
+                self.assertIn(
+                    json.dumps(
+                        [
+                            "--agent-context=approved",
+                            verb,
+                            "session",
+                            "--host=codex",
+                            "--session-id=actual-session",
+                            "inbox",
+                        ]
+                    ),
+                    response["reason"],
+                )
+
+    @unittest.skipIf(os.name == "nt", "POSIX fixture executable")
+    def test_packaged_lifecycle_only_releases_the_actual_ended_session(self):
+        counter = self.root / "lifecycle.json"
+        executable = self.root / "fake-nmem"
+        executable.write_text(
+            "#!"
+            + sys.executable
+            + "\nimport json,sys\nfrom pathlib import Path\nwith Path("
+            + repr(str(counter))
+            + ").open('a') as output:\n    print(json.dumps(sys.argv[1:]),file=output)\n"
+        )
+        executable.chmod(0o700)
+        for package, script, host in [
+            ("nowledge-mem-codex-plugin", "hooks/nmem-mailbox-stop.py", "codex"),
+            (
+                "nowledge-mem-claude-code-plugin",
+                "scripts/nmem-hook-mailbox.py",
+                "claude-code",
+            ),
+        ]:
+            env = {
+                **os.environ,
+                "NMEM_CLI_CONFIG_DIR": str(self.root),
+                "NMEM_CLI_PATH": str(executable),
+            }
+            env.pop("GROK_PLUGIN_ROOT", None)
+            counter.unlink(missing_ok=True)
+            result = subprocess.run(
+                [sys.executable, str(ROOT / package / script)],
+                input=json.dumps(
+                    {"hook_event_name": "SessionEnd", "session_id": "actual-session"}
+                ),
+                env=env,
+                text=True,
+                capture_output=True,
+                timeout=2,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                [json.loads(line) for line in counter.read_text().splitlines()],
+                [
+                    [
+                        "--json",
+                        "bridge",
+                        "notices",
+                        "unsubscribe",
+                        f"--host={host}",
+                        "--session-id=actual-session",
+                        "--ended",
+                    ]
+                ],
+            )
+
+        installer_path = ROOT / "nowledge-mem-codex-plugin/scripts/install_hooks.py"
+        spec = importlib.util.spec_from_file_location(
+            "lifecycle_installer", installer_path
+        )
+        installer = importlib.util.module_from_spec(spec)
+        with mock.patch.dict(
+            os.environ, {"CODEX_HOME": str(self.root / "codex-fallback")}, clear=False
+        ):
+            spec.loader.exec_module(installer)
+            installer.install_runtime_hook()
+            installer.merge_hooks_json()
+        groups = json.loads(installer.GLOBAL_HOOKS_FILE.read_text())["hooks"][
+            "SessionEnd"
+        ]
+        command = next(
+            hook["command"]
+            for group in groups
+            for hook in group["hooks"]
+            if "nowledge-mem-mailbox-stop.py" in hook.get("command", "")
+        )
+        counter.unlink(missing_ok=True)
+        subprocess.run(
+            ["/bin/sh", "-c", command],
+            input=json.dumps(
+                {"hook_event_name": "SessionEnd", "session_id": "actual-session"}
+            ),
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=2,
+            check=True,
+        )
+        calls = [json.loads(line) for line in counter.read_text().splitlines()]
+        self.assertEqual(
+            calls,
+            [
+                [
+                    "--json",
+                    "bridge",
+                    "notices",
+                    "unsubscribe",
+                    "--host=codex",
+                    "--session-id=actual-session",
+                    "--ended",
+                ]
+            ],
         )
 
     @unittest.skipIf(
@@ -193,58 +398,103 @@ class CacheNoticeTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertFalse(counter.exists(), (package, event))
 
-    def test_actual_configured_stop_launcher_never_calls_nmem(self):
+    def test_configured_launchers_keep_identity_native_and_model_events_network_free(
+        self,
+    ):
+        import time
+
         marker = self.root / "nmem-started"
         executable = self.root / "nmem"
         executable.write_text(
             "#!/bin/sh\n: > " + shlex.quote(str(marker)) + "\nexit 77\n"
         )
         executable.chmod(0o700)
-        hooks = json.loads(
-            (ROOT / "nowledge-mem-codex-plugin/hooks/hooks.json").read_text()
-        )["hooks"]
-        entry = next(
-            hook
-            for group in hooks["Stop"]
-            for hook in group["hooks"]
-            if "nmem-mailbox-stop.py" in hook.get("command", "")
-        )
-        import time
-
-        self.value.update(
-            saved_ms=int(time.time() * 1000),
-            expires_ms=int(time.time() * 1000) + 45_000,
-        )
-        self.save()
-        env = {
-            **os.environ,
-            "PLUGIN_ROOT": str(ROOT / "nowledge-mem-codex-plugin"),
-            "NMEM_CLI_CONFIG_DIR": str(self.root),
-            "NMEM_CLI_PATH": str(executable),
-        }
-        env.pop("NMEM_AGENT_CONTEXT", None)
-        env.pop("GROK_PLUGIN_ROOT", None)
-        event = {
-            "hook_event_name": "Stop",
-            "session_id": "actual-session",
-            "stop_hook_active": False,
-        }
-        result = subprocess.run(
+        counter = 0
+        for package, script, host in [
+            ("nowledge-mem-codex-plugin", "hooks/nmem-mailbox-stop.py", "codex"),
             (
-                entry["commandWindows"]
-                if os.name == "nt"
-                else ["/bin/sh", "-c", entry["command"]]
+                "nowledge-mem-claude-code-plugin",
+                "scripts/nmem-hook-mailbox.py",
+                "claude-code",
             ),
-            shell=os.name == "nt",
-            env=env,
-            input=json.dumps(event),
-            text=True,
-            capture_output=True,
-            timeout=1,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout)["decision"], "block")
-        self.assertFalse(marker.exists())
+        ]:
+            hooks = json.loads((ROOT / package / "hooks/hooks.json").read_text())[
+                "hooks"
+            ]
+            for kind in ("identity", "local-session", "cloud-session"):
+                for event in ("UserPromptSubmit", "PostToolUse", "Stop"):
+                    counter += 1
+                    self.target.update(host=host, native=kind != "identity")
+                    now = int(time.time() * 1000)
+                    self.value.update(
+                        host=host,
+                        mailbox_kind=kind,
+                        change_token=format(counter, "064x"),
+                        saved_ms=now,
+                        expires_ms=now + 45_000,
+                    )
+                    self.save()
+                    ledger = self.directory / "hook-ledger.sqlite3"
+                    ledger.unlink(missing_ok=True)
+                    entry = next(
+                        hook
+                        for group in hooks[event]
+                        for hook in group["hooks"]
+                        if Path(script).name in hook.get("command", "")
+                    )
+                    env = {
+                        key: value
+                        for key, value in os.environ.items()
+                        if not key.startswith("GROK_") and key != "CLAUDE_PLUGIN_ROOT"
+                    }
+                    env.update(
+                        PLUGIN_ROOT=str(ROOT / package),
+                        CLAUDE_PLUGIN_ROOT=str(ROOT / package),
+                        NMEM_CLI_CONFIG_DIR=str(self.root),
+                        NMEM_CLI_PATH=str(executable),
+                    )
+                    command = (
+                        entry.get("commandWindows")
+                        if os.name == "nt"
+                        else ["/bin/sh", "-c", entry["command"]]
+                    )
+                    command = command or [sys.executable, str(ROOT / package / script)]
+                    result = subprocess.run(
+                        command,
+                        shell=isinstance(command, str),
+                        env=env,
+                        input=json.dumps(
+                            {
+                                "hook_event_name": event,
+                                "session_id": "actual-session",
+                                "stop_hook_active": False,
+                            }
+                        ),
+                        text=True,
+                        capture_output=True,
+                        timeout=1,
+                    )
+                    self.assertEqual(
+                        result.returncode, 0, (package, kind, event, result.stderr)
+                    )
+                    value = json.loads(result.stdout)
+                    self.assertEqual(
+                        value.get("decision"), "block" if event == "Stop" else None
+                    )
+                    hint = (
+                        value["reason"]
+                        if event == "Stop"
+                        else value["hookSpecificOutput"]["additionalContext"]
+                    )
+                    self.assertIn(
+                        (
+                            '"bridge", "inbox"'
+                            if kind == "identity"
+                            else '"session", "--host=' + host + '"'
+                        ),
+                        hint,
+                    )
+                    self.assertFalse(marker.exists(), (package, kind, event))
 
     @unittest.skipUnless(os.name == "nt", "Native cmd.exe contract")
     def test_windows_registration_gates_all_events_before_python(self):

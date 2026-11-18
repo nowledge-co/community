@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nmem_bridge_notice import read_event, response
+from nmem_bridge_notice import is_grok_runtime, read_event, response
 
 
 def main() -> dict:
-    if os.environ.get("GROK_PLUGIN_ROOT"):
+    if is_grok_runtime():
         return {}
     event = read_event()
     if event.get("hook_event_name") == "SessionEnd":

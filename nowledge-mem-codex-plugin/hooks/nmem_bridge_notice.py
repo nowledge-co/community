@@ -40,7 +40,10 @@ def _read(path: Path):
         raw = source.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
         raise ValueError("Observation exceeds its bound")
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except RecursionError as error:
+        raise ValueError("Observation nesting exceeds its parsing bound") from error
 
 
 def read_event() -> dict:
@@ -72,7 +75,16 @@ def _claim(
     except FileExistsError:
         pass
     metadata = path.lstat()
-    if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 4 * 1024 * 1024:
+    if (
+        not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_size > 4 * 1024 * 1024
+        or os.name != "nt"
+        and (
+            metadata.st_uid != os.geteuid()
+            or metadata.st_mode & 0o077
+            or metadata.st_nlink != 1
+        )
+    ):
         return False
     with closing(sqlite3.connect(path, timeout=0)) as database, database:
         database.execute("PRAGMA busy_timeout=0")
@@ -109,6 +121,46 @@ def _claim(
     return True
 
 
+def is_grok_runtime() -> bool:
+    root = os.environ.get("CLAUDE_PLUGIN_ROOT", "").replace("\\", "/")
+    return (
+        any(
+            os.environ.get(name)
+            for name in (
+                "GROK_SESSION_ID",
+                "GROK_HOOK_EVENT",
+                "GROK_WORKSPACE_ROOT",
+                "GROK_PLUGIN_ROOT",
+            )
+        )
+        or "/.grok/" in root
+        or root.endswith("/.grok")
+    )
+
+
+def _configuration_fence(path: Path) -> str:
+    try:
+        named = path.lstat()
+    except FileNotFoundError:
+        return hashlib.sha256(b"").hexdigest()
+    if not stat.S_ISREG(named.st_mode) or named.st_size > 1024 * 1024:
+        raise ValueError("Configuration exceeds the regular-file observation bound")
+    descriptor = os.open(
+        path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    )
+    with os.fdopen(descriptor, "rb") as source:
+        opened = os.fstat(source.fileno())
+        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
+            named.st_dev,
+            named.st_ino,
+        ):
+            raise ValueError("Configuration changed while opening")
+        raw = source.read(1024 * 1024 + 1)
+    if len(raw) > 1024 * 1024:
+        raise ValueError("Configuration exceeds its observation bound")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def response(
     event: dict, *, host: str, root: Path | None = None, environ=None, now_ms=None
 ) -> dict:
@@ -139,6 +191,7 @@ def response(
         targets = _read(directory / "subscriptions.json")
         if not isinstance(targets, dict) or len(targets) > MAX_TARGETS:
             return {}
+        configuration_fence = _configuration_fence(directory.parent / "config.json")
         hints = []
         session_key = hashlib.sha256(
             json.dumps(
@@ -197,11 +250,8 @@ def response(
             fence = value.get("config_fence")
             if not isinstance(fence, str) or not re.fullmatch(r"[0-9a-f]{64}", fence):
                 continue
-            if fence is not None:
-                configuration = directory.parent / "config.json"
-                raw = configuration.read_bytes() if configuration.exists() else b""
-                if len(raw) > 1024 * 1024 or hashlib.sha256(raw).hexdigest() != fence:
-                    continue
+            if fence != configuration_fence:
+                continue
             binding, token = value.get("binding_key"), value.get("change_token")
             if any(
                 not isinstance(v, str) or not re.fullmatch(r"[0-9a-f]{64}", v)
@@ -209,6 +259,8 @@ def response(
             ):
                 continue
             kind = value.get("mailbox_kind")
+            if not isinstance(kind, str):
+                continue
             if target.get("native") is True:
                 if kind not in {"cloud-session", "local-session"}:
                     continue

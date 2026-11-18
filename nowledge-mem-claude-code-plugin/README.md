@@ -285,7 +285,8 @@ headless users can run the compatible CLI's `bridge notices watch` as one
 supervised foreground service. `bridge notices status` reports local observer
 and Desktop notice state. It does not prove that mail was read or work finished.
 
-UserPromptSubmit, PostToolUse and Stop read only fresh local metadata. These hooks
+In Claude Code, UserPromptSubmit, PostToolUse and Stop read only fresh local metadata.
+Grok shares this package version; its Bridge arrival model hooks remain disabled. These hooks
 never call the mailbox network service. Without the local setup marker, the
 registered shell command exits before starting Python. PostToolUse reminders are
 limited to once per two minutes. Prompt, tool and Stop reminders share one model
