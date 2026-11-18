@@ -636,7 +636,7 @@ Run `nmem config client show` and confirm the effective URL and API key state. T
 
 - **Local-first**: no API key, no cloud account. Your knowledge stays on your machine.
 - **Knowledge graph**: memories are connected nodes, not isolated vectors. EVOLVES edges track how understanding grows over time.
-- **Source provenance**: the Library ingests PDFs, DOCX, URLs. Extracted knowledge links back to the exact document section it came from.
+- **Source provenance**: Artifacts holds the PDFs, DOCX files, and URLs you save. Extracted knowledge links back to the exact document section it came from.
 - **Working Memory**: an AI-generated daily briefing that evolves, not a static user profile.
 - **Cross-AI continuity**: knowledge captured in any tool (Cursor, Claude, ChatGPT) flows to OpenClaw and back.
 - **Typed memories**: 8 knowledge types mapped to graph node properties. Structured understanding, not text blobs.

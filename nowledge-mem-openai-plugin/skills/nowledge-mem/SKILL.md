@@ -1,6 +1,6 @@
 ---
 name: nowledge-mem
-description: Use a connected Nowledge Mem Cloud workspace for cross-tool context, memory search, scoped knowledge writes, thread lookup, original Thread sync, and Library retrieval in ChatGPT or Codex.
+description: Use a connected Nowledge Mem Cloud workspace for cross-tool context, memory search, scoped knowledge writes, thread lookup, original Thread sync, and artifact retrieval in ChatGPT or Codex.
 ---
 
 # Nowledge Mem Cloud
@@ -18,7 +18,7 @@ This public plugin package references the production MCP App registered with Ope
 1. Start with `read_context_bundle` when broad current context is useful.
 2. Use `memory_search` for focused recall and `get_memory_by_id` for exact follow-up.
 3. Use `thread_search` and thread message tools only when exact prior conversation evidence matters.
-4. Use Library tools for source-backed material.
+4. Use artifact tools for saved documents: `artifact_read` (older Mem: `read_source_content`) to read one artifact, and `artifact_add` (older Mem: `library_add`) to save one. An artifact ID is the `source_id` field.
 5. Before `memory_add` or `memory_update`, make the intended Space and durable claim clear. A write may require separately approved `mem:write` scope.
 
 Respect the tools actually exposed by the connected server. Do not claim access to hidden administrative, identity, scheduler, deletion, or review/governance tools.

@@ -1548,7 +1548,7 @@
         "runtime": "ekko",
         "command": "nmem t sync --from ekko --session-id <session-id> --apply",
         "historicalCommand": "nmem t sync --from ekko",
-        "note": "Ekko Agent, the runtime built into Hermes Studio, can use Nowledge Mem through MCP for Context Bundle, Working Memory, memory search/save, Library, and graph tools. Transcript capture is a local CLI importer: nmem reads Hermes Studio's current Ekko SQLite memory store at $HERMES_WEB_UI_HOME/.ekko/ekko.db (or the database passed with --session-dir), normalizes user/assistant messages, and imports them as source=ekko with stable ekko-<session_id> thread IDs. The importer is for history/recovery and manual sync today; automatic post-run capture should be triggered by Hermes Studio/Ekko after a completed run."
+        "note": "Ekko Agent, the runtime built into Hermes Studio, can use Nowledge Mem through MCP for Context Bundle, Working Memory, memory search/save, artifact, and graph tools. Transcript capture is a local CLI importer: nmem reads Hermes Studio's current Ekko SQLite memory store at $HERMES_WEB_UI_HOME/.ekko/ekko.db (or the database passed with --session-dir), normalizes user/assistant messages, and imports them as source=ekko with stable ekko-<session_id> thread IDs. The importer is for history/recovery and manual sync today; automatic post-run capture should be triggered by Hermes Studio/Ekko after a completed run."
       },
       "autonomy": {
         "bootstrap": "guided",

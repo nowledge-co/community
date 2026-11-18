@@ -107,7 +107,7 @@ for Progressive requests.
 
 ## Knowledge Tree
 
-When the task needs to browse across memories, threads, wiki pages, working memory, activities, sources, and artifacts as one shape, use the Knowledge Filesystem:
+When the task needs to browse across memories, threads, wiki pages, working memory, activities, and artifacts (saved documents, under `/sources/`) as one shape, use the Knowledge Filesystem:
 
 Prefer the MCP `mem_fs` tool when it is available. It accepts shell-shaped commands such as:
 
@@ -139,6 +139,8 @@ For past conversations specifically:
 nmem --json t search "query" --limit 5
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
+
+For saved documents (files, web pages, notes in Artifacts), use `artifact_search`, then `artifact_read` (older Mem: `read_source_content`). Save a file or long content with `artifact_add` (older Mem: `library_add`). The CLI fallback is `nmem --json artifacts search "query"` and `nmem --json artifacts read <id>`; older `nmem` releases use `nmem library` for the same commands, and that name still works.
 
 ## Skills
 
