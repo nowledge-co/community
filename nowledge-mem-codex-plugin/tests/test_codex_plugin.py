@@ -840,7 +840,7 @@ class PackagedHookConfigTests(unittest.TestCase):
 
         self.assertEqual(
             set(hooks),
-            {"SessionStart", "SubagentStart", "UserPromptSubmit", "Stop"},
+            {"SessionStart", "SubagentStart", "UserPromptSubmit", "PostToolUse", "Stop", "SessionEnd"},
         )
         self.assertEqual(hooks["SessionStart"][0]["matcher"], "startup|resume|clear|compact|fork")
         self.assertEqual(hooks["SubagentStart"][0]["matcher"], ".*")

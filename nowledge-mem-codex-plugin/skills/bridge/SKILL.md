@@ -67,8 +67,11 @@ must not fall back to a default mailbox or another same-name identity.
 list --space-id=<exact id>` and `bridge connections revoke <connection id>`.
 One host integration and role under the same login parent share a revocation
 unit across sessions; their private session addresses and proofs stay separate.
-OAuth grants have independent connection owners. This is not per-device
-revocation when multiple installations share one API credential.
+OAuth grants have independent connection owners. Compatible fresh CLI homes
+have stable private home correlation and optional device labels. Previously
+shared connections stay shared; do not rotate an original to obtain device
+separation. Creation and last-seen observations are advisory and may be unknown;
+they never prove delivery readiness or permission.
 
 ## Agent-mailbox setup
 
@@ -119,7 +122,12 @@ Do not silently install, reconnect or grant permissions while inspecting.
 ## Send, receive and continue
 
 Use the commands actually shown by installed help. With direct Cloud Bridge,
-keep the same connection and `--space-id` for contacts, inbox, open and reply.
+keep the same approved connection. A compatible identity inbox without Space
+selectors reads all currently authorized Spaces and labels each message with its
+Space. Follow returned message references and literal open/reply argument vectors;
+reply retains the original Space. Identity contact handles resolve inside the
+sender's current Space, so do not guess a receiving Space. Legacy per-Space
+commands remain explicit and cannot expand their original authority.
 Present returned member and Agent distinctions for an explicit recipient choice;
 a similarly named mailbox is not a substitute. When replying to a received
 message, use `reply` on that original instead of selecting a new recipient.

@@ -1,4 +1,4 @@
-"""Exercise packaged Stop entrypoints with a read-only CLI transport double."""
+"""Retain legacy probe-helper coverage; registered hooks use cache-only notices."""
 
 from __future__ import annotations
 
@@ -132,13 +132,16 @@ class MailboxStopTests(unittest.TestCase):
 
         def trace(frame, event, value):
             if event == "exception" and Path(frame.f_code.co_filename).name in {
-                script.name, "nmem_mailbox_stop.py", "nmem_runtime.py"
+                script.name,
+                "nmem_mailbox_stop.py",
+                "nmem_runtime.py",
             }:
                 kind, error, _ = value
                 self.hook_diagnostics.append(
                     f"{Path(frame.f_code.co_filename).name}:{frame.f_lineno} {kind.__name__}: {error}"
                 )
             return trace
+
         # Use the packaged helper, replacing only its CLI transport. Real
         # launcher and process-resource tests exercise the other boundaries.
         with mock.patch.dict(os.environ, self.env, clear=True), mock.patch.dict(
@@ -153,7 +156,23 @@ class MailboxStopTests(unittest.TestCase):
             try:
                 if diagnose:
                     sys.settrace(trace)
-                runpy.run_path(str(script), run_name="__main__")
+                if (
+                    not helper.eligible(self.event)
+                    or self.env.get("GROK_PLUGIN_ROOT")
+                    or not helper.supports_native_cli(self.env.get("NMEM_CLI_PATH", ""))
+                    or not Path(self.env.get("NMEM_CLI_PATH", "missing")).is_file()
+                ):
+                    value = {}
+                else:
+                    value = helper.build_stop_response(
+                        self.event,
+                        host=self.host,
+                        command=lambda args: [self.env["NMEM_CLI_PATH"], *args],
+                        state_root=self.root
+                        / ("codex" if self.host == "codex" else "claude")
+                        / "nowledge-mem/mailbox-stop",
+                    )
+                print(json.dumps(value))
             finally:
                 if diagnose:
                     sys.settrace(previous_trace)
@@ -171,10 +190,22 @@ class MailboxStopTests(unittest.TestCase):
         # A coarse Windows monotonic clock may return the same value twice.
         # Subtraction rounds (1.4 + 3) - 1.4 above 3 despite an exact budget.
         now = 1.4
-        self.assertGreater((now + CORE.TOTAL_TIMEOUT_SECONDS) - now, CORE.TOTAL_TIMEOUT_SECONDS)
+        self.assertGreater(
+            (now + CORE.TOTAL_TIMEOUT_SECONDS) - now, CORE.TOTAL_TIMEOUT_SECONDS
+        )
         with mock.patch.object(CORE.time, "monotonic", return_value=now):
-            command = [sys.executable, "--json", "--agent-context", "reviewer",
-                       "mailbox", "probe", "--host", self.host, "--session-id", "session-1"]
+            command = [
+                sys.executable,
+                "--json",
+                "--agent-context",
+                "reviewer",
+                "mailbox",
+                "probe",
+                "--host",
+                self.host,
+                "--session-id",
+                "session-1",
+            ]
             response = self.cli(
                 command,
                 now + CORE.TOTAL_TIMEOUT_SECONDS,
@@ -280,9 +311,13 @@ class MailboxStopTests(unittest.TestCase):
                 self.assertEqual(response["decision"], "block")
                 self.assertIn('"--host", "' + self.host + '"', response["reason"])
                 if kind == "cloud-session":
-                    self.assertIn("do not append an invented --operation-id", response["reason"])
+                    self.assertIn(
+                        "do not append an invented --operation-id", response["reason"]
+                    )
                     self.assertIn("automatic mailbox acceptance", response["reason"])
-                    self.assertIn("Inspect uncertain originals first", response["reason"])
+                    self.assertIn(
+                        "Inspect uncertain originals first", response["reason"]
+                    )
         self.assertEqual(len(self.calls), 2)
 
     def test_incomplete_observation_remains_explicit_with_or_without_pending(self):
@@ -345,34 +380,6 @@ class MailboxStopTests(unittest.TestCase):
             with self.subTest(field=field):
                 self.response_override = dict(baseline, **{field: bad})
                 self.assertEqual(self.run_hook(), {})
-
-    def test_installed_codex_fallback_shares_package_deduplication(self):
-        if self.host != "codex":
-            self.skipTest("Claude Code has no Codex host-level fallback")
-        with mock.patch.dict(os.environ, self.env, clear=True):
-            path = ROOT / "nowledge-mem-codex-plugin/scripts/install_hooks.py"
-            spec = importlib.util.spec_from_file_location("mailbox_installer", path)
-            installer = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(installer)
-            installer.install_runtime_hook()
-            installer.merge_hooks_json()
-            installer.merge_hooks_json()
-        hooks = json.loads(installer.GLOBAL_HOOKS_FILE.read_text())["hooks"]["Stop"]
-        commands = [hook["command"] for entry in hooks for hook in entry["hooks"]]
-        self.assertEqual(
-            sum("nowledge-mem-mailbox-stop.py" in value for value in commands), 1
-        )
-        self.assertEqual(
-            sum("nowledge-mem-stop-save.py" in value for value in commands), 1
-        )
-        installed = installer.HOOKS_DIR / "nowledge-mem-mailbox-stop.py"
-        response = self.run_hook(installed, diagnose=True)
-        self.assertEqual(
-            response.get("decision"), "block",
-            f"installed launcher response={response!r}; transport_calls={len(self.calls)}; "
-            f"handled_exceptions={self.hook_diagnostics!r}",
-        )
-        self.assertEqual(self.run_hook(), {})
 
     def test_unavailable_cache_does_not_block_stop(self):
         root = (
@@ -447,7 +454,7 @@ class MailboxStateTests(unittest.TestCase):
             notices = [hook for hook in hooks if script in hook["command"]]
             self.assertEqual(len(notices), 1)
             self.assertFalse(notices[0].get("async", False))
-            self.assertEqual(notices[0]["timeout"], 5)
+            self.assertEqual(notices[0]["timeout"], 1)
             if package == "nowledge-mem-codex-plugin":
                 self.assertIn(script, notices[0]["commandWindows"])
 
@@ -496,117 +503,7 @@ class MailboxStateTests(unittest.TestCase):
                         timeout=10,
                     )
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertEqual(json.loads(result.stdout), {})
-
-    def test_registered_native_launchers_invoke_only_one_probe(self):
-        with tempfile.TemporaryDirectory(
-            prefix="native mailbox launcher "
-        ) as directory:
-            root = Path(directory)
-            script = root / "probe_cli.py"
-            script.write_text(
-                "import json, os, sys\nfrom pathlib import Path\n"
-                "args = sys.argv[1:]\n"
-                "with Path(os.environ['NMEM_PROBE_TEST_CALLS']).open('a') as log: log.write(json.dumps(args) + '\\n')\n"
-                "context = args[args.index('--agent-context') + 1]\n"
-                "host = args[args.index('--host') + 1]\n"
-                "session = args[args.index('--session-id') + 1]\n"
-                "print(json.dumps(dict(schema_version=1, context=context, host=host, session_id=session, "
-                "mailbox_kind='cloud-session', has_pending=True, scan_incomplete=False, "
-                "binding_key='a'*64, change_token='b'*64, "
-                "inspect_args=['--json','--agent-context',context,'mailbox','cloud-session',"
-                "'--host',host,'--session-id',session,'--space-id','research','receive'])))\n",
-                encoding="utf-8",
-            )
-            executable = root / ("nmem.cmd" if os.name == "nt" else "nmem")
-            executable.write_text(
-                (
-                    f'@"{sys.executable}" "{script}" %*\n'
-                    if os.name == "nt"
-                    else f'#!{sys.executable}\nexec(compile(open({str(script)!r}).read(), {str(script)!r}, "exec"))\n'
-                ),
-                encoding="utf-8",
-            )
-            executable.chmod(0o700)
-            for package, entrypoint, host in (
-                ("nowledge-mem-codex-plugin", "hooks/nmem-mailbox-stop.py", "codex"),
-                (
-                    "nowledge-mem-claude-code-plugin",
-                    "scripts/nmem-hook-mailbox.py",
-                    "claude-code",
-                ),
-            ):
-                with self.subTest(host=host):
-                    plugin = ROOT / package
-                    hooks = json.loads((plugin / "hooks/hooks.json").read_text())[
-                        "hooks"
-                    ]["Stop"]
-                    hook = next(
-                        hook
-                        for entry in hooks
-                        for hook in entry["hooks"]
-                        if Path(entrypoint).name in hook["command"]
-                    )
-                    calls = root / (host + ".jsonl")
-                    env = dict(
-                        os.environ,
-                        PLUGIN_ROOT=str(plugin),
-                        CLAUDE_PLUGIN_ROOT=str(plugin),
-                        NMEM_AGENT_CONTEXT="reviewer",
-                        NMEM_BRIDGE_SESSION_MAILBOX="1",
-                        NMEM_CLI_PATH=str(executable),
-                        NMEM_PROBE_TEST_CALLS=str(calls),
-                        CODEX_HOME=str(root / host),
-                        CLAUDE_CONFIG_DIR=str(root / host),
-                    )
-                    if os.name == "nt" and host == "claude-code":
-                        command = [sys.executable, str(plugin / entrypoint)]
-                        use_shell = False
-                    else:
-                        command = (
-                            hook["commandWindows"]
-                            if os.name == "nt"
-                            else hook["command"]
-                        )
-                        use_shell = True
-                    result = subprocess.run(
-                        command,
-                        shell=use_shell,
-                        cwd=directory,
-                        env=env,
-                        input=json.dumps(
-                            {
-                                "hook_event_name": "Stop",
-                                "stop_hook_active": False,
-                                "session_id": "native",
-                            }
-                        ),
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertEqual(json.loads(result.stdout).get("decision"), "block")
-                    observed = [
-                        json.loads(line) for line in calls.read_text().splitlines()
-                    ]
-                    self.assertEqual(
-                        observed,
-                        [
-                            [
-                                "--json",
-                                "--agent-context",
-                                "reviewer",
-                                "mailbox",
-                                "probe",
-                                "--host",
-                                host,
-                                "--session-id",
-                                "native",
-                                "--native-session",
-                            ]
-                        ],
-                    )
+                    self.assertEqual(json.loads(result.stdout or "{}"), {})
 
     def test_packaged_helpers_match_canonical_source(self):
         source = (ROOT / "shared/hooks/nmem_mailbox_stop.py").read_bytes()

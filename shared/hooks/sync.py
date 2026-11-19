@@ -11,7 +11,12 @@ def main() -> int:
     options = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     failed = False
-    for filename in ("nmem_mailbox_stop.py", "nmem_startup.py"):
+    for filename in (
+        "nmem_mailbox_stop.py",
+        "nmem_startup.py",
+        "nmem_bridge_notice.py",
+        "nmem_bridge_lifecycle.py",
+    ):
         source = Path(__file__).with_name(filename).read_bytes()
         targets = (
             root / "nowledge-mem-codex-plugin/hooks" / filename,
