@@ -68,6 +68,50 @@ class AgentBridgeStartupTests(unittest.TestCase):
             "additionalContext": bridge_startup_hint(OPTED_IN),
         })
 
+    @unittest.skipUnless(shutil.which("node"), "Node is needed for the MiMo Code file hook")
+    def test_mimo_only_transforms_the_first_eligible_model_request(self):
+        path = (HELPERS / "adapters" / "mimo-code" / "nowledge-bridge.js").as_uri()
+        program = f"import hooks from {json.dumps(path)};\n" + """
+const transform = hooks['experimental.chat.messages.transform'];
+const original = { info: { role: 'user', sessionID: 'one' }, parts: [{ type: 'text', text: 'Hello' }] };
+const synthetic = { ...original, parts: [{ type: 'text', text: 'Internal', synthetic: true }] };
+const second = { ...original, info: { ...original.info, sessionID: 'two' } };
+const project = async message => {
+  const output = { messages: [message] };
+  await transform({}, output);
+  return output.messages[0].parts[0].text;
+};
+process.stdout.write(JSON.stringify([
+  await project(synthetic), await project(original), await project(original),
+  await project(second), original.parts[0].text,
+]));
+"""
+        env = {**os.environ, **OPTED_IN}
+        values = json.loads(subprocess.check_output(
+            ["node", "--input-type=module", "-e", program], env=env, text=True,
+        ))
+        expected = bridge_startup_hint(OPTED_IN)
+        self.assertEqual(values[0], "Internal")
+        self.assertIn(expected, values[1])
+        self.assertEqual(values[2], "Hello")
+        self.assertIn(expected, values[3])
+        self.assertEqual(values[4], "Hello")
+
+    @unittest.skipUnless(shutil.which("node"), "Node is needed for the MiniMax Code hook")
+    def test_minimax_local_plugin_emits_model_context(self):
+        directory = HELPERS / "adapters" / "minimax-code"
+        package = json.loads((directory / ".claude-plugin" / "plugin.json").read_text())
+        hook = package["hooks"]["SessionStart"][0]
+        self.assertEqual(hook["matcher"], "startup|resume")
+        self.assertEqual(hook["hooks"][0]["command"], 'node "${PLUGIN_ROOT}/session-start.mjs"')
+        command = ["node", str(directory / "session-start.mjs")]
+        response = subprocess.check_output(command, env=os.environ.copy(), text=True)
+        result = json.loads(response)["hookSpecificOutput"]
+        self.assertEqual(result["hookEventName"], "SessionStart")
+        self.assertTrue(result["additionalContext"].startswith("Check the agent shell for NMEM_BRIDGE_INBOX_ON_START=1"))
+        self.assertIn("Skip the inbox if either is missing", result["additionalContext"])
+        self.assertTrue(result["additionalContext"].endswith(bridge_startup_hint(OPTED_IN)))
+
     def test_kimi_prompt_hook_uses_a_distinct_session_and_host(self):
         with tempfile.TemporaryDirectory() as directory:
             env = {**os.environ, **OPTED_IN, "HOME": directory, "USERPROFILE": directory}

@@ -1,0 +1,19 @@
+{
+  "name": "nowledge-bridge-startup",
+  "version": "0.1.0",
+  "description": "Optional Nowledge Bridge inbox reminder for MiniMax Code",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/session-start.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1021,6 +1021,7 @@
           "Run nmem t sync --from paseo --all-projects --apply when you want to import supported child-session history from Paseo's agent registry; reruns reuse the child thread id and deduplicate",
           "If a Paseo agent represents a durable role, pass NMEM_AGENT_ID=<agent-slug> into that launched child runtime",
           "Leave NMEM_AGENT_ID unset for one-off Paseo agents or generic provider presets",
+      "Enable the Bridge startup hook in the launched child connector when that runtime has an approved Agent Context",
           "Keep source_app as the launched AI tool so thread provenance and capture stay correct"
         ]
       },
@@ -1944,7 +1945,7 @@
       "threadSave": {
         "method": "cli-native",
         "historicalCommand": "nmem t sync --from mimo-code",
-        "note": "MiMo Code is OpenCode-derived and stores sessions in mimocode.db. nmem can import those local transcripts for local or remote Mem with nmem t sync --from mimo-code --apply. Nowledge Mem does not yet publish a MiMo lifecycle hook package; do not reuse the OpenCode package blindly because package names, config roots, and session APIs differ."
+        "note": "MiMo Code is OpenCode-derived and stores sessions in mimocode.db. nmem can import those local transcripts for local or remote Mem with nmem t sync --from mimo-code --apply. The optional MiMo Code Bridge file hook adds a model-facing inbox reminder without changing transcript import."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -1970,7 +1971,7 @@
       },
       "toolNaming": {
         "convention": "mcp-backend",
-        "note": "Use Nowledge Mem MCP tools plus project guidance until a native MiMo Code plugin is published."
+        "note": "Use Nowledge Mem MCP tools for memory and the optional MiMo Code file hook for Bridge startup guidance."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
       "slashCommands": []
@@ -2951,7 +2952,7 @@
       },
       "threadSave": {
         "method": "handoff-only",
-        "note": "MiniMax's public marketplace package exposes Skill, MCP, and App capabilities but no verified transcript or lifecycle hook. The plugin searches existing Threads and can save an explicit resumable summary without claiming lossless MiniMax conversation capture."
+        "note": "The marketplace package exposes Skill, MCP, and App capabilities. MiniMax Code desktop has an optional local Bridge startup hook. The marketplace plugin searches existing Threads and saves explicit resumable summaries."
       },
       "autonomy": {
         "bootstrap": "automatic",

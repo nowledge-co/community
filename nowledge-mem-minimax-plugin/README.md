@@ -18,7 +18,7 @@ The desktop MCP entry contains no credential. Cloud credentials must be collecte
 
 ## Thread capture
 
-The MiniMax marketplace contract currently exposes Skill, MCP, and App capabilities, not a verified transcript or lifecycle hook. This package therefore does not claim automatic full-conversation capture. It can search existing Threads and save an explicit resumable handoff without presenting that summary as the original transcript.
+The marketplace plugin searches existing Threads and saves explicit resumable handoffs. For a local MiniMax Code installation, see the [optional Bridge startup plugin](../docs/BRIDGE_HOST_HOOKS.md#optional-local-adapters).
 
 ## Source and support
 

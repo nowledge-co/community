@@ -27,8 +27,16 @@ Assign `bridge_space_id` from the verified setup result. Use the configured `NME
 | Hermes | The memory provider's session prompt under the provider API |
 | Devin CLI | Optional local `SessionStart` configuration for a POSIX shell |
 | Proma Agent | Workspace instructions refreshed by the startup hook |
+| MiMo Code | Optional local message transform hook |
+| MiniMax Code | Optional local SessionStart plugin |
+| Paseo, Raft, Multica | Installed hook of the launched child runtime |
 
-Codex and Claude Code use their existing native Bridge paths. Cursor and Antigravity have separate integration PRs. MCP-only hosted connectors use their authorized MCP tools. Devin Cloud and DimAgent currently expose transcript hooks in their shipped integrations. Grok Build's shared-package hooks discard passive model context.
+Codex and Claude Code use their existing native Bridge paths. Cursor and Antigravity have separate integration PRs. MCP-only hosted connectors use their authorized MCP tools. Devin Cloud and DimAgent currently expose transcript hooks in their shipped integrations. Grok Build's shared-package hooks discard passive model context. Craft Agent's command automation callback also drops command stdout.
+
+## Optional local adapters
+
+- **MiMo Code**. Copy both files from [the MiMo Code adapter](../shared/hooks/adapters/mimo-code) into the `hooks/` directory under the active MiMo Code config directory (normally `~/.config/mimocode`). A trusted project can use its own `.mimocode/hooks/` directory. The hook modifies the model request for the first eligible text prompt of each session.
+- **MiniMax Code**. Use `mcode plugin marketplace list` to locate the local plugin directory for your profile. Copy the complete [MiniMax Code adapter](../shared/hooks/adapters/minimax-code) there as a direct child named `nowledge-bridge-startup` and enable it in the Local tab of `/plugins`. It calls Node.js from PATH. MiniMax strips custom environment variables from hook commands, so enabling the separate local plugin supplies the static reminder and the agent checks both opt-in variables in its ordinary shell before running any Bridge operation. The marketplace memory plugin can stay installed alongside it.
 
 ## Verification
 
