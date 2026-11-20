@@ -5,6 +5,10 @@
 - Lifecycle capture now uses the shared durable per-session queue and returns
   before the complete Kimi session import, without a synchronous fallback.
 
+## [0.2.5] - 2026-11-20
+
+- Add an opt-in model-facing reminder to check the approved Nowledge Bridge Agent mailbox.
+
 ## 0.2.4
 
 - Clarify that Kimi Code MCP is intentionally configured as a user-level server block with `nmem config mcp show --host kimi-code`. The plugin still owns startup guidance, slash commands, and lifecycle thread capture, but it no longer implies a bundled local MCP server.

@@ -76,6 +76,31 @@ test('recall preserves save-only date provenance through the search parser', asy
   assert.match(recall.content[0].text, /date=saved:2026-11-01/u)
 })
 
+test('Bridge pre-step injects one scoped hint independently of startup memory', async t => {
+  const keys = ['NMEM_BRIDGE_INBOX_ON_START', 'NMEM_AGENT_CONTEXT']
+  const previous = keys.map(key => process.env[key])
+  t.after(() => {
+    for (const [index, key] of keys.entries()) {
+      if (previous[index] === undefined) delete process.env[key]
+      else process.env[key] = previous[index]
+    }
+  })
+  process.env.NMEM_BRIDGE_INBOX_ON_START = '1'
+  delete process.env.NMEM_AGENT_CONTEXT
+  const host = fixture({ contextOnSessionStart: false, recallOnPrompt: false })
+  const prompt = userMessage('Bridge fixture')
+  assert.deepEqual((await host.preStep([prompt])).messages, [prompt])
+  process.env.NMEM_AGENT_CONTEXT = 'private-role'
+  const first = await host.preStep([prompt])
+  const hint = first.messages[1]
+  assert.equal(hint.source.sections[0].name, 'nowledge-mem-bridge-startup')
+  assert.match(hint.content[0].text, /--resolved-space-id/u)
+  assert.doesNotMatch(hint.content[0].text, /private-role/u)
+  assert.doesNotThrow(() => assertV4RowAdmission({ type: 'user/message', seq: 1, time: Date.now(), data: hint }))
+  assert.deepEqual((await host.preStep([prompt])).messages, [prompt])
+  assert.deepEqual(host.requests, [])
+})
+
 for (const api of ['execute', 'run']) {
   test(`${api} injects context and recall that pass native v4 user and inbox admission`, async () => {
     const host = fixture({}, api)

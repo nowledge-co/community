@@ -35,6 +35,7 @@ except ImportError:
     _registry_tool_result = None
 
 from .client import NowledgeMemClient
+from .agent_bridge_startup import create_bridge_startup_hint
 from .skill_outcome import extract_skill_outcomes
 
 logger = logging.getLogger(__name__)
@@ -266,6 +267,7 @@ class NowledgeMemProvider(MemoryProvider):
         self._bg_threads: List[threading.Thread] = []
         self._resolved_space: str | None = None
         self._session_id = ""
+        self._bridge_hint = create_bridge_startup_hint()
         self._saved_message_count = 0
         self._saved_message_counts: Dict[str, int] = {}
         self._delta_only_sessions: Set[str] = set()
@@ -363,6 +365,9 @@ class NowledgeMemProvider(MemoryProvider):
             return ""
 
         parts = [GUIDANCE]
+        hint = self._bridge_hint(self._session_id)
+        if hint:
+            parts.append(hint)
         if self._resolved_space:
             parts.append(f"## Active Space\n\n{self._resolved_space}")
         if self._context_bundle:

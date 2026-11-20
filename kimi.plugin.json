@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Cross-tool memory for Kimi Code. Recall past decisions, search prior threads, and keep Kimi Code sessions searchable in Nowledge Mem.",
   "keywords": ["memory", "mcp", "skills", "thread-sync"],
   "author": {
@@ -15,6 +15,11 @@
   "skillInstructions": "Use Nowledge Mem for durable cross-tool memory. Prefer MCP tools when they are connected; use nmem CLI as the fallback and for real Kimi Code transcript import. This plugin intentionally does not declare mcpServers; if MCP tools are missing, add the user-level server block from nmem config mcp show --host kimi-code instead of reinstalling hooks. If nmem exists but rejects Kimi Code commands or MCP host helpers, treat it as outdated and upgrade the CLI before retrying.",
   "commands": "./nowledge-mem-kimi-code-plugin/commands/",
   "hooks": [
+    {
+      "event": "UserPromptSubmit",
+      "command": "python3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-bridge-startup.py kimi-code || python ./nowledge-mem-kimi-code-plugin/scripts/kimi-bridge-startup.py kimi-code || py -3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-bridge-startup.py kimi-code",
+      "timeout": 5
+    },
     {
       "event": "Stop",
       "command": "python3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || python ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py || py -3 ./nowledge-mem-kimi-code-plugin/scripts/kimi-sync-hook.py",

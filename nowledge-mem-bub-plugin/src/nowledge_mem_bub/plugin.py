@@ -18,6 +18,7 @@ from bub.envelope import content_of
 from loguru import logger
 
 from .client import NmemClient, NmemError
+from .agent_bridge_startup import create_bridge_startup_hint
 from .recall_pack import RECALL_LIMIT, format_recalled
 
 # ---------------------------------------------------------------------------
@@ -62,6 +63,7 @@ class NowledgeMemPlugin:
             "NMEM_SESSION_DIGEST", "1"
         ).lower() not in ("0", "false", "no")
         self._known_threads: set[str] = set()
+        self._bridge_hint = create_bridge_startup_hint()
 
     async def _builtin_build_prompt(self, message, session_id, state) -> str:
         agent = state.get("_runtime_agent")
@@ -95,20 +97,21 @@ class NowledgeMemPlugin:
     ) -> list[dict[str, str]] | str:
         """When session_context is on, inject Context Bundle + recalled memories."""
         prompt = await self._builtin_build_prompt(message, session_id, state)
-        if not self._session_context:
-            return prompt
-
         sections = []
-        # Session context mode: include Context Bundle + recalled memories
-        bundle, recalled = await self._load_memory(message, state)
-        if bundle:
-            sections.append(
-                f"<nowledge-mem-context>\n{bundle}\n</nowledge-mem-context>"
-            )
-
-        recalled_block = format_recalled(recalled)
-        if recalled_block:
-            sections.append(recalled_block)
+        if self._session_context:
+            bundle, recalled = await self._load_memory(message, state)
+            if bundle:
+                sections.append(
+                    f"<nowledge-mem-context>\n{bundle}\n</nowledge-mem-context>"
+                )
+            recalled_block = format_recalled(recalled)
+            if recalled_block:
+                sections.append(recalled_block)
+        hint = self._bridge_hint(session_id)
+        if hint:
+            sections.insert(0, hint)
+        if not self._session_context and not hint:
+            return prompt
 
         mem_context = "\n\n".join(sections)
         if not prompt:

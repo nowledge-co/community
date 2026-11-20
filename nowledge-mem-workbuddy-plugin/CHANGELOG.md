@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.2] - 2026-11-20
+
+- Add an opt-in model-facing reminder to check the approved Nowledge Bridge Agent mailbox.
+
 ## 0.2.1 - 2026-10-13
 
 - Lead desktop installation with Plugins -> +, explicit enable/reload and MCP Trust checks instead of assuming slash commands register components in every WorkBuddy desktop release.

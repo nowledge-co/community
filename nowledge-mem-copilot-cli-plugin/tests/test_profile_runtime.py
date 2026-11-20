@@ -110,7 +110,7 @@ def test_compatibility_install_contains_current_entry_point_and_retains_state(tm
     state.write_text('existing capture state')
     result = run_installer(package, env, tmp_path)
     assert result.returncode == 0, result.stderr
-    for name in ('copilot-stop-save.py', 'copilot-stop-save.sh', 'copilot-hook.py'):
+    for name in ('copilot-stop-save.py', 'copilot-stop-save.sh', 'copilot-hook.py', 'agent_bridge_startup.py'):
         assert (runtime / name).read_bytes() == (package / 'hooks' / name).read_bytes()
     assert state.read_text() == 'existing capture state'
 
@@ -121,7 +121,7 @@ def test_late_source_failure_preserves_complete_previous_runtime(tmp_path):
     package = copied_installer(tmp_path)
     runtime = home / '.copilot' / 'nowledge-mem-hooks'
     runtime.mkdir(parents=True)
-    names = ('copilot-stop-save.py', 'copilot-stop-save.sh', 'copilot-hook.py')
+    names = ('copilot-stop-save.py', 'copilot-stop-save.sh', 'copilot-hook.py', 'agent_bridge_startup.py')
     for name in names:
         (runtime / name).write_text('previous ' + name)
     source = package / 'hooks' / names[1]

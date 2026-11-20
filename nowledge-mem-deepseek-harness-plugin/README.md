@@ -260,3 +260,7 @@ from Git, not an independently published npm release.
 
 Thanks to BBleae (晴猫) for the PowerShell and human-only recall fixes (#19, #26,
 #27), and vizmoe for qualifying newer host previews (#24).
+
+## Bridge mailbox
+
+Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context before starting the host. The plugin asks the session to use the configured `nmem bridge` CLI to check one inbox page in the exact Space. Use the same CLI and Context to discover contacts, send, open, or reply. Mailbox access and work remain subject to the current connection and host permissions.

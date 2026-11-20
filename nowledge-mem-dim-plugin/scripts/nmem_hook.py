@@ -23,6 +23,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 import nmem_common
+from agent_bridge_startup import bridge_startup_hint
 
 TOTAL_TIMEOUT_SECONDS = 10.0
 ATTEMPT_TIMEOUT_SECONDS = 7.0
@@ -140,13 +141,14 @@ def main() -> int:
     deadline = started + TOTAL_TIMEOUT_SECONDS
     nmem = nmem_common.find_nmem()
     text, source, reason = load_context(nmem, deadline)
-    if not text:
+    hint = bridge_startup_hint()
+    if not text and not hint:
         nmem_common.log(
             {"hook": "startup", "status": "unavailable", "reason": reason}
         )
         return 0
-    content = ROUTING + "\n\n## Current Nowledge context\n\n" + text
-    content = bound(content, MAX_CONTEXT_BYTES)
+    briefing = ROUTING + "\n\n## Current Nowledge context\n\n" + text if text else ""
+    content = bound("\n\n".join(part for part in (hint, briefing) if part), MAX_CONTEXT_BYTES)
     sys.stdout.write(
         json.dumps(
             {

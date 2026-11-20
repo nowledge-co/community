@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.10] - 2026-11-20
+
+- Add an opt-in startup hint for checking the approved Nowledge Bridge Agent mailbox.
+
 ## [0.4.9] - 2026-11-12
 
 - Refuse HTTP redirects on transcript and Space-roster requests, preserving

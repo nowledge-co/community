@@ -61,6 +61,7 @@ async function withContextChoiceProfile(run) {
       HOME: root, USERPROFILE: root, NMEM_API_URL: "http://127.0.0.1:1",
       NMEM_API_KEY: "synthetic-context-choice", NMEM_SPACE: undefined,
       NMEM_SPACE_ID: undefined, NMEM_AGENT_ID: undefined, NMEM_HOST_AGENT_ID: undefined,
+      NMEM_BRIDGE_INBOX_ON_START: undefined, NMEM_AGENT_CONTEXT: undefined,
     }, run)
   } finally {
     rmSync(root, { recursive: true, force: true })
@@ -115,6 +116,26 @@ test("session context choice: invalid values fail before registration", async ()
       assert.equal(hooks.size, 0)
     }
   })
+})
+
+test("Bridge startup is independent of automatic memory guidance and runs once per session", async () => {
+  await withContextChoiceProfile(async () => withEnv({
+    NMEM_BRIDGE_INBOX_ON_START: "1", NMEM_AGENT_CONTEXT: "private-role",
+  }, async () => {
+    const { ctx, hooks } = createFakeContext({ options: { sessionContext: "off" } })
+    const cleanup = await plugin.setup(ctx)
+    try {
+      const inject = hooks.get("context")
+      const first = { sessionID: "one", system: [] }
+      const repeat = { sessionID: "one", system: [] }
+      const other = { sessionID: "two", system: [] }
+      for (const event of [first, repeat, other]) await inject(event)
+      assert.match(first.system[0].text, /--resolved-space-id/)
+      assert.doesNotMatch(first.system[0].text, /private-role|Use them proactively/)
+      assert.deepEqual(repeat.system, [])
+      assert.deepEqual(other.system, first.system)
+    } finally { await cleanup() }
+  }))
 })
 
 test("session context choice: off keeps capture governed by its own switch", async t => {

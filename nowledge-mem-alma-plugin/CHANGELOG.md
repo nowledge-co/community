@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.13] - 2026-11-20
+
+- Add an opt-in model-facing reminder to check the approved Nowledge Bridge Agent mailbox.
+
 ## [0.7.12] - 2026-11-12
 
 - Refuse HTTP redirects on authenticated requests and Space-roster reads,

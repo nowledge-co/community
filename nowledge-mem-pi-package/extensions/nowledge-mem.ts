@@ -1,3 +1,4 @@
+import { createBridgeStartupHint } from "./agent-bridge-startup.mjs";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -24,7 +25,7 @@ import { exactSpaceBody, resolveThreadSyncTimeoutMs } from "./generated/plugin-c
 export { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.18";
+const DEFAULT_PLUGIN_VERSION = "0.8.19";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -1127,6 +1128,7 @@ async function appendMemoryContext(systemPrompt: string, ctx: ExtensionContext):
 }
 
 export default function nowledgeMemPi(pi: ExtensionAPI) {
+	const bridgeHint = createBridgeStartupHint();
 	const bootstrap = async (ctx: ExtensionContext, locator?: string): Promise<void> => {
 		if (sourceApp() !== "pi") return;
 		const id = sessionId(ctx);
@@ -1196,7 +1198,9 @@ export default function nowledgeMemPi(pi: ExtensionAPI) {
 	pi.on("before_agent_start", async (event, ctx) => {
 		const context = resumeStates.get(sessionId(ctx))?.reply?.context.context_text;
 		const prompt = context ? `${event.systemPrompt}\n\n${context}` : event.systemPrompt;
-		return { systemPrompt: await appendMemoryContext(prompt, ctx) };
+		const memoryPrompt = await appendMemoryContext(prompt, ctx);
+		const hint = bridgeHint(sessionId(ctx));
+		return { systemPrompt: hint ? `${memoryPrompt}\n\n${hint}` : memoryPrompt };
 	});
 
 	const captureEvent = captureLifecycleEvent();

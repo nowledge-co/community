@@ -15,6 +15,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
 import { DEFAULT_PROMPT_RECALL_PATTERN, shouldRecallForPrompt } from './recall.js'
 import { hasContextBundle } from './context.js'
+import { bridgeStartupHint } from './agent-bridge-startup.mjs'
 import { isHumanInput } from './transcript.js'
 import { shellCommand, shellQuote } from './shell-quote.js'
 import { flushBeforeImport } from './session-flush.js'
@@ -482,6 +483,7 @@ export function apply(ctx, config = {}) {
     }, importSession))
   })
   const contextFailures = new WeakMap()
+  const bridgeHintedSessions = new WeakSet()
   if (resolved.invalidRecallPattern) warn(ctx, 'nowledge-mem: invalid promptRecallPattern; using the default recall pattern')
 
   ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
@@ -511,6 +513,12 @@ export function apply(ctx, config = {}) {
           const recallMessage = await loadRecallMessage(ctx, resolved, query, signal, agent.session)
           if (recallMessage !== undefined) additions.push(recallMessage)
         }
+      }
+      if (signal.aborted) return decision
+      const hint = bridgeStartupHint()
+      if (hint && !bridgeHintedSessions.has(agent.session)) {
+        additions.push(pluginContextMessage('snapshot', 'nowledge-mem-bridge-startup', hint))
+        bridgeHintedSessions.add(agent.session)
       }
       if (additions.length === 0) return decision
       return { ...decision, messages: [...decision.messages, ...additions] }

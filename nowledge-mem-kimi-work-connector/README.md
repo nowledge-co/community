@@ -140,3 +140,7 @@ Restart Kimi Work after updating.
 ## Credits
 
 Thanks to [Versun](https://github.com/versun) for discovering Kimi Work's embedded Kimi runtime and contributing the first connector draft.
+
+## Bridge mailbox
+
+Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context in the agent process. The hook asks the current session to check one inbox page through `nmem bridge` for the exact Space. The agent uses the same CLI and Context to discover contacts, send, open, and reply.

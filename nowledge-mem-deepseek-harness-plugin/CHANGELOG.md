@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.2.1
+
+- Add an opt-in startup hint for checking the approved Nowledge Bridge Agent mailbox.
+
 ## 0.2.0
 
 - Explicitly forwards the configured Mem API key to nmem across the host's
