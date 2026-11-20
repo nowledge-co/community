@@ -18,10 +18,16 @@ TARGETS = {
         "nowledge-mem-pi-package/extensions",
         "nowledge-mem-workbuddy-plugin/scripts",
     ),
+    "agent-bridge-startup.d.mts": (
+        "nowledge-mem-amp-plugin/src",
+        "nowledge-mem-opencode-plugin/src",
+        "nowledge-mem-pi-package/extensions",
+    ),
     "agent_bridge_startup.py": (
         "nowledge-mem-copilot-cli-plugin/hooks",
         "nowledge-mem-dim-plugin/scripts",
         "nowledge-mem-openhands-plugin/hooks",
+        "nowledge-mem-proma-plugin/hooks",
         "nowledge-mem-bub-plugin/src/nowledge_mem_bub",
         "nowledge-mem-hermes",
         "nowledge-mem-icode-plugin/hooks",
@@ -38,6 +44,7 @@ SHELL_HOSTS = (
     "nowledge-mem-codebuddy-plugin/hooks/hooks.json",
     "nowledge-mem-droid-plugin/hooks/hooks.json",
 )
+DEVIN_LOCAL_CONFIG = "nowledge-mem-devin-plugin/hooks/bridge-local.json"
 
 
 def main():
@@ -80,6 +87,28 @@ def main():
             else:
                 print(f"Stale Bridge startup command: {filename}")
                 valid = False
+    response = json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": guidance,
+        },
+    })
+    devin_hook = {
+        "SessionStart": [{
+            "hooks": [{
+                "type": "command",
+                "command": command.replace(shlex.quote(guidance), shlex.quote(response)),
+                "timeout": 5,
+            }],
+        }],
+    }
+    devin_path = ROOT / DEVIN_LOCAL_CONFIG
+    if args.write:
+        devin_path.parent.mkdir(parents=True, exist_ok=True)
+        devin_path.write_text(json.dumps(devin_hook, indent=2) + "\n", encoding="utf-8")
+    if not devin_path.is_file() or json.loads(devin_path.read_text(encoding="utf-8")) != devin_hook:
+        print(f"Stale Bridge startup command: {DEVIN_LOCAL_CONFIG}")
+        valid = False
     return 0 if valid else 1
 
 

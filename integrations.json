@@ -2196,7 +2196,7 @@
       "name": "Proma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.8",
+      "version": "0.1.9",
       "directory": "nowledge-mem-proma-plugin",
       "transport": "mcp",
       "capabilities": {
@@ -2229,7 +2229,7 @@
       },
       "install": {
         "command": "Manual setup — see plugin README for step-by-step instructions",
-        "updateCommand": "Replace ~/.proma/scripts/save-to-nmem.py, ~/.proma/scripts/read-working-memory.py, Proma skill folders, and merge the latest hooks/hooks.json into ~/.proma/sdk-config/.claude/settings.json",
+        "updateCommand": "Replace ~/.proma/scripts/save-to-nmem.py, ~/.proma/scripts/read-working-memory.py, ~/.proma/scripts/agent_bridge_startup.py, Proma skill folders, and merge the latest hooks/hooks.json into ~/.proma/sdk-config/.claude/settings.json",
         "detectionHint": "~/.proma/agent-workspaces/default/mcp.json contains nowledge-mem server",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Proma. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
@@ -2875,7 +2875,7 @@
       "name": "Devin",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-devin-plugin",
       "transport": "plugin+mcp+cli+api",
       "capabilities": {

@@ -372,6 +372,22 @@ class TestHookScripts:
         assert "first context" not in rendered
         assert rendered.count("nowledge-mem:start") == 1
 
+    def test_startup_writes_and_removes_only_the_bridge_reminder(self, tmp_path, monkeypatch):
+        module = _load_hook_module("proma_bridge_startup", PLUGIN_DIR / "hooks" / "read-working-memory.py")
+        instructions = tmp_path / "CLAUDE.md"
+        monkeypatch.setattr(module, "CLAUDE_MD", instructions)
+        original = "# Workspace\n\n<!-- nowledge-mem:start -->\nExisting context\n<!-- nowledge-mem:end -->\n"
+        instructions.write_text(original, encoding="utf-8")
+
+        assert module.update_claude_md("", "Check the Bridge inbox")
+        assert not module.update_claude_md("", "Check the Bridge inbox")
+        updated = instructions.read_text(encoding="utf-8")
+        assert updated.startswith(original)
+        assert "NMEM_BRIDGE_INBOX_ON_START=1" in updated
+        assert updated.count(module.BRIDGE_START_MARKER) == 1
+        assert module.update_claude_md("")
+        assert instructions.read_text(encoding="utf-8") == original
+
     def test_working_memory_script_preserves_user_claude_md_when_template_exists(self, tmp_path, monkeypatch):
         proma_home = tmp_path / ".proma"
         workspace = proma_home / "agent-workspaces" / "default"

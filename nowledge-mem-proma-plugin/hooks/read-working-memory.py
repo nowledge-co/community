@@ -20,8 +20,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+try:
+    from agent_bridge_startup import bridge_startup_hint
+except ImportError:
+    # Older standalone installations can update the briefing script first.
+    def bridge_startup_hint() -> str:
+        return ""
+
 START_MARKER = "<!-- nowledge-mem:start -->"
 END_MARKER = "<!-- nowledge-mem:end -->"
+BRIDGE_START_MARKER = "<!-- nowledge-mem:bridge-startup -->"
+BRIDGE_END_MARKER = "<!-- nowledge-mem:bridge-startup-end -->"
 
 
 def _env_path(name: str, default: Path) -> Path:
@@ -201,12 +210,35 @@ def render_claude_md(base: str, context_markdown: str) -> str:
     return f"{base.rstrip()}\n\n{block}\n"
 
 
-def update_claude_md(context_markdown: str) -> bool:
-    if not context_markdown.strip():
-        return False
+def render_bridge_startup(base: str, hint: str) -> str:
+    before, start, remainder = base.partition(BRIDGE_START_MARKER)
+    if start:
+        _, end, after = remainder.partition(BRIDGE_END_MARKER)
+        if end:
+            base = before + after.lstrip("\r\n")
+            if not after.strip() and base:
+                base = base.rstrip("\r\n") + "\n"
+    if not hint:
+        return base
+    return (
+        f"{base.rstrip()}\n\n{BRIDGE_START_MARKER}\n"
+        "On the first user-driven turn, verify that the active agent environment still has "
+        "NMEM_BRIDGE_INBOX_ON_START=1 and an approved NMEM_AGENT_CONTEXT. "
+        "If Proma has disabled Nowledge Mem or the current opt-in is missing, skip this check.\n\n"
+        f"{hint}\n{BRIDGE_END_MARKER}\n"
+    )
+
+
+def update_claude_md(context_markdown: str, hint: str = "") -> bool:
     try:
+        if not context_markdown.strip() and not hint and not CLAUDE_MD.exists():
+            return False
+        base = _base_claude_md()
+        briefing = render_claude_md(base, context_markdown) if context_markdown.strip() else base
+        rendered = render_bridge_startup(briefing, hint)
+        if rendered == base and (CLAUDE_MD.exists() or not rendered):
+            return False
         CLAUDE_MD.parent.mkdir(parents=True, exist_ok=True)
-        rendered = render_claude_md(_base_claude_md(), context_markdown)
         CLAUDE_MD.write_text(rendered, encoding="utf-8")
         log(f"updated CLAUDE.md path={CLAUDE_MD}")
         return True
@@ -240,12 +272,12 @@ def main() -> int:
     log("startup context refresh start")
     payload = _startup_context()
     text = _payload_text(payload)
-    if not text:
+    ok = update_claude_md(text, bridge_startup_hint())
+    if not text and not ok:
         log("startup context refresh: no data")
         print(json.dumps({"status": "empty"}))
         return 0
 
-    ok = update_claude_md(text)
     print(json.dumps({"status": "updated" if ok else "failed", "path": str(CLAUDE_MD)}))
     return 0
 

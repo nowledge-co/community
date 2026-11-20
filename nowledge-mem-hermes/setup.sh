@@ -318,7 +318,7 @@ if [ "$MODE" = "plugin" ]; then
 
   echo "[*] Installing Nowledge Mem memory provider plugin..."
 
-  PLUGIN_FILES="plugin.yaml __init__.py provider.py client.py skill_outcome.py"
+  PLUGIN_FILES="plugin.yaml __init__.py provider.py client.py skill_outcome.py agent_bridge_startup.py"
   ALL_OK=true
   PLUGIN_STAGE="$(mktemp -d "${TMPDIR:-/tmp}/nowledge-mem-hermes.XXXXXX")"
   trap 'rm -rf "$PLUGIN_STAGE"' EXIT

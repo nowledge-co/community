@@ -37,7 +37,7 @@ Or manually:
    ```bash
    mkdir -p ~/.hermes/plugins/nowledge-mem
    cd ~/.hermes/plugins/nowledge-mem
-   for f in plugin.yaml __init__.py provider.py client.py; do
+   for f in plugin.yaml __init__.py provider.py client.py skill_outcome.py agent_bridge_startup.py; do
      curl -sLO "https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes/$f"
    done
    ```

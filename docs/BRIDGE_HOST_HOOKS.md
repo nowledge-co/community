@@ -25,8 +25,10 @@ Assign `bridge_space_id` from the verified setup result. Use the configured `NME
 | OpenHands, iCode, Kimi Code, Kimi Work | First eligible user-prompt hook |
 | Bub | Prompt-building hook |
 | Hermes | The memory provider's session prompt under the provider API |
+| Devin CLI | Optional local `SessionStart` configuration for a POSIX shell |
+| Proma Agent | Workspace instructions refreshed by the startup hook |
 
-Codex and Claude Code use their existing native Bridge paths. Cursor and Antigravity have separate integration PRs. MCP-only hosted connectors use their authorized MCP tools. Devin Cloud and DimAgent currently have verified transcript lifecycle hooks. Grok Build's shared-package hooks discard passive model context. Proma's existing SDK integration refreshes its managed briefing file and lacks a verified model-facing hook response.
+Codex and Claude Code use their existing native Bridge paths. Cursor and Antigravity have separate integration PRs. MCP-only hosted connectors use their authorized MCP tools. Devin Cloud and DimAgent currently expose transcript hooks in their shipped integrations. Grok Build's shared-package hooks discard passive model context.
 
 ## Verification
 

@@ -57,6 +57,17 @@ class AgentBridgeStartupTests(unittest.TestCase):
                     result = subprocess.check_output(["sh", "-c", startup], env=environment, text=True).rstrip()
                     self.assertEqual(result, bridge_startup_hint(environment))
 
+    @unittest.skipIf(os.name == "nt", "the optional Devin hook uses POSIX shell syntax")
+    def test_devin_local_hook_outputs_session_context_json(self):
+        config = json.loads((ROOT / "nowledge-mem-devin-plugin/hooks/bridge-local.json").read_text())
+        startup = config["SessionStart"][0]["hooks"][0]["command"]
+        self.assertEqual(subprocess.check_output(["sh", "-c", startup], env={}, text=True), "")
+        response = subprocess.check_output(["sh", "-c", startup], env=OPTED_IN, text=True)
+        self.assertEqual(json.loads(response)["hookSpecificOutput"], {
+            "hookEventName": "SessionStart",
+            "additionalContext": bridge_startup_hint(OPTED_IN),
+        })
+
     def test_kimi_prompt_hook_uses_a_distinct_session_and_host(self):
         with tempfile.TemporaryDirectory() as directory:
             env = {**os.environ, **OPTED_IN, "HOME": directory, "USERPROFILE": directory}
