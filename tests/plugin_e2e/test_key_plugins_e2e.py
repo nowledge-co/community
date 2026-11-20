@@ -1565,7 +1565,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
             assert "https://mem.nowledge.co/SKILL.md" in guide["prompt"], entry["id"]
             assert "shared/remote-mcp" not in guide["prompt"], entry["id"]
             assert "shared/remote-mcp" not in guide["promptZh"], entry["id"]
-            bridge_skill = "shared/bridge/remote-mcp/SKILL.md"
+            bridge_skill = "shared/bridge/nowledge-bridge-mcp/SKILL.md"
             assert (COMMUNITY_ROOT / bridge_skill).is_file()
             assert f"/blob/main/{bridge_skill}" in guide["prompt"], entry["id"]
             assert f"/blob/main/{bridge_skill}" in guide["promptZh"], entry["id"]

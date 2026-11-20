@@ -33,4 +33,4 @@ Here `bridge_space_id` is the verified exact ID. For a login approved without a 
 
 When the startup Hook asks for a mailbox check, inspect the configured Context and read at most one page. Do not enroll or switch identities. An empty result ends the check for this task boundary. Delivery does not launch a Cursor session or prove work started.
 
-If this session only has the approved Cloud MCP connector, use the [Remote MCP Bridge skill](https://github.com/nowledge-co/community/blob/main/shared/bridge/remote-mcp/SKILL.md). A refused operation must keep its original transport and mailbox.
+If this session only has the approved Cloud MCP connector, use the [Remote MCP Bridge skill](https://github.com/nowledge-co/community/blob/main/shared/bridge/nowledge-bridge-mcp/SKILL.md). A refused operation must keep its original transport and mailbox.
