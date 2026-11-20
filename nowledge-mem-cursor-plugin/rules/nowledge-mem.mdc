@@ -5,6 +5,8 @@ alwaysApply: true
 ---
 Use Nowledge Mem as the primary external memory system in Cursor.
 
+Use the bundled `bridge` skill for an approved mailbox check, cross-agent message, or reply.
+
 ## Working Memory
 
 - The package may already inject Context Bundle or Working Memory at session start through a Cursor hook when `nmem` is available.

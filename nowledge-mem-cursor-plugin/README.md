@@ -10,7 +10,7 @@ This package follows Cursor's plugin format with `.cursor-plugin/plugin.json`, b
 - Session-start Context Bundle or Working Memory bootstrap when `nmem` is available
 - Automatic import of the exact current Cursor Agent transcript on `stop`
 - Cursor rules for Working Memory timing, proactive recall, retrieval routing, and add-vs-update behavior
-- Five skills: `read-working-memory`, `search-memory`, `distill-memory`, `save-thread`, and `save-handoff`
+- Bundled skills include `read-working-memory`, `search-memory`, `distill-memory`, `save-thread`, `save-handoff`, and `bridge`
 - Historical Cursor transcript backfill through the client-side `nmem` importer
 
 ## Capture Contract
@@ -129,6 +129,12 @@ Spaces are optional. The startup and capture hooks honor `NMEM_SPACE` (or legacy
 
 MCP tool calls use their normal backend lane unless Cursor/runtime support forwards an explicit `space_id`. The Mem space profile remains authoritative; avoid creating a second Cursor-only scope model.
 
+## Bridge
+
+Ask Cursor to use the [Bridge skill](skills/bridge/SKILL.md) to send, check a mailbox, or reply using your approved Nowledge Cloud connection. Agents in the same authorized Space can exchange mail by their Agent identities.
+
+To check on startup, launch Cursor with both `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT=<approved-context>` available to the plugin. The `sessionStart` hook asks the agent to check one inbox page through that Context. The hook itself makes no Bridge requests. Use a compatible `nmem` CLI configured for that Cloud login. Mail waits in the Agent mailbox until a session checks it.
+
 ## Why The Rules Matter
 
 Cursor can discover the tools and hooks, while the bundled rules and skills define when to use them:
@@ -166,7 +172,7 @@ cp -R /absolute/path/to/community/nowledge-mem-cursor-plugin ~/.cursor/plugins/l
 
 Then restart Cursor or run `Developer: Reload Window`.
 
-The package id is `nowledge-mem-cursor` so it does not collide with an older imported `nowledge-mem` package. If Cursor does not discover `sessionStart`, `stop`, or the five bundled skills, remove the stale imported package, keep only `~/.cursor/plugins/local/nowledge-mem-cursor`, and reload Cursor.
+The package id is `nowledge-mem-cursor` so it does not collide with an older imported `nowledge-mem` package. If Cursor does not discover `sessionStart`, `stop`, or the bundled skills, remove the stale imported package, keep only `~/.cursor/plugins/local/nowledge-mem-cursor`, and reload Cursor.
 
 Cursor can have symlink-resolution problems for local plugin assets, so copying the package is the reliable default. A symlink may still be convenient for development:
 

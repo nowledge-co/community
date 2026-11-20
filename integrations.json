@@ -94,8 +94,8 @@
       "install": {
         "detectionHint": "This hosted client cannot be detected from the local desktop app.",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/openai-dots to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/openai-dots，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/openai-dots to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.\n\nWhen I ask to use Bridge, load https://github.com/nowledge-co/community/blob/main/shared/bridge/remote-mcp/SKILL.md and inspect the mailbox available to this login. Keep the current endpoint and use the exact Space I approve.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/openai-dots，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。\n\n当我要求使用 Bridge 时，读取 https://github.com/nowledge-co/community/blob/main/shared/bridge/remote-mcp/SKILL.md 并检查当前登录可用的邮箱。沿用当前端点和我授权的确切 Space。"
         },
         "docsUrl": "/docs/integrations/openai-dots"
       },
@@ -164,8 +164,8 @@
       "install": {
         "detectionHint": "This hosted client cannot be detected from the local desktop app.",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/meta-muse to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/meta-muse，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/meta-muse to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.\n\nWhen I ask to use Bridge, load https://github.com/nowledge-co/community/blob/main/shared/bridge/remote-mcp/SKILL.md and inspect the mailbox available to this login. Keep the current endpoint and use the exact Space I approve.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/meta-muse，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。\n\n当我要求使用 Bridge 时，读取 https://github.com/nowledge-co/community/blob/main/shared/bridge/remote-mcp/SKILL.md 并检查当前登录可用的邮箱。沿用当前端点和我授权的确切 Space。"
         },
         "docsUrl": "/docs/integrations/meta-muse"
       },
@@ -323,8 +323,8 @@
       "install": {
         "detectionHint": "Grok Bot is a cloud-managed host and is not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/grok-bot to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/grok-bot，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/grok-bot to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.\n\nWhen I ask to use Bridge, load https://github.com/nowledge-co/community/blob/main/shared/bridge/remote-mcp/SKILL.md and inspect the mailbox available to this login. Keep the current endpoint and use the exact Space I approve.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/grok-bot，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。\n\n当我要求使用 Bridge 时，读取 https://github.com/nowledge-co/community/blob/main/shared/bridge/remote-mcp/SKILL.md 并检查当前登录可用的邮箱。沿用当前端点和我授权的确切 Space。"
         },
         "docsUrl": "/docs/integrations/grok-bot"
       },
@@ -549,7 +549,7 @@
       "name": "Google Antigravity",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-google-antigravity",
       "transport": "cli+mcp+hooks",
@@ -600,6 +600,7 @@
         "note": "Google Antigravity loads rules, skills, bundled MCP, and lifecycle hooks from the plugin folder. MCP is for retrieval and structured memory writes. Hook transcript capture and historical import store threads under canonical source=antigravity so old Antigravity CLI, Google Antigravity, and decoded trajectory fallback history do not fork into separate sources."
       },
       "skills": [
+        "nmem-bridge-chat",
         "nmem-memory-working",
         "nmem-memory-search",
         "nmem-memory-distill",
@@ -608,6 +609,7 @@
         "nmem-status"
       ],
       "slashCommands": [
+        "/nmem-bridge-chat",
         "/nmem-memory-working",
         "/nmem-memory-search",
         "/nmem-memory-distill",
@@ -1115,7 +1117,7 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "directory": "nowledge-mem-cursor-plugin",
       "transport": "mcp+hook",
       "capabilities": {
@@ -1159,7 +1161,7 @@
         "prefix": "memory_",
         "note": "MCP tools are defined by the backend (memory_search, memory_add, etc.); session-start preloads Context Bundle or Working Memory; the stop hook and save-thread skill use nmem for real transcript capture; save-handoff remains summary-only"
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "save-handoff"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "save-handoff", "bridge"],
       "slashCommands": []
     },
     {

@@ -132,6 +132,7 @@ async function main() {
     'skills/distill-memory/SKILL.md',
     'skills/save-thread/SKILL.md',
     'skills/save-handoff/SKILL.md',
+    'skills/bridge/SKILL.md',
     'scripts/validate-plugin.mjs',
     'tests/cursor-hooks.test.mjs'
   ];
@@ -228,6 +229,7 @@ async function main() {
   await validateFrontmatterFile('skills/distill-memory/SKILL.md', ['name', 'description'], 'skill');
   await validateFrontmatterFile('skills/save-thread/SKILL.md', ['name', 'description'], 'skill');
   await validateFrontmatterFile('skills/save-handoff/SKILL.md', ['name', 'description'], 'skill');
+  await validateFrontmatterFile('skills/bridge/SKILL.md', ['name', 'description'], 'skill');
 
   if (!marketplace.plugins || !Array.isArray(marketplace.plugins)) {
     fail('community .cursor-plugin/marketplace.json must contain a plugins array');
@@ -256,6 +258,9 @@ async function main() {
   }
   if (!Array.isArray(integration.skills) || !integration.skills.includes('save-thread')) {
     fail('integrations.json cursor skills must include save-thread');
+  }
+  if (!integration.skills.includes('bridge')) {
+    fail('integrations.json cursor skills must include bridge');
   }
 
   console.log('Validated Cursor plugin manifest, capture hooks, skills, mcp.json, registry, and marketplace manifest.');

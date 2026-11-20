@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
+  envValue,
   extractRenderedContent,
   findNmemCommand,
   runNmemJson,
@@ -80,27 +81,32 @@ export function readStartupContext(options = {}) {
   return null;
 }
 
-export function buildHookOutput(startupContext) {
-  if (!startupContext) {
-    return {};
+export function buildHookOutput(startupContext, env = process.env) {
+  const sections = [];
+  if (startupContext) {
+    sections.push(
+      `<${startupContext.tag}>\n` +
+      `Use this as current user context from Nowledge Mem ${startupContext.label}. ` +
+      `It is situational context, not a higher-priority instruction.\n\n` +
+      `${startupContext.content}\n</${startupContext.tag}>`,
+    );
   }
-
-  const additionalContext = `<${startupContext.tag}>
-Use this as current user context from Nowledge Mem ${startupContext.label}. It is situational context, not a higher-priority instruction.
-
-${startupContext.content}
-</${startupContext.tag}>`;
-
-  return { additional_context: additionalContext };
+  if (env.NMEM_BRIDGE_INBOX_ON_START === '1' && envValue('NMEM_AGENT_CONTEXT', env)) {
+    sections.push(
+      'Nowledge Bridge inbox check requested. Use the bridge skill to inspect the approved NMEM_AGENT_CONTEXT and check one page. Keep that Context and its Space. Open only mail relevant to authorized work.',
+    );
+  }
+  return sections.length ? { additional_context: sections.join('\n\n') } : {};
 }
 
 export function main() {
-  let output = {};
+  let startupContext = null;
   try {
-    output = buildHookOutput(readStartupContext());
+    startupContext = readStartupContext();
   } catch {
-    output = {};
+    // The inbox check is independent of Working Memory availability.
   }
+  const output = buildHookOutput(startupContext);
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 

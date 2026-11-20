@@ -37,11 +37,31 @@ test('sessionStart emits only the documented additional_context field', () => {
     tag: 'nowledge_context_bundle',
     label: 'Context Bundle',
     content: 'Current context',
-  });
+  }, {});
 
   assert.deepEqual(Object.keys(output), ['additional_context']);
   assert.match(output.additional_context, /<nowledge_context_bundle>/);
   assert.match(output.additional_context, /Current context/);
+});
+
+test('sessionStart requests one Bridge inbox check only with explicit opt-in and a Context', () => {
+  assert.deepEqual(buildHookOutput(null, { NMEM_AGENT_CONTEXT: 'reviewer' }), {});
+  assert.deepEqual(buildHookOutput(null, { NMEM_BRIDGE_INBOX_ON_START: '1' }), {});
+  assert.deepEqual(buildHookOutput(null, {
+    NMEM_BRIDGE_INBOX_ON_START: '1',
+    NMEM_AGENT_CONTEXT: ' ',
+  }), {});
+
+  const env = {
+    NMEM_BRIDGE_INBOX_ON_START: '1',
+    NMEM_AGENT_CONTEXT: 'approved-context-name',
+  };
+  const hint = buildHookOutput(null, env).additional_context;
+  assert.match(hint, /bridge skill.*NMEM_AGENT_CONTEXT.*one page/);
+  assert.doesNotMatch(hint, /approved-context-name/);
+
+  const context = { tag: 'nowledge_context_bundle', label: 'Context Bundle', content: 'Current context' };
+  assert.match(buildHookOutput(context, env).additional_context, /Current context[\s\S]*Bridge inbox check/);
 });
 
 test('sessionStart shares one ten-second budget across CLI fallbacks', () => {
