@@ -114,7 +114,7 @@ def test_install_merges_mcp_and_hook_idempotently(fake_home, tmp_path):
     assert ids == ["nowledge-mem-icode-context"]
 
     manifest = json.loads((config_dir / "nowledge-mem-icode-install.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.1.0"
+    assert manifest["version"] == "0.1.1"
 
 
 def test_install_never_prints_api_key(fake_home, tmp_path, capsys):

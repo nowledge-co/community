@@ -15,7 +15,7 @@ import shutil
 import stat
 import sys
 
-FILES = ('copilot-stop-save.py', 'copilot-stop-save.sh', 'copilot-hook.py')
+FILES = ('copilot-stop-save.py', 'copilot-stop-save.sh', 'copilot-hook.py', 'agent_bridge_startup.py')
 TRANSACTION = '.nowledge-mem-hooks.transaction'
 LOCK = '.nowledge-mem-hooks.publish.lock'
 JOURNAL_LIMIT = 64 * 1024

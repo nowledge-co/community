@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem-deepseek-harness",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "One memory layer for every AI tool and agent, packaged for DeepSeek Harness with startup context, prompt-time recall, Mem MCP tools, and DSH thread capture.",
   "type": "module",
   "main": "src/index.js",

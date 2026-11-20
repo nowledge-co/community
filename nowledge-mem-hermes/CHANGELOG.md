@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.30] - 2026-11-20
+
+- Add an opt-in model-facing reminder to check the approved Nowledge Bridge Agent mailbox.
+
 ## [0.5.29] - 2026-11-14
 
 - Preserve UTC time, plugin identity, HTTP method, route template, status and validated Cloudflare Ray / Mem Request IDs in direct HTTP failure diagnostics. A missing ID remains absent, including refusals before the application runs.

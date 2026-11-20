@@ -1,3 +1,4 @@
+import { createBridgeStartupHint } from "./agent-bridge-startup.mjs";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
@@ -756,6 +757,7 @@ export async function activate(context) {
 		threadSyncTimeoutMs,
 	});
 	const recalledThreads = new Set();
+	const bridgeHint = createBridgeStartupHint();
 
 	let recallPolicy = resolveRecallPolicy(context.settings, logger);
 	let autoCapture = Boolean(
@@ -1942,12 +1944,12 @@ export async function activate(context) {
 		}
 		await captureRecords(threadId);
 
-		// Recall injection
-		if (!recallInjectionEnabled) return;
 		if (!currentContent || !currentContent.trim()) return;
+		const hint = bridgeHint(threadId);
 
+		// Recall injection
 		const allowAutoRecall =
-			currentContent.length >= 8 &&
+			recallInjectionEnabled && currentContent.length >= 8 &&
 			!(recallFrequency === "thread_once" && recalledThreads.has(threadId));
 
 		if (allowAutoRecall) {
@@ -1969,15 +1971,18 @@ export async function activate(context) {
 					contextBundle,
 					includeCliPlaybook: injectCliPlaybook,
 				});
-				if (contextBlock && payload.setContent(`${contextBlock}\n\n${currentContent}`)) {
+				const sections = [hint, contextBlock, currentContent].filter(Boolean);
+				if (contextBlock && payload.setContent(sections.join("\n\n"))) {
 					if (recallFrequency === "thread_once") {
 						recalledThreads.add(threadId);
 					}
+					return;
 				}
 			} catch (recallErr) {
 				logger.error?.(`nowledge-mem: recall injection failed: ${recallErr instanceof Error ? recallErr.message : String(recallErr)}`);
 			}
 		}
+		if (hint) payload.setContent(`${hint}\n\n${currentContent}`);
 	});
 
 	// --- Hook: didReceive (capture AI response + start idle timer) ---

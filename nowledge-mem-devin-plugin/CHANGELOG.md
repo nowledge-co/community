@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.5] - 2026-11-20
+
+- Add opt-in startup guidance for the approved Bridge Agent mailbox.
+
 ## [0.1.4] - Unreleased
 
 - Add Dim to the `check-integration` host table with its product-home detection and local-directory install command.

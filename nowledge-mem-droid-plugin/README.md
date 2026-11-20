@@ -202,3 +202,7 @@ This validates the plugin manifest, required files, honest handoff semantics, an
 - [Building plugins for Factory Droid](https://docs.factory.ai/guides/building/building-plugins)
 - [Nowledge Mem](https://mem.nowledge.co)
 - [Community repository](https://github.com/nowledge-co/community)
+
+## Bridge mailbox
+
+Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context in the agent process. The hook asks the current session to check one inbox page through `nmem bridge` for the exact Space. The agent uses the same CLI and Context to discover contacts, send, open, and reply.

@@ -10,6 +10,7 @@ from pathlib import Path
 # Add hooks directory to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import nmem_shared
+from agent_bridge_startup import bridge_startup_hint
 
 PROMPT_ROUTING_GUIDANCE = (
     "OpenHands local session history and Nowledge Mem are complementary. "
@@ -44,11 +45,22 @@ def main() -> None:
         )
 
         session_key = nmem_shared.resolve_session_key(hook_input, working_dir)
+        hint = bridge_startup_hint()
+        native_session = nmem_shared.resolve_session_id(hook_input)
+        if hint and native_session:
+            bridge_key = f"bridge-{native_session}"
+            if nmem_shared.has_session_injected(bridge_key, working_dir):
+                hint = ""
+            else:
+                nmem_shared.mark_session_injected(bridge_key, working_dir)
+        else:
+            hint = ""
+        routing = "\n\n".join(part for part in (hint, PROMPT_ROUTING_GUIDANCE) if part)
 
         # If prompt guidance only is requested, bypass context bundle entirely
         if os.environ.get("NMEM_PROMPT_GUIDANCE_ONLY", "").strip().lower() in ("1", "true", "yes"):
             nmem_shared.mark_session_injected(session_key, working_dir)
-            nmem_shared.emit({"additionalContext": PROMPT_ROUTING_GUIDANCE})
+            nmem_shared.emit({"additionalContext": routing})
             sys.exit(0)
 
         # Check if this session already received the initial Context Bundle
@@ -56,13 +68,13 @@ def main() -> None:
 
         if already_injected:
             # Subsequent turns receive lightweight guidance to preserve token budget
-            nmem_shared.emit({"additionalContext": PROMPT_ROUTING_GUIDANCE})
+            nmem_shared.emit({"additionalContext": routing})
             sys.exit(0)
 
         # Load full startup context
         startup_context = nmem_shared.read_startup_context(working_dir)
         if not startup_context:
-            nmem_shared.emit({"additionalContext": PROMPT_ROUTING_GUIDANCE})
+            nmem_shared.emit({"additionalContext": routing})
             sys.exit(0)
 
         # Mark session injected only after successfully retrieving startup context
@@ -88,7 +100,7 @@ def main() -> None:
             "Distill breakthrough learnings and decisions proactively."
         )
 
-        nmem_shared.emit({"additionalContext": msg})
+        nmem_shared.emit({"additionalContext": "\n\n".join(part for part in (hint, msg) if part)})
         sys.exit(0)
     except Exception as e:
         if os.environ.get("DEBUG") or os.environ.get("NMEM_DEBUG"):

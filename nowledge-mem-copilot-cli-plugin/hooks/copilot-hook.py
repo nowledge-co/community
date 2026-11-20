@@ -16,6 +16,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from agent_bridge_startup import bridge_startup_hint
+
 
 NMEM_TIMEOUT_SECS = 30
 
@@ -118,6 +121,11 @@ def main() -> int:
 
     if event in {"session-start", "compact"}:
         content = read_context()
+        hint = bridge_startup_hint() if event == "session-start" else ""
+        if hint:
+            context = "\n\n".join(part for part in (hint, content) if part)
+            print(json.dumps({"additionalContext": context}))
+            return 0
         if content:
             print(content)
         if event == "compact":

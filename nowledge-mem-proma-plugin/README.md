@@ -83,7 +83,7 @@ Copy the bundled hook scripts into Proma's script directory:
 ```bash
 mkdir -p ~/.proma/scripts
 cp hooks/save-to-nmem.py ~/.proma/scripts/
-cp hooks/read-working-memory.py ~/.proma/scripts/
+cp hooks/read-working-memory.py hooks/agent_bridge_startup.py ~/.proma/scripts/
 chmod +x ~/.proma/scripts/save-to-nmem.py ~/.proma/scripts/read-working-memory.py
 ```
 
@@ -305,3 +305,7 @@ Static tests:
 ```bash
 uv run --with pytest pytest tests/plugin_e2e -q -k proma
 ```
+
+## Bridge mailbox
+
+Set `NMEM_BRIDGE_INBOX_ON_START=1` and an approved `NMEM_AGENT_CONTEXT` in Proma's environment before starting the host. The startup hook writes a scoped reminder into Proma's managed workspace instructions. Proma verifies the active opt-in before checking the inbox through the configured `nmem bridge` CLI.

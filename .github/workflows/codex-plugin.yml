@@ -92,7 +92,9 @@ jobs:
           git fetch --no-tags --unshallow origin "$BASE_SHA" "$HEAD_SHA"
           python scripts/check_codex_bundle_version.py "$BASE_SHA" "$HEAD_SHA"
       - name: Validate shared mailbox helpers
-        run: python shared/hooks/sync.py
+        run: |
+          python shared/hooks/sync.py
+          python shared/hooks/sync-bridge-startup.py
       - name: Test passive mailbox Stop adapters
         run: python -m unittest discover -s shared/hooks/tests -v
       - name: Install test dependency

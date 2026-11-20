@@ -14,6 +14,8 @@ import {
 import { createNowledgeMemContextEngineFactory } from "./context-engine.js";
 import { createNowledgeMemCorpusSupplement } from "./corpus-supplement.js";
 import { buildBehavioralHook } from "./hooks/behavioral.js";
+import { bridgeStartupHint, createBridgeStartupHint } from "./hooks/agent-bridge-startup.mjs";
+import { isCronCaptureSessionKey, isInternalCaptureSessionKey } from "./hooks/capture.js";
 import {
 	buildAgentEndCaptureHandler,
 	buildBeforeResetCaptureHandler,
@@ -168,6 +170,15 @@ export default {
 		// Fires every turn via before_prompt_build — ~50 tokens, negligible cost.
 		// When sessionContext is on, guidance adjusts to avoid redundant searches.
 		api.on("before_prompt_build", buildBehavioralHook(logger, cfg));
+		if (bridgeStartupHint()) {
+			const bridgeHint = createBridgeStartupHint();
+			api.on("before_prompt_build", (_event, ctx) => {
+				const key = ctx?.sessionKey;
+				if (!key || ctx.trigger === "heartbeat" || isCronCaptureSessionKey(key) || isInternalCaptureSessionKey(key)) return;
+				const hint = bridgeHint(ctx.sessionId || key);
+				if (hint) return { prependContext: hint };
+			});
+		}
 
 		// Session context: inject Working Memory + recalled memories at prompt time.
 		if (cfg.sessionContext) {
