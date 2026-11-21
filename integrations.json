@@ -549,7 +549,7 @@
       "name": "Google Antigravity",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.3",
+      "version": "0.1.5",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-google-antigravity",
       "transport": "cli+mcp+hooks",
@@ -567,7 +567,7 @@
         "runtime": "antigravity",
         "command": "nmem t sync --from antigravity --session-id <conversation-id> --apply",
         "historicalCommand": "nmem t sync --from antigravity",
-        "note": "The donated Google Antigravity plugin runs on Antigravity's native lifecycle hooks. PreInvocation injects Context Bundle or Working Memory, PostInvocation reports pending offline syncs, PreToolUse gates destructive memory actions, and Stop imports the local transcript.jsonl under the canonical source=antigravity. MCP remains the structured retrieval/write surface; nmem owns durable client config, remote auth, and historical backfill."
+        "note": "The donated Google Antigravity plugin runs on Antigravity's native lifecycle hooks. SessionStart injects Context Bundle or Working Memory once per conversation, PostInvocation reports pending offline syncs, PreToolUse gates destructive memory actions, and Stop imports the local transcript.jsonl under the canonical source=antigravity. MCP remains the structured retrieval/write surface; nmem owns durable client config, remote auth, and historical backfill."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -600,6 +600,7 @@
         "note": "Google Antigravity loads rules, skills, bundled MCP, and lifecycle hooks from the plugin folder. MCP is for retrieval and structured memory writes. Hook transcript capture and historical import store threads under canonical source=antigravity so old Antigravity CLI, Google Antigravity, and decoded trajectory fallback history do not fork into separate sources."
       },
       "skills": [
+        "nmem-bridge-chat",
         "nmem-memory-working",
         "nmem-memory-search",
         "nmem-memory-distill",
@@ -608,6 +609,7 @@
         "nmem-status"
       ],
       "slashCommands": [
+        "/nmem-bridge-chat",
         "/nmem-memory-working",
         "/nmem-memory-search",
         "/nmem-memory-distill",
