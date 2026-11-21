@@ -76,6 +76,16 @@ jobs:
             cordis: 4.1.0
           - dsh: 0.2.2-rc.2
             cordis: 4.1.0
+            history: true
+          - dsh: 0.2.2-rc.3
+            cordis: 4.1.0
+            history: true
+          - dsh: 0.2.2-rc.4
+            cordis: 4.1.0
+            history: true
+          - dsh: 0.2.2-rc.5
+            cordis: 4.1.0
+            history: true
     defaults:
       run:
         shell: bash
@@ -91,7 +101,7 @@ jobs:
           cache-dependency-path: nowledge-mem-deepseek-harness-plugin/package-lock.json
       - run: npm ci --ignore-scripts
       - name: Install DSH host compatibility baseline
-        if: matrix.host.dsh != '0.2.1-alpha.1' && matrix.host.dsh != '0.2.2-rc.2'
+        if: matrix.host.dsh != '0.2.1-alpha.1' && !matrix.host.history
         run: >-
           npm install --ignore-scripts --no-save --no-package-lock
           @deepseek-ai/cordis@${{ matrix.host.cordis }}
@@ -99,23 +109,31 @@ jobs:
           @deepseek-ai/dsh-session@${{ matrix.host.dsh }}
           @deepseek-ai/dsh-session-format-v3-to-v4@${{ matrix.host.dsh }}
       - name: Install optional historical-backfill SDK contracts
-        if: matrix.host.dsh == '0.2.2-rc.2'
+        if: matrix.host.history == true
         run: >-
           npm install --ignore-scripts --no-save --no-package-lock
           @deepseek-ai/cordis@4.1.0
-          @deepseek-ai/dsh-llm@0.2.2-rc.2
-          @deepseek-ai/dsh-session@0.2.2-rc.2
-          @deepseek-ai/dsh-session-format-v3-to-v4@0.2.2-rc.2
-          @deepseek-ai/dsh-commands@0.2.2-rc.2
-          @deepseek-ai/dsh-session-query@0.2.2-rc.2
+          @deepseek-ai/dsh-llm@${{ matrix.host.dsh }}
+          @deepseek-ai/dsh-session@${{ matrix.host.dsh }}
+          @deepseek-ai/dsh-session-format-v3-to-v4@${{ matrix.host.dsh }}
+          @deepseek-ai/dsh-commands@${{ matrix.host.dsh }}
+          @deepseek-ai/dsh-session-query@${{ matrix.host.dsh }}
       - run: npm test
         env:
-          DSH_HISTORY_NATIVE_TEST: ${{ matrix.host.dsh == '0.2.2-rc.2' }}
+          DSH_HISTORY_NATIVE_TEST: ${{ matrix.host.history == true }}
       - run: npm pack --dry-run
 
   installed-host:
-    name: Installed DSH headless capture
-    runs-on: ubuntu-latest
+    name: Installed DSH headless capture (${{ matrix.os }}, ${{ matrix.dsh }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        dsh: [0.2.2-rc.2, 0.2.2-rc.3, 0.2.2-rc.4, 0.2.2-rc.5]
+        include:
+          - os: macos-latest
+            dsh: 0.2.2-rc.3
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     defaults:
       run:
@@ -134,13 +152,13 @@ jobs:
         run: >-
           npm install --ignore-scripts --no-save --no-package-lock
           @deepseek-ai/cordis@4.1.0
-          @deepseek-ai/dsh-llm@0.2.2-rc.2
-          @deepseek-ai/dsh-session@0.2.2-rc.2
-          @deepseek-ai/dsh-session-format-v3-to-v4@0.2.2-rc.2
-          @deepseek-ai/dsh-commands@0.2.2-rc.2
-          @deepseek-ai/dsh-session-query@0.2.2-rc.2
-          @deepseek-ai/dsh@0.2.2-rc.2
-          @deepseek-ai/dsh-llm-mock-server@0.2.2-rc.2
+          @deepseek-ai/dsh-llm@${{ matrix.dsh }}
+          @deepseek-ai/dsh-session@${{ matrix.dsh }}
+          @deepseek-ai/dsh-session-format-v3-to-v4@${{ matrix.dsh }}
+          @deepseek-ai/dsh-commands@${{ matrix.dsh }}
+          @deepseek-ai/dsh-session-query@${{ matrix.dsh }}
+          @deepseek-ai/dsh@${{ matrix.dsh }}
+          @deepseek-ai/dsh-llm-mock-server@${{ matrix.dsh }}
           pnpm@12.15.0
       - run: node --import ./tests/setup.mjs --test tests/installed-host.test.mjs
         env:

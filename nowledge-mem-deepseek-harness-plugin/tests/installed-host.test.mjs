@@ -66,7 +66,10 @@ test('installed DSH tool turn drains clean automatic capture before headless exi
       HTTP_PROXY: 'http://127.0.0.1:1', HTTPS_PROXY: 'http://127.0.0.1:1', NO_PROXY: '127.0.0.1,localhost', NODE_USE_ENV_PROXY: '1',
     })
     assert.equal(result.code, 0, result.stderr)
-    assert.match(result.stdout, /"type":"tool_result"/u)
+    const toolResult = result.stdout.trim().split('\n').map(line => JSON.parse(line))
+      .find(event => event.type === 'tool_result')
+    assert.equal(toolResult?.status, 'completed', JSON.stringify(toolResult))
+    assert.match(toolResult.result, /Synthetic tool-only marker/u)
     assert.equal(model.requests.length, 2)
     const payloads = (await readFile(receipt, 'utf8')).trim().split('\n').map(JSON.parse)
     assert.equal(payloads.length, 1)
