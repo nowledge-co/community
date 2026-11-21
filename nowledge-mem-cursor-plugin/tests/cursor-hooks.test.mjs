@@ -71,11 +71,11 @@ test('sessionStart requests one Bridge inbox check only with explicit opt-in and
 test('Bridge skill scopes message IDs and requests the identity inbox separately', () => {
   const guide = readFileSync(new URL('../skills/bridge/SKILL.md', import.meta.url), 'utf8');
   const commands = guide.split(/\r?\n/);
-  const cli = '"${NMEM_CLI_PATH:-nmem}" --json --agent-context "$NMEM_AGENT_CONTEXT" bridge';
-  const scoped = `${cli} --resolved-space-id "$bridge_space_id"`;
+  const cli = '"${NMEM_CLI_PATH:-nmem}" --json --agent-context="$NMEM_AGENT_CONTEXT" bridge';
+  const scoped = `${cli} --resolved-space-id="$bridge_space_id"`;
   assert.ok(commands.includes(`${scoped} inbox`));
   assert.ok(commands.includes(`${scoped} open "$message_id"`));
-  assert.ok(commands.includes(`${scoped} reply "$message_id" --body "$reply_body"`));
+  assert.ok(commands.includes(`${scoped} reply "$message_id" --body="$reply_body"`));
   assert.ok(commands.includes(`${cli} inbox`));
   for (const field of ['messages[].message', 'open_args', 'reply_args_prefix', 'incomplete']) {
     assert.ok(guide.includes(field));

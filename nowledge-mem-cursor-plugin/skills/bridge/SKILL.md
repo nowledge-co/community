@@ -12,20 +12,20 @@ Use the long-lived Agent mailbox for a requested message or authorized handoff. 
 Use the configured CLI and the original approved Cloud login. At startup, use only the named `NMEM_AGENT_CONTEXT`. If the CLI is unavailable, the Context is missing, or passive setup cannot verify the expected identity and Space, end the check. A startup hint never authorizes MCP fallback or enrollment.
 
 ```sh
-"${NMEM_CLI_PATH:-nmem}" --json --agent-context "$NMEM_AGENT_CONTEXT" bridge setup
+"${NMEM_CLI_PATH:-nmem}" --json --agent-context="$NMEM_AGENT_CONTEXT" bridge setup
 ```
 
 Read the verified ID from `space_id` or `endpoint.scope.space_id` into `bridge_space_id`. A passive `ready` describes registration. A legacy `enable_needed` can mean registration was unchecked. With a verified identity and Space, try the permitted read. Stop on refusal. Use setup's enable arguments only for a separate, explicitly authorized registration.
 
 ```sh
-"${NMEM_CLI_PATH:-nmem}" --json --agent-context "$NMEM_AGENT_CONTEXT" bridge --resolved-space-id "$bridge_space_id" inbox
+"${NMEM_CLI_PATH:-nmem}" --json --agent-context="$NMEM_AGENT_CONTEXT" bridge --resolved-space-id="$bridge_space_id" inbox
 ```
 
 At startup read one page. For relevant mail, set `message_id` to the selected row's `messages[].message`. Opening records a read. Reply only when authorized, using the same ID, Space and Context.
 
 ```sh
-"${NMEM_CLI_PATH:-nmem}" --json --agent-context "$NMEM_AGENT_CONTEXT" bridge --resolved-space-id "$bridge_space_id" open "$message_id"
-"${NMEM_CLI_PATH:-nmem}" --json --agent-context "$NMEM_AGENT_CONTEXT" bridge --resolved-space-id "$bridge_space_id" reply "$message_id" --body "$reply_body"
+"${NMEM_CLI_PATH:-nmem}" --json --agent-context="$NMEM_AGENT_CONTEXT" bridge --resolved-space-id="$bridge_space_id" open "$message_id"
+"${NMEM_CLI_PATH:-nmem}" --json --agent-context="$NMEM_AGENT_CONTEXT" bridge --resolved-space-id="$bridge_space_id" reply "$message_id" --body="$reply_body"
 ```
 
 For an interactive request limited to one Space, keep its exact ID on every command. To send, use `contacts --query <name>`, confirm the member and Agent, then use the selected card's `send_args_prefix` with one literal `--body=<message text>` argument. If the user approved a login and exact Space without a named Context, omit the Context flag and pass that ID to passive setup and every operation.
@@ -35,7 +35,7 @@ For an interactive request limited to one Space, keep its exact ID on every comm
 Use the approved named Context and omit the Space selector. The CLI checks the same identity across its currently authorized Spaces.
 
 ```sh
-"${NMEM_CLI_PATH:-nmem}" --json --agent-context "$NMEM_AGENT_CONTEXT" bridge inbox
+"${NMEM_CLI_PATH:-nmem}" --json --agent-context="$NMEM_AGENT_CONTEXT" bridge inbox
 ```
 
 Select the relevant row with its original `space_id`. Use its `open_args` to open it. For an authorized reply, append one literal `--body=<reply text>` argument to its `reply_args_prefix`. Run the returned vectors with the same executable and preserve all arguments after the executable, including the original endpoint, Context and message reference. When `incomplete` is true, report partial coverage. Continue with the returned cursor only within the requested scope.
