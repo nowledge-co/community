@@ -109,6 +109,10 @@ jobs:
         run: node --test nowledge-mem-pi-package/tests/*.test.mjs
       - name: Test Step Code package contract
         run: node --test nowledge-mem-step-code/tests/*.test.mjs
+      - name: Validate Cursor package and hooks
+        run: |
+          node nowledge-mem-cursor-plugin/scripts/validate-plugin.mjs
+          node --test nowledge-mem-cursor-plugin/tests/cursor-hooks.test.mjs
       - name: Validate package contract
         run: node nowledge-mem-codex-plugin/scripts/validate-plugin.mjs
       - name: Test OpenAI Cloud plugin package

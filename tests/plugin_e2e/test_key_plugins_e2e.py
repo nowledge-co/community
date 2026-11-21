@@ -633,7 +633,7 @@ def test_key_plugin_static_contracts_are_declared():
     cursor_working_memory_skill = (
         CURSOR_PLUGIN / "skills" / "read-working-memory" / "SKILL.md"
     ).read_text(encoding="utf-8")
-    assert cursor_manifest["version"] == "0.2.2"
+    assert cursor_manifest["version"] == "0.2.3"
     assert cursor_hooks["hooks"]["sessionStart"][0] == {
         "command": 'node "${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs"',
         "timeout": 15,
@@ -1565,6 +1565,14 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
             assert "https://mem.nowledge.co/SKILL.md" in guide["prompt"], entry["id"]
             assert "shared/remote-mcp" not in guide["prompt"], entry["id"]
             assert "shared/remote-mcp" not in guide["promptZh"], entry["id"]
+            bridge_skill = "shared/bridge/nowledge-bridge-mcp/SKILL.md"
+            assert (COMMUNITY_ROOT / bridge_skill).is_file()
+            bridge_url = f"https://raw.githubusercontent.com/nowledge-co/community/main/{bridge_skill}"
+            for locale, save, reload in (
+                ("prompt", "save the full Bridge skill", "new conversations"),
+                ("promptZh", "完整 Bridge 指南", "新对话按需加载"),
+            ):
+                assert all(part in guide[locale] for part in (bridge_url, save, reload)), entry["id"]
         else:
             assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
             assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]
@@ -1578,13 +1586,17 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "slock" in by_id["raft"]["aliases"]
     assert by_id["copilot-cli"]["version"] == "0.1.6"
     assert by_id["gemini-cli"]["version"] == "0.1.9"
-    assert by_id["cursor"]["version"] == "0.2.2"
+    assert by_id["cursor"]["version"] == "0.2.3"
     assert by_id["cursor"]["transport"] == "mcp+hook"
     assert by_id["cursor"]["capabilities"]["autoCapture"] is True
     assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"
     assert by_id["cursor"]["threadSave"]["command"] == "nmem t save --from cursor"
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
+    assert "bridge" in by_id["cursor"]["skills"]
+    assert by_id["google-antigravity"]["version"] == "0.1.4"
+    assert "nmem-bridge-chat" in by_id["google-antigravity"]["skills"]
+    assert "/nmem-bridge-chat" in by_id["google-antigravity"]["slashCommands"]
     assert by_id["droid"]["version"] == "0.1.2"
     assert by_id["openclaw"]["version"] == "0.8.43"
     assert by_id["proma"]["version"] == "0.1.8"
