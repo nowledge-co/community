@@ -160,6 +160,8 @@ jobs:
           @deepseek-ai/dsh@${{ matrix.dsh }}
           @deepseek-ai/dsh-llm-mock-server@${{ matrix.dsh }}
           pnpm@12.15.0
+      # pnpm ships a launcher placeholder until its platform installer runs.
+      - run: node node_modules/pnpm/install.js
       - run: node --import ./tests/setup.mjs --test tests/installed-host.test.mjs
         env:
           DSH_INSTALLED_HOST_TEST: 'true'
