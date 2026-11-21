@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import {
   envValue,
   extractRenderedContent,
+  findBridgeCommand,
   findNmemCommand,
   runNmemJson,
   withSpaceArgs,
@@ -91,9 +92,7 @@ export function buildHookOutput(startupContext, env = process.env, command = fin
       `${startupContext.content}\n</${startupContext.tag}>`,
     );
   }
-  const configuredCli = envValue('NMEM_CLI_PATH', env);
-  const bridgeCliAvailable = command && (!configuredCli || command === configuredCli);
-  if (bridgeCliAvailable && env.NMEM_BRIDGE_INBOX_ON_START === '1' && envValue('NMEM_AGENT_CONTEXT', env)) {
+  if (env.NMEM_BRIDGE_INBOX_ON_START === '1' && envValue('NMEM_AGENT_CONTEXT', env) && findBridgeCommand(env, command)) {
     sections.push(
       'Nowledge Bridge inbox check requested. Use the bridge skill with the CLI to verify NMEM_AGENT_CONTEXT and check one page in its exact Space. Stop if verification fails. This startup check is CLI-only.',
     );

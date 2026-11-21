@@ -133,6 +133,7 @@ async function main() {
     'skills/save-thread/SKILL.md',
     'skills/save-handoff/SKILL.md',
     'skills/bridge/SKILL.md',
+    'skills/bridge/scripts/resolve-cli.mjs',
     'scripts/validate-plugin.mjs',
     'tests/cursor-hooks.test.mjs'
   ];

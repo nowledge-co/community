@@ -135,6 +135,8 @@ Ask Cursor to use the [Bridge skill](skills/bridge/SKILL.md) to send, check a ma
 
 For a startup check, launch Cursor with `NMEM_BRIDGE_INBOX_ON_START=1`, `NMEM_AGENT_CONTEXT=<approved-context>`, and a compatible CLI. The hook asks the agent to verify that Context and check one page in its Space. You can also explicitly ask for the whole Agent inbox across authorized Spaces. Each reply goes back to the original message's Space. Remote MCP is available for separate interactive requests.
 
+Mail that arrives in another Space or after startup is visible on a subsequent requested identity inbox check. Passive arrival hints for active Cursor sessions are tracked in [#1053](https://github.com/nowledge-co/community/issues/1053).
+
 ## Why The Rules Matter
 
 Cursor can discover the tools and hooks, while the bundled rules and skills define when to use them:
