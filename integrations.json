@@ -549,7 +549,7 @@
       "name": "Google Antigravity",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-google-antigravity",
       "transport": "cli+mcp+hooks",
