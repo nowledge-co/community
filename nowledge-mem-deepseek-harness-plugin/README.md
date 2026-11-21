@@ -30,11 +30,11 @@ nmem config mcp show --host deepseek-harness
 ```
 
 The adapter supports DSH 0.1.5-rc.2, 0.1.7-rc.1, 0.2.1-alpha.1,
-0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 and 0.2.2-rc.2. It uses
+0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 through 0.2.2-rc.5. It uses
 `shell.execute(...).result()` on current hosts and retains the legacy
 `shell.run()` fallback. Injected messages use `source.kind: "plugin:nowledge-mem"`,
 matching DSH's v3-to-v4 migration; existing legacy snapshots are still recognized.
-Restart DSH after replacing an installed plugin version.
+If installation reports an unsupported DSH peer, check `dsh --version` and use the install command above with a plugin revision that lists your host. A version mismatch alone does not indicate lost Mem data. Restart DSH after replacing an installed plugin version.
 
 The bundle connects to the local Mem MCP endpoint by default:
 
@@ -141,7 +141,7 @@ used to verify the updated capture without touching old data.
 
 ### Explicit Historical Backfill
 
-On a host with `commands` and `sessionQuery` (qualified on DSH 0.2.2-rc.2),
+On a host with `commands` and `sessionQuery` (qualified on DSH 0.2.2-rc.2 through rc.5),
 the bundle adds a **human slash command**, not an agent tool:
 
 ```text
@@ -246,7 +246,7 @@ CLI responses and shell execution are deterministic test doubles; a live DSH
 and Mem smoke test is still required to verify an installed release.
 
 The dedicated installed-host CI lane additionally packs the plugin, installs it
-into an isolated DSH 0.2.2-rc.2 headless profile, runs a real bash tool turn
+into isolated DSH 0.2.2-rc.2 through rc.5 headless profiles, runs a real bash tool turn
 against the official loopback mock model, and checks that clean transcript
 capture completes before host exit. That lane uses a fixture CLI receipt rather
 than a production Mem destination; separate App/Cloud qualification uses actual
@@ -254,7 +254,7 @@ nmem and disposable backend stores. Neither test reads your regular DSH profile.
 
 GitHub Actions runs ESLint and tests on every pull request and push to `main`.
 The test matrix covers Ubuntu and Windows with Node.js 24 and DSH 0.1.7-rc.1,
-0.2.1-alpha.1, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 and 0.2.2-rc.2.
+0.2.1-alpha.1, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 through 0.2.2-rc.5.
 It also checks the package contents with `npm pack --dry-run`; installation is
 from Git, not an independently published npm release.
 
