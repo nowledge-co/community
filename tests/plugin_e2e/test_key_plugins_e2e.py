@@ -1594,7 +1594,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
     assert "bridge" in by_id["cursor"]["skills"]
-    assert by_id["google-antigravity"]["version"] == "0.1.4"
+    assert by_id["google-antigravity"]["version"] == "0.1.5"
     assert "nmem-bridge-chat" in by_id["google-antigravity"]["skills"]
     assert "/nmem-bridge-chat" in by_id["google-antigravity"]["slashCommands"]
     assert by_id["droid"]["version"] == "0.1.2"
