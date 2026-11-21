@@ -1567,8 +1567,12 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
             assert "shared/remote-mcp" not in guide["promptZh"], entry["id"]
             bridge_skill = "shared/bridge/nowledge-bridge-mcp/SKILL.md"
             assert (COMMUNITY_ROOT / bridge_skill).is_file()
-            assert f"/blob/main/{bridge_skill}" in guide["prompt"], entry["id"]
-            assert f"/blob/main/{bridge_skill}" in guide["promptZh"], entry["id"]
+            bridge_url = f"https://raw.githubusercontent.com/nowledge-co/community/main/{bridge_skill}"
+            for locale, save, reload in (
+                ("prompt", "save the full Bridge skill", "new conversations"),
+                ("promptZh", "完整 Bridge 指南", "新对话按需加载"),
+            ):
+                assert all(part in guide[locale] for part in (bridge_url, save, reload)), entry["id"]
         else:
             assert "Context Bundle or Working Memory check" in guide["prompt"], entry["id"]
             assert "Context Bundle 或 Working Memory 检查" in guide["promptZh"], entry["id"]

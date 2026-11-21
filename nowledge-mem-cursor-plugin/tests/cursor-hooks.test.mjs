@@ -56,12 +56,30 @@ test('sessionStart requests one Bridge inbox check only with explicit opt-in and
     NMEM_BRIDGE_INBOX_ON_START: '1',
     NMEM_AGENT_CONTEXT: 'approved-context-name',
   };
-  const hint = buildHookOutput(null, env).additional_context;
+  assert.deepEqual(buildHookOutput(null, env, ''), {});
+  assert.deepEqual(buildHookOutput(null, { ...env, NMEM_CLI_PATH: '/missing/nmem' }, '/other/nmem'), {});
+  const hint = buildHookOutput(null, env, '/fake/nmem').additional_context;
   assert.match(hint, /bridge skill.*NMEM_AGENT_CONTEXT.*one page/);
   assert.doesNotMatch(hint, /approved-context-name/);
+  assert.match(hint, /CLI-only/);
 
   const context = { tag: 'nowledge_context_bundle', label: 'Context Bundle', content: 'Current context' };
-  assert.match(buildHookOutput(context, env).additional_context, /Current context[\s\S]*Bridge inbox check/);
+  assert.match(buildHookOutput(context, env, '/fake/nmem').additional_context, /Current context[\s\S]*Bridge inbox check/);
+  assert.equal(buildHookOutput(context, env, '').additional_context, buildHookOutput(context, {}).additional_context);
+});
+
+test('Bridge skill scopes message IDs and requests the identity inbox separately', () => {
+  const guide = readFileSync(new URL('../skills/bridge/SKILL.md', import.meta.url), 'utf8');
+  const commands = guide.split('\n');
+  const cli = '"${NMEM_CLI_PATH:-nmem}" --json --agent-context "$NMEM_AGENT_CONTEXT" bridge';
+  const scoped = `${cli} --resolved-space-id "$bridge_space_id"`;
+  assert.ok(commands.includes(`${scoped} inbox`));
+  assert.ok(commands.includes(`${scoped} open "$message_id"`));
+  assert.ok(commands.includes(`${scoped} reply "$message_id" --body "$reply_body"`));
+  assert.ok(commands.includes(`${cli} inbox`));
+  for (const field of ['messages[].message', 'open_args', 'reply_args_prefix', 'incomplete']) {
+    assert.ok(guide.includes(field));
+  }
 });
 
 test('sessionStart shares one ten-second budget across CLI fallbacks', () => {

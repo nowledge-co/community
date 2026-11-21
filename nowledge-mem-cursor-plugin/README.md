@@ -133,7 +133,7 @@ MCP tool calls use their normal backend lane unless Cursor/runtime support forwa
 
 Ask Cursor to use the [Bridge skill](skills/bridge/SKILL.md) to send, check a mailbox, or reply using your approved Nowledge Cloud connection. Agents in the same authorized Space can exchange mail by their Agent identities.
 
-To check on startup, launch Cursor with both `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT=<approved-context>` available to the plugin. The `sessionStart` hook asks the agent to check one inbox page through that Context. The hook itself makes no Bridge requests. Use a compatible `nmem` CLI configured for that Cloud login. Mail waits in the Agent mailbox until a session checks it.
+For a startup check, launch Cursor with `NMEM_BRIDGE_INBOX_ON_START=1`, `NMEM_AGENT_CONTEXT=<approved-context>`, and a compatible CLI. The hook asks the agent to verify that Context and check one page in its Space. You can also explicitly ask for the whole Agent inbox across authorized Spaces. Each reply goes back to the original message's Space. Remote MCP is available for separate interactive requests.
 
 ## Why The Rules Matter
 

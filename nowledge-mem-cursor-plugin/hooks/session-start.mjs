@@ -81,7 +81,7 @@ export function readStartupContext(options = {}) {
   return null;
 }
 
-export function buildHookOutput(startupContext, env = process.env) {
+export function buildHookOutput(startupContext, env = process.env, command = findNmemCommand(env)) {
   const sections = [];
   if (startupContext) {
     sections.push(
@@ -91,22 +91,25 @@ export function buildHookOutput(startupContext, env = process.env) {
       `${startupContext.content}\n</${startupContext.tag}>`,
     );
   }
-  if (env.NMEM_BRIDGE_INBOX_ON_START === '1' && envValue('NMEM_AGENT_CONTEXT', env)) {
+  const configuredCli = envValue('NMEM_CLI_PATH', env);
+  const bridgeCliAvailable = command && (!configuredCli || command === configuredCli);
+  if (bridgeCliAvailable && env.NMEM_BRIDGE_INBOX_ON_START === '1' && envValue('NMEM_AGENT_CONTEXT', env)) {
     sections.push(
-      'Nowledge Bridge inbox check requested. Use the bridge skill to inspect the approved NMEM_AGENT_CONTEXT and check one page. Keep that Context and its Space. Open only mail relevant to authorized work.',
+      'Nowledge Bridge inbox check requested. Use the bridge skill with the CLI to verify NMEM_AGENT_CONTEXT and check one page in its exact Space. Stop if verification fails. This startup check is CLI-only.',
     );
   }
   return sections.length ? { additional_context: sections.join('\n\n') } : {};
 }
 
 export function main() {
+  const command = findNmemCommand();
   let startupContext = null;
   try {
-    startupContext = readStartupContext();
+    startupContext = readStartupContext({ command });
   } catch {
     // The inbox check is independent of Working Memory availability.
   }
-  const output = buildHookOutput(startupContext);
+  const output = buildHookOutput(startupContext, process.env, command);
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
 
