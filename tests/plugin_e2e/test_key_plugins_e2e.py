@@ -1585,7 +1585,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["cursor"]["threadSave"]["command"] == "nmem t save --from cursor"
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
-    assert by_id["google-antigravity"]["version"] == "0.1.6"
+    assert by_id["google-antigravity"]["version"] == "0.1.7"
     assert "nmem-graph-explore" in by_id["google-antigravity"]["skills"]
     assert "/nmem-graph-explore" in by_id["google-antigravity"]["slashCommands"]
     assert "nmem-bridge-chat" in by_id["google-antigravity"]["skills"]
