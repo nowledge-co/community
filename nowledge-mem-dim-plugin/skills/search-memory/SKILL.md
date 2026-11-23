@@ -40,7 +40,7 @@ If retrieval fails or times out, say so briefly and continue with what you have.
 - Memory search is semantic: describe the concept. Memories are distilled, so
   exact times, people, and wording live in the source conversation. A result's
   `source_pointer` names that thread and the message range the Memory came
-  from; read that range once (`thread_fetch_messages` with its `expand` call, or
+  from; read that range once (
   `nmem --json t show <thread_id> --offset <first> --limit <n>`). Verify a result
   labeled `anchor_support` (low confidence) there before relying on it.
 - Thread search is keyword full-text search, not semantic search: query with

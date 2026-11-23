@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.54] - Unreleased
+
+- Explain how to follow a Memory result to its source messages and refine keyword searches.
+
 ## [0.1.53] - Unreleased
 
 - Read Bridge arrival hints from protected local caches at UserPromptSubmit, PostToolUse and Stop; no mailbox network call runs inside these hooks.
