@@ -88,8 +88,9 @@ Never loop over offsets to reconstruct a conversation. Do not raise `--content-l
 - Memory search is semantic: describe the concept. Memories are distilled, so
   exact times, people, and wording live in the source conversation. A result's
   `source_pointer` names that thread and the message range the Memory came
-  from; read that range once (`thread_fetch_messages` with its `expand` call, or
-  `nmem --json t show <thread_id> --offset <first> --limit <n>`). Verify a result
+  from. For one bounded CLI read, use the offset and limit from
+  `source_pointer.expand` in `nmem --json t show <thread_id> --offset <offset> --limit <limit>`.
+  If the hint omits the range, use offset 0 and limit 8. Verify a result
   labeled `anchor_support` (low confidence) there before relying on it.
 - Thread search is keyword full-text search, not semantic search: query with
   names, exact words, and distinctive terms, and try a few phrasings when the
