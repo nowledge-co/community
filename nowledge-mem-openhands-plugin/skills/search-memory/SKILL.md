@@ -97,7 +97,7 @@ nmem --json m search "authentication service" --space "Backend"
   from; read that range once (`thread_fetch_messages` with its `expand` call, or
   `nmem --json t show <thread_id> --offset <first> --limit <n>`). Verify a result
   labeled `anchor_support` (low confidence) there before relying on it.
-- Thread search is keyword (BM25) search, not semantic search: query with
+- Thread search is keyword full-text search, not semantic search: query with
   names, exact words, and distinctive terms, and try a few phrasings when the
   first finds nothing. A `search_guidance` hint lists the query terms no Memory
   contained; they are good thread-search terms. A `thread_evidence` block holds
