@@ -192,3 +192,17 @@ Summarize only the strongest matches and clearly say when nothing relevant was f
 Search memories or threads first, then choose the specific conversation and message range needed. Call `thread_fetch_messages`, a host thread-fetch tool, or `nmem --json t show` at most once per question, using a small message limit (for example 8) and a content limit of 1200 where supported. A known target range may use a nonzero offset once.
 
 Never loop over offsets to reconstruct a conversation. Do not raise `--content-limit` to compensate for a slow or incomplete read. Small output limits do not guarantee cheap server-side work on every deployed backend. If a read is slow, incomplete, fails or times out, stop, report the evidence gap, and refine the search rather than retrying pages. A later explicit user request for another range is a new bounded read; a routine “continue” is not permission to drain the thread.
+
+## What Each Search Matches
+
+- Memory search is semantic: describe the concept. Memories are distilled, so
+  exact times, people, and wording live in the source conversation. A result's
+  `source_pointer` names that thread and the message range the Memory came
+  from; read that range once (`thread_fetch_messages` with its `expand` call, or
+  `nmem --json t show <thread_id> --offset <first> --limit <n>`). Verify a result
+  labeled `anchor_support` (low confidence) there before relying on it.
+- Thread search is keyword (BM25) search, not semantic search: query with
+  names, exact words, and distinctive terms, and try a few phrasings when the
+  first finds nothing. A `search_guidance` hint lists the query terms no Memory
+  contained; they are good thread-search terms. A `thread_evidence` block holds
+  a few keyword-matched raw messages; treat them as leads, not conclusions.

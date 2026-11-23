@@ -41,3 +41,17 @@ raise content limits to compensate for a slow read. If the read is incomplete,
 slow, or fails, report the evidence gap and refine search. A later explicit
 request for another range is a new bounded read; routine “continue” is not
 permission to drain a thread.
+
+## What Each Search Matches
+
+- Memory search is semantic: describe the concept. Memories are distilled, so
+  exact times, people, and wording live in the source conversation. A result's
+  `source_pointer` names that thread and the message range the Memory came
+  from; read that range once (`thread_fetch_messages` with its `expand` call, or
+  `nmem --json t show <thread_id> --offset <first> --limit <n>`). Verify a result
+  labeled `anchor_support` (low confidence) there before relying on it.
+- Thread search is keyword (BM25) search, not semantic search: query with
+  names, exact words, and distinctive terms, and try a few phrasings when the
+  first finds nothing. A `search_guidance` hint lists the query terms no Memory
+  contained; they are good thread-search terms. A `thread_evidence` block holds
+  a few keyword-matched raw messages; treat them as leads, not conclusions.
