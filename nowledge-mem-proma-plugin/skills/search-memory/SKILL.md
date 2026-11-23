@@ -45,3 +45,17 @@ nmem --json t search "deploy pipeline discussion" --limit 5
 2. Prefer nmem results for decisions, preferences, and project-level context
 3. Frame results naturally — "we decided X last time" not "search result 3 indicates X"
 4. If search returns nothing, say so honestly; don't fabricate context
+
+## What Each Search Matches
+
+- Memory search is semantic: describe the concept. Memories are distilled, so
+  exact times, people, and wording live in the source conversation. A result's
+  `source_pointer` names that thread and the message range the Memory came
+  from; read that range once (`thread_fetch_messages` with its `expand` call, or
+  `nmem --json t show <thread_id> --offset <first> --limit <n>`). Verify a result
+  labeled `anchor_support` (low confidence) there before relying on it.
+- Thread search is keyword (BM25) search, not semantic search: query with
+  names, exact words, and distinctive terms, and try a few phrasings when the
+  first finds nothing. A `search_guidance` hint lists the query terms no Memory
+  contained; they are good thread-search terms. A `thread_evidence` block holds
+  a few keyword-matched raw messages; treat them as leads, not conclusions.

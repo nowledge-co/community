@@ -34,3 +34,17 @@ Never loop over offsets to reconstruct a conversation. One bounded Thread read p
 Keep the configured identity and Space; pass `--space "<space name>"` or `--space-id <exact id>` when the lane is known, and do not widen the search silently. Shared or cross-Space recall must be explicit.
 
 If retrieval fails or times out, say so briefly and continue with what you have. Do not report a failed search as "no matches". Inspect only the results that matter to the task.
+
+## What Each Search Matches
+
+- Memory search is semantic: describe the concept. Memories are distilled, so
+  exact times, people, and wording live in the source conversation. A result's
+  `source_pointer` names that thread and the message range the Memory came
+  from; read that range once (`thread_fetch_messages` with its `expand` call, or
+  `nmem --json t show <thread_id> --offset <first> --limit <n>`). Verify a result
+  labeled `anchor_support` (low confidence) there before relying on it.
+- Thread search is keyword (BM25) search, not semantic search: query with
+  names, exact words, and distinctive terms, and try a few phrasings when the
+  first finds nothing. A `search_guidance` hint lists the query terms no Memory
+  contained; they are good thread-search terms. A `thread_evidence` block holds
+  a few keyword-matched raw messages; treat them as leads, not conclusions.
