@@ -1073,7 +1073,7 @@
         "method": "hook-capture",
         "runtime": "openhands",
         "command": "python3 <plugin-dir>/hooks/nmem-stop.py <<<\"{\\\"session_id\\\": \\\"<conversation-id>\\\"}\"",
-        "note": "OpenHands runs lifecycle hooks (UserPromptSubmit, PostToolUse, Stop). The Stop hook captures session events and syncs to Nowledge Mem. In multi-agent workflows, NMEM_AGENT_ID scopes worker identity, NMEM_SPACE scopes memory space, and NMEM_DISABLE_AUTO_CAPTURE=1 in OpenHands suppresses top-level session capture when using Child-Authoritative Mode."
+        "note": "OpenHands runs lifecycle hooks (UserPromptSubmit, PostToolUse, Stop). The Stop hook captures session events and syncs to Nowledge Mem. In multi-agent workflows, NMEM_AGENT_ID sets the worker identity, NMEM_SPACE selects the active Space, and NMEM_DISABLE_AUTO_CAPTURE=1 in OpenHands suppresses top-level session capture when using Child-Authoritative Mode."
       },
       "autonomy": {
         "bootstrap": "automatic",
