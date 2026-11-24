@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.5] - Unreleased
+
+- Use the canonical Claude Code marketplace shorthand in the bundled host guide.
+
 ## [0.1.4] - Unreleased
 
 - Add Dim to the `check-integration` host table with its product-home detection and local-directory install command.
