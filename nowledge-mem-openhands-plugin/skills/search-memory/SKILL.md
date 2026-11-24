@@ -88,3 +88,18 @@ nmem --json m search "authentication service" --space "Backend"
 1. **Be specific**: query with technical terms, error messages, or architectural names.
 2. **Follow graph links**: when a memory contains `deepLinks` or entity relations, inspect related nodes if more context is needed.
 3. **Do not repeat**: if a recent search returned empty results, do not re-run identical searches within the same turn.
+
+## What Each Search Matches
+
+- Memory search is semantic: describe the concept. Memories are distilled, so
+  exact times, people, and wording live in the source conversation. A result's
+  `source_pointer` names that thread and the message range the Memory came
+  from. For one bounded CLI read, use the offset and limit from
+  `source_pointer.expand` in `nmem --json t show <thread_id> --offset <offset> --limit <limit>`.
+  If the hint omits the range, use offset 0 and limit 8. Verify a result
+  labeled `anchor_support` (low confidence) there before relying on it.
+- Thread search is keyword full-text search, not semantic search: query with
+  names, exact words, and distinctive terms, and try a few phrasings when the
+  first finds nothing. A `search_guidance` hint lists the query terms no Memory
+  contained; they are good thread-search terms. A `thread_evidence` block holds
+  a few keyword-matched raw messages; treat them as leads, not conclusions.

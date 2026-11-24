@@ -398,7 +398,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.53"
+    assert codex_manifest["version"] == "0.1.54"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -1594,7 +1594,9 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["cursor"]["autonomy"]["threads"] == "automatic-capture"
     assert "save-thread" in by_id["cursor"]["skills"]
     assert "bridge" in by_id["cursor"]["skills"]
-    assert by_id["google-antigravity"]["version"] == "0.1.4"
+    assert by_id["google-antigravity"]["version"] == "0.1.7"
+    assert "nmem-graph-explore" in by_id["google-antigravity"]["skills"]
+    assert "/nmem-graph-explore" in by_id["google-antigravity"]["slashCommands"]
     assert "nmem-bridge-chat" in by_id["google-antigravity"]["skills"]
     assert "/nmem-bridge-chat" in by_id["google-antigravity"]["slashCommands"]
     assert by_id["droid"]["version"] == "0.1.2"
@@ -1723,7 +1725,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.2.0"
+    assert dsh["version"] == "0.2.1"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1836,7 +1838,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.2.0"
+    assert pkg["version"] == "0.2.1"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"

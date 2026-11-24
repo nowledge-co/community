@@ -549,7 +549,7 @@
       "name": "Google Antigravity",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.7",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-google-antigravity",
       "transport": "cli+mcp+hooks",
@@ -567,7 +567,7 @@
         "runtime": "antigravity",
         "command": "nmem t sync --from antigravity --session-id <conversation-id> --apply",
         "historicalCommand": "nmem t sync --from antigravity",
-        "note": "The donated Google Antigravity plugin runs on Antigravity's native lifecycle hooks. PreInvocation injects Context Bundle or Working Memory, PostInvocation reports pending offline syncs, PreToolUse gates destructive memory actions, and Stop imports the local transcript.jsonl under the canonical source=antigravity. MCP remains the structured retrieval/write surface; nmem owns durable client config, remote auth, and historical backfill."
+        "note": "The donated Google Antigravity plugin runs on Antigravity's native lifecycle hooks. SessionStart injects Context Bundle or Working Memory once per conversation, PostInvocation reports pending offline syncs, PreToolUse gates destructive memory actions, and Stop imports the local transcript.jsonl under the canonical source=antigravity. MCP remains the structured retrieval/write surface; nmem owns durable client config, remote auth, and historical backfill."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -601,6 +601,11 @@
       },
       "skills": [
         "nmem-bridge-chat",
+        "nmem-fs-explore",
+        "nmem-graph-explore",
+        "nmem-skill-load",
+        "nmem-skill-manage",
+        "nmem-skill-propose",
         "nmem-memory-working",
         "nmem-memory-search",
         "nmem-memory-distill",
@@ -610,6 +615,11 @@
       ],
       "slashCommands": [
         "/nmem-bridge-chat",
+        "/nmem-fs-explore",
+        "/nmem-graph-explore",
+        "/nmem-skill-load",
+        "/nmem-skill-manage",
+        "/nmem-skill-propose",
         "/nmem-memory-working",
         "/nmem-memory-search",
         "/nmem-memory-distill",
@@ -623,7 +633,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.53",
+      "version": "0.1.54",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -1063,7 +1073,7 @@
         "method": "hook-capture",
         "runtime": "openhands",
         "command": "python3 <plugin-dir>/hooks/nmem-stop.py <<<\"{\\\"session_id\\\": \\\"<conversation-id>\\\"}\"",
-        "note": "OpenHands runs lifecycle hooks (UserPromptSubmit, PostToolUse, Stop). The Stop hook captures session events and syncs to Nowledge Mem. In multi-agent workflows, NMEM_AGENT_ID scopes worker identity, NMEM_SPACE scopes memory space, and NMEM_DISABLE_AUTO_CAPTURE=1 in OpenHands suppresses top-level session capture when using Child-Authoritative Mode."
+        "note": "OpenHands runs lifecycle hooks (UserPromptSubmit, PostToolUse, Stop). The Stop hook captures session events and syncs to Nowledge Mem. In multi-agent workflows, NMEM_AGENT_ID sets the worker identity, NMEM_SPACE selects the active Space, and NMEM_DISABLE_AUTO_CAPTURE=1 in OpenHands suppresses top-level session capture when using Child-Authoritative Mode."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -1870,7 +1880,7 @@
       "name": "DeepSeek Harness",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "directory": "nowledge-mem-deepseek-harness-plugin",
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
       "transport": "dsh-bundle+mcp+cli",

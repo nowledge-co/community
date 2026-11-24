@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.2.1
+
+- Admit DeepSeek Harness 0.2.2-rc.3, rc.4 and rc.5 through normal plugin installation.
+
 ## 0.2.0
 
 - Explicitly forwards the configured Mem API key to nmem across the host's
