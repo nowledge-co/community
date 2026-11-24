@@ -2,6 +2,11 @@
 
 ## [0.7.6] - Unreleased
 
+### Fixed
+- `mem.save` skips a save only when an identical Memory exists. A related
+  Memory whose relative search score read 1.0 against Cloud no longer drops
+  the save (https://github.com/nowledge-co/mem/issues/11091).
+
 ### Changed
 
 - Mark fallback save dates explicitly rather than presenting them as event dates; verify conflicting evidence against its sources.

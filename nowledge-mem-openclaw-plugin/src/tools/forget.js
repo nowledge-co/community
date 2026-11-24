@@ -3,13 +3,13 @@
  *
  * Supports two modes:
  * 1. Direct delete by memoryId (fast, deterministic)
- * 2. Search-then-confirm by query (finds candidates, deletes if single high-confidence match)
+ * 2. Search by query: lists candidates, never deletes (a search score is not an identity)
  */
 export function createForgetTool(client, logger) {
 	return {
 		name: "nowledge_mem_forget",
 		description:
-			"Delete a memory from your knowledge base. Provide memoryId for direct delete, or query to find and remove. If multiple matches, returns candidates for user confirmation.",
+			"Delete a memory from your knowledge base. Provide memoryId to delete. A query only lists candidates; ask the user which one, then call again with its memoryId.",
 		parameters: {
 			type: "object",
 			properties: {
@@ -21,7 +21,7 @@ export function createForgetTool(client, logger) {
 				query: {
 					type: "string",
 					description:
-						"Search query to find the memory to delete. If a single high-confidence match is found, it is deleted directly.",
+						"Search query to find candidates. Never deletes by itself; returns candidates to confirm.",
 				},
 			},
 		},
@@ -87,39 +87,13 @@ export function createForgetTool(client, logger) {
 					};
 				}
 
-				// Auto-delete only when exactly one result with high confidence.
-				// Deletion is irreversible — if multiple matches exist, always ask.
-				if (results.length === 1 && results[0].score >= 0.85) {
-					const target = results[0];
-					try {
-						await client.exec(["--json", "m", "delete", "-f", target.id]);
-						logger.info(`forget: deleted memory ${target.id} via search`);
-						return {
-							content: [
-								{
-									type: "text",
-									text: `Deleted: "${target.title || target.content.slice(0, 60)}" (id: ${target.id})`,
-								},
-							],
-							details: { action: "deleted", id: target.id },
-						};
-					} catch (err) {
-						const message = err instanceof Error ? err.message : String(err);
-						return {
-							content: [
-								{
-									type: "text",
-									text: `Found match but delete failed: ${message}`,
-								},
-							],
-						};
-					}
-				}
-
-				// Multiple candidates or low confidence — return list for user to pick
+				// A query never deletes. Deletion is irreversible and a search score
+				// is not an identity: some backends scale scores to the top hit of
+				// each batch (https://github.com/nowledge-co/mem/issues/11091).
+				// Return the candidates; the caller deletes by memoryId.
 				const candidates = results.map(
 					(r, i) =>
-						`${i + 1}. ${r.title || "(untitled)"} (${(r.score * 100).toFixed(0)}%) — id: ${r.id}\n   ${r.content.slice(0, 100)}`,
+						`${i + 1}. ${r.title || "(untitled)"} — id: ${r.id}\n   ${r.content.slice(0, 100)}`,
 				);
 
 				return {

@@ -48,22 +48,16 @@ export function createForgetCommand(client, logger) {
 					return { text: `No matching memories found for: "${text}"` };
 				}
 
-				if (results[0].score >= 0.85) {
-					const target = results[0];
-					await client.exec(["--json", "m", "delete", "-f", target.id]);
-					logger.info(`/forget: deleted memory ${target.id}`);
-					const preview = target.title || target.content.slice(0, 60);
-					return {
-						text: `Forgotten: "${preview}" (id: ${target.id})`,
-					};
-				}
-
+				// Deletion is irreversible, and a search score is not an identity:
+				// some backends scale scores to the top hit of each batch, so the
+				// first result can read 1.0 for any query
+				// (https://github.com/nowledge-co/mem/issues/11091). A query never
+				// deletes; it lists the matches and the user picks an id.
 				const lines = results.map(
-					(r, i) =>
-						`${i + 1}. ${r.title || "(untitled)"} (${(r.score * 100).toFixed(0)}%) — id: ${r.id}`,
+					(r, i) => `${i + 1}. ${r.title || "(untitled)"} — id: ${r.id}`,
 				);
 				return {
-					text: `Multiple matches. Use /forget <id> with one of:\n\n${lines.join("\n")}`,
+					text: `Matches for "${text}". Use /forget <id> to delete one:\n\n${lines.join("\n")}`,
 				};
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
