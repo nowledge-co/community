@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.38] - Unreleased
+
+- Use the canonical `nowledge-co/community` marketplace shorthand for install
+  commands and update an existing marketplace registration without adding it
+  again. Exercise both commands with a provider-free CLI double.
+
 ## [0.7.37] - Unreleased
 
 - Read Bridge arrival hints from protected local caches at UserPromptSubmit, PostToolUse and Stop; no mailbox network call runs inside these hooks.

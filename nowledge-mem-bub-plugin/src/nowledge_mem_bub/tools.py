@@ -129,17 +129,23 @@ async def mem_save(param: MemSaveInput, *, context: Any) -> str:
     """Save a memory (decision, insight, preference, plan, …) to your knowledge graph.  Check for duplicates before saving."""
     client = _get_client(context)
 
-    # Pre-save dedup: search for high-similarity existing memory
+    # Pre-save dedup: skip only an exact duplicate (same normalized content).
+    # A search score is not similarity: some backends scale scores to the top
+    # hit of each batch, so a merely related Memory can read 1.0
+    # (https://github.com/nowledge-co/mem/issues/11091). The backend's own
+    # dedup and EVOLVES review handle near duplicates.
+    def _norm(value: Any) -> str:
+        return " ".join(str(value or "").lower().split())
+
     try:
         check_query = param.title or param.content[:200]
         existing = await client.search(check_query, limit=3)
         for r in existing:
-            score = r.get("score", 0)
-            if isinstance(score, (int, float)) and score >= 0.9:
+            if _norm(r.get("content")) == _norm(param.content):
                 mid = r.get("id", "unknown")
                 title = r.get("title", "")
                 return (
-                    f"(duplicate detected — existing memory: [{title}] id: {mid})"
+                    f"(duplicate detected — identical memory exists: [{title}] id: {mid})"
                 )
     except Exception:
         pass  # dedup is best-effort

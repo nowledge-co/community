@@ -36,7 +36,7 @@ Use the original message ID when an authorized reply is needed. If a send or rep
 | MiniMax Code | Optional local SessionStart plugin |
 | Paseo, Raft, Multica | Installed hook of the launched child runtime |
 
-Codex and Claude Code use their existing native Bridge paths. Antigravity ships its own Agent-mailbox path. Cursor is tracked in [Community #1046](https://github.com/nowledge-co/community/pull/1046). An MCP-only host uses `bridge_connect` to inspect an approved role and exact Space, and carries the returned `connection_id` into subsequent Bridge calls. Devin Cloud and DimAgent currently expose transcript hooks in their shipped integrations. Grok Build's shared-package hooks discard passive model context. Craft Agent's command automation callback also drops command stdout.
+Codex and Claude Code use their existing native Bridge paths. Antigravity ships its own Agent-mailbox path. Cursor uses its installed Bridge hook and skill from [Community #1046](https://github.com/nowledge-co/community/pull/1046). An MCP-only host uses `bridge_connect` to inspect an approved role and exact Space, and carries the returned `connection_id` into subsequent Bridge calls. Devin Cloud and DimAgent currently expose transcript hooks in their shipped integrations. Grok Build's shared-package hooks discard passive model context. Craft Agent's command automation callback also drops command stdout.
 
 ## Optional local adapters
 

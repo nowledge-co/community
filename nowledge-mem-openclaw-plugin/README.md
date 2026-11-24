@@ -443,7 +443,7 @@ Yes. Memories are what you or the AI saved at a point in time. Nowledge Mem's EV
 |---------|-------------|
 | `/remember <text>` | Save a quick memory |
 | `/recall <query>` | Search your knowledge base |
-| `/forget <id or query>` | Delete a memory |
+| `/forget <query>` / `/forget --id <id>` | Find candidates / delete an explicitly selected memory |
 
 ## CLI Commands
 

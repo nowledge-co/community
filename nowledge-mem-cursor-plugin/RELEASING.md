@@ -40,15 +40,16 @@ These still require a real Cursor IDE validation pass before submission:
 
 - install the local package through Cursor's documented local plugin path:
   `~/.cursor/plugins/local/<plugin-name>`
-- confirm the rule is applied and all five skills are discovered
+- confirm the rule is applied and the bundled skills, including `bridge`, are discovered
 - confirm the `sessionStart` hook injects Context Bundle or Working Memory when `nmem` is installed
+- with the startup Context in Space A, deliver a synthetic message in an authorized Space B. Verify startup only checks A. Ask for the whole Agent inbox, open the B message and verify its reply in B from the sender. Also check a scoped open and reply with a message in A.
 - confirm the `stop` hook imports the exact current Cursor conversation and a repeated hook delivery does not duplicate messages
 - confirm MCP connects locally
 - confirm remote MCP configuration works when URL and headers are updated
 - confirm `save-handoff` works when `nmem` is present
 - confirm `save-thread` runs a real Cursor transcript import and never substitutes a handoff summary
 - confirm automatic capture is described as local-only and does not imply Cursor Cloud Agent access to local transcripts
-- if Cursor does not discover `sessionStart`, `stop`, or the five skills, remove the stale imported `nowledge-mem` package and retry with only `~/.cursor/plugins/local/nowledge-mem-cursor`
+- if Cursor does not discover `sessionStart`, `stop`, or the bundled skills, remove the stale imported `nowledge-mem` package and retry with only `~/.cursor/plugins/local/nowledge-mem-cursor`
 
 ## Marketplace Submission
 

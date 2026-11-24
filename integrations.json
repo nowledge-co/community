@@ -94,8 +94,8 @@
       "install": {
         "detectionHint": "This hosted client cannot be detected from the local desktop app.",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/openai-dots to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/openai-dots，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/openai-dots to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.\n\nDuring setup, save the full Bridge skill from https://raw.githubusercontent.com/nowledge-co/community/main/shared/bridge/nowledge-bridge-mcp/SKILL.md alongside the universal skill so new conversations can load it on request. If saving skills is unavailable, retain it in the connector's private instructions. Keep the current endpoint and approved Space.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/openai-dots，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。\n\n接入时把 https://raw.githubusercontent.com/nowledge-co/community/main/shared/bridge/nowledge-bridge-mcp/SKILL.md 的完整 Bridge 指南存为 skill 或连接器私有说明，供新对话按需加载。沿用原连接和授权 Space。"
         },
         "docsUrl": "/docs/integrations/openai-dots"
       },
@@ -164,8 +164,8 @@
       "install": {
         "detectionHint": "This hosted client cannot be detected from the local desktop app.",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/meta-muse to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/meta-muse，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/meta-muse to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.\n\nDuring setup, save the full Bridge skill from https://raw.githubusercontent.com/nowledge-co/community/main/shared/bridge/nowledge-bridge-mcp/SKILL.md alongside the universal skill so new conversations can load it on request. If saving skills is unavailable, retain it in the connector's private instructions. Keep the current endpoint and approved Space.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/meta-muse，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。\n\n接入时把 https://raw.githubusercontent.com/nowledge-co/community/main/shared/bridge/nowledge-bridge-mcp/SKILL.md 的完整 Bridge 指南存为 skill 或连接器私有说明，供新对话按需加载。沿用原连接和授权 Space。"
         },
         "docsUrl": "/docs/integrations/meta-muse"
       },
@@ -182,7 +182,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.37",
+      "version": "0.7.38",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -216,8 +216,8 @@
         ]
       },
       "install": {
-        "command": "claude plugin marketplace add https://github.com/nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
-        "updateCommand": "claude plugin marketplace add https://github.com/nowledge-co/community && claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
+        "command": "claude plugin marketplace add nowledge-co/community && claude plugin install nowledge-mem@nowledge-community",
+        "updateCommand": "claude plugin marketplace update nowledge-community && claude plugin update nowledge-mem@nowledge-community",
         "detectionHint": "Running as Claude Code agent; ~/.claude/ exists",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Claude Code. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
@@ -237,7 +237,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.37",
+      "version": "0.7.38",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -323,8 +323,8 @@
       "install": {
         "detectionHint": "Grok Bot is a cloud-managed host and is not locally detectable by the desktop app",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/grok-bot to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/grok-bot，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and https://mem.nowledge.co/docs/integrations/grok-bot to connect me to Nowledge Mem Remote MCP (OAuth). Use the complete remote URL already provided or confirmed. Follow the shared guide to configure the connection and save the full skill.\n\nSave the current conversation's originals, including this reply, to the same Thread. After each reply, call sync automatically. Check the actual sync status and summarize what you changed.\n\nDuring setup, save the full Bridge skill from https://raw.githubusercontent.com/nowledge-co/community/main/shared/bridge/nowledge-bridge-mcp/SKILL.md alongside the universal skill so new conversations can load it on request. If saving skills is unavailable, retain it in the connector's private instructions. Keep the current endpoint and approved Space.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md 和 https://mem.nowledge.co/docs/integrations/grok-bot，为我接入 Nowledge Mem 远程 MCP（OAuth），使用已提供或确认的完整远程地址，按共享指南配置并保存完整 skill。\n\n将当前对话原文（含本轮回复）保存到同一 Thread，默认每次回复都自动调用同步。检查同步的实际状态，并总结你改了什么。\n\n接入时把 https://raw.githubusercontent.com/nowledge-co/community/main/shared/bridge/nowledge-bridge-mcp/SKILL.md 的完整 Bridge 指南存为 skill 或连接器私有说明，供新对话按需加载。沿用原连接和授权 Space。"
         },
         "docsUrl": "/docs/integrations/grok-bot"
       },
@@ -1128,7 +1128,7 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "directory": "nowledge-mem-cursor-plugin",
       "transport": "mcp+hook",
       "capabilities": {
@@ -1172,7 +1172,7 @@
         "prefix": "memory_",
         "note": "MCP tools are defined by the backend (memory_search, memory_add, etc.); session-start preloads Context Bundle or Working Memory; the stop hook and save-thread skill use nmem for real transcript capture; save-handoff remains summary-only"
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "save-handoff"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "save-handoff", "bridge"],
       "slashCommands": []
     },
     {
@@ -1229,7 +1229,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.44",
+      "version": "0.8.45",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1286,7 +1286,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.13",
+      "version": "0.7.15",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {
@@ -2426,7 +2426,7 @@
       "name": "Universal Agent Plugin",
       "category": "surface",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-agent-plugin",
       "transport": "agent-plugin+mcp",
       "capabilities": {
@@ -2485,7 +2485,7 @@
       "name": "npx Skills",
       "category": "surface",
       "type": "skills",
-      "version": "0.6.5",
+      "version": "0.6.6",
       "directory": "nowledge-mem-npx-skills",
       "transport": "cli",
       "capabilities": {
@@ -2888,7 +2888,7 @@
       "name": "Devin",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-devin-plugin",
       "transport": "plugin+mcp+cli+api",
       "capabilities": {

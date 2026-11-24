@@ -1,8 +1,12 @@
 # Changelog
 
-## [0.1.5] - 2026-11-20
+## [0.1.6] - 2026-11-24
 
-- Add opt-in startup guidance for the approved Bridge Agent mailbox.
+- Add opt-in startup guidance for the approved Bridge Agent mailbox in Devin CLI.
+
+## [0.1.5] - Unreleased
+
+- Use the canonical Claude Code marketplace shorthand in the bundled host guide.
 
 ## [0.1.4] - Unreleased
 

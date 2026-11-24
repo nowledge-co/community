@@ -1,8 +1,15 @@
 # Changelog
 
-## [0.7.13] - 2026-11-20
+## [0.7.15] - 2026-11-24
 
 - Add an opt-in model-facing reminder to check the approved Nowledge Bridge Agent mailbox.
+
+## [0.7.14] - 2026-11-24
+
+### Fixed
+- A save is skipped only when an identical Memory exists. A related Memory
+  whose relative search score read 1.0 against Cloud no longer drops the save
+  (https://github.com/nowledge-co/mem/issues/11091).
 
 ## [0.7.12] - 2026-11-12
 

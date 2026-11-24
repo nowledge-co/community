@@ -1,8 +1,19 @@
 # Changelog
 
-## [0.8.44] - 2026-11-20
+## [0.8.45] - 2026-11-24
 
 - Add an opt-in model-facing reminder to check the approved Nowledge Bridge Agent mailbox.
+
+## [0.8.44] - 2026-11-24
+
+### Fixed
+- `/forget <query>` and the `nowledge_mem_forget` tool no longer delete by
+  search score. A query lists the matches and the user deletes by id. Against
+  Cloud, scores are scaled to the top hit of each batch, so the first result
+  read 1.0 and was deleted without asking
+  (https://github.com/nowledge-co/mem/issues/11091).
+- `nowledge_mem_save` skips a save only when an identical Memory exists, not
+  when a related Memory scores high.
 
 ## [0.8.43] - 2026-11-12
 
