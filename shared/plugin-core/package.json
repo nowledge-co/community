@@ -1,10 +1,12 @@
 {
   "name": "@nowledge/plugin-core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "node scripts/build.ts",
     "check": "node scripts/build.ts --check",

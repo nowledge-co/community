@@ -277,24 +277,43 @@ underlying error.
 
 Made with care by [Nowledge Labs](https://nowledge-labs.ai)
 
-### Mailbox check before finishing
+### Bridge arrival notices
 
-In Claude Code, when `NMEM_AGENT_CONTEXT` names an approved Agent Context, Stop
-uses one `nmem mailbox probe` call and can remind the Agent once to inspect new pending mail. The check is read-only:
-it does not receive, acknowledge or execute messages. Recursive Stop and failed
-checks end normally, and an unchanged pending state is not repeated in the same
-host session. `NMEM_NO_MAILBOX_NOTICE=1` disables reminders. With `NMEM_BRIDGE_SESSION_MAILBOX=1`, SessionStart inspects the original session and may revalidate an existing Local registration before this Stop probe can use the native session.
-The probe uses the actual Codex or Claude Code host ID and checks its original
-Local or Cloud mailbox. Incomplete scans are reported as incomplete. Unsupported
-CLI/server versions and missing or ambiguous original credentials quietly skip
-the reminder without falling back to another mailbox. Native Cloud Receive
-requires a fresh recorded `--operation-id` during normal work and automatically
-ACKs; the hook never runs it. This does not enable polling or idle wakeup.
+Approved Bridge setup writes private local subscriptions. No environment variable
+is required to receive hints. The Mem application owns background observation;
+headless users can run the compatible CLI's `bridge notices watch` as one
+supervised foreground service. `bridge notices status` reports local observer
+and Desktop notice state. It does not prove that mail was read or work finished.
 
-In WSL, this Stop check requires a Linux CLI. Windows `.cmd`, `.bat` and `.exe`
-CLIs are skipped because process cleanup across the two
-systems are unsupported. The hook never substitutes another executable for
-`NMEM_CLI_PATH`.
+In Claude Code, UserPromptSubmit, PostToolUse and Stop read only fresh local metadata.
+Grok shares this package version; its Bridge arrival model hooks remain disabled. These hooks
+never call the mailbox network service. Without the local setup marker, the
+registered shell command exits before starting Python. PostToolUse reminders are
+limited to once per two minutes. Prompt, tool and Stop reminders share one model
+channel per binding, actual session and change token; recursive Stop exits.
+SessionEnd uses the active-subscription index as its gate, so it can release
+an ended consumer even after Bridge is disabled. When the last consumer ends,
+the CLI removes that index and future unconfigured sessions start no interpreter.
+SessionEnd removes only that actual session's active local subscriptions and
+retains bounded deduplication history for resume. The host command timeout is one second;
+the cache helper also bounds its own scan. `NMEM_NO_MAILBOX_NOTICE=1` disables
+hints; `NMEM_AGENT_CONTEXT` remains an optional debugging filter.
+
+Idle sessions receive OS notification attempts from the Mem application. The
+user opens or continues a session; no message wakes an agent, runs a model, or
+executes a host command. Identity mail produces one chooser notice by default.
+Explicit `bridge notices subscribe --host=<host> --session-id=<id>` selects a
+notification route, retained across session end and resume for the same approved
+binding. Explicit `unsubscribe` forgets that route. Native session mail always
+names its exact session. OS dispatch does not prove visible display.
+Notification and hook ledgers are independent and bounded. If a notice ledger is
+full, inspect status and explicitly use `bridge notices reset --channel=os` or
+`bridge notices reset --channel=hooks`; resetting can repeat current notices.
+Native session mail remains separate from the identity inbox. Older CLIs without
+the cache protocol leave these arrival hooks quiet and retain ordinary reads.
+
+Codex users must review changed hook definitions in `/hooks` after updating; setup
+never grants trust for a definition. See the [official hook contract](https://developers.openai.com/docs/hooks).
 
 ### Independent startup memory and optional Bridge registration
 

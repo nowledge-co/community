@@ -26,7 +26,7 @@ The App was created and installed from a verified Nowledge Labs OpenAI organizat
 
 - anonymous MCP request returns a protected-resource challenge
 - wrong resource, expired/revoked credential, inactive member, and missing write scope fail closed
-- approved context read, memory search, scoped memory write, thread read, and Library read succeed
+- approved context read, memory search, scoped memory write, thread read, and artifact read succeed
 - refreshing rotates the refresh token; replay invalidates its grant family
 - no ChatGPT or Codex transcript-capture claim appears in the installed package
 

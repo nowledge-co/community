@@ -26,7 +26,7 @@ test("standalone npm payloads contain the reviewed core and reject receipt tampe
       writeFileSync(packPath, output);
       const sourceSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
       const receipt = releaseReceipt(consumer.id, packPath, sourceSha);
-      assert.equal(receipt.coreManifest.core.version, "0.2.0");
+      assert.equal(receipt.coreManifest.core.version, "0.2.1");
       const receiptPath = join(directory, "core-receipt.json");
       writeFileSync(receiptPath, JSON.stringify(receipt));
       const receiptScript = join(repositoryRoot, "shared/plugin-core/scripts/receipt.ts");
@@ -122,7 +122,7 @@ test("Alma's complete marketplace folder loads without the parent checkout or de
     const metadata = JSON.parse(readFileSync(join(installed, "manifest.json"), "utf8"));
     const packageMetadata = JSON.parse(readFileSync(join(installed, "package.json"), "utf8"));
     assert.equal(packageMetadata.version, metadata.version);
-    assert.equal(manifest.core.version, "0.2.0");
+    assert.equal(manifest.core.version, "0.2.1");
     for (const [name, expected] of Object.entries(manifest.files)) {
       const bytes = readFileSync(join(installed, consumer.generatedDirectory, name));
       assert.equal(createHash("sha256").update(bytes).digest("hex"), expected);

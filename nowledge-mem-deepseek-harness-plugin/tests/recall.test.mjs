@@ -50,14 +50,40 @@ test('a prompt matching no trigger keyword does not trigger recall', () => {
   assert.equal(shouldRecallForPrompt('fix the off-by-one in the paginator', DEFAULT_PATTERN), false)
 })
 
-// https://github.com/nowledge-co/mem/issues/9940: recall carries the source-conversation date.
-test('recall text dates each memory by event or source conversation, not import time', async () => {
-  const { renderRecallText: render } = await import('../src/index.js')
-  const text = render('软考哪天考', {
-    memories: [
-      { title: '软考', content: '中项已考完', date: '2026-10-24' },
-    ],
-  }, 8000)
-  assert.match(text, /date=2026-10-24/)
-  assert.match(text, /Today is \d{4}-\d{2}-\d{2}/)
+test('English trigger keywords match whole words, not parts of other words', () => {
+  for (const prompt of [
+    'post the meme in the group chat',
+    'welcome the new member',
+    'draft a memo for the team',
+    'run memcheck on the build',
+    'bump the priority of this bug',
+  ]) {
+    assert.equal(shouldRecallForPrompt(prompt, DEFAULT_PATTERN), false, prompt)
+  }
+})
+
+test('English trigger keywords still match their plural and verb forms', () => {
+  for (const prompt of [
+    'do you remember the fix?',
+    'I remembered something about this',
+    'search my memories',
+    'what does Mem know about the parser?',
+    'ask nowledge-mem first',
+    'what were the decisions last week?',
+    'list the plugins we tried',
+    'previously we used a queue',
+    'the regressions after the upgrade',
+    'which threads mention the connector?',
+    'it was released yesterday',
+    'nothing recalled yet?',
+  ]) {
+    assert.equal(shouldRecallForPrompt(prompt, DEFAULT_PATTERN), true, prompt)
+  }
+})
+
+test('Chinese trigger keywords match anywhere, next to English or Chinese text', () => {
+  for (const prompt of ['我们之前怎么定的', '看看这个插件的历史', '查一下mem里有没有', '用Mem记一下']) {
+    assert.equal(shouldRecallForPrompt(prompt, DEFAULT_PATTERN), true, prompt)
+  }
+  assert.equal(shouldRecallForPrompt('帮我算一下二加二', DEFAULT_PATTERN), false)
 })

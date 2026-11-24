@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.18] - 2026-11-12
+
+- Refuse HTTP redirects in live and historical sync, including Space-roster
+  reads, so credentials and transcripts stay at the configured backend.
+
+## [0.8.17] - 2026-11-12
+
+### Fixed
+
+- Declare the exact Space protocol on direct HTTP session synchronization so
+  workspaces using current Spaces can accept captured conversations.
+- Preserve the selected destination; do not fall back to an unscoped write
+  when a configured Space cannot be resolved.
+
 All notable changes to the Nowledge Mem Pi package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

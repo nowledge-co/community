@@ -72,4 +72,16 @@ def test_capture_requires_app_identity_and_selectors_are_not_normalized() -> Non
         NowledgeSettings(api_url="https://mem.example", sync_threads=True)
     assert NowledgeIdentity(agent_id="Agent.Exact-ID").agent_id == "Agent.Exact-ID"
     with pytest.raises(ValidationError):
-        NowledgeIdentity(space_id="\nforged-header")
+        NowledgeIdentity(space_id="\0invalid-id")
+
+
+@pytest.mark.parametrize("space", ["", " 项目/ID ", "line\nbreak"])
+def test_exact_space_ids_use_lossless_encoded_headers(space: str) -> None:
+    from urllib.parse import quote
+
+    headers = NowledgeSettings(api_url="https://mem.example").headers(
+        NowledgeIdentity(space_id=space)
+    )
+    assert headers["X-Nmem-Space-Protocol"] == "exact-v1"
+    assert headers["X-Nmem-Space-Id-Encoded"] == "percent-v1:" + quote(space, safe="")
+    assert "X-Nmem-Space-Id" not in headers

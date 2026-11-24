@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
@@ -17,11 +17,18 @@ class NowledgeIdentity(BaseModel):
     host_agent_id: str | None = None
     space_id: str | None = None
 
-    @field_validator("agent_id", "host_agent_id", "space_id")
+    @field_validator("agent_id", "host_agent_id")
     @classmethod
     def valid_selector(cls, value: str | None) -> str | None:
         if value is not None and (not value.strip() or any(ord(c) < 32 for c in value)):
             raise ValueError("Selectors must be nonblank and contain no control characters")
+        return value
+
+    @field_validator("space_id")
+    @classmethod
+    def exact_space_id(cls, value: str | None) -> str | None:
+        if value is not None and "\0" in value:
+            raise ValueError("Space ID cannot contain NUL")
         return value
 
 
@@ -100,6 +107,7 @@ class NowledgeSettings(BaseModel):
 
     def headers(self, identity: NowledgeIdentity) -> dict[str, str]:
         headers = {
+            "X-Nmem-Space-Protocol": "exact-v1",
             "App": "pydantic-ai",
             "X-Nmem-Tool-Set": "external-agent",
             "X-Nowledge-Tool-Schema-Profile": "slim",
@@ -109,8 +117,9 @@ class NowledgeSettings(BaseModel):
         for name, value in (
             ("X-Nmem-Agent-Id", identity.agent_id),
             ("X-Nmem-Host-Agent-Id", identity.host_agent_id),
-            ("X-Nmem-Space-Id", identity.space_id),
         ):
             if value is not None:
                 headers[name] = value
+        if identity.space_id is not None:
+            headers["X-Nmem-Space-Id-Encoded"] = "percent-v1:" + quote(identity.space_id, safe="")
         return headers

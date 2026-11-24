@@ -48,27 +48,30 @@ Optional mailbox admission and Memory scope remain with
 their existing owners; Claude raw context and prompt-only events do not read a
 new hook payload.
 
-## Shared mailbox Stop helper
+## Shared Bridge arrival helpers
 
-The canonical helper is `shared/hooks/nmem_mailbox_stop.py`. Run
-`python3 shared/hooks/sync.py --write` after editing it; each standalone Codex
-and Claude Code package contains an identical generated copy. CI checks the
-copies with `python3 shared/hooks/sync.py` and exercises both adapters with
+The canonical cache-only consumer is `shared/hooks/nmem_bridge_notice.py`.
+UserPromptSubmit, PostToolUse and Stop read bounded private local observation
+metadata, never a network service or subprocess. The shell first checks the
+Bridge setup marker, before Python starts. Model events share one durable
+per-binding/session/token ledger; OS notices use an independent channel.
+
+`nmem_bridge_lifecycle.py` runs only at SessionEnd and releases that actual
+session's active subscription with `bridge notices unsubscribe --ended`.
+It does not read, acknowledge or revoke mail and preserves token history for
+resume. POSIX lifecycle calls skip Windows `.cmd`, `.bat` and `.exe` executables.
+Grok remains excluded from these model and lifecycle hooks through its existing
+runtime markers; it only shares the Claude package version.
+
+Run `python3 shared/hooks/sync.py --write` after editing a canonical helper.
+It ships identical copies of the notice, lifecycle, legacy probe and startup
+helpers in both standalone packages; CI checks sync and runs
 `python3 -m unittest discover -s shared/hooks/tests -v`.
-
-The Stop check supports a native CLI on the host OS. POSIX hosts skip Windows
-`.cmd`, `.bat` and `.exe` executables before mailbox probes: WSL interop has
-no qualified cross-kernel process cleanup.
-
-The helper performs one versioned `nmem mailbox probe` call. The CLI owns exact
-context/destination/Space and existing proof admission, including the final
-context readback. Python validates the content-free result and one approved
-inspection argument vector, then coordinates duplicate reminders. Native mode
-uses the actual host/session ID and never falls back to a compatibility inbox.
-Unsupported CLI/server capabilities quietly finish Stop. Native Cloud guidance points to the qualified `bridge session` flow, whose CLI
-owns original IDs and automatic Receive acceptance. The validated advanced
-Receive prefix remains diagnostic data; the hook never executes it. Unsupported
-modern clients do not gain a fallback Receive authorization.
+The retained `nmem_mailbox_stop.py` probe helper supports legacy tests and
+compatibility utilities. It is not the registered model hook path. Native
+session guidance stays exact to that host/session; identity hints use the
+approved identity inbox. Neither hook executes message contents or inspection
+argument vectors. Missing/stale/incompatible cache state leaves hooks quiet.
 
 ---
 
@@ -260,7 +263,7 @@ Humans should usually work with the visible space name. Only storage and compati
 
 ### Team workspaces (Spaces as rooms)
 
-On Mem Cloud Team workspaces a Space is a room: the audience, the write destination and the Bridge address all follow from it. Plugins should not hide that.
+On Mem Cloud Team workspaces a Space is a room: it determines the audience and write destination. Compatible Bridge CLI versions address the Agent identity, stamp a send with the sender's current Space and retain the original message's Space for replies. Identity inboxes project only currently authorized Spaces; they grant no new access. Legacy exact-Space CLI and MCP contracts remain explicitly scoped. Plugins must preserve those scope and capability boundaries.
 
 - A write with no explicit Space lands in the member's personal space ("Only me"). `nmem m add` (0.10.114+) prints `Saved to <label> (<id>)`; `--json` adds `space_id`, `space` and `share_hint`. Cloud MCP `memory_add` returns `space_label` and `share_hint`. Surface the destination; do not assume it.
 - An explicit `default` is deprecated there and lands in the personal space with a note; name a shared Space instead.

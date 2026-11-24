@@ -393,6 +393,12 @@ The plugin supports three modes. Choose based on how much you want to guarantee 
 - **Short sessions or critical accuracy**: enable `sessionContext`. This guarantees relevant memories are present from the first turn. The agent doesn't need to decide whether to search. The tradeoff is a larger per-turn prompt.
 - **Full manual control**: set `sessionDigest: false`. You control what gets saved (via `/remember` or `nowledge_mem_save`) and nothing is captured automatically.
 
+Versions before 0.8.42 did not honor this setting in the Context Engine
+`afterTurn` path. Update to 0.8.42 or later if you use manual mode with that
+engine. Disabling capture prevents future automatic saves; it does not delete
+threads already saved. Review those threads in Nowledge Mem and delete any
+you do not want to retain.
+
 ### Session Context (`sessionContext`, default: false)
 
 When enabled, the plugin injects Working Memory and relevant search results at prompt time. The behavioral guidance automatically adjusts to tell the agent that context is already present, so `memory_search` should only be used for specific follow-up queries, not broad recall. This prevents the agent from redundantly searching for the same context that was just injected.
@@ -636,7 +642,7 @@ Run `nmem config client show` and confirm the effective URL and API key state. T
 
 - **Local-first**: no API key, no cloud account. Your knowledge stays on your machine.
 - **Knowledge graph**: memories are connected nodes, not isolated vectors. EVOLVES edges track how understanding grows over time.
-- **Source provenance**: the Library ingests PDFs, DOCX, URLs. Extracted knowledge links back to the exact document section it came from.
+- **Source provenance**: Artifacts holds the PDFs, DOCX files, and URLs you save. Extracted knowledge links back to the exact document section it came from.
 - **Working Memory**: an AI-generated daily briefing that evolves, not a static user profile.
 - **Cross-AI continuity**: knowledge captured in any tool (Cursor, Claude, ChatGPT) flows to OpenClaw and back.
 - **Typed memories**: 8 knowledge types mapped to graph node properties. Structured understanding, not text blobs.

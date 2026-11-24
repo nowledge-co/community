@@ -803,15 +803,13 @@ class NowledgeMemProvider(MemoryProvider):
                         return
                     self._remember_pending_messages(session_id, messages_to_write)
                     logger.warning(
-                        "Nowledge Mem session import did not succeed for %s: %s",
-                        session_id,
+                        "Nowledge Mem session import did not succeed: %s",
                         self._response_error(result),
                     )
                     return
             except Exception as error:
                 logger.warning(
-                    "Nowledge Mem session import failed for %s: %s",
-                    session_id,
+                    "Nowledge Mem session import failed: %s",
                     error,
                 )
                 self._remember_pending_messages(session_id, messages_to_write)
@@ -828,8 +826,7 @@ class NowledgeMemProvider(MemoryProvider):
             self._append_existing_thread(session_id, messages_to_write)
         except Exception as error:
             logger.warning(
-                "Nowledge Mem session append failed for %s: %s",
-                session_id,
+                "Nowledge Mem session append failed: %s",
                 error,
             )
             self._remember_pending_messages(session_id, messages_to_write)
@@ -1028,19 +1025,21 @@ class NowledgeMemProvider(MemoryProvider):
 
     @staticmethod
     def _thread_already_exists(result: Any) -> bool:
-        return "already exists" in NowledgeMemProvider._response_error(result).lower()
+        if not isinstance(result, dict):
+            return False
+        candidates = [result]
+        if isinstance(result.get("results"), list):
+            candidates.extend(item for item in result["results"] if isinstance(item, dict))
+        # Legacy receipts used prose; keep it internal and never infer a typed code.
+        return any(
+            item.get("error_code") == "thread_already_exists"
+            or "already exists" in str(item.get("error", "")).lower()
+            for item in candidates
+        )
 
     @staticmethod
     def _response_error(result: Any) -> str:
-        if not isinstance(result, dict):
-            return str(result)
-        errors: List[str] = []
-        if result.get("error"):
-            errors.append(str(result.get("error")))
-        for item in result.get("results") or []:
-            if isinstance(item, dict) and item.get("error"):
-                errors.append(str(item.get("error")))
-        return "; ".join(errors) or json.dumps(result, ensure_ascii=False)[:300]
+        return getattr(result, "failure_summary", "Mem API did not acknowledge the request")
 
     @staticmethod
     def _load_config(hermes_home: str) -> Dict[str, Any]:
@@ -1159,6 +1158,32 @@ class NowledgeMemProvider(MemoryProvider):
         return ""
 
     @staticmethod
+    def _later_updates(memory: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Newer current Memories that updated this one (server `later_updates`)."""
+        updates = memory.get("later_updates")
+        if not isinstance(updates, list):
+            return []
+        return [u for u in updates if isinstance(u, dict) and u.get("memory_id")]
+
+    @staticmethod
+    def _later_update_note(update: Dict[str, Any]) -> str:
+        stated = str(update.get("stated_at") or "")[:10]
+        title = " ".join(str(update.get("title") or "").split()) or "Untitled"
+        return f"updated later ({stated}): {title}"
+
+    @staticmethod
+    def _newer_versions_to_append(
+        updates: List[Dict[str, Any]], packed_ids: Set[str]
+    ) -> List[Dict[str, Any]]:
+        """Newer versions not already in the pack, newest first, once each."""
+        missing: Dict[str, Dict[str, Any]] = {}
+        for update in updates:
+            memory_id = str(update.get("memory_id"))
+            if memory_id not in packed_ids and memory_id not in missing:
+                missing[memory_id] = update
+        return sorted(missing.values(), key=lambda u: str(u.get("stated_at") or ""), reverse=True)
+
+    @staticmethod
     def _format_prefetch(
         result: Any, threads: Any = None, *,
         memory_budget_chars: int = RECALL_MEMORY_BUDGET_CHARS,
@@ -1169,6 +1194,8 @@ class NowledgeMemProvider(MemoryProvider):
         if isinstance(result, dict):
             memories = result.get("memories", result.get("results", [])) or []
             used = 0
+            packed_ids: Set[str] = set()
+            later_updates: List[Dict[str, Any]] = []
             for memory in memories[:RECALL_MEMORY_LIMIT]:
                 if not isinstance(memory, dict):
                     continue
@@ -1181,12 +1208,19 @@ class NowledgeMemProvider(MemoryProvider):
                 # Compare complete evidence before display truncation, keeping
                 # identical text from different dates as distinct evidence.
                 recall_key = (content, date)
+                if recall_key in seen_evidence:
+                    # Identical evidence is already packed; count this hit as
+                    # present so its id is never appended as a newer version.
+                    packed_ids.add(str(memory.get("id") or ""))
+                    continue
                 if len(content) > RECALL_MEMORY_ITEM_CHARS:
                     content = content[:RECALL_MEMORY_ITEM_CHARS].rstrip() + "…"
                 labels = memory.get("labels") or []
                 label_str = f" [{', '.join(labels)}]" if labels else ""
                 date_str = f"[{date}] " if date else ""
                 line = f"- {date_str}**{title}**{label_str}: {content}"
+                updates = NowledgeMemProvider._later_updates(memory)
+                line += "".join(f"\n  → {NowledgeMemProvider._later_update_note(u)}" for u in updates)
                 # Whole items in rank order; skip one that would overflow and
                 # keep trying smaller ones rather than truncating mid-fact.
                 size = len(line) + bool(memory_lines)
@@ -1195,6 +1229,21 @@ class NowledgeMemProvider(MemoryProvider):
                 used += size
                 memory_lines.append(line)
                 seen_evidence.add(recall_key)
+                packed_ids.add(str(memory.get("id") or ""))
+                later_updates.extend(updates)
+            # A newer version that updated a packed Memory must be in the
+            # pack too, so the agent sees which statement is current.
+            for update in NowledgeMemProvider._newer_versions_to_append(later_updates, packed_ids):
+                base = f"- {NowledgeMemProvider._later_update_note(update)} (newer version of a memory above)"
+                excerpt = " ".join(str(update.get("excerpt") or "").split())
+                # The excerpt carries the new value; drop it before the line.
+                for line in ([f"{base}: {excerpt}"] if excerpt else []) + [base]:
+                    size = len(line) + bool(memory_lines)
+                    if used + size <= memory_budget_chars:
+                        used += size
+                        memory_lines.append(line)
+                        packed_ids.add(str(update.get("memory_id")))
+                        break
 
         passage_lines: List[str] = []
         if isinstance(threads, dict):

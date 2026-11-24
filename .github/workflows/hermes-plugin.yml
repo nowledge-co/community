@@ -6,6 +6,7 @@ on:
       - ".github/workflows/hermes-plugin.yml"
       - "integrations.json"
       - "nowledge-mem-hermes/**"
+      - "nowledge-mem-proma-plugin/**"
   push:
     branches:
       - main
@@ -13,6 +14,7 @@ on:
       - ".github/workflows/hermes-plugin.yml"
       - "integrations.json"
       - "nowledge-mem-hermes/**"
+      - "nowledge-mem-proma-plugin/**"
 
 permissions:
   contents: read

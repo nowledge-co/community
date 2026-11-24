@@ -446,7 +446,6 @@ export class SessionSyncManager {
           ...(state.acknowledged !== undefined && !delta.reset
             ? { expected_message_count: state.acknowledged.remoteCount }
             : {}),
-          ...(this.ambientSpaceId !== undefined ? { space_id: this.ambientSpaceId } : {}),
         },
         options.timeoutMs,
       )
@@ -461,7 +460,6 @@ export class SessionSyncManager {
           messages: threadMessages,
           deduplicate: true,
           idempotency_key: `${this.sourceApp}:reconcile:${stableThreadId}:${delta.next.prefixFingerprint}`,
-          ...(this.ambientSpaceId !== undefined ? { space_id: this.ambientSpaceId } : {}),
         },
         options.timeoutMs,
       )

@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.8.43] - 2026-11-12
+
+- Refuse HTTP redirects on authenticated API and Space-roster requests.
+- Mark persisted startup and parent context as reference data, not instructions
+  or permission to act, while retaining normal identity/context bootstrap.
+
+## [0.8.42] - 2026-11-12
+
+### Fixed
+
+- Honor automatic-capture opt-out in the Context Engine before reading or
+  persisting a transcript; explicit memory tools remain available.
+- Check skip markers against the same resolved transcript that would be saved,
+  including session-file fallback when the host omits inline messages.
+- Bound and escape recalled metadata and keep compaction memory references
+  inside an explicitly untrusted evidence block.
+
+## [0.8.41] - 2026-11-12
+
+### Fixed
+
+- Declare the exact Space protocol on direct HTTP session synchronization so
+  workspaces using current Spaces can accept captured conversations.
+- Preserve the selected destination; do not fall back to an unscoped write
+  when a configured Space cannot be resolved.
+
 All notable changes to the Nowledge Mem OpenClaw plugin will be documented in this file.
 
 ## [0.8.40] - Unreleased

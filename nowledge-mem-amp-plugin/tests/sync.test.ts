@@ -201,7 +201,7 @@ describe("SessionSyncManager.syncNow", () => {
     expect(nmemApi.calls).toEqual(["/threads", "/threads/amp-t-abc123/append"])
   })
 
-  it("includes space_id on the append body when an ambient space is set", async () => {
+  it("leaves configured Space resolution to the HTTP transport on append", async () => {
     let capturedBody: unknown
     const nmemApi = fakeNmemApi({
       "/threads": () => ({ ok: false, status: 409, data: {} }),
@@ -216,7 +216,6 @@ describe("SessionSyncManager.syncNow", () => {
     await manager.syncNow(THREAD_ID)
 
     expect(capturedBody).toMatchObject({
-      space_id: "Research",
       deduplicate: true,
     })
     expect((capturedBody as { idempotency_key: string }).idempotency_key).toMatch(/^amp:live:amp-t-abc123:0-2:/)
@@ -752,7 +751,7 @@ describe("SessionSyncManager incremental checkpoint contract", () => {
     const reconcileBody = nmemApi.bodies[2] as { readonly idempotency_key: string; readonly messages: unknown[]; readonly space_id: string }
     expect(reconcileBody.idempotency_key).toMatch(/^amp:reconcile:amp-t-abc123:/)
     expect(reconcileBody.messages).toHaveLength(4)
-    expect(reconcileBody.space_id).toBe("Research")
+    expect(reconcileBody.space_id).toBeUndefined()
   })
 
   it("reconciles a checkpoint conflict without a space_id when none is configured", async () => {

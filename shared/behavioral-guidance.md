@@ -165,10 +165,27 @@ Search your knowledge base proactively when past insights would improve the resp
 ## 4. Retrieval Routing
 
 1. Start with `nmem --json m search "<query>"` for durable knowledge (decisions, insights, procedures).
-2. Use `nmem --json t search "<query>"` when the user is asking about a prior conversation or exact session history.
-3. If a memory result includes `source_thread`, inspect the original conversation once for the specific messages needed with `nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200`.
+2. Use `nmem --json t search "<query>"` when the user is asking about a prior conversation or exact session history. Thread search is keyword full-text search, not semantic: query with names, exact words, and distinctive terms, and try a few phrasings when the first finds nothing.
+3. Memories are distilled: exact times, people, and wording live in the source conversation. If a memory result includes `source_pointer` (or `source_thread`), inspect the original conversation once for the specific messages needed with `nmem --json t show <thread_id> --limit <limit> --offset <offset> --content-limit 1200`. Use the offset and limit from `source_pointer.expand`, defaulting to offset 0 and limit 8 when absent. A `search_guidance` hint lists query terms no Memory contained; use them for thread search. A result labeled `anchor_support` is low confidence; verify it in its thread.
 4. Prefer the smallest retrieval surface that answers the question — do not over-fetch.
 5. If initial results are weak or conceptual, try `--mode deep` for broader matching.
+6. When the answer lives in a document the user saved (a file, web page, or note in Artifacts), search artifacts instead of memories: `nmem --json artifacts search "<query>"`, then `nmem --json artifacts read <id>` for the one artifact you need (older `nmem`: `nmem --json library search` / `nmem --json library read`, which also work on newer releases). Over MCP, use `artifact_search` (older Mem: `query_sources`), then `artifact_read` (older Mem: `read_source_content`). If neither search tool is listed, use the CLI search above.
+
+### Artifacts
+
+Artifacts are the documents in Mem: uploaded files, captured web pages, imported
+notes, and generated reports. "Library" in the app means the Tree, Graph, and
+Wiki views, not documents.
+
+- Save a file or long content as an artifact with `artifact_add` (older Mem:
+  `library_add`) or `nmem artifacts add <path>` (older `nmem`:
+  `nmem library add <path>`). Use a Memory, not an
+  artifact, for a single durable decision or fact.
+- The CLI group is `nmem artifacts` (alias `artifact`). Older `nmem` releases
+  only know `nmem library` (also `nmem sources`, `nmem lib`), and those names
+  keep working on newer releases, so scripts that must run on both can keep
+  using them.
+- Payload fields keep their names: the artifact ID is still `source_id`.
 
 ### Space-aware routing
 

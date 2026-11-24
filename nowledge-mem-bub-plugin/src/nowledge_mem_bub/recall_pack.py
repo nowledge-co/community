@@ -25,9 +25,25 @@ def recall_date(memory: dict) -> str:
     return ""
 
 
+def later_updates(memory: dict) -> list[dict]:
+    """Newer current Memories that updated this one (server ``later_updates``)."""
+    updates = memory.get("later_updates")
+    if not isinstance(updates, list):
+        return []
+    return [u for u in updates if isinstance(u, dict) and u.get("memory_id")]
+
+
+def later_update_note(update: dict) -> str:
+    stated = str(update.get("stated_at") or "")[:10]
+    title = " ".join(str(update.get("title") or "").split()) or "Untitled"
+    return f"updated later ({stated}): {title}"
+
+
 def format_recalled(recalled: list) -> str:
     lines: list[str] = []
     used = 0
+    packed: set[str] = set()
+    updates: list[dict] = []
     for memory in recalled or []:
         if not isinstance(memory, dict):
             continue
@@ -41,11 +57,31 @@ def format_recalled(recalled: list) -> str:
             entry += f" (id: {memory['id']})"
         if memory.get("source_thread_id"):
             entry += f" (thread: {memory['source_thread_id']})"
+        item_updates = later_updates(memory)
+        entry += "".join(f"\n  → {later_update_note(u)}" for u in item_updates)
         # Skip an item that would overflow and keep trying smaller ones.
         if used + len(entry) > RECALL_BUDGET_CHARS:
             continue
         used += len(entry)
         lines.append(entry)
+        packed.add(str(memory.get("id") or ""))
+        updates.extend(item_updates)
+    # A newer version that updated a packed memory must be in the block too,
+    # newest first, so the agent can tell which statement is current.
+    missing: dict[str, dict] = {}
+    for update in updates:
+        memory_id = str(update["memory_id"])
+        if memory_id not in packed:
+            missing.setdefault(memory_id, update)
+    for update in sorted(missing.values(), key=lambda u: str(u.get("stated_at") or ""), reverse=True):
+        base = f"- {later_update_note(update)} (newer version of a memory above; id: {update['memory_id']})"
+        excerpt = " ".join(str(update.get("excerpt") or "").split())
+        # The excerpt carries the new value; drop it before the whole entry.
+        for entry in ([f"{base}: {excerpt}"] if excerpt else []) + [base]:
+            if used + len(entry) <= RECALL_BUDGET_CHARS:
+                used += len(entry)
+                lines.append(entry)
+                break
     if not lines:
         return ""
     today = datetime.now().astimezone().date().isoformat()

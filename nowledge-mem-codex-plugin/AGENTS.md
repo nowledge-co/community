@@ -21,7 +21,7 @@ operation bookkeeping.
 This Codex package is hybrid-aware and hook-assisted.
 
 - Best modern setup: Codex plugin with bundled Nowledge Mem MCP.
-- Mailbox completion check: with an explicit approved `NMEM_AGENT_CONTEXT`, Stop may ask you once to inspect a new pending state. Use the same selected mailbox and exact Space through ordinary tools; a hint does not receive or acknowledge mail. Recursive Stop ends normally.
+- Bridge arrival hints: after explicit Bridge setup with a compatible CLI, trusted hooks read the approved session's local cache without a mailbox request or an environment switch. Prompt/tool/Stop share one reminder per binding and change token; recursive Stop ends normally. Inspect identity mail with the suggested Bridge command and retain each message's original Space for replies. A hint does not receive or acknowledge mail. SessionEnd releases the local subscription even after arrival hints are disabled.
 - Automatic capture: the Codex Stop hook queues the real transcript after each turn. The Nowledge Mem Auto-Sync switch controls this lifecycle capture; explicit manual saves remain available while it is off.
 - Optional identity/profile maintenance: with explicit `NMEM_AGENT_CONTEXT` and `NMEM_AGENT_PROFILE_MAINTENANCE=1`, Stop saves a bounded pending reference and ends normally. Each eligible start may remind you again. Confirm a meaningful update, or separately confirm create-only enrollment, in an ordinary turn using the pending helper; see [pending maintenance](docs/pending-maintenance.md). Reuse the original operation after an uncertain result. A reminder and the maintenance flag alone authorize no identity creation.
 - Enable `hooks = true`, then run `scripts/install_hooks.py` once after installing or updating the plugin. Current Codex loads hooks from enabled plugins automatically; setup removes our old host-level Stop registrations and keeps fallback runtime files. Older hosts retain the legacy `plugin_hooks` gate and host-level Stop fallback. Setup enables hook state only for configured, enabled Nowledge plugin sources. After restart, review and trust the installed source in `/hooks`; changed plugin contents can pause capture until reviewed again. Setup does not approve hooks.
@@ -107,7 +107,7 @@ for Progressive requests.
 
 ## Knowledge Tree
 
-When the task needs to browse across memories, threads, wiki pages, working memory, activities, sources, and artifacts as one shape, use the Knowledge Filesystem:
+When the task needs to browse across memories, threads, wiki pages, working memory, activities, and artifacts (saved documents, under `/sources/`) as one shape, use the Knowledge Filesystem:
 
 Prefer the MCP `mem_fs` tool when it is available. It accepts shell-shaped commands such as:
 
@@ -139,6 +139,8 @@ For past conversations specifically:
 nmem --json t search "query" --limit 5
 nmem --json t show <thread_id> --limit 8 --offset 0 --content-limit 1200
 ```
+
+For saved documents (files, web pages, notes in Artifacts), use `artifact_search` (older Mem: `query_sources`; if neither is listed, the CLI search below), then `artifact_read` (older Mem: `read_source_content`). Save a file or long content with `artifact_add` (older Mem: `library_add`). The CLI fallback is `nmem --json artifacts search "query"` and `nmem --json artifacts read <id>`; older `nmem` releases use `nmem library` for the same commands, and that name still works.
 
 ## Skills
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nowledge-mem-pydantic-ai"
-version = "0.1.0"
+version = "0.1.1"
 description = "Scoped Nowledge Mem context, MCP tools, and optional Thread sync for Pydantic AI"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -46,6 +46,11 @@ async function backend(t, { ack = scheduled, status = 200 } = {}) {
 		]),
 	);
 	const server = createServer(async (req, res) => {
+		if (req.url === "/spaces") {
+			res.setHeader("content-type", "application/json");
+			res.end(JSON.stringify({spaces: [{id:"Test Space", name:"Test Space"}]}));
+			return;
+		}
 		let text = "";
 		for await (const chunk of req) text += chunk;
 		const body = JSON.parse(text);

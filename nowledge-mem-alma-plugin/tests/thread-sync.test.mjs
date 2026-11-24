@@ -7,6 +7,29 @@ import { activate, NowledgeMemClient } from "../main.js";
 
 const logger = { info() {}, warn() {}, debug() {}, error() {} };
 
+test("prefixed API URLs resolve the Space roster at the same destination as transcript writes", async (t) => {
+	const calls = [];
+	const server = createServer(async (request, response) => {
+		const path = new URL(request.url, "http://fixture.invalid").pathname;
+		let raw = "";
+		for await (const chunk of request) raw += chunk;
+		const body = raw ? JSON.parse(raw) : undefined;
+		calls.push({path, body});
+		response.setHeader("content-type", "application/json");
+		if (path === "/spaces") return response.end(JSON.stringify({spaces:[{id:"correct-id",name:"Work"}]}));
+		if (path === "/remote-api/spaces") return response.end(JSON.stringify({spaces:[{id:"wrong-id",name:"Work"}]}));
+		if (path === "/threads") return response.end(JSON.stringify({thread:{thread_id:body.thread_id,message_count:1}}));
+		response.end(JSON.stringify({success:true,messages_added:1,total_messages:2}));
+	});
+	await new Promise(resolve => server.listen(0,"127.0.0.1",resolve));
+	t.after(() => new Promise(resolve => {server.close(resolve);server.closeAllConnections();}));
+	const client = new NowledgeMemClient(logger,{apiUrl:`http://127.0.0.1:${server.address().port}/remote-api`,space:"Work"});
+	await client.createThread("QA","",[{role:"user",content:"synthetic"}],"alma","alma-prefix");
+	await client.appendThread("alma-prefix",[{role:"assistant",content:"reply"}]);
+	assert.deepEqual(calls.map(call=>call.path),["/spaces","/threads","/spaces","/threads/alma-prefix/append"]);
+	assert.deepEqual(calls.filter(call=>call.body).map(call=>call.body.space_id),["correct-id","correct-id"]);
+});
+
 test("user Given an acknowledged prefix When a new message is appended Then the protocol advances the checkpoint without duplicating the prefix", async (t) => {
 	const state = await fixture(t);
 	const client = new NowledgeMemClient(logger, { apiUrl: state.apiUrl });
