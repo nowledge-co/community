@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { buildHookOutput, readStartupContext } from '../hooks/session-start.mjs';
 import {
@@ -37,11 +39,85 @@ test('sessionStart emits only the documented additional_context field', () => {
     tag: 'nowledge_context_bundle',
     label: 'Context Bundle',
     content: 'Current context',
-  });
+  }, {});
 
   assert.deepEqual(Object.keys(output), ['additional_context']);
   assert.match(output.additional_context, /<nowledge_context_bundle>/);
   assert.match(output.additional_context, /Current context/);
+});
+
+test('sessionStart requests one Bridge inbox check only with explicit opt-in and a Context', () => {
+  assert.deepEqual(buildHookOutput(null, { NMEM_AGENT_CONTEXT: 'reviewer' }), {});
+  assert.deepEqual(buildHookOutput(null, { NMEM_BRIDGE_INBOX_ON_START: '1' }), {});
+  assert.deepEqual(buildHookOutput(null, {
+    NMEM_BRIDGE_INBOX_ON_START: '1',
+    NMEM_AGENT_CONTEXT: ' ',
+  }), {});
+
+  const env = {
+    NMEM_BRIDGE_INBOX_ON_START: '1',
+    NMEM_AGENT_CONTEXT: 'approved-context-name',
+  };
+  assert.deepEqual(buildHookOutput(null, env, ''), {});
+  assert.deepEqual(buildHookOutput(null, { ...env, NMEM_CLI_PATH: '/missing/nmem' }, '/other/nmem'), {});
+  const hint = buildHookOutput(null, env, process.execPath).additional_context;
+  assert.match(hint, /bridge skill.*NMEM_AGENT_CONTEXT.*one page/);
+  assert.doesNotMatch(hint, /approved-context-name/);
+  assert.match(hint, /CLI-only/);
+
+  const context = { tag: 'nowledge_context_bundle', label: 'Context Bundle', content: 'Current context' };
+  assert.match(buildHookOutput(context, env, process.execPath).additional_context, /Current context[\s\S]*Bridge inbox check/);
+  assert.equal(buildHookOutput(context, env, '').additional_context, buildHookOutput(context, {}).additional_context);
+});
+
+test('the installed Bridge skill can resolve the desktop CLI outside PATH', (t) => {
+  const root = temporaryStateRoot();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const windows = process.platform === 'win32';
+  const cli = windows
+    ? path.join(root, 'Nowledge Mem', 'bin', 'nmem.cmd')
+    : path.join(root, '.local', 'share', 'nowledge-mem', 'bin', 'nmem-wrapper');
+  mkdirSync(path.dirname(cli), { recursive: true });
+  writeFileSync(cli, windows ? '@echo fixture\r\n' : '#!/bin/sh\necho fixture\n', { mode: 0o755 });
+  const env = {
+    ...process.env,
+    HOME: root,
+    LOCALAPPDATA: root,
+    PATH: root,
+    NMEM_CLI_PATH: '',
+    NMEM_BRIDGE_INBOX_ON_START: '1',
+    NMEM_AGENT_CONTEXT: 'test-role',
+  };
+  const script = fileURLToPath(new URL('../skills/bridge/scripts/resolve-cli.mjs', import.meta.url));
+  const resolveCli = () => spawnSync(process.execPath, [script], { cwd: root, env, encoding: 'utf8' });
+  const resolved = resolveCli();
+  assert.equal(resolved.status, 0, resolved.stderr);
+  assert.equal(resolved.stdout, cli);
+  assert.match(buildHookOutput(null, env, cli).additional_context, /Bridge inbox check/);
+
+  env.NMEM_CLI_PATH = path.join(root, 'missing-cli');
+  assert.deepEqual(buildHookOutput(null, env, cli), {});
+  const missing = resolveCli();
+  assert.equal(missing.status, 1);
+  assert.equal(missing.stdout, '');
+});
+
+test('Bridge skill scopes message IDs and requests the identity inbox separately', () => {
+  const guide = readFileSync(new URL('../skills/bridge/SKILL.md', import.meta.url), 'utf8');
+  const commands = guide.split(/\r?\n/);
+  const cli = '"$bridge_cli" --json --agent-context="$NMEM_AGENT_CONTEXT" bridge';
+  const scoped = `${cli} --resolved-space-id="$bridge_space_id"`;
+  assert.ok(commands.includes(`${scoped} inbox`));
+  assert.ok(commands.includes(`${scoped} open "$message_id"`));
+  assert.ok(commands.includes(`${scoped} reply "$message_id" --body="$reply_body"`));
+  const interactive = '"$bridge_cli" --json --agent-context="$bridge_context" bridge';
+  assert.ok(commands.includes(`${interactive} setup`));
+  assert.ok(commands.includes(`${interactive} inbox`));
+  assert.ok(commands.includes('"$bridge_cli" --json bridge connections connect --space-id="$bridge_space_id" --agent-id="$agent_id"'));
+  for (const field of ['messages[].message', 'open_args', 'reply_args_prefix', 'incomplete', 'agent_context',
+    'next_args', 'spaces[].next_args', 'spaces_next_args']) {
+    assert.ok(guide.includes(`\`${field}\``));
+  }
 });
 
 test('sessionStart shares one ten-second budget across CLI fallbacks', () => {

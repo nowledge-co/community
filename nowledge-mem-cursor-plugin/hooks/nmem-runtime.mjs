@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { accessSync, constants, existsSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -47,6 +47,19 @@ export function findNmemCommand(env = process.env) {
   const configured = envValue('NMEM_CLI_PATH', env);
   const candidates = [configured, ...pathCandidates(env), ...knownCandidates(env)].filter(Boolean);
   return candidates.find((candidate) => existsSync(candidate)) || '';
+}
+
+export function findBridgeCommand(env = process.env, command = findNmemCommand(env)) {
+  const configured = envValue('NMEM_CLI_PATH', env);
+  if (!command || (configured && configured !== command)) {
+    return '';
+  }
+  try {
+    accessSync(command, constants.X_OK);
+    return statSync(command).isFile() ? path.resolve(command) : '';
+  } catch {
+    return '';
+  }
 }
 
 export function runNmemJson(args, options = {}) {
