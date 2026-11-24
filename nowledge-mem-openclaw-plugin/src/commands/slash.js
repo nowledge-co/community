@@ -31,16 +31,19 @@ export function createForgetCommand(client, logger) {
 		async handler(ctx) {
 			const text = ctx.args?.trim();
 			if (!text) {
-				return { text: "Usage: /forget <memory id or search query>" };
+				return { text: "Usage: /forget <query> or /forget --id <memory id>" };
 			}
 
-			const isLikelyId = /^[a-zA-Z0-9_-]{8,}$/u.test(text);
+			const id = /^--id\s+([a-zA-Z0-9][a-zA-Z0-9_-]*)$/u.exec(text)?.[1];
+			if (!id && /^--id(?:\s|$)/u.test(text)) {
+				return { text: "Usage: /forget --id <memory id>" };
+			}
 
 			try {
-				if (isLikelyId) {
-					await client.exec(["--json", "m", "delete", "-f", text]);
-					logger.info(`/forget: deleted memory ${text}`);
-					return { text: `Forgotten: memory ${text} deleted.` };
+				if (id) {
+					await client.exec(["--json", "m", "delete", "-f", id]);
+					logger.info(`/forget: deleted memory ${id}`);
+					return { text: `Forgotten: memory ${id} deleted.` };
 				}
 
 				const results = await client.search(text, 5);
@@ -48,22 +51,16 @@ export function createForgetCommand(client, logger) {
 					return { text: `No matching memories found for: "${text}"` };
 				}
 
-				if (results[0].score >= 0.85) {
-					const target = results[0];
-					await client.exec(["--json", "m", "delete", "-f", target.id]);
-					logger.info(`/forget: deleted memory ${target.id}`);
-					const preview = target.title || target.content.slice(0, 60);
-					return {
-						text: `Forgotten: "${preview}" (id: ${target.id})`,
-					};
-				}
-
+				// Deletion is irreversible, and a search score is not an identity:
+				// some backends scale scores to the top hit of each batch, so the
+				// first result can read 1.0 for any query
+				// (https://github.com/nowledge-co/mem/issues/11091). A query never
+				// deletes; it lists the matches and the user picks an id.
 				const lines = results.map(
-					(r, i) =>
-						`${i + 1}. ${r.title || "(untitled)"} (${(r.score * 100).toFixed(0)}%) — id: ${r.id}`,
+					(r, i) => `${i + 1}. ${r.title || "(untitled)"} — id: ${r.id}`,
 				);
 				return {
-					text: `Multiple matches. Use /forget <id> with one of:\n\n${lines.join("\n")}`,
+					text: `Matches for "${text}". Use /forget --id <id> to delete one:\n\n${lines.join("\n")}`,
 				};
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);

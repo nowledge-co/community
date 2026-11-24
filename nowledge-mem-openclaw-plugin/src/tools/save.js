@@ -124,34 +124,31 @@ export function createSaveTool(client, logger) {
 				};
 			}
 
-			// Dedup check: search for near-identical existing memories before saving.
-			// Only blocks at very high similarity (≥0.9) to avoid false positives.
-			// Lower matches (0.7-0.9) are noted but allowed — the Knowledge Agent
-			// handles deeper dedup via EVOLVES chains in the background.
+			// Dedup check: A search score is not similarity: some backends scale scores to the top hit
+			// of each batch, so the first result can read 1.0 for a merely related
+			// Memory (https://github.com/nowledge-co/mem/issues/11091). Skip only an
+			// exact duplicate (same normalized content); the backend's own dedup and
+			// EVOLVES review handle near duplicates.
 			try {
 				const query = title || text.slice(0, 200);
 				const existing = await client.searchRich(query, 3);
-				if (existing.length > 0) {
-					const top = existing[0];
-					if (top.score >= 0.9) {
-						logger.info(
-							`save: skipped — near-identical memory exists: ${top.id} (${(top.score * 100).toFixed(0)}%)`,
-						);
-						return {
-							content: [
-								{
-									type: "text",
-									text: `Not saved — a near-identical memory already exists:\n"${top.title}" (id: ${top.id}, similarity: ${(top.score * 100).toFixed(0)}%)\nUse memory_get with id ${top.id} to read it.`,
-								},
-							],
-							details: {
-								skipped: true,
-								reason: "duplicate",
-								existingId: top.id,
-								similarity: top.score,
+				const norm = (v) => String(v ?? "").toLowerCase().replace(/\s+/gu, " ").trim();
+				const top = existing.find((m) => norm(m.content) === norm(text));
+				if (top) {
+					logger.info(`save: skipped — identical memory exists: ${top.id}`);
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Not saved — an identical memory already exists:\n"${top.title}" (id: ${top.id})\nUse memory_get with id ${top.id} to read it.`,
 							},
-						};
-					}
+						],
+						details: {
+							skipped: true,
+							reason: "duplicate",
+							existingId: top.id,
+						},
+					};
 				}
 			} catch {
 				// Dedup check is best-effort — never block saves on search failure
