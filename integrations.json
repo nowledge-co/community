@@ -1285,7 +1285,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.13",
+      "version": "0.7.14",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {
