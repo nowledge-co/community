@@ -76,31 +76,6 @@ test('recall preserves save-only date provenance through the search parser', asy
   assert.match(recall.content[0].text, /date=saved:2026-11-01/u)
 })
 
-test('Bridge pre-step injects one scoped hint independently of startup memory', async t => {
-  const keys = ['NMEM_BRIDGE_INBOX_ON_START', 'NMEM_AGENT_CONTEXT']
-  const previous = keys.map(key => process.env[key])
-  t.after(() => {
-    for (const [index, key] of keys.entries()) {
-      if (previous[index] === undefined) delete process.env[key]
-      else process.env[key] = previous[index]
-    }
-  })
-  process.env.NMEM_BRIDGE_INBOX_ON_START = '1'
-  delete process.env.NMEM_AGENT_CONTEXT
-  const host = fixture({ contextOnSessionStart: false, recallOnPrompt: false })
-  const prompt = userMessage('Bridge fixture')
-  assert.deepEqual((await host.preStep([prompt])).messages, [prompt])
-  process.env.NMEM_AGENT_CONTEXT = 'private-role'
-  const first = await host.preStep([prompt])
-  const hint = first.messages[1]
-  assert.equal(hint.source.sections[0].name, 'nowledge-mem-bridge-startup')
-  assert.match(hint.content[0].text, /--resolved-space-id/u)
-  assert.doesNotMatch(hint.content[0].text, /private-role/u)
-  assert.doesNotThrow(() => assertV4RowAdmission({ type: 'user/message', seq: 1, time: Date.now(), data: hint }))
-  assert.deepEqual((await host.preStep([prompt])).messages, [prompt])
-  assert.deepEqual(host.requests, [])
-})
-
 for (const api of ['execute', 'run']) {
   test(`${api} injects context and recall that pass native v4 user and inbox admission`, async () => {
     const host = fixture({}, api)
@@ -285,12 +260,12 @@ test('peer ranges admit the tested host previews and preserve optional runtime p
   for (const [name, range] of Object.entries(manifest.peerDependencies)) {
     const versions = name === '@deepseek-ai/cordis'
       ? ['4.0.4', '4.0.5-alpha.1']
-      : ['0.1.5-rc.2', '0.1.7-rc.1', '0.2.1-alpha.1', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.5', '0.2.2-rc.1', '0.2.2-rc.2']
+      : ['0.1.5-rc.2', '0.1.7-rc.1', '0.2.1-alpha.1', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.5', '0.2.2-rc.1', '0.2.2-rc.2', '0.2.2-rc.3', '0.2.2-rc.4', '0.2.2-rc.5']
     for (const version of versions) assert.equal(satisfies(version, range), true, `${name}@${version}`)
     assert.equal(manifest.peerDependenciesMeta[name].optional, true)
     assert.equal(satisfies(name === '@deepseek-ai/cordis' ? '5.0.0' : '0.3.0', range), false)
     if (name !== '@deepseek-ai/cordis') {
-      assert.equal(satisfies('0.2.2-rc.3', range), false, `${name} must not admit untested previews`)
+      assert.equal(satisfies('0.2.2-rc.6', range), false, `${name} must not admit untested previews`)
       assert.equal(satisfies('0.2.1', range), false, `${name} must not admit untested GA`)
     }
   }

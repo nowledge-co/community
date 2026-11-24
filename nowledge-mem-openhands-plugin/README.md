@@ -117,7 +117,7 @@ rm -rf /tmp/community
 |----------|-------------|---------|
 | `NMEM_API_URL` | Nowledge Mem REST API endpoint | `http://127.0.0.1:14242` |
 | `NMEM_API_KEY` | API key for remote or authenticated Mem instances; set together with `NMEM_API_URL` | (empty) |
-| `NMEM_SPACE` | Active memory space for this canvas or agent | `default` |
+| `NMEM_SPACE` | Active Space for this canvas or agent | `default` |
 | `NMEM_AGENT_ID` | Agent role identifier (`planner`, `coder`, `reviewer`) | (empty / derived) |
 | `NMEM_DISABLE_PROMPT_INJECT` | Set to `1` to disable prompt context injection | `0` |
 | `NMEM_PROMPT_GUIDANCE_ONLY` | Set to `1` to inject only lightweight routing guidance without loading Context Bundle | `0` |

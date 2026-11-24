@@ -23,16 +23,25 @@ class AgentBridgeStartupTests(unittest.TestCase):
         self.assertEqual(bridge_startup_hint({"NMEM_AGENT_CONTEXT": "role"}), "")
         self.assertEqual(bridge_startup_hint({**OPTED_IN, "NMEM_AGENT_CONTEXT": " \t "}), "")
         hint = bridge_startup_hint(OPTED_IN)
-        self.assertIn("--resolved-space-id", hint)
         self.assertNotIn("private-role", hint)
+
+    def test_hint_uses_the_scoped_bridge_cli_contract(self):
+        hint = bridge_startup_hint(OPTED_IN)
+        for token in (
+            "endpoint.address", "endpoint.scope.space_id", "top-level identity and space_id",
+            "omit --enable", "--resolved-space-id", "without --wait or --watch",
+            "messages[].message", "Resume only its returned operation",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, hint)
 
     def test_only_one_hint_per_live_session(self):
         for_session = create_bridge_startup_hint()
         self.assertEqual(for_session("first", {}), "")
         self.assertEqual(for_session("", OPTED_IN), "")
-        self.assertIn("bridge inbox", for_session("first", OPTED_IN))
+        self.assertEqual(for_session("first", OPTED_IN), bridge_startup_hint(OPTED_IN))
         self.assertEqual(for_session("first", OPTED_IN), "")
-        self.assertIn("bridge inbox", for_session("second", OPTED_IN))
+        self.assertEqual(for_session("second", OPTED_IN), bridge_startup_hint(OPTED_IN))
 
     @unittest.skipUnless(shutil.which("node"), "Node is needed to verify both hook runtimes")
     def test_js_and_python_use_the_same_hint(self):

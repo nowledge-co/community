@@ -4,7 +4,7 @@ import * as plugin from '../src/index.js'
 import { readFile } from 'node:fs/promises'
 
 for (const spaceField of ['id', 'space_id']) {
-test(`native 0.2.2-rc.2 command/query preview/apply with ${spaceField} roster`, { skip: process.env.DSH_HISTORY_NATIVE_TEST !== 'true' ? 'qualified in the explicit latest-host CI lane' : false }, async () => {
+test(`native DSH command/query preview/apply with ${spaceField} roster`, { skip: process.env.DSH_HISTORY_NATIVE_TEST !== 'true' ? 'qualified in the explicit latest-host CI lane' : false }, async () => {
   const { Context, Service } = await import('@deepseek-ai/cordis')
   const { default: SessionStore } = await import('@deepseek-ai/dsh-session')
   const { default: CommandRuntime } = await import('@deepseek-ai/dsh-commands')

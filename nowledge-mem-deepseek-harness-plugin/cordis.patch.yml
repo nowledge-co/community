@@ -33,4 +33,5 @@
             'X-NMEM-Host-Agent-ID': process.env.NMEM_HOST_AGENT_ID,
           }).filter(([, value]) => typeof value === 'string' && value.length > 0))
         failOnStartupError: false
+        startupTimeoutMs: 8000
         toolCallTimeoutMs: 60000

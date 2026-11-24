@@ -10,7 +10,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TARGETS = {
     "agent-bridge-startup.mjs": (
-        "nowledge-mem-deepseek-harness-plugin/src",
         "nowledge-mem-opencode-plugin/src",
         "nowledge-mem-amp-plugin/src",
         "nowledge-mem-alma-plugin",

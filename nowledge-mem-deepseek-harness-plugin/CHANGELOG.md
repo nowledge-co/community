@@ -2,9 +2,23 @@
 
 ## Unreleased
 
-## 0.2.1
+## 0.2.2
 
 - Add an opt-in startup hint for checking the approved Nowledge Bridge Agent mailbox.
+  Keep the reminder separate from Working Memory snapshots and recall failures,
+  preserve the approved Context and exact Space, and qualify model visibility
+  and clean capture in the installed host.
+- Honor `NMEM_CLI_PATH` when `cliPath` is unset, using the same executable for
+  native Memory operations and Bridge guidance.
+- Bound MCP connection and initial discovery attempts to eight seconds while
+  preserving fail-open startup and host-managed reconnection.
+- Qualify installed MCP tools, resource access, failure reporting and connection
+  recovery on DSH 0.2.2-rc.5 with isolated Ubuntu and macOS fixtures.
+- Document MCP resource support and separate connection and tool-call budgets.
+
+## 0.2.1
+
+- Admit DeepSeek Harness 0.2.2-rc.3, rc.4 and rc.5 through normal plugin installation.
 
 ## 0.2.0
 

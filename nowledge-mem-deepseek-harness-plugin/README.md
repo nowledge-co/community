@@ -30,11 +30,11 @@ nmem config mcp show --host deepseek-harness
 ```
 
 The adapter supports DSH 0.1.5-rc.2, 0.1.7-rc.1, 0.2.1-alpha.1,
-0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 and 0.2.2-rc.2. It uses
+0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 through 0.2.2-rc.5. It uses
 `shell.execute(...).result()` on current hosts and retains the legacy
 `shell.run()` fallback. Injected messages use `source.kind: "plugin:nowledge-mem"`,
 matching DSH's v3-to-v4 migration; existing legacy snapshots are still recognized.
-Restart DSH after replacing an installed plugin version.
+If installation reports an unsupported DSH peer, check `dsh --version` and use the install command above with a plugin revision that lists your host. A version mismatch alone does not indicate lost Mem data. Restart DSH after replacing an installed plugin version.
 
 The bundle connects to the local Mem MCP endpoint by default:
 
@@ -115,9 +115,28 @@ keywords match whole words and their plural or verb forms (`mem` does not match
 
 The model sees a bounded recall message with memory titles, source hints, scores, and content.
 
-### MCP Tools
+### MCP Tools and Resources
 
-Mem MCP tools are registered through DSH's MCP bridge under the `nowledge_mem` namespace. DSH currently bridges MCP tools only; MCP resources and prompts are not surfaced by the Harness client.
+Mem MCP tools are registered through DSH's MCP bridge under the `nowledge_mem`
+namespace. DSH 0.2.2-rc.5's shipped profiles also expose `list_mcp_resources`,
+`list_mcp_resource_templates`, and `read_mcp_resource`; use `nowledge_mem` as
+the server name. Resource availability depends on the connected Mem server.
+Older or custom profiles may provide tools without the shared resource service.
+MCP prompt templates and resource subscriptions remain unsupported.
+
+On DSH 0.2.2-rc.5, the MCP entry allows eight seconds for each connection attempt, including
+negotiation and initial tool discovery. A failed initial attempt lets DSH
+continue while the host retries in the background. Individual tool calls and
+resource requests retain a separate 60-second timeout. Older hosts without
+`startupTimeoutMs` support retain their host-defined startup behavior. Override these budgets
+on the `nowledge-mem-mcp` row when the destination needs more time:
+
+```yaml
+- id: nowledge-mem-mcp
+  config:
+    startupTimeoutMs: 15000
+    toolCallTimeoutMs: 60000
+```
 
 ### Thread Capture
 
@@ -141,7 +160,7 @@ used to verify the updated capture without touching old data.
 
 ### Explicit Historical Backfill
 
-On a host with `commands` and `sessionQuery` (qualified on DSH 0.2.2-rc.2),
+On a host with `commands` and `sessionQuery` (qualified on DSH 0.2.2-rc.2 through rc.5),
 the bundle adds a **human slash command**, not an agent tool:
 
 ```text
@@ -222,7 +241,7 @@ closed and logs why the retry was skipped.
 
 - DeepSeek Harness is in developer preview, so public package APIs may change.
 - Historical capture requires the explicit preview/apply command above and the optional host services; no automatic bulk upload or old-data cleanup runs.
-- The DSH MCP bridge exposes tools only, so Nowledge Mem resources/prompts are not shown through MCP today.
+- MCP resource access requires the host's shared resource service; MCP prompt templates and resource subscriptions are not supported.
 - Turn capture depends on the local `nmem` CLI being available in the DSH process environment.
 
 ## Community Position
@@ -246,15 +265,22 @@ CLI responses and shell execution are deterministic test doubles; a live DSH
 and Mem smoke test is still required to verify an installed release.
 
 The dedicated installed-host CI lane additionally packs the plugin, installs it
-into an isolated DSH 0.2.2-rc.2 headless profile, runs a real bash tool turn
+into isolated DSH 0.2.2-rc.2 through rc.5 headless profiles, runs a real bash tool turn
 against the official loopback mock model, and checks that clean transcript
 capture completes before host exit. That lane uses a fixture CLI receipt rather
 than a production Mem destination; separate App/Cloud qualification uses actual
 nmem and disposable backend stores. Neither test reads your regular DSH profile.
 
+On DSH 0.2.2-rc.5, the installed-host lane also keeps the bundle's MCP entry
+enabled against an authenticated loopback fixture. It verifies tool discovery,
+tool errors, resource listing and reading, recovery after a dropped HTTP request,
+and an unresponsive startup followed by automatic reconnection in the same host.
+These checks run sequentially on Ubuntu and macOS with the official mock model;
+they do not establish production Mem or provider acceptance.
+
 GitHub Actions runs ESLint and tests on every pull request and push to `main`.
 The test matrix covers Ubuntu and Windows with Node.js 24 and DSH 0.1.7-rc.1,
-0.2.1-alpha.1, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 and 0.2.2-rc.2.
+0.2.1-alpha.1, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1 through 0.2.2-rc.5.
 It also checks the package contents with `npm pack --dry-run`; installation is
 from Git, not an independently published npm release.
 
@@ -263,4 +289,40 @@ Thanks to BBleae (晴猫) for the PowerShell and human-only recall fixes (#19, #
 
 ## Bridge mailbox
 
-Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context before starting the host. The plugin asks the session to use the configured `nmem bridge` CLI to check one inbox page in the exact Space. Use the same CLI and Context to discover contacts, send, open, or reply. Mailbox access and work remain subject to the current connection and host permissions.
+Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an independently
+approved Cloud Context before starting DSH. The plugin adds one model-visible
+Bridge notice per live session, even when Memory is unavailable. It does not
+execute mailbox commands or consume mail itself. A notice does not replace the
+Working Memory snapshot or prevent a failed context load from retrying.
+
+The model uses the same CLI executable as native Memory operations: `cliPath`
+from the plugin config, then `NMEM_CLI_PATH`, then `nmem`. The Context's value
+and credentials are not included in the notice. The selected CLI and approved
+login must be accessible within the host's existing shell permissions; a
+blocked command is not permission to expose credentials or bypass the sandbox.
+
+The startup check follows the current [Bridge guidance](https://github.com/nowledge-co/community/blob/main/nowledge-mem-codex-plugin/skills/bridge/SKILL.md):
+
+1. Inspect installed help and run passive `bridge setup` with `--json` and
+   literal `--agent-context=<approved Context>`, without `--enable`.
+2. Verify the returned identity and exact Space. Use `endpoint.scope.space_id`
+   (or `space_id` in the login setup response) unchanged as
+   `--resolved-space-id=<exact Space>` before `inbox`, retaining the same
+   Context and connection. Read one page, without watch or polling. `ready`
+   verifies registration only; `registration_observed` or `enable_needed` may
+   still permit an existing inbox check when identity and Space are verified.
+   The opt-in flag does not authorize registration or following enable arguments.
+3. Scoped inbox IDs are in `messages[].message`. Open only relevant messages
+   (which records a read), and reply to that original only when sending is
+   authorized. Preserve Context and Space on every command; do not assume the
+   scoped response includes cross-Space `open_args` or `reply_args_prefix`.
+   Returned argument arrays are literal process arguments, never shell code.
+4. Stop on refusal, missing capability, empty output, or unverifiable setup.
+   Preserve the original connection; do not switch to a separate MCP login or
+   create credentials. For an uncertain operation, inspect/resume its retained
+   original selector rather than creating a replacement send.
+
+This integrates the existing **Agent mailbox**. It does not register DSH as a
+native-session Bridge host, wake an idle agent, or prove delivery readiness.
+The installed-host fixture verifies model visibility and exclusion from captured
+Threads; it does not establish a production two-Agent send/open/reply roundtrip.
