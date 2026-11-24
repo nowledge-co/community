@@ -96,3 +96,20 @@ jobs:
         run: |
           python -m build "${{ matrix.directory }}" --outdir dist
           python -m twine check dist/*
+      - name: Import Bub from the built wheel in a clean environment
+        if: matrix.directory == 'nowledge-mem-bub-plugin'
+        run: |
+          python -m venv "$RUNNER_TEMP/bub-wheel-smoke"
+          smoke_python="$RUNNER_TEMP/bub-wheel-smoke/bin/python"
+          "$smoke_python" -m pip install dist/nowledge_mem_bub-*.whl
+          "$smoke_python" -I - <<'PY'
+          from importlib.metadata import distribution
+          from importlib.util import find_spec
+
+          assert find_spec("pytest") is None
+          hook, = (
+              entry for entry in distribution("nowledge-mem-bub").entry_points
+              if entry.group == "bub" and entry.name == "nowledge_mem"
+          )
+          assert hook.load() is not None
+          PY
