@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.6] - Unreleased
+## [0.7.6] - 2026-11-24
 
 ### Fixed
 - `mem.save` skips a save only when an identical Memory exists. A related

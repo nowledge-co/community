@@ -31,16 +31,19 @@ export function createForgetCommand(client, logger) {
 		async handler(ctx) {
 			const text = ctx.args?.trim();
 			if (!text) {
-				return { text: "Usage: /forget <memory id or search query>" };
+				return { text: "Usage: /forget <query> or /forget --id <memory id>" };
 			}
 
-			const isLikelyId = /^[a-zA-Z0-9_-]{8,}$/u.test(text);
+			const id = /^--id\s+([a-zA-Z0-9][a-zA-Z0-9_-]*)$/u.exec(text)?.[1];
+			if (!id && /^--id(?:\s|$)/u.test(text)) {
+				return { text: "Usage: /forget --id <memory id>" };
+			}
 
 			try {
-				if (isLikelyId) {
-					await client.exec(["--json", "m", "delete", "-f", text]);
-					logger.info(`/forget: deleted memory ${text}`);
-					return { text: `Forgotten: memory ${text} deleted.` };
+				if (id) {
+					await client.exec(["--json", "m", "delete", "-f", id]);
+					logger.info(`/forget: deleted memory ${id}`);
+					return { text: `Forgotten: memory ${id} deleted.` };
 				}
 
 				const results = await client.search(text, 5);
@@ -57,7 +60,7 @@ export function createForgetCommand(client, logger) {
 					(r, i) => `${i + 1}. ${r.title || "(untitled)"} — id: ${r.id}`,
 				);
 				return {
-					text: `Matches for "${text}". Use /forget <id> to delete one:\n\n${lines.join("\n")}`,
+					text: `Matches for "${text}". Use /forget --id <id> to delete one:\n\n${lines.join("\n")}`,
 				};
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);

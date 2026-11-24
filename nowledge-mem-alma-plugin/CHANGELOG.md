@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.13] - 2026-11-24
 
 ### Fixed
 - A save is skipped only when an identical Memory exists. A related Memory

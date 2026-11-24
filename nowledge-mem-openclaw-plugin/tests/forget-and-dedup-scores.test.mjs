@@ -49,6 +49,15 @@ test("forget tool with a query and a single 1.0 hit lists it instead of deleting
 	assert.match(out.content[0].text, /m-related-1/u);
 });
 
+test("bare ID-like text only searches; deletion requires --id", async () => {
+	const client = fakeClient(related);
+	const command = createForgetCommand(client, logger);
+	assert.match((await command.handler({ args: "m-related-1" })).text, /Use \/forget --id/u);
+	assert.deepEqual(client.calls, []);
+	await command.handler({ args: "--id m-related-1" });
+	assert.deepEqual(client.calls, [["--json", "m", "delete", "-f", "m-related-1"]]);
+});
+
 test("save is not skipped for a related memory whose relative score reads 1.0", async () => {
 	const client = fakeClient(related);
 	const out = await createSaveTool(client, logger).execute("t2", {

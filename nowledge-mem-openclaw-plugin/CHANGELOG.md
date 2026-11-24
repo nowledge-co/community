@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.44] - 2026-11-24
 
 ### Fixed
 - `/forget <query>` and the `nowledge_mem_forget` tool no longer delete by
