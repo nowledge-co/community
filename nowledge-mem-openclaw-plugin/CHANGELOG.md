@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.45] - 2026-11-24
+
+- Add an opt-in model-facing reminder to check the approved Nowledge Bridge Agent mailbox.
+
 ## [0.8.44] - 2026-11-24
 
 ### Fixed

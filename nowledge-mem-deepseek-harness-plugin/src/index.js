@@ -15,6 +15,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
 import { DEFAULT_PROMPT_RECALL_PATTERN, shouldRecallForPrompt } from './recall.js'
 import { hasContextBundle } from './context.js'
+import { bridgeStartupHint } from './agent-bridge-startup.mjs'
 import { isHumanInput } from './transcript.js'
 import { shellCommand, shellQuote } from './shell-quote.js'
 import { flushBeforeImport } from './session-flush.js'
@@ -86,7 +87,7 @@ function resolveConfig(config = {}) {
   try { promptRecallPattern = new RegExp(config.promptRecallPattern ?? DEFAULT_PROMPT_RECALL_PATTERN, 'iu') }
   catch { promptRecallPattern = new RegExp(DEFAULT_PROMPT_RECALL_PATTERN, 'iu'); invalidRecallPattern = true }
   const resolved = {
-    cliPath: optionalString(config.cliPath) ?? DEFAULT_CLI_PATH,
+    cliPath: optionalString(config.cliPath) ?? optionalString(process.env.NMEM_CLI_PATH) ?? DEFAULT_CLI_PATH,
     sourceApp: optionalString(config.sourceApp) ?? DEFAULT_SOURCE_APP,
     importOrigin: optionalString(config.importOrigin) ?? DEFAULT_SOURCE_APP,
     contextOnSessionStart: config.contextOnSessionStart ?? true,
@@ -482,13 +483,14 @@ export function apply(ctx, config = {}) {
     }, importSession))
   })
   const contextFailures = new WeakMap()
+  const bridgeHintedSessions = new WeakSet()
   if (resolved.invalidRecallPattern) warn(ctx, 'nowledge-mem: invalid promptRecallPattern; using the default recall pattern')
 
   ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
     const decision = await next()
     if (decision.kind === 'reject' || signal.aborted) return decision
+    const additions = []
     try {
-      const additions = []
       if (resolved.contextOnSessionStart && !hasContextBundle(agent.session, name)) {
         const failure = contextFailures.get(agent.session)
         if (failure === undefined || Date.now() >= failure.retryAt) {
@@ -512,12 +514,21 @@ export function apply(ctx, config = {}) {
           if (recallMessage !== undefined) additions.push(recallMessage)
         }
       }
-      if (additions.length === 0) return decision
-      return { ...decision, messages: [...decision.messages, ...additions] }
     } catch {
-      warn(ctx, 'nowledge-mem: pre-step context injection failed; keeping the host decision')
-      return decision
+      warn(ctx, 'nowledge-mem: memory context injection failed; keeping available context')
     }
+    if (signal.aborted) return decision
+    const hint = bridgeStartupHint(process.env, resolved.cliPath)
+    if (hint && !bridgeHintedSessions.has(agent.session)) {
+      // A Bridge reminder must not supersede or count as a Working Memory snapshot.
+      additions.push(createUserMessage({
+        content: [{ type: 'text', text: hint }],
+        source: { kind: `plugin:${name}`, form: 'notice', summary: 'Check the approved Bridge Agent inbox.' },
+      }))
+      bridgeHintedSessions.add(agent.session)
+    }
+    if (additions.length === 0) return decision
+    return { ...decision, messages: [...decision.messages, ...additions] }
   }, { prepend: true })
 
   const enqueueSync = createSyncQueue(async (session, cursor) => {

@@ -88,7 +88,7 @@ To pin an OpenCode 2 release, merge this entry into the global config:
 
 ```json title="~/.config/opencode/opencode.json"
 {
-  "plugins": ["opencode-nowledge-mem@0.4.9"]
+  "plugins": ["opencode-nowledge-mem@0.4.10"]
 }
 ```
 
@@ -102,7 +102,7 @@ configure the plugin entry with `sessionContext: "off"`:
 {
   "plugins": [
     {
-      "package": "opencode-nowledge-mem@0.4.9",
+      "package": "opencode-nowledge-mem@0.4.10",
       "options": { "sessionContext": "off" }
     }
   ]
@@ -295,3 +295,7 @@ to see its full capabilities.
 ---
 
 Made with care by [Nowledge Labs](https://nowledge-labs.ai)
+
+## Bridge mailbox
+
+Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context before starting the host. The plugin asks the session to use the configured `nmem bridge` CLI to check one inbox page in the exact Space. Use the same CLI and Context to discover contacts, send, open, or reply. Mailbox access and work remain subject to the current connection and host permissions.

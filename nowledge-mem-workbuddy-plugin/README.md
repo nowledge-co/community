@@ -130,3 +130,7 @@ Keep personal behavior in `~/.workbuddy/CODEBUDDY.md`, a project `CODEBUDDY.md`,
 - [WorkBuddy guide](https://mem.nowledge.co/docs/integrations/workbuddy)
 - [All connectors](https://mem.nowledge.co/docs/integrations)
 - [Nowledge Mem](https://mem.nowledge.co)
+
+## Bridge mailbox
+
+Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context in the agent process. The hook asks the current session to check one inbox page through `nmem bridge` for the exact Space. The agent uses the same CLI and Context to discover contacts, send, open, and reply.

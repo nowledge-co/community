@@ -10,7 +10,7 @@ This file is a practical continuation guide for future agent sessions working on
 - Shared sync logic: checked-in ESM at `generated/plugin-core`; regenerate from the Community root rather than editing it.
 - Memory backend: direct HTTP to Nowledge Mem API (default `http://127.0.0.1:14242`). CLI (`nmem`) is only used for diagnostic in the status tool.
 
-## Current Implementation (v0.7.14)
+## Current Implementation (v0.7.15)
 
 - Registers 13 tools. Prior releases were observed installed and activated in Alma; that evidence does not qualify this candidate's live host acceptance.
 - Thread sync uses three hooks: `willSend` (user msg + recall), `didReceive` (AI response + idle timer), `thread.activated` (flush on switch).
@@ -101,7 +101,7 @@ curl -s 'http://127.0.0.1:14242/memories/search?q=alma&limit=3'   # Test search 
 
 ```bash
 mkdir -p ~/.config/alma/plugins/nowledge-mem
-cp manifest.json main.js session-delta.js sync-lifecycle.js sync-outbox.js thread-sync-timeout.js package.json README.md CHANGELOG.md alma-skill-nowledge-mem.md ~/.config/alma/plugins/nowledge-mem/
+cp manifest.json main.js agent-bridge-startup.mjs session-delta.js sync-lifecycle.js sync-outbox.js thread-sync-timeout.js package.json README.md CHANGELOG.md alma-skill-nowledge-mem.md ~/.config/alma/plugins/nowledge-mem/
 cp -R skills generated ~/.config/alma/plugins/nowledge-mem/
 osascript -e 'tell application "Alma" to quit' || true
 node -e "const fs=require('fs');const p=process.env.HOME+'/Library/Application Support/alma/plugin-cache';if(fs.existsSync(p))for(const f of fs.readdirSync(p))if(f.endsWith('.mjs'))fs.unlinkSync(p+'/'+f)"

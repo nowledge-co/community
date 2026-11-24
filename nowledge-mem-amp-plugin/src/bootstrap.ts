@@ -20,6 +20,7 @@
 
 import type { NmemCli } from "./cli"
 import { isNmemErrorPayload } from "./tools"
+import { createBridgeStartupHint } from "./agent-bridge-startup.mjs"
 
 /**
  * The reminder prefix shown before the Context Bundle so the agent can tell the
@@ -105,6 +106,7 @@ export class BootstrapManager {
   private readonly deps: BootstrapDeps
   private readonly options: BootstrapOptions
   private readonly sessions = new Map<string, SessionState>()
+  private bridgeHint = createBridgeStartupHint()
 
   /**
    * @param deps - Injected dependencies (CLI client).
@@ -153,17 +155,22 @@ export class BootstrapManager {
    * @returns The `agent.start` result with the hidden message, or an empty object.
    */
   public async consume(threadId: string): Promise<AgentStartResultValue> {
-    if (!this.options.enabled) return {}
+    const memory = this.options.enabled ? await this.consumeMemory(threadId) : undefined
+    const content = [memory, this.bridgeHint(threadId)].filter(Boolean).join("\n\n")
+    return content ? { message: { content, display: false } } : {}
+  }
+
+  private async consumeMemory(threadId: string): Promise<string | undefined> {
     const state = this.stateFor(threadId)
     if (state.preloadPromise !== undefined) {
       await state.preloadPromise
     }
-    if (state.consumed) return {}
+    if (state.consumed) return undefined
     const message = state.preloadedMessage
-    if (message === undefined || message === null) return {}
+    if (message === undefined || message === null) return undefined
     state.consumed = true
     state.preloadedMessage = null
-    return { message: { content: message, display: false } }
+    return message
   }
 
   /**
@@ -173,6 +180,7 @@ export class BootstrapManager {
    * longer reachable by a subsequent agent-start handler.
    */
   public dispose(): void {
+    this.bridgeHint = createBridgeStartupHint()
     this.sessions.clear()
   }
 

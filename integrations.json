@@ -445,7 +445,7 @@
       "name": "Copilot CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "directory": "nowledge-mem-copilot-cli-plugin",
       "transport": "cli",
       "capabilities": {
@@ -496,7 +496,7 @@
       "name": "Gemini CLI",
       "category": "coding",
       "type": "extension",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "directory": "nowledge-mem-gemini-cli",
       "transport": "cli+mcp",
       "capabilities": {
@@ -749,7 +749,7 @@
       "name": "Dim",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-dim-plugin",
       "transport": "mcp+hook+cli",
       "capabilities": {
@@ -1033,6 +1033,7 @@
           "Run nmem t sync --from paseo --all-projects --apply when you want to import supported child-session history from Paseo's agent registry; reruns reuse the child thread id and deduplicate",
           "If a Paseo agent represents a durable role, pass NMEM_AGENT_ID=<agent-slug> into that launched child runtime",
           "Leave NMEM_AGENT_ID unset for one-off Paseo agents or generic provider presets",
+      "Enable the Bridge startup hook in the launched child connector when that runtime has an approved Agent Context",
           "Keep source_app as the launched AI tool so thread provenance and capture stay correct"
         ]
       },
@@ -1057,7 +1058,7 @@
       "name": "OpenHands",
       "category": "orchestrator",
       "type": "plugin",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "directory": "nowledge-mem-openhands-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -1179,7 +1180,7 @@
       "name": "Droid",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-droid-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1228,7 +1229,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.44",
+      "version": "0.8.45",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1285,7 +1286,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.14",
+      "version": "0.7.15",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {
@@ -1335,7 +1336,7 @@
       "name": "Bub",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.6",
+      "version": "0.7.7",
       "directory": "nowledge-mem-bub-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1386,7 +1387,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.18",
+      "version": "0.8.19",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1438,7 +1439,7 @@
       "name": "Step Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-step-code",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1490,7 +1491,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.29",
+      "version": "0.5.30",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
@@ -1598,7 +1599,7 @@
       "name": "Amp",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "directory": "nowledge-mem-amp-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1661,7 +1662,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.4.9",
+      "version": "0.4.10",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1718,7 +1719,7 @@
       "name": "Kimi Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "directory": "nowledge-mem-kimi-code-plugin",
       "transport": "skills+hook+mcp-config",
       "capabilities": {
@@ -1774,9 +1775,9 @@
       "name": "Kimi Work",
       "category": "coding",
       "type": "connector",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-kimi-work-connector",
-      "transport": "mcp+skills",
+      "transport": "mcp+skills+hook",
       "capabilities": {
         "workingMemory": true,
         "search": true,
@@ -1828,7 +1829,7 @@
       "name": "ZCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.1",
+      "version": "0.2.3",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/zcode-plugin",
       "transport": "plugin+mcp+skills+commands+hooks",
@@ -1880,7 +1881,7 @@
       "name": "DeepSeek Harness",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "directory": "nowledge-mem-deepseek-harness-plugin",
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
       "transport": "dsh-bundle+mcp+cli",
@@ -1956,7 +1957,7 @@
       "threadSave": {
         "method": "cli-native",
         "historicalCommand": "nmem t sync --from mimo-code",
-        "note": "MiMo Code is OpenCode-derived and stores sessions in mimocode.db. nmem can import those local transcripts for local or remote Mem with nmem t sync --from mimo-code --apply. Nowledge Mem does not yet publish a MiMo lifecycle hook package; do not reuse the OpenCode package blindly because package names, config roots, and session APIs differ."
+        "note": "MiMo Code is OpenCode-derived and stores sessions in mimocode.db. nmem can import those local transcripts for local or remote Mem with nmem t sync --from mimo-code --apply. The optional MiMo Code Bridge file hook adds a model-facing inbox reminder without changing transcript import."
       },
       "autonomy": {
         "bootstrap": "guided",
@@ -1982,7 +1983,7 @@
       },
       "toolNaming": {
         "convention": "mcp-backend",
-        "note": "Use Nowledge Mem MCP tools plus project guidance until a native MiMo Code plugin is published."
+        "note": "Use Nowledge Mem MCP tools for memory and the optional MiMo Code file hook for Bridge startup guidance."
       },
       "skills": ["read-working-memory", "search-memory", "distill-memory", "save-handoff", "status"],
       "slashCommands": []
@@ -1992,7 +1993,7 @@
       "name": "OMP",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "directory": "nowledge-mem-omp-plugin",
       "transport": "plugin+cli",
       "capabilities": {
@@ -2098,7 +2099,7 @@
       "name": "CodeBuddy",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-codebuddy-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -2153,7 +2154,7 @@
       "name": "WorkBuddy",
       "category": "office",
       "type": "plugin",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "directory": "nowledge-mem-workbuddy-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -2208,7 +2209,7 @@
       "name": "Proma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.8",
+      "version": "0.1.9",
       "directory": "nowledge-mem-proma-plugin",
       "transport": "mcp",
       "capabilities": {
@@ -2241,7 +2242,7 @@
       },
       "install": {
         "command": "Manual setup — see plugin README for step-by-step instructions",
-        "updateCommand": "Replace ~/.proma/scripts/save-to-nmem.py, ~/.proma/scripts/read-working-memory.py, Proma skill folders, and merge the latest hooks/hooks.json into ~/.proma/sdk-config/.claude/settings.json",
+        "updateCommand": "Replace ~/.proma/scripts/save-to-nmem.py, ~/.proma/scripts/read-working-memory.py, ~/.proma/scripts/agent_bridge_startup.py, Proma skill folders, and merge the latest hooks/hooks.json into ~/.proma/sdk-config/.claude/settings.json",
         "detectionHint": "~/.proma/agent-workspaces/default/mcp.json contains nowledge-mem server",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Proma. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
@@ -2887,7 +2888,7 @@
       "name": "Devin",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-devin-plugin",
       "transport": "plugin+mcp+cli+api",
       "capabilities": {
@@ -2963,7 +2964,7 @@
       },
       "threadSave": {
         "method": "handoff-only",
-        "note": "MiniMax's public marketplace package exposes Skill, MCP, and App capabilities but no verified transcript or lifecycle hook. The plugin searches existing Threads and can save an explicit resumable summary without claiming lossless MiniMax conversation capture."
+        "note": "The marketplace package exposes Skill, MCP, and App capabilities. MiniMax Code desktop has an optional local Bridge startup hook. The marketplace plugin searches existing Threads and saves explicit resumable summaries."
       },
       "autonomy": {
         "bootstrap": "automatic",
@@ -3004,7 +3005,7 @@
       "name": "iCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-icode-plugin",
       "transport": "mcp-config+hook",
       "capabilities": {

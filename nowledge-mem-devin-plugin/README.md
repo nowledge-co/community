@@ -94,3 +94,7 @@ than pretending hook payloads contain a transcript.
 - `--space-id` or `NMEM_SPACE` selects the destination Space.
 - Devin user and service-user identifiers are provenance, never inferred as a
   Nowledge identity.
+
+## Bridge through Devin CLI
+
+Merge the `SessionStart` entry from [the local Bridge hook](hooks/bridge-local.json) into your `.devin/hooks.v1.json`. Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context before launching Devin locally. The hook asks the active agent to check one exact-Space inbox page through its configured `nmem bridge` CLI. The Claude-compatible Cloud plugin continues to use its existing lifecycle configuration.

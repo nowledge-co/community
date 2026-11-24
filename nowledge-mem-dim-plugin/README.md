@@ -16,7 +16,7 @@ times out, the turn still completes and Dim continues.
 
 ## Requirements
 
-- Dim `v0.1.0-alpha.20` or newer, either the released `dima` build or Dim built
+- Dim `v0.1.1-alpha.20` or newer, either the released `dima` build or Dim built
   from source. The package uses plugin hooks, plugin skills, plugin MCP servers,
   and Dim's Session export; all four exist in that release.
 - `nmem` (Nowledge Mem CLI) on `PATH`, or `NMEM_CLI_PATH` pointing at it. The
@@ -210,3 +210,7 @@ searches the Session's working directory before `PATH`, so a `powershell.exe`
 placed there would win. `run-hook.ps1` starts Python from absolute `PATH`
 directories only, using Windows PowerShell 5.1. If no trusted Python exists,
 the hooks exit 0 and Dim continues.
+
+## Bridge mailbox
+
+Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context in the agent process. The hook asks the current session to check one inbox page through `nmem bridge` for the exact Space. The agent uses the same CLI and Context to discover contacts, send, open, and reply.

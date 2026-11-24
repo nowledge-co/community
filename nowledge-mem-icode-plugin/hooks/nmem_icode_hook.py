@@ -31,6 +31,10 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from agent_bridge_startup import bridge_startup_hint
+
+
 RECALL_REMINDER = (
     "[Nowledge Mem] If this continues earlier work, a review, or a prior "
     "decision, search first (memory_search MCP tool, or nmem --json m search "
@@ -146,6 +150,8 @@ def main() -> int:
         pass
 
     session_key = _safe_session_key(payload)
+    bridge_key = f"bridge-{session_key}"
+    hint = "" if _already_injected(bridge_key) else bridge_startup_hint()
     reminder: str | None = None
     context = None
 
@@ -158,6 +164,7 @@ def main() -> int:
     elif recall_mode == "every":
         reminder = RECALL_REMINDER
 
+    reminder = "\n\n".join(part for part in (hint, reminder) if part)
     if not reminder:
         return 0
 
@@ -172,6 +179,8 @@ def main() -> int:
         return 0
     if context:
         _mark_injected(session_key)
+    if hint:
+        _mark_injected(bridge_key)
     return 0
 
 

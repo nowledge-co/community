@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { bridgeStartupHint } from "./agent-bridge-startup.mjs";
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { delimiter, extname, join, normalize, resolve } from "node:path";
@@ -224,6 +225,7 @@ function handleContext(payload) {
     }
   }
 
+  content = [content, bridgeStartupHint()].filter(Boolean).join("\n\n");
   if (!content) return allow();
   allow({
     hookSpecificOutput: {
