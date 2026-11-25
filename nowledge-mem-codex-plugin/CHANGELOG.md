@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.55] - Unreleased
+
+- With a compatible Bridge CLI, your session can open the reply to its own handoff on the next supported turn. Other sessions sharing the same role keep their own conversations.
+
 ## [0.1.54] - Unreleased
 
 - Explain how to follow a Memory result to its source messages and refine keyword searches.

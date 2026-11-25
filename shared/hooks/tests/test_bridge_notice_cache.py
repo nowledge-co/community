@@ -124,6 +124,41 @@ class CacheNoticeTests(unittest.TestCase):
             now_ms=self.now,
         )
 
+    def test_correlated_reply_reaches_only_its_session_without_a_role_subscription(self):
+        import hashlib
+        session = self.target["session_id"]
+        key = hashlib.sha256(json.dumps(["codex", session], separators=(",", ":")).encode()).hexdigest()
+        token = "a" * 64
+        args = ["bridge", "notices", "open-reply", token]
+        snapshot = {"schema_version": 1, "host": "codex", "session_id": session,
+                    "config_fence": self.value["config_fence"], "saved_ms": self.now,
+                    "expires_ms": self.now + 45_000,
+                    "replies": [{"token": token, "open_args": args, "expires_ms": self.now + 45_000}]}
+        path = self.directory / f"replies-{key}.json"
+        (self.directory / "subscriptions.json").unlink()
+        def save(value):
+            path.write_text(json.dumps(value))
+            path.chmod(0o600)
+        for changes in ({"expires_ms": self.now}, {"config_fence": "a" * 64},
+                        {"host": "claude-code"}, {"session_id": "other"},
+                        {"replies": [dict(snapshot["replies"][0], expires_ms=self.now)]},
+                        {"replies": [{"token": token, "open_args": ["bridge", "send"]}]}):
+            save(dict(snapshot, **changes))
+            self.assertEqual(self.response(), {})
+        save(snapshot)
+        self.assertEqual(self.response("UserPromptSubmit", session_id="other"), {})
+        hint = self.response("UserPromptSubmit")["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(json.dumps(args), hint)
+        self.assertEqual(self.response("PostToolUse"), {})
+
+    def test_automatically_paired_role_does_not_notify_an_unrelated_window(self):
+        self.value["model_notice_scope"] = "session_replies_only"
+        self.save()
+        self.assertEqual(self.response("UserPromptSubmit"), {})
+        del self.value["model_notice_scope"]
+        self.save()
+        self.assertIn("additionalContext", self.response("UserPromptSubmit")["hookSpecificOutput"])
+
     def test_model_hooks_share_tokens_and_keep_sessions_independent(self):
         self.assertEqual(self.response()["decision"], "block")
         self.assertEqual(self.response(), {})

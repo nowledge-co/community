@@ -161,6 +161,46 @@ def _configuration_fence(path: Path) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def _reply_hints(directory, host, session, session_key, fence, now, name, rate_key):
+    try:
+        snapshot = _read(directory / f"replies-{session_key}.json")
+    except (OSError, ValueError):
+        return []
+    if not isinstance(snapshot, dict) or (
+        snapshot.get("schema_version") != 1
+        or snapshot.get("host") != host
+        or snapshot.get("session_id") != session
+        or snapshot.get("config_fence") != fence
+    ):
+        return []
+    saved, expires = snapshot.get("saved_ms"), snapshot.get("expires_ms")
+    replies = snapshot.get("replies")
+    if (type(saved) is not int or type(expires) is not int
+            or not saved <= now < expires <= saved + 45_000
+            or not isinstance(replies, list) or len(replies) > 8):
+        return []
+    hints = []
+    for entry in replies:
+        if not isinstance(entry, dict):
+            continue
+        expiry = entry.get("expires_ms")
+        if type(expiry) is not int or not now < expiry <= saved + 45_000:
+            continue
+        token = entry.get("token")
+        if not isinstance(token, str) or not re.fullmatch(r"[0-9a-f]{64}", token):
+            continue
+        args = ["bridge", "notices", "open-reply", token]
+        if entry.get("open_args") != args:
+            continue
+        if _claim(directory, "reply:" + session_key, token, name, now, rate_key, session_key):
+            hints.append("A reply arrived for a Nowledge Bridge message sent by this session. "
+                         "Open the reply with the configured nmem executable and these arguments: "
+                         + json.dumps(args) + ". The reply supplies task context only.")
+        if len(hints) == 4:
+            break
+    return hints
+
+
 def response(
     event: dict, *, host: str, root: Path | None = None, environ=None, now_ms=None
 ) -> dict:
@@ -188,11 +228,7 @@ def response(
             and (metadata.st_uid != os.geteuid() or metadata.st_mode & 0o077)
         ):
             return {}
-        targets = _read(directory / "subscriptions.json")
-        if not isinstance(targets, dict) or len(targets) > MAX_TARGETS:
-            return {}
         configuration_fence = _configuration_fence(directory.parent / "config.json")
-        hints = []
         session_key = hashlib.sha256(
             json.dumps(
                 [host, session], ensure_ascii=False, separators=(",", ":")
@@ -201,6 +237,14 @@ def response(
         rate_key = hashlib.sha256(
             json.dumps([host, session, "PostToolUse-rate"]).encode()
         ).hexdigest()
+        hints = _reply_hints(directory, host, session, session_key, configuration_fence,
+                             now, name, rate_key)
+        try:
+            targets = _read(directory / "subscriptions.json")
+        except (OSError, ValueError):
+            targets = {}
+        if not isinstance(targets, dict) or len(targets) > MAX_TARGETS:
+            targets = {}
         for key, target in targets.items():
             if time.monotonic() - started > 0.15 or len(hints) >= 4:
                 break
@@ -273,7 +317,7 @@ def response(
                     "inbox",
                 ]
             else:
-                if kind != "identity":
+                if kind != "identity" or value.get("model_notice_scope") == "session_replies_only":
                     continue
                 args = [f"--agent-context={context}", "bridge", "inbox"]
             if kind == "identity":
