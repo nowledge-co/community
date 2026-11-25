@@ -47,6 +47,29 @@ apply to both paths. Native-session instructions do not grant enrollment,
 credential access or a different backend. Use `bridge --help` for an Agent
 mailbox and the native reference for an exact session.
 
+## Bring replies back to this window
+
+Only in Codex itself, when the native session ID matches the one supplied by
+this host at startup and the installed CLI lists
+`--return-host` in `nmem --help`, include the global `--return-host=codex`
+on role-mailbox discovery, inbox, and send, reply or resume commands for this
+handoff. The CLI uses the current host session to remember where its replies
+belong. Preserve the flag on returned argument vectors. A session ID or an
+Agent Context by itself does not establish which window is running the command.
+On an older CLI, keep the ordinary role mailbox and check for replies there.
+
+At a supported turn boundary, a reply hint supplies the exact action for this
+window. Run it with the configured executable to open the reply and continue
+the authorized task. Sending a handoff leaves an idle recipient asleep.
+
+If the inbox has the reply but Codex never mentions it, ask the user to open
+`/hooks` and inspect the **Bridge mailbox** command from the installed Nowledge
+Mem source. UserPromptSubmit covers the next prompt, PostToolUse an active
+turn, and Stop the end of a turn. Codex requires approval for new or modified
+hook definitions. An enabled plugin or a trusted hook from another source
+cannot establish that this command ran. While approval is pending, the agent
+can check its approved inbox when asked.
+
 ## Reuse an existing role through this login
 
 A verified automatic startup result already contains this native session's

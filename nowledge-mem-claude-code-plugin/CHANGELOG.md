@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.39] - Unreleased
+
+- With a compatible Bridge CLI, your session can open the reply to its own handoff on the next supported turn. Other sessions sharing the same role keep their own conversations.
+
 ## [0.7.38] - Unreleased
 
 - Use the canonical `nowledge-co/community` marketplace shorthand for install

@@ -124,6 +124,72 @@ class CacheNoticeTests(unittest.TestCase):
             now_ms=self.now,
         )
 
+    def test_correlated_reply_reaches_only_its_session_without_a_role_subscription(self):
+        import hashlib
+        session = self.target["session_id"]
+        key = hashlib.sha256(json.dumps(["codex", session], separators=(",", ":")).encode()).hexdigest()
+        token = "a" * 64
+        args = ["--return-host=codex", "bridge", "notices", "open-reply", token]
+        snapshot = {"schema_version": 1, "host": "codex", "session_id": session,
+                    "config_fence": self.value["config_fence"], "saved_ms": self.now,
+                    "expires_ms": self.now + 45_000,
+                    "replies": [{"token": token, "open_args": args, "expires_ms": self.now + 45_000}]}
+        path = self.directory / f"replies-{key}.json"
+        (self.directory / "subscriptions.json").unlink()
+        def save(value):
+            path.write_text(json.dumps(value))
+            path.chmod(0o600)
+        for changes in ({"expires_ms": self.now}, {"config_fence": "a" * 64},
+                        {"host": "claude-code"}, {"session_id": "other"},
+                        {"replies": [dict(snapshot["replies"][0], expires_ms=self.now)]},
+                        {"replies": [{"token": token, "open_args": ["bridge", "send"]}]}):
+            save(dict(snapshot, **changes))
+            self.assertEqual(self.response(), {})
+        save(snapshot)
+        self.assertEqual(self.response("UserPromptSubmit", session_id="other"), {})
+        hint = self.response("UserPromptSubmit")["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(json.dumps(args), hint)
+        self.assertEqual(self.response("PostToolUse"), {})
+
+    def test_busy_claim_preserves_previously_claimed_hints(self):
+        import hashlib
+        import sqlite3
+        session = self.target["session_id"]
+        key = hashlib.sha256(json.dumps(["codex", session], separators=(",", ":")).encode()).hexdigest()
+        tokens = ["a" * 64, "b" * 64]
+        snapshot = {"schema_version": 1, "host": "codex", "session_id": session,
+                    "config_fence": self.value["config_fence"], "saved_ms": self.now,
+                    "expires_ms": self.now + 45_000, "replies": [
+                        {"token": token, "expires_ms": self.now + 45_000, "open_args":
+                         ["--return-host=codex", "bridge", "notices", "open-reply", token]}
+                        for token in tokens]}
+        path = self.directory / f"replies-{key}.json"
+        path.write_text(json.dumps(snapshot))
+        path.chmod(0o600)
+        claim = NOTICE._claim
+
+        def busy_after_first(directory, consumer, token, *args):
+            if token != tokens[0]:
+                raise sqlite3.OperationalError("database is locked")
+            return claim(directory, consumer, token, *args)
+
+        with mock.patch.object(NOTICE, "_claim", side_effect=busy_after_first):
+            first = self.response("UserPromptSubmit")["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(tokens[0], first)
+        self.assertNotIn(tokens[1], first)
+        second = self.response("UserPromptSubmit")["hookSpecificOutput"]["additionalContext"]
+        self.assertNotIn(tokens[0], second)
+        self.assertIn(tokens[1], second)
+        self.assertIn("Bridge mail is available", second)
+
+    def test_automatically_paired_role_does_not_notify_an_unrelated_window(self):
+        self.value["model_notice_scope"] = "session_replies_only"
+        self.save()
+        self.assertEqual(self.response("UserPromptSubmit"), {})
+        del self.value["model_notice_scope"]
+        self.save()
+        self.assertIn("additionalContext", self.response("UserPromptSubmit")["hookSpecificOutput"])
+
     def test_model_hooks_share_tokens_and_keep_sessions_independent(self):
         self.assertEqual(self.response()["decision"], "block")
         self.assertEqual(self.response(), {})

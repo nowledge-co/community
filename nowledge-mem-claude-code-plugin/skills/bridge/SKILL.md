@@ -47,6 +47,22 @@ apply to both paths. Native-session instructions do not grant enrollment,
 credential access or a different backend. Use `bridge --help` for an Agent
 mailbox and the native reference for an exact session.
 
+## Bring replies back to this window
+
+Only in Claude Code itself, when the native session ID matches the one supplied by
+this host at startup and the installed CLI lists
+`--return-host` in `nmem --help`, include the global `--return-host=claude-code`
+on role-mailbox discovery, inbox, and send, reply or resume commands for this
+handoff. The CLI uses the current host session to remember where its replies
+belong. Preserve the flag on returned argument vectors. A session ID or an
+Agent Context by itself does not establish which window is running the command.
+In Grok and other compatible hosts, omit the return-host flag even if a parent
+process exported a Claude session ID. On an older CLI, keep the ordinary role mailbox and check for replies there.
+
+At a supported turn boundary, a reply hint supplies the exact action for this
+window. Run it with the configured executable to open the reply and continue
+the authorized task. Sending a handoff leaves an idle recipient asleep.
+
 ## Reuse an existing role through this login
 
 A verified automatic startup result already contains this native session's
