@@ -189,7 +189,7 @@ def _reply_hints(directory, host, session, session_key, fence, now, name, rate_k
         token = entry.get("token")
         if not isinstance(token, str) or not re.fullmatch(r"[0-9a-f]{64}", token):
             continue
-        args = ["bridge", "notices", "open-reply", token]
+        args = [f"--return-host={host}", "bridge", "notices", "open-reply", token]
         if entry.get("open_args") != args:
             continue
         if _claim(directory, "reply:" + session_key, token, name, now, rate_key, session_key):

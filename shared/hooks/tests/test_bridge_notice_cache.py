@@ -129,7 +129,7 @@ class CacheNoticeTests(unittest.TestCase):
         session = self.target["session_id"]
         key = hashlib.sha256(json.dumps(["codex", session], separators=(",", ":")).encode()).hexdigest()
         token = "a" * 64
-        args = ["bridge", "notices", "open-reply", token]
+        args = ["--return-host=codex", "bridge", "notices", "open-reply", token]
         snapshot = {"schema_version": 1, "host": "codex", "session_id": session,
                     "config_fence": self.value["config_fence"], "saved_ms": self.now,
                     "expires_ms": self.now + 45_000,
