@@ -1387,7 +1387,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.19",
+      "version": "0.8.20",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1431,7 +1431,7 @@
         "convention": "cli-direct",
         "note": "The extension injects startup Context Bundle or Working Memory and handles automatic thread capture. Skills teach Pi when to search, save, and inspect prior threads through nmem."
       },
-      "skills": ["read-working-memory", "search-memory", "distill-memory", "status"],
+      "skills": ["read-working-memory", "search-memory", "distill-memory", "save-thread", "status", "bridge"],
       "slashCommands": []
     },
     {

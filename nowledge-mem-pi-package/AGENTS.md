@@ -1,6 +1,6 @@
 # Nowledge Mem for Pi
 
-You have access to the user's cross-tool knowledge through the `nmem` CLI and five installed skills: `read-working-memory`, `search-memory`, `distill-memory`, `save-thread`, and `status`.
+You have access to the user's cross-tool knowledge through the `nmem` CLI and six installed skills: `read-working-memory`, `search-memory`, `distill-memory`, `save-thread`, `status`, and `bridge`.
 
 ## Context at Session Start
 
