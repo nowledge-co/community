@@ -1771,7 +1771,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["alma"]["version"] == "0.7.15"
     assert by_id["alma"]["skills"] == ["nowledge-mem"]
     assert "nowledge_mem_context_bundle" in by_id["alma"]["toolNaming"]["tools"]
-    assert by_id["bub"]["version"] == "0.7.7"
+    assert by_id["bub"]["version"] == "0.7.8"
     assert by_id["pi"]["threadSave"]["method"] == "plugin-capture"
     assert by_id["pi"]["capabilities"]["autoCapture"] is True
     assert by_id["pi"]["autonomy"]["threads"] == "automatic-capture"
@@ -2330,7 +2330,7 @@ def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
     bub_tools = (
         BUB_PLUGIN / "src" / "nowledge_mem_bub" / "tools.py"
     ).read_text(encoding="utf-8")
-    assert 'version = "0.7.7"' in bub_pyproject
+    assert 'version = "0.7.8"' in bub_pyproject
     assert "CREATE_NO_WINDOW" in bub_client
     assert "unit_type: str | None = Field(" in bub_tools
     assert "unit_type: str = Field(" not in bub_tools

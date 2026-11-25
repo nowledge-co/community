@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.8] - 2026-11-24
+
+### Fixed
+
+- Install the hook dependency when the plugin is installed on its own, so Bub can load it immediately.
+
 ## [0.7.6] - 2026-11-24
 
 ### Fixed

@@ -1,6 +1,6 @@
 [project]
 name = "nowledge-mem-bub"
-version = "0.7.7"
+version = "0.7.8"
 description = "Nowledge Mem plugin for Bub — cross-ai context for your agent."
 readme = "README.md"
 license = "Apache-2.0"
@@ -12,7 +12,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = ["bub>=0.3.0a1"]
+dependencies = ["bub>=0.3.0a1", "pluggy>=1.6.0,<2"]
 
 [project.entry-points."bub"]
 nowledge_mem = "nowledge_mem_bub:plugin"
