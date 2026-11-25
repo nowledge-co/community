@@ -61,6 +61,14 @@ At a supported turn boundary, a reply hint supplies the exact action for this
 window. Run it with the configured executable to open the reply and continue
 the authorized task. Sending a handoff leaves an idle recipient asleep.
 
+If the inbox has the reply but Codex never mentions it, ask the user to open
+`/hooks` and inspect the **Bridge mailbox** command from the installed Nowledge
+Mem source. UserPromptSubmit covers the next prompt, PostToolUse an active
+turn, and Stop the end of a turn. Codex requires approval for new or modified
+hook definitions. An enabled plugin or a trusted hook from another source
+cannot establish that this command ran. While approval is pending, the agent
+can check its approved inbox when asked.
+
 ## Reuse an existing role through this login
 
 A verified automatic startup result already contains this native session's

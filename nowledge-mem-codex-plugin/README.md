@@ -662,7 +662,11 @@ Native session mail remains separate from the identity inbox. Older CLIs without
 the cache protocol leave these arrival hooks quiet and retain ordinary reads.
 
 Codex users must review changed hook definitions in `/hooks` after updating; setup
-never grants trust for a definition. See the [official hook contract](https://developers.openai.com/docs/hooks).
+never grants trust for a definition. If delivery is visible in the inbox but a
+running Codex session gets no reminder, check the mailbox commands under
+UserPromptSubmit, PostToolUse, and Stop for the active plugin source. Codex
+can report an enabled command as **untrusted** or **modified**. Review that
+command in `/hooks` to allow it to run. See the [official hook contract](https://developers.openai.com/docs/hooks).
 
 ### Independent startup memory and optional Bridge registration
 
