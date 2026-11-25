@@ -21,7 +21,7 @@ The copied handoff contains no API key or conversation transcript. Native
 
 ## What You Get
 
-Pi gains a native extension plus five skills:
+Pi gains a native extension plus six skills:
 
 - Completed Pi conversations sync into Nowledge Mem as searchable threads
 - Automatic capture keeps user/assistant text, including commentary, attachment
@@ -214,4 +214,6 @@ Made with care by [Nowledge Labs](https://nowledge-labs.ai)
 
 ## Bridge mailbox
 
-Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context in the agent process. The hook asks the current session to check one inbox page through `nmem bridge` for the exact Space. The agent uses the same CLI and Context to discover contacts, send, open, and reply.
+Ask Pi “Use Nowledge Bridge to ask my release agent to review this change.” Pi can find the recipient, send from your approved mailbox and reply to the original message. You can also ask it to check for replies.
+
+For an optional reminder at session start, set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context in the agent process. The hook asks the current session to check one inbox page through `nmem bridge` for the exact Space. The agent uses the same CLI and Context to discover contacts, send, open, and reply.
