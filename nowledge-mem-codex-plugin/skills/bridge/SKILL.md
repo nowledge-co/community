@@ -49,7 +49,8 @@ mailbox and the native reference for an exact session.
 
 ## Bring replies back to this window
 
-When this host supplied its own session information and the installed CLI lists
+Only in Codex itself, when the native session ID matches the one supplied by
+this host at startup and the installed CLI lists
 `--return-host` in `nmem --help`, include the global `--return-host=codex`
 on role-mailbox discovery, inbox, and send, reply or resume commands for this
 handoff. The CLI uses the current host session to remember where its replies

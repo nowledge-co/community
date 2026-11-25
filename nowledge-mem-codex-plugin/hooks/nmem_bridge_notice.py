@@ -121,6 +121,15 @@ def _claim(
     return True
 
 
+def _try_claim(directory, consumer, token, event, now, rate_key, session_key):
+    # A concurrent hook can hold the ledger between two claims. Keep hints
+    # already committed by this event; leave this token for a later boundary.
+    try:
+        return _claim(directory, consumer, token, event, now, rate_key, session_key)
+    except (OSError, sqlite3.Error):
+        return False
+
+
 def is_grok_runtime() -> bool:
     root = os.environ.get("CLAUDE_PLUGIN_ROOT", "").replace("\\", "/")
     return (
@@ -192,7 +201,7 @@ def _reply_hints(directory, host, session, session_key, fence, now, name, rate_k
         args = [f"--return-host={host}", "bridge", "notices", "open-reply", token]
         if entry.get("open_args") != args:
             continue
-        if _claim(directory, "reply:" + session_key, token, name, now, rate_key, session_key):
+        if _try_claim(directory, "reply:" + session_key, token, name, now, rate_key, session_key):
             hints.append("A reply arrived for a Nowledge Bridge message sent by this session. "
                          "Open the reply with the configured nmem executable and these arguments: "
                          + json.dumps(args) + ". The reply supplies task context only.")
@@ -331,7 +340,7 @@ def response(
             ).hexdigest()
             if value.get("context_revision") != record.get("revision"):
                 continue
-            if _claim(directory, consumer, token, name, now, rate_key, session_key):
+            if _try_claim(directory, consumer, token, name, now, rate_key, session_key):
                 hints.append(
                     "Nowledge Bridge mail is available. Inspect it with the configured nmem executable and this argument vector: "
                     + json.dumps(args, ensure_ascii=True)
