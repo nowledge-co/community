@@ -106,7 +106,7 @@ export class BootstrapManager {
   private readonly deps: BootstrapDeps
   private readonly options: BootstrapOptions
   private readonly sessions = new Map<string, SessionState>()
-  private bridgeHint = createBridgeStartupHint()
+  private bridgeHint = createBridgeStartupHint("amp")
 
   /**
    * @param deps - Injected dependencies (CLI client).
@@ -180,7 +180,7 @@ export class BootstrapManager {
    * longer reachable by a subsequent agent-start handler.
    */
   public dispose(): void {
-    this.bridgeHint = createBridgeStartupHint()
+    this.bridgeHint = createBridgeStartupHint("amp")
     this.sessions.clear()
   }
 

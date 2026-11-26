@@ -33,6 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agent_bridge_startup import bridge_startup_hint
+from agent_bridge_notices import bridge_notice_hint
 
 
 RECALL_REMINDER = (
@@ -151,7 +152,7 @@ def main() -> int:
 
     session_key = _safe_session_key(payload)
     bridge_key = f"bridge-{session_key}"
-    hint = "" if _already_injected(bridge_key) else bridge_startup_hint()
+    hint = "" if _already_injected(bridge_key) else bridge_startup_hint(host="icode", session_id=payload.get("session_id"))
     reminder: str | None = None
     context = None
 
@@ -164,7 +165,7 @@ def main() -> int:
     elif recall_mode == "every":
         reminder = RECALL_REMINDER
 
-    reminder = "\n\n".join(part for part in (hint, reminder) if part)
+    reminder = "\n\n".join(part for part in (hint, bridge_notice_hint("icode", payload.get("session_id")), reminder) if part)
     if not reminder:
         return 0
 

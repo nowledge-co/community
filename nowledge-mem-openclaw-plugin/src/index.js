@@ -1,5 +1,4 @@
 import { NowledgeMemClient } from "./client.js";
-import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout.js";
 import { createCliRegistrar } from "./commands/cli.js";
 import {
 	createForgetCommand,
@@ -13,9 +12,13 @@ import {
 } from "./context-engine-ids.js";
 import { createNowledgeMemContextEngineFactory } from "./context-engine.js";
 import { createNowledgeMemCorpusSupplement } from "./corpus-supplement.js";
+import { closeLocalBridgeSession } from "./hooks/agent-bridge-notices.mjs";
+import { createBridgeStartupHint } from "./hooks/agent-bridge-startup.mjs";
 import { buildBehavioralHook } from "./hooks/behavioral.js";
-import { bridgeStartupHint, createBridgeStartupHint } from "./hooks/agent-bridge-startup.mjs";
-import { isCronCaptureSessionKey, isInternalCaptureSessionKey } from "./hooks/capture.js";
+import {
+	isCronCaptureSessionKey,
+	isInternalCaptureSessionKey,
+} from "./hooks/capture.js";
 import {
 	buildAgentEndCaptureHandler,
 	buildBeforeResetCaptureHandler,
@@ -23,6 +26,8 @@ import {
 	registerSessionStartConversation,
 } from "./hooks/capture.js";
 import { buildRecallHandler } from "./hooks/recall.js";
+import { resolveRegistrationMode } from "./register-mode.js";
+import { resolveThreadSyncTimeoutMs } from "./thread-sync-timeout.js";
 import { createConnectionsTool } from "./tools/connections.js";
 import { createContextTool } from "./tools/context.js";
 import { createForgetTool } from "./tools/forget.js";
@@ -33,7 +38,6 @@ import { createStatusTool } from "./tools/status.js";
 import { createThreadFetchTool } from "./tools/thread-fetch.js";
 import { createThreadSearchTool } from "./tools/thread-search.js";
 import { createTimelineTool } from "./tools/timeline.js";
-import { resolveRegistrationMode } from "./register-mode.js";
 
 export default {
 	id: "openclaw-nowledge-mem",
@@ -49,7 +53,9 @@ export default {
 			apiUrl: cfg.apiUrl,
 			apiKey: cfg.apiKey,
 			space: cfg.space,
-			threadSyncTimeoutMs: resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS),
+			threadSyncTimeoutMs: resolveThreadSyncTimeoutMs(
+				process.env.NMEM_SYNC_TIMEOUT_MS,
+			),
 		});
 
 		const { memorySlot, memorySlotSelected } = resolveRegistrationMode({
@@ -170,12 +176,23 @@ export default {
 		// Fires every turn via before_prompt_build — ~50 tokens, negligible cost.
 		// When sessionContext is on, guidance adjusts to avoid redundant searches.
 		api.on("before_prompt_build", buildBehavioralHook(logger, cfg));
-		if (bridgeStartupHint()) {
-			const bridgeHint = createBridgeStartupHint();
+		{
+			const bridgeHint = createBridgeStartupHint("openclaw");
+			api.on("session_end", (event, ctx) => {
+				const session = event?.sessionId || ctx?.sessionId;
+				closeLocalBridgeSession("openclaw", session);
+				bridgeHint.forget(session);
+			});
 			api.on("before_prompt_build", (_event, ctx) => {
 				const key = ctx?.sessionKey;
-				if (!key || ctx.trigger === "heartbeat" || isCronCaptureSessionKey(key) || isInternalCaptureSessionKey(key)) return;
-				const hint = bridgeHint(ctx.sessionId || key);
+				if (
+					!key ||
+					ctx.trigger === "heartbeat" ||
+					isCronCaptureSessionKey(key) ||
+					isInternalCaptureSessionKey(key)
+				)
+					return;
+				const hint = bridgeHint(ctx.sessionId);
 				if (hint) return { prependContext: hint };
 			});
 		}

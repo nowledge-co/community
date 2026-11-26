@@ -18,6 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agent_bridge_startup import bridge_startup_hint
+from agent_bridge_notices import bridge_notice_hint, close_bridge_session
 
 
 NMEM_TIMEOUT_SECS = 30
@@ -118,10 +119,15 @@ def main() -> int:
     args, _unknown = parser.parse_known_args()
     event = (args.event or "").strip().lower()
     raw = sys.stdin.read()
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        payload = {}
+    session = (payload.get("session_id") or payload.get("sessionId")) if isinstance(payload, dict) else None
 
     if event in {"session-start", "compact"}:
         content = read_context()
-        hint = bridge_startup_hint() if event == "session-start" else ""
+        hint = bridge_startup_hint(host="copilot-cli", session_id=session) if event == "session-start" else ""
         if hint:
             context = "\n\n".join(part for part in (hint, content) if part)
             print(json.dumps({"additionalContext": context}))
@@ -137,6 +143,9 @@ def main() -> int:
         return 0
 
     if event == "user-prompt-submit":
+        notice = bridge_notice_hint("copilot-cli", session)
+        if notice:
+            print(notice)
         if nmem_bin():
             print(
                 "[Nowledge Mem] Search proactively when past knowledge would help: "
@@ -144,6 +153,9 @@ def main() -> int:
                 "autonomously: nmem m add \"content\" -t \"Title\" -i 0.8"
             )
         return 0
+
+    if event == "session-end":
+        close_bridge_session("copilot-cli", session)
 
     if event in {"stop", "pre-compact", "session-end"}:
         return run_capture(event, raw)

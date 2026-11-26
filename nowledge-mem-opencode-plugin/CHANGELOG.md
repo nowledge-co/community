@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.11] - 2026-11-26
+
+- Update Bridge host/session notice adapters and shared local-cache consumer support. Actual notification availability depends on the host hook and a compatible CLI; native sessions and idle wakeup are unchanged.
+
 ## [0.4.10] - 2026-11-20
 
 - Add an opt-in startup hint for checking the approved Nowledge Bridge Agent mailbox.

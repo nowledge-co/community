@@ -757,7 +757,7 @@ export async function activate(context) {
 		threadSyncTimeoutMs,
 	});
 	const recalledThreads = new Set();
-	const bridgeHint = createBridgeStartupHint();
+	const bridgeHint = createBridgeStartupHint("alma");
 
 	let recallPolicy = resolveRecallPolicy(context.settings, logger);
 	let autoCapture = Boolean(

@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { exactSpaceBody, resolveSpaceReference } from "./generated/plugin-core/index.js"
-import { bridgeStartupHint, createBridgeStartupHint } from "./agent-bridge-startup.mjs"
+import { createBridgeStartupHint } from "./agent-bridge-startup.mjs"
 
 import { createNmemCliRunner } from "./cli-runner.mjs"
 import {
@@ -903,8 +903,8 @@ export default Plugin.define({
 
     // --- v2 session hooks (replace the v1 returned hook map) ---
 
-    if (automaticContext || bridgeStartupHint()) {
-      const startupHint = createBridgeStartupHint()
+    {
+      const startupHint = createBridgeStartupHint("opencode")
       await ctx.session.hook("context", (event) => {
         if (automaticContext) {
           event.system.push({ type: "text", text: BEHAVIORAL_GUIDANCE })

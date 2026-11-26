@@ -3,6 +3,11 @@
 import os
 from threading import Lock
 
+try:
+    from .agent_bridge_notices import bridge_notice_hint, bridge_session_hint, valid_bridge_session
+except ImportError:
+    from agent_bridge_notices import bridge_notice_hint, bridge_session_hint, valid_bridge_session
+
 _GUIDANCE = (
     "<nowledge_bridge_startup>\n"
     "Check one page of the approved Nowledge Bridge Agent mailbox in its exact Space.\n"
@@ -28,31 +33,32 @@ _GUIDANCE = (
 )
 
 
-def bridge_startup_hint(env=None):
+def bridge_startup_hint(env=None, host=None, session_id=None):
     if env is None:
         env = os.environ
     if env.get("NMEM_BRIDGE_INBOX_ON_START") == "1" and env.get("NMEM_AGENT_CONTEXT", "").strip():
-        return _GUIDANCE
+        return "\n".join(part for part in (_GUIDANCE, bridge_session_hint(host, session_id)) if part)
     return ""
 
 
-def create_bridge_startup_hint():
+def create_bridge_startup_hint(host=None):
     """Use for in-process prompt hooks that may repeat for one session."""
     sessions = {}
     lock = Lock()
 
     def for_session(session_id, env=None):
-        if not isinstance(session_id, str) or not session_id:
+        if not valid_bridge_session(session_id):
             return ""
-        hint = bridge_startup_hint(env)
+        notices = bridge_notice_hint(host, session_id, env)
+        hint = bridge_startup_hint(env, host, session_id)
         if not hint:
-            return ""
+            return notices
         with lock:
             if session_id in sessions:
-                return ""
+                return notices
             if len(sessions) >= 256:
                 del sessions[next(iter(sessions))]
             sessions[session_id] = None
-        return hint
+        return "\n".join(part for part in (hint, notices) if part)
 
     return for_session

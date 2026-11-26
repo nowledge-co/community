@@ -16,7 +16,7 @@ if ([string]::IsNullOrWhiteSpace($HermesHome)) {
 $HermesHome = [IO.Path]::GetFullPath($HermesHome)
 $ConfigPath = Join-Path $HermesHome "config.yaml"
 $BaseUrl = "https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-hermes"
-$PluginFiles = @("plugin.yaml", "__init__.py", "provider.py", "client.py", "skill_outcome.py", "agent_bridge_startup.py")
+$PluginFiles = @("plugin.yaml", "__init__.py", "provider.py", "client.py", "skill_outcome.py", "agent_bridge_startup.py", "agent_bridge_notices.py", "nmem_bridge_notice.py")
 $Utf8NoBom = [Text.UTF8Encoding]::new($false)
 
 function Write-Utf8File([string]$Path, [string]$Content) {
@@ -59,7 +59,7 @@ from pathlib import Path
 import sys
 
 target = Path(sys.argv[1])
-expected = {"plugin.yaml", "__init__.py", "provider.py", "client.py", "skill_outcome.py", "agent_bridge_startup.py"}
+expected = {"plugin.yaml", "__init__.py", "provider.py", "client.py", "skill_outcome.py", "agent_bridge_startup.py", "agent_bridge_notices.py", "nmem_bridge_notice.py"}
 missing_files = sorted(name for name in expected if not (target / name).is_file())
 if missing_files:
     raise SystemExit("missing plugin files: " + ", ".join(missing_files))

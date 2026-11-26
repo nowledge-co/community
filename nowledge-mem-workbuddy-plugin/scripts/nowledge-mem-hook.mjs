@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { bridgeNoticeHint, bridgeSessionHint, closeLocalBridgeSession } from "./agent-bridge-notices.mjs";
 
 import { bridgeStartupHint } from "./agent-bridge-startup.mjs";
 import { spawnSync } from "node:child_process";
@@ -225,7 +226,7 @@ function handleContext(payload) {
     }
   }
 
-  content = [content, bridgeStartupHint()].filter(Boolean).join("\n\n");
+  content = [content, bridgeStartupHint() ? [bridgeStartupHint(), bridgeSessionHint("workbuddy", payload.session_id || payload.sessionId)].filter(Boolean).join("\n") : ""].filter(Boolean).join("\n\n");
   if (!content) return allow();
   allow({
     hookSpecificOutput: {
@@ -239,7 +240,7 @@ function handleRoute(payload) {
   allow({
     hookSpecificOutput: {
       hookEventName: String(payload.hook_event_name || "UserPromptSubmit"),
-      additionalContext: ROUTING_CONTEXT,
+      additionalContext: [ROUTING_CONTEXT, bridgeNoticeHint("workbuddy", payload.session_id || payload.sessionId)].filter(Boolean).join("\n"),
     },
   });
 }
@@ -267,6 +268,7 @@ export function captureAcknowledged(result) {
 function handleSync(payload) {
   const event = String(payload.hook_event_name || "unknown");
   const parentSessionId = String(payload.session_id || payload.sessionId || "").trim();
+  if (event === "SessionEnd") closeLocalBridgeSession("workbuddy", parentSessionId);
   const agentId = String(payload.agent_id || payload.agentId || "").trim();
   const sessionId =
     event === "SubagentStop" && agentId ? agentId : parentSessionId;

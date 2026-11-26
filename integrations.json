@@ -445,7 +445,7 @@
       "name": "Copilot CLI",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "directory": "nowledge-mem-copilot-cli-plugin",
       "transport": "cli",
       "capabilities": {
@@ -496,7 +496,7 @@
       "name": "Gemini CLI",
       "category": "coding",
       "type": "extension",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "directory": "nowledge-mem-gemini-cli",
       "transport": "cli+mcp",
       "capabilities": {
@@ -549,7 +549,7 @@
       "name": "Google Antigravity",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-google-antigravity",
       "transport": "cli+mcp+hooks",
@@ -749,7 +749,7 @@
       "name": "Dim",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-dim-plugin",
       "transport": "mcp+hook+cli",
       "capabilities": {
@@ -1058,7 +1058,7 @@
       "name": "OpenHands",
       "category": "orchestrator",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-openhands-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -1128,7 +1128,7 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "directory": "nowledge-mem-cursor-plugin",
       "transport": "mcp+hook",
       "capabilities": {
@@ -1180,7 +1180,7 @@
       "name": "Droid",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "directory": "nowledge-mem-droid-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1211,6 +1211,7 @@
         "command": "droid plugin marketplace add https://github.com/nowledge-co/community && droid plugin install nowledge-mem@community",
         "updateCommand": "droid plugin marketplace update community && droid plugin update nowledge-mem@community",
         "detectionHint": "Running inside Droid (Factory)",
+        "configRequired": "Node.js 20+ on PATH is required for the ongoing Bridge notice hooks; they use Droid plugin exec form. Existing MCP and startup context paths remain available separately.",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Droid. Verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
           "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Droid 安装或更新 Nowledge Mem。用 nmem status 和 Context Bundle 或 Working Memory 检查验证结果，并总结你改了什么。"
@@ -1229,7 +1230,7 @@
       "name": "OpenClaw",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.45",
+      "version": "0.8.46",
       "directory": "nowledge-mem-openclaw-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1286,7 +1287,7 @@
       "name": "Alma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.15",
+      "version": "0.7.16",
       "directory": "nowledge-mem-alma-plugin",
       "transport": "http",
       "capabilities": {
@@ -1336,7 +1337,7 @@
       "name": "Bub",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.8",
+      "version": "0.7.9",
       "directory": "nowledge-mem-bub-plugin",
       "transport": "cli",
       "capabilities": {
@@ -1387,7 +1388,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.20",
+      "version": "0.8.21",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1439,7 +1440,7 @@
       "name": "Step Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-step-code",
       "transport": "plugin+cli",
       "capabilities": {
@@ -1491,7 +1492,7 @@
       "name": "Hermes Agent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.5.30",
+      "version": "0.5.31",
       "directory": "nowledge-mem-hermes",
       "transport": "cli",
       "capabilities": {
@@ -1599,7 +1600,7 @@
       "name": "Amp",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "directory": "nowledge-mem-amp-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1662,7 +1663,7 @@
       "name": "OpenCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.4.10",
+      "version": "0.4.11",
       "directory": "nowledge-mem-opencode-plugin",
       "transport": "cli+http",
       "capabilities": {
@@ -1719,7 +1720,7 @@
       "name": "Kimi Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.5",
+      "version": "0.2.6",
       "directory": "nowledge-mem-kimi-code-plugin",
       "transport": "skills+hook+mcp-config",
       "capabilities": {
@@ -1775,7 +1776,7 @@
       "name": "Kimi Work",
       "category": "coding",
       "type": "connector",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-kimi-work-connector",
       "transport": "mcp+skills+hook",
       "capabilities": {
@@ -1829,7 +1830,7 @@
       "name": "ZCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/zcode-plugin",
       "transport": "plugin+mcp+skills+commands+hooks",
@@ -1881,7 +1882,7 @@
       "name": "DeepSeek Harness",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "directory": "nowledge-mem-deepseek-harness-plugin",
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
       "transport": "dsh-bundle+mcp+cli",
@@ -1993,7 +1994,7 @@
       "name": "OMP",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "directory": "nowledge-mem-omp-plugin",
       "transport": "plugin+cli",
       "capabilities": {
@@ -2099,7 +2100,7 @@
       "name": "CodeBuddy",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-codebuddy-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -2154,7 +2155,7 @@
       "name": "WorkBuddy",
       "category": "office",
       "type": "plugin",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "directory": "nowledge-mem-workbuddy-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -2209,7 +2210,7 @@
       "name": "Proma",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "directory": "nowledge-mem-proma-plugin",
       "transport": "mcp",
       "capabilities": {
@@ -3005,7 +3006,7 @@
       "name": "iCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-icode-plugin",
       "transport": "mcp-config+hook",
       "capabilities": {

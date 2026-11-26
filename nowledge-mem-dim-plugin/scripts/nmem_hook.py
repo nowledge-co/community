@@ -24,6 +24,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 import nmem_common
 from agent_bridge_startup import bridge_startup_hint
+from agent_bridge_notices import bridge_notice_hint
 
 TOTAL_TIMEOUT_SECONDS = 10.0
 ATTEMPT_TIMEOUT_SECONDS = 7.0
@@ -124,7 +125,7 @@ def main() -> int:
                 {
                     "hookSpecificOutput": {
                         "hookEventName": "UserPromptSubmit",
-                        "additionalContext": PROMPT_GUIDANCE,
+                        "additionalContext": "\n".join(filter(None, [PROMPT_GUIDANCE, bridge_notice_hint("dim", session_id)])),
                     }
                 },
                 ensure_ascii=True,
@@ -141,7 +142,7 @@ def main() -> int:
     deadline = started + TOTAL_TIMEOUT_SECONDS
     nmem = nmem_common.find_nmem()
     text, source, reason = load_context(nmem, deadline)
-    hint = bridge_startup_hint()
+    hint = bridge_startup_hint(host="dim", session_id=session_id)
     if not text and not hint:
         nmem_common.log(
             {"hook": "startup", "status": "unavailable", "reason": reason}

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from agent_bridge_startup import bridge_startup_hint
+from agent_bridge_notices import bridge_notice_hint, valid_bridge_session
 
 
 def claim_session(host, session_id):
@@ -31,9 +32,6 @@ def claim_session(host, session_id):
 
 
 def main():
-    hint = bridge_startup_hint()
-    if not hint:
-        return
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("host", choices=("kimi-code", "kimi-work"))
     host = parser.parse_args().host
@@ -44,8 +42,15 @@ def main():
     if not isinstance(payload, dict) or payload.get("hook_event_name") != "UserPromptSubmit":
         return
     session_id = payload.get("session_id")
-    if isinstance(session_id, str) and 0 < len(session_id) <= 1024 and claim_session(host, session_id):
+    if not valid_bridge_session(session_id):
+        return
+    hint = bridge_startup_hint(host=host, session_id=session_id)
+    if hint and claim_session(host, session_id):
         print(hint)
+    notice = bridge_notice_hint(host, session_id)
+    if notice:
+        print(notice)
+
 
 
 if __name__ == "__main__":

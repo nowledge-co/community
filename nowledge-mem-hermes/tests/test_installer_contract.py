@@ -73,3 +73,24 @@ def test_resolve_nmem_finds_common_user_bin_when_path_is_reduced(monkeypatch, tm
     assert os.path.normcase(os.path.normpath(resolved)) == os.path.normcase(
         os.path.normpath(str(exe))
     )
+
+
+def test_generic_notice_helpers_install_as_a_closed_runtime(tmp_path):
+    import shutil
+    import subprocess
+    import pytest
+
+    bash = shutil.which("bash")
+    if os.name == "nt" or not bash:
+        pytest.skip("POSIX installer fixture; PowerShell has its own installation carrier")
+    home = tmp_path / "home"
+    home.mkdir()
+    runtime = home / ".hermes"
+    env = dict(os.environ, HOME=str(home), HERMES_HOME=str(runtime))
+    result = subprocess.run([bash, str(PLUGIN_ROOT / "setup.sh")], env=env, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    installed = runtime / "plugins" / "nowledge-mem"
+    for name in ["agent_bridge_notices.py", "nmem_bridge_notice.py"]:
+        assert (installed / name).read_bytes() == (PLUGIN_ROOT / name).read_bytes()
+    result = subprocess.run([sys.executable, "-c", "import agent_bridge_notices, nmem_bridge_notice"], cwd=installed, env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

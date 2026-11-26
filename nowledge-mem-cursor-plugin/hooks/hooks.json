@@ -5,12 +5,28 @@
       {
         "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs\"",
         "timeout": 15
+      },
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/bridge-notice.mjs\"",
+        "timeout": 2
       }
     ],
     "stop": [
       {
         "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/stop-save.mjs\"",
         "timeout": 40
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/bridge-notice.mjs\"",
+        "timeout": 2
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/bridge-notice.mjs\"",
+        "timeout": 2
       }
     ]
   }

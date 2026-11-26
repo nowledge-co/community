@@ -114,7 +114,7 @@ def test_install_merges_mcp_and_hook_idempotently(fake_home, tmp_path):
     assert ids == ["nowledge-mem-icode-context"]
 
     manifest = json.loads((config_dir / "nowledge-mem-icode-install.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.1.1"
+    assert manifest["version"] == "0.1.2"
 
 
 def test_install_never_prints_api_key(fake_home, tmp_path, capsys):
@@ -430,3 +430,16 @@ def test_hook_ignores_other_events_and_bad_payloads(fake_home, tmp_path):
     )
     assert proc.returncode == 0
     assert not result_file.exists()
+
+
+def test_generic_notice_helpers_install_and_remove_with_owned_runtime(fake_home, tmp_path):
+    _write_nmem_config(fake_home, "http://127.0.0.1:14242", "fixture-key")
+    installer = _install(fake_home, tmp_path)
+    hooks = fake_home / ".chrys" / "hooks" / "scripts"
+    for name in ["agent_bridge_notices.py", "nmem_bridge_notice.py"]:
+        assert (hooks / name).read_bytes() == (PLUGIN_ROOT / "hooks" / name).read_bytes()
+    result = subprocess.run([sys.executable, "-c", "import agent_bridge_notices, nmem_bridge_notice"], cwd=hooks, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert installer.main(["--config-dir", str(fake_home / ".chrys"), "--remove"]) == 0
+    assert not (hooks / "agent_bridge_notices.py").exists()
+    assert not (hooks / "nmem_bridge_notice.py").exists()

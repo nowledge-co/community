@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.8] - 2026-11-26
+
+- Update Bridge host/session notice adapters and shared local-cache consumer support. Actual notification availability depends on the host hook and a compatible CLI; native sessions and idle wakeup are unchanged.
+
 All notable changes to the Nowledge Mem Copilot CLI plugin will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

@@ -1,9 +1,11 @@
+import { windowsComspec, windowsCommandLine } from "./bridge-windows-command.mjs";
+import { bridgeNoticeWithRunner, closeBridgeSession } from "./agent-bridge-notices.mjs";
 import { createBridgeStartupHint } from "./agent-bridge-startup.mjs";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join, win32 as pathWin32 } from "node:path";
+import { basename, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { RESUME_ENTRY, parseResumePrompt, requireResumeReply, resumeBootstrapArgs, type ResumeReply } from "./thread-resume.ts";
 import { isCindyRuntime, projectCindyUserText } from "./cindy-dialogue.ts";
@@ -25,7 +27,7 @@ import { exactSpaceBody, resolveThreadSyncTimeoutMs } from "./generated/plugin-c
 export { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.20";
+const DEFAULT_PLUGIN_VERSION = "0.8.21";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;
@@ -108,7 +110,6 @@ const startupContextCache = new Map<string, StartupContextEntry>();
 const startupContextWarnings = new Set<string>();
 const ambiguousCindyWarnings = new Set<string>();
 const resumeStates = new Map<string, { reply?: ResumeReply; error?: string }>();
-const WINDOWS_CMD_ENV_EXPANSION_RE = /%[A-Za-z_][A-Za-z0-9_]*%/;
 
 function debugWarn(message: string): void {
 	if (process.env.NMEM_PLUGIN_DEBUG?.trim() === "1") {
@@ -895,69 +896,6 @@ function warnStartupContextFailure(stage: string, detail: string): void {
 	debugWarn(`startup context ${stage}: ${detail}`);
 }
 
-function quoteWindowsBatchArg(arg: string): string {
-	if (arg === "") return '""';
-	const out: string[] = ['"'];
-	let i = 0;
-	const n = arg.length;
-	while (i < n) {
-		let backslashes = 0;
-		while (i < n && arg[i] === "\\") {
-			i += 1;
-			backslashes += 1;
-		}
-		if (i === n) {
-			out.push("\\".repeat(backslashes * 2));
-			break;
-		}
-		if (arg[i] === '"') {
-			out.push("\\".repeat(backslashes * 2));
-			out.push('""');
-			i += 1;
-		} else {
-			out.push("\\".repeat(backslashes));
-			out.push(arg[i]);
-			i += 1;
-		}
-	}
-	out.push('"');
-	return out.join("");
-}
-
-function rejectWindowsCmdEnvExpansion(args: string[]): void {
-	for (let index = 1; index < args.length; index += 1) {
-		if (WINDOWS_CMD_ENV_EXPANSION_RE.test(args[index])) {
-			throw new Error(
-				"nmem Windows .cmd shim cannot safely receive %VAR%-style arguments; remove or escape the environment-variable token before retrying.",
-			);
-		}
-	}
-}
-
-function windowsComspec(): string {
-	const systemRoot = process.env.SystemRoot || "C:\\Windows";
-	const root = pathWin32.isAbsolute(systemRoot) ? systemRoot : "C:\\Windows";
-	const expected = pathWin32.join(root, "System32", "cmd.exe");
-	const comspec = process.env.ComSpec || "";
-	const samePath = (left: string, right: string) =>
-		pathWin32.normalize(left).toLowerCase() === pathWin32.normalize(right).toLowerCase();
-	if (
-		comspec &&
-		pathWin32.isAbsolute(comspec) &&
-		pathWin32.basename(comspec).toLowerCase() === "cmd.exe" &&
-		samePath(comspec, expected) &&
-		existsSync(comspec)
-	) {
-		return comspec;
-	}
-	return existsSync(expected) ? expected : "C:\\Windows\\System32\\cmd.exe";
-}
-
-function windowsCommandLine(args: string[]): string {
-	rejectWindowsCmdEnvExpansion(args);
-	return args.map(quoteWindowsBatchArg).join(" ");
-}
-
 function remainingStartupContextTimeout(deadline: number): number {
 	return Math.max(1, deadline - Date.now());
 }
@@ -1128,7 +1066,7 @@ async function appendMemoryContext(systemPrompt: string, ctx: ExtensionContext):
 }
 
 export default function nowledgeMemPi(pi: ExtensionAPI) {
-	const bridgeHint = createBridgeStartupHint();
+	const bridgeHint = createBridgeStartupHint(sourceApp(), false);
 	const bootstrap = async (ctx: ExtensionContext, locator?: string): Promise<void> => {
 		if (sourceApp() !== "pi") return;
 		const id = sessionId(ctx);
@@ -1199,7 +1137,7 @@ export default function nowledgeMemPi(pi: ExtensionAPI) {
 		const context = resumeStates.get(sessionId(ctx))?.reply?.context.context_text;
 		const prompt = context ? `${event.systemPrompt}\n\n${context}` : event.systemPrompt;
 		const memoryPrompt = await appendMemoryContext(prompt, ctx);
-		const hint = bridgeHint(sessionId(ctx));
+		const hint = [bridgeHint(sessionId(ctx)), await bridgeNoticeWithRunner(sourceApp(), sessionId(ctx), spawnNmem)].filter(Boolean).join("\n");
 		return { systemPrompt: hint ? `${memoryPrompt}\n\n${hint}` : memoryPrompt };
 	});
 
@@ -1219,12 +1157,16 @@ export default function nowledgeMemPi(pi: ExtensionAPI) {
 	});
 
 	pi.on("session_before_switch", async (event, ctx) => {
+		await closeBridgeSession(sourceApp(), sessionId(ctx), spawnNmem);
+		bridgeHint.forget(sessionId(ctx));
 		await flush(ctx, event.reason === "new" ? "session_new" : "session_resume");
 		evictSyncState(ctx);
 		evictStartupContext(ctx);
 	});
 
 	pi.on("session_shutdown", async (event, ctx) => {
+		await closeBridgeSession(sourceApp(), sessionId(ctx), spawnNmem);
+		bridgeHint.forget(sessionId(ctx));
 		await flush(ctx, `session_shutdown:${event.reason}`);
 		evictSyncState(ctx);
 		evictStartupContext(ctx);

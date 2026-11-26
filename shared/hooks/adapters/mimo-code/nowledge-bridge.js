@@ -1,6 +1,6 @@
 import { createBridgeStartupHint } from './agent-bridge-startup.mjs'
 
-const startupHint = createBridgeStartupHint()
+const startupHint = createBridgeStartupHint("mimo-code")
 
 export default {
   async 'experimental.chat.messages.transform'(_input, output) {

@@ -46,6 +46,17 @@ class PythonRuntimeTests(unittest.TestCase):
     def test_installed_stop_hook_starts(self):
         self.check_hook(installed=True)
 
+    def test_generic_notice_installed_module_closure(self):
+        with tempfile.TemporaryDirectory(prefix="copilot-notice-install-") as owned:
+            root = Path(owned)
+            profile = root / "profile"
+            env = dict(os.environ, COPILOT_HOME=str(profile), NMEM_NO_MAILBOX_NOTICE="1")
+            self.run_python(PLUGIN / "scripts" / "install_hooks.py", env, root)
+            hooks = profile / "nowledge-mem-hooks"
+            for name in ["agent_bridge_notices.py", "nmem_bridge_notice.py"]:
+                self.assertEqual((hooks / name).read_bytes(), (PLUGIN / "hooks" / name).read_bytes())
+            self.run_python(hooks / "copilot-hook.py", env, root, "--event", "user-prompt-submitted")
+
 
 if __name__ == "__main__":
     unittest.main()

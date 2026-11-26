@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Consume local Bridge mailbox notices for actual host sessions and release subscriptions on session end.
+
 ## Unreleased
 
 - Automatic CodeBuddy capture now uses the shared durable per-session queue and

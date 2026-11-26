@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.21] - 2026-11-26
+
+- Update Bridge host/session notice adapters and shared local-cache consumer support. Actual notification availability depends on the host hook and a compatible CLI; native sessions and idle wakeup are unchanged.
+
 ## [0.8.20] - 2026-11-25
 
 - Ask Pi to find an agent, send a handoff, or reply to the original message through Nowledge Bridge. The startup inbox reminder remains optional.

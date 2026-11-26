@@ -270,3 +270,29 @@ test('failed capture releases its claim so a later stop can retry', async (conte
   assert.deepEqual(failed, { saved: false, reason: 'save-failed', attempts: 4 });
   assert.deepEqual(retried, { saved: true, reason: 'saved', attempts: 1 });
 });
+
+
+test('generic Bridge tool hint preserves Context and session; SessionEnd releases without a transcript', {skip: process.platform === 'win32'}, t => {
+  const root = temporaryStateRoot();
+  t.after(() => rmSync(root, {recursive:true, force:true}));
+  const log = path.join(root, 'argv.json');
+  const cli = path.join(root, 'nmem');
+  writeFileSync(cli, `#!/bin/sh
+printf '%s\\n' "$@" > "$BRIDGE_FIXTURE_LOG"
+printf '%s' '{"notices":[{"hint":"Synthetic mail","args":["--agent-context=selected","bridge","inbox"]}]}'
+`, {mode:0o700});
+  const script = fileURLToPath(new URL('../hooks/bridge-notice.mjs', import.meta.url));
+  const session = 'actual & "quoted"';
+  // Prepare the disposable executable before testing the bounded hook itself.
+  assert.equal(spawnSync(cli, [], {env:{...process.env, BRIDGE_FIXTURE_LOG:log}}).status, 0);
+  rmSync(log);
+  const run = event => {
+    const result = spawnSync(process.execPath, [script], {input:JSON.stringify({hook_event_name:event, conversation_id:session}), encoding:'utf8', env:{...process.env, NMEM_CLI_PATH:cli, BRIDGE_FIXTURE_LOG:log, NMEM_NO_MAILBOX_NOTICE:'0', NMEM_AGENT_CONTEXT:'selected'}});
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  };
+  assert.match(run('postToolUse').additional_context, /Synthetic mail/);
+  assert.deepEqual(readFileSync(log, 'utf8').trim().split('\n'), ['--json','--agent-context=selected','bridge','notices','check','--host=cursor','--session-id='+session,'--event=tool']);
+  assert.deepEqual(run('sessionEnd'), {});
+  assert.deepEqual(readFileSync(log,'utf8').trim().split('\n'), ['--json','bridge','notices','unsubscribe','--host=cursor','--session-id='+session,'--ended']);
+});

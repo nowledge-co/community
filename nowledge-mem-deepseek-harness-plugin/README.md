@@ -326,3 +326,8 @@ This integrates the existing **Agent mailbox**. It does not register DSH as a
 native-session Bridge host, wake an idle agent, or prove delivery readiness.
 The installed-host fixture verifies model visibility and exclusion from captured
 Threads; it does not establish a production two-Agent send/open/reply roundtrip.
+
+## Explicit Bridge mailbox notices
+
+With an explicitly subscribed actual host session, the active-turn hook consumes fresh local observer hints. It does not fetch or acknowledge mail, poll, wake an idle host, create an identity, or enable native-session/precise-reply routing. Startup inbox opt-in alone does not authorize this ongoing subscription. The adapter requires a CLI with `bridge notices check` and quietly retains the startup-only flow with older CLIs.
+The adapter has no true session-end hook. Before retiring a subscribed session, use `nmem bridge notices unsubscribe --host=deepseek-harness --session-id=<actual-session-id> --ended`. Turn completion is not session termination.

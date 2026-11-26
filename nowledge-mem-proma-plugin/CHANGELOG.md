@@ -1,5 +1,9 @@
 # Changelog — nowledge-mem-proma-plugin
 
+## [0.1.10] - 2026-11-26
+
+- Update Bridge host/session notice adapters and shared local-cache consumer support. Actual notification availability depends on the host hook and a compatible CLI; native sessions and idle wakeup are unchanged.
+
 ## [0.1.9] - 2026-11-20
 
 - Add opt-in startup guidance for the approved Bridge Agent mailbox.

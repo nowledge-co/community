@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+
+- Consume local Bridge mailbox notices for actual host sessions and release subscriptions on session end.
+
 ## Unreleased
 
 ## [0.2.3] - 2026-11-20

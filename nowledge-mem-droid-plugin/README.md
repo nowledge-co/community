@@ -206,3 +206,7 @@ This validates the plugin manifest, required files, honest handoff semantics, an
 ## Bridge mailbox
 
 Set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an approved Cloud Context in the agent process. The hook asks the current session to check one inbox page through `nmem bridge` for the exact Space. The agent uses the same CLI and Context to discover contacts, send, open, and reply.
+
+### Ongoing Bridge notice runtime
+
+The optional ongoing-notice adapter requires Node.js 20+ on PATH and a CLI with `bridge notices check`. It uses Droid's plugin exec-form hook (`command: node` plus an argument array), which avoids shell expansion on Windows, macOS and Linux. Existing MCP and startup-only use does not require this optional adapter. Install Node.js before enabling ongoing session notices.
