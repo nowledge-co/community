@@ -223,10 +223,7 @@ def response(
         return {}
     if not isinstance(session, str) or not session or len(session) > 1024:
         return {}
-    try:
-        root = root or Path(env.get("NMEM_CLI_CONFIG_DIR") or Path.home() / ".nowledge-mem")
-    except (OSError, RuntimeError):
-        return {}
+    root = root or Path(env.get("NMEM_CLI_CONFIG_DIR") or Path.home() / ".nowledge-mem")
     directory = root / "bridge-notices-v1"
     now = int(time.time() * 1000) if now_ms is None else now_ms
     started = time.monotonic()

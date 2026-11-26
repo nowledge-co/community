@@ -40,7 +40,10 @@ def bridge_notice_hint(host, session, env=None):
         from .nmem_bridge_notice import response
     except ImportError:
         from nmem_bridge_notice import response
-    value = response({"hook_event_name": "UserPromptSubmit", "session_id": session}, host=host, environ=env)
+    try:
+        value = response({"hook_event_name": "UserPromptSubmit", "session_id": session}, host=host, environ=env)
+    except (OSError, RuntimeError):
+        return ""
     return value.get("hookSpecificOutput", {}).get("additionalContext", "")
 
 
