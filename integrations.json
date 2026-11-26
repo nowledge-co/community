@@ -182,7 +182,7 @@
       "name": "Claude Code",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.39",
+      "version": "0.7.41",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -237,7 +237,7 @@
       "name": "Grok Build",
       "category": "coding",
       "type": "plugin",
-      "version": "0.7.39",
+      "version": "0.7.41",
       "directory": "nowledge-mem-claude-code-plugin",
       "transport": "cli",
       "capabilities": {
@@ -633,7 +633,7 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.55",
+      "version": "0.1.57",
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -1128,7 +1128,7 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.3",
+      "version": "0.2.5",
       "directory": "nowledge-mem-cursor-plugin",
       "transport": "mcp+hook",
       "capabilities": {
@@ -1387,7 +1387,7 @@
       "name": "Pi",
       "category": "coding",
       "type": "plugin",
-      "version": "0.8.20",
+      "version": "0.8.22",
       "directory": "nowledge-mem-pi-package",
       "transport": "plugin+cli",
       "capabilities": {

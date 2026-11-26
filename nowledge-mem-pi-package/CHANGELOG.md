@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.22
+
+- Guide bounded original-operation follow-up and local reply-route recovery when supported by the installed CLI. Preserve exact scope and distinguish replies from work acceptance.
+
 ## [0.8.20] - 2026-11-25
 
 - Ask Pi to find an agent, send a handoff, or reply to the original message through Nowledge Bridge. The startup inbox reminder remains optional.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.57
+
+- Guide bounded original-operation follow-up and local reply-route recovery when supported by the installed CLI. Preserve exact scope and distinguish replies from work acceptance.
+
 ## [0.1.55] - Unreleased
 
 - With a compatible Bridge CLI, your session can open the reply to its own handoff on the next supported turn. Other sessions sharing the same role keep their own conversations.
