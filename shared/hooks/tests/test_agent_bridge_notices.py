@@ -20,6 +20,10 @@ class GenericBridgeNoticeTests(unittest.TestCase):
             response.assert_called_once_with({"hook_event_name": "UserPromptSubmit", "session_id": session}, host="pi", environ={"NMEM_CLI_PATH": "C:/fixture/nmem.cmd"})
             runner.assert_not_called()
 
+    def test_missing_home_directory_does_not_break_prompt(self):
+        with mock.patch("pathlib.Path.home", side_effect=RuntimeError("Could not determine home directory.")):
+            self.assertEqual(bridge_notice_hint("dim", "actual-session", {}), "")
+
     def test_missing_session_never_consumes_a_notice(self):
         with mock.patch("nmem_bridge_notice.response") as response:
             for session in [None, "", " ", "unknown", "bad\nvalue", "\ud800", "x" * 1025]:

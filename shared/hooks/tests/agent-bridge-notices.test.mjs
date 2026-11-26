@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { bridgeNoticeHint, bridgeSessionHint, validBridgeSession, bridgeNoticeWithRunner, closeBridgeSession } from '../agent-bridge-notices.mjs'
 
@@ -52,7 +53,7 @@ test('host runner owns Windows execution for notices and actual session cleanup'
 
 
 test('selected Context fences both JS check paths while cleanup releases the actual session', async () => {
-  const env = {NMEM_AGENT_CONTEXT:'context-a'}
+  const env = {NMEM_AGENT_CONTEXT:'context-a', NMEM_CLI_PATH:'/fixture/nmem.exe'}
   const expected = ['--agent-context=context-a', 'bridge', 'notices', 'check', '--host=pi', '--session-id=shared-session']
   let selected = 0
   bridgeNoticeHint('pi', 'shared-session', env, (_executable, args) => {
@@ -77,7 +78,7 @@ test('Droid exec-form hook preserves actual session correlation without Python',
     assert.equal(hook.command, 'node')
     assert.deepEqual(hook.args, ['${DROID_PLUGIN_ROOT}/hooks/bridge-notice.mjs'])
   }
-  const result = spawnSync(process.execPath, [new URL('bridge-notice.mjs', root).pathname], {input:JSON.stringify({hook_event_name:'SessionStart',session_id:'actual-droid-session'}), encoding:'utf8', env:{...process.env,NMEM_BRIDGE_INBOX_ON_START:'1',NMEM_AGENT_CONTEXT:'fixture'}})
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL('bridge-notice.mjs', root))], {input:JSON.stringify({hook_event_name:'SessionStart',session_id:'actual-droid-session'}), encoding:'utf8', env:{...process.env,NMEM_BRIDGE_INBOX_ON_START:'1',NMEM_AGENT_CONTEXT:'fixture'}})
   assert.equal(result.status,0,result.stderr)
   assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /actual-droid-session/)
 })

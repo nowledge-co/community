@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[3]
 HELPERS = ROOT / "shared" / "hooks"
 sys.path.insert(0, str(HELPERS))
 from agent_bridge_startup import bridge_startup_hint, create_bridge_startup_hint
+from agent_bridge_notices import bridge_session_hint
 
 OPTED_IN = {"NMEM_BRIDGE_INBOX_ON_START": "1", "NMEM_AGENT_CONTEXT": "private-role"}
 
@@ -60,7 +61,7 @@ class AgentBridgeStartupTests(unittest.TestCase):
     def test_shell_hooks_inject_only_static_guidance(self):
         for host in ("codebuddy", "droid"):
             config = json.loads((ROOT / f"nowledge-mem-{host}-plugin/hooks/hooks.json").read_text())
-            startup = config["hooks"]["SessionStart"][-1]["hooks"][0]["command"]
+            startup = next(hook["command"] for group in config["hooks"]["SessionStart"] for hook in group["hooks"] if "<nowledge_bridge_startup>" in hook["command"])
             for environment in ({}, OPTED_IN, {**OPTED_IN, "NMEM_AGENT_CONTEXT": "   "}):
                 with self.subTest(host=host, enabled=bool(bridge_startup_hint(environment))):
                     result = subprocess.check_output(["sh", "-c", startup], env=environment, text=True).rstrip()
@@ -133,9 +134,9 @@ process.stdout.write(JSON.stringify([
             expected = bridge_startup_hint(OPTED_IN)
             self.assertEqual(invoke("kimi-code", "one", "SessionStart"), "")
             self.assertEqual(invoke("kimi-code", ""), "")
-            self.assertEqual(invoke("kimi-code", "one"), expected)
+            self.assertEqual(invoke("kimi-code", "one"), expected + "\n" + bridge_session_hint("kimi-code", "one"))
             self.assertEqual(invoke("kimi-code", "one"), "")
-            self.assertEqual(invoke("kimi-work", "one"), expected)
+            self.assertEqual(invoke("kimi-work", "one"), expected + "\n" + bridge_session_hint("kimi-work", "one"))
 
 
 if __name__ == "__main__":
