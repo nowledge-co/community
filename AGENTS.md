@@ -40,6 +40,18 @@ the previous version and account for every remaining occurrence. Historical
 changelog entries may remain unchanged; active manifests, registry entries,
 install metadata, and release assertions must not disagree.
 
+Test version agreement by comparing the manifest with the matching registry
+entry, not with today's version literal. Keep an exact pin only when the
+version itself is the contract (for example, a legacy compatibility track).
+
+Merging a version bump updates the desktop's update offer immediately; it does
+not upload the package. Before merge, name the release owner and outstanding
+channels in the PR or tracking issue. Keep that checklist open until each
+channel has a publisher run, a verified public version and an install/load
+result. If a run fails, leave its link and next action there. After a repair
+merges, check the registry first: dispatch the repaired source if absent, or
+verify the original receipt if already published.
+
 ## Universal Install Contract — SKILL.md
 
 `https://mem.nowledge.co/SKILL.md` is the **one URL** an AI agent can fetch before installing Nowledge Mem for a supported host. Source lives at <https://github.com/nowledge-co/nowledge-labs-website/blob/main/nowledge-mem/public/SKILL.md>. The design doc is <https://github.com/nowledge-co/mem/blob/main/docs/design/ONBOARDING_REVISIT_0_9_0.md>.
