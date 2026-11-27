@@ -2,7 +2,7 @@
 
 ## [0.1.2] - Unreleased
 
-- Use nmem stdio for the local MCP connection (nmem 0.10.125+).
+- Use nmem stdio for the local MCP connection (nmem 0.10.126+).
 
 ## Unreleased
 

@@ -402,7 +402,8 @@ def test_key_plugin_static_contracts_are_declared():
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
     assert codex_manifest["version"] == "0.1.56"
-    assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
+    assert registry_by_id["codex-cli"]["version"] == "0.1.55"  # last compatible legacy offer
+    assert registry_by_id["codex-cli"]["followWorkspaceRelease"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
@@ -587,7 +588,7 @@ def test_key_plugin_static_contracts_are_declared():
 
     gemini_pkg = _read_json(GEMINI_PLUGIN / "package.json")
     gemini_hook = (GEMINI_PLUGIN / "hooks" / "session-start.mjs").read_text(encoding="utf-8")
-    assert gemini_pkg["version"] == "0.1.10"
+    assert gemini_pkg["version"] == "0.1.11"
     assert "context', '--source-app', 'gemini-cli'" in gemini_hook
     assert "NMEM_AGENT_ID" in gemini_hook
     assert "NMEM_HOST_AGENT_ID" in gemini_hook
@@ -1594,7 +1595,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "slock" not in integration_ids
     assert "slock" in by_id["raft"]["aliases"]
     assert by_id["copilot-cli"]["version"] == "0.1.7"
-    assert by_id["gemini-cli"]["version"] == "0.1.10"
+    assert by_id["gemini-cli"]["version"] == "0.1.11"
     assert by_id["cursor"]["version"] == "0.2.4"
     assert by_id["cursor"]["transport"] == "mcp+hook"
     assert by_id["cursor"]["capabilities"]["autoCapture"] is True
@@ -1677,7 +1678,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem:sync-now",
         "nowledge-mem:import-history",
     ]
-    assert by_id["dim"]["version"] == "0.1.1"
+    assert by_id["dim"]["version"] == "0.1.2"
     assert by_id["dim"]["directory"] == "nowledge-mem-dim-plugin"
     assert by_id["dim"]["transport"] == "mcp+hook+cli"
     assert by_id["dim"]["capabilities"]["autoCapture"] is True
@@ -1712,7 +1713,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "autonomy"
     ]["bestResultRequires"][0]
     zcode = by_id["zcode"]
-    assert zcode["version"] == "0.2.3"
+    assert zcode["version"] == "0.2.4"
     assert zcode["type"] == "plugin"
     assert zcode["directory"] is None
     assert zcode["externalRepo"] == "https://github.com/nowledge-co/zcode-plugin"
@@ -1734,7 +1735,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.2.2"
+    assert dsh["version"] == "0.2.3"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1973,7 +1974,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.2.2"
+    assert pkg["version"] == "0.2.3"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
@@ -1993,8 +1994,8 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "name: nowledge-mem-deepseek-harness" in patch
     assert "id: nowledge-mem-mcp" in patch
     assert "name: '@deepseek-ai/dsh-mcp-client'" in patch
-    assert "serverName: nowledge_mem" in patch
-    assert "'http://127.0.0.1:14242/mcp').replace(/\\/+$/, '')" in patch
+    assert "serverName: 'nowledge_mem'" in patch
+    assert "command: 'nmem', args: ['mcp']" in patch
     assert "'X-Nowledge-Tool-Schema-Profile': 'slim'" in patch
     assert "Object.fromEntries(Object.entries" in patch
     assert "typeof value === 'string' && value.length > 0" in patch

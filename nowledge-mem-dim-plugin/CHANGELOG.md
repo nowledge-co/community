@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Added a credential-free stdio setup for nmem 0.10.126+ without changing existing HTTP installations.
+
 ## 0.1.1
 
 - Add an opt-in model-facing reminder to check the approved Nowledge Bridge Agent mailbox.

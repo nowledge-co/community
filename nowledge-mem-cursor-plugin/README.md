@@ -52,7 +52,7 @@ mcp.json
 
 ## MCP Setup
 
-The bundled `mcp.json` starts `nmem mcp` on the host (nmem 0.10.125 or later). Cursor reads the selected workspace when it starts a new session; there is no endpoint or key to edit in the plugin. Cursor expects the filename `mcp.json`, not `.mcp.json`.
+The bundled `mcp.json` starts `nmem mcp` on the host (nmem 0.10.126 or later). Cursor reads the selected workspace when it starts a new session; there is no endpoint or key to edit in the plugin. Cursor expects the filename `mcp.json`, not `.mcp.json`.
 
 The hooks still run client-side, so configure the local `nmem` client for the same remote Mem service:
 

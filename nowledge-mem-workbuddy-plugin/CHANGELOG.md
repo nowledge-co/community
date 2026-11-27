@@ -2,7 +2,7 @@
 
 ## [0.2.3] - Unreleased
 
-- MCP follows the current Nowledge Mem connection when a new host session starts. Requires nmem 0.10.125 or later with the `mcp` command.
+- MCP follows the current Nowledge Mem connection when a new host session starts. Requires nmem 0.10.126 or later with the `mcp` command.
 
 ## [0.2.2] - 2026-11-20
 

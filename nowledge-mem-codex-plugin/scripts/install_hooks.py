@@ -843,7 +843,7 @@ def _install_mcp_config_from_payload(payload: dict) -> bool:
     parsed = _parse_codex_toml(rendered)
     server = parsed.get("mcp_servers", {}).get("nowledge-mem", {})
     if not (server.get("command") and server.get("args") == ["mcp"] and "url" not in server):
-        print("Update nmem to 0.10.125 or later; existing Codex MCP settings were kept.", file=sys.stderr)
+        print("Update nmem to 0.10.126 or later; existing Codex MCP settings were kept.", file=sys.stderr)
         return False
 
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)

@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "nowledge-mem-zcode",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "source": {
         "source": "github",
         "repo": "nowledge-co/zcode-plugin",

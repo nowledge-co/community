@@ -55,7 +55,7 @@ For an ordinary update, use **Update** on the installed plugin card and reload; 
 
 Removing the old marketplace clears its enabled entry; the final install restores it from the dedicated WorkBuddy package. Restart or reload WorkBuddy after installation.
 
-With nmem 0.10.125 or later, the bundled connector runs `nmem mcp` and follows the desktop's workspace on each new session. Check **Connections / MCP** and approve the connector's Trust request. No URL or key belongs in the plugin files.
+With nmem 0.10.126 or later, the bundled connector runs `nmem mcp` and follows the desktop's workspace on each new session. Check **Connections / MCP** and approve the connector's Trust request. No URL or key belongs in the plugin files.
 
 If you deliberately need a separately managed HTTP endpoint, generate its URL and headers with `nmem config mcp show --host workbuddy` and preserve them when configuring that override.
 

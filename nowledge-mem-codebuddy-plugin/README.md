@@ -17,7 +17,7 @@ codebuddy plugin marketplace add nowledge-co/community
 codebuddy plugin install nowledge-mem@nowledge-community
 ```
 
-Restart or reload CodeBuddy. The plugin starts `nmem mcp` (nmem 0.10.125 or later). It uses the CLI's workspace and credentials; start a new session after switching workspaces. A separately managed HTTP connection is still possible through `nmem config mcp show --host codebuddy`.
+Restart or reload CodeBuddy. The plugin starts `nmem mcp` (nmem 0.10.126 or later). It uses the CLI's workspace and credentials; start a new session after switching workspaces. A separately managed HTTP connection is still possible through `nmem config mcp show --host codebuddy`.
 
 ## Thread Capture
 

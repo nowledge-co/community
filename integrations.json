@@ -496,7 +496,8 @@
       "name": "Gemini CLI",
       "category": "coding",
       "type": "extension",
-      "version": "0.1.10",
+      "version": "0.1.11",
+      "minimumNmemVersion": "0.10.126",
       "directory": "nowledge-mem-gemini-cli",
       "transport": "cli+mcp",
       "capabilities": {
@@ -633,9 +634,13 @@
       "name": "Codex",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.56",
+      "version": "0.1.55",
+      "followWorkspaceRelease": {
+        "version": "0.1.56",
+        "minimumNmemVersion": "0.10.126",
+        "marketplaceRef": "codex-workspace"
+      },
       "directory": "nowledge-mem-codex-plugin",
-      "minimumNmemVersion": "0.10.125",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
       "transport": "cli+mcp",
@@ -700,7 +705,7 @@
       "type": "plugin",
       "version": "0.1.2",
       "directory": "nowledge-mem-dimagent-plugin",
-      "minimumNmemVersion": "0.10.125",
+      "minimumNmemVersion": "0.10.126",
       "transport": "mcp+hook",
       "capabilities": {
         "workingMemory": true,
@@ -751,7 +756,7 @@
       "name": "Dim",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-dim-plugin",
       "transport": "mcp+hook+cli",
       "capabilities": {
@@ -1060,7 +1065,7 @@
       "name": "OpenHands",
       "category": "orchestrator",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-openhands-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -1132,7 +1137,7 @@
       "type": "plugin",
       "version": "0.2.4",
       "directory": "nowledge-mem-cursor-plugin",
-      "minimumNmemVersion": "0.10.125",
+      "minimumNmemVersion": "0.10.126",
       "transport": "mcp+hook",
       "capabilities": {
         "workingMemory": true,
@@ -1780,7 +1785,7 @@
       "type": "connector",
       "version": "0.1.2",
       "directory": "nowledge-mem-kimi-work-connector",
-      "minimumNmemVersion": "0.10.125",
+      "minimumNmemVersion": "0.10.126",
       "transport": "mcp+skills+hook",
       "capabilities": {
         "workingMemory": true,
@@ -1833,7 +1838,8 @@
       "name": "ZCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.3",
+      "version": "0.2.4",
+      "minimumNmemVersion": "0.10.126",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/zcode-plugin",
       "transport": "plugin+mcp+skills+commands+hooks",
@@ -1885,7 +1891,8 @@
       "name": "DeepSeek Harness",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.2",
+      "version": "0.2.3",
+      "minimumNmemVersion": "0.10.126",
       "directory": "nowledge-mem-deepseek-harness-plugin",
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
       "transport": "dsh-bundle+mcp+cli",
@@ -2051,7 +2058,7 @@
       "type": "connector",
       "version": "0.1.1",
       "directory": "nowledge-mem-craft-agent-connector",
-      "minimumNmemVersion": "0.10.125",
+      "minimumNmemVersion": "0.10.126",
       "transport": "mcp+cli",
       "capabilities": {
         "workingMemory": true,
@@ -2106,7 +2113,7 @@
       "type": "plugin",
       "version": "0.1.3",
       "directory": "nowledge-mem-codebuddy-plugin",
-      "minimumNmemVersion": "0.10.125",
+      "minimumNmemVersion": "0.10.126",
       "transport": "plugin+mcp+cli",
       "capabilities": {
         "workingMemory": true,
@@ -2162,7 +2169,7 @@
       "type": "plugin",
       "version": "0.2.3",
       "directory": "nowledge-mem-workbuddy-plugin",
-      "minimumNmemVersion": "0.10.125",
+      "minimumNmemVersion": "0.10.126",
       "transport": "plugin+mcp+cli",
       "capabilities": {
         "workingMemory": true,
@@ -2435,7 +2442,7 @@
       "type": "plugin",
       "version": "0.1.6",
       "directory": "nowledge-mem-agent-plugin",
-      "minimumNmemVersion": "0.10.125",
+      "minimumNmemVersion": "0.10.126",
       "transport": "agent-plugin+mcp",
       "capabilities": {
         "workingMemory": true,
@@ -2898,7 +2905,7 @@
       "type": "plugin",
       "version": "0.1.7",
       "directory": "nowledge-mem-devin-plugin",
-      "minimumNmemVersion": "0.10.125",
+      "minimumNmemVersion": "0.10.126",
       "transport": "plugin+mcp+cli+api",
       "capabilities": {
         "workingMemory": true,
