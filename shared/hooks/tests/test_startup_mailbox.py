@@ -67,7 +67,11 @@ class StartupMailboxTests(unittest.TestCase):
                 shutil.copytree(ROOT / directory, installed, symlinks=True)
                 manifest = json.loads((installed / manifest_path).read_text(encoding="utf-8"))
                 integration = next(item for item in registry["integrations"] if item["id"] == identity)
-                self.assertEqual(integration["version"], manifest["version"])
+                if identity == "codex-cli":
+                    self.assertEqual(integration["version"], "0.1.55")
+                    self.assertEqual(integration["followWorkspaceRelease"]["version"], manifest["version"])
+                else:
+                    self.assertEqual(integration["version"], manifest["version"])
                 self.assertIn("bridge", integration["skills"])
                 skill = installed / manifest.get("skills", "skills") / "bridge/SKILL.md"
                 self.assertTrue(skill.is_file(), "the installed host needs the advertised skill")
