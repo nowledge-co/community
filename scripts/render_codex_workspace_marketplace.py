@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LEGACY_SHA = "788484c84144e5f4f79f161f3838a92659992c8a"
+LEGACY_SHA = "e52328644bd95c489c35c73ef03cc3677c226316"
 MARKET = Path(".agents/plugins/marketplace.json")
 
 def render(root):

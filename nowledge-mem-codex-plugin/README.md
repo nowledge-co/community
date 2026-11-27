@@ -272,7 +272,7 @@ Then verify with `nmem status`.
 
 ### Home-level (all projects)
 
-With nmem 0.10.126 or later **and** a working `nmem mcp --help`, add the workspace-following Nowledge Community marketplace. The ordinary unqualified marketplace remains on 0.1.55 for older CLIs. If you already have a customized or pinned marketplace, keep its configuration; use the Mem AI Tools Update action for a managed installation. Do not unregister a working marketplace to try an unpublished release.
+With nmem 0.10.126 or later **and** a working `nmem mcp --help`, add the workspace-following Nowledge Community marketplace. The ordinary unqualified marketplace remains on 0.1.57 for older CLIs. If you already have a customized or pinned marketplace, keep its configuration; use the Mem AI Tools Update action for a managed installation. Do not unregister a working marketplace to try an unpublished release.
 
 
 ```bash

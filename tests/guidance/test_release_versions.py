@@ -52,7 +52,7 @@ class ReleaseVersions(unittest.TestCase):
             with self.subTest(plugin=identifier):
                 version = registry[identifier]["version"]
                 if identifier == "codex-cli":
-                    self.assertEqual(version, "0.1.55", "legacy Codex updaters must retain their compatible offer")
+                    self.assertEqual(version, "0.1.57", "legacy Codex updaters must retain their compatible offer")
                     version = registry[identifier]["followWorkspaceRelease"]["version"]
                 if manifest:
                     text = (ROOT / directory / manifest).read_text(encoding="utf-8")

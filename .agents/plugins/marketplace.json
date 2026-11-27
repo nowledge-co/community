@@ -10,7 +10,7 @@
         "source": "git-subdir",
         "url": "https://github.com/nowledge-co/community.git",
         "path": "nowledge-mem-codex-plugin",
-        "sha": "788484c84144e5f4f79f161f3838a92659992c8a"
+        "sha": "e52328644bd95c489c35c73ef03cc3677c226316"
       },
       "policy": {
         "installation": "AVAILABLE",

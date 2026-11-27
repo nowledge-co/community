@@ -68,7 +68,7 @@ class StartupMailboxTests(unittest.TestCase):
                 manifest = json.loads((installed / manifest_path).read_text(encoding="utf-8"))
                 integration = next(item for item in registry["integrations"] if item["id"] == identity)
                 if identity == "codex-cli":
-                    self.assertEqual(integration["version"], "0.1.55")
+                    self.assertEqual(integration["version"], "0.1.57")
                     self.assertEqual(integration["followWorkspaceRelease"]["version"], manifest["version"])
                 else:
                     self.assertEqual(integration["version"], manifest["version"])
