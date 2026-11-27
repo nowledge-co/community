@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Consume local Bridge mailbox notices for actual host sessions and release subscriptions on session end.
+
 ## Unreleased
 
 - `distill-memory` now says where a Team save lands: with no named Space it goes to your personal space ("Only me"), Mem reports the destination, and sharing means saving with `--space`. Guidance only; no runtime change.

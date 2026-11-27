@@ -16,6 +16,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { DEFAULT_PROMPT_RECALL_PATTERN, shouldRecallForPrompt } from './recall.js'
 import { hasContextBundle } from './context.js'
 import { bridgeStartupHint } from './agent-bridge-startup.mjs'
+import { bridgeNoticeWithRunner, bridgeSessionHint, hasBridgeNoticeCache } from './agent-bridge-notices.mjs'
 import { isHumanInput } from './transcript.js'
 import { shellCommand, shellQuote } from './shell-quote.js'
 import { flushBeforeImport } from './session-flush.js'
@@ -518,7 +519,20 @@ export function apply(ctx, config = {}) {
       warn(ctx, 'nowledge-mem: memory context injection failed; keeping available context')
     }
     if (signal.aborted) return decision
-    const hint = bridgeStartupHint(process.env, resolved.cliPath)
+    const sessionId = agent.session.header?.id
+    const startup = bridgeStartupHint(process.env, resolved.cliPath)
+    const hint = startup ? [startup, bridgeSessionHint('deepseek-harness', sessionId)].filter(Boolean).join('\n') : ''
+    if (hasBridgeNoticeCache()) {
+      const notice = await bridgeNoticeWithRunner('deepseek-harness', sessionId, async (args, timeout) => {
+        const result = await runNmem(ctx, {...resolved, commandTimeoutMs: timeout, stdoutMaxBytes: 65536, allowDangerFullAccessRetry: false}, ['--json', ...args, '--event=tool'], signal, false, undefined, agent.session)
+        const stdout = successfulStdout(result)
+        return {ok: stdout !== undefined, stdout: stdout ?? ''}
+      })
+      if (!signal.aborted && notice) additions.push(createUserMessage({
+        content: [{ type: 'text', text: notice }],
+        source: { kind: `plugin:${name}`, form: 'notice', summary: 'Check the approved Bridge Agent inbox.' },
+      }))
+    }
     if (hint && !bridgeHintedSessions.has(agent.session)) {
       // A Bridge reminder must not supersede or count as a Working Memory snapshot.
       additions.push(createUserMessage({

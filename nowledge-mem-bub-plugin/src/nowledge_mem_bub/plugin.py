@@ -63,7 +63,7 @@ class NowledgeMemPlugin:
             "NMEM_SESSION_DIGEST", "1"
         ).lower() not in ("0", "false", "no")
         self._known_threads: set[str] = set()
-        self._bridge_hint = create_bridge_startup_hint()
+        self._bridge_hint = create_bridge_startup_hint("bub")
 
     async def _builtin_build_prompt(self, message, session_id, state) -> str:
         agent = state.get("_runtime_agent")

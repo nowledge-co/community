@@ -93,7 +93,9 @@ test("session context choice: off omits automatic guidance and preserves tools",
       sessionContext: async () => { reads++; return [] } })
     const cleanup = await plugin.setup(ctx)
     try {
-      assert.equal(hooks.has("context"), false, "sessionContext off must not register automatic context guidance")
+      const event = { sessionID: "off-session", system: [] }
+      await hooks.get("context")(event)
+      assert.deepEqual(event.system, [], "sessionContext off must not emit automatic memory guidance")
       assert.equal(reads, 0)
       assert.equal(tools.length, 9)
       assert.equal(typeof hooks.get("compaction"), "function")
@@ -133,7 +135,8 @@ test("Bridge startup is independent of automatic memory guidance and runs once p
       assert.match(first.system[0].text, /--resolved-space-id/)
       assert.doesNotMatch(first.system[0].text, /private-role|Use them proactively/)
       assert.deepEqual(repeat.system, [])
-      assert.deepEqual(other.system, first.system)
+      assert.match(other.system[0].text, /"session_id":"two"/)
+      assert.match(first.system[0].text, /"session_id":"one"/)
     } finally { await cleanup() }
   }))
 })

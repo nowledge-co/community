@@ -2,7 +2,7 @@
 
 // src/index.ts
 import { Plugin } from "@opencode/plugin";
-import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
+import { existsSync as existsSync3, readFileSync as readFileSync2 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -98,6 +98,105 @@ async function exactSpaceBody(body, reference, load) {
   return { ...record2, space_id: resolveSpaceReference(await load(), reference) };
 }
 
+// src/agent-bridge-notices.mjs
+import { execFileSync } from "node:child_process";
+
+// src/bridge-windows-command.mjs
+import { existsSync } from "node:fs";
+import { win32 as pathWin32 } from "node:path";
+var WINDOWS_CMD_ENV_EXPANSION_RE = /%[A-Za-z_][A-Za-z0-9_]*%/;
+function quoteWindowsBatchArg(arg) {
+  if (arg === "") return '""';
+  const out = ['"'];
+  let i = 0;
+  const n = arg.length;
+  while (i < n) {
+    let backslashes = 0;
+    while (i < n && arg[i] === "\\") {
+      i += 1;
+      backslashes += 1;
+    }
+    if (i === n) {
+      out.push("\\".repeat(backslashes * 2));
+      break;
+    }
+    if (arg[i] === '"') {
+      out.push("\\".repeat(backslashes * 2));
+      out.push('""');
+      i += 1;
+    } else {
+      out.push("\\".repeat(backslashes));
+      out.push(arg[i]);
+      i += 1;
+    }
+  }
+  out.push('"');
+  return out.join("");
+}
+function rejectWindowsCmdEnvExpansion(args) {
+  for (let index = 1; index < args.length; index += 1) {
+    if (WINDOWS_CMD_ENV_EXPANSION_RE.test(args[index])) {
+      throw new Error(
+        "nmem Windows .cmd shim cannot safely receive %VAR%-style arguments; remove or escape the environment-variable token before retrying."
+      );
+    }
+  }
+}
+function windowsComspec(env = process.env) {
+  const systemRoot = env.SystemRoot || "C:\\Windows";
+  const root = pathWin32.isAbsolute(systemRoot) ? systemRoot : "C:\\Windows";
+  const expected = pathWin32.join(root, "System32", "cmd.exe");
+  const comspec = env.ComSpec || "";
+  const samePath = (left, right) => pathWin32.normalize(left).toLowerCase() === pathWin32.normalize(right).toLowerCase();
+  if (comspec && pathWin32.isAbsolute(comspec) && pathWin32.basename(comspec).toLowerCase() === "cmd.exe" && samePath(comspec, expected) && existsSync(comspec)) {
+    return comspec;
+  }
+  return existsSync(expected) ? expected : "C:\\Windows\\System32\\cmd.exe";
+}
+function windowsCommandLine(args) {
+  rejectWindowsCmdEnvExpansion(args);
+  return args.map(quoteWindowsBatchArg).join(" ");
+}
+
+// src/agent-bridge-notices.mjs
+function validBridgeSession(session) {
+  return typeof session === "string" && session.trim() !== "" && session !== "unknown" && Buffer.byteLength(session, "utf8") <= 1024 && !Array.from(session).some((c) => c.codePointAt(0) < 32 || c.codePointAt(0) >= 127 && c.codePointAt(0) <= 159 || c.codePointAt(0) >= 55296 && c.codePointAt(0) <= 57343);
+}
+function bridgeSessionHint(host, session) {
+  if (!host || !validBridgeSession(session)) return "";
+  return "Host session correlation (not identity or delivery readiness): " + JSON.stringify({ host, session_id: session }) + ". Only when the user separately requests ongoing Agent-mailbox notifications across authorized Spaces, verify the existing approved Agent Context and subscribe this actual session using nmem --json --agent-context=<approved-context> bridge notices subscribe --host=" + host + " and the literal --session-id value above. This opts this session into shared Agent-mailbox hints; it does not enable native sessions or precise reply routing. The startup one-page inbox opt-in alone does not authorize this subscription. If the installed CLI rejects the command, keep the original identity and use the existing inbox check. Never invent a replacement session.";
+}
+function bridgeNoticeHint(host, session, env = process.env, run = execFileSync, event = "turn") {
+  if (!host || !validBridgeSession(session) || !["", "0", "false"].includes((env.NMEM_NO_MAILBOX_NOTICE || "").trim().toLowerCase())) return "";
+  try {
+    const output = runLocalBridge(["--json", ...noticeArgs(host, session, env), ...event === "tool" ? ["--event=tool"] : []], env, run);
+    return renderNotices(output);
+  } catch {
+    return "";
+  }
+}
+function noticeArgs(host, session, env) {
+  const context = env.NMEM_AGENT_CONTEXT?.trim();
+  return [...context ? ["--agent-context=" + context] : [], "bridge", "notices", "check", "--host=" + host, "--session-id=" + session];
+}
+function renderNotices(output) {
+  const value = JSON.parse(output);
+  if (!Array.isArray(value.notices) || value.notices.length > 4) return "";
+  return value.notices.filter((n) => typeof n.hint === "string" && Array.isArray(n.args) && n.args.length <= 16 && n.args.every((a) => typeof a === "string")).map((n) => n.hint + " Argument vector: " + JSON.stringify(n.args)).join("\n");
+}
+function runLocalBridge(args, env = process.env, run = execFileSync) {
+  const executable = env.NMEM_CLI_PATH || (process.platform === "win32" ? "nmem.cmd" : "nmem");
+  const options = {
+    env,
+    encoding: "utf8",
+    timeout: 500,
+    maxBuffer: 65536,
+    windowsHide: true,
+    stdio: ["ignore", "pipe", "ignore"]
+  };
+  return process.platform === "win32" && /\.(cmd|bat)$/i.test(executable) ? run(windowsComspec(env), ["/d", "/s", "/c", `"${windowsCommandLine([executable, ...args])}"`], { ...options, windowsVerbatimArguments: true }) : run(executable, args, options);
+}
+
 // src/agent-bridge-startup.mjs
 var GUIDANCE = [
   "<nowledge_bridge_startup>",
@@ -113,25 +212,29 @@ var GUIDANCE = [
 function bridgeStartupHint(env = process.env) {
   return env.NMEM_BRIDGE_INBOX_ON_START === "1" && env.NMEM_AGENT_CONTEXT?.trim() ? GUIDANCE : "";
 }
-function createBridgeStartupHint() {
+function createBridgeStartupHint(host, consumeNotices = true) {
   const hintedSessions = /* @__PURE__ */ new Set();
-  return (sessionId, env = process.env) => {
-    if (typeof sessionId !== "string" || !sessionId || hintedSessions.has(sessionId)) return "";
+  const forSession = (sessionId, env = process.env) => {
+    if (!validBridgeSession(sessionId)) return "";
+    const notices = consumeNotices ? bridgeNoticeHint(host, sessionId, env) : "";
+    if (hintedSessions.has(sessionId)) return notices;
     const hint = bridgeStartupHint(env);
-    if (!hint) return "";
+    if (!hint) return notices;
     if (hintedSessions.size >= 256) {
       hintedSessions.delete(hintedSessions.values().next().value);
     }
     hintedSessions.add(sessionId);
-    return hint;
+    return [hint, bridgeSessionHint(host, sessionId, env), notices].filter(Boolean).join("\n");
   };
+  forSession.forget = (session) => hintedSessions.delete(session);
+  return forSession;
 }
 
 // src/cli-runner.mjs
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync as existsSync2, readFileSync } from "node:fs";
 var MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
-function createNmemCliRunner(shell, execFileImpl = execFile, { platform = process.platform, readFileImpl = readFileSync, existsImpl = existsSync } = {}) {
+function createNmemCliRunner(shell, execFileImpl = execFile, { platform = process.platform, readFileImpl = readFileSync, existsImpl = existsSync2 } = {}) {
   if (typeof shell === "function") {
     return async (args) => shell`nmem --json ${args}`.text();
   }
@@ -454,7 +557,7 @@ var index_default = Plugin.define({
     function readSharedConfig() {
       const path = join(homedir(), ".nowledge-mem", "config.json");
       try {
-        if (!existsSync2(path)) return {};
+        if (!existsSync3(path)) return {};
         const parsed = JSON.parse(readFileSync2(path, "utf8"));
         return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
       } catch {
@@ -1011,8 +1114,8 @@ var index_default = Plugin.define({
         }
       });
     });
-    if (automaticContext || bridgeStartupHint()) {
-      const startupHint = createBridgeStartupHint();
+    {
+      const startupHint = createBridgeStartupHint("opencode");
       await ctx.session.hook("context", (event) => {
         if (automaticContext) {
           event.system.push({ type: "text", text: BEHAVIORAL_GUIDANCE });

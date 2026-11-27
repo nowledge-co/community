@@ -11,14 +11,20 @@
   "plugins": [
     {
       "name": "nowledge-mem",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/nowledge-co/community.git",
         "subdir": "nowledge-mem-workbuddy-plugin"
       },
       "description": "Current cross-tool context, MCP tools, and lifecycle thread capture for WorkBuddy.",
-      "tags": ["memory", "mcp", "hooks", "thread-sync", "workbuddy"],
+      "tags": [
+        "memory",
+        "mcp",
+        "hooks",
+        "thread-sync",
+        "workbuddy"
+      ],
       "homepage": "https://mem.nowledge.co/docs/integrations/workbuddy",
       "repository": "https://github.com/nowledge-co/community/tree/main/nowledge-mem-workbuddy-plugin"
     }

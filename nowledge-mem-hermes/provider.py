@@ -267,7 +267,7 @@ class NowledgeMemProvider(MemoryProvider):
         self._bg_threads: List[threading.Thread] = []
         self._resolved_space: str | None = None
         self._session_id = ""
-        self._bridge_hint = create_bridge_startup_hint()
+        self._bridge_hint = create_bridge_startup_hint("hermes")
         self._saved_message_count = 0
         self._saved_message_counts: Dict[str, int] = {}
         self._delta_only_sessions: Set[str] = set()

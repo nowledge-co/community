@@ -16,7 +16,7 @@ times out, the turn still completes and Dim continues.
 
 ## Requirements
 
-- Dim `v0.1.1-alpha.20` or newer, either the released `dima` build or Dim built
+- Dim `v0.1.2-alpha.20` or newer, either the released `dima` build or Dim built
   from source. The package uses plugin hooks, plugin skills, plugin MCP servers,
   and Dim's Session export; all four exist in that release.
 - `nmem` (Nowledge Mem CLI) on `PATH`, or `NMEM_CLI_PATH` pointing at it. The

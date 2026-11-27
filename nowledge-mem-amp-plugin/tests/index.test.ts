@@ -13,7 +13,7 @@ const execFileMock = vi.hoisted(() =>
   ),
 )
 
-vi.mock("node:child_process", () => ({ execFile: execFileMock }))
+vi.mock("node:child_process", () => ({ execFile: execFileMock, execFileSync: vi.fn(() => '{"notices":[]}') }))
 // Capture tests must neither read user credentials nor depend on a live Mem server.
 vi.mock("node:fs", () => ({ existsSync: () => false, readFileSync: () => "{}" }))
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.6] - 2026-11-26
+
+- Update Bridge host/session notice adapters and shared local-cache consumer support. Actual notification availability depends on the host hook and a compatible CLI; native sessions and idle wakeup are unchanged.
+
 ## Unreleased
 
 - Lifecycle capture now uses the shared durable per-session queue and returns

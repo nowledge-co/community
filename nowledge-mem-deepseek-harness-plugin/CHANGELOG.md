@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3 - 2026-11-26
+
+- Provide actual-session Bridge correlation and bounded local notice consumption at active agent steps. Preserve host sandbox admission and disable elevated retry for local notice checks; no idle wakeup or native session registration is enabled.
+
 ## Unreleased
 
 ## 0.2.2

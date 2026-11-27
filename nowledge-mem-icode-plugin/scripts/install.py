@@ -39,7 +39,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_VERSION = "0.1.1"
+PLUGIN_VERSION = "0.1.2"
 
 SERVER_NAME = "nowledge-mem"
 HOOK_ID = "nowledge-mem-icode-context"
@@ -420,8 +420,9 @@ def install(args: argparse.Namespace) -> int:
     notes: list[str] = []
     notes.append(_install_asset(PLUGIN_ROOT / "hooks" / HOOK_SCRIPT_NAME,
                                 hooks_dir / "scripts" / HOOK_SCRIPT_NAME, managed, args.force))
-    notes.append(_install_asset(PLUGIN_ROOT / "hooks" / "agent_bridge_startup.py",
-                                hooks_dir / "scripts" / "agent_bridge_startup.py", managed, args.force))
+    for helper in ("agent_bridge_startup.py", "agent_bridge_notices.py", "nmem_bridge_notice.py"):
+        notes.append(_install_asset(PLUGIN_ROOT / "hooks" / helper,
+                                    hooks_dir / "scripts" / helper, managed, args.force))
     for name in SKILL_NAMES:
         notes.append(_install_asset(PLUGIN_ROOT / "skills" / name, skills_root / name, managed, args.force))
 
@@ -462,7 +463,8 @@ def remove(args: argparse.Namespace) -> int:
     skills_root = Path(created["skills_root"])
     allowed = {str(skills_root / name) for name in SKILL_NAMES}
     allowed.add(str(config_dir / "hooks" / "scripts" / HOOK_SCRIPT_NAME))
-    allowed.add(str(config_dir / "hooks" / "scripts" / "agent_bridge_startup.py"))
+    allowed.update(str(config_dir / "hooks" / "scripts" / helper)
+                   for helper in ("agent_bridge_startup.py", "agent_bridge_notices.py", "nmem_bridge_notice.py"))
     for key, record in manifest["managed"].items():
         if key not in allowed:
             raise SystemExit("Manifest includes an unexpected asset; refusing removal")

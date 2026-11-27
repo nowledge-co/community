@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { Session } from '@deepseek-ai/dsh-session'
-import { assertV4RowAdmission } from '@deepseek-ai/dsh-session-format-v3-to-v4'
+import { assertV4RowAdmission, assertReleasedV4Relationships } from '@deepseek-ai/dsh-session-format-v3-to-v4'
 import { apply } from '../src/index.js'
 import { hasContextBundle } from '../src/context.js'
 
@@ -125,3 +128,33 @@ for (const configured of [undefined, '/synthetic/Explicit CLI/nmem']) {
     assert.doesNotMatch(result.messages[1].content[0].text, /synthetic-private-context/u)
   })
 }
+
+
+test('generic notice uses actual DSH session and local command on active steps', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-notice-'))
+  const before = process.env.NMEM_CLI_CONFIG_DIR
+  t.after(() => {
+    if (before === undefined) delete process.env.NMEM_CLI_CONFIG_DIR
+    else process.env.NMEM_CLI_CONFIG_DIR = before
+    rmSync(root, {recursive:true, force:true})
+  })
+  process.env.NMEM_CLI_CONFIG_DIR = root
+  mkdirSync(join(root, 'bridge-notices-v1'))
+  writeFileSync(join(root, 'bridge-notices-v1', 'enabled'), '1')
+  const host = fixture(t, {}, () => ({exitCode:0, stdout:{text:JSON.stringify({notices:[{hint:'Synthetic pending mail',args:['--agent-context=fixture','bridge','inbox']}]})}}))
+  process.env.NMEM_BRIDGE_INBOX_ON_START = '0'
+  const result = await host.step()
+  assert.equal(host.requests.length, 1)
+  assert.match(host.requests[0].command, /bridge.*notices.*check/u)
+  assert.ok(host.requests[0].command.includes('--session-id=' + host.session.header.id))
+  assert.ok(host.requests[0].command.includes('--event=tool'))
+  const notice = result.messages[1]
+  assert.match(notice.content[0].text, /Synthetic pending mail/u)
+  assert.doesNotThrow(() => assertReleasedV4Relationships({
+    header: host.session.header,
+    inheritedEventCount: 0,
+    events: [{ type: 'user/message', seq: 1, time: Date.now(), surfaceOp: 'append', data: notice }],
+  }, new Set(['user/message'])))
+  assert.equal(notice.source.kind, 'plugin:nowledge-mem')
+  assert.equal(notice.source.form, 'notice')
+})

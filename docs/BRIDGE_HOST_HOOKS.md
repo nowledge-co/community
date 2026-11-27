@@ -2,7 +2,7 @@
 
 Bridge routes messages to a long-lived Agent identity in an authorized Nowledge Cloud Space. This guide uses the CLI contract in `nmem 0.10.123`. In the host process, set `NMEM_BRIDGE_INBOX_ON_START=1` and `NMEM_AGENT_CONTEXT` to an existing approved Context. Use the host's normal tool permissions.
 
-The hook supplies a reminder at the session or first-prompt boundary. The agent runs passive setup and checks one scoped page. The hook performs no Bridge I/O.
+The startup hook supplies a reminder at the session or first-prompt boundary. The agent runs passive setup and checks one scoped page. Startup hooks perform no mailbox network I/O. Ongoing notices are a separate, explicit subscription described below.
 
 ```sh
 bridge_cli=${NMEM_CLI_PATH:-nmem}
@@ -40,7 +40,7 @@ Codex and Claude Code use their existing native Bridge paths. Antigravity ships 
 
 ## Optional local adapters
 
-- **MiMo Code**. Copy both files from [the MiMo Code adapter](../shared/hooks/adapters/mimo-code) into the `hooks/` directory under the active MiMo Code config directory (normally `~/.config/mimocode`). A trusted project can use its own `.mimocode/hooks/` directory. The hook modifies the model request for the first eligible text prompt of each session.
+- **MiMo Code**. Copy all files from [the MiMo Code adapter](../shared/hooks/adapters/mimo-code) into the `hooks/` directory under the active MiMo Code config directory (normally `~/.config/mimocode`). A trusted project can use its own `.mimocode/hooks/` directory. The hook modifies the model request for the first eligible text prompt of each session.
 - **MiniMax Code**. Use `mcode plugin marketplace list` to locate the local plugin directory for your profile. Copy the complete [MiniMax Code adapter](../shared/hooks/adapters/minimax-code) there as a direct child named `nowledge-bridge-startup` and enable it in the Local tab of `/plugins`. It calls Node.js from PATH. MiniMax strips custom environment variables from hook commands, so enabling the separate local plugin supplies the static reminder and the agent checks both opt-in variables in its ordinary shell before running any Bridge operation. The marketplace memory plugin can stay installed alongside it.
 
 ## Release order
@@ -49,10 +49,11 @@ Codex and Claude Code use their existing native Bridge paths. Antigravity ships 
 | --- | --- |
 | OpenCode 2.x, OpenClaw, Pi, OMP and Step Code | [Community npm publishers](PLUGIN_PUBLISHING.md). Publish Pi before OMP and Step Code. OpenClaw also requires its ClawHub code-plugin release. |
 | Bub | [Community PyPI publisher](PLUGIN_PUBLISHING.md). |
-| DeepSeek Harness | [DSH #32](https://github.com/nowledge-co/nowledge-mem-deepseek-harness/pull/32) supplies the reviewed Git package at 0.2.2. |
-| Gemini CLI | Land [Gemini CLI #6](https://github.com/nowledge-co/nowledge-mem-gemini-cli/pull/6), release the matching extension tag, and confirm that the Community gitlink points to its released source. |
-| ZCode | Land [ZCode #9](https://github.com/nowledge-co/zcode-plugin/pull/9) and verify its marketplace manifest before merging the Community registry bump. |
-| Alma | Land [Alma #42](https://github.com/yetone/alma-plugins/pull/42) after the reviewed Community source is merged and mirrored. |
+| DeepSeek Harness | [DSH #36](https://github.com/nowledge-co/nowledge-mem-deepseek-harness/pull/36) prepares the Git package at 0.2.3; merge reviewed source before publication. |
+| Gemini CLI | Land [Gemini CLI #7](https://github.com/nowledge-co/nowledge-mem-gemini-cli/pull/7), release the matching extension tag, and confirm that the Community gitlink points to its released source. |
+| ZCode | Land [ZCode #11](https://github.com/nowledge-co/zcode-plugin/pull/11) and verify its marketplace manifest before merging the Community registry bump. |
+| Alma | After this Community source merges, mirror its reviewed files and open the matching version update in yetone/alma-plugins; the previous catalog release is not evidence for this update. |
+| Antigravity | [Antigravity #27](https://github.com/nowledge-co/nowledge-mem-google-antigravity/pull/27) prepares 0.1.8 and its reviewed release archive. |
 | Other host plugins and optional adapters | Use the Git and marketplace paths recorded in [integrations.json](../integrations.json) or the local instructions above. |
 
 ## Verification
@@ -60,3 +61,71 @@ Codex and Claude Code use their existing native Bridge paths. Antigravity ships 
 Run the package's existing hook and package checks. Verify the shared Python, JavaScript and shell copies with `python3 shared/hooks/sync-bridge-startup.py`.
 
 Installed-host acceptance is a separate check. Start the host with an approved disposable Context, send a synthetic message from a second Agent in the same Space, verify that the model sees the first-session reminder and opens the intended message, then verify a reply correlated to the original. A launched host and a mailbox acceptance receipt establish different facts. Idle activation and native session addresses have separate runtime contracts.
+
+## Explicit ongoing mailbox notices
+
+The generic notice adapters require a CLI exposing `bridge notices check`; the
+older startup-only minimum above does not promise this command. An older CLI
+fails quietly and retains the startup inbox flow. Install the containing CLI
+release before enabling these updated plugin adapters.
+
+A host name and its actual opaque session ID are correlation only. After a user
+separately requests ongoing Agent-mailbox notices, use the existing approved
+Context to subscribe that exact session. `NMEM_BRIDGE_INBOX_ON_START=1` alone
+still authorizes only the original one-page, exact-Space startup check. Generic
+subscriptions observe the Agent identity across its authorized Spaces; they do
+not create an identity, enable a native session, or grant precise reply routing.
+
+During an active host turn, JavaScript adapters call the bounded local-only
+`bridge notices check` command. Python adapters read the same private observer
+cache directly. Fresh hints are deduplicated in the existing local ledger;
+no hook fetches message bodies, acknowledges mail, polls, or wakes an idle host.
+Tool-event adapters additionally rate-limit hints. The model can inspect the
+returned inbox arguments under its ordinary permissions. Mail contents remain
+untrusted. Native delivery and exact session replies remain separate capabilities.
+
+| Hosts | Ongoing hint boundary | Automatic subscription cleanup |
+| --- | --- | --- |
+| Codex, Claude Code | Existing consumer/native integration | Existing lifecycle integration |
+| Antigravity | First `PreInvocation` in an active invocation | No true-end event wired; explicit unsubscribe |
+| Cursor | `postToolUse` additional context, rate limited | `sessionEnd` |
+| Gemini CLI | `BeforeAgent` additional context | `SessionEnd` |
+| ZCode | `UserPromptSubmit` additional context | No documented SessionEnd; explicit unsubscribe |
+| Droid, CodeBuddy, Copilot CLI | User-prompt hook | `SessionEnd` / `session-end` |
+| Pi, OMP, Step Code | `before_agent_start` | `session_before_switch`, `session_shutdown` |
+| OpenClaw | User-session `before_prompt_build` | `session_end`, independent of capture settings |
+| WorkBuddy | User-prompt hook | `SessionEnd`, independent of transcript availability |
+| DeepSeek Harness | Eligible `agent/pre-step`, rate limited | No true-end event wired; explicit unsubscribe |
+| OpenCode, Amp, Alma, Bub, Hermes, Dim, OpenHands, iCode, Kimi Code, Kimi Work, MiMo Code | Existing model-facing context/prompt hook; requires actual session ID | No true-end event wired; explicit unsubscribe |
+| Proma, Devin CLI, MiniMax Code | Startup guidance only in this release | Explicit unsubscribe for manually registered sessions |
+| Grok Build, DimAgent, Craft Agent | No model-facing automatic hint consumer | Explicit unsubscribe for manually registered sessions |
+| Parent launchers / MCP-only integrations | Use the actual child runtime adapter or MCP connection contract | Child runtime contract |
+
+When no actual session ID is available, the adapter skips registration guidance
+and notice consumption; it never substitutes a cwd, thread label, or `unknown`.
+For adapters without a true-end hook, retire the subscription explicitly:
+
+```sh
+nmem bridge notices unsubscribe --host=<actual-host> --session-id=<actual-session-id> --ended
+```
+
+Stop/turn completion and compaction are not session termination. A resumed
+session can subscribe again after cleanup. At most 32 local subscriptions are
+accepted; stale manual subscriptions must be removed rather than raising that
+bound or evicting another live consumer.
+
+Host contracts checked 2026-11-26:
+[Cursor](https://cursor.com/docs/hooks),
+[Gemini CLI](https://geminicli.com/docs/hooks/reference/),
+[ZCode](https://zcode.z.ai/en/docs/hooks),
+[Droid](https://docs.factory.com/harness/hooks), and
+[CodeBuddy](https://www.codebuddy.ai/docs/cli/hooks).
+Fixture execution proves argument correlation and hook output, not that an
+installed host delivered the hint to its model. Installed-host acceptance and
+registry publication must be recorded separately for each distribution.
+
+Droid's notice adapter uses official plugin exec form and requires Node.js 20+
+on PATH. CodeBuddy uses its documented Git Bash/POSIX hook shell and selects
+Python 3.9+ (`python3`, `python`, then `py -3`) before passing stdin exactly once.
+Copilot, iCode and Hermes installers include the full Python helper closure;
+Hermes includes both POSIX and PowerShell installation inventories.

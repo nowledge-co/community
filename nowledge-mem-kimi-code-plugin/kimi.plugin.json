@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Cross-tool memory for Kimi Code. Recall past decisions, search prior threads, and keep Kimi Code sessions searchable in Nowledge Mem.",
   "keywords": ["memory", "mcp", "skills", "thread-sync"],
   "author": {

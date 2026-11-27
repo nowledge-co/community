@@ -1419,7 +1419,7 @@ class LauncherAndDocsTests(unittest.TestCase):
             "dimcode-server",
             "never searches `PATH`",
             "shuts that daemon down",
-            "v0.1.1-alpha.20",
+            "v0.1.2-alpha.20",
         ):
             self.assertIn(sentence, readme)
 
@@ -1435,7 +1435,7 @@ class LauncherAndDocsTests(unittest.TestCase):
 
     def test_version_lives_in_the_changelog(self):
         changelog = (PACKAGE / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertIn("## 0.1.1", changelog)
+        self.assertIn("## 0.1.2", changelog)
 
 
 if __name__ == "__main__":

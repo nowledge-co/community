@@ -1,4 +1,5 @@
 // Copied into standalone plugins by shared/hooks/sync-bridge-startup.py.
+import { bridgeNoticeHint, bridgeSessionHint, validBridgeSession } from "./agent-bridge-notices.mjs"
 
 const GUIDANCE = [
   '<nowledge_bridge_startup>',
@@ -19,16 +20,20 @@ export function bridgeStartupHint(env = process.env) {
 }
 
 // Some hosts expose a prompt hook instead of a one-shot session hook.
-export function createBridgeStartupHint() {
+export function createBridgeStartupHint(host, consumeNotices = true) {
   const hintedSessions = new Set()
-  return (sessionId, env = process.env) => {
-    if (typeof sessionId !== 'string' || !sessionId || hintedSessions.has(sessionId)) return ''
+  const forSession = (sessionId, env = process.env) => {
+    if (!validBridgeSession(sessionId)) return ''
+    const notices = consumeNotices ? bridgeNoticeHint(host, sessionId, env) : ''
+    if (hintedSessions.has(sessionId)) return notices
     const hint = bridgeStartupHint(env)
-    if (!hint) return ''
+    if (!hint) return notices
     if (hintedSessions.size >= 256) {
       hintedSessions.delete(hintedSessions.values().next().value)
     }
     hintedSessions.add(sessionId)
-    return hint
+    return [hint, bridgeSessionHint(host, sessionId, env), notices].filter(Boolean).join("\n")
   }
+  forSession.forget = session => hintedSessions.delete(session)
+  return forSession
 }

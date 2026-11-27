@@ -29,6 +29,18 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 2,
+            "args": [
+              "${DROID_PLUGIN_ROOT}/hooks/bridge-notice.mjs"
+            ]
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -37,6 +49,32 @@
           {
             "type": "command",
             "command": "command -v nmem >/dev/null 2>&1 || { command -v nmem.cmd >/dev/null 2>&1 && nmem(){ q=''; for a in \"$@\"; do q=\"$q \\\"$a\\\"\"; done; cmd.exe /s /c \"\\\"nmem.cmd\\\"$q\"; }; }; command -v nmem >/dev/null 2>&1 && printf '[Nowledge Mem] Search past knowledge with nmem --json m search \"query\". Search prior sessions with nmem --json t search \"query\" -n 5. Save durable insights with nmem --json m add \"content\" -t \"Title\" -i 0.8 -s droid. For resumable checkpoints, use nmem --json t create -t \"Session Handoff - <topic>\" -c \"Goal: ... Decisions: ... Files: ... Risks: ... Next: ...\" -s droid. Do not claim save-thread unless a real Droid transcript importer exists.' || true"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 2,
+            "args": [
+              "${DROID_PLUGIN_ROOT}/hooks/bridge-notice.mjs"
+            ]
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 2,
+            "args": [
+              "${DROID_PLUGIN_ROOT}/hooks/bridge-notice.mjs"
+            ]
           }
         ]
       }

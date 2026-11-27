@@ -18,6 +18,9 @@ try {
     Assert ($LASTEXITCODE -eq 0) "empty provider install failed"
     Assert (([IO.File]::ReadAllText((Join-Path $EmptyHome "config.yaml"))).Contains('provider: "nowledge-mem"')) "empty provider was not filled"
     Assert (Test-Path -LiteralPath (Join-Path $EmptyHome "plugins\nowledge-mem\skill_outcome.py")) "managed plugin file missing"
+    foreach ($Helper in @("agent_bridge_notices.py", "nmem_bridge_notice.py")) {
+        Assert (Test-Path -LiteralPath (Join-Path $EmptyHome "plugins\nowledge-mem\$Helper")) "Bridge helper missing from installed runtime"
+    }
     Assert ($Output.Contains("Installed version: $ExpectedVersion")) "installed version not reported"
     Assert ($Output.Contains("Thread import endpoint: /threads/import")) "thread endpoint not reported"
 

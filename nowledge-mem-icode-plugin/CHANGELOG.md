@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.2] - 2026-11-26
+
+- Update Bridge host/session notice adapters and shared local-cache consumer support. Actual notification availability depends on the host hook and a compatible CLI; native sessions and idle wakeup are unchanged.
+
 ## Unreleased
 
 - `distill-memory` now says where a Team save lands: with no named Space it goes to your personal space ("Only me"), Mem reports the destination, and sharing means saving with `--space`. Guidance only; no runtime change.

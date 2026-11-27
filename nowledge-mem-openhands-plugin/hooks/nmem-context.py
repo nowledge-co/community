@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import nmem_shared
 from agent_bridge_startup import bridge_startup_hint
+from agent_bridge_notices import bridge_notice_hint
 
 PROMPT_ROUTING_GUIDANCE = (
     "OpenHands local session history and Nowledge Mem are complementary. "
@@ -45,8 +46,8 @@ def main() -> None:
         )
 
         session_key = nmem_shared.resolve_session_key(hook_input, working_dir)
-        hint = bridge_startup_hint()
         native_session = nmem_shared.resolve_session_id(hook_input)
+        hint = bridge_startup_hint(host="openhands", session_id=native_session)
         if hint and native_session:
             bridge_key = f"bridge-{native_session}"
             if nmem_shared.has_session_injected(bridge_key, working_dir):
@@ -55,7 +56,7 @@ def main() -> None:
                 nmem_shared.mark_session_injected(bridge_key, working_dir)
         else:
             hint = ""
-        routing = "\n\n".join(part for part in (hint, PROMPT_ROUTING_GUIDANCE) if part)
+        routing = "\n\n".join(part for part in (hint, bridge_notice_hint("openhands", native_session), PROMPT_ROUTING_GUIDANCE) if part)
 
         # If prompt guidance only is requested, bypass context bundle entirely
         if os.environ.get("NMEM_PROMPT_GUIDANCE_ONLY", "").strip().lower() in ("1", "true", "yes"):

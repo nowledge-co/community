@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_API_URL = "http://127.0.0.1:14242"
 CONFIG_PATH = os.path.expanduser("~/.nowledge-mem/config.json")
 _CMD_ENV_EXPANSION_RE = re.compile(r"%[A-Za-z_][A-Za-z0-9_]*%")
-PRODUCT_USER_AGENT = "NowledgeMem-Hermes/0.5.30"
+PRODUCT_USER_AGENT = "NowledgeMem-Hermes/0.5.31"
 # Registered causes reachable from transcript capture and its admission boundaries.
 # Keep this finite: arbitrary server strings are not safe diagnostic fields.
 _KNOWN_ERROR_CODES = frozenset({
