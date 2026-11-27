@@ -30,6 +30,29 @@ An unsupported Local/self-hosted backend remains outside this Cloud path; do not
 change connections or substitute an Agent inbox. A failed modern request never
 permits a fallback send through an older command.
 
+## Contact a window by name
+
+“Let this window receive reviews as release reviewer” refers to this running
+session. Check the installed session help for `find` and `prepare --help` for
+`--name`. If supported, append `prepare --name=<requested name>` to this
+window’s session arguments. Confirm both `delivery_ready: true` and
+`name_state: published` before telling the user it can be found by that name.
+If publication is unconfirmed, keep the same window and use the reported
+next action. Do not register another identity.
+
+“Ask release reviewer to look at this change” uses the **sending** window’s
+session arguments with `find -- <exact name>`. Search its approved Space.
+If returned, execute `prepare_args` and then `find_args` to prepare the sender
+and continue. For a unique match, append one `--body=<request>` argument to
+the card’s `send_args_prefix`. For multiple or partial results, follow
+`next_args` as needed and confirm the intended window from its member and host.
+Never send to every match. Receive and reply in the original exchange below.
+
+If the installed CLI lacks this feature, explain that this version cannot
+publish or find a window by name. Offer the existing contact exchange below
+when both sessions can receive. If the service reports that it cannot qualify
+this receiver, keep the original session and report its next action.
+
 ## Prepare and exchange a contact
 
 For a new receiving entry, append `prepare` to this session's argument vector.
