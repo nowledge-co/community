@@ -4,7 +4,7 @@ import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 
 // Evaluate only the packaged Cordis JS config with a synthetic environment.
-const patch = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
+const patch = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8').replaceAll('\r\n', '\n')
 function config(env) {
   const marker = '      config: !!js >\n'
   assert.ok(patch.includes(marker), 'the MCP row must select its transport')
