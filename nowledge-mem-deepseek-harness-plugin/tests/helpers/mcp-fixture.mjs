@@ -36,7 +36,7 @@ export async function startMcpFixture(t, options = {}) {
   })
   const http = createServer((request, response) => {
     state.requests.push({ time: performance.now(), headers: request.headers })
-    if (request.headers.authorization !== 'Bearer synthetic-required-key' || request.headers['x-nmem-api-key'] !== 'synthetic-required-key') {
+    if (request.headers.authorization !== 'Bearer synthetic-required-key' || (!options.bearerOnly && request.headers['x-nmem-api-key'] !== 'synthetic-required-key')) {
       response.writeHead(401).end('Fixture authentication required.')
       return
     }
