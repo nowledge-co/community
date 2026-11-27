@@ -9,7 +9,7 @@ Kimi Work is separate from the Kimi Code CLI you may have installed yourself. It
 ## What You Get
 
 - Startup guidance that tells Kimi Work when to read Context Bundle or Working Memory.
-- A bundled local MCP declaration for Mem running at `http://127.0.0.1:14242/mcp`.
+- A bundled stdio declaration that opens the CLI's current Mem workspace.
 - CLI fallback for memory search, save, status, and thread search.
 - Historical Kimi Work conversation import with `nmem t sync --from kimi-work`.
 
@@ -19,7 +19,7 @@ Kimi Work does not expose lifecycle hooks today. This connector cannot auto-capt
 
 1. Nowledge Mem desktop app running locally, or a reachable remote Mem server.
 2. Kimi Work Desktop installed.
-3. `nmem` 0.9.23 or newer on the same machine as Kimi Work.
+3. `nmem` 0.10.126 or newer with the `mcp` command on the same machine as Kimi Work.
 
 If Nowledge Mem Desktop is on this machine, `nmem` is usually ready from the app:
 
@@ -69,7 +69,7 @@ Restart Kimi Work after installing.
 
 ## Remote Mem Or Authenticated Localhost
 
-The bundled MCP entry points at the local desktop app. For remote Mem, generate a Kimi Work MCP block:
+The bundled server follows your CLI workspace and reads its key when Kimi Work starts a new session. No MCP settings change is required for a remote workspace. Only if you intentionally need a separately managed HTTP connection, generate a Kimi Work MCP block:
 
 ```bash
 nmem config mcp show --host kimi-work
