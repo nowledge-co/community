@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.5] - Unreleased
+
+- Guide bounded original-operation follow-up and local reply-route recovery when supported by the installed CLI. Preserve exact scope and distinguish replies from work acceptance.
+
 ## Unreleased
 
 ## [0.2.3] - 2026-11-20

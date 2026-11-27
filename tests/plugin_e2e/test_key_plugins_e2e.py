@@ -332,7 +332,7 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.39"
+    assert claude_manifest["version"] == "0.7.41"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -404,7 +404,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.55"
+    assert codex_manifest["version"] == "0.1.57"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -639,7 +639,7 @@ def test_key_plugin_static_contracts_are_declared():
     cursor_working_memory_skill = (
         CURSOR_PLUGIN / "skills" / "read-working-memory" / "SKILL.md"
     ).read_text(encoding="utf-8")
-    assert cursor_manifest["version"] == "0.2.3"
+    assert cursor_manifest["version"] == "0.2.5"
     assert cursor_hooks["hooks"]["sessionStart"][0] == {
         "command": 'node "${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs"',
         "timeout": 15,
@@ -746,7 +746,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.20"
+    assert pi_pkg["version"] == "0.8.22"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "scripts/sync-history.mjs"
@@ -1612,7 +1612,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "slock" in by_id["raft"]["aliases"]
     assert by_id["copilot-cli"]["version"] == "0.1.7"
     assert by_id["gemini-cli"]["version"] == "0.1.10"
-    assert by_id["cursor"]["version"] == "0.2.3"
+    assert by_id["cursor"]["version"] == "0.2.5"
     assert by_id["cursor"]["transport"] == "mcp+hook"
     assert by_id["cursor"]["capabilities"]["autoCapture"] is True
     assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"
@@ -1630,7 +1630,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["proma"]["version"] == "0.1.9"
     assert by_id["opencode"]["version"] == "0.4.10"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
-    assert by_id["pi"]["version"] == "0.8.20"
+    assert by_id["pi"]["version"] == "0.8.22"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["grok-bot"]["version"] is None
@@ -2623,7 +2623,7 @@ def test_pi_thread_sync_timeout_contract():
     readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pi_pkg["version"] == "0.8.20"
+    assert pi_pkg["version"] == "0.8.22"
     assert pi_registry["version"] == pi_pkg["version"]
     assert 'from "./generated/plugin-core/index.js"' in extension
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension
