@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.42] - Unreleased
+
+- Ask a running window to receive reviews under a name. On a connection that supports named sessions, another window can find it in the same Space and reply without exchanging addresses.
+
 ## [0.7.41] - Unreleased
 
 - Guide bounded original-operation follow-up and local reply-route recovery when supported by the installed CLI. Preserve exact scope and distinguish replies from work acceptance.

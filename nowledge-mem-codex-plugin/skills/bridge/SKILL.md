@@ -23,7 +23,7 @@ a self-contained request to the intended recipient through the selected mailbox.
 A long-lived Agent mailbox and one native session's inbox are different targets.
 Use the native path when the user names a particular running session or asks to
 prepare this session to receive. Read [native-session collaboration](references/native-sessions.md)
-for that path; the Agent-mailbox setup below is not its prerequisite. Do not
+for that path. For a named window, use the native guide’s version check before searching. Role rosters and connection lists cannot establish whether that window exists. Do not
 substitute a shared Agent inbox or infer a native address from an Agent name.
 If the requested target is genuinely ambiguous, clarify that choice once.
 
