@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.2.4
+## 0.2.6
 
 - Consume local Bridge mailbox notices for actual host sessions and release subscriptions on session end.
+
+## [0.2.5] - Unreleased
+
+- Guide bounded original-operation follow-up and local reply-route recovery when supported by the installed CLI. Preserve exact scope and distinguish replies from work acceptance.
 
 ## Unreleased
 

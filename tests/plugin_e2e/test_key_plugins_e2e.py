@@ -332,7 +332,7 @@ def test_key_plugin_static_contracts_are_declared():
     claude_read_skill = (CLAUDE_PLUGIN / "skills" / "read-working-memory" / "SKILL.md").read_text(encoding="utf-8")
     claude_search_skill = (CLAUDE_PLUGIN / "skills" / "search-memory" / "SKILL.md").read_text(encoding="utf-8")
     assert claude_manifest["name"] == "nowledge-mem"
-    assert claude_manifest["version"] == "0.7.39"
+    assert claude_manifest["version"] == "0.7.41"
     assert claude_marketplace_plugin["version"] == claude_manifest["version"]
     assert registry_by_id["claude-code"]["version"] == claude_manifest["version"]
     assert registry_by_id["grok"]["version"] == claude_manifest["version"]
@@ -404,7 +404,7 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.55"
+    assert codex_manifest["version"] == "0.1.57"
     assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
@@ -639,7 +639,7 @@ def test_key_plugin_static_contracts_are_declared():
     cursor_working_memory_skill = (
         CURSOR_PLUGIN / "skills" / "read-working-memory" / "SKILL.md"
     ).read_text(encoding="utf-8")
-    assert cursor_manifest["version"] == "0.2.4"
+    assert cursor_manifest["version"] == "0.2.6"
     assert cursor_hooks["hooks"]["sessionStart"][0] == {
         "command": 'node "${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs"',
         "timeout": 15,
@@ -746,7 +746,7 @@ def test_key_plugin_static_contracts_are_declared():
     pi_pkg = _read_json(PI_PLUGIN / "package.json")
     pi_extension = (PI_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     pi_history_sync = (PI_PLUGIN / "scripts" / "sync-history.mjs").read_text(encoding="utf-8")
-    assert pi_pkg["version"] == "0.8.21"
+    assert pi_pkg["version"] == "0.8.23"
     assert "./extensions/nowledge-mem.ts" in pi_pkg["pi"]["extensions"]
     assert "./skills" in pi_pkg["pi"]["skills"]
     assert pi_pkg["bin"]["nowledge-mem-pi-sync"] == "scripts/sync-history.mjs"
@@ -789,8 +789,10 @@ def test_key_plugin_static_contracts_are_declared():
     assert "startupContextCacheKey" in pi_extension
     assert "evictStartupContext" in pi_extension
     assert "degradedReason" in pi_extension
-    assert "quoteWindowsBatchArg" in pi_extension
-    assert "rejectWindowsCmdEnvExpansion" in pi_extension
+    pi_windows_command = (PI_PLUGIN / "extensions" / "bridge-windows-command.mjs").read_text(encoding="utf-8")
+    assert 'import { windowsComspec, windowsCommandLine } from "./bridge-windows-command.mjs";' in pi_extension
+    assert "quoteWindowsBatchArg" in pi_windows_command
+    assert "rejectWindowsCmdEnvExpansion" in pi_windows_command
     assert '["/d", "/s", "/c", line]' in pi_extension
     assert "windowsVerbatimArguments: true" in pi_extension
     assert 'process.env.NMEM_CLI_PATH || (process.platform === "win32" ? "nmem.cmd" : "nmem")' in pi_extension
@@ -806,7 +808,7 @@ def test_key_plugin_static_contracts_are_declared():
         encoding="utf-8"
     )
     assert step_pkg["version"] == "0.1.6"
-    assert step_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.21"
+    assert step_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.23"
     assert step_pkg["pi"]["extensions"] == ["./extensions/nowledge-mem.ts"]
     assert step_pkg["pi"]["skills"] == ["./skills"]
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "step-code"' in step_extension
@@ -818,13 +820,13 @@ def test_key_plugin_static_contracts_are_declared():
     omp_extension = (OMP_PLUGIN / "extensions" / "nowledge-mem.ts").read_text(encoding="utf-8")
     omp_agent = (OMP_PLUGIN / "AGENTS.md").read_text(encoding="utf-8")
     assert omp_pkg["version"] == "0.1.8"
-    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.21"
+    assert omp_pkg["dependencies"]["nowledge-mem-pi"] == "^0.8.23"
     assert "./extensions/nowledge-mem.ts" in omp_pkg["omp"]["extensions"]
     assert "./skills" in omp_pkg["omp"]["skills"]
     assert "pi" not in omp_pkg
     assert 'process.env.NMEM_PLUGIN_SOURCE_APP = "omp"' in omp_extension
     assert 'process.env.NMEM_PLUGIN_HOST_LABEL = "OMP"' in omp_extension
-    assert 'process.env.NMEM_PLUGIN_VERSION = "0.1.7"' in omp_extension
+    assert f'process.env.NMEM_PLUGIN_VERSION = "{omp_pkg["version"]}"' in omp_extension
     assert 'import("nowledge-mem-pi/extensions/nowledge-mem.ts")' in omp_extension
     assert "nmem --json context --source-app omp" in omp_agent
     assert "source_app=omp" in omp_agent
@@ -1612,7 +1614,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "slock" in by_id["raft"]["aliases"]
     assert by_id["copilot-cli"]["version"] == "0.1.8"
     assert by_id["gemini-cli"]["version"] == "0.1.11"
-    assert by_id["cursor"]["version"] == "0.2.4"
+    assert by_id["cursor"]["version"] == "0.2.6"
     assert by_id["cursor"]["transport"] == "mcp+hook"
     assert by_id["cursor"]["capabilities"]["autoCapture"] is True
     assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"
@@ -1630,7 +1632,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert by_id["proma"]["version"] == "0.1.10"
     assert by_id["opencode"]["version"] == "0.4.11"
     assert by_id["opencode"]["install"]["requiresHostVersionSelection"] is True
-    assert by_id["pi"]["version"] == "0.8.21"
+    assert by_id["pi"]["version"] == "0.8.23"
     assert by_id["pi"]["capabilities"]["autoRecall"] is True
     assert by_id["pi"]["autonomy"]["recall"] == "startup-context-injection"
     assert by_id["grok-bot"]["version"] is None
@@ -2623,7 +2625,7 @@ def test_pi_thread_sync_timeout_contract():
     readme = (PI_PLUGIN / "README.md").read_text(encoding="utf-8")
     changelog = (PI_PLUGIN / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert pi_pkg["version"] == "0.8.21"
+    assert pi_pkg["version"] == "0.8.23"
     assert pi_registry["version"] == pi_pkg["version"]
     assert 'from "./generated/plugin-core/index.js"' in extension
     assert "resolveThreadSyncTimeoutMs(process.env.NMEM_SYNC_TIMEOUT_MS)" in extension

@@ -11,7 +11,7 @@
     "directory": "nowledge-mem-step-code"
   },
   "dependencies": {
-    "nowledge-mem-pi": "^0.8.21"
+    "nowledge-mem-pi": "^0.8.23"
   },
   "pi": {
     "extensions": ["./extensions/nowledge-mem.ts"],

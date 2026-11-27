@@ -168,15 +168,18 @@ known access refusals distinct from transient/unknown failures. If more results 
 continuation, report that capability limitation; never guess a cursor. Send only after the recipient and its Space are confirmed.
 
 A request must include the goal, necessary background, allowed scope, constraints,
-and completion criteria. Memory, shared-document, PR and issue references are
-optional supplements within the recipient's reach. CRDT documents may carry
+and completion criteria. Ordinary messages may include accessible Memory,
+shared-document, PR and issue references as optional context. For a work
+agreement, share an accessible Memory proposal and obtain explicit confirmation
+of that same proposal and scope before reporting acceptance. CRDT documents may carry
 collaborative text or todo lists; their merge/checklist state does not replace
 Memory types such as fact, decision or plan, or grant Memory write authority. The recipient must be able
 to understand, ask questions and reply without GitHub access. Do not upload a
 whole original session as an implicit part of a handoff.
 
-Read relevant messages before acting. Reply with a clear claim or concrete
-blocker. For a claim, include the actual host session identifier when available,
+Read relevant messages and the work proposal before acting. Explicitly confirm
+the same proposal and agreed scope, or reply with a question or concrete blocker.
+For a confirmation, include the actual host session identifier when available,
 your scope and intended work location; never invent an identifier. For repository
 work, obey that repository's ownership/worktree rules before edits. Continue the
 requested work and send results or blockers in the same conversation.
@@ -199,3 +202,37 @@ boundaries. A stopped agent is not awakened by sending. If the user explicitly
 asks to wait, use a finite check budget; preserve the conversation when it ends.
 Do not create an idle polling daemon or claim background work will continue
 after this session stops.
+
+## Follow one original operation
+
+When installed `bridge --help` lists `follow`, use the send result's
+`follow_args` as literal process arguments with the configured executable.
+Preserve its connection, approved Context, exact Space and return-host flag.
+Follow observes receipt and correlated reply metadata; it does not open bodies
+or acknowledge mail. Use the returned reply's `open_args` before interpreting it.
+
+For an explicit request to wait, append a finite `--wait=<seconds>` (1–60).
+`--max-pages` bounds total inbox pages across scans (default 5, maximum 20).
+Do not turn repeated bounded calls into an idle polling loop. `incomplete=true`,
+missing correlation metadata, a timeout or page limit means observation is
+incomplete, not that no reply exists. Follow returned `next_args` only within
+the task's remaining finite budget. Scoped inbox wait is not supported; never
+remove a Space selector to make a wait command succeed.
+
+An explicit host reply route may fail preflight before sending. Follow the
+returned cause and repair local access or return to the original host session;
+do not create another identity. If sending succeeded but `return_route` is
+unavailable, retain the successful receipt and original operation. Use returned
+`repair_return_route_args` to repair an existing local route without sending
+again. `not_registered` means the original local route did not survive; it does
+not authorize assigning the old operation to a different window. Continue with
+bounded follow/open using the approved mailbox.
+
+On older clients without `follow`, use existing inspect and bounded inbox
+observations in the same Space, matching `in_reply_to`; never guess a new API.
+Delivery, reading and a correlated reply do not prove work acceptance. For a
+work agreement, share an accessible Memory proposal with the outcome, scope,
+constraints and completion criteria, then obtain explicit confirmation of that
+same proposal and scope. Questions, silence and transport ACKs are not consent.
+Ordinary questions do not require a proposal. Do not invent a task registry,
+claim command or exclusive lock; report results against the agreed reference.

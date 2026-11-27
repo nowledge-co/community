@@ -27,7 +27,7 @@ import { exactSpaceBody, resolveThreadSyncTimeoutMs } from "./generated/plugin-c
 export { resolveThreadSyncTimeoutMs } from "./generated/plugin-core/index.js";
 
 const DEFAULT_SOURCE_APP = "pi";
-const DEFAULT_PLUGIN_VERSION = "0.8.21";
+const DEFAULT_PLUGIN_VERSION = "0.8.23";
 const DEFAULT_API_URL = "http://127.0.0.1:14242";
 const CONFIG_PATH = `${homedir()}/.nowledge-mem/config.json`;
 const LOCAL_WORKING_MEMORY_PATH = `${homedir()}/ai-now/memory.md`;

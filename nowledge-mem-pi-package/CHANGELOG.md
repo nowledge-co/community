@@ -1,8 +1,12 @@
 # Changelog
 
-## [0.8.21] - 2026-11-26
+## [0.8.23] - 2026-11-26
 
 - Update Bridge host/session notice adapters and shared local-cache consumer support. Actual notification availability depends on the host hook and a compatible CLI; native sessions and idle wakeup are unchanged.
+
+## [0.8.22] - Unreleased
+
+- Guide bounded original-operation follow-up and local reply-route recovery when supported by the installed CLI. Preserve exact scope and distinguish replies from work acceptance.
 
 ## [0.8.20] - 2026-11-25
 
