@@ -2345,7 +2345,9 @@ def test_save_surfaces_do_not_default_omitted_unit_type_to_fact():
     bub_tools = (
         BUB_PLUGIN / "src" / "nowledge_mem_bub" / "tools.py"
     ).read_text(encoding="utf-8")
-    assert 'version = "0.7.8"' in bub_pyproject
+    registry = _read_json(COMMUNITY_ROOT / "integrations.json")
+    bub_version = next(item["version"] for item in registry["integrations"] if item["id"] == "bub")
+    assert f'version = "{bub_version}"' in bub_pyproject
     assert "CREATE_NO_WINDOW" in bub_client
     assert "unit_type: str | None = Field(" in bub_tools
     assert "unit_type: str = Field(" not in bub_tools
