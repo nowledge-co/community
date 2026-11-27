@@ -1,10 +1,9 @@
 {
   "mcpServers": {
     "nowledge-mem": {
-      "serverUrl": "http://127.0.0.1:14242/mcp",
-      "headers": {
-        "APP": "Devin"
-      }
+      "command": "nmem",
+      "args": ["mcp"],
+      "env": {"NMEM_MCP_APP": "Devin"}
     }
   }
 }

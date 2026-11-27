@@ -1,5 +1,7 @@
 # Nowledge Mem for Kimi Work
 
+The bundled local MCP connection requires nmem 0.10.125 or later with `nmem mcp`. Restart the host session after changing your Mem connection.
+
 Connect Kimi Work Desktop to Nowledge Mem. Kimi Work can read your current context, search and save memories through MCP, and import Kimi Work conversations into Mem Threads when you run `nmem t sync --from kimi-work`.
 
 Kimi Work is separate from the Kimi Code CLI you may have installed yourself. It uses a private embedded Kimi Code runtime, so `~/.kimi-code` and the Kimi Code plugin install do not affect Kimi Work.

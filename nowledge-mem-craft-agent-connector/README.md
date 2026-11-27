@@ -1,5 +1,7 @@
 # Nowledge Mem for Craft Agent
 
+The bundled local MCP connection requires nmem 0.10.125 or later with `nmem mcp`. Restart the host session after changing your Mem connection.
+
 Craft Agent supports workspace sources and skills. This connector uses those
 native surfaces:
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.4] - Unreleased
+
+- MCP follows the current Nowledge Mem connection when a new host session starts. Requires nmem 0.10.125 or later with the `mcp` command.
+
 ## Unreleased
 
 ## [0.2.3] - 2026-11-20

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.56] - Unreleased
+
+- MCP follows the current Nowledge Mem connection when a new host session starts. Requires nmem 0.10.125 or later with the `mcp` command.
+
 ## [0.1.55] - Unreleased
 
 - With a compatible Bridge CLI, your session can open the reply to its own handoff on the next supported turn. Other sessions sharing the same role keep their own conversations.

@@ -1,5 +1,7 @@
 # Nowledge Mem for DimAgent
 
+The bundled local MCP connection requires nmem 0.10.125 or later with `nmem mcp`. Restart the host session after changing your Mem connection.
+
 This package adds Nowledge Mem skills, local MCP defaults, and fail-open durable
 capture hooks for DimAgent. Its runtime is intentionally DimAgent-specific even
 though the manifest follows DimAgent's Codex-compatible plugin format.

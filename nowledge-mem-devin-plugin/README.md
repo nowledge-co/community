@@ -1,5 +1,7 @@
 # Nowledge Mem for Devin
 
+The bundled local MCP connection requires nmem 0.10.125 or later with `nmem mcp`. Restart the host session after changing your Mem connection.
+
 First-class Nowledge Mem integration for Devin CLI, Desktop, and Cloud.
 
 ## Install

@@ -1672,7 +1672,7 @@ class InstallHookTests(unittest.TestCase):
                 self.assertTrue(updated.startswith(instructions))
                 self.assertIn(header + '\nenabled = true', updated[len(instructions):])
                 self.assertTrue(self.module._install_mcp_config_from_payload({
-                    "rendered": '[mcp_servers.nowledge-mem]\ncommand = "nmem"',
+                    "rendered": '[mcp_servers.nowledge-mem]\ncommand = "nmem"\nargs = ["mcp"]',
                     "apiKeyConfigured": False,
                 }))
                 final = self.module.CONFIG_FILE.read_text(encoding="utf-8")
@@ -2055,7 +2055,7 @@ class InstallHookTests(unittest.TestCase):
         self.assertIn("missing skill outcome extractor", str(raised.exception))
         self.assertFalse(self.module.INSTALLED_SKILL_OUTCOME.exists())
 
-    def test_install_codex_mcp_config_writes_managed_authenticated_override(self):
+    def test_install_codex_mcp_config_does_not_copy_legacy_credentials(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         self.module.CONFIG_FILE.write_text("[features]\nhooks = true\n", encoding="utf-8")
         self.module.CONFIG_FILE.chmod(0o644)
@@ -2076,15 +2076,11 @@ class InstallHookTests(unittest.TestCase):
         }
 
         with mock.patch.object(self.module, "_load_codex_mcp_payload", return_value=payload):
-            self.assertTrue(self.module.install_codex_mcp_config())
+            self.assertFalse(self.module.install_codex_mcp_config())
 
         updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
         self.assertIn("[features]\nhooks = true", updated)
-        self.assertIn(self.module.MCP_MANAGED_BEGIN, updated)
-        self.assertIn('Authorization = "Bearer nmem_test"', updated)
-        self.assertIn(self.module.MCP_MANAGED_END, updated)
-        if os.name != "nt":
-            self.assertEqual(self.module.CONFIG_FILE.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(updated, "[features]\nhooks = true\n")
 
     def test_install_codex_mcp_config_preserves_user_owned_mcp_override(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -2202,11 +2198,9 @@ class InstallHookTests(unittest.TestCase):
             "rendered": "\n".join(
                 [
                     "[mcp_servers.nowledge-mem]",
-                    'url = "http://127.0.0.1:14242/mcp"',
-                    'env_http_headers = { "X-Nmem-Agent-Id" = "NMEM_AGENT_ID" }',
-                    "",
-                    "[mcp_servers.nowledge-mem.http_headers]",
-                    'APP = "Codex"',
+                    'command = "nmem"',
+                    'args = ["mcp"]',
+                    'env_vars = ["NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID"]',
                 ]
             ),
         }
@@ -2216,7 +2210,7 @@ class InstallHookTests(unittest.TestCase):
 
         updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
         self.assertIn(self.module.MCP_MANAGED_BEGIN, updated)
-        self.assertIn('"X-Nmem-Agent-Id" = "NMEM_AGENT_ID"', updated)
+        self.assertIn('env_vars = ["NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID"]', updated)
 
     def test_install_codex_mcp_config_replaces_stale_managed_override(self):
         self.module.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -2245,11 +2239,9 @@ class InstallHookTests(unittest.TestCase):
             "rendered": "\n".join(
                 [
                     "[mcp_servers.nowledge-mem]",
-                    'url = "http://127.0.0.1:14242/mcp"',
-                    'env_http_headers = { "X-Nmem-Agent-Id" = "NMEM_AGENT_ID" }',
-                    "",
-                    "[mcp_servers.nowledge-mem.http_headers]",
-                    'APP = "Codex"',
+                    'command = "nmem"',
+                    'args = ["mcp"]',
+                    'env_vars = ["NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID"]',
                 ]
             ),
         }
@@ -2260,7 +2252,7 @@ class InstallHookTests(unittest.TestCase):
         updated = self.module.CONFIG_FILE.read_text(encoding="utf-8")
         self.assertIn("[features]\nhooks = true", updated)
         self.assertIn(self.module.MCP_MANAGED_BEGIN, updated)
-        self.assertIn('"X-Nmem-Agent-Id" = "NMEM_AGENT_ID"', updated)
+        self.assertIn('env_vars = ["NMEM_AGENT_ID", "NMEM_HOST_AGENT_ID"]', updated)
         self.assertNotIn("old_key", updated)
 
     def test_install_codex_mcp_config_preserves_unterminated_managed_block(self):
