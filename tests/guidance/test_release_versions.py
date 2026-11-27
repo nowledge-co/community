@@ -51,6 +51,9 @@ class ReleaseVersions(unittest.TestCase):
         for identifier, (directory, manifest) in PACKAGES.items():
             with self.subTest(plugin=identifier):
                 version = registry[identifier]["version"]
+                if identifier == "codex-cli":
+                    self.assertEqual(version, "0.1.57", "legacy Codex updaters must retain their compatible offer")
+                    version = registry[identifier]["followWorkspaceRelease"]["version"]
                 if manifest:
                     text = (ROOT / directory / manifest).read_text(encoding="utf-8")
                     actual = re.search(r'^version = "([^"]+)"', text, re.M)[1] if manifest.endswith(".toml") else json.loads(text)["version"]

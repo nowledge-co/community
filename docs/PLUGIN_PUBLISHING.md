@@ -236,3 +236,10 @@ actionlint .github/workflows/publish-*.yml .github/workflows/plugin-release-cont
 Workflow setup and provider grants do not publish packages. After every release
 PR, record the exact merged SHA, registry receipts, and remaining host-smoke
 gates; do not treat a source merge as artifact delivery.
+## Codex workspace-following marketplace
+
+The ordinary Codex marketplace on `main` points to the immutable legacy package; **do not** switch that locator to the active working tree. Old desktop updaters can fetch a moving marketplace even if their cached version offer predates this release.
+
+Only after the CLI is available through supported channels, verify the actual published CLI in a fresh environment (`nmem mcp --help` plus a real MCP initialization). The branch name in the qualified catalog is `codex-workspace`; no package publisher or public ref is activated by the PR itself.
+
+For each qualified release, review the exact merged community SHA. In a clean temporary worktree based on that SHA run `python3 scripts/render_codex_workspace_marketplace.py` to generate the qualified marketplace JSON. Replace **only** `.agents/plugins/marketplace.json` in the projection. Verify `git diff --name-only` reports just that file and that the native Codex plugin installs from a temporary local marketplace with stdio and the catalog version. Publish to the dedicated `codex-workspace` ref only, never to `main`; retain the previous publication as a parent for a fast-forward-only update. For the first ref, coordinate creation **before** exposing the desktop offer. Validate both public marketplace installs in independent empty Codex profiles: unqualified must still be 0.1.57 HTTP; `--ref codex-workspace` must match the qualified release, stage no credential and list the full tools over stdio. If either fails, keep delivery held.

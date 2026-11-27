@@ -18,20 +18,25 @@
 
     - id: nowledge-mem-mcp
       name: '@deepseek-ai/dsh-mcp-client'
-      config:
-        serverName: nowledge_mem
-        transport: streamable-http
-        url: !!js (process.env.NMEM_MCP_URL ?? process.env.NOWLEDGE_MEM_MCP_URL ?? 'http://127.0.0.1:14242/mcp').replace(/\/+$/, '')
-        headers: !!js >
-          Object.fromEntries(Object.entries({
-            APP: 'DeepSeek Harness',
-            'X-Nmem-Tool-Set': 'external-agent',
-            'X-Nowledge-Tool-Schema-Profile': 'slim',
-            Authorization: process.env.NMEM_API_KEY ? `Bearer ${process.env.NMEM_API_KEY}` : undefined,
-            'X-NMEM-API-Key': process.env.NMEM_API_KEY,
-            'X-NMEM-Agent-ID': process.env.NMEM_AGENT_ID,
-            'X-NMEM-Host-Agent-ID': process.env.NMEM_HOST_AGENT_ID,
-          }).filter(([, value]) => typeof value === 'string' && value.length > 0))
-        failOnStartupError: false
-        startupTimeoutMs: 8000
-        toolCallTimeoutMs: 60000
+      config: !!js >
+        ((url) => ({
+          serverName: 'nowledge_mem', failOnStartupError: false, startupTimeoutMs: 8000, toolCallTimeoutMs: 60000,
+          ...(url === undefined ? {
+            transport: 'stdio', command: 'nmem', args: ['mcp'],
+            env: Object.fromEntries(Object.entries({
+              NMEM_MCP_APP: 'DeepSeek Harness', NMEM_MCP_PROFILE: 'external-agent',
+              NMEM_API_URL: process.env.NMEM_API_URL, NMEM_API_KEY: process.env.NMEM_API_KEY,
+              NMEM_AGENT_ID: process.env.NMEM_AGENT_ID, NMEM_HOST_AGENT_ID: process.env.NMEM_HOST_AGENT_ID,
+              NMEM_SPACE: process.env.NMEM_SPACE, NMEM_SPACE_ID: process.env.NMEM_SPACE_ID,
+            }).filter(([, value]) => typeof value === 'string')),
+          } : {
+            transport: 'streamable-http', url: url.replace(/\/+$/, ''),
+            headers: Object.fromEntries(Object.entries({
+              APP: 'DeepSeek Harness', 'X-Nmem-Tool-Set': 'external-agent',
+              'X-Nowledge-Tool-Schema-Profile': 'slim',
+              Authorization: process.env.NMEM_API_KEY ? `Bearer ${process.env.NMEM_API_KEY}` : undefined,
+              'X-NMEM-API-Key': process.env.NMEM_API_KEY, 'X-NMEM-Agent-ID': process.env.NMEM_AGENT_ID,
+              'X-NMEM-Host-Agent-ID': process.env.NMEM_HOST_AGENT_ID,
+            }).filter(([, value]) => typeof value === 'string' && value.length > 0)),
+          }),
+        }))(process.env.NMEM_MCP_URL ?? process.env.NOWLEDGE_MEM_MCP_URL)

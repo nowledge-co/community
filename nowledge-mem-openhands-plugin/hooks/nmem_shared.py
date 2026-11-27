@@ -211,7 +211,7 @@ def http_request(
     url = f"{api_url}{endpoint}"
 
     headers = {
-        "User-Agent": "NowledgeMem-OpenHands/0.1.4",
+        "User-Agent": "NowledgeMem-OpenHands/0.1.5",
         "Accept": "application/json",
         **_make_auth_headers(api_key),
     }

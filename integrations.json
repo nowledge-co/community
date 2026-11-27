@@ -496,7 +496,8 @@
       "name": "Gemini CLI",
       "category": "coding",
       "type": "extension",
-      "version": "0.1.10",
+      "version": "0.1.11",
+      "minimumNmemVersion": "0.10.126",
       "directory": "nowledge-mem-gemini-cli",
       "transport": "cli+mcp",
       "capabilities": {
@@ -521,7 +522,7 @@
         "threads": "automatic-capture",
         "bestResultRequires": [
           "Install the Gemini extension",
-          "Keep the bundled MCP endpoint local, or use nmem config mcp show --host gemini-cli to override mcpServers.nowledge-mem for remote Mem",
+          "Use nmem 0.10.126+ and restart Gemini after switching the CLI workspace",
           "Keep nmem available on this machine",
           "Start a fresh Gemini CLI session after install",
           "Run nmem t sync --from gemini-cli --all-projects --apply only when you want to import older Gemini CLI sessions"
@@ -634,6 +635,11 @@
       "category": "coding",
       "type": "plugin",
       "version": "0.1.57",
+      "followWorkspaceRelease": {
+        "version": "0.1.58",
+        "minimumNmemVersion": "0.10.126",
+        "marketplaceRef": "codex-workspace"
+      },
       "directory": "nowledge-mem-codex-plugin",
 
       "legacyDirectory": "nowledge-mem-codex-prompts",
@@ -665,7 +671,7 @@
           "Keep the SubagentStart hook enabled; full context defaults to the exact planner,code-reviewer,architect,researcher role allowlist and NMEM_SUBAGENT_CONTEXT_TYPES can replace it",
           "Restart Codex and trust the new or changed Nowledge Mem hooks when prompted; enabled and trusted are separate Codex security states",
           "If Codex local Memory is also enabled, turn off Allow memory generation from tool-assisted tasks so MCP and web results do not get copied into Codex's separate local memory store",
-          "Use the bundled local MCP server, or use nmem config mcp show --host codex to override mcp_servers.nowledge-mem for remote Mem or authenticated localhost",
+          "Use the qualified marketplace for nmem 0.10.126+; unqualified Codex installs retain the compatible legacy server",
           "Bridge session preparation runs automatically with a compatible CLI/backend for internally admitted accounts; NMEM_BRIDGE_SESSION_MAILBOX=0 disables it. An actual host session selects a run and never authorizes an Agent identity; eligible SessionStart events retain the exact native session binding. Messaging requires the server to confirm current receiving readiness, automatic ACK and server-owned recovery; the ready hook supplies the exact native correlation for scoped inbox discovery. Registration alone does not establish delivery or acceptance. After an uncertain Receive, recover the original operation; its receipt has no bodies. Read the original message IDs in the same context/session, or replay the original Claim with unchanged operation ID and intent; never create a replacement Claim",
           "Optional local mailbox guidance requires explicit NMEM_AGENT_CONTEXT, a compatible CLI/backend and an independently approved context; when NMEM_CLI_PATH is set, both hooks and model-issued CLI calls must use that executable rather than another nmem from PATH; NMEM_AGENT_PROFILE_MAINTENANCE=1 saves pending profile work at Stop and allows repeated reminders on later starts. Read pending status with a verified Python 3 interpreter and JSON containing only action=status and the original item_id. The model must confirm any ordinary-turn update or create-only enrollment; the flag alone never authorizes identity creation, Rules edits, mailbox settlement or host control",
           "With explicit NMEM_AGENT_CONTEXT, Stop calls the read-only nmem mailbox probe for the approved compatibility or opted-in native mailbox and may remind the model once about new pending mail; NMEM_NO_MAILBOX_NOTICE disables these reminders",
@@ -697,8 +703,9 @@
       "name": "DimAgent",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-dimagent-plugin",
+      "minimumNmemVersion": "0.10.126",
       "transport": "mcp+hook",
       "capabilities": {
         "workingMemory": true,
@@ -749,7 +756,7 @@
       "name": "Dim",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-dim-plugin",
       "transport": "mcp+hook+cli",
       "capabilities": {
@@ -1058,7 +1065,7 @@
       "name": "OpenHands",
       "category": "orchestrator",
       "type": "plugin",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "directory": "nowledge-mem-openhands-plugin",
       "transport": "plugin+mcp+cli",
       "capabilities": {
@@ -1128,8 +1135,9 @@
       "name": "Cursor",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.5",
+      "version": "0.2.6",
       "directory": "nowledge-mem-cursor-plugin",
+      "minimumNmemVersion": "0.10.126",
       "transport": "mcp+hook",
       "capabilities": {
         "workingMemory": true,
@@ -1775,8 +1783,9 @@
       "name": "Kimi Work",
       "category": "coding",
       "type": "connector",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "directory": "nowledge-mem-kimi-work-connector",
+      "minimumNmemVersion": "0.10.126",
       "transport": "mcp+skills+hook",
       "capabilities": {
         "workingMemory": true,
@@ -1800,8 +1809,8 @@
         "threads": "import-only",
         "bestResultRequires": [
           "Install the Nowledge Mem Kimi Work connector into Kimi Work's embedded runtime",
-          "Use nmem 0.9.23 or newer on the same machine as Kimi Work",
-          "Use the bundled local MCP server, or use nmem config mcp show --host kimi-work for remote Mem or authenticated localhost",
+          "Use nmem 0.10.126 or newer with nmem mcp on the same machine as Kimi Work",
+          "Start a new Kimi Work session after switching your CLI workspace",
           "Keep nmem configured on this machine for local or remote Mem",
           "Run nmem t sync --from kimi-work --apply when you want to import Kimi Work sessions"
         ]
@@ -1829,7 +1838,8 @@
       "name": "ZCode",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.3",
+      "version": "0.2.4",
+      "minimumNmemVersion": "0.10.126",
       "directory": null,
       "externalRepo": "https://github.com/nowledge-co/zcode-plugin",
       "transport": "plugin+mcp+skills+commands+hooks",
@@ -1881,7 +1891,8 @@
       "name": "DeepSeek Harness",
       "category": "coding",
       "type": "plugin",
-      "version": "0.2.2",
+      "version": "0.2.3",
+      "minimumNmemVersion": "0.10.126",
       "directory": "nowledge-mem-deepseek-harness-plugin",
       "externalRepo": "https://github.com/nowledge-co/nowledge-mem-deepseek-harness",
       "transport": "dsh-bundle+mcp+cli",
@@ -2045,8 +2056,9 @@
       "name": "Craft Agent",
       "category": "coding",
       "type": "connector",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "directory": "nowledge-mem-craft-agent-connector",
+      "minimumNmemVersion": "0.10.126",
       "transport": "mcp+cli",
       "capabilities": {
         "workingMemory": true,
@@ -2070,7 +2082,7 @@
         "distill": "guided",
         "threads": "import-only",
         "bestResultRequires": [
-          "Add Nowledge Mem as a Craft Agent MCP source with nmem config mcp show --host craft-agent",
+          "Save the bundled stdio source-config.example.json as sources/nowledge-mem/config.json in the selected Craft workspace",
           "Add the Nowledge Mem guide or skill to the Craft workspace so the agent knows when to read, search, and save",
           "Keep nmem configured on the machine where Craft Agent stores ~/.craft-agent/workspaces",
           "Run nmem t sync --from craft-agent --all-projects --apply when you want to import Craft Agent sessions",
@@ -2078,12 +2090,12 @@
         ]
       },
       "install": {
-        "command": "nmem config mcp show --host craft-agent",
-        "updateCommand": "nmem config mcp show --host craft-agent",
+        "command": "curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-craft-agent-connector/source-config.example.json",
+        "updateCommand": "curl -fsSL https://raw.githubusercontent.com/nowledge-co/community/main/nowledge-mem-craft-agent-connector/source-config.example.json",
         "detectionHint": "Running inside Craft Agent; ~/.craft-agent/ exists or CRAFT_CONFIG_DIR is set",
         "agentGuide": {
-          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Craft Agent. Generate the Craft source config with nmem config mcp show --host craft-agent, add it to the active Craft workspace, verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
-          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Craft Agent 安装或更新 Nowledge Mem。用 nmem config mcp show --host craft-agent 生成 Craft source 配置，加入当前 Craft workspace；再用 nmem status 和 Context Bundle 或 Working Memory 检查验证，并总结你改了什么。"
+          "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for Craft Agent. Copy the bundled source-config.example.json into the active Craft workspace as sources/nowledge-mem/config.json without replacing a custom source, verify with nmem status and the Context Bundle or Working Memory check, then summarize what changed.",
+          "promptZh": "读取 https://mem.nowledge.co/SKILL.md，按其中说明为 Craft Agent 安装或更新 Nowledge Mem。将包内的 source-config.example.json 作为 sources/nowledge-mem/config.json 放入当前 Craft workspace，不要覆盖自定义连接；再用 nmem status 和 Context Bundle 或 Working Memory 检查验证，并总结你改了什么。"
         },
         "docsUrl": "/docs/integrations/craft-agent"
       },
@@ -2099,8 +2111,9 @@
       "name": "CodeBuddy",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "directory": "nowledge-mem-codebuddy-plugin",
+      "minimumNmemVersion": "0.10.126",
       "transport": "plugin+mcp+cli",
       "capabilities": {
         "workingMemory": true,
@@ -2127,14 +2140,14 @@
           "Install the CodeBuddy plugin from the Nowledge community marketplace",
           "Keep nmem configured on the machine where CodeBuddy stores $CODEBUDDY_CONFIG_DIR/projects or ~/.codebuddy/projects",
           "Restart or reload CodeBuddy after install or update so hooks and MCP config are active",
-          "Use nmem config mcp show --host codebuddy for remote Mem or authenticated localhost",
+          "Use the bundled stdio server for the workspace selected by nmem",
           "Run nmem t sync --from codebuddy --apply only when you want to import older CodeBuddy sessions"
         ]
       },
       "install": {
         "command": "codebuddy plugin marketplace add nowledge-co/community && codebuddy plugin install nowledge-mem@nowledge-community",
         "updateCommand": "codebuddy plugin marketplace update nowledge-community && codebuddy plugin update nowledge-mem@nowledge-community",
-        "configRequired": "The community repo exposes .codebuddy-plugin/marketplace.json. The plugin ships .codebuddy-plugin/plugin.json, skills, slash commands, hooks/hooks.json, and a bundled local .mcp.json. For remote Mem, generate a user-owned MCP override with nmem config mcp show --host codebuddy and paste it into ~/.codebuddy/.mcp.json, $CODEBUDDY_CONFIG_DIR/.mcp.json, or project .mcp.json.",
+        "configRequired": "The community repo exposes .codebuddy-plugin/marketplace.json. The plugin ships .codebuddy-plugin/plugin.json, skills, slash commands, hooks/hooks.json, and a bundled stdio .mcp.json. For a separate manually managed HTTP connection, generate a user-owned MCP override with nmem config mcp show --host codebuddy and paste it into ~/.codebuddy/.mcp.json, $CODEBUDDY_CONFIG_DIR/.mcp.json, or project .mcp.json.",
         "detectionHint": "Running inside CodeBuddy Code; ~/.codebuddy/ exists, CODEBUDDY_CONFIG_DIR is set, or codebuddy is on PATH",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md and follow the instructions to install or update Nowledge Mem for CodeBuddy. Add the nowledge-community marketplace, install nowledge-mem@nowledge-community, verify with nmem status and the Context Bundle or Working Memory check, then run a short session and confirm nmem t list --source codebuddy shows the imported thread.",
@@ -2154,8 +2167,9 @@
       "name": "WorkBuddy",
       "category": "office",
       "type": "plugin",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "directory": "nowledge-mem-workbuddy-plugin",
+      "minimumNmemVersion": "0.10.126",
       "transport": "plugin+mcp+cli",
       "capabilities": {
         "workingMemory": true,
@@ -2182,14 +2196,14 @@
           "Install the Nowledge Mem plugin from the Nowledge community marketplace inside WorkBuddy",
           "Keep nmem configured on the machine where WorkBuddy stores $WORKBUDDY_CONFIG_DIR/projects or ~/.workbuddy/projects",
           "Restart or reload WorkBuddy after install or update so hooks and MCP config are active",
-          "Use nmem config mcp show --host workbuddy for remote Mem or authenticated localhost",
+          "Use the bundled stdio server for the workspace selected by nmem",
           "Run nmem t sync --from workbuddy --apply only when you want to import older WorkBuddy sessions"
         ]
       },
       "install": {
         "command": "In WorkBuddy desktop, open Plugins -> + and add https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json; find Nowledge Mem in nowledge-community, Install and enable it, then reload WorkBuddy and review the MCP Trust prompt. Use /plugin marketplace add and /plugin install only if that host exposes plugin commands.",
         "updateCommand": "In WorkBuddy Plugins, open the installed Nowledge Mem card and choose Update, then reload. Do not remove the marketplace for an ordinary update.",
-        "configRequired": "Use the raw .workbuddy-plugin/marketplace.json URL, not the repository root, which can select CodeBuddy instead. Confirm the plugin and skill are enabled and explicitly Trust its MCP connector if prompted; an install command alone is not proof of runtime availability. For remote Mem or authenticated localhost, use nmem config mcp show --host workbuddy and add/update nowledge-mem through WorkBuddy's Connections/MCP settings, preserving URL and headers. Do not assume ~/.workbuddy/.mcp.json populates the desktop UI. Manually copying a skill and registering MCP does not install automatic capture hooks.",
+        "configRequired": "Use the raw .workbuddy-plugin/marketplace.json URL, not the repository root, which can select CodeBuddy instead. Confirm the plugin and skill are enabled and explicitly Trust its MCP connector if prompted; an install command alone is not proof of runtime availability. Only for a separately managed HTTP connection, use nmem config mcp show --host workbuddy and add/update nowledge-mem through WorkBuddy's Connections/MCP settings, preserving URL and headers. Do not assume ~/.workbuddy/.mcp.json populates the desktop UI. Manually copying a skill and registering MCP does not install automatic capture hooks.",
         "detectionHint": "Running inside WorkBuddy; ~/.workbuddy/ exists, WORKBUDDY_CONFIG_DIR is set, or WorkBuddy exposes the CodeBuddy-compatible plugin runtime",
         "agentGuide": {
           "prompt": "Read https://mem.nowledge.co/SKILL.md for WorkBuddy setup. In desktop Plugins -> +, add the raw https://raw.githubusercontent.com/nowledge-co/community/main/.workbuddy-plugin/marketplace.json URL, Install and enable Nowledge Mem, reload, and guide the user through explicit MCP Trust. Do not substitute CodeBuddy CLI installation as proof of desktop UI registration. Verify with nmem status and the Context Bundle or Working Memory check, then a memory search inside WorkBuddy; check automatic capture only with full plugin hooks installed.",
@@ -2426,8 +2440,9 @@
       "name": "Universal Agent Plugin",
       "category": "surface",
       "type": "plugin",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "directory": "nowledge-mem-agent-plugin",
+      "minimumNmemVersion": "0.10.126",
       "transport": "agent-plugin+mcp",
       "capabilities": {
         "workingMemory": true,
@@ -2888,8 +2903,9 @@
       "name": "Devin",
       "category": "coding",
       "type": "plugin",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "directory": "nowledge-mem-devin-plugin",
+      "minimumNmemVersion": "0.10.126",
       "transport": "plugin+mcp+cli+api",
       "capabilities": {
         "workingMemory": true,
@@ -2915,7 +2931,7 @@
         "bestResultRequires": [
           "Enable Devin's native plugin closed beta and install nowledge-co/community#nowledge-mem-devin-plugin",
           "Keep nmem available on the machine that owns Devin CLI/Desktop history",
-          "Use nmem config mcp show --host devin for remote or authenticated Mem",
+          "Use the bundled stdio server for the workspace selected by nmem",
           "For Devin Cloud, use a dedicated service user with only ViewOrgSessions and keep its credential outside the plugin"
         ]
       },

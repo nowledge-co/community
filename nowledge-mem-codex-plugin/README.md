@@ -272,10 +272,11 @@ Then verify with `nmem status`.
 
 ### Home-level (all projects)
 
-Add the Nowledge Community marketplace:
+With nmem 0.10.126 or later **and** a working `nmem mcp --help`, add the workspace-following Nowledge Community marketplace. The ordinary unqualified marketplace remains on 0.1.57 for older CLIs. If you already have a customized or pinned marketplace, keep its configuration; use the Mem AI Tools Update action for a managed installation. Do not unregister a working marketplace to try an unpublished release.
+
 
 ```bash
-codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin
+codex plugin marketplace add nowledge-co/community --ref codex-workspace --sparse .agents --sparse nowledge-mem-codex-plugin
 ```
 
 Install the package from that marketplace:
@@ -287,7 +288,7 @@ codex plugin add nowledge-mem@nowledge-community
 If your Codex build still uses the legacy top-level subcommand:
 
 ```bash
-codex marketplace add nowledge-co/community
+codex marketplace add nowledge-co/community --ref codex-workspace
 ```
 
 Prefer the `codex plugin marketplace add ... --sparse ...` command when your Codex build supports it. It avoids cloning the whole community repository, which can time out on slower networks. You can also install it from Codex `/plugins`; the CLI command above is the same marketplace-backed install path.
@@ -370,21 +371,9 @@ Use `-p /path/to/project` instead of `--all-projects` when you only want one pro
 
 On current Codex builds, enabled plugins contribute `hooks/hooks.json` automatically. Older builds may still need `plugin_hooks = true`; the setup script detects that from `codex features list`. In `/hooks`, the Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks should be both enabled and trusted.
 
-The same setup asks `nmem` for a Codex MCP config and writes a managed `mcp_servers.nowledge-mem` block into `~/.codex/config.toml`. Besides remote URL and authentication, this block maps `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` through Codex's native environment-backed HTTP headers. A named Raft/Codex worker therefore appears automatically under **Context → AI Identities**, and its MCP searches and writes use that identity's configured default Space. Existing user-owned MCP blocks are never replaced.
+The bundled server and the setup-managed Codex MCP block both launch `nmem mcp` (requires nmem 0.10.126 or later). Each new session reads the CLI's selected destination, credentials, and worker identity; an existing session stays on its original workspace. Setup leaves user-owned MCP blocks alone. Rerun `scripts/install_hooks.py` to upgrade a block created by an older setup. There is no need to copy a key into Codex configuration.
 
-The package still includes a local fallback MCP server at `http://127.0.0.1:14242/mcp`, but its static plugin manifest cannot resolve process-specific environment values. Rerun `scripts/install_hooks.py` after updating the plugin so named agents receive the identity-aware managed block.
-
-If you prefer to copy a bundled example, see [`codex.config.example.toml`](./codex.config.example.toml).
-
-For remote Mem, keep the plugin block and override the bundled MCP server with your server:
-
-```bash
-nmem config client set url https://mem.example.com
-nmem config client set api-key nmem_your_key
-nmem config mcp show --host codex
-```
-
-Paste the generated TOML into `~/.codex/config.toml`, or rerun the setup script above if your installed plugin is `0.1.11` or newer. Direct MCP clients do not read `~/.nowledge-mem/config.json` by themselves; the generated block gives Codex the same URL and key that `nmem` already uses.
+If you run Codex on another computer, configure the CLI on that computer first. See the [workspace connection guide](../docs/MCP_WORKSPACE_FOLLOW.md). Use `nmem config mcp show --host codex` to inspect the generated TOML.
 
 ### Repo-level (this project only)
 
@@ -477,7 +466,7 @@ If you installed the Codex package before `0.1.13`, refresh the marketplace firs
 
 ```bash
 (codex plugin marketplace remove nowledge-community || codex marketplace remove nowledge-community || true)
-codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin
+codex plugin marketplace add nowledge-co/community --ref codex-workspace --sparse .agents --sparse nowledge-mem-codex-plugin
 codex plugin add nowledge-mem@nowledge-community
 ```
 
@@ -497,7 +486,7 @@ fi
 If the marketplace is not registered yet, run:
 
 ```bash
-codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin || codex marketplace add nowledge-co/community
+codex plugin marketplace add nowledge-co/community --ref codex-workspace --sparse .agents --sparse nowledge-mem-codex-plugin
 ```
 
 Restart Codex after updating. If you are on a repo-local `@local` setup, update the local source path instead.
@@ -599,8 +588,8 @@ to see its full capabilities.
 - **Stop hook points to an older plugin cache path**: update the package, rerun `scripts/install_hooks.py`, then restart Codex. Already-running Codex sessions can keep the old plugin hook path in memory until restart; current packages prefer the bundled runtime and use the stable host copy only when the bundled runtime is unavailable.
 - **`codex mcp list` shows `Not logged in`**: update `nmem` so it matches your Mem app/server, install the CLI config from the desktop app if you use local desktop Mem, then rerun `scripts/install_hooks.py`. You can also run `nmem config mcp show --host codex` and paste the generated TOML into `~/.codex/config.toml`. Do not use `codex mcp login nowledge-mem`; that command is for OAuth MCP servers, while Nowledge Mem's Codex path uses the URL and headers generated by `nmem`.
 - **Only `codex marketplace` exists, not `codex plugin marketplace`**: use `codex marketplace add nowledge-co/community`. This is a host-version difference, not a plugin issue.
-- **Marketplace update times out or fails with `early EOF`**: remove the old full-clone marketplace, then add it back with sparse checkout: `(codex plugin marketplace remove nowledge-community || codex marketplace remove nowledge-community || true) && codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin && codex plugin add nowledge-mem@nowledge-community`.
-- **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community --sparse .agents --sparse nowledge-mem-codex-plugin` (or `codex marketplace add nowledge-co/community` on legacy Codex), install with `codex plugin add nowledge-mem@nowledge-community` or from `/plugins`, then re-check your `~/.codex/config.toml` plugin key.
+- **Marketplace update times out or fails with `early EOF`**: remove the old full-clone marketplace, then add it back with sparse checkout: `(codex plugin marketplace remove nowledge-community || codex marketplace remove nowledge-community || true) && codex plugin marketplace add nowledge-co/community --ref codex-workspace --sparse .agents --sparse nowledge-mem-codex-plugin && codex plugin add nowledge-mem@nowledge-community`.
+- **"plugin is not installed"**: Run `codex plugin marketplace add nowledge-co/community --ref codex-workspace --sparse .agents --sparse nowledge-mem-codex-plugin` (or `codex marketplace add nowledge-co/community` on legacy Codex), install with `codex plugin add nowledge-mem@nowledge-community` or from `/plugins`, then re-check your `~/.codex/config.toml` plugin key.
 - **Codex local Memory seems to replace Nowledge retrieval**: update the plugin to `0.1.26` or newer and rerun `scripts/install_hooks.py`. If both memory systems remain enabled, turn off **Allow memory generation from tool-assisted tasks** so Nowledge MCP results are not copied into Codex local Memory.
 - **Only startup context loads, but search/distill never show up**: confirm the bundled MCP server is visible in Codex and that the UserPromptSubmit hook is enabled in `/hooks`, then merge the package `AGENTS.md` into the project root for stronger repo-specific behavior. If Mem is remote or not on the default local port, add `mcp_servers.nowledge-mem` in `~/.codex/config.toml` to override the bundled local endpoint.
 

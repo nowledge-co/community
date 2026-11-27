@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.6] - Unreleased
+
+- MCP follows the current Nowledge Mem connection when a new host session starts. Requires nmem 0.10.126 or later with the `mcp` command.
+
 ## [0.1.5] - Unreleased
 
 - Use the canonical Claude Code marketplace shorthand in the bundled host guide.

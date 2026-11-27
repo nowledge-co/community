@@ -838,6 +838,13 @@ def _install_mcp_config_from_payload(payload: dict) -> bool:
     rendered = str(payload.get("rendered") or "").strip()
     if not rendered:
         return False
+    # An older CLI renders a fixed URL and may include the raw API key. Never
+    # copy it, or remove the last working managed block during a partial update.
+    parsed = _parse_codex_toml(rendered)
+    server = parsed.get("mcp_servers", {}).get("nowledge-mem", {})
+    if not (server.get("command") and server.get("args") == ["mcp"] and "url" not in server):
+        print("Update nmem to 0.10.126 or later; existing Codex MCP settings were kept.", file=sys.stderr)
+        return False
 
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     text = CONFIG_FILE.read_text(encoding="utf-8") if CONFIG_FILE.exists() else ""

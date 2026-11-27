@@ -152,6 +152,18 @@ replies, keys, or tokens.
 
 ## MCP
 
+Dim can run stdio, but an existing installation may intentionally use its daemon's `NMEM_MCP_URL`. Updating the package does not replace that route. For a new follow-workspace install with nmem 0.10.126+, use a dedicated local copy:
+
+```bash
+# Choose an unused directory and keep it after installing; Dim loads local plugin paths.
+git clone https://github.com/nowledge-co/community nowledge-dim-workspace
+cd nowledge-dim-workspace
+cp nowledge-mem-dim-plugin/mcp.stdio.json nowledge-mem-dim-plugin/mcp.json
+dima plugin install ./nowledge-mem-dim-plugin
+```
+
+The supplied stdio configuration launches `nmem mcp`; a new Dim session then uses the CLI's selected workspace. Use the ordinary install above if you want to keep an explicitly configured direct HTTP server.
+
 `mcp.json` registers a streamable HTTP server for the local Mem:
 
 ```json

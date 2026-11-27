@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- The default MCP connection follows the CLI workspace when a session starts (nmem 0.10.126+). Explicit MCP URL overrides still use HTTP, with the existing external-agent tool profile.
+
 ## Unreleased
 
 ## 0.2.2

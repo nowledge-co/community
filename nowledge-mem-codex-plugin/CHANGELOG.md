@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.58] - Unreleased
+
+- MCP follows the current Nowledge Mem connection when a new host session starts. Requires nmem 0.10.126 or later with the `mcp` command.
+
 ## [0.1.57] - Unreleased
 
 - Guide bounded original-operation follow-up and local reply-route recovery when supported by the installed CLI. Preserve exact scope and distinguish replies from work acceptance.

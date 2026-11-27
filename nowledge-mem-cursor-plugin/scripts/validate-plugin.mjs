@@ -219,9 +219,9 @@ async function main() {
     fail('mcp.json must declare mcpServers.nowledge-mem');
   }
   const server = mcpConfig.mcpServers['nowledge-mem'];
-  assertString(server.url, 'mcp.json mcpServers.nowledge-mem.url');
-  if (server.type !== 'streamableHttp') {
-    fail('mcp.json mcpServers.nowledge-mem.type must be streamableHttp');
+  if (server.command !== 'nmem' || JSON.stringify(server.args) !== '["mcp"]' ||
+      Object.keys(server).some(key => !['command', 'args'].includes(key))) {
+    fail('mcp.json must launch nmem mcp without a URL or credential');
   }
 
   await validateFrontmatterFile('rules/nowledge-mem.mdc', ['description'], 'rule');

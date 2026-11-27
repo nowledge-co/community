@@ -370,7 +370,7 @@ def test_key_plugin_static_contracts_are_declared():
     assert set(agent_plugin_manifest) <= allowed_agent_plugin_manifest_keys
     assert agent_plugin_manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
     assert agent_plugin_manifest["name"] == "nowledge-mem"
-    assert agent_plugin_manifest["version"] == "0.1.5"
+    assert agent_plugin_manifest["version"] == "0.1.6"
     assert registry_by_id["agent-plugins"]["version"] == agent_plugin_manifest["version"]
     assert registry_by_id["agent-plugins"]["directory"] == AGENT_PLUGIN.name
     assert registry_by_id["agent-plugins"]["autonomy"]["threads"] == "handoff-only"
@@ -378,15 +378,12 @@ def test_key_plugin_static_contracts_are_declared():
     devin_manifest = _read_json(
         COMMUNITY_ROOT / "nowledge-mem-devin-plugin" / ".devin-plugin" / "plugin.json"
     )
-    assert devin_manifest["version"] == "0.1.6"
+    assert devin_manifest["version"] == "0.1.7"
     assert registry_by_id["devin"]["version"] == devin_manifest["version"]
     assert registry_by_id["npx-skills"]["version"] == "0.6.6"
     assert set(agent_plugin_mcp) == {"$schema", "mcpServers"}
     assert agent_plugin_mcp["$schema"] == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
-    assert agent_plugin_mcp["mcpServers"]["nowledge-mem"] == {
-        "type": "streamable-http",
-        "url": "http://127.0.0.1:14242/mcp",
-    }
+    assert agent_plugin_mcp["mcpServers"]["nowledge-mem"] == {"type": "stdio", "command": "nmem", "args": ["mcp"]}
     assert "Authorization" not in json.dumps(agent_plugin_mcp)
     assert "Bearer" not in json.dumps(agent_plugin_mcp)
     assert "API_KEY" not in json.dumps(agent_plugin_mcp)
@@ -404,16 +401,13 @@ def test_key_plugin_static_contracts_are_declared():
     codex_save_hook = (CODEX_PLUGIN / "hooks" / "nmem-stop-save.py").read_text(encoding="utf-8")
     codex_runtime = (CODEX_PLUGIN / "hooks" / "nmem_runtime.py").read_text(encoding="utf-8")
     assert codex_manifest["name"] == "nowledge-mem"
-    assert codex_manifest["version"] == "0.1.57"
-    assert registry_by_id["codex-cli"]["version"] == codex_manifest["version"]
+    assert codex_manifest["version"] == "0.1.58"
+    assert registry_by_id["codex-cli"]["version"] == "0.1.57"  # last compatible legacy offer
+    assert registry_by_id["codex-cli"]["followWorkspaceRelease"]["version"] == codex_manifest["version"]
     assert codex_manifest["skills"] == "./skills/"
     assert codex_manifest["mcpServers"] == "./.mcp.json"
     assert codex_manifest["hooks"] == "./hooks/hooks.json"
-    assert codex_mcp["mcpServers"]["nowledge-mem"]["type"] == "http"
-    assert (
-        codex_mcp["mcpServers"]["nowledge-mem"]["url"]
-        == "http://127.0.0.1:14242/mcp"
-    )
+    assert codex_mcp["mcpServers"]["nowledge-mem"] == {"command": "nmem", "args": ["mcp"]}
     assert {"SessionStart", "SubagentStart", "UserPromptSubmit", "Stop"} <= set(codex_hooks)
     assert "nmem-context.py" in json.dumps(codex_hooks["SessionStart"])
     assert "nmem-context.py" in json.dumps(codex_hooks["SubagentStart"])
@@ -594,7 +588,7 @@ def test_key_plugin_static_contracts_are_declared():
 
     gemini_pkg = _read_json(GEMINI_PLUGIN / "package.json")
     gemini_hook = (GEMINI_PLUGIN / "hooks" / "session-start.mjs").read_text(encoding="utf-8")
-    assert gemini_pkg["version"] == "0.1.10"
+    assert gemini_pkg["version"] == "0.1.11"
     assert "context', '--source-app', 'gemini-cli'" in gemini_hook
     assert "NMEM_AGENT_ID" in gemini_hook
     assert "NMEM_HOST_AGENT_ID" in gemini_hook
@@ -639,7 +633,7 @@ def test_key_plugin_static_contracts_are_declared():
     cursor_working_memory_skill = (
         CURSOR_PLUGIN / "skills" / "read-working-memory" / "SKILL.md"
     ).read_text(encoding="utf-8")
-    assert cursor_manifest["version"] == "0.2.5"
+    assert cursor_manifest["version"] == "0.2.6"
     assert cursor_hooks["hooks"]["sessionStart"][0] == {
         "command": 'node "${CURSOR_PLUGIN_ROOT}/hooks/session-start.mjs"',
         "timeout": 15,
@@ -693,7 +687,7 @@ def test_key_plugin_static_contracts_are_declared():
     workbuddy_hook_source = (
         WORKBUDDY_PLUGIN / "scripts" / "nowledge-mem-hook.mjs"
     ).read_text(encoding="utf-8")
-    assert workbuddy_manifest["version"] == "0.2.2"
+    assert workbuddy_manifest["version"] == "0.2.3"
     assert registry_by_id["workbuddy"]["version"] == workbuddy_manifest["version"]
     assert registry_by_id["workbuddy"]["directory"] == WORKBUDDY_PLUGIN.name
     assert workbuddy_marketplace_plugin["version"] == workbuddy_manifest["version"]
@@ -710,19 +704,12 @@ def test_key_plugin_static_contracts_are_declared():
         "marketplace remove"
         not in registry_by_id["workbuddy"]["install"]["updateCommand"]
     )
-    assert codebuddy_manifest["version"] == "0.1.2"
+    assert codebuddy_manifest["version"] == "0.1.3"
     assert registry_by_id["codebuddy"]["version"] == codebuddy_manifest["version"]
     assert codebuddy_marketplace_plugin["version"] == codebuddy_manifest["version"]
     assert codebuddy_marketplace_plugin["source"] == f"./{CODEBUDDY_PLUGIN.name}"
     assert not (CODEBUDDY_PLUGIN / ".workbuddy-plugin" / "plugin.json").exists()
-    assert (
-        workbuddy_mcp["mcpServers"]["nowledge-mem"]["headers"]["APP"]
-        == "WorkBuddy"
-    )
-    assert (
-        workbuddy_mcp["mcpServers"]["nowledge-mem"]["url"]
-        == "http://127.0.0.1:14242/mcp"
-    )
+    assert workbuddy_mcp["mcpServers"]["nowledge-mem"] == {"command": "nmem", "args": ["mcp"], "env": {"NMEM_MCP_APP": "WorkBuddy"}}
     assert {"SessionStart", "UserPromptSubmit", "PreCompact", "Stop", "SubagentStop", "SessionEnd"} <= set(
         workbuddy_hooks
     )
@@ -925,13 +912,10 @@ def test_key_plugin_static_contracts_are_declared():
         KIMI_WORK_CONNECTOR / "scripts" / "install_kimi_work_plugin.py"
     ).read_text(encoding="utf-8")
     assert kimi_work_manifest["name"] == "nowledge-mem"
-    assert kimi_work_manifest["version"] == "0.1.1"
+    assert kimi_work_manifest["version"] == "0.1.2"
     assert kimi_work_manifest["skills"] == "./skills/"
     assert kimi_work_manifest["sessionStart"]["skill"] == "nowledge-mem"
-    assert (
-        kimi_work_manifest["mcpServers"]["nowledge-mem"]["url"]
-        == "http://127.0.0.1:14242/mcp"
-    )
+    assert kimi_work_manifest["mcpServers"]["nowledge-mem"] == {"command": "nmem", "args": ["mcp"], "enabled": True}
     assert [hook["event"] for hook in kimi_work_manifest["hooks"]] == ["UserPromptSubmit"]
     assert "./scripts/kimi-bridge-startup.py kimi-work" in kimi_work_manifest["hooks"][0]["command"]
     assert "nmem --json context --source-app kimi-work" in kimi_work_skill
@@ -1611,8 +1595,8 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
     assert "slock" not in integration_ids
     assert "slock" in by_id["raft"]["aliases"]
     assert by_id["copilot-cli"]["version"] == "0.1.7"
-    assert by_id["gemini-cli"]["version"] == "0.1.10"
-    assert by_id["cursor"]["version"] == "0.2.5"
+    assert by_id["gemini-cli"]["version"] == "0.1.11"
+    assert by_id["cursor"]["version"] == "0.2.6"
     assert by_id["cursor"]["transport"] == "mcp+hook"
     assert by_id["cursor"]["capabilities"]["autoCapture"] is True
     assert by_id["cursor"]["threadSave"]["method"] == "hook+cli-native"
@@ -1694,7 +1678,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem:sync-now",
         "nowledge-mem:import-history",
     ]
-    assert by_id["dim"]["version"] == "0.1.1"
+    assert by_id["dim"]["version"] == "0.1.2"
     assert by_id["dim"]["directory"] == "nowledge-mem-dim-plugin"
     assert by_id["dim"]["transport"] == "mcp+hook+cli"
     assert by_id["dim"]["capabilities"]["autoCapture"] is True
@@ -1713,7 +1697,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "explore-graph",
         "status",
     ]
-    assert by_id["kimi-work"]["version"] == "0.1.1"
+    assert by_id["kimi-work"]["version"] == "0.1.2"
     assert by_id["kimi-work"]["directory"] == "nowledge-mem-kimi-work-connector"
     assert by_id["kimi-work"]["transport"] == "mcp+skills+hook"
     assert by_id["kimi-work"]["capabilities"]["autoCapture"] is False
@@ -1729,7 +1713,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "autonomy"
     ]["bestResultRequires"][0]
     zcode = by_id["zcode"]
-    assert zcode["version"] == "0.2.3"
+    assert zcode["version"] == "0.2.4"
     assert zcode["type"] == "plugin"
     assert zcode["directory"] is None
     assert zcode["externalRepo"] == "https://github.com/nowledge-co/zcode-plugin"
@@ -1751,7 +1735,7 @@ def test_registry_connect_contract_points_agent_prompts_to_universal_skill():
         "nowledge-mem-save-handoff",
     ]
     dsh = by_id["deepseek-harness"]
-    assert dsh["version"] == "0.2.2"
+    assert dsh["version"] == "0.2.3"
     assert dsh["type"] == "plugin"
     assert dsh["directory"] == "nowledge-mem-deepseek-harness-plugin"
     assert dsh["externalRepo"] == "https://github.com/nowledge-co/nowledge-mem-deepseek-harness"
@@ -1990,7 +1974,7 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     )
 
     assert pkg["name"] == "nowledge-mem-deepseek-harness"
-    assert pkg["version"] == "0.2.2"
+    assert pkg["version"] == "0.2.3"
     assert pkg["type"] == "module"
     assert pkg["main"] == "src/index.js"
     assert pkg["dsh"]["bundle"]["patch"] == "./cordis.patch.yml"
@@ -2010,8 +1994,8 @@ def test_deepseek_harness_plugin_static_contract_is_self_contained():
     assert "name: nowledge-mem-deepseek-harness" in patch
     assert "id: nowledge-mem-mcp" in patch
     assert "name: '@deepseek-ai/dsh-mcp-client'" in patch
-    assert "serverName: nowledge_mem" in patch
-    assert "'http://127.0.0.1:14242/mcp').replace(/\\/+$/, '')" in patch
+    assert "serverName: 'nowledge_mem'" in patch
+    assert "command: 'nmem', args: ['mcp']" in patch
     assert "'X-Nowledge-Tool-Schema-Profile': 'slim'" in patch
     assert "Object.fromEntries(Object.entries" in patch
     assert "typeof value === 'string' && value.length > 0" in patch

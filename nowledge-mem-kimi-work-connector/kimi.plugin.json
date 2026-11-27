@@ -1,6 +1,6 @@
 {
   "name": "nowledge-mem",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cross-tool memory for Kimi Work. Recall past decisions, search prior threads, and import Kimi Work sessions into Nowledge Mem.",
   "keywords": ["memory", "mcp", "skills", "thread-sync"],
   "author": {
@@ -15,7 +15,8 @@
   "skillInstructions": "Use Nowledge Mem for durable cross-tool memory. Prefer MCP tools when they are connected; use nmem CLI as the fallback and for Kimi Work transcript import.",
   "mcpServers": {
     "nowledge-mem": {
-      "url": "http://127.0.0.1:14242/mcp",
+      "command": "nmem",
+      "args": ["mcp"],
       "enabled": true
     }
   },

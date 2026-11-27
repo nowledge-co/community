@@ -268,7 +268,7 @@ if (integrationsDoc) {
   if (!codexEntry) fail("integrations.json missing codex-cli entry");
   else {
     ok("integrations.json codex-cli entry");
-    if (codexEntry.version !== expectedVersion) fail(`integrations.json codex-cli version must be ${expectedVersion}`);
+    if (codexEntry.followWorkspaceRelease?.version !== expectedVersion || codexEntry.version !== "0.1.57") fail(`qualified release must be ${expectedVersion}, independent from the legacy offer`);
     else ok("integrations.json codex-cli version");
     if (codexEntry.capabilities?.autoCapture !== true) fail("codex-cli autoCapture must be true");
     else ok("codex-cli autoCapture");

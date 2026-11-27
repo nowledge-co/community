@@ -41,7 +41,7 @@ class BridgePackageTests(unittest.TestCase):
             installed = Path(root) / "package"
             shutil.copytree(PLUGIN_ROOT, installed, symlinks=True)
             manifest = json.loads((installed / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
-            self.assertEqual(codex["version"], manifest["version"])
+            self.assertEqual(codex["followWorkspaceRelease"]["version"], manifest["version"])
             skills_root = installed / manifest["skills"]
             skill = skills_root / "bridge/SKILL.md"
             self.assertTrue(skill.is_file(), "installed discovery must not need the source checkout")

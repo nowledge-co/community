@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.7] - Unreleased
+
+- Use nmem stdio for the local MCP connection (nmem 0.10.126+).
+
 ## [0.1.6] - 2026-11-24
 
 - Add opt-in startup guidance for the approved Bridge Agent mailbox in Devin CLI.

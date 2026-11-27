@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import socket
 import stat
 import subprocess
 import sys
@@ -51,7 +52,7 @@ class TestOpenHandsPluginManifest:
         manifest_dot = json.loads((PLUGIN_DIR / ".plugin" / "plugin.json").read_text(encoding="utf-8"))
 
         assert manifest_dot["name"] == "nowledge-mem"
-        assert manifest_dot["version"] == "0.1.4"
+        assert manifest_dot["version"] == "0.1.5"
         for field in ("name", "version", "description", "author", "license", "keywords"):
             assert field in manifest_dot, f"Missing field: {field}"
         assert "openhands" in manifest_dot["keywords"]
@@ -391,6 +392,19 @@ class TestOpenHandsTranscriptSync:
         assert res.returncode == 0, f"OpenHands SDK Plugin load failed: {res.stderr}"
 
 
+@pytest.fixture
+def offline_hook_env():
+    # Keep an owned bound, non-listening endpoint for the entire assertion:
+    # no real Mem, uvx package resolution, or inherited credentials.
+    with socket.socket() as reserved:
+        reserved.bind(("127.0.0.1", 0))
+        def build(home: Path):
+            env = {k: os.environ[k] for k in ("LANG", "LC_ALL", "SYSTEMROOT") if k in os.environ}
+            return dict(env, HOME=str(home), USERPROFILE=str(home), PATH=str(home),
+                        NMEM_API_URL=f"http://127.0.0.1:{reserved.getsockname()[1]}")
+        yield build
+
+
 class TestReviewerFindingsDetection:
     def test_get_effective_config_cross_host_isolation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         sys.path.insert(0, str(PLUGIN_DIR / "hooks"))
@@ -532,7 +546,7 @@ class TestReviewerFindingsDetection:
         assert ".openhands/plugins/nowledge-mem" in readme
         assert "All standard Nowledge Mem child connectors" not in readme
 
-    def test_session_first_prompt_injection(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_session_first_prompt_injection(self, tmp_path: Path, offline_hook_env) -> None:
         """Verify that Turn 1 injects the full Context Bundle and Turn 2 only emits lightweight guidance."""
         session_id = f"test-sess-{int(time.time())}"
         fake_home = tmp_path / "home"
@@ -542,11 +556,8 @@ class TestReviewerFindingsDetection:
         mock_mem.parent.mkdir(parents=True, exist_ok=True)
         mock_mem.write_text("# Hermetic Test Briefing\nMock working memory", encoding="utf-8")
 
-        env = os.environ.copy()
-        env["HOME"] = str(fake_home)
+        env = offline_hook_env(fake_home)
         env["OPENHANDS_SESSION_ID"] = session_id
-        # Ensure offline backend routing falls back to local memory file
-        env["NMEM_API_URL"] = "http://127.0.0.1:9999"
 
         context_script = PLUGIN_DIR / "hooks" / "nmem-context.py"
 
@@ -580,7 +591,7 @@ class TestReviewerFindingsDetection:
         assert "<nowledge_working_memory>" not in ctx2
         assert "OpenHands local session history and Nowledge Mem are complementary." in ctx2
 
-    def test_session_first_prompt_injection_without_session_id(self, tmp_path: Path) -> None:
+    def test_session_first_prompt_injection_without_session_id(self, tmp_path: Path, offline_hook_env) -> None:
         """Verify that prompt injection tracks sessions via workspace fallback when session_id is omitted."""
         fake_home = tmp_path / "home"
         fake_home.mkdir(parents=True)
@@ -591,12 +602,8 @@ class TestReviewerFindingsDetection:
         mock_mem.parent.mkdir(parents=True, exist_ok=True)
         mock_mem.write_text("# Workspace Test Briefing\nMock working memory without session ID", encoding="utf-8")
 
-        env = os.environ.copy()
-        env["HOME"] = str(fake_home)
+        env = offline_hook_env(fake_home)
         env["OPENHANDS_PROJECT_DIR"] = str(proj_dir)
-        for var in ("OPENHANDS_SESSION_ID", "OPENHANDS_CONVERSATION_ID", "CONVERSATION_ID", "SESSION_ID"):
-            env.pop(var, None)
-        env["NMEM_API_URL"] = "http://127.0.0.1:9999"
 
         context_script = PLUGIN_DIR / "hooks" / "nmem-context.py"
 
@@ -823,7 +830,7 @@ class TestReviewerFindingsDetection:
         assert unrelated.exists()
         assert (sessions / "conv-new.injected").exists()
 
-    def test_session_first_prompt_injection_with_conversation_id(self, tmp_path: Path) -> None:
+    def test_session_first_prompt_injection_with_conversation_id(self, tmp_path: Path, offline_hook_env) -> None:
         """Verify that prompt injection honors conversation_id and conversationId payload fields."""
         conv_id = f"conv-test-{int(time.time())}"
         fake_home = tmp_path / "home"
@@ -833,11 +840,7 @@ class TestReviewerFindingsDetection:
         mock_mem.parent.mkdir(parents=True, exist_ok=True)
         mock_mem.write_text("# Conversation ID Briefing\nMock conv memory", encoding="utf-8")
 
-        env = os.environ.copy()
-        env["HOME"] = str(fake_home)
-        for var in ("OPENHANDS_SESSION_ID", "OPENHANDS_CONVERSATION_ID", "CONVERSATION_ID", "SESSION_ID"):
-            env.pop(var, None)
-        env["NMEM_API_URL"] = "http://127.0.0.1:9999"
+        env = offline_hook_env(fake_home)
 
         context_script = PLUGIN_DIR / "hooks" / "nmem-context.py"
 

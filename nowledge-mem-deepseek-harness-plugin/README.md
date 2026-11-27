@@ -1,5 +1,7 @@
 # Nowledge Mem for DeepSeek Harness
 
+The default MCP connection starts `nmem mcp` (requires nmem 0.10.126 or later). Start a new DSH session after changing workspaces. An explicit `NMEM_MCP_URL` or `NOWLEDGE_MEM_MCP_URL` still selects the HTTP connector. Both transports request the same external-agent tool set and slim schema.
+
 [![Get Nowledge Mem](https://img.shields.io/badge/Get-Nowledge%20Mem-00A3A3?style=flat&logo=rocket&logoColor=white)](https://mem.nowledge.co/)
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 [![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-dsh--plugin-111827?style=flat)](https://github.com/deepseek-ai/deepseek-harness)

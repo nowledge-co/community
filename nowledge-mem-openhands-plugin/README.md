@@ -145,6 +145,8 @@ Defined in `hooks/hooks.json`:
 
 ## MCP Server Configuration
 
+If the SDK and nmem 0.10.126+ run on the same machine, initialize the OpenHands Agent's `mcp_config` with the `mcpServers` map from `mcp.stdio.json` to follow the CLI workspace on a new session without copying a key. The standard HTTP aliases below remain for deployments with no CLI in the MCP host (for example, a sandbox). The workspace hook already resolves its HTTP destination from the current environment and CLI config. Do not register both variants under the same server name.
+
 Configured in `.mcp.json` and `mcp.json`:
 
 ```json

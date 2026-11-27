@@ -31,11 +31,7 @@ test("shipped diagnostic skills keep the same desktop-first install contract", (
 
 test("bundled MCP declares exact Spaces semantics without embedding keys", () => {
   const server = JSON.parse(read("../.mcp.json")).mcpServers["nowledge-mem"];
-  assert.equal(server.url, "http://127.0.0.1:14242/mcp");
-  assert.equal(server.headers.APP, "WorkBuddy");
-  assert.equal(server.headers["x-nmem-space-protocol"], "exact-v1");
-  assert.equal(server.headers.Authorization, undefined);
-  assert.equal(server.headers["X-NMEM-API-Key"], undefined);
+  assert.deepEqual(server, {command: "nmem", args: ["mcp"], env: {NMEM_MCP_APP: "WorkBuddy"}});
 });
 
 test("marketplace and registry deliver the same self-contained package version", () => {

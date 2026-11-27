@@ -52,20 +52,7 @@ mcp.json
 
 ## MCP Setup
 
-The plugin ships a local default `mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "nowledge-mem": {
-      "url": "http://localhost:14242/mcp",
-      "type": "streamableHttp"
-    }
-  }
-}
-```
-
-For remote Mem, adjust the MCP server URL and headers using Cursor's MCP configuration flow. Cursor's plugin format expects this file to be named `mcp.json`, not `.mcp.json`.
+The bundled `mcp.json` starts `nmem mcp` on the host (nmem 0.10.126 or later). Cursor reads the selected workspace when it starts a new session; there is no endpoint or key to edit in the plugin. Cursor expects the filename `mcp.json`, not `.mcp.json`.
 
 The hooks still run client-side, so configure the local `nmem` client for the same remote Mem service:
 

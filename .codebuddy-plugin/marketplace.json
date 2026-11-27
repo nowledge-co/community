@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "nowledge-mem",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "source": "./nowledge-mem-codebuddy-plugin",
       "description": "Cross-tool memory, MCP tools, and lifecycle thread sync for CodeBuddy Code.",
       "tags": ["memory", "mcp", "hooks", "thread-sync", "codebuddy"],

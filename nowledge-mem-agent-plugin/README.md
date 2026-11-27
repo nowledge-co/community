@@ -7,7 +7,7 @@ Use this package when your AI client supports Agent Plugins but does not have a 
 ## What It Includes
 
 - `plugin.json` using the Agent Plugins 1.0 manifest schema
-- `mcp.json` registering the local Nowledge Mem Streamable HTTP MCP endpoint
+- `mcp.json` registering the `nmem mcp` stdio connection
 - Shared Nowledge Mem skills for startup context, recall, focused graphs, distillation, status checks, and handoff summaries
 
 ## Install
@@ -22,21 +22,7 @@ After install, start Nowledge Mem Desktop or point your local `nmem` CLI at your
 
 ## Local vs Remote Mem
 
-The standard `mcp.json` deliberately points to local Mem:
-
-```text
-http://127.0.0.1:14242/mcp
-```
-
-Agent Plugins 1.0 allows literal HTTP headers, but does not define a safe cross-client credential reference for API keys. Do not publish private keys in this package.
-
-For Nowledge Cloud, Access Anywhere, or self-hosted remote Mem, use the client's private MCP settings instead. The safest way to generate that config is:
-
-```bash
-nmem config mcp show --host <your-client>
-```
-
-If the CLI does not know your client yet, copy the generated URL and authentication values from Nowledge Mem app: **Connectors -> AI Tools** or **Settings -> Mem access**.
+The bundled `mcp.json` runs `nmem mcp` (requires nmem 0.10.126 or later). Start a new client session after switching workspaces. A hosted client that cannot launch the local CLI needs its own HTTPS connection; use its private connector settings and do not put a key in this package.
 
 ## Capabilities
 

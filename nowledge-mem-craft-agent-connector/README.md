@@ -1,5 +1,7 @@
 # Nowledge Mem for Craft Agent
 
+The bundled local MCP connection requires nmem 0.10.126 or later with `nmem mcp`. Restart the host session after changing your Mem connection.
+
 Craft Agent supports workspace sources and skills. This connector uses those
 native surfaces:
 
@@ -13,12 +15,7 @@ source and guide live in each Craft workspace.
 
 ## Install
 
-Generate the Craft source config from the same Mem client settings used by the
-CLI:
-
-```bash
-nmem config mcp show --host craft-agent
-```
+Start with [source-config.example.json](source-config.example.json). It runs `nmem mcp` and contains no URL or key. Ensure `nmem mcp --help` works on the computer running Craft Agent.
 
 Create this folder in the Craft workspace you want to connect:
 
@@ -26,7 +23,7 @@ Create this folder in the Craft workspace you want to connect:
 ~/.craft-agent/workspaces/<workspace>/sources/nowledge-mem/
 ```
 
-Then save the generated `sourceConfig` JSON as:
+Save the example JSON in that folder as:
 
 ```text
 sources/nowledge-mem/config.json
@@ -72,14 +69,6 @@ If your Craft config is elsewhere, set `CRAFT_CONFIG_DIR` or pass
 
 ## Remote Mem
 
-Configure the local client first:
+Configure nmem on the computer running Craft and start a new Craft session. The stdio source follows that connection; do not regenerate the source or add a key to it. Thread import still runs on the computer holding Craft's transcripts.
 
-```bash
-nmem config client set url https://your-mem-server
-nmem config client set api-key nmem_...
-nmem config mcp show --host craft-agent
-```
-
-Paste the regenerated source config into Craft Agent. Thread import still runs
-on this machine because this is where Craft stores the transcripts; the CLI then
-uploads normalized threads to your configured Mem server.
+If you intentionally need a standalone HTTP source, inspect `nmem config mcp show --host craft-agent` and configure Craft's credentials privately. A direct HTTP source is tied to that address and does not follow workspace changes.
