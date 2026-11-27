@@ -1,8 +1,6 @@
 # Recommended local setup for Codex.
 #
-# The setup script writes a managed mcp_servers.nowledge-mem block so Codex can
-# resolve per-agent NMEM_AGENT_ID/NMEM_HOST_AGENT_ID/NMEM_SPACE environment
-# values. The plugin-bundled local endpoint remains a static fallback.
+# The bundled MCP server and the setup-managed block start nmem mcp.
 
 [features]
 plugins = true
@@ -37,14 +35,7 @@ enabled = true
 # [memories]
 # disable_on_external_context = true
 
-# Remote/custom Mem override example:
-# Generate this block from your saved nmem client config with:
-# nmem config mcp show --host codex
-#
+# Optional setup-managed configuration (generate with nmem config mcp show --host codex):
 # [mcp_servers.nowledge-mem]
-# url = "https://mem.example.com/mcp"
-# env_http_headers = { "X-Nmem-Agent-Id" = "NMEM_AGENT_ID", "X-Nmem-Host-Agent-Id" = "NMEM_HOST_AGENT_ID", "X-Nmem-Space-Id" = "NMEM_SPACE" }
-#
-# [mcp_servers.nowledge-mem.http_headers]
-# APP = "Codex"
-# Authorization = "Bearer nmem_your_key"
+# command = "nmem"
+# args = ["mcp"]

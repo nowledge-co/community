@@ -55,13 +55,9 @@ For an ordinary update, use **Update** on the installed plugin card and reload; 
 
 Removing the old marketplace clears its enabled entry; the final install restores it from the dedicated WorkBuddy package. Restart or reload WorkBuddy after installation.
 
-The bundled MCP endpoint targets local Mem. For remote Mem or authenticated localhost, generate a user-owned override:
+With nmem 0.10.125 or later, the bundled connector runs `nmem mcp` and follows the desktop's workspace on each new session. Check **Connections / MCP** and approve the connector's Trust request. No URL or key belongs in the plugin files.
 
-```bash
-nmem config mcp show --host workbuddy
-```
-
-In desktop WorkBuddy, add or edit `nowledge-mem` through **Connections / MCP** and preserve the generated URL and all headers. Review its Trust/enable state after saving. The bundled local connection declares `x-nmem-space-protocol: exact-v1`; the generated override must preserve that declaration too.
+If you deliberately need a separately managed HTTP endpoint, generate its URL and headers with `nmem config mcp show --host workbuddy` and preserve them when configuring that override.
 
 Do not assume that writing `~/.workbuddy/.mcp.json` by itself registers a connector in the desktop UI. That file belongs to a CLI/project configuration path on hosts that support it; it is not evidence of desktop activation. Do not edit the installed plugin cache or register a second competing endpoint without disabling the old one.
 

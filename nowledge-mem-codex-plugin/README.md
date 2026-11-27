@@ -370,21 +370,9 @@ Use `-p /path/to/project` instead of `--all-projects` when you only want one pro
 
 On current Codex builds, enabled plugins contribute `hooks/hooks.json` automatically. Older builds may still need `plugin_hooks = true`; the setup script detects that from `codex features list`. In `/hooks`, the Nowledge Mem SessionStart, SubagentStart, UserPromptSubmit, and Stop hooks should be both enabled and trusted.
 
-The same setup asks `nmem` for a Codex MCP config and writes a managed `mcp_servers.nowledge-mem` block into `~/.codex/config.toml`. Besides remote URL and authentication, this block maps `NMEM_AGENT_ID`, `NMEM_HOST_AGENT_ID`, and `NMEM_SPACE` through Codex's native environment-backed HTTP headers. A named Raft/Codex worker therefore appears automatically under **Context → AI Identities**, and its MCP searches and writes use that identity's configured default Space. Existing user-owned MCP blocks are never replaced.
+The bundled server and the setup-managed Codex MCP block both launch `nmem mcp` (requires nmem 0.10.125 or later). Each new session reads the CLI's selected destination, credentials, and worker identity; an existing session stays on its original workspace. Setup leaves user-owned MCP blocks alone. Rerun `scripts/install_hooks.py` to upgrade a block created by an older setup. There is no need to copy a key into Codex configuration.
 
-The package still includes a local fallback MCP server at `http://127.0.0.1:14242/mcp`, but its static plugin manifest cannot resolve process-specific environment values. Rerun `scripts/install_hooks.py` after updating the plugin so named agents receive the identity-aware managed block.
-
-If you prefer to copy a bundled example, see [`codex.config.example.toml`](./codex.config.example.toml).
-
-For remote Mem, keep the plugin block and override the bundled MCP server with your server:
-
-```bash
-nmem config client set url https://mem.example.com
-nmem config client set api-key nmem_your_key
-nmem config mcp show --host codex
-```
-
-Paste the generated TOML into `~/.codex/config.toml`, or rerun the setup script above if your installed plugin is `0.1.11` or newer. Direct MCP clients do not read `~/.nowledge-mem/config.json` by themselves; the generated block gives Codex the same URL and key that `nmem` already uses.
+If you run Codex on another computer, configure the CLI on that computer first. See the [workspace connection guide](../docs/MCP_WORKSPACE_FOLLOW.md). Use `nmem config mcp show --host codex` to inspect the generated TOML.
 
 ### Repo-level (this project only)
 

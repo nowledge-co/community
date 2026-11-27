@@ -17,15 +17,7 @@ codebuddy plugin marketplace add nowledge-co/community
 codebuddy plugin install nowledge-mem@nowledge-community
 ```
 
-Restart or reload CodeBuddy. For remote Mem or authenticated localhost:
-
-```bash
-nmem config client set url https://your-mem-server
-nmem config client set api-key your-key
-nmem config mcp show --host codebuddy
-```
-
-Place the generated MCP block in `~/.codebuddy/.mcp.json`, `$CODEBUDDY_CONFIG_DIR/.mcp.json`, or a project `.mcp.json`.
+Restart or reload CodeBuddy. The plugin starts `nmem mcp` (nmem 0.10.125 or later). It uses the CLI's workspace and credentials; start a new session after switching workspaces. A separately managed HTTP connection is still possible through `nmem config mcp show --host codebuddy`.
 
 ## Thread Capture
 
