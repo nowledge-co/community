@@ -49,9 +49,12 @@ the card’s `send_args_prefix`. For multiple or partial results, follow
 Never send to every match. Receive and reply in the original exchange below.
 
 If the installed CLI lacks this feature, explain that this version cannot
-publish or find a window by name. Offer the existing contact exchange below
+publish or find a window by name and stop the name search there. Checking role
+rosters across Spaces, the sender’s inbox, or saved connections cannot locate
+that window. Offer the existing contact exchange below
 when both sessions can receive. If the service reports that it cannot qualify
-this receiver, keep the original session and report its next action.
+this receiver, describe it as registered with receiving unconfirmed. Keep the
+original session and report its next action.
 
 ## Prepare and exchange a contact
 
