@@ -31,6 +31,26 @@ Preparing your own receiving entry needs your approved binding and actual host
 session, not the other participant's identity, address or task. Ask for a peer
 only when sending actually needs a destination.
 
+## Find the recipient first
+
+When the user asks to contact a person or Agent but supplies no Space, discover
+the recipient before asking for a Space or starting mailbox setup. Use the
+installed CLI's `bridge contacts`, adding `--query <name>` when a name is known.
+Omit the Space selector when supported so the client searches the Spaces this
+connection can read. Preserve an explicitly approved Agent Context and its
+limits; never switch identities or connections to widen discovery. On older
+clients, use the supported all-Spaces discovery path when available. For an
+MCP-only host, use its supported Space roster and contact search under the same
+approved connection and scope; preserve the returned exact Space for each card.
+Follow the returned Space-batch and per-Space continuation arguments within a
+finite budget, and report inaccessible or unsearched results as incomplete.
+Use returned member and Agent information to identify the intended recipient.
+For a named Context, prefer the grouped `contacts[].send_args_prefix` and verify
+it retains that Context; a raw Space card's prefix may omit the sender Context.
+Ask only when the recipient or required communication authority remains
+ambiguous. Discovery is read-only and does not enable a mailbox or send a message.
+For a particular native session, follow the native-session path instead.
+
 ## Discover the installed capability
 
 Use the configured `NMEM_CLI_PATH` executable when present; otherwise use `nmem`.
@@ -102,9 +122,11 @@ If `bridge setup` is supported, inspect its help and call its passive mode.
 Use only the exact Space the user selected or an existing independently approved
 selector. If a named context is already approved, pass `--agent-context` to
 setup and reuse the returned verified Space without asking for it again.
-Without one, inspect available Spaces and ask for the intended Space;
-never choose personal, default, all, or the first result. Reuse a currently
-verified identity rather than creating one per session.
+For a contact request, first use the discovery path above. Use the returned
+recipient and any verified sender Context to determine the supported sending
+scope. Ask only if setup actually needs an unresolved scope or authority; never
+guess personal, default, all, or the first result. Reuse a currently verified
+identity rather than creating one per session.
 
 When setup verifies an existing standard Agent, the user's explicit request to
 use that approved identity and Space permits its explicit enable action. Do not

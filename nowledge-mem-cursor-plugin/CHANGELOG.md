@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.7] - Unreleased
+
+- Find Bridge contacts across accessible Spaces before asking for a Space, preserving the approved sender and communication scope.
+
 ## 0.2.6
 
 - Consume local Bridge mailbox notices for actual host sessions and release subscriptions on session end.

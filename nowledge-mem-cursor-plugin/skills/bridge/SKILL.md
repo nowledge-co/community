@@ -30,11 +30,15 @@ At startup read one page. For relevant mail, set `message_id` to the selected ro
 "$bridge_cli" --json --agent-context="$NMEM_AGENT_CONTEXT" bridge --resolved-space-id="$bridge_space_id" reply "$message_id" --body="$reply_body"
 ```
 
+## Find the recipient first
+
+For a request to contact a person or Agent without a named Space, use the configured CLI to run `bridge contacts`, adding `--query <name>` when known. Omit a Space selector when supported and keep any approved Context and connection unchanged. Follow returned Space-batch and per-Space continuation arguments within a finite budget; report inaccessible or unsearched results as incomplete. Ask only if the recipient or required communication authority remains ambiguous. This read-only discovery neither enables a mailbox nor sends a message. For a particular native session, use its supported native path rather than a role mailbox.
+
 ## Select the mailbox for an interactive request
 
-Choose which Agent you will act as before selecting a recipient.
+After discovery, retain the approved sender and the selected contact's returned action. When its grouped `contacts[].send_args_prefix` retains any approved Context, use it with the user's authorized message only after the sender and scope are established by that Context or the authority's explicit write default. The returned action alone does not prove a sending scope; do not ask for a Space solely to find the contact. A raw Space card prefix can omit the Context and must not silently change the sender. If sender authority or sharing scope remains unresolved, inspect the supported setup and ask only for that actual choice; never guess a Space or substitute a sender after refusal.
 
-- For the approved login's own mailbox, use passive setup to verify its identity and Space. If no named Context was selected, omit the Context flag and pass the approved exact Space to setup and every operation.
+- For the approved login's own mailbox when setup is needed, use passive setup to verify its identity and Space. If no named Context was selected, omit the Context flag and pass the approved exact Space to setup and subsequent scoped operations.
 - For an explicitly requested existing role, use a Context whose passive setup verifies that role's canonical Agent ID and the approved Space. A matching display name alone is insufficient.
 - If there is no approved Context for the requested role, connecting it requires the user's authorization. Use the same login, exact Space and canonical Agent ID:
 

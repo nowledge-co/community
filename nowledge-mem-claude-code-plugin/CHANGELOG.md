@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.43] - Unreleased
+
+- Find Bridge contacts across accessible Spaces before asking for a Space, preserving the approved sender and communication scope.
+
 ## [0.7.42] - Unreleased
 
 - Ask a running window to receive reviews under a name. On a connection that supports named sessions, another window can find it in the same Space and reply without exchanging addresses.
