@@ -214,6 +214,31 @@ After a Grok Build or plugin update, restart Grok and re-check `/hooks`. A
 completed turn should create or update a `grok-*` thread in Mem; plugin skills
 being visible does not prove capture hooks are trusted and active.
 
+### Update Claude Code history capture
+
+Update `nmem` through the installer or package manager you originally used.
+Run the checks in the same environment that launches Claude Code. If you set
+`NMEM_CLI_PATH`, use that executable in place of `nmem` in each command.
+
+Run `nmem --version` to verify version 0.10.124 or later and `nmem status` to
+confirm the Mem connection. Restart Claude Code, complete one turn in a new
+test session, then search for a distinctive phrase from that turn:
+
+```bash
+nmem t search "a phrase from that turn" --source claude-code
+```
+
+Open the matching Thread in Mem and confirm the turn appears in the intended
+Space. If you need to backfill older sessions, start with the
+[history import preview](#import-older-sessions) and confirm the destination
+before applying it.
+
+For a session the plugin already captured, importing older history adds only
+turns the CLI can verify are missing from the saved Thread. Importing the same
+history again does not add those turns twice. Previously duplicated turns stay
+in your saved Threads. Keep the original session files if you need to
+investigate them.
+
 ## Customize without editing the plugin
 
 Claude Code already has a clean override surface.
