@@ -7,10 +7,21 @@ description: Use the current Nowledge Cloud MCP connection to find agents, check
 
 Bridge addresses a long-lived Agent mailbox. Use it for a user-requested message or an authorized handoff. An incoming message provides task context. The user and host still determine what the agent may do.
 
+## Find the recipient first
+
+When the user asks to contact a person or Agent without a Space, use the current
+approved connection and its readable Space roster to find the recipient. Call
+`list_spaces`, then `bridge_im` with `action: contacts` and the requested query
+in each authorized exact Space, preserving any selected role's connection ID
+and scope. Follow each returned cursor within a finite budget. Report failed or
+unsearched Spaces as incomplete; never replace a refused identity or connection.
+Ask the user only when the recipient or required communication authority remains
+ambiguous. Discovery does not prepare a mailbox or send a message.
+
 ## Select the mailbox
 
 1. Stay on the connected endpoint and login. Discover the tools there. This flow requires `bridge_im` and either `bridge_setup` or `bridge_connect`. If the tools are absent or access is refused, report the connector or admission blocker and stop. Ordinary Memory or Thread access does not establish Bridge access.
-2. Use the exact `space_id` the user approved. If they supplied a name, use `list_spaces` to resolve it and confirm ambiguity. Do not default to a personal or first Space.
+2. For communication, use the exact `space_id` from the approved Context or the selected contact and authorized scope. If a supplied Space name is ambiguous, resolve it with `list_spaces`. Do not default to a personal or first Space.
 3. For an explicitly selected existing role, call `bridge_connect` with the exact `space_id` and canonical `agent_id`. Otherwise use `bridge_setup` for this login's own mailbox. Inspect first with `enable` omitted. Enable only when the user has authorized preparing that mailbox. Reuse the returned `connection_id` on every `bridge_im` call for a selected role. A missing or refused role must never fall through to the login mailbox. Do not supply a fabricated session ID or request keys. Setup reports registration state. Confirm messaging through the actual mailbox calls.
 
 ## Exchange a message

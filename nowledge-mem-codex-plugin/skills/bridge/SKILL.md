@@ -44,8 +44,10 @@ MCP-only host, use its supported Space roster and contact search under the same
 approved connection and scope; preserve the returned exact Space for each card.
 Follow the returned Space-batch and per-Space continuation arguments within a
 finite budget, and report inaccessible or unsearched results as incomplete.
-Use returned member and Agent information to identify the intended recipient;
-ask the user only when the recipient or required communication authority remains
+Use returned member and Agent information to identify the intended recipient.
+For a named Context, prefer the grouped `contacts[].send_args_prefix` and verify
+it retains that Context; a raw Space card's prefix may omit the sender Context.
+Ask only when the recipient or required communication authority remains
 ambiguous. Discovery is read-only and does not enable a mailbox or send a message.
 For a particular native session, follow the native-session path instead.
 
